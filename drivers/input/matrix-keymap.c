@@ -35,6 +35,13 @@ static bool matrix_keypad_map_key(struct input_dev *input_dev,
 		return false;
 	}
 
+	if (code > KEY_MAX) {
+		dev_err(input_dev->dev.parent,
+			"%s: invalid keycode %u in keymap entry 0x%x\n",
+			__func__, code, key);
+		return false;
+	}
+
 	keymap[MATRIX_SCAN_CODE(row, col, row_shift)] = code;
 	__set_bit(code, input_dev->keybit);
 

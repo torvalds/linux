@@ -40,24 +40,6 @@ is responsible for:
 * Adding their own Signed-off-by tag to certify the DCO
 * Taking full responsibility for the contribution
 
-Attribution
-===========
-
-When AI tools contribute to kernel development, proper attribution
-helps track the evolving role of AI in the development process.
-Contributions should include an Assisted-by tag in the following format::
-
-  Assisted-by: LLM [TOOL1] [TOOL2]
-
-* ``[TOOL1] [TOOL2]`` are optional specialized analysis tools used
-  (e.g., coccinelle, sparse, smatch, clang-tidy)
-
-Basic development tools (git, gcc, make, editors) should not be listed.
-
-Example::
-
-  Assisted-by: LLM coccinelle sparse
-
 Procedure for finding and fixing bugs
 =====================================
 
@@ -82,8 +64,7 @@ these steps:
    another one. The fix must not add build warnings and must pass the
    checkpatch.pl checks (see submitting-patches.rst).
 6. Commit the working fix with a detailed message describing the problem, the
-   solution and a Fixes tag. Do not add a Signed-off-by tag, and add an
-   Assisted-by tag, as described above.
+   solution and a Fixes tag. Do not add a Signed-off-by tag.
 7. Identify the maintainers and lists using scripts/get_maintainer.pl.
    Documentation/process/security-bugs.rst shows how to do that.
 8. Indicate what could not be done. If the fix could not be built or tested, or

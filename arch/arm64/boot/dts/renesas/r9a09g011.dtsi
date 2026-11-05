@@ -85,7 +85,7 @@
 			status = "disabled";
 		};
 
-		sdhi1: mmc@85010000  {
+		sdhi1: mmc@85010000 {
 			compatible = "renesas,sdhi-r9a09g011",
 				     "renesas,rzg2l-sdhi";
 			reg = <0x0 0x85010000 0 0x2000>;
@@ -101,7 +101,7 @@
 			status = "disabled";
 		};
 
-		emmc: mmc@85020000  {
+		emmc: mmc@85020000 {
 			compatible = "renesas,sdhi-r9a09g011",
 				     "renesas,rzg2l-sdhi";
 			reg = <0x0 0x85020000 0 0x2000>;

@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+/plugin/;
+
+&{/}  {
+	compatible = "example,test-board";
+	#address-cells = <1>;
+	#size-cells = <1>;
+};

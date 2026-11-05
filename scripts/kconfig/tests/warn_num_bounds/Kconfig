@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0
+
+mainmenu "Numeric bounds test"
+
+config INT_TOO_LOW
+	int "Integer below its type bounds"
+
+config INT_TOO_HIGH
+	int "Integer above its type bounds"
+
+config HEX_TOO_HIGH
+	hex "Hex value above its type bounds"
+
+config INT_MIN
+	int "Minimum valid integer"
+
+config INT_MAX
+	int "Maximum valid integer"
+
+config HEX_MIN
+	hex "Minimum valid hex value"
+
+config HEX_MAX
+	hex "Maximum valid hex value"

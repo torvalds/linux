@@ -258,8 +258,24 @@ static bool cfg80211_igtk_cipher_supported(struct wiphy *wiphy)
 	return false;
 }
 
+bool cfg80211_cigtk_supported(struct wireless_dev *wdev,
+			      struct genl_info *info)
+{
+	const struct wiphy_iftype_ext_capab *ext_capab =
+		cfg80211_get_iftype_ext_capa(wdev->wiphy, wdev->iftype);
+
+	if (ext_capab && ext_capab->cip_supported)
+		return true;
+
+	if (info)
+		GENL_SET_ERR_MSG(info,
+				 "Control Integrity Protocol not supported");
+
+	return false;
+}
+
 bool cfg80211_valid_key_idx(struct wireless_dev *wdev,
-			    int key_idx, bool pairwise,
+			    int key_idx, enum nl80211_key_type type,
 			    const u8 *mac_addr)
 {
 	if (WARN_ON(!wdev))
@@ -272,11 +288,22 @@ bool cfg80211_valid_key_idx(struct wireless_dev *wdev,
 	 * Can't differentiate ciphers here so allow 0..3.
 	 * Pairwise keys must be for a station (MAC address given).
 	 */
-	if (pairwise) {
+	if (type == NL80211_KEYTYPE_PAIRWISE) {
 		if (!mac_addr)
 			return false;
 
 		return key_idx < 4;
+	}
+
+	/* Check the wdev/iftype supports CIGTK */
+	if (type == NL80211_KEYTYPE_CIGTK) {
+		if (!cfg80211_cigtk_supported(wdev, NULL))
+			return false;
+
+		if (key_idx >= 2)
+			return false;
+
+		/* fallthrough for mac_addr checks */
 	}
 
 	/*
@@ -343,9 +370,12 @@ bool cfg80211_valid_key_idx(struct wireless_dev *wdev,
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct wireless_dev *wdev,
 				   struct key_params *params, int key_idx,
-				   bool pairwise, const u8 *mac_addr)
+				   enum nl80211_key_type type,
+				   const u8 *mac_addr)
 {
-	if (!cfg80211_valid_key_idx(wdev, key_idx, pairwise, mac_addr))
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
+
+	if (!cfg80211_valid_key_idx(wdev, key_idx, type, mac_addr))
 		return -EINVAL;
 
 	switch (params->cipher) {
@@ -390,6 +420,17 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (key_idx > 3)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+
+	switch (params->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (wdev->valid_links)
 			return -EINVAL;
 		break;
 	default:
@@ -1190,7 +1231,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	for (i = 0; i < 4; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
-		if (rdev_add_key(rdev, wdev, -1, i, false, NULL,
+		if (rdev_add_key(rdev, wdev, -1, i, NL80211_KEYTYPE_GROUP, NULL,
 				 &wdev->connect_keys->params[i])) {
 			netdev_err(dev, "failed to set key %d\n", i);
 			continue;

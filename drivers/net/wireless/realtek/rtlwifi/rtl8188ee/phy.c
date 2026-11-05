@@ -1891,7 +1891,7 @@ static void _rtl88e_phy_set_rfpath_switch(struct ieee80211_hw *hw,
 		rtl_set_bbreg(hw, 0x914, MASKLWORD, 0x0201);
 
 		/* We use the RF definition of MAIN and AUX,
-		 * left antenna and right antenna repectively.
+		 * left antenna and right antenna respectively.
 		 * Default output at AUX.
 		 */
 		if (bmain) {

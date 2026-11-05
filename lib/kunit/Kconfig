@@ -133,7 +133,7 @@ config KUNIT_DEFAULT_TIMEOUT
 
 config KUNIT_UML_PCI
 	bool "KUnit UML PCI Support"
-	depends on UML
+	depends on UML && MMU
 	select UML_PCI
 	help
 	  Enables the PCI subsystem on UML for use by KUnit tests.

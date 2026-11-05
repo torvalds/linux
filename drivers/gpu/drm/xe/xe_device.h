@@ -205,7 +205,7 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
 bool xe_device_is_l2_flush_optimized(struct xe_device *xe);
 void xe_device_td_flush(struct xe_device *xe);
-void xe_device_l2_flush(struct xe_device *xe);
+void xe_device_l2_flush(struct xe_device *xe, bool force);
 
 static inline bool xe_device_wedged(struct xe_device *xe)
 {

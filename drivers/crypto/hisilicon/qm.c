@@ -5743,8 +5743,8 @@ static int qm_pre_store_caps(struct hisi_qm *qm)
 							i, qm->cap_ver);
 	}
 
-	qm->cap_tables.qm_cap_table = qm_cap;
 	qm->cap_tables.qm_cap_size = size;
+	qm->cap_tables.qm_cap_table = qm_cap;
 
 	return 0;
 }

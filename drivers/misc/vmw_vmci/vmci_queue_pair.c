@@ -2668,7 +2668,7 @@ static ssize_t qp_dequeue_locked(struct vmci_queue *produce_q,
  * @consume_qsize:      Desired size of the consumer queue.
  * @peer:       ContextID of the peer.
  * @flags:      VMCI flags.
- * @priv_flags: VMCI priviledge flags.
+ * @priv_flags: VMCI privilege flags.
  *
  * This is the client interface for allocating the memory for a
  * vmci_qp structure and then attaching to the underlying

@@ -13,6 +13,7 @@
 #ifndef __ASSEMBLER__
 
 #include <linux/personality.h> /* for READ_IMPLIES_EXEC */
+#include <linux/string.h> /* for memset() */
 #include <linux/types.h> /* for gfp_t */
 #include <asm/pgtable-types.h>
 
@@ -20,7 +21,17 @@ struct page;
 struct vm_area_struct;
 
 extern void copy_page(void *to, const void *from);
-extern void clear_page(void *to);
+
+static inline void clear_pages(void *addr, unsigned int npages)
+{
+	memset(addr, 0, npages * PAGE_SIZE);
+}
+#define clear_pages clear_pages
+
+static inline void clear_page(void *addr)
+{
+	clear_pages(addr, 1);
+}
 
 void copy_user_highpage(struct page *to, struct page *from,
 			unsigned long vaddr, struct vm_area_struct *vma);

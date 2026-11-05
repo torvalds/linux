@@ -1046,8 +1046,7 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 static inline irqreturn_t crypto4xx_interrupt_handler(int irq, void *data,
 						      u32 clr_val)
 {
-	struct device *dev = data;
-	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
+	struct crypto4xx_core_device *core_dev = data;
 
 	writel(clr_val, core_dev->dev->ce_base + CRYPTO4XX_INT_CLR);
 	tasklet_schedule(&core_dev->tasklet);
@@ -1206,8 +1205,18 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev;
 	struct device_node *np;
+	void __iomem *ce_base;
+	int irq;
 	u32 pvr;
 	bool is_revb = true;
+
+	irq = platform_get_irq(ofdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ce_base = devm_platform_ioremap_resource(ofdev, 0);
+	if (IS_ERR(ce_base))
+		return PTR_ERR(ce_base);
 
 	np = of_find_compatible_node(NULL, NULL, "amcc,ppc460ex-crypto");
 	if (np) {
@@ -1251,9 +1260,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	if (!core_dev->dev)
 		return -ENOMEM;
 
-	core_dev->dev->ce_base = devm_platform_ioremap_resource(ofdev, 0);
-	if (IS_ERR(core_dev->dev->ce_base))
-		return PTR_ERR(core_dev->dev->ce_base);
+	core_dev->dev->ce_base = ce_base;
 
 	/*
 	 * Older version of 460EX/GT have a hardware bug.
@@ -1291,15 +1298,11 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 		     (unsigned long) dev);
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
-	core_dev->irq = platform_get_irq(ofdev, 0);
-	if (core_dev->irq < 0) {
-		rc = core_dev->irq;
-		goto err_tasklet;
-	}
+	core_dev->irq = irq;
 	rc = request_irq(core_dev->irq,
 			 is_revb ? crypto4xx_ce_interrupt_handler_revb :
 				   crypto4xx_ce_interrupt_handler,
-			 0, KBUILD_MODNAME, dev);
+			 0, KBUILD_MODNAME, core_dev);
 	if (rc)
 		goto err_tasklet;
 
@@ -1312,11 +1315,15 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	if (rc)
 		goto err_irq;
 
-	ppc4xx_trng_probe(core_dev);
+	rc = ppc4xx_trng_probe(core_dev);
+	if (rc)
+		goto err_crypto;
 	return 0;
 
+err_crypto:
+	crypto4xx_unregister_alg(core_dev->dev);
 err_irq:
-	free_irq(core_dev->irq, dev);
+	free_irq(core_dev->irq, core_dev);
 err_tasklet:
 	tasklet_kill(&core_dev->tasklet);
 err_build_sdr:
@@ -1337,7 +1344,7 @@ static void crypto4xx_remove(struct platform_device *ofdev)
 	 * Free IRQ before killing the tasklet to prevent the interrupt
 	 * handler from rescheduling the tasklet after it has been killed.
 	 */
-	free_irq(core_dev->irq, dev);
+	free_irq(core_dev->irq, core_dev);
 	tasklet_kill(&core_dev->tasklet);
 	/* Un-register with Linux CryptoAPI */
 	crypto4xx_unregister_alg(core_dev->dev);

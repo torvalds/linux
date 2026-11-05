@@ -1727,15 +1727,12 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * shared register for the high 32 bits, so only a single, aligned,
 	 * 4 GB physical address range can be used for descriptors.
 	 */
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
-		dev_dbg(&pdev->dev, "DMA to 64-BIT addresses\n");
-	} else {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "No usable DMA config, aborting\n");
-			goto out_pci_disable;
-		}
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "No usable DMA config, aborting\n");
+		goto out_pci_disable;
 	}
+	dev_dbg(&pdev->dev, "DMA to 64-BIT addresses\n");
 
 	err = pci_request_mem_regions(pdev, alx_drv_name);
 	if (err) {

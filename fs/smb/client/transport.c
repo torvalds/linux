@@ -22,7 +22,6 @@
 #include <linux/mempool.h>
 #include <linux/sched/signal.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/task_work.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -171,15 +170,22 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 		 * after the retries we will kill the socket and
 		 * reconnect which may clear the network problem.
 		 *
-		 * Even if regular signals are masked, EINTR might be
-		 * propagated from sk_stream_wait_memory() to here when
-		 * TIF_NOTIFY_SIGNAL is used for task work. For example,
-		 * certain io_uring completions will use that. Treat
-		 * having EINTR with pending task work the same as EAGAIN
-		 * to avoid unnecessary reconnects.
+		 * Task work must not abort the send, see signal_pending().
 		 */
-		rc = sock_sendmsg(ssocket, smb_msg);
-		if (rc == -EAGAIN || unlikely(rc == -EINTR && task_work_pending(current))) {
+		scoped_guard(no_notify_signal)
+			rc = sock_sendmsg(ssocket, smb_msg);
+
+		/*
+		 * If need to reconnect, blame it for any non-interrupt error
+		 * and bail out early, even if -EAGAIN;  reconnect will never
+		 * happen in parallel as cifs_reconnect() needs server mutex
+		 * (which we're already holding), so it's pointless to retry.
+		 */
+		if (unlikely(rc <= 0 && !is_interrupt_error(rc) &&
+			     READ_ONCE(server->tcpStatus) == CifsNeedReconnect))
+			return -ECONNRESET;
+
+		if (rc == -EAGAIN) {
 			retries++;
 			if (retries >= 14 ||
 			    (!server->noblocksnd && (retries > 2))) {
@@ -654,6 +660,26 @@ int wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	return 0;
 }
 
+static void cond_sock_shutdown(struct TCP_Server_Info *server)
+{
+	bool shutdown;
+
+	lockdep_assert_held(&server->_srv_mutex);
+
+	spin_lock(&server->srv_lock);
+	/*
+	 * No need to check status, ->need_sock_shutdown is only set when it's
+	 * CifsNeedReconnect.
+	 */
+	shutdown = server->need_sock_shutdown && server->ssocket;
+	server->need_sock_shutdown = false;
+	spin_unlock(&server->srv_lock);
+
+	if (shutdown)
+		/* Don't release it here/yet! */
+		kernel_sock_shutdown(server->ssocket, SHUT_RDWR);
+}
+
 /*
  * Send a SMB request and set the callback function in the mid to handle
  * the result. Caller is responsible for dealing with timeouts.
@@ -724,6 +750,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		revert_current_mid(server, mid->credits);
 		server->sequence_number -= 2;
 		delete_mid(server, mid);
+		cond_sock_shutdown(server);
 	}
 
 	cifs_server_unlock(server);
@@ -982,6 +1009,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			delete_mid(server, mid[i]);
 			cancelled_mid[i] = true;
 		}
+		cond_sock_shutdown(server);
 	}
 
 	cifs_server_unlock(server);
@@ -1317,6 +1345,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 #endif
 		length = cifs_read_iter_from_socket(server, &rdata->subreq.io_iter,
 						    data_len);
+	if (length < 0)
+		return length;
 	if (length > 0)
 		rdata->got_bytes += length;
 	server->total_read += length;

@@ -154,11 +154,6 @@ static const unsigned int es_bytes[] = {
 	[MOXART_DMA_DATA_TYPE_S32] = 4,
 };
 
-static struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
-
 static inline struct moxart_chan *to_moxart_dma_chan(struct dma_chan *c)
 {
 	return container_of(c, struct moxart_chan, vc.chan);
@@ -182,7 +177,7 @@ static int moxart_terminate_all(struct dma_chan *chan)
 	LIST_HEAD(head);
 	u32 ctrl;
 
-	dev_dbg(chan2dev(chan), "%s: ch=%p\n", __func__, ch);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: ch=%p\n", __func__, ch);
 
 	spin_lock_irqsave(&ch->vc.lock, flags);
 
@@ -272,7 +267,7 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 	unsigned int i;
 
 	if (!is_slave_direction(dir)) {
-		dev_err(chan2dev(chan), "%s: invalid DMA direction\n",
+		dev_err(dmaengine_chan_dev(chan), "%s: invalid DMA direction\n",
 			__func__);
 		return NULL;
 	}
@@ -296,7 +291,7 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 		es = MOXART_DMA_DATA_TYPE_S32;
 		break;
 	default:
-		dev_err(chan2dev(chan), "%s: unsupported data width (%u)\n",
+		dev_err(dmaengine_chan_dev(chan), "%s: unsupported data width (%u)\n",
 			__func__, dev_width);
 		return NULL;
 	}
@@ -341,7 +336,7 @@ static int moxart_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct moxart_chan *ch = to_moxart_dma_chan(chan);
 
-	dev_dbg(chan2dev(chan), "%s: allocating channel #%u\n",
+	dev_dbg(dmaengine_chan_dev(chan), "%s: allocating channel #%u\n",
 		__func__, ch->ch_num);
 	ch->allocated = 1;
 
@@ -354,7 +349,7 @@ static void moxart_free_chan_resources(struct dma_chan *chan)
 
 	vchan_free_chan_resources(&ch->vc);
 
-	dev_dbg(chan2dev(chan), "%s: freeing channel #%u\n",
+	dev_dbg(dmaengine_chan_dev(chan), "%s: freeing channel #%u\n",
 		__func__, ch->ch_num);
 	ch->allocated = 0;
 }
@@ -379,7 +374,7 @@ static void moxart_set_transfer_params(struct moxart_chan *ch, unsigned int len)
 	 */
 	writel(d->dma_cycles, ch->base + REG_OFF_CYCLES);
 
-	dev_dbg(chan2dev(&ch->vc.chan), "%s: set %u DMA cycles (len=%u)\n",
+	dev_dbg(vchan_chan_dev(&ch->vc), "%s: set %u DMA cycles (len=%u)\n",
 		__func__, d->dma_cycles, len);
 }
 
@@ -460,7 +455,7 @@ static size_t moxart_dma_desc_size_in_flight(struct moxart_chan *ch)
 	completed_cycles = (ch->desc->dma_cycles - cycles);
 	size -= completed_cycles << es_bytes[ch->desc->es];
 
-	dev_dbg(chan2dev(&ch->vc.chan), "%s: size=%zu\n", __func__, size);
+	dev_dbg(vchan_chan_dev(&ch->vc), "%s: size=%zu\n", __func__, size);
 
 	return size;
 }
@@ -517,7 +512,7 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 	unsigned int i;
 	u32 ctrl;
 
-	dev_dbg(chan2dev(&ch->vc.chan), "%s\n", __func__);
+	dev_dbg(vchan_chan_dev(&ch->vc), "%s\n", __func__);
 
 	for (i = 0; i < APB_DMA_MAX_CHANNEL; i++, ch++) {
 		if (!ch->allocated)
@@ -525,7 +520,7 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 
 		ctrl = readl(ch->base + REG_OFF_CTRL);
 
-		dev_dbg(chan2dev(&ch->vc.chan), "%s: ch=%p ch->base=%p ctrl=%x\n",
+		dev_dbg(vchan_chan_dev(&ch->vc), "%s: ch=%p ch->base=%p ctrl=%x\n",
 			__func__, ch, ch->base, ctrl);
 
 		if (ctrl & APB_DMA_FIN_INT_STS) {

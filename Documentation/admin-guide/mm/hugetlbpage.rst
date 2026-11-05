@@ -373,9 +373,9 @@ contains the following attribute files::
 	free_hugepages
 	surplus_hugepages
 
-The free\_' and surplus\_' attribute files are read-only.  They return the number
-of free and surplus [overcommitted] huge pages, respectively, on the parent
-node.
+The ``free_hugepages`` and ``surplus_hugepages`` attribute files are read-only.
+They return the number of free and surplus [overcommitted] huge pages,
+respectively, on the parent node.
 
 The ``nr_hugepages`` attribute returns the total number of huge pages on the
 specified node.  When this attribute is written, the number of persistent huge

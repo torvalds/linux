@@ -15,6 +15,7 @@
 #include <linux/cdev.h>
 #include <linux/completion.h>
 #include <linux/idr.h>
+#include <linux/srcu.h>
 #include <linux/of.h>
 #include <linux/rsc_table.h>
 
@@ -228,10 +229,11 @@ enum rproc_features {
  * @mappings: list of iommu mappings we initiated, needed on shutdown
  * @bootaddr: address of first instruction to boot rproc with (optional)
  * @rvdevs: list of remote virtio devices
+ * @vq_srcu: SRCU domain for the virtqueue callbacks of @rvdevs
  * @subdevs: list of subdevices, to following the running state
  * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
  * @index: index of this rproc device
- * @attach_work: workqueue for attaching rproc
+ * @boot_work: workqueue for booting rproc
  * @crash_handler: workqueue for handling a crash
  * @crash_handler_lock: serializes crash handler queueing and deletion
  * @deleting: remoteproc deletion has begun
@@ -274,10 +276,11 @@ struct rproc {
 	struct list_head mappings;
 	u64 bootaddr;
 	struct list_head rvdevs;
+	struct srcu_struct vq_srcu;
 	struct list_head subdevs;
 	struct idr notifyids;
 	int index;
-	struct work_struct attach_work;
+	struct work_struct boot_work;
 	struct work_struct crash_handler;
 	spinlock_t crash_handler_lock;
 	bool deleting;

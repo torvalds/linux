@@ -10,7 +10,7 @@
 
 #include <linux/fs.h>
 #include <linux/filelock.h>
-#include <linux/nfs.h>
+#include <linux/nfs_fh.h>
 #include <linux/sunrpc/xdr.h>
 
 #define SM_MAXSTRLEN		1024

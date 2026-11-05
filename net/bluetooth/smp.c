@@ -366,7 +366,7 @@ static int smp_e(const u8 *k, u8 *r)
 	err = aes_prepareenckey(&aes, tmp, 16);
 	if (err) {
 		BT_ERR("cipher setkey failed: %d", err);
-		return err;
+		goto out_clear;
 	}
 
 	/* Most significant octet of plaintextData corresponds to data[0] */
@@ -379,6 +379,8 @@ static int smp_e(const u8 *k, u8 *r)
 
 	SMP_DBG("r %16phN", r);
 
+out_clear:
+	memzero_explicit(tmp, sizeof(tmp));
 	memzero_explicit(&aes, sizeof(aes));
 	return err;
 }
@@ -3696,6 +3698,7 @@ static ssize_t test_smp_read(struct file *file, char __user *user_buf,
 }
 
 static const struct file_operations test_smp_fops = {
+	.owner		= THIS_MODULE,
 	.open		= simple_open,
 	.read		= test_smp_read,
 	.llseek		= default_llseek,

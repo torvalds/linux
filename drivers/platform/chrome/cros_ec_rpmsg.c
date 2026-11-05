@@ -20,7 +20,7 @@
 #define HOST_EVENT_MARK		2
 
 /**
- * struct cros_ec_rpmsg_response - rpmsg message format from from EC.
+ * struct cros_ec_rpmsg_response - rpmsg message format from EC.
  *
  * @type:	The type of message, should be either HOST_COMMAND_MARK or
  *		HOST_EVENT_MARK, representing that the message is a response to

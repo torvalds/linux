@@ -572,6 +572,8 @@ struct amdgpu_ras {
 
 	/* Disable/Enable uniras switch */
 	bool uniras_enabled;
+	bool uniras_load_ras_fw;
+	const struct ras_smu_drv *ras_smu_drv;
 };
 
 struct ras_fs_data {
@@ -981,4 +983,5 @@ void amdgpu_ras_pre_reset(struct amdgpu_device *adev,
 void amdgpu_ras_post_reset(struct amdgpu_device *adev,
 					  struct list_head *device_list);
 int amdgpu_ras_resume_after_reset(struct amdgpu_device *adev);
+uint64_t amdgpu_uniras_get_ras_caps(struct amdgpu_device *adev);
 #endif

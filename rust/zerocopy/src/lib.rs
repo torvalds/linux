@@ -253,7 +253,7 @@
 )]
 #![cfg_attr(
     __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS,
-    deny(fuzzy_provenance_casts, lossy_provenance_casts)
+    deny(implicit_provenance_casts)
 )]
 #![deny(
     clippy::all,
@@ -316,20 +316,12 @@
 ))]
 #![cfg_attr(not(any(test, kani, feature = "std")), no_std)]
 #![cfg_attr(
-    all(feature = "simd-nightly", target_arch = "arm"),
-    feature(stdarch_arm_neon_intrinsics)
-)]
-#![cfg_attr(
     all(feature = "simd-nightly", any(target_arch = "powerpc", target_arch = "powerpc64")),
     feature(stdarch_powerpc)
 )]
 #![cfg_attr(feature = "float-nightly", feature(f16, f128))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![cfg_attr(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS, feature(coverage_attribute))]
-#![cfg_attr(
-    any(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS, miri),
-    feature(layout_for_ptr)
-)]
 #![cfg_attr(all(test, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), feature(test))]
 
 // This is a hack to allow zerocopy-derive derives to work in this crate. They
@@ -401,7 +393,7 @@ pub use crate::{
     wrappers::*,
 };
 
-#[cfg(any(feature = "alloc", test, kani))]
+#[cfg(any(feature = "alloc", test))]
 extern crate alloc;
 #[cfg(any(feature = "alloc", test))]
 use alloc::{boxed::Box, vec::Vec};
@@ -411,7 +403,7 @@ use core::alloc::Layout;
 // Used by `KnownLayout`.
 #[doc(hidden)]
 pub use crate::layout::*;
-// Used by `TryFromBytes::is_bit_valid`.
+// Used by `TryFromBytes::is_safe`.
 #[doc(hidden)]
 pub use crate::pointer::{invariant::BecauseImmutable, Maybe, Ptr};
 // For each trait polyfill, as soon as the corresponding feature is stable, the
@@ -786,10 +778,16 @@ pub unsafe trait KnownLayout {
     ///   where `size == size_of::<Self>()`
     /// - If `Self` is a slice DST, then `LAYOUT.size_info ==
     ///   SizeInfo::SliceDst(slice_layout)` where:
+    ///   - `slice_layout.size_rounding_align_and_phase` decodes to an alignment
+    ///     that is a power of two and a phase which is less than that alignment
     ///   - The size, `size`, of an instance of `Self` with `elems` trailing
-    ///     slice elements is equal to `slice_layout.offset +
-    ///     slice_layout.elem_size * elems` rounded up to the nearest multiple
-    ///     of `LAYOUT.align`
+    ///     slice elements is equal to `slice_layout.size_base +
+    ///     round_up(size_phase + slice_layout.elem_size * elems, size_align)`,
+    ///     where `(size_align, size_phase)` is decoded from
+    ///     `slice_layout.size_rounding_align_and_phase`
+    ///   - The trailing slice begins at byte offset `slice_layout.offset`
+    ///   - `slice_layout.offset + slice_layout.elem_size * elems` does not
+    ///     overflow and is no greater than `size`
     ///   - For such an instance, any bytes in the range `[slice_layout.offset +
     ///     slice_layout.elem_size * elems, size)` are padding and must not be
     ///     assumed to be initialized
@@ -1004,11 +1002,7 @@ impl PointerMetadata for usize {
     #[inline]
     fn size_for_metadata(self, layout: DstLayout) -> Option<usize> {
         match layout.size_info {
-            SizeInfo::SliceDst(TrailingSliceLayout { offset, elem_size }) => {
-                let slice_len = elem_size.checked_mul(self)?;
-                let without_padding = offset.checked_add(slice_len)?;
-                without_padding.checked_add(util::padding_needed_for(without_padding, layout.align))
-            }
+            SizeInfo::SliceDst(trailing) => trailing.size_for_elems(self),
             // NOTE: This branch is unreachable, but we return `None` rather
             // than `unreachable!()` to avoid generating panic paths.
             SizeInfo::Sized { .. } => None,
@@ -1073,29 +1067,85 @@ unsafe impl<T> KnownLayout for [T] {
 
     #[inline(always)]
     fn pointer_to_metadata(ptr: *mut [T]) -> usize {
-        #[allow(clippy::as_conversions)]
-        let slc = ptr as *const [()];
+        #[cfg(not(no_zerocopy_slice_ptr_len_1_79_0))]
+        {
+            ptr.len()
+        }
 
-        // SAFETY:
-        // - `()` has alignment 1, so `slc` is trivially aligned.
-        // - `slc` was derived from a non-null pointer.
-        // - The size is 0 regardless of the length, so it is sound to
-        //   materialize a reference regardless of location.
-        // - By invariant, `self.ptr` has valid provenance.
-        let slc = unsafe { &*slc };
+        #[cfg(no_zerocopy_slice_ptr_len_1_79_0)]
+        {
+            // `*mut [T]::len` was not stable before Rust 1.79. In every Rust
+            // version from our 1.56 MSRV through 1.78, `Hash for *mut T`
+            // decomposes a raw pointer and passes its address and metadata to
+            // the hasher in that order [1]. `Hash for usize` passes its value
+            // to `Hasher::write_usize` [2]. Capture those two values to obtain
+            // a candidate for the slice length without dereferencing `ptr` or
+            // constructing a reference.
+            //
+            // This historical `Hash` implementation is only used to produce a
+            // candidate. Before returning it, we reconstruct a raw slice and
+            // authenticate the candidate with `ptr::eq`, which compares slice
+            // lengths as well as addresses [3]. Thus, an unexpected `Hash`
+            // implementation cannot cause us to return incorrect metadata; it
+            // can only fail to produce an authenticated candidate.
+            //
+            // [1] Per https://doc.rust-lang.org/1.56.0/src/core/hash/mod.rs.html#776-782:
+            //
+            //   let (address, metadata) = self.to_raw_parts();
+            //   state.write_usize(address as usize);
+            //   metadata.hash(state);
+            //
+            // [2] Per https://doc.rust-lang.org/1.56.0/src/core/hash/mod.rs.html#628-656:
+            //
+            //   fn hash<H: Hasher>(&self, state: &mut H) {
+            //       state.$meth(*self)
+            //   }
+            //   ...
+            //   (usize, write_usize),
+            //
+            // [3] Per https://doc.rust-lang.org/1.56.0/std/ptr/fn.eq.html:
+            //
+            //   Slices are also compared by their length (fat pointers).
+            struct MetadataHasher {
+                values: [usize; 2],
+                writes: usize,
+                valid: bool,
+            }
 
-        // This is correct because the preceding `as` cast preserves the number
-        // of slice elements. [1]
-        //
-        // [1] Per https://doc.rust-lang.org/reference/expressions/operator-expr.html#pointer-to-pointer-cast:
-        //
-        //   For slice types like `[T]` and `[U]`, the raw pointer types `*const
-        //   [T]`, `*mut [T]`, `*const [U]`, and `*mut [U]` encode the number of
-        //   elements in this slice. Casts between these raw pointer types
-        //   preserve the number of elements. ... The same holds for `str` and
-        //   any compound type whose unsized tail is a slice type, such as
-        //   struct `Foo(i32, [u8])` or `(u64, Foo)`.
-        slc.len()
+            impl Hasher for MetadataHasher {
+                #[inline(always)]
+                fn finish(&self) -> u64 {
+                    0
+                }
+
+                #[inline(always)]
+                fn write(&mut self, _bytes: &[u8]) {
+                    self.valid = false;
+                }
+
+                #[inline(always)]
+                fn write_usize(&mut self, value: usize) {
+                    match self.values.get_mut(self.writes) {
+                        Some(slot) => *slot = value,
+                        None => self.valid = false,
+                    }
+                    self.writes = self.writes.saturating_add(1);
+                }
+            }
+
+            let mut hasher = MetadataHasher { values: [0; 2], writes: 0, valid: true };
+            core::hash::Hash::hash(&ptr, &mut hasher);
+            assert!(
+                hasher.valid && hasher.writes == 2,
+                "unexpected raw-pointer Hash implementation"
+            );
+
+            let elems = hasher.values[1];
+            #[allow(clippy::as_conversions)]
+            let reconstructed = ptr::slice_from_raw_parts_mut(ptr as *mut T, elems);
+            assert!(ptr::eq(ptr, reconstructed), "captured value is not raw-slice metadata");
+            elems
+        }
     }
 }
 
@@ -1182,11 +1232,29 @@ pub const UNION_VARIANT_ID: i128 = -2;
 #[doc(hidden)]
 pub const REPR_C_UNION_VARIANT_ID: i128 = -3;
 
+/// Marker types used to disambiguate implementations of projection traits that
+/// would otherwise conflict.
+#[doc(hidden)]
+#[allow(missing_copy_implementations, missing_debug_implementations)]
+pub mod project_clients {
+    pub enum TryFromBytesDerive {}
+
+    pub enum ProjectDerive {}
+}
+
+#[cfg(any(feature = "derive", test))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "derive")))]
+#[doc(hidden)]
+pub use zerocopy_derive::Project;
+
 /// # Safety
 ///
-/// `Self::ProjectToTag` must satisfy its safety invariant.
+/// `<Self as HasTag<Client>>::ProjectToTag` must satisfy its safety invariant.
+///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `HasTag` that would otherwise conflict.
 #[doc(hidden)]
-pub unsafe trait HasTag {
+pub unsafe trait HasTag<Client = project_clients::TryFromBytesDerive> {
     fn only_derive_is_allowed_to_implement_this_trait()
     where
         Self: Sized;
@@ -1198,28 +1266,35 @@ pub unsafe trait HasTag {
     ///
     /// # Safety
     ///
-    /// It must be the case that, for all `slf: Ptr<'_, Self, I>`, it is sound
-    /// to project from `slf` to `Ptr<'_, Self::Tag, I>` using this projection.
+    /// It must be the case that, for all `slf: Ptr<'_, Self, I>` where
+    /// `I::Aliasing` is `Shared`, it is sound to project it using this
+    /// projection to a `Ptr<'_, Self::Tag, (Shared, I::Alignment,
+    /// I::Validity)>`.
     type ProjectToTag: pointer::cast::Project<Self, Self::Tag>;
 }
 
 /// Projects a given field from `Self`.
 ///
-/// All implementations of `HasField` for a particular field `f` in `Self`
-/// should use the same `Field` type; this ensures that `Field` is inferable
-/// given an explicit `VARIANT_ID` and `FIELD_ID`.
+/// All implementations of `HasField` for a particular `Client` and field `f`
+/// in `Self` should use the same `Field` type; this ensures that `Field` is
+/// inferable given an explicit `Client`, `VARIANT_ID`, and `FIELD_ID`.
+///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `HasField` that would otherwise conflict.
 ///
 /// # Safety
 ///
 /// A field `f` is `HasField` for `Self` if and only if:
 ///
-/// - If `Self` has the layout of a struct or union type, then `VARIANT_ID` is
-///   `STRUCT_VARIANT_ID` or `UNION_VARIANT_ID` respectively; otherwise, if
-///   `Self` has the layout of an enum type, `VARIANT_ID` is the numerical index
-///   of the enum variant in which `f` appears. Note that `Self` does not need
-///   to actually *be* such a type – it just needs to have the same layout as
-///   such a type. For example, a `#[repr(transparent)]` wrapper around an enum
-///   has the same layout as that enum.
+/// - If `Self` has the layout of a struct type, `VARIANT_ID` is
+///   `STRUCT_VARIANT_ID`. If `Self` has the layout of a `repr(C)` union type,
+///   `VARIANT_ID` is `REPR_C_UNION_VARIANT_ID`; for other union layouts, it is
+///   `UNION_VARIANT_ID`. Otherwise, if `Self` has the layout of an enum type and
+///   `f` appears in a variant named `v`, `VARIANT_ID` is
+///   `zerocopy::ident_id!(v)`. Note that `Self` does not need to actually *be*
+///   such a type – it just needs to have the same layout as such a type. For
+///   example, a `#[repr(transparent)]` wrapper around an enum has the same
+///   layout as that enum.
 /// - If `f` has name `n`, `FIELD_ID` is `zerocopy::ident_id!(n)`; otherwise,
 ///   if `f` is at index `i`, `FIELD_ID` is `zerocopy::ident_id!(i)`.
 /// - `Field` is a type with the same visibility as `f`.
@@ -1232,8 +1307,8 @@ pub unsafe trait HasTag {
 ///
 /// The implementation of `project` must satisfy its safety post-condition.
 #[doc(hidden)]
-pub unsafe trait HasField<Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
-    HasTag
+pub unsafe trait HasField<Client, Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
+    HasTag<Client>
 {
     fn only_derive_is_allowed_to_implement_this_trait()
     where
@@ -1263,15 +1338,20 @@ pub unsafe trait HasField<Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
 /// other words, it is a type-level function over invariants; `I` goes in,
 /// `Self::Invariants` comes out.
 ///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `ProjectField` (and their corresponding `HasField` implementations) that
+/// would otherwise conflict.
+///
 /// # Safety
 ///
-/// `T: ProjectField<Field, I, VARIANT_ID, FIELD_ID>` if, for a
-/// `ptr: Ptr<'_, T, I>` such that `T::is_projectable(ptr).is_ok()`,
-/// `<T as HasField<Field, VARIANT_ID, FIELD_ID>>::project(ptr.as_inner())`
+/// `T: ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID>` if, for a
+/// `ptr: Ptr<'_, T, I>` such that `T::is_projectable` returns `Ok(())`
+/// when passed the tag pointer projected from `ptr`,
+/// `<T as HasField<Client, Field, VARIANT_ID, FIELD_ID>>::project(ptr.as_inner())`
 /// conforms to `T::Invariants`.
 #[doc(hidden)]
-pub unsafe trait ProjectField<Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>:
-    HasField<Field, VARIANT_ID, FIELD_ID>
+pub unsafe trait ProjectField<Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>:
+    HasField<Client, Field, VARIANT_ID, FIELD_ID>
 where
     I: invariant::Invariants,
 {
@@ -1290,29 +1370,35 @@ where
 
     /// Is the given field projectable from `ptr`?
     ///
-    /// If a field with [`Self::Invariants`] is projectable from the referent,
-    /// this function produces an `Ok(ptr)` from which the projection can be
-    /// made; otherwise `Err`.
+    /// If a field with [`Self::Invariants`] is projectable from the containing
+    /// value whose projected tag is `ptr`, this function produces `Ok(())`;
+    /// otherwise it produces `Err`.
     ///
     /// This method must be overriden if the field's projectability depends on
     /// the value of the bytes in `ptr`.
     #[inline(always)]
-    fn is_projectable<'a>(_ptr: Ptr<'a, Self::Tag, I>) -> Result<(), Self::Error> {
+    fn is_projectable<'a>(
+        _ptr: Ptr<
+            'a,
+            <Self as HasTag<Client>>::Tag,
+            (invariant::Shared, I::Alignment, I::Validity),
+        >,
+    ) -> Result<(), Self::Error> {
         trait IsInfallible {
             const IS_INFALLIBLE: bool;
         }
 
-        struct Projection<T, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>(
-            PhantomData<(Field, I, T)>,
+        struct Projection<T, Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>(
+            PhantomData<(Client, Field, I, T)>,
         )
         where
-            T: ?Sized + HasField<Field, VARIANT_ID, FIELD_ID>,
+            T: ?Sized + HasField<Client, Field, VARIANT_ID, FIELD_ID>,
             I: invariant::Invariants;
 
-        impl<T, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128> IsInfallible
-            for Projection<T, Field, I, VARIANT_ID, FIELD_ID>
+        impl<T, Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128> IsInfallible
+            for Projection<T, Client, Field, I, VARIANT_ID, FIELD_ID>
         where
-            T: ?Sized + HasField<Field, VARIANT_ID, FIELD_ID>,
+            T: ?Sized + HasField<Client, Field, VARIANT_ID, FIELD_ID>,
             I: invariant::Invariants,
         {
             const IS_INFALLIBLE: bool = {
@@ -1323,7 +1409,9 @@ where
                     // referent. This default implementation of `is_projectable`
                     // is non-destructive, as it does not overwrite any part of
                     // the referent.
-                    crate::STRUCT_VARIANT_ID | crate::UNION_VARIANT_ID => true,
+                    crate::STRUCT_VARIANT_ID
+                    | crate::UNION_VARIANT_ID
+                    | crate::REPR_C_UNION_VARIANT_ID => true,
                     _enum_variant => {
                         use crate::invariant::{Validity, ValidityKind};
                         match I::Validity::KIND {
@@ -1336,9 +1424,9 @@ where
                             // type – the type itself is irrelevant.
                             ValidityKind::Uninit | ValidityKind::Initialized => true,
                             // The projectability of an enum field from an
-                            // `AsInitialized` or `Valid` state is a dynamic
+                            // `AsInitialized` or `Safe` state is a dynamic
                             // property of its tag.
-                            ValidityKind::AsInitialized | ValidityKind::Valid => false,
+                            ValidityKind::AsInitialized | ValidityKind::Safe => false,
                         }
                     }
                 };
@@ -1348,7 +1436,7 @@ where
         }
 
         const_assert!(
-            <Projection<Self, Field, I, VARIANT_ID, FIELD_ID> as IsInfallible>::IS_INFALLIBLE
+            <Projection<Self, Client, Field, I, VARIANT_ID, FIELD_ID> as IsInfallible>::IS_INFALLIBLE
         );
 
         Ok(())
@@ -1614,6 +1702,64 @@ pub unsafe trait Immutable {
 /// }
 /// ```
 ///
+#[cfg_attr(
+    zerocopy_unstable_ptr,
+    doc = r#"
+# Field invariants
+
+This experimental feature requires `--cfg zerocopy_unstable_ptr`.
+
+Named fields of structs, enum variants, and unions can specify additional
+runtime checks using `#[zerocopy(invariant(expression))]`:
+
+```
+# use zerocopy_derive::TryFromBytes;
+#[derive(TryFromBytes)]
+struct Foo {
+    a: u8,
+    #[zerocopy(invariant((*a.read() % 2) == (*b.read() as u8)))]
+    b: bool,
+    #[zerocopy(invariant(*c.read() > 0))]
+    c: i16,
+}
+```
+
+Each expression must return a `bool`. It has access to validated, read-only
+[`Ptr`]s to the current field and all preceding fields of the struct or
+variant, using their field names. A union's invariants have access only to
+the current field. The expression can use the existing [`Ptr`] APIs to
+inspect those fields. In this example, `read()` copies each field without
+requiring alignment, and dereferencing the resulting [`ReadOnly`] accesses
+the copied value.
+
+Rust's usual restrictions on local bindings apply; for example, a field name
+cannot shadow an in-scope constant.
+
+Fields are checked in declaration order. Each field's bit validity is
+checked before its invariants run. Multiple invariants on a field run in
+attribute order. For structs and enums, validation stops at the first invalid
+field or invariant that returns `false`. For unions, a failed bit-validity
+check or invariant causes validation to try the next field; validation
+succeeds as soon as one field and all its invariants pass. Each expression
+runs in its own closure; `return` returns from that expression, and panics
+propagate to the caller. Only the selected enum variant's fields and
+invariants are checked. Expressions may have arbitrary side effects, even
+when the conversion fails or its result is discarded.
+
+These predicates are additional acceptance checks beyond Rust's bit validity;
+bit-valid bytes may still be rejected. See [What is a "valid instance"?] for
+the distinction.
+
+[What is a "valid instance"?]: trait@TryFromBytes#what-is-a-valid-instance
+
+Invariants are not supported on tuple fields. Types with invariants cannot
+derive [`FromZeros`] or [`FromBytes`], whose conversions do not perform runtime
+validation. These checks apply to conversions through [`TryFromBytes`]; they
+do not restrict ordinary construction or mutation of Rust values.
+
+"#
+)]
+///
 /// # Portability
 ///
 /// To ensure consistent endianness for enums with multi-byte representations,
@@ -1708,6 +1854,14 @@ pub use zerocopy_derive::TryFromBytes;
 /// If you are negatively affected by lack of support for a particular type,
 /// we encourage you to let us know by [filing an issue][github-repo].
 ///
+/// In this trait's conversion methods, a "valid instance" must also pass any
+/// configured field invariants, including those on nested fields. Rust bit
+/// validity alone does not guarantee that a conversion succeeds: an invariant
+/// may reject otherwise bit-valid bytes. Such predicates check acceptance at
+/// conversion time; they do not constrain subsequent mutation or ordinary Rust
+/// construction. See the [derive's field invariants][derive] documentation for
+/// the experimental attribute's syntax, evaluation order, and side effects.
+///
 /// # `TryFromBytes` is not symmetrical with [`IntoBytes`]
 ///
 /// There are some types which implement both `TryFromBytes` and [`IntoBytes`],
@@ -1754,25 +1908,25 @@ pub unsafe trait TryFromBytes {
     ///
     /// # Safety
     ///
-    /// Unsafe code may assume that, if `is_bit_valid(candidate)` returns true,
+    /// Unsafe code may assume that, if `is_safe(candidate)` returns true,
     /// `*candidate` contains a valid `Self`.
     ///
     /// # Panics
     ///
-    /// `is_bit_valid` may panic. Callers are responsible for ensuring that any
-    /// `unsafe` code remains sound even in the face of `is_bit_valid`
-    /// panicking. (We support user-defined validation routines; so long as
-    /// these routines are not required to be `unsafe`, there is no way to
-    /// ensure that these do not generate panics.)
+    /// `is_safe` may panic. Callers are responsible for ensuring that any
+    /// `unsafe` code remains sound even in the face of `is_safe` panicking. (We
+    /// support user-defined validation routines; so long as these routines are
+    /// not required to be `unsafe`, there is no way to ensure that these do not
+    /// generate panics.)
     ///
-    /// Besides user-defined validation routines panicking, `is_bit_valid` will
-    /// either panic or fail to compile if called on a pointer with [`Shared`]
-    /// aliasing when `Self: !Immutable`.
+    /// Besides user-defined validation routines panicking, `is_safe` will either
+    /// panic or fail to compile if called on a pointer with [`Shared`] aliasing
+    /// when `Self: !Immutable`.
     ///
     /// [`UnsafeCell`]: core::cell::UnsafeCell
     /// [`Shared`]: invariant::Shared
     #[doc(hidden)]
-    fn is_bit_valid<A>(candidate: Maybe<'_, Self, A>) -> bool
+    fn is_safe<A>(candidate: Maybe<'_, Self, A>) -> bool
     where
         A: invariant::Alignment;
 
@@ -1872,7 +2026,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_bytes(source: &[u8]) -> Result<&Self, TryCastError<&[u8], Self>>
@@ -1885,7 +2039,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(valid) => Ok(valid.as_ref()),
                     Err(e) => {
                         Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into())
@@ -1995,7 +2149,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_prefix(source: &[u8]) -> Result<(&Self, &[u8]), TryCastError<&[u8], Self>>
@@ -2105,7 +2259,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_suffix(source: &[u8]) -> Result<(&[u8], &Self), TryCastError<&[u8], Self>>
@@ -2199,7 +2353,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_bytes")]
     ///
     /// See [`TryFromBytes::try_ref_from_bytes`](#method.try_ref_from_bytes.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_bytes(bytes: &mut [u8]) -> Result<&mut Self, TryCastError<&mut [u8], Self>>
@@ -2212,7 +2366,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_mut()),
                     Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
                 }
@@ -2308,7 +2462,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_prefix")]
     ///
     /// See [`TryFromBytes::try_ref_from_prefix`](#method.try_ref_from_prefix.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_prefix(
@@ -2408,7 +2562,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_suffix")]
     ///
     /// See [`TryFromBytes::try_ref_from_suffix`](#method.try_ref_from_suffix.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_suffix(
@@ -2513,7 +2667,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_bytes_with_elems(
@@ -2529,7 +2683,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_ref()),
                     Err(e) => {
                         Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into())
@@ -2634,7 +2788,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_prefix_with_elems(
@@ -2742,7 +2896,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_suffix_with_elems(
@@ -2838,7 +2992,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_bytes_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_bytes_with_elems`](#method.try_ref_from_bytes_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_bytes_with_elems(
@@ -2854,7 +3008,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_mut()),
                     Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
                 }
@@ -2949,7 +3103,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_prefix_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_prefix_with_elems`](#method.try_ref_from_prefix_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_prefix_with_elems(
@@ -3049,7 +3203,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_suffix_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_suffix_with_elems`](#method.try_ref_from_suffix_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_suffix_with_elems(
@@ -3116,24 +3270,14 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_bytes",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_bytes(source: &[u8]) -> Result<Self, TryReadError<&[u8], Self>>
     where
         Self: Sized,
     {
-        // FIXME(#2981): If `align_of::<Self>() == 1`, validate `source` in-place.
-
-        let candidate = match CoreMaybeUninit::<Self>::read_from_bytes(source) {
-            Ok(candidate) => candidate,
-            Err(e) => {
-                return Err(TryReadError::Size(e.with_dst()));
-            }
-        };
-        // SAFETY: `candidate` was copied from from `source: &[u8]`, so all of
-        // its bytes are initialized.
-        unsafe { try_read_from(source, candidate) }
+        try_read_from(source)
     }
 
     /// Attempts to read a `Self` from the prefix of the given `source`.
@@ -3194,24 +3338,24 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_prefix",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_prefix(source: &[u8]) -> Result<(Self, &[u8]), TryReadError<&[u8], Self>>
     where
         Self: Sized,
     {
-        // FIXME(#2981): If `align_of::<Self>() == 1`, validate `source` in-place.
-
-        let (candidate, suffix) = match CoreMaybeUninit::<Self>::read_from_prefix(source) {
-            Ok(candidate) => candidate,
-            Err(e) => {
-                return Err(TryReadError::Size(e.with_dst()));
-            }
+        let (prefix, suffix) = match SplitAt::split_at(source, mem::size_of::<Self>()) {
+            Some(split) => split.via_immutable(),
+            None => return Err(SizeError::new(source).into()),
         };
-        // SAFETY: `candidate` was copied from from `source: &[u8]`, so all of
-        // its bytes are initialized.
-        unsafe { try_read_from(source, candidate).map(|slf| (slf, suffix)) }
+        match try_read_from(prefix) {
+            Ok(slf) => Ok((slf, suffix)),
+            Err(e) => Err(e.map_src(
+                #[inline(always)]
+                |_| source,
+            )),
+        }
     }
 
     /// Attempts to read a `Self` from the suffix of the given `source`.
@@ -3273,44 +3417,72 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_suffix",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_suffix(source: &[u8]) -> Result<(&[u8], Self), TryReadError<&[u8], Self>>
     where
         Self: Sized,
     {
-        // FIXME(#2981): If `align_of::<Self>() == 1`, validate `source` in-place.
-
-        let (prefix, candidate) = match CoreMaybeUninit::<Self>::read_from_suffix(source) {
-            Ok(candidate) => candidate,
-            Err(e) => {
-                return Err(TryReadError::Size(e.with_dst()));
-            }
+        let split_at = match source.len().checked_sub(mem::size_of::<Self>()) {
+            Some(split_at) => split_at,
+            None => return Err(SizeError::new(source).into()),
         };
-        // SAFETY: `candidate` was copied from from `source: &[u8]`, so all of
-        // its bytes are initialized.
-        unsafe { try_read_from(source, candidate).map(|slf| (prefix, slf)) }
+        // SAFETY: `checked_sub` returned the difference without overflow [1],
+        // so `split_at = source.len() - size_of::<Self>() <= source.len()`.
+        // This satisfies `SplitAt::split_at_unchecked`'s precondition.
+        //
+        // [1] Per https://doc.rust-lang.org/1.56.0/std/primitive.usize.html#method.checked_sub:
+        //
+        //   Checked integer subtraction. Computes `self - rhs`, returning
+        //   `None` if overflow occurred.
+        let (prefix, suffix) =
+            unsafe { SplitAt::split_at_unchecked(source, split_at) }.via_immutable();
+        match try_read_from(suffix) {
+            Ok(slf) => Ok((prefix, slf)),
+            Err(e) => Err(e.map_src(
+                #[inline(always)]
+                |_| source,
+            )),
+        }
     }
 }
 
+/// Validates and interprets the given affix of `source`'s bytes as a `&T`.
+///
+/// Returns the destination reference and excess bytes on success. All errors,
+/// including validity errors, contain the original `&S`.
 #[inline(always)]
-fn try_ref_from_prefix_suffix<T: TryFromBytes + KnownLayout + Immutable + ?Sized>(
-    source: &[u8],
+fn try_ref_from_prefix_suffix<S, T>(
+    source: &S,
     cast_type: CastType,
     meta: Option<T::PointerMetadata>,
-) -> Result<(&T, &[u8]), TryCastError<&[u8], T>> {
-    match Ptr::from_ref(source).try_cast_into::<T, BecauseImmutable>(cast_type, meta) {
-        Ok((source, prefix_suffix)) => {
+) -> Result<(&T, &[u8]), TryCastError<&S, T>>
+where
+    S: IntoBytes + Immutable + ?Sized,
+    T: TryFromBytes + KnownLayout + Immutable + ?Sized,
+{
+    match Ptr::from_ref(source.as_bytes()).try_cast_into::<T, BecauseImmutable>(cast_type, meta) {
+        Ok((candidate, prefix_suffix)) => {
             // This call may panic. If that happens, it doesn't cause any soundness
             // issues, as we have not generated any invalid state which we need to
             // fix before returning.
-            match source.try_into_valid() {
+            match candidate.try_into_safe() {
                 Ok(valid) => Ok((valid.as_ref(), prefix_suffix.as_ref())),
-                Err(e) => Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into()),
+                Err(e) => Err(e
+                    .map_src(
+                        #[inline(always)]
+                        |_| source,
+                    )
+                    .into()),
             }
         }
-        Err(e) => Err(e.map_src(Ptr::as_ref).into()),
+        Err(e) => Err(e
+            .map_src(
+                #[inline(always)]
+                |_| source,
+            )
+            .into()),
     }
 }
 
@@ -3325,7 +3497,7 @@ fn try_mut_from_prefix_suffix<T: IntoBytes + TryFromBytes + KnownLayout + ?Sized
             // This call may panic. If that happens, it doesn't cause any soundness
             // issues, as we have not generated any invalid state which we need to
             // fix before returning.
-            match candidate.try_into_valid() {
+            match candidate.try_into_safe() {
                 Ok(valid) => Ok((valid.as_mut(), prefix_suffix.as_mut())),
                 Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
             }
@@ -3339,49 +3511,112 @@ fn swap<T, U>((t, u): (T, U)) -> (U, T) {
     (u, t)
 }
 
-/// # Safety
-///
-/// All bytes of `candidate` must be initialized.
 #[inline(always)]
-unsafe fn try_read_from<S, T: TryFromBytes>(
-    source: S,
-    mut candidate: CoreMaybeUninit<T>,
-) -> Result<T, TryReadError<S, T>> {
+fn try_read_from<S, T>(source: &S) -> Result<T, TryReadError<&S, T>>
+where
+    S: IntoBytes + Immutable + ?Sized,
+    T: TryFromBytes,
+{
+    let bytes = source.as_bytes();
+
+    if bytes.len() != mem::size_of::<T>() {
+        return Err(SizeError::new(source).into());
+    }
+
+    // FIXME(#2981): Avoid the validation copy when validation can safely use
+    // a pointer derived from `source`'s shared borrow.
+
+    // Initialize the candidate in its final location. A typed move of a
+    // `MaybeUninit<T>` may discard initialized bytes at `T`'s padding offsets
+    // [1], but validation requires every byte to be initialized. Do not move
+    // `candidate` between this copy and validation.
+    //
+    // [1] Per https://doc.rust-lang.org/1.93.1/std/mem/union.MaybeUninit.html#validity:
+    //
+    //   Moving or copying a value of type `MaybeUninit<T>` (i.e., performing a
+    //   "typed copy") will exactly preserve the contents, including the
+    //   provenance, of all non-padding bytes of type `T` in the value's
+    //   representation.
+    let mut candidate = CoreMaybeUninit::<T>::uninit();
+
+    // SAFETY: The earlier `if bytes.len() != mem::size_of::<T>()` returns on a
+    // size mismatch, so reaching this copy implies that `bytes.len()` equals
+    // `mem::size_of::<T>()`. Copying that many `u8`s cannot overrun `bytes`.
+    // `candidate.as_mut_ptr()` is writable for the same number of bytes because
+    // `MaybeUninit<T>` has `T`'s size. Both pointers are non-null and aligned
+    // for `u8`, including when `T` is zero-sized. The fresh local allocation
+    // cannot overlap `source`, which is an argument. Thus the read, write,
+    // alignment, and non-overlap requirements of [2] hold. Copying `u8`s
+    // initializes every destination byte, including those at `T`'s padding
+    // offsets.
+    //
+    // These writes cannot violate `candidate`'s bit validity because every bit
+    // pattern is valid for `MaybeUninit<T>` [3], even if it is invalid for `T`.
+    //
+    // [2] Per https://doc.rust-lang.org/1.56.0/std/ptr/fn.copy_nonoverlapping.html:
+    //
+    //   Copies `count * size_of::<T>()` bytes from `src` to `dst`. The source
+    //   and destination must *not* overlap.
+    //
+    // [3] Per https://doc.rust-lang.org/1.56.0/std/mem/union.MaybeUninit.html#layout:
+    //
+    //   ... any bit value is valid for a `MaybeUninit<T>` ...
+    unsafe {
+        ptr::copy_nonoverlapping(
+            bytes.as_ptr(),
+            candidate.as_mut_ptr().cast::<u8>(),
+            mem::size_of::<T>(),
+        );
+    }
+
     // We use `from_mut` despite not mutating via `c_ptr` so that we don't need
     // to add a `T: Immutable` bound.
     let c_ptr = Ptr::from_mut(&mut candidate);
-    // SAFETY: `c_ptr` has no uninitialized sub-ranges because it derived from
-    // `candidate`, which the caller promises is entirely initialized. Since
-    // `candidate` is a `MaybeUninit`, it has no validity requirements, and so
-    // no values written to an `Initialized` `c_ptr` can violate its validity.
-    // Since `c_ptr` has `Exclusive` aliasing, no mutations may happen except
-    // via `c_ptr` so long as it is live, so we don't need to worry about the
-    // fact that `c_ptr` may have more restricted validity than `candidate`.
-    let c_ptr = unsafe { c_ptr.assume_validity::<invariant::Initialized>() };
-    let mut c_ptr = c_ptr.cast::<_, crate::pointer::cast::CastSized, _>();
 
-    // Since we don't have `T: KnownLayout`, we hack around that by using
-    // `Wrapping<T>`, which implements `KnownLayout` even if `T` doesn't.
+    // SAFETY: `c_ptr` has no uninitialized sub-ranges because it derived from
+    // `candidate`, whose bytes were all initialized by the copy above and which
+    // has not been moved since. Since `candidate` is a `MaybeUninit`, it has no
+    // validity requirements, and so no values written to an `Initialized`
+    // `c_ptr` can violate its validity. Since `c_ptr` has `Exclusive` aliasing,
+    // no mutations may happen except via `c_ptr` so long as it is live, so we
+    // don't need to worry about the fact that `c_ptr` may have more restricted
+    // validity than `candidate`.
+    let c_ptr = unsafe { c_ptr.assume_validity::<invariant::Initialized>() };
+
+    let c_ptr = c_ptr.cast::<_, crate::pointer::cast::CastSized, _>();
+
+    // SAFETY: `c_ptr` originated from a reference to `candidate`, so its
+    // address is aligned for `MaybeUninit<T>`, which has `T`'s alignment [1].
+    // `CastSized` preserves that address. `ReadOnly<T>` is `repr(transparent)`
+    // with a single `T` field, so it also has `T`'s alignment [2], including
+    // when `T` is zero-sized.
     //
+    // [1] Per https://doc.rust-lang.org/1.56.0/std/mem/union.MaybeUninit.html#layout:
+    //
+    //   `MaybeUninit<T>` is guaranteed to have the same size, alignment, and
+    //   ABI as `T`:
+    //
+    // [2] Per https://doc.rust-lang.org/1.93.1/reference/type-layout.html#the-transparent-representation:
+    //
+    //   ... same layout and ABI as the only non-size 0 non-alignment 1 field,
+    //   if present, or unit otherwise.
+    let mut c_ptr = unsafe { c_ptr.assume_alignment::<invariant::Aligned>() };
+
     // This call may panic. If that happens, it doesn't cause any soundness
     // issues, as we have not generated any invalid state which we need to fix
     // before returning.
-    if !Wrapping::<T>::is_bit_valid(c_ptr.reborrow_shared().forget_aligned()) {
+    if !T::is_safe(c_ptr.reborrow_shared()) {
         return Err(ValidityError::new(source).into());
     }
 
-    fn _assert_same_size_and_validity<T>()
-    where
-        Wrapping<T>: pointer::TransmuteFrom<T, invariant::Valid, invariant::Valid>,
-        T: pointer::TransmuteFrom<Wrapping<T>, invariant::Valid, invariant::Valid>,
-    {
-    }
-
-    _assert_same_size_and_validity::<T>();
-
-    // SAFETY: We just validated that `candidate` contains a valid
-    // `Wrapping<T>`, which has the same size and bit validity as `T`, as
-    // guaranteed by the preceding type assertion.
+    // SAFETY: `T::is_safe` returned true for `candidate`'s initialized bytes,
+    // so it contains a valid `T`, as required by [1]. Validation used a shared
+    // `ReadOnly<T>` pointer, and the bytes have not been modified since.
+    //
+    // [1] Per https://doc.rust-lang.org/1.56.0/std/mem/union.MaybeUninit.html#method.assume_init:
+    //
+    //   It is up to the caller to guarantee that the `MaybeUninit<T>` really is
+    //   in an initialized state.
     Ok(unsafe { candidate.assume_init() })
 }
 
@@ -5464,22 +5699,32 @@ pub unsafe trait FromBytes: FromZeros {
     }
 }
 
-/// Interprets the given affix of the given bytes as a `&Self`.
+/// Interprets the given affix of `source`'s bytes as a `&T`.
 ///
-/// This method computes the largest possible size of `Self` that can fit in the
-/// prefix or suffix bytes of `source`, then attempts to return both a reference
-/// to those bytes interpreted as a `Self`, and a reference to the excess bytes.
-/// If there are insufficient bytes, or if that affix of `source` is not
-/// appropriately aligned, this returns `Err`.
+/// This method uses `meta` if provided; otherwise, it computes the largest
+/// possible size of `T` that can fit in the prefix or suffix bytes of `source`.
+/// It returns both a reference to those bytes interpreted as a `T`, and a
+/// reference to the excess bytes. If there are insufficient bytes, or if that
+/// affix of `source` is not appropriately aligned, this returns `Err` containing
+/// the original `&S`.
 #[inline(always)]
-fn ref_from_prefix_suffix<T: FromBytes + KnownLayout + Immutable + ?Sized>(
-    source: &[u8],
+fn ref_from_prefix_suffix<S, T>(
+    source: &S,
     meta: Option<T::PointerMetadata>,
     cast_type: CastType,
-) -> Result<(&T, &[u8]), CastError<&[u8], T>> {
-    let (slf, prefix_suffix) = Ptr::from_ref(source)
+) -> Result<(&T, &[u8]), CastError<&S, T>>
+where
+    S: IntoBytes + Immutable + ?Sized,
+    T: FromBytes + KnownLayout + Immutable + ?Sized,
+{
+    let (slf, prefix_suffix) = Ptr::from_ref(source.as_bytes())
         .try_cast_into::<_, BecauseImmutable>(cast_type, meta)
-        .map_err(|err| err.map_src(|s| s.as_ref()))?;
+        .map_err(|err| {
+            err.map_src(
+                #[inline(always)]
+                |_| source,
+            )
+        })?;
     Ok((slf.recall_validity().as_ref(), prefix_suffix.as_ref()))
 }
 
@@ -5602,6 +5847,10 @@ fn mut_from_prefix_suffix<T: FromBytes + IntoBytes + KnownLayout + ?Sized>(
 ///       if its field is [`IntoBytes`]; else,
 ///     - if the type has no generic parameters, it is [`IntoBytes`] if the type
 ///       is sized and has no padding bytes; else,
+///     - if the type is `repr(C)` without an `align(N)` modifier for `N > 1`
+///       (it may have `align(1)` or `packed(N)`), and every field is `T`,
+///       `[T; N]`, or a final `[T]` for the same type parameter `T`, it is
+///       [`IntoBytes`]; else,
 ///     - if the type is `repr(C)`, its fields must be [`Unaligned`].
 /// - If the type is an enum:
 ///   - It must have a defined representation (`repr`s `C`, `u8`, `u16`, `u32`,
@@ -6493,6 +6742,39 @@ mod tests {
         }
     }
 
+    // These types exercise a nested slice DST whose inner trailing-padding
+    // operation cannot be flattened into the alignment of the packed outer
+    // type. For `NestedPackedDstOuter<[u8]>`, the trailing slice begins at
+    // offset 7, but the size for `elems` elements is
+    // `2 + round_up(5 + elems, 4)`.
+    //
+    // The Reference rejects directly placing an alignment-4 field in a
+    // `repr(packed(2))` type. Rust currently accepts this construction through
+    // generic indirection. So long as Rust accepts it, this test deliberately
+    // treats its layout as following the otherwise-applicable `repr(C)` and
+    // `repr(packed)` rules.
+    #[derive(FromBytes, Immutable, KnownLayout)]
+    #[repr(C, align(4))]
+    struct NestedPackedDstWord([u8; 4]);
+
+    #[derive(FromBytes, Immutable, KnownLayout)]
+    #[repr(C)]
+    struct NestedPackedDstInner<T: ?Sized> {
+        a: NestedPackedDstWord,
+        b: u8,
+        tail: T,
+    }
+
+    #[derive(FromBytes, Immutable, KnownLayout)]
+    #[repr(C, packed(2))]
+    struct NestedPackedDstOuter<T: ?Sized> {
+        z: u8,
+        inner: ManuallyDrop<NestedPackedDstInner<T>>,
+    }
+
+    #[repr(C, align(2))]
+    struct Align2<T>(T);
+
     #[test]
     fn test_known_layout() {
         // Test that `$ty` and `ManuallyDrop<$ty>` have the expected layout.
@@ -6507,17 +6789,25 @@ mod tests {
             };
         }
 
-        let layout =
-            |offset, align, trailing_slice_elem_size, statically_shallow_unpadded| DstLayout {
-                align: NonZeroUsize::new(align).unwrap(),
+        let layout = |offset, align, trailing_slice_elem_size, statically_shallow_unpadded| {
+            let align = NonZeroUsize::new(align).unwrap();
+            let size_phase = offset % align;
+            DstLayout {
+                align,
                 size_info: match trailing_slice_elem_size {
                     None => SizeInfo::Sized { size: offset },
-                    Some(elem_size) => {
-                        SizeInfo::SliceDst(TrailingSliceLayout { offset, elem_size })
-                    }
+                    Some(elem_size) => SizeInfo::SliceDst(TrailingSliceLayout {
+                        offset,
+                        elem_size,
+                        size_base: offset - size_phase,
+                        size_rounding_align_and_phase: RoundingAlignAndPhase::new(
+                            align, size_phase,
+                        ),
+                    }),
                 },
                 statically_shallow_unpadded,
-            };
+            }
+        };
 
         test!((), layout(0, 1, None, false));
         test!(u8, layout(1, 1, None, false));
@@ -6531,6 +6821,153 @@ mod tests {
         test!([()], layout(0, 1, Some(0), true));
         test!([u8], layout(0, 1, Some(1), true));
         test!(str, layout(0, 1, Some(1), true));
+    }
+
+    #[test]
+    fn test_known_layout_pointer_to_metadata() {
+        fn test<T>(data: *mut T, elems: usize) {
+            let ptr = ptr::slice_from_raw_parts_mut(data, elems);
+            assert_eq!(<[T] as KnownLayout>::pointer_to_metadata(ptr), elems);
+        }
+
+        for elems in [0, 1, usize::MAX] {
+            test(ptr::null_mut::<u8>(), elems);
+        }
+
+        test(NonNull::<u8>::dangling().as_ptr(), 0);
+
+        let mut bytes = [1, 2, 3];
+        test(bytes.as_mut_ptr(), bytes.len());
+        assert_eq!(bytes, [1, 2, 3]);
+
+        test(NonNull::<()>::dangling().as_ptr(), usize::MAX);
+
+        // Retaining and inspecting a raw pointer after freeing its allocation
+        // is safe so long as the pointer is not dereferenced.
+        let deallocated = {
+            let mut byte = Box::new(0u8);
+            let ptr: *mut u8 = &mut *byte;
+            drop(byte);
+            ptr
+        };
+        test(deallocated, 3);
+
+        // Metadata extraction requires neither element storage nor alignment
+        // for `T`; it does not access the pointer's referent.
+        test(NonNull::<u8>::dangling().as_ptr().cast::<u64>(), usize::MAX);
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn test_known_layout_pointer_to_metadata_derive() {
+        #[derive(KnownLayout)]
+        #[repr(C)]
+        struct Dst {
+            prefix: u8,
+            trailing: [u8],
+        }
+
+        for elems in [0, 1, usize::MAX] {
+            let ptr = ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), elems);
+            #[allow(clippy::as_conversions)]
+            let ptr = ptr as *mut Dst;
+            assert_eq!(Dst::pointer_to_metadata(ptr), elems);
+        }
+    }
+
+    #[test]
+    fn test_nested_packed_dst_layout() {
+        fn assert_native_size<const N: usize>(expected: usize) {
+            let value = NestedPackedDstOuter {
+                z: 0,
+                inner: ManuallyDrop::new(NestedPackedDstInner {
+                    a: NestedPackedDstWord([0; 4]),
+                    b: 0,
+                    tail: [0; N],
+                }),
+            };
+            let value: &NestedPackedDstOuter<[u8]> = &value;
+            assert_eq!(mem::size_of_val(value), expected);
+            assert_eq!(NestedPackedDstOuter::<[u8]>::size_for_metadata(N), Some(expected));
+        }
+
+        assert_native_size::<0>(10);
+        assert_native_size::<1>(10);
+        assert_native_size::<2>(10);
+        assert_native_size::<3>(10);
+        assert_native_size::<4>(14);
+        assert_native_size::<7>(14);
+        assert_native_size::<8>(18);
+
+        let layout = NestedPackedDstOuter::<[u8]>::LAYOUT;
+        assert_eq!(layout.align.get(), 2);
+        assert!(layout.requires_dynamic_padding());
+        assert_eq!(
+            layout.size_info,
+            SizeInfo::SliceDst(TrailingSliceLayout {
+                offset: 7,
+                elem_size: 1,
+                size_base: 6,
+                size_rounding_align_and_phase: RoundingAlignAndPhase::new(
+                    NonZeroUsize::new(4).unwrap(),
+                    1
+                ),
+            })
+        );
+
+        // Eight bytes used to be incorrectly accepted for a zero-element
+        // value. The actual Rust layout requires ten bytes.
+        let short = Align2([0u8; 8]);
+        assert!(NestedPackedDstOuter::<[u8]>::ref_from_bytes_with_elems(&short.0, 0).is_err());
+        assert!(pointer::Ptr::from_ref(&short.0[..])
+            .try_cast_into::<NestedPackedDstOuter<[u8]>, pointer::BecauseImmutable>(
+                CastType::Prefix,
+                Some(0),
+            )
+            .is_err());
+
+        let full = Align2([0, 0, 0, 0, 0, 0, 0, 0, b'S', b'!']);
+        let value = NestedPackedDstOuter::<[u8]>::ref_from_bytes_with_elems(&full.0, 0).unwrap();
+        assert_eq!(mem::size_of_val(value), 10);
+
+        // When metadata is inferred, lengths 0 through 3 all produce a
+        // ten-byte object. Parsing chooses the largest trailing-slice length
+        // which fits exactly.
+        let inferred = NestedPackedDstOuter::<[u8]>::ref_from_bytes(&full.0).unwrap();
+        assert_eq!(pointer::Ptr::from_ref(inferred).len(), 3);
+
+        // Trailing padding includes the inner type's padding, even when the
+        // outer type's alignment is reduced by packing.
+        let trailing_layout = trailing_slice_layout::<NestedPackedDstOuter<[u8]>>();
+        for (elems, expected) in [(0, 3), (1, 2), (2, 1), (3, 0), (4, 3)] {
+            assert_eq!(trailing_layout.padding_for_elems(elems), expected);
+        }
+    }
+
+    // Before Rust 1.76, rust-lang/rust#118537 caused `addr_of_mut!` to
+    // miscompute the offset of an unsized field in a packed struct. The fix is
+    // rust-lang/rust#118540. Keep the layout and parsing regression above on
+    // all supported compilers, and gate only the projection regression which
+    // necessarily exercises that independent compiler bug.
+    #[rustversion::since(1.76.0)]
+    #[test]
+    fn test_nested_packed_dst_projection() {
+        let full = Align2([0, 0, 0, 0, 0, 0, 0, 0, b'S', b'!']);
+
+        // The projected inner value occupies the final eight bytes of the full
+        // ten-byte input, including the two sentinel bytes.
+        let (value, rest) = pointer::Ptr::from_ref(&full.0[..])
+            .try_cast_into::<NestedPackedDstOuter<[u8]>, pointer::BecauseImmutable>(
+                CastType::Prefix,
+                Some(0),
+            )
+            .unwrap();
+        assert!(rest.as_ref().is_empty());
+        let inner = value.project::<project_clients::TryFromBytesDerive, _, { STRUCT_VARIANT_ID }, { ident_id!(inner) }>().unwrap();
+        assert_eq!(
+            inner.as_bytes::<pointer::BecauseImmutable>().as_ref(),
+            &[0, 0, 0, 0, 0, 0, b'S', b'!']
+        );
     }
 
     #[cfg(feature = "derive")]
@@ -6588,10 +7025,19 @@ mod tests {
             statically_shallow_unpadded: false,
         };
 
-        let unsized_layout = |align, elem_size, offset, statically_shallow_unpadded| DstLayout {
-            align: NonZeroUsize::new(align).unwrap(),
-            size_info: SizeInfo::SliceDst(TrailingSliceLayout { offset, elem_size }),
-            statically_shallow_unpadded,
+        let unsized_layout = |align, elem_size, offset, statically_shallow_unpadded| {
+            let align = NonZeroUsize::new(align).unwrap();
+            let size_phase = offset % align;
+            DstLayout {
+                align,
+                size_info: SizeInfo::SliceDst(TrailingSliceLayout {
+                    offset,
+                    elem_size,
+                    size_base: offset - size_phase,
+                    size_rounding_align_and_phase: RoundingAlignAndPhase::new(align, size_phase),
+                }),
+                statically_shallow_unpadded,
+            }
         };
 
         // | `repr(C)`? | generic? | `KnownLayout`? | `Sized`? | Type Name |
@@ -7153,6 +7599,112 @@ mod tests {
     }
 
     #[test]
+    fn test_try_read_from_typed_source() {
+        #[derive(IntoBytes, Immutable)]
+        #[repr(transparent)]
+        struct Source<T: ?Sized>(T);
+
+        fn check<S: IntoBytes + Immutable + ?Sized>(source: &S, valid: bool) {
+            match try_read_from::<_, [bool; 4]>(source) {
+                Ok(value) => {
+                    assert!(valid);
+                    assert_eq!(value, [false, true, false, true]);
+                }
+                Err(error) => {
+                    assert!(!valid);
+                    assert!(matches!(error, TryReadError::Validity(_)));
+                    assert!(ptr::eq(error.into_src(), source));
+                }
+            }
+
+            let error = try_read_from::<_, [bool; 5]>(source).unwrap_err();
+            assert!(matches!(error, TryReadError::Size(_)));
+            assert!(ptr::eq(error.into_src(), source));
+        }
+
+        for (value, valid) in [(u16::from_ne_bytes([0, 1]), true), (0x0202, false)] {
+            let source = Source([value; 2]);
+            check(&source, valid);
+            let source: &Source<[u16]> = &source;
+            check(source, valid);
+        }
+
+        let source = Source([(); 2]);
+        assert!(try_read_from::<_, ()>(&source).is_ok());
+        let source: &Source<[()]> = &source;
+        assert!(try_read_from::<_, ()>(source).is_ok());
+    }
+
+    #[test]
+    fn test_try_read_initialized_padding() {
+        #[derive(KnownLayout, Immutable, Debug, PartialEq, Eq)]
+        #[repr(C, align(8))]
+        struct Padded(u8);
+
+        // SAFETY: `Padded` has only a `u8` field and padding, so all
+        // initialized byte sequences are valid. Per
+        // https://doc.rust-lang.org/1.93.1/reference/behavior-considered-undefined.html#invalid-values:
+        //
+        //   An integer (`i*`/`u*`), floating point value (`f*`), or raw pointer
+        //   must be initialized, i.e., must not be obtained from uninitialized
+        //   memory.
+        //
+        //   A `struct`, tuple, and array requires all fields/elements to be
+        //   valid at their respective type.
+        const _: () = unsafe {
+            unsafe_impl!(=> TryFromBytes for Padded; |candidate| {
+                // Observe every byte while validation is running, including
+                // padding that a typed move of `MaybeUninit<Padded>` could
+                // discard. The returned `Padded` need not retain its padding.
+                assert_eq!(candidate.as_bytes::<BecauseImmutable>().as_ref(), &[0xA5; 8]);
+                true
+            })
+        };
+
+        let source = [0xA5; 8];
+        assert_eq!(Padded::try_read_from_bytes(&source), Ok(Padded(0xA5)));
+
+        let prefix_source = [0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0];
+        let (value, suffix) = Padded::try_read_from_prefix(&prefix_source).unwrap();
+        assert_eq!(value, Padded(0xA5));
+        assert!(ptr::eq(suffix, &prefix_source[8..]));
+
+        let suffix_source = [0, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5];
+        let (prefix, value) = Padded::try_read_from_suffix(&suffix_source).unwrap();
+        assert_eq!(value, Padded(0xA5));
+        assert!(ptr::eq(prefix, &suffix_source[..1]));
+    }
+
+    #[test]
+    fn test_try_read_error_sources_and_zero_sized() {
+        let invalid = [2, 3];
+        for (error, source) in [
+            (bool::try_read_from_bytes(&invalid[..1]).unwrap_err(), &invalid[..1]),
+            (bool::try_read_from_prefix(&invalid).unwrap_err(), &invalid[..]),
+            (bool::try_read_from_suffix(&invalid).unwrap_err(), &invalid[..]),
+        ] {
+            assert!(matches!(error, TryReadError::Validity(_)));
+            assert!(ptr::eq(error.into_src(), source));
+        }
+        for source in [&[][..], &invalid[..]] {
+            let error = bool::try_read_from_bytes(source).unwrap_err();
+            assert!(matches!(error, TryReadError::Size(_)));
+            assert!(ptr::eq(error.into_src(), source));
+        }
+        for error in [
+            bool::try_read_from_prefix(&invalid[..0]).unwrap_err(),
+            bool::try_read_from_suffix(&invalid[..0]).unwrap_err(),
+        ] {
+            assert!(matches!(error, TryReadError::Size(_)));
+            assert!(ptr::eq(error.into_src(), &invalid[..0]));
+        }
+
+        assert_eq!(<()>::try_read_from_bytes(&[]), Ok(()));
+        assert_eq!(<()>::try_read_from_prefix(&invalid), Ok(((), &invalid[..])));
+        assert_eq!(<()>::try_read_from_suffix(&invalid), Ok((&invalid[..], ())));
+    }
+
+    #[test]
     fn test_ref_from_mut_from_bytes() {
         // Test `FromBytes::{ref_from_bytes, mut_from_bytes}{,_prefix,Suffix}`
         // success cases. Exhaustive coverage for these methods is covered by
@@ -7503,6 +8055,16 @@ mod tests {
         }
 
         #[test]
+        fn test_new_box_zeroed_with_elems_nested_packed_dst() {
+            let mut value = NestedPackedDstOuter::<[u8]>::new_box_zeroed_with_elems(0).unwrap();
+            assert_eq!(mem::size_of_val(&*value), 10);
+
+            // Exercise the whole-object write that exposed the former
+            // under-allocation under Miri and AddressSanitizer.
+            value.zero();
+        }
+
+        #[test]
         fn test_new_box_zeroed_with_elems_empty() {
             let s: Box<[u64]> = <[u64]>::new_box_zeroed_with_elems(0).unwrap();
             assert_eq!(s.len(), 0);
@@ -7569,6 +8131,133 @@ mod tests {
         let (rest, slc) = <u32>::mut_slice_from_suffix(mut_bytes, 0).unwrap();
         assert!(slc.is_empty());
         assert_eq!(rest.len(), 4);
+    }
+
+    #[test]
+    fn test_ref_from_prefix_suffix_typed_source() {
+        #[derive(IntoBytes, Immutable)]
+        #[repr(transparent)]
+        struct Source<T: ?Sized>(T);
+
+        fn check<S: IntoBytes + Immutable + ?Sized>(source: &S) {
+            let bytes = source.as_bytes();
+            assert_eq!(bytes.len(), 4);
+
+            for cast_type in [CastType::Prefix, CastType::Suffix] {
+                let (expected, expected_rest) = match cast_type {
+                    CastType::Prefix => (&bytes[..3], &bytes[3..]),
+                    CastType::Suffix => (&bytes[1..], &bytes[..1]),
+                };
+                for meta in [None, Some(1)] {
+                    let (value, rest) =
+                        ref_from_prefix_suffix::<_, [[u8; 3]]>(source, meta, cast_type).unwrap();
+                    assert_eq!(value, &[expected]);
+                    assert!(ptr::eq(value.as_bytes(), expected));
+                    assert!(ptr::eq(rest, expected_rest));
+                }
+
+                let err =
+                    ref_from_prefix_suffix::<_, [u8; 5]>(source, None, cast_type).unwrap_err();
+                assert!(matches!(err, CastError::Size(_)));
+                assert!(ptr::eq(err.into_src(), source));
+
+                let err =
+                    ref_from_prefix_suffix::<_, [u8]>(source, Some(5), cast_type).unwrap_err();
+                assert!(matches!(err, CastError::Size(_)));
+                assert!(ptr::eq(err.into_src(), source));
+            }
+        }
+
+        check(&Source([0x0102u16, 0x0304]));
+        let source = Source([false, true, false, true]);
+        let source: &Source<[bool]> = &source;
+        check(source);
+    }
+
+    #[test]
+    fn test_ref_from_prefix_suffix_typed_source_alignment_error() {
+        let storage = Align::<[bool; 9], AU64>::new([false; 9]);
+        for cast_type in [CastType::Prefix, CastType::Suffix] {
+            let source = match cast_type {
+                CastType::Prefix => &storage.t[1..],
+                CastType::Suffix => &storage.t[..],
+            };
+            let err = ref_from_prefix_suffix::<_, AU64>(source, None, cast_type).unwrap_err();
+            assert!(matches!(err, CastError::Alignment(_)));
+            let recovered: &[bool] = err.into_src();
+            assert!(ptr::eq(recovered, source));
+
+            let err = try_ref_from_prefix_suffix::<_, AU64>(source, cast_type, None).unwrap_err();
+            assert!(matches!(err, TryCastError::Alignment(_)));
+            let recovered: &[bool] = err.into_src();
+            assert!(ptr::eq(recovered, source));
+        }
+    }
+
+    #[test]
+    fn test_try_ref_from_prefix_suffix_typed_source() {
+        #[derive(IntoBytes, Immutable)]
+        #[repr(transparent)]
+        struct Source<T: ?Sized>(T);
+
+        fn check<S: IntoBytes + Immutable + ?Sized>(source: &S) {
+            let bytes = source.as_bytes();
+            assert_eq!(bytes, [0, 1, 0, 1]);
+
+            for cast_type in [CastType::Prefix, CastType::Suffix] {
+                let (expected, expected_rest) = match cast_type {
+                    CastType::Prefix => (&bytes[..3], &bytes[3..]),
+                    CastType::Suffix => (&bytes[1..], &bytes[..1]),
+                };
+                for meta in [None, Some(1)] {
+                    let (value, rest) =
+                        try_ref_from_prefix_suffix::<_, [[bool; 3]]>(source, cast_type, meta)
+                            .unwrap();
+                    assert_eq!(value.as_bytes(), expected);
+                    assert!(ptr::eq(value.as_bytes(), expected));
+                    assert!(ptr::eq(rest, expected_rest));
+                }
+
+                let err = try_ref_from_prefix_suffix::<_, [bool; 5]>(source, cast_type, None)
+                    .unwrap_err();
+                assert!(matches!(err, TryCastError::Size(_)));
+                assert!(ptr::eq(err.into_src(), source));
+
+                let err = try_ref_from_prefix_suffix::<_, [bool]>(source, cast_type, Some(5))
+                    .unwrap_err();
+                assert!(matches!(err, TryCastError::Size(_)));
+                assert!(ptr::eq(err.into_src(), source));
+            }
+        }
+
+        check(&Source([u16::from_ne_bytes([0, 1]); 2]));
+        let source = Source([false, true, false, true]);
+        let source: &Source<[bool]> = &source;
+        check(source);
+    }
+
+    #[test]
+    fn test_try_ref_from_prefix_suffix_typed_source_validity_error() {
+        fn check<S: IntoBytes + Immutable + ?Sized>(source: &S) {
+            for cast_type in [CastType::Prefix, CastType::Suffix] {
+                let err =
+                    try_ref_from_prefix_suffix::<_, bool>(source, cast_type, None).unwrap_err();
+                assert!(matches!(err, TryCastError::Validity(_)));
+                assert!(ptr::eq(err.into_src(), source));
+
+                for meta in [None, Some(1)] {
+                    let err = try_ref_from_prefix_suffix::<_, [bool]>(source, cast_type, meta)
+                        .unwrap_err();
+                    assert!(matches!(err, TryCastError::Validity(_)));
+                    assert!(ptr::eq(err.into_src(), source));
+                }
+            }
+        }
+
+        let source = [u16::from_ne_bytes([2, 2]); 2];
+        check(&source);
+        check(&source[..]);
+        check(source.as_bytes());
     }
 
     #[test]

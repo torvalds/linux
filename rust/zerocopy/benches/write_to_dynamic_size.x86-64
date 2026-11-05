@@ -3,8 +3,7 @@ bench_write_to_dynamic_size:
 	push rbx
 	push rax
 	mov rbx, rcx
-	lea r14, [2*rsi + 5]
-	and r14, -2
+	lea r14, [2*rsi + 4]
 	cmp rcx, r14
 	jne .LBB5_2
 	mov rax, rdi

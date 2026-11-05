@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,max20826.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices MAX20826 PMBus Voltage Regulator
+
+maintainers:
+  - Nuno Sá <nuno.sa@analog.com>
+
+description:
+  Analog Devices MAX20826 and similar devices are Dual-Output Multiphase
+  High-Current Controller.
+
+properties:
+  compatible:
+    enum:
+      - adi,max20826
+      - adi,max20855b
+      - adi,max20908
+      - adi,max20912
+      - adi,max20916
+
+  reg:
+    maxItems: 1
+
+  vdd3p3-supply:
+    description:
+      3.3V bias supply. It is the input of the internal 1.8V linear regulator
+      which supplies the controller.
+
+  avren-gpios:
+    description: GPIO pin to enable/disable the output voltage on Rail A.
+    maxItems: 1
+
+  bvren-gpios:
+    description: GPIO pin to enable/disable the output voltage on Rail B.
+    maxItems: 1
+
+  adi,rail-a-high-speed:
+    type: boolean
+    description:
+      The output voltage of Rail A is controlled by the high-speed processor
+      voltage-control interface the device powered up in (PWMVID, SVID, SVI3 or
+      AVSBus). If not given, PMBus controls the output voltage of Rail A.
+
+  adi,rail-b-high-speed:
+    type: boolean
+    description:
+      Same as adi,rail-a-high-speed but for Rail B.
+
+  regulators:
+    type: object
+    description:
+      List of regulators provided by this controller. vout0 is Rail A and
+      vout1 is Rail B.
+
+    patternProperties:
+      "^vout[0-1]$":
+        $ref: /schemas/regulator/regulator.yaml#
+        type: object
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - vdd3p3-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@64 {
+            compatible = "adi,max20826";
+            reg = <0x64>;
+
+            vdd3p3-supply = <&vdd3p3>;
+
+            avren-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+            bvren-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+
+            adi,rail-a-high-speed;
+
+            regulators {
+                vout0 {
+                    regulator-name = "vcore_a";
+                };
+
+                vout1 {
+                    regulator-name = "vcore_b";
+                };
+            };
+        };
+    };

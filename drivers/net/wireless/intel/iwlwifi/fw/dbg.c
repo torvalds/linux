@@ -9,7 +9,7 @@
 #include "runtime.h"
 #include "dbg.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "iwl-fh.h"
@@ -103,7 +103,7 @@ static int iwl_dump_ini_prph_mac_iter_common(struct iwl_fw_runtime *fwrt,
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = size;
 	for (i = 0; i < le32_to_cpu(size); i += 4)
-		*val++ = cpu_to_le32(iwl_trans_read_prph(fwrt->trans, addr + i));
+		*val++ = cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans, addr + i));
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -159,7 +159,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	indirect_rd_addr += le32_to_cpu(offset);
 
 	dphy_addr = (offset) ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
-	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+	dphy_state = iwl_trans_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
 
 	for (i = 0; i < le32_to_cpu(size); i += 4) {
 		if (dphy_state == HBUS_TIMEOUT ||
@@ -169,16 +169,16 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 			continue;
 		}
 
-		iwl_trans_write_prph(fwrt->trans, indirect_wr_addr,
-				     WMAL_INDRCT_CMD(addr + i));
+		iwl_trans_write_prph_no_grab(fwrt->trans, indirect_wr_addr,
+					     WMAL_INDRCT_CMD(addr + i));
 
 		if (fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF1 &&
 		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF2 &&
 		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR1 &&
 		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR2) {
 			udelay(2);
-			prph_stts = iwl_trans_read_prph(fwrt->trans,
-							WMAL_MRSPF_STTS);
+			prph_stts = iwl_trans_read_prph_no_grab(fwrt->trans,
+								WMAL_MRSPF_STTS);
 
 			/* Abort dump if status is 0xA5A5A5A2 or FIFO1 empty */
 			if (prph_stts == WMAL_TIMEOUT_VAL ||
@@ -186,8 +186,8 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 				break;
 		}
 
-		prph_val = iwl_trans_read_prph(fwrt->trans,
-					       indirect_rd_addr);
+		prph_val = iwl_trans_read_prph_no_grab(fwrt->trans,
+						       indirect_rd_addr);
 		*val++ = cpu_to_le32(prph_val);
 	}
 
@@ -344,6 +344,9 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 	struct iwl_dram_data *frag;
 	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
 
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return -EINVAL;
+
 	frag = &fwrt->trans->dbg.fw_mon_ini[alloc_id].frags[idx];
 
 	range->dram_base_addr = cpu_to_le64(frag->physical);
@@ -443,7 +446,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	range->fifo_hdr.num_of_registers = cpu_to_le32(registers_num);
 	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
 
-	iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
 
 	/*
 	 * read txf registers. for each register, write to the dump the
@@ -453,8 +456,8 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 		addr = le32_to_cpu(reg->addrs[i]) + offs;
 
 		reg_dump->addr = cpu_to_le32(addr);
-		reg_dump->data = cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								 addr));
+		reg_dump->data = cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									 addr));
 
 		reg_dump++;
 	}
@@ -465,17 +468,17 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-	iwl_trans_write_prph(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
-			     TXF_WR_PTR + offs);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offs,
+				     TXF_WR_PTR + offs);
 
 	/* Dummy-read to advance the read pointer to the head */
-	iwl_trans_read_prph(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
+	iwl_trans_read_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offs);
 
 	/* Read FIFO */
 	addr = TXF_READ_MODIFY_DATA + offs;
 	data = (void *)reg_dump;
 	for (i = 0; i < iter->fifo_size; i += sizeof(*data))
-		*data++ = cpu_to_le32(iwl_trans_read_prph(fwrt->trans, addr));
+		*data++ = cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans, addr));
 
 	if (fwrt->sanitize_ops && fwrt->sanitize_ops->frob_txf)
 		fwrt->sanitize_ops->frob_txf(fwrt->sanitize_ctx,
@@ -505,7 +508,7 @@ iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
 	indirect_rd_wr_addr += le32_to_cpu(offset);
 
 	dphy_addr = offset ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
-	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+	dphy_state = iwl_trans_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
 
 	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
 		if (dphy_state == HBUS_TIMEOUT ||
@@ -515,12 +518,12 @@ iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
 			continue;
 		}
 
-		iwl_trans_write_prph(fwrt->trans, indirect_rd_wr_addr,
-				     addr + i);
+		iwl_trans_write_prph_no_grab(fwrt->trans, indirect_rd_wr_addr,
+					     addr + i);
 		/* wait a bit for value to be ready in register */
 		udelay(1);
-		prph_val = iwl_trans_read_prph(fwrt->trans,
-					       indirect_rd_wr_addr);
+		prph_val = iwl_trans_read_prph_no_grab(fwrt->trans,
+						       indirect_rd_wr_addr);
 		*val++ = cpu_to_le32((prph_val & DPHYIP_INDIRECT_RD_MSK) >>
 				     DPHYIP_INDIRECT_RD_SHIFT);
 	}
@@ -583,13 +586,13 @@ static void iwl_ini_get_rxf_data(struct iwl_fw_runtime *fwrt,
 		switch (fifo_idx) {
 		case 0:
 			data->size = fwrt->smem_cfg.rxfifo2_size;
-			data->offset = iwl_umac_prph(fwrt->trans,
-						     RXF_DIFF_FROM_PREV);
+			data->offset = iwl_trans_umac_prph(fwrt->trans,
+							   RXF_DIFF_FROM_PREV);
 			break;
 		case 1:
 			data->size = fwrt->smem_cfg.rxfifo2_control_size;
-			data->offset = iwl_umac_prph(fwrt->trans,
-						     RXF2C_DIFF_FROM_PREV);
+			data->offset = iwl_trans_umac_prph(fwrt->trans,
+							   RXF2C_DIFF_FROM_PREV);
 			break;
 		}
 	}
@@ -625,8 +628,8 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 		addr = le32_to_cpu(reg->addrs[i]) + offs;
 
 		reg_dump->addr = cpu_to_le32(addr);
-		reg_dump->data = cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								 addr));
+		reg_dump->data = cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									 addr));
 
 		reg_dump++;
 	}
@@ -639,17 +642,17 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	offs = rxf_data.offset;
 
 	/* Lock fence */
-	iwl_trans_write_prph(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
 	/* Set fence pointer to the same place like WR pointer */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offs, 0x1);
 	/* Set fence offset */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs, 0x0);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_FENCE_OFFSET_ADDR + offs, 0x0);
 
 	/* Read FIFO */
 	addr =  RXF_FIFO_RD_FENCE_INC + offs;
 	data = (void *)reg_dump;
 	for (i = 0; i < rxf_data.size; i += sizeof(*data))
-		*data++ = cpu_to_le32(iwl_trans_read_prph(fwrt->trans, addr));
+		*data++ = cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans, addr));
 
 out:
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
@@ -709,10 +712,10 @@ iwl_dump_ini_dbgi_sram_iter(struct iwl_fw_runtime *fwrt,
 	range->range_data_size = reg->dev_addr.size;
 	for (i = 0; i < (le32_to_cpu(reg->dev_addr.size) / 4); i++) {
 		prph_data =
-			iwl_trans_read_prph(fwrt->trans,
-					    (i % 2) ?
-						DBGI_SRAM_TARGET_ACCESS_RDATA_MSB :
-						DBGI_SRAM_TARGET_ACCESS_RDATA_LSB);
+			iwl_trans_read_prph_no_grab(fwrt->trans,
+						    (i % 2) ?
+						        DBGI_SRAM_TARGET_ACCESS_RDATA_MSB :
+						        DBGI_SRAM_TARGET_ACCESS_RDATA_LSB);
 		if (iwl_trans_is_hw_error_value(prph_data))
 			return -EBUSY;
 		*val++ = cpu_to_le32(prph_data);
@@ -809,7 +812,7 @@ static __le32 iwl_get_mon_reg(struct iwl_fw_runtime *fwrt, u32 alloc_id,
 	if (!reg_info || !reg_info->addr || !reg_info->mask)
 		return 0;
 
-	val = iwl_trans_read_prph(fwrt->trans, reg_info->addr + offs);
+	val = iwl_trans_read_prph_no_grab(fwrt->trans, reg_info->addr + offs);
 
 	return cpu_to_le32(mask_apply_and_normalize(val, reg_info->mask));
 }
@@ -957,6 +960,9 @@ iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
 	u32 ranges = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
 	int i;
 
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return 0;
+
 	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
 
 	for (i = 0; i < fw_mon->num_frags; i++) {
@@ -1016,8 +1022,16 @@ static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
 	if (!size || !ranges)
 		return 0;
 
-	return sizeof(struct iwl_fw_ini_error_dump) + ranges *
-		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+	if (check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &size) ||
+	    check_mul_overflow(ranges, size, &size) ||
+	    check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump),
+			       &size))
+		return 0;
+
+	return size;
 }
 
 static u32
@@ -1028,15 +1042,24 @@ iwl_dump_ini_mem_block_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
 	u32 ranges = iwl_dump_ini_mem_block_ranges(fwrt, reg_data);
 	u32 size = sizeof(struct iwl_fw_ini_error_dump);
+	u32 range_hdrs;
 	int range;
 
 	if (!ranges)
 		return 0;
 
 	for (range = 0; range < ranges; range++)
-		size += le32_to_cpu(pairs[range].size);
+		if (check_add_overflow(size, le32_to_cpu(pairs[range].size),
+				       &size))
+			return 0;
 
-	return size + ranges * sizeof(struct iwl_fw_ini_error_dump_range);
+	if (check_mul_overflow(ranges,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &range_hdrs) ||
+	    check_add_overflow(size, range_hdrs, &size))
+		return 0;
+
+	return size;
 }
 
 static u32
@@ -1067,6 +1090,9 @@ iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_mon *fw_mon;
 	u32 size = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
 	int i;
+
+	if (WARN_ON_ONCE(alloc_id >= ARRAY_SIZE(fwrt->trans->dbg.fw_mon_ini)))
+		return 0;
 
 	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
 
@@ -1112,8 +1138,16 @@ static u32 iwl_dump_ini_mon_dbgi_get_size(struct iwl_fw_runtime *fwrt,
 	if (!size || !ranges)
 		return 0;
 
-	return sizeof(struct iwl_fw_ini_monitor_dump) + ranges *
-		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+	if (check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_error_dump_range),
+			       &size) ||
+	    check_mul_overflow(ranges, size, &size) ||
+	    check_add_overflow(size,
+			       (u32)sizeof(struct iwl_fw_ini_monitor_dump),
+			       &size))
+		return 0;
+
+	return size;
 }
 
 static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
@@ -1786,14 +1820,14 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(IWL_FW_INI_APPLY_POLICY_SPLIT_DUMP_RESET)) {
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_EARLY_REGIONS);
-		iwl_trans_pcie_fw_reset_handshake(fwrt->trans);
+		iwl_trans_fw_reset_handshake(fwrt->trans);
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_LATE_REGIONS);
 	} else {
 		if (fw_has_capa(&fwrt->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT) &&
 		    iwl_dump_due_to_error(tp_id))
-			iwl_trans_pcie_fw_reset_handshake(fwrt->trans);
+			iwl_trans_fw_reset_handshake(fwrt->trans);
 		size += iwl_dump_ini_dump_entries(fwrt, list,
 						  IWL_INI_DUMP_ALL_REGIONS);
 	}
@@ -2021,7 +2055,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		if (trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
 			IWL_WARN(fwrt, "Force restart: trigger %d fired.\n",
 				 trig);
-			iwl_force_nmi(fwrt->trans);
+			iwl_trans_force_nmi(fwrt->trans);
 			return 0;
 		}
 
@@ -2199,7 +2233,8 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	}
 
 	if (fwrt->trans->dbg.last_tp_resetfw == IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY)
-		iwl_force_nmi(fwrt->trans);
+		iwl_trans_force_nmi(fwrt->trans);
+
 out:
 	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
 		iwl_fw_error_dump_data_free(dump_data);
@@ -2269,8 +2304,13 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 {
 	struct iwl_fwrt_wk_data *wks =
 		container_of(work, typeof(*wks), wk.work);
-	struct iwl_fw_runtime *fwrt =
-		container_of(wks, typeof(*fwrt), dump.wks[wks->idx]);
+	struct iwl_fw_runtime *fwrt;
+
+	if (WARN_ONCE(wks->idx >= IWL_FW_RUNTIME_DUMP_WK_NUM,
+		      "invalid worker index %d\n", wks->idx))
+		return;
+
+	fwrt = container_of(wks, typeof(*fwrt), dump.wks[wks->idx]);
 
 	/* assumes the op mode mutex is locked in dump_start since
 	 * iwl_fw_dbg_collect_sync can't run in parallel
@@ -2346,21 +2386,21 @@ static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 				      struct iwl_fw_dbg_params *params)
 {
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_trans_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		return;
 	}
 
 	if (params) {
-		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
-		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
+		params->in_sample = iwl_trans_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_trans_read_umac_prph(trans, DBGC_OUT_CTRL);
 	}
 
-	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
+	iwl_trans_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
 	/* wait for the DBGC to finish writing the internal buffer to DRAM to
 	 * avoid halting the HW while writing
 	 */
 	usleep_range(700, 1000);
-	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
+	iwl_trans_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
 }
 
 static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
@@ -2370,12 +2410,12 @@ static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 		return -EIO;
 
 	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_trans_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_trans_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_trans_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 	} else {
-		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
-		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+		iwl_trans_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		iwl_trans_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
 
 	return 0;

@@ -6205,7 +6205,7 @@ static int nand_scan_tail(struct nand_chip *chip)
 	/*
 	 * FIXME: some NAND manufacturer drivers expect the first die to be
 	 * selected when manufacturer->init() is called. They should be fixed
-	 * to explictly select the relevant die when interacting with the NAND
+	 * to explicitly select the relevant die when interacting with the NAND
 	 * chip.
 	 */
 	nand_select_target(chip, 0);

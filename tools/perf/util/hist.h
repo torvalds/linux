@@ -130,6 +130,7 @@ struct hists {
 	struct hists_stats	stats;
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
+	bool			merge_entries;
 	bool			has_callchains;
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
@@ -338,7 +339,13 @@ static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
 static inline void hist_entry__add_pair(struct hist_entry *pair,
 					struct hist_entry *he)
 {
-	list_add_tail(&pair->pairs.node, &he->pairs.head);
+	struct list_head *pos;
+
+	list_for_each(pos, &he->pairs.head) {
+		if (pos == &pair->pairs.node)
+			return; /* Already paired */
+	}
+	list_move_tail(&pair->pairs.node, &he->pairs.head);
 }
 
 struct hist_entry *hists__add_entry(struct hists *hists,
@@ -433,10 +440,16 @@ void hists__match(struct hists *leader, struct hists *other);
 int hists__link(struct hists *leader, struct hists *other);
 int hists__unlink(struct hists *hists);
 
+float hist_entry__get_percent_limit_merged(struct hist_entry *he);
+void evlist__merge_hists_hybrid(struct evlist *evlist, bool refresh);
+
 static inline float hist_entry__get_percent_limit(struct hist_entry *he)
 {
 	u64 period = he->stat.period;
 	u64 total_period = hists__total_period(he->hists);
+
+	if (he->hists->merge_entries)
+		return hist_entry__get_percent_limit_merged(he);
 
 	if (unlikely(total_period == 0))
 		return 0;
@@ -714,7 +727,6 @@ struct block_hist {
 #define NO_ADDR 0
 
 #ifdef HAVE_SLANG_SUPPORT
-#include "../ui/keysyms.h"
 void attr_to_script(char *buf, struct perf_event_attr *attr);
 
 int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
@@ -787,11 +799,6 @@ static inline int block_hists_tui_browse(struct block_hist *bh __maybe_unused,
 {
 	return 0;
 }
-
-#define K_LEFT  -1000
-#define K_RIGHT -2000
-#define K_SWITCH_INPUT_DATA -3000
-#define K_RELOAD -4000
 #endif
 
 unsigned int hists__sort_list_width(struct hists *hists);

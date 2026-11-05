@@ -558,7 +558,7 @@
 #define EMIF_SRAM_AM33_REG_LAYOUT			0x00000000
 #define EMIF_SRAM_AM43_REG_LAYOUT			0x00000001
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * Structure containing shadow of important registers in EMIF
  * The calculation function fills in this structure to be later used for
@@ -603,5 +603,5 @@ void ti_emif_enter_sr(void);
 void ti_emif_exit_sr(void);
 void ti_emif_abort_sr(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __EMIF_H */

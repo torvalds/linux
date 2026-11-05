@@ -10,8 +10,8 @@
  * different m68k hosts compiled into the kernel.
  * Currently the Atari has 72 and the Amiga 24, but if both are
  * supported in the kernel it is better to make room for 72.
- * With EtherNAT add-on card on Atari, the highest interrupt
- * number is 140 so NR_IRQS needs to be 141.
+ * With the SVEthLANa adapter in the SuperVidel on Atari, the highest
+ * interrupt number is 141 so NR_IRQS needs to be 142.
  */
 #if defined(CONFIG_COLDFIRE)
 #define NR_IRQS 256
@@ -19,7 +19,7 @@
       defined(CONFIG_SUN3X) || defined(CONFIG_VIRT)
 #define NR_IRQS 200
 #elif defined(CONFIG_ATARI)
-#define NR_IRQS 141
+#define NR_IRQS 142
 #elif defined(CONFIG_MAC)
 #define NR_IRQS 72
 #elif defined(CONFIG_Q40)

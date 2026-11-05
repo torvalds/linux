@@ -31,15 +31,15 @@
 
 #include <trace/events/landlock.h>
 
-struct landlock_ruleset *
-landlock_create_ruleset(const access_mask_t fs_access_mask,
-			const access_mask_t net_access_mask,
-			const access_mask_t scope_mask)
+struct landlock_ruleset *landlock_create_ruleset(
+	const access_mask_t fs_access_mask, const access_mask_t net_access_mask,
+	const access_mask_t scope_mask, const access_mask_t permission_mask)
 {
 	struct landlock_ruleset *new_ruleset;
 
 	/* Informs about useless ruleset. */
-	if (!fs_access_mask && !net_access_mask && !scope_mask)
+	if (!fs_access_mask && !net_access_mask && !scope_mask &&
+	    !permission_mask)
 		return ERR_PTR(-ENOMSG);
 
 	new_ruleset = kzalloc_obj(*new_ruleset, GFP_KERNEL_ACCOUNT);
@@ -64,21 +64,32 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 					   LANDLOCK_MASK_ACCESS_FS;
 
 		WARN_ON_ONCE(fs_access_mask != mask);
-		new_ruleset->handled_masks.fs |= mask;
+		new_ruleset->layer.handled.fs |= mask;
 	}
+
 	if (net_access_mask) {
 		const access_mask_t mask = net_access_mask &
 					   LANDLOCK_MASK_ACCESS_NET;
 
 		WARN_ON_ONCE(net_access_mask != mask);
-		new_ruleset->handled_masks.net |= mask;
+		new_ruleset->layer.handled.net |= mask;
 	}
+
 	if (scope_mask) {
 		const access_mask_t mask = scope_mask & LANDLOCK_MASK_SCOPE;
 
 		WARN_ON_ONCE(scope_mask != mask);
-		new_ruleset->handled_masks.scope |= mask;
+		new_ruleset->layer.handled.scope |= mask;
 	}
+
+	if (permission_mask) {
+		const access_mask_t mask = permission_mask &
+					   LANDLOCK_MASK_PERMISSION;
+
+		WARN_ON_ONCE(permission_mask != mask);
+		new_ruleset->layer.handled.permissions |= mask;
+	}
+
 	return new_ruleset;
 }
 

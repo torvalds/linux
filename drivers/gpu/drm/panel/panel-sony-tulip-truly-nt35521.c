@@ -472,28 +472,17 @@ static int truly_nt35521_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				     "Failed to create backlight\n");
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void truly_nt35521_remove(struct mipi_dsi_device *dsi)
-{
-	struct truly_nt35521 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id truly_nt35521_of_match[] = {
@@ -504,7 +493,6 @@ MODULE_DEVICE_TABLE(of, truly_nt35521_of_match);
 
 static struct mipi_dsi_driver truly_nt35521_driver = {
 	.probe = truly_nt35521_probe,
-	.remove = truly_nt35521_remove,
 	.driver = {
 		.name = "panel-truly-nt35521",
 		.of_match_table = truly_nt35521_of_match,

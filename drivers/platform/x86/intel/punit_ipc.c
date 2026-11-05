@@ -250,10 +250,8 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, irq, intel_punit_ioc,
 				       IRQF_NO_SUSPEND, "intel_punit_ipc",
 				       punit_ipcdev);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to request irq: %d\n", irq);
+		if (ret)
 			return ret;
-		}
 		punit_ipcdev->irq = irq;
 	}
 

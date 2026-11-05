@@ -104,6 +104,19 @@ struct bpf_local_storage {
 	refcount_t owner_refcnt;/* Used to pin owner when map_free is uncharging */
 };
 
+/*
+ * Drop a reference got by refcount_inc_not_zero(&local_storage->owner_refcnt).
+ * bpf_local_storage_destroy() may have dropped the owner's reference meanwhile
+ * and wait for the count to reach zero, so this one can be the last.
+ */
+static inline void
+bpf_local_storage_unpin_owner(struct bpf_local_storage *local_storage)
+{
+	bool last __maybe_unused;
+
+	last = refcount_dec_and_test(&local_storage->owner_refcnt);
+}
+
 /* U16_MAX is much more than enough for sk local storage
  * considering a tcp_sock is ~2k.
  */

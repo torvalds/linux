@@ -229,7 +229,7 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 
 	if (vcpu_has_nv(vcpu)) {
 		hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
-		wi->s2 = wi->regime == TR_EL10 && (hcr & (HCR_VM | HCR_DC));
+		wi->s2 = wi->regime == TR_EL10 && (hcr & (HCR_EL2_VM | HCR_EL2_DC));
 	} else {
 		WARN_ON_ONCE(wi->regime != TR_EL10);
 		wi->s2 = false;
@@ -305,7 +305,7 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		 * is EL1&0, then it means that either {E2H,TGE} == {1,0} or
 		 * {0,x}, and we only need to test for TGE == 1.
 		 */
-		if (hcr & (HCR_DC | HCR_TGE)) {
+		if (hcr & (HCR_EL2_DC | HCR_EL2_TGE)) {
 			wr->level = S1_MMU_DISABLED;
 			break;
 		}
@@ -870,7 +870,7 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 	s1_parattr = FIELD_GET(SYS_PAR_EL1_ATTR, s1_par);
 	s2_memattr = FIELD_GET(GENMASK(5, 2), tr->desc);
 
-	if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_FWB) {
+	if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_FWB) {
 		if (!kvm_has_feat(vcpu->kvm, ID_AA64PFR2_EL1, MTEPERM, IMP))
 			s2_memattr &= ~BIT(3);
 
@@ -924,7 +924,7 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 		}
 	}
 
-	if ((__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_CD) &&
+	if ((__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_CD) &&
 	    !MEMATTR_IS_DEVICE(final_attr))
 		final_attr = MEMATTR(NC, NC);
 
@@ -956,7 +956,7 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		par |= wr->pa & SYS_PAR_EL1_PA;
 
 		if (wi->regime == TR_EL10 && vcpu_has_nv(vcpu) &&
-		    (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_DC)) {
+		    (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_DC)) {
 			par |= FIELD_PREP(SYS_PAR_EL1_ATTR,
 					  MEMATTR(WbRaWa, WbRaWa));
 			par |= FIELD_PREP(SYS_PAR_EL1_SH, ATTR_NSH);
@@ -1548,11 +1548,11 @@ int __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		bool fail;
 
 		val = hcr = read_sysreg(hcr_el2);
-		val &= ~HCR_TGE;
-		val |= HCR_VM;
+		val &= ~HCR_EL2_TGE;
+		val |= HCR_EL2_VM;
 
 		if (!vcpu_el2_e2h_is_set(vcpu))
-			val |= HCR_NV | HCR_NV1;
+			val |= HCR_EL2_NV | HCR_EL2_NV1;
 
 		write_sysreg_hcr(val);
 		isb();
@@ -1635,7 +1635,7 @@ int __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	 * early. Same thing if {VM,DC}=={0,0}.
 	 */
 	if (compute_translation_regime(vcpu, op) == TR_EL20 ||
-	    !(vcpu_read_sys_reg(vcpu, HCR_EL2) & (HCR_VM | HCR_DC)))
+	    !(vcpu_read_sys_reg(vcpu, HCR_EL2) & (HCR_EL2_VM | HCR_EL2_DC)))
 		return 0;
 
 	/* Do the stage-2 translation */

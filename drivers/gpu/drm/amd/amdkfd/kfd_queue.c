@@ -197,18 +197,18 @@ int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_
 			 u64 expected_size)
 {
 	struct amdgpu_bo_va_mapping *mapping;
-	u64 user_addr;
+	u64 user_pfn;
 	u64 size;
 
-	user_addr = (u64)addr >> AMDGPU_GPU_PAGE_SHIFT;
 	size = expected_size >> AMDGPU_GPU_PAGE_SHIFT;
 
-	mapping = amdgpu_vm_bo_lookup_mapping(vm, user_addr);
+	mapping = amdgpu_vm_bo_lookup_mapping(vm, (u64)(uintptr_t)addr);
 	if (!mapping)
 		goto out_err;
 
-	if (user_addr != mapping->start ||
-	    (size != 0 && user_addr + size - 1 != mapping->last)) {
+	user_pfn = (u64)(uintptr_t)addr >> AMDGPU_GPU_PAGE_SHIFT;
+	if (user_pfn != mapping->start ||
+	    (size != 0 && user_pfn + size - 1 != mapping->last)) {
 		pr_debug("expected size 0x%llx not equal to mapping addr 0x%llx size 0x%llx\n",
 			expected_size, mapping->start << AMDGPU_GPU_PAGE_SHIFT,
 			(mapping->last - mapping->start + 1) << AMDGPU_GPU_PAGE_SHIFT);
@@ -228,6 +228,15 @@ out_err:
 void kfd_queue_buffer_put(struct amdgpu_bo **bo)
 {
 	amdgpu_bo_unref(bo);
+}
+
+static void kfd_queue_put_bos(struct queue_properties *properties)
+{
+	kfd_queue_buffer_put(&properties->wptr_bo);
+	kfd_queue_buffer_put(&properties->rptr_bo);
+	kfd_queue_buffer_put(&properties->ring_bo);
+	kfd_queue_buffer_put(&properties->eop_buf_bo);
+	kfd_queue_buffer_put(&properties->cwsr_bo);
 }
 
 int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
@@ -343,7 +352,13 @@ out_err_release:
 	 * dropping the VM reservation.
 	 */
 	kfd_queue_unref_bo_vas(pdd, properties);
-	kfd_queue_release_buffers(pdd, properties);
+	/*
+	 * The SVM CWSR range is the last thing acquired and a failed
+	 * kfd_queue_buffer_svm_get() takes nothing, so only the BOs are held
+	 * here. Dropping the SVM reference would drop the one of another queue
+	 * using the same CWSR address.
+	 */
+	kfd_queue_put_bos(properties);
 	return err;
 }
 
@@ -352,11 +367,7 @@ int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_prope
 	struct kfd_topology_device *topo_dev;
 	u64 total_cwsr_size;
 
-	kfd_queue_buffer_put(&properties->wptr_bo);
-	kfd_queue_buffer_put(&properties->rptr_bo);
-	kfd_queue_buffer_put(&properties->ring_bo);
-	kfd_queue_buffer_put(&properties->eop_buf_bo);
-	kfd_queue_buffer_put(&properties->cwsr_bo);
+	kfd_queue_put_bos(properties);
 
 	topo_dev = kfd_topology_device_by_id(pdd->dev->id);
 	if (!topo_dev)

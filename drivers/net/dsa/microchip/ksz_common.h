@@ -139,6 +139,8 @@ struct ksz_chip_data {
 	u8 sgmii_port;
 	const struct regmap_access_table *wr_table;
 	const struct regmap_access_table *rd_table;
+	const u8 n_pins;
+	const u8 n_per_out;
 };
 
 struct ksz_irq {
@@ -281,9 +283,11 @@ enum ksz_model {
 	KSZ88X3,
 	KSZ8864,
 	KSZ8895,
+	KSZ8995XA,
 	KSZ9477,
 	KSZ9896,
 	KSZ9897,
+	KSZ9897S,
 	KSZ9893,
 	KSZ9563,
 	KSZ9567,
@@ -789,7 +793,13 @@ static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 static inline bool ksz_is_8895_family(struct ksz_device *dev)
 {
 	return dev->chip_id == KSZ8895_CHIP_ID ||
-	       dev->chip_id == KSZ8864_CHIP_ID;
+	       dev->chip_id == KSZ8864_CHIP_ID ||
+	       dev->chip_id == KSZ8995XA_CHIP_ID;
+}
+
+static inline bool ksz_is_ksz8995xa(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8995XA_CHIP_ID;
 }
 
 static inline bool is_ksz8(struct ksz_device *dev)
@@ -860,6 +870,7 @@ static inline bool ksz_is_sgmii_port(struct ksz_device *dev, int port)
 #define KSZ87_CHIP_ID_94		0x6
 #define KSZ87_CHIP_ID_95		0x9
 #define KSZ88_CHIP_ID_63		0x3
+#define KSZ8895_CHIP_ID_95XA		0x0
 #define KSZ8895_CHIP_ID_95		0x4
 #define KSZ8895_CHIP_ID_95R		0x6
 
@@ -873,6 +884,10 @@ static inline bool ksz_is_sgmii_port(struct ksz_device *dev, int port)
 #define REG_CHIP_ID4			0x0f
 #define SKU_ID_KSZ8563			0x3c
 #define SKU_ID_KSZ9563			0x1c
+
+/* KSZ9897 specific register: port 7 XMII control 0 */
+#define KSZ9897_REG_PORT7_XMII_CTRL_0	0x7300
+#define KSZ9897_PORT7_SGMII_SEL		BIT(7)
 
 /* Driver set switch broadcast storm protection at 10% rate. */
 #define BROADCAST_STORM_PROT_RATE	10
@@ -923,6 +938,7 @@ static inline bool ksz_is_sgmii_port(struct ksz_device *dev, int port)
 #define KSZ8863_HUGE_PACKET_SIZE	1916
 #define KSZ8863_NORMAL_PACKET_SIZE	1536
 #define KSZ8_LEGAL_PACKET_SIZE		1518
+#define KSZ8995XA_LEGAL_PACKET_SIZE	1522
 #define KSZ9477_MAX_FRAME_SIZE		9000
 
 #define KSZ8873_REG_GLOBAL_CTRL_12	0x0e

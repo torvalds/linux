@@ -7,7 +7,7 @@
 struct quickspi_device;
 
 int quickspi_hid_send_report(struct quickspi_device *qsdev,
-			     void *data, size_t data_size);
+			     void *data, size_t buf_size, size_t data_size);
 int quickspi_hid_probe(struct quickspi_device *qsdev);
 void quickspi_hid_remove(struct quickspi_device *qsdev);
 

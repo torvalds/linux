@@ -98,7 +98,7 @@ struct slim_driver {
  * @start_offset: Specifies starting offset in information/value element map
  * @rbuf: buffer to read the values
  * @wbuf: buffer to write
- * @num_bytes: upto 16. This ensures that the message will fit the slicesize
+ * @num_bytes: up to 16. This ensures that the message will fit the slicesize
  *		per SLIMbus spec
  * @comp: completion for asynchronous operations, valid only if TID is
  *	  required for transaction, like REQUEST operations.

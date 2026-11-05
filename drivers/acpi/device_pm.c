@@ -23,6 +23,8 @@
 #include "fan.h"
 #include "internal.h"
 
+#define ACPI_D_STATE_INVALID	ACPI_D_STATE_COUNT
+
 /**
  * acpi_power_state_string - String representation of ACPI device power state.
  * @state: ACPI device power state to return the string representation of.
@@ -75,15 +77,14 @@ static int acpi_dev_pm_explicit_get(struct acpi_device *device, int *state)
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
 	int result = ACPI_STATE_UNKNOWN;
-	struct acpi_device *parent;
 	int error;
 
 	if (!device || !state)
 		return -EINVAL;
 
-	parent = acpi_dev_parent(device);
-
 	if (!device->flags.power_manageable) {
+		struct acpi_device *parent = acpi_dev_parent(device);
+
 		/* TBD: Non-recursive algorithm for walking up hierarchy. */
 		*state = parent ? parent->power.state : ACPI_STATE_D0;
 		goto out;
@@ -118,16 +119,6 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 		else if (result == ACPI_STATE_UNKNOWN)
 			result = psc > ACPI_STATE_D2 ? ACPI_STATE_D3_HOT : psc;
 	}
-
-	/*
-	 * If we were unsure about the device parent's power state up to this
-	 * point, the fact that the device is in D0 implies that the parent has
-	 * to be in D0 too, except if ignore_parent is set.
-	 */
-	if (!device->power.flags.ignore_parent && parent &&
-	    parent->power.state == ACPI_STATE_UNKNOWN &&
-	    result == ACPI_STATE_D0)
-		parent->power.state = ACPI_STATE_D0;
 
 	*state = result;
 
@@ -304,23 +295,27 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 }
 EXPORT_SYMBOL(acpi_bus_set_power);
 
-int acpi_bus_init_power(struct acpi_device *device)
+static int acpi_device_init_power(struct acpi_device *device)
 {
 	int state;
 	int result;
 
-	if (!device)
-		return -EINVAL;
-
-	device->power.state = ACPI_STATE_UNKNOWN;
-	if (!acpi_device_is_present(device)) {
-		device->flags.initialized = false;
-		return -ENXIO;
-	}
-
 	result = acpi_device_get_power(device, &state);
 	if (result)
 		return result;
+
+	/*
+	 * If the current power state of the device is D0 and it has a parent
+	 * whose power state is not ignored, and the parent's power state
+	 * initialization has failed, the parent's power state can be updated to
+	 * D0 for consistency.
+	 */
+	if (!device->power.flags.ignore_parent && state == ACPI_STATE_D0) {
+		struct acpi_device *parent = acpi_dev_parent(device);
+
+		if (parent && parent->power.state == ACPI_D_STATE_INVALID)
+			parent->power.state = ACPI_STATE_D0;
+	}
 
 	if (state < ACPI_STATE_D3_COLD && device->power.flags.power_resources) {
 		/* Reference count the power resources. */
@@ -351,7 +346,34 @@ int acpi_bus_init_power(struct acpi_device *device)
 		state = ACPI_STATE_D0;
 	}
 	device->power.state = state;
+
+	acpi_handle_debug(device->handle, "Initial power state: %s\n",
+			  acpi_power_state_string(state));
+
 	return 0;
+}
+
+int acpi_bus_init_power(struct acpi_device *device)
+{
+	int result;
+
+	if (device->power.state != ACPI_STATE_UNKNOWN)
+		return 0;
+
+	/*
+	 * The ACPI device power state can be only initialized once.  If this
+	 * fails, ACPI power management will not be used for the device going
+	 * forward.
+	 */
+	result = acpi_device_init_power(device);
+	if (result) {
+		device->flags.power_manageable = 0;
+		device->power.state = ACPI_D_STATE_INVALID;
+		acpi_handle_info(device->handle,
+				 "Initial power state undetermined, ACPI PM disabled\n");
+	}
+
+	return result;
 }
 
 /**
@@ -475,8 +497,13 @@ static int acpi_power_up_if_adr_present(struct acpi_device *adev, void *not_used
 	if (!(adev->flags.power_manageable && adev->pnp.type.bus_address))
 		return 0;
 
-	acpi_handle_debug(adev->handle, "Power state: %s\n",
-			  acpi_power_state_string(adev->power.state));
+	/*
+	 * This is done during the PCI root initialization which occurs before
+	 * acpi_bus_attach() is called for the device, so the ACPI power state
+	 * of the device needs to be initialized here.
+	 */
+	if (acpi_bus_init_power(adev))
+		return 0;
 
 	if (adev->power.state == ACPI_STATE_D3_COLD)
 		return acpi_device_set_power(adev, ACPI_STATE_D0);

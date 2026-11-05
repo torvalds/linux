@@ -128,8 +128,8 @@ static void atlas_acpi_button_remove(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id atlas_device_ids[] = {
-	{ "ASIM0000" },
-	{ "" }
+	{ .id = "ASIM0000" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, atlas_device_ids);
 

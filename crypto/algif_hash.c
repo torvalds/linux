@@ -23,7 +23,7 @@ static const struct af_alg_allowlist_entry hash_allowlist[] = {
 	{ "hmac(sha224)" }, /* iwd */
 	{ "hmac(sha256)" }, /* iwd */
 	{ "hmac(sha384)" }, /* iwd */
-	{ "hmac(sha512)" }, /* iwd, sha512hmac */
+	{ "hmac(sha512)", AF_ALG_UNPRIVILEGED }, /* iwd, sha512hmac */
 	{ "md4" }, /* iwd */
 	{ "md5" }, /* iwd */
 	{ "sha1", AF_ALG_UNPRIVILEGED }, /* iwd, iproute2 < 7.0 */

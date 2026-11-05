@@ -31,7 +31,7 @@ In a rough C snippet, we have::
     kbd_keycode(keycode) {
 	...
 	params.value = keycode;
-	if (notifier_call_chain(KBD_KEYCODE,&params) == NOTIFY_STOP)
+	if ((notifier_call_chain(KBD_KEYCODE,&params) == NOTIFY_STOP)
 	    || !bound) {
 		notifier_call_chain(KBD_UNBOUND_KEYCODE,&params);
 		return;

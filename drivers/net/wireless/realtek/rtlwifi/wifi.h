@@ -744,7 +744,7 @@ enum rtl_var_map {
 	RTL_IMR_BDOK,		/*Beacon Queue DMA OK Interrup */
 	RTL_IMR_HIGHDOK,	/*High Queue DMA OK Interrupt */
 	RTL_IMR_COMDOK,		/*Command Queue DMA OK Interrupt*/
-	RTL_IMR_TBDOK,		/*Transmit Beacon OK interrup */
+	RTL_IMR_TBDOK,		/* Transmit Beacon OK interrupt */
 	RTL_IMR_MGNTDOK,	/*Management Queue DMA OK Interrupt */
 	RTL_IMR_TBDER,		/*For 92C,Transmit Beacon Error Interrupt */
 	RTL_IMR_BKDOK,		/*AC_BK DMA OK Interrupt */
@@ -2693,7 +2693,7 @@ struct rtl_priv {
 	int max_fw_size;
 
 	/* hal_cfg : for diff cards
-	 * intf_ops : for diff interrface usb/pcie
+	 * intf_ops : for diff interface usb/pcie
 	 */
 	const struct rtl_hal_cfg *cfg;
 	const struct rtl_intf_ops *intf_ops;
@@ -2841,7 +2841,7 @@ enum bt_radio_shared {
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)
 /* no matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
 #define	RT_PS_LEVEL_ASPM		BIT(7)
-/*When LPS is on, disable 2R if no packet is received or transmittd.*/
+/* When LPS is on, disable 2R if no packet is received or transmitted. */
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/*LPS with ASPM */
 #define	RT_IN_PS_LEVEL(ppsc, _ps_flg)		\

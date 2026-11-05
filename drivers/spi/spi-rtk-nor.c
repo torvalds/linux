@@ -344,7 +344,7 @@ static bool rtk_spi_supports_op(struct spi_mem *mem,
 	 * multi-byte stateless commands are not supported by this controller.
 	 */
 	if (!op->addr.nbytes && op->data.nbytes > 1)
-		return -EOPNOTSUPP;
+		return false;
 
 	if (op->dummy.nbytes != 0) {
 		if (op->dummy.buswidth > 1 || op->dummy.nbytes > 7)

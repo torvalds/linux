@@ -7,6 +7,7 @@
  * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -101,23 +102,25 @@ static inline void axi_chan_config_write(struct axi_dma_chan *chan,
 {
 	u32 cfg_lo, cfg_hi;
 
-	cfg_lo = (config->dst_multblk_type << CH_CFG_L_DST_MULTBLK_TYPE_POS |
-		  config->src_multblk_type << CH_CFG_L_SRC_MULTBLK_TYPE_POS);
 	if (chan->chip->dw->hdata->reg_map_8_channels &&
 	    !chan->chip->dw->hdata->use_cfg2) {
-		cfg_hi = config->tt_fc << CH_CFG_H_TT_FC_POS |
-			 config->hs_sel_src << CH_CFG_H_HS_SEL_SRC_POS |
-			 config->hs_sel_dst << CH_CFG_H_HS_SEL_DST_POS |
-			 config->src_per << CH_CFG_H_SRC_PER_POS |
-			 config->dst_per << CH_CFG_H_DST_PER_POS |
-			 config->prior << CH_CFG_H_PRIORITY_POS;
+		cfg_lo = FIELD_PREP(CH_CFG_L_DST_MULTBLK_TYPE, config->dst_multblk_type) |
+			 FIELD_PREP(CH_CFG_L_SRC_MULTBLK_TYPE, config->src_multblk_type);
+		cfg_hi = FIELD_PREP(CH_CFG_H_TT_FC, config->tt_fc) |
+			 FIELD_PREP(CH_CFG_H_HS_SEL_SRC, config->hs_sel_src) |
+			 FIELD_PREP(CH_CFG_H_HS_SEL_DST, config->hs_sel_dst) |
+			 FIELD_PREP(CH_CFG_H_SRC_PER, config->src_per) |
+			 FIELD_PREP(CH_CFG_H_DST_PER, config->dst_per) |
+			 FIELD_PREP(CH_CFG_H_PRIORITY, config->prior);
 	} else {
-		cfg_lo |= config->src_per << CH_CFG2_L_SRC_PER_POS |
-			  config->dst_per << CH_CFG2_L_DST_PER_POS;
-		cfg_hi = config->tt_fc << CH_CFG2_H_TT_FC_POS |
-			 config->hs_sel_src << CH_CFG2_H_HS_SEL_SRC_POS |
-			 config->hs_sel_dst << CH_CFG2_H_HS_SEL_DST_POS |
-			 config->prior << CH_CFG2_H_PRIORITY_POS;
+		cfg_lo = FIELD_PREP(CH_CFG_L_DST_MULTBLK_TYPE, config->dst_multblk_type) |
+			 FIELD_PREP(CH_CFG_L_SRC_MULTBLK_TYPE, config->src_multblk_type) |
+			 FIELD_PREP(CH_CFG2_L_SRC_PER, config->src_per) |
+			 FIELD_PREP(CH_CFG2_L_DST_PER, config->dst_per);
+		cfg_hi = FIELD_PREP(CH_CFG2_H_TT_FC, config->tt_fc) |
+			 FIELD_PREP(CH_CFG2_H_HS_SEL_SRC, config->hs_sel_src) |
+			 FIELD_PREP(CH_CFG2_H_HS_SEL_DST, config->hs_sel_dst) |
+			 FIELD_PREP(CH_CFG2_H_PRIORITY, config->prior);
 	}
 	axi_chan_iowrite32(chan, CH_CFG_L, cfg_lo);
 	axi_chan_iowrite32(chan, CH_CFG_H, cfg_hi);
@@ -316,7 +319,7 @@ static struct axi_dma_lli *axi_desc_get(struct axi_dma_chan *chan,
 
 	lli = dma_pool_zalloc(chan->desc_pool, GFP_NOWAIT, &phys);
 	if (unlikely(!lli)) {
-		dev_err(chan2dev(chan), "%s: not enough descriptors available\n",
+		dev_err(vchan_chan_dev(&chan->vc), "%s: not enough descriptors available\n",
 			axi_chan_name(chan));
 		return NULL;
 	}
@@ -342,7 +345,7 @@ static void axi_desc_put(struct axi_dma_desc *desc)
 	kfree(desc->hw_desc);
 	kfree(desc);
 	atomic_sub(descs_put, &chan->descs_allocated);
-	dev_vdbg(chan2dev(chan), "%s: %d descs put, %d still allocated\n",
+	dev_vdbg(vchan_chan_dev(&chan->vc), "%s: %d descs put, %d still allocated\n",
 		 axi_chan_name(chan), descs_put,
 		 atomic_read(&chan->descs_allocated));
 }
@@ -431,7 +434,7 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(vchan_chan_dev(&chan->vc), "%s is non-idle!\n",
 			axi_chan_name(chan));
 
 		return;
@@ -490,7 +493,7 @@ static void axi_chan_start_first_queued(struct axi_dma_chan *chan)
 		return;
 
 	desc = vd_to_axi_desc(vd);
-	dev_vdbg(chan2dev(chan), "%s: started %u\n", axi_chan_name(chan),
+	dev_vdbg(vchan_chan_dev(&chan->vc), "%s: started %u\n", axi_chan_name(chan),
 		 vd->tx.cookie);
 	axi_chan_block_xfer_start(chan, desc);
 }
@@ -524,23 +527,22 @@ static int dma_chan_alloc_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan)) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(vchan_chan_dev(&chan->vc), "%s is non-idle!\n",
 			axi_chan_name(chan));
 		pm_runtime_put(chan->chip->dev);
 		return -EBUSY;
 	}
 
 	/* LLI address must be aligned to a 64-byte boundary */
-	chan->desc_pool = dma_pool_create(dev_name(chan2dev(chan)),
-					  chan->chip->dev,
+	chan->desc_pool = dma_pool_create(dma_chan_name(dchan), chan->chip->dev,
 					  sizeof(struct axi_dma_lli),
 					  64, 0);
 	if (!chan->desc_pool) {
-		dev_err(chan2dev(chan), "No memory for descriptors\n");
+		dev_err(vchan_chan_dev(&chan->vc), "No memory for descriptors\n");
 		pm_runtime_put(chan->chip->dev);
 		return -ENOMEM;
 	}
-	dev_vdbg(dchan2dev(dchan), "%s: allocating\n", axi_chan_name(chan));
+	dev_vdbg(dmaengine_chan_dev(dchan), "%s: allocating\n", axi_chan_name(chan));
 
 	return 0;
 }
@@ -551,7 +553,7 @@ static void dma_chan_free_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan))
-		dev_err(dchan2dev(dchan), "%s is non-idle!\n",
+		dev_err(dmaengine_chan_dev(dchan), "%s is non-idle!\n",
 			axi_chan_name(chan));
 
 	axi_chan_disable(chan);
@@ -561,7 +563,7 @@ static void dma_chan_free_chan_resources(struct dma_chan *dchan)
 
 	dma_pool_destroy(chan->desc_pool);
 	chan->desc_pool = NULL;
-	dev_vdbg(dchan2dev(dchan),
+	dev_vdbg(dmaengine_chan_dev(dchan),
 		 "%s: free resources, descriptor still allocated: %u\n",
 		 axi_chan_name(chan), atomic_read(&chan->descs_allocated));
 
@@ -677,19 +679,19 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 	case DMA_MEM_TO_DEV:
 		reg_width = __ffs(chan->config.dst_addr_width);
 		device_addr = chan->config.dst_addr;
-		ctllo = reg_width << CH_CTL_L_DST_WIDTH_POS |
-			mem_width << CH_CTL_L_SRC_WIDTH_POS |
-			DWAXIDMAC_CH_CTL_L_NOINC << CH_CTL_L_DST_INC_POS |
-			DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_SRC_INC_POS;
+		ctllo = FIELD_PREP(CH_CTL_L_DST_WIDTH, reg_width) |
+			FIELD_PREP(CH_CTL_L_SRC_WIDTH, mem_width) |
+			FIELD_PREP(CH_CTL_L_DST_INC, DWAXIDMAC_CH_CTL_L_NOINC) |
+			FIELD_PREP(CH_CTL_L_SRC_INC, DWAXIDMAC_CH_CTL_L_INC);
 		block_ts = len >> mem_width;
 		break;
 	case DMA_DEV_TO_MEM:
 		reg_width = __ffs(chan->config.src_addr_width);
 		device_addr = chan->config.src_addr;
-		ctllo = reg_width << CH_CTL_L_SRC_WIDTH_POS |
-			mem_width << CH_CTL_L_DST_WIDTH_POS |
-			DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_DST_INC_POS |
-			DWAXIDMAC_CH_CTL_L_NOINC << CH_CTL_L_SRC_INC_POS;
+		ctllo = FIELD_PREP(CH_CTL_L_SRC_WIDTH, reg_width) |
+			FIELD_PREP(CH_CTL_L_DST_WIDTH, mem_width) |
+			FIELD_PREP(CH_CTL_L_DST_INC, DWAXIDMAC_CH_CTL_L_INC) |
+			FIELD_PREP(CH_CTL_L_SRC_INC, DWAXIDMAC_CH_CTL_L_NOINC);
 		block_ts = len >> reg_width;
 		break;
 	default:
@@ -706,10 +708,10 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 	ctlhi = CH_CTL_H_LLI_VALID;
 
 	if (chan->chip->dw->hdata->restrict_axi_burst_len) {
-		burst_len = chan->chip->dw->hdata->axi_rw_burst_len;
+		burst_len = chan->chip->dw->hdata->axi_rw_burst_len - 1;
 		ctlhi |= CH_CTL_H_ARLEN_EN | CH_CTL_H_AWLEN_EN |
-			 burst_len << CH_CTL_H_ARLEN_POS |
-			 burst_len << CH_CTL_H_AWLEN_POS;
+			 FIELD_PREP(CH_CTL_H_ARLEN, burst_len) |
+			 FIELD_PREP(CH_CTL_H_AWLEN, burst_len);
 	}
 
 	hw_desc->lli->ctl_hi = cpu_to_le32(ctlhi);
@@ -724,8 +726,8 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 
 	hw_desc->lli->block_ts_lo = cpu_to_le32(block_ts - 1);
 
-	ctllo |= DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_DST_MSIZE_POS |
-		 DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_SRC_MSIZE_POS;
+	ctllo |= FIELD_PREP(CH_CTL_L_DST_MSIZE, DWAXIDMAC_BURST_TRANS_LEN_4) |
+		 FIELD_PREP(CH_CTL_L_SRC_MSIZE, DWAXIDMAC_BURST_TRANS_LEN_4);
 	hw_desc->lli->ctl_lo = cpu_to_le32(ctllo);
 
 	set_desc_src_master(hw_desc);
@@ -930,7 +932,7 @@ dma_chan_prep_dma_memcpy(struct dma_chan *dchan, dma_addr_t dst_adr,
 	u64 llp = 0;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
-	dev_dbg(chan2dev(chan), "%s: memcpy: src: %pad dst: %pad length: %zd flags: %#lx",
+	dev_dbg(vchan_chan_dev(&chan->vc), "%s: memcpy: src: %pad dst: %pad length: %zd flags: %#lx",
 		axi_chan_name(chan), &src_adr, &dst_adr, len, flags);
 
 	max_block_ts = chan->chip->dw->hdata->block_size[chan->id];
@@ -975,21 +977,21 @@ dma_chan_prep_dma_memcpy(struct dma_chan *dchan, dma_addr_t dst_adr,
 
 		reg = CH_CTL_H_LLI_VALID;
 		if (chan->chip->dw->hdata->restrict_axi_burst_len) {
-			u32 burst_len = chan->chip->dw->hdata->axi_rw_burst_len;
+			u32 burst_len = chan->chip->dw->hdata->axi_rw_burst_len - 1;
 
-			reg |= (CH_CTL_H_ARLEN_EN |
-				burst_len << CH_CTL_H_ARLEN_POS |
-				CH_CTL_H_AWLEN_EN |
-				burst_len << CH_CTL_H_AWLEN_POS);
+			reg |= CH_CTL_H_ARLEN_EN |
+			       FIELD_PREP(CH_CTL_H_ARLEN, burst_len) |
+			       CH_CTL_H_AWLEN_EN |
+			       FIELD_PREP(CH_CTL_H_AWLEN, burst_len);
 		}
 		hw_desc->lli->ctl_hi = cpu_to_le32(reg);
 
-		reg = (DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_DST_MSIZE_POS |
-		       DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_SRC_MSIZE_POS |
-		       xfer_width << CH_CTL_L_DST_WIDTH_POS |
-		       xfer_width << CH_CTL_L_SRC_WIDTH_POS |
-		       DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_DST_INC_POS |
-		       DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_SRC_INC_POS);
+		reg = FIELD_PREP(CH_CTL_L_DST_MSIZE, DWAXIDMAC_BURST_TRANS_LEN_4) |
+		      FIELD_PREP(CH_CTL_L_SRC_MSIZE, DWAXIDMAC_BURST_TRANS_LEN_4) |
+		      FIELD_PREP(CH_CTL_L_DST_WIDTH, xfer_width) |
+		      FIELD_PREP(CH_CTL_L_SRC_WIDTH, xfer_width) |
+		      FIELD_PREP(CH_CTL_L_DST_INC, DWAXIDMAC_CH_CTL_L_INC) |
+		      FIELD_PREP(CH_CTL_L_SRC_INC, DWAXIDMAC_CH_CTL_L_INC);
 		hw_desc->lli->ctl_lo = cpu_to_le32(reg);
 
 		set_desc_src_master(hw_desc);
@@ -1035,11 +1037,11 @@ static void axi_chan_dump_lli(struct axi_dma_chan *chan,
 			      struct axi_dma_hw_desc *desc)
 {
 	if (!desc->lli) {
-		dev_err(dchan2dev(&chan->vc.chan), "NULL LLI\n");
+		dev_err(vchan_chan_dev(&chan->vc), "NULL LLI\n");
 		return;
 	}
 
-	dev_err(dchan2dev(&chan->vc.chan),
+	dev_err(vchan_chan_dev(&chan->vc),
 		"SAR: 0x%llx DAR: 0x%llx LLP: 0x%llx BTS 0x%x CTL: 0x%x:%08x",
 		le64_to_cpu(desc->lli->sar),
 		le64_to_cpu(desc->lli->dar),
@@ -1052,10 +1054,7 @@ static void axi_chan_dump_lli(struct axi_dma_chan *chan,
 static void axi_chan_list_dump_lli(struct axi_dma_chan *chan,
 				   struct axi_dma_desc *desc_head)
 {
-	int count = atomic_read(&chan->descs_allocated);
-	int i;
-
-	for (i = 0; i < count; i++)
+	for (unsigned int i = 0; i < desc_head->nr_hw_descs; i++)
 		axi_chan_dump_lli(chan, &desc_head->hw_desc[i]);
 }
 
@@ -1071,7 +1070,7 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	if (!vd) {
-		dev_err(chan2dev(chan), "BUG: %s, IRQ with no descriptors\n",
+		dev_err(vchan_chan_dev(&chan->vc), "BUG: %s, IRQ with no descriptors\n",
 			axi_chan_name(chan));
 		goto out;
 	}
@@ -1079,7 +1078,7 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 	list_del(&vd->node);
 
 	/* WARN about bad descriptor */
-	dev_err(chan2dev(chan),
+	dev_err(vchan_chan_dev(&chan->vc),
 		"Bad descriptor submitted for %s, cookie: %d, irq: 0x%08x\n",
 		axi_chan_name(chan), vd->tx.cookie, status);
 	axi_chan_list_dump_lli(chan, vd_to_axi_desc(vd));
@@ -1105,7 +1104,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel not idle!\n",
+		dev_err(vchan_chan_dev(&chan->vc), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel not idle!\n",
 			axi_chan_name(chan));
 		axi_chan_disable(chan);
 	}
@@ -1113,7 +1112,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 	/* The completed descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	if (!vd) {
-		dev_err(chan2dev(chan), "BUG: %s, IRQ with no descriptors\n",
+		dev_err(vchan_chan_dev(&chan->vc), "BUG: %s, IRQ with no descriptors\n",
 			axi_chan_name(chan));
 		goto out;
 	}
@@ -1193,7 +1192,7 @@ static int dma_chan_terminate_all(struct dma_chan *dchan)
 	ret = readl_poll_timeout_atomic(chan->chip->regs + DMAC_CHEN, val,
 					!(val & chan_active), 1000, 50000);
 	if (ret == -ETIMEDOUT)
-		dev_warn(dchan2dev(dchan),
+		dev_warn(dmaengine_chan_dev(dchan),
 			 "%s failed to stop\n", axi_chan_name(chan));
 
 	if (chan->direction != DMA_MEM_TO_MEM)
@@ -1210,7 +1209,7 @@ static int dma_chan_terminate_all(struct dma_chan *dchan)
 
 	vchan_dma_desc_free_list(&chan->vc, &head);
 
-	dev_vdbg(dchan2dev(dchan), "terminated: %s\n", axi_chan_name(chan));
+	dev_vdbg(dmaengine_chan_dev(dchan), "terminated: %s\n", axi_chan_name(chan));
 
 	return 0;
 }
@@ -1320,8 +1319,7 @@ static int axi_dma_suspend(struct axi_dma_chip *chip)
 	axi_dma_irq_disable(chip);
 	axi_dma_disable(chip);
 
-	clk_disable_unprepare(chip->core_clk);
-	clk_disable_unprepare(chip->cfgr_clk);
+	clk_bulk_disable_unprepare(ARRAY_SIZE(chip->clks), chip->clks);
 
 	return 0;
 }
@@ -1330,11 +1328,7 @@ static int axi_dma_resume(struct axi_dma_chip *chip)
 {
 	int ret;
 
-	ret = clk_prepare_enable(chip->cfgr_clk);
-	if (ret < 0)
-		return ret;
-
-	ret = clk_prepare_enable(chip->core_clk);
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(chip->clks), chip->clks);
 	if (ret < 0)
 		return ret;
 
@@ -1524,13 +1518,11 @@ static int dw_probe(struct platform_device *pdev)
 
 	chip->dw->hdata->use_cfg2 = !!(flags & AXI_DMA_FLAG_USE_CFG2);
 
-	chip->core_clk = devm_clk_get(chip->dev, "core-clk");
-	if (IS_ERR(chip->core_clk))
-		return PTR_ERR(chip->core_clk);
-
-	chip->cfgr_clk = devm_clk_get(chip->dev, "cfgr-clk");
-	if (IS_ERR(chip->cfgr_clk))
-		return PTR_ERR(chip->cfgr_clk);
+	chip->clks[0].id = "core-clk";
+	chip->clks[1].id = "cfgr-clk";
+	ret = devm_clk_bulk_get(chip->dev, ARRAY_SIZE(chip->clks), chip->clks);
+	if (ret)
+		return dev_err_probe(chip->dev, ret, "failed to get clocks\n");
 
 	ret = parse_device_properties(chip);
 	if (ret)
@@ -1640,10 +1632,13 @@ static void dw_remove(struct platform_device *pdev)
 	struct dw_axi_dma *dw = chip->dw;
 	struct axi_dma_chan *chan, *_chan;
 	u32 i;
+	int ret;
 
 	/* Enable clk before accessing to registers */
-	clk_prepare_enable(chip->cfgr_clk);
-	clk_prepare_enable(chip->core_clk);
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(chip->clks), chip->clks);
+	if (ret)
+		dev_warn(chip->dev, "failed to enable clocks before remove: %d\n",
+			 ret);
 	axi_dma_irq_disable(chip);
 	for (i = 0; i < dw->hdata->nr_channels; i++) {
 		axi_chan_disable(&chip->dw->chan[i]);

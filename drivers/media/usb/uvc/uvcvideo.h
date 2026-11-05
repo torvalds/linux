@@ -456,7 +456,6 @@ struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
 	struct uvc_video_chain *chain;
-	atomic_t active;
 
 	struct usb_interface *intf;
 	int intfnum;
@@ -661,6 +660,7 @@ static inline struct uvc_fh *to_uvc_fh(struct file *filp)
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
 #define UVC_WARN_XU_GET_RES	2
+#define UVC_WARN_QUERY_CTRL	3
 
 extern unsigned int uvc_clock_param;
 extern unsigned int uvc_no_drop_param;
@@ -685,7 +685,7 @@ do {									\
 #define uvc_warn_once(_dev, warn, fmt, ...)				\
 do {									\
 	if (!test_and_set_bit(warn, &(_dev)->warnings))			\
-		dev_info(&(_dev)->intf->dev, fmt, ##__VA_ARGS__);	\
+		dev_warn(&(_dev)->intf->dev, fmt, ##__VA_ARGS__);	\
 } while (0)
 
 /* --------------------------------------------------------------------------

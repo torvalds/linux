@@ -945,6 +945,14 @@ static int rtw8852a_ctrl_sco_cck(struct rtw89_dev *rtwdev, u8 central_ch,
 		rtw89_warn(rtwdev, "Invalid BW:%d for CCK\n", bw);
 		return -EINVAL;
 	}
+
+	if (unlikely(ch_element >= 14)) {
+		rtw89_warn(rtwdev,
+			   "Invalid ch_element:%u where central_ch %u primary_ch %u\n",
+			   ch_element, central_ch, primary_ch);
+		return -EINVAL;
+	}
+
 	rtw89_phy_write32_mask(rtwdev, R_RXSCOBC, B_RXSCOBC_TH,
 			       rtw8852a_sco_barker_threshold[ch_element]);
 	rtw89_phy_write32_mask(rtwdev, R_RXSCOCCK, B_RXSCOCCK_TH,
@@ -1828,6 +1836,7 @@ static u8 rtw8852a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 static void rtw8852a_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 
 	md->rfe_type = rtwdev->efuse.rfe_type;
 	md->kt_ver = rtwdev->hal.cv;
@@ -1842,12 +1851,16 @@ static void rtw8852a_btc_set_rfe(struct rtw89_dev *rtwdev)
 	md->ant.diversity = 0;
 	md->ant.isolation = 10;
 
+	memset(dm->ant_xmap, 0, sizeof(dm->ant_xmap));
+
 	if (md->ant.num == 3) {
 		md->ant.type = BTC_ANT_DEDICATED;
 		md->bt0_pos = BTC_BT_ALONE;
 	} else {
 		md->ant.type = BTC_ANT_SHARED;
 		md->bt0_pos = BTC_BT_BTG;
+		/* the only BT shares the BTG antenna with WL path B */
+		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 	}
 	rtwdev->btc.btg_pos = md->ant.btg_pos;
 	rtwdev->btc.ant_type = md->ant.type;

@@ -155,15 +155,15 @@
 	status = "okay";
 };
 
-&cs_cti_trace {
-	status = "okay";
-};
-
 &cs_cti_cpu0 {
 	status = "okay";
 };
 
 &cs_cti_cpu1 {
+	status = "okay";
+};
+
+&cs_cti_trace {
 	status = "okay";
 };
 
@@ -623,6 +623,32 @@
 	status = "disabled";
 };
 
+&spi4 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi4_pins_b>;
+	pinctrl-1 = <&spi4_sleep_pins_b>;
+	dmas = <&dmamux1 83 0x400 0x01>,
+	       <&dmamux1 84 0x400 0x01>,
+	       <&mdma1 0 0x3 0x1200000a 0 0>;
+	dma-names = "rx", "tx", "rxm2m";
+	sram = <&spi4_dma_pool>;
+	status = "disabled";
+};
+
+&spi5 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi5_pins_a>;
+	pinctrl-1 = <&spi5_sleep_pins_a>;
+	status = "disabled";
+};
+
+&sram4 {
+	spi4_dma_pool: dma-sram@9000 {
+		reg = <0x9000 0x1000>;
+		pool;
+	};
+};
+
 &timers1 {
 	/* spare dmas for other usage */
 	/delete-property/dmas;
@@ -764,6 +790,7 @@
 		compatible = "usb424,2514";
 		reg = <1>;
 		vdd-supply = <&v3v3>;
+		vdda-supply = <&v3v3>;
 	};
 };
 

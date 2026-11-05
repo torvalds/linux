@@ -537,6 +537,13 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 
 	bcm54xx_ptp_config_init(phydev);
 
+	/* Transmit is limited to 4.5 KB without it, see the BCM54210PE
+	 * datasheet section 5.4.12.14.
+	 */
+	err = bcm_phy_enable_jumbo(phydev);
+	if (err < 0)
+		return err;
+
 	/* Acknowledge any left over interrupt and charge the device for
 	 * wake-up.
 	 */

@@ -46,6 +46,7 @@ enum gpio_regmap_operation {
  * @parent:		The parent device
  * @regmap:		The regmap used to access the registers
  *			given, the name of the device is used
+ * @pm_dev:		(Optional) Device to use for runtime power management.
  * @fwnode:		(Optional) The firmware node.
  *			If not given, the fwnode of the parent is used.
  * @label:		(Optional) Descriptive name for GPIO controller.
@@ -117,6 +118,7 @@ enum gpio_regmap_operation {
 struct gpio_regmap_config {
 	struct device *parent;
 	struct regmap *regmap;
+	struct device *pm_dev;
 	struct fwnode_handle *fwnode;
 
 	const char *label;

@@ -157,7 +157,6 @@ void adf_gen4_get_arb_info(struct arb_info *arb_info);
 u32 adf_gen4_get_etr_bar_id(struct adf_hw_device_data *self);
 u32 adf_gen4_get_heartbeat_clock(struct adf_hw_device_data *self);
 u32 adf_gen4_get_misc_bar_id(struct adf_hw_device_data *self);
-u32 adf_gen4_get_num_accels(struct adf_hw_device_data *self);
 u32 adf_gen4_get_num_aes(struct adf_hw_device_data *self);
 enum dev_sku_info adf_gen4_get_sku(struct adf_hw_device_data *self);
 u32 adf_gen4_get_sram_bar_id(struct adf_hw_device_data *self);

@@ -48,6 +48,7 @@
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
 #include "xe_lmtt.h"
+#include "xe_log.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
 #include "xe_migrate.h"
@@ -68,6 +69,8 @@
 #include "xe_vm.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
+
+#define GRDOM_RESET_TIMEOUT_MS	5
 
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 {
@@ -609,6 +612,12 @@ static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 	 */
 	gt->info.gmdid = xe_mmio_read32(&gt->mmio, GMD_ID);
 
+	if (GRAPHICS_VER(gt_to_xe(gt)) >= 20 && xe_gt_is_main_type(gt))
+		gt->info.has_wmtp_disabled = !!(xe_mmio_read32(&gt->mmio, XEHP_FUSE4) &
+			CFEG_WMTP_DISABLE);
+	else
+		gt->info.has_wmtp_disabled = 0;
+
 	/*
 	 * Wa_14026539277 can't be implemented as a regular GT workaround (i.e.
 	 * as an entry in gt_was[]) for two reasons: it is actually a device
@@ -821,10 +830,13 @@ static int do_gt_reset(struct xe_gt *gt)
 	xe_gsc_wa_14015076503(gt, true);
 
 	xe_mmio_write32(&gt->mmio, GDRST, GRDOM_FULL);
-	err = xe_mmio_wait32(&gt->mmio, GDRST, GRDOM_FULL, 0, 5000, NULL, false);
+	err = xe_mmio_wait32(&gt->mmio, GDRST, GRDOM_FULL, 0,
+			     GRDOM_RESET_TIMEOUT_MS * USEC_PER_MSEC,
+			     NULL, false);
 	if (err)
-		xe_gt_err(gt, "failed to clear GRDOM_FULL (%pe)\n",
-			  ERR_PTR(err));
+		xe_log_err(gt, GT, err,
+			   "full graphics reset not completed in %u ms\n",
+			   GRDOM_RESET_TIMEOUT_MS);
 
 	xe_gsc_wa_14015076503(gt, false);
 
@@ -925,7 +937,7 @@ static void gt_reset_worker(struct work_struct *w)
 	if (!xe_device_uc_enabled(gt_to_xe(gt)))
 		goto err_pm_put;
 
-	xe_gt_info(gt, "reset started\n");
+	xe_log_info(gt, GT, "reset started\n");
 
 	if (xe_fault_gt_reset()) {
 		err = -ECANCELED;
@@ -964,7 +976,7 @@ static void gt_reset_worker(struct work_struct *w)
 	/* Pair with get while enqueueing the work in xe_gt_reset_async() */
 	xe_pm_runtime_put(gt_to_xe(gt));
 
-	xe_gt_info(gt, "reset done\n");
+	xe_log_info(gt, GT, "reset done\n");
 
 	return;
 
@@ -973,7 +985,7 @@ err_out:
 	XE_WARN_ON(xe_uc_start(&gt->uc));
 
 err_fail:
-	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
+	xe_log_err_fatal(gt, GT, err, "reset failed\n");
 	xe_device_declare_wedged(gt_to_xe(gt));
 err_pm_put:
 	xe_pm_runtime_put(gt_to_xe(gt));

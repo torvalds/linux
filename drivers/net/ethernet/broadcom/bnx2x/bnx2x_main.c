@@ -12669,7 +12669,7 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 		if (rc)
 			return rc;
 
-		/* Override the curently configured set of mc filters */
+		/* Override the currently configured set of mc filters */
 		rc = bnx2x_config_mcast(bp, &rparam,
 					BNX2X_MCAST_CMD_SET);
 		if (rc < 0)

@@ -1007,6 +1007,7 @@ static void fs_enet_remove(struct platform_device *ofdev)
 	fep->ops->cleanup_data(ndev);
 	dev_set_drvdata(fep->dev, NULL);
 	phylink_destroy(fep->phylink);
+	kfree(fep->fpi);
 	free_netdev(ndev);
 }
 

@@ -18,8 +18,8 @@
 #define OV02C10_MCLK			19200000
 #define OV02C10_RGB_DEPTH		10
 
-#define OV02C10_REG_CHIP_ID		CCI_REG16(0x300a)
-#define OV02C10_CHIP_ID			0x5602
+#define OV02C10_REG_CHIP_ID		CCI_REG24(0x300a)
+#define OV02C10_CHIP_ID			0x560243
 
 #define OV02C10_REG_STREAM_CONTROL	CCI_REG8(0x0100)
 
@@ -701,6 +701,7 @@ static int ov02c10_power_on(struct device *dev)
 }
 
 static int ov02c10_set_format(struct v4l2_subdev *sd,
+			      const struct v4l2_subdev_client_info *ci,
 			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {

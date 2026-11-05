@@ -347,7 +347,7 @@ void iser_release_work(struct work_struct *work)
 
 	/* Wait for conn_stop to complete */
 	wait_for_completion(&iser_conn->stop_completion);
-	/* Wait for IB resouces cleanup to complete */
+	/* Wait for IB resources cleanup to complete */
 	wait_for_completion(&iser_conn->ib_completion);
 
 	mutex_lock(&iser_conn->state_mutex);

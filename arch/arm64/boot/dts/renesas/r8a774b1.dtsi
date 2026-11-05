@@ -21,19 +21,19 @@
 	 * clocks by default.
 	 * Boards that provide audio clocks should override them.
 	 */
-	audio_clk_a: audio_clk_a {
+	audio_clk_a: audio-clk-a {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
-	audio_clk_b: audio_clk_b {
+	audio_clk_b: audio-clk-b {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
-	audio_clk_c: audio_clk_c {
+	audio_clk_c: audio-clk-c {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
@@ -121,13 +121,13 @@
 	};
 
 	/* External PCIe clock - can be overridden by the board */
-	pcie_bus_clk: pcie_bus {
+	pcie_bus_clk: pcie-bus {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
-	pmu_a57 {
+	pmu-a57 {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
@@ -2748,7 +2748,7 @@
 		clock-frequency = <0>;
 	};
 
-	usb_extal_clk: usb_extal {
+	usb_extal_clk: usb-extal {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;

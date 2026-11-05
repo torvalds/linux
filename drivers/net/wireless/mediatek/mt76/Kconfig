@@ -40,6 +40,7 @@ config MT792x_USB
 config MT76_NPU
 	tristate
 	depends on NET_AIROHA_NPU=y || MT76_CORE=NET_AIROHA_NPU
+	depends on NET_AIROHA=y || NET_AIROHA=n || MT76_CORE=NET_AIROHA
 
 source "drivers/net/wireless/mediatek/mt76/mt76x0/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt76x2/Kconfig"

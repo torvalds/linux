@@ -671,7 +671,6 @@ static const struct amd_ip_funcs jpeg_v5_3_0_ip_funcs = {
 	.hw_fini = jpeg_v5_3_0_hw_fini,
 	.suspend = jpeg_v5_3_0_suspend,
 	.resume = jpeg_v5_3_0_resume,
-	.is_idle = jpeg_v5_3_0_is_idle,
 	.wait_for_idle = jpeg_v5_3_0_wait_for_idle,
 	.set_clockgating_state = jpeg_v5_3_0_set_clockgating_state,
 	.set_powergating_state = jpeg_v5_3_0_set_powergating_state,

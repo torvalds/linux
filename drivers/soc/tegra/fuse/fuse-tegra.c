@@ -34,6 +34,7 @@ static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_A03]     = "A03",
 	[TEGRA_REVISION_A03p]    = "A03 prime",
 	[TEGRA_REVISION_A04]     = "A04",
+	[TEGRA_REVISION_B01]     = "B01",
 };
 
 static const char *tegra_platform_name[TEGRA_PLATFORM_MAX] = {
@@ -65,6 +66,9 @@ static struct tegra_fuse *fuse = &(struct tegra_fuse) {
 };
 
 static const struct of_device_id tegra_fuse_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_264_SOC
+	{ .compatible = "nvidia,tegra264-efuse", .data = &tegra264_fuse_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_234_SOC
 	{ .compatible = "nvidia,tegra234-efuse", .data = &tegra234_fuse_soc },
 #endif
@@ -174,6 +178,11 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 #if defined(CONFIG_ARCH_TEGRA_241_SOC)
 		case TEGRA241:
 			fuse->soc = &tegra241_fuse_soc;
+			break;
+#endif
+#if defined(CONFIG_ARCH_TEGRA_264_SOC)
+		case TEGRA264:
+			fuse->soc = &tegra264_fuse_soc;
 			break;
 #endif
 		default:
@@ -413,7 +422,8 @@ const struct attribute_group tegra_soc_attr_group = {
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
     IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC) || \
-    IS_ENABLED(CONFIG_ARCH_TEGRA_241_SOC)
+    IS_ENABLED(CONFIG_ARCH_TEGRA_241_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_264_SOC)
 static ssize_t platform_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {

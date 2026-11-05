@@ -202,7 +202,7 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 	r = jpeg_v1_0_sw_init(ip_block);
 
 	/* Allocate memory for VCN IP Dump buffer */
-	ptr = kcalloc(adev->vcn.num_vcn_inst * reg_count, sizeof(uint32_t), GFP_KERNEL);
+	ptr = kzalloc_objs(*ptr, adev->vcn.num_vcn_inst * reg_count);
 	if (!ptr) {
 		DRM_ERROR("Failed to allocate memory for VCN IP Dump\n");
 		adev->vcn.ip_dump = NULL;
@@ -2034,7 +2034,6 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.hw_fini = vcn_v1_0_hw_fini,
 	.suspend = vcn_v1_0_suspend,
 	.resume = vcn_v1_0_resume,
-	.is_idle = vcn_v1_0_is_idle,
 	.wait_for_idle = vcn_v1_0_wait_for_idle,
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
 	.set_powergating_state = vcn_set_powergating_state,
@@ -2065,7 +2064,7 @@ static int vcn_v1_0_validate_bo(struct amdgpu_cs_parser *parser,
 		return -EINVAL;
 	}
 
-	mapping = amdgpu_vm_bo_lookup_mapping(vm, addr/AMDGPU_GPU_PAGE_SIZE);
+	mapping = amdgpu_vm_bo_lookup_mapping(vm, addr);
 	if (!mapping || !mapping->bo_va || !mapping->bo_va->base.bo)
 		return -EINVAL;
 

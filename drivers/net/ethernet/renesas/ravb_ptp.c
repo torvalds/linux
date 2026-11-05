@@ -313,31 +313,39 @@ void ravb_ptp_interrupt(struct net_device *ndev)
 	ravb_write(ndev, ~(gis | GIS_RESERVED), GIS);
 }
 
-void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
+int ravb_ptp_init(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	struct ptp_clock *clock;
 	unsigned long flags;
+	int ret = 0;
 
 	priv->ptp.info = ravb_ptp_info;
 
-	priv->ptp.default_addend = ravb_read(ndev, GTI);
+	priv->ptp.default_addend = priv->gti_tiv;
 	priv->ptp.current_addend = priv->ptp.default_addend;
 
 	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Set gPTP Timer Increment Value. */
+	ravb_write(ndev, priv->ptp.default_addend, GTI);
+
+	/* Request GTI loading. */
+	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
+
+	/* Wait for GIT loading to complete by checking there are no requests. */
 	ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
+
 	ravb_modify(ndev, GCCR, GCCR_TCSS, GCCR_TCSS_ADJGPTP);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	clock = ptp_clock_register(&priv->ptp.info, &pdev->dev);
-	if (IS_ERR(clock)) {
-		netdev_err(ndev, "failed to register PTP clock: %pe\n", clock);
-		clock = NULL;
+	priv->ptp.clock = ptp_clock_register(&priv->ptp.info, &priv->pdev->dev);
+	if (IS_ERR(priv->ptp.clock)) {
+		ret = PTR_ERR(priv->ptp.clock);
+		priv->ptp.clock = NULL;
+		ravb_ptp_stop(ndev);
 	}
 
-	WRITE_ONCE(priv->ptp.clock, clock);
-	if (clock)
-		WRITE_ONCE(priv->ptp.phc_index, ptp_clock_index(clock));
+	return ret;
 }
 
 static void ravb_ptp_disable(struct net_device *ndev)
@@ -360,14 +368,12 @@ static void ravb_ptp_sync_irqs(struct net_device *ndev)
 void ravb_ptp_stop(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	struct ptp_clock *clock;
-
-	WRITE_ONCE(priv->ptp.phc_index, -1);
-	clock = xchg(&priv->ptp.clock, NULL);
 
 	ravb_ptp_disable(ndev);
 	ravb_ptp_sync_irqs(ndev);
 
-	if (clock)
-		ptp_clock_unregister(clock);
+	if (priv->ptp.clock) {
+		ptp_clock_unregister(priv->ptp.clock);
+		priv->ptp.clock = NULL;
+	}
 }

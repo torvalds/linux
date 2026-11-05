@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include "imx8mm-kontron-sl.dtsi"
 
 / {
@@ -96,6 +97,7 @@
 	};
 };
 
+/* CAN */
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
@@ -121,8 +123,15 @@
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	cs-gpios = <&gpio5 25 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	eeram@0 {
+		compatible = "microchip,48l640";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
 };
 
+/* ETH0 */
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -139,13 +148,47 @@
 			reset-assert-us = <1>;
 			reset-deassert-us = <15000>;
 			reset-gpios = <&gpio4 27 GPIO_ACTIVE_LOW>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					linux,default-trigger = "netdev";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_YELLOW>;
+					function = LED_FUNCTION_LAN;
+					linux,default-trigger = "netdev";
+				};
+			};
 		};
 	};
+};
+
+/* DIO */
+&gpio1 {
+	gpio-line-names = "", "", "", "DOUT1",
+			  "", "", "DIN1", "DOUT2",
+			  "DIN2", "DOUT3", "DIN3", "DOUT4";
 };
 
 &gpio4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio4>;
+	gpio-line-names = "", "CAN_ADR0", "", "",
+			  "CAN_ADR1", "CAN_ADR2", "CAN_ADR3", "LED6",
+			  "LED4", "LED5", "", "",
+			  "", "", "DSI_MUX_SEL", "DSI_MUX_OE",
+			  "HDMI_IRQ", "LED1", "LED3", "LED2",
+			  "", "", "", "",
+			  "", "ETH_IRQ", "LVDS_EN", "PHY_RST",
+			  "CAN_IRQ", "UART2_RTS";
 
 	dsi_mux_sel_hdmi: dsi-mux-sel-hdmi-hog {
 		gpio-hog;
@@ -168,6 +211,10 @@
 		output-high;
 		line-name = "dsi-mux-oe";
 	};
+};
+
+&gpio5 {
+	gpio-line-names = "", "", "DIN4";
 };
 
 &i2c3 {
@@ -254,6 +301,7 @@
 	status = "okay";
 };
 
+/* RS232 */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
@@ -261,6 +309,7 @@
 	status = "okay";
 };
 
+/* RS485 */
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
@@ -304,6 +353,7 @@
 	};
 };
 
+/* SD-card */
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>;
@@ -321,13 +371,13 @@
 
 	pinctrl_adv7535: adv7535grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16		0x19
+			MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16		0x19 /* HDMI_IRQ */
 		>;
 	};
 
 	pinctrl_can: cangrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x19
+			MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x19 /* CAN_IRQ */
 		>;
 	};
 
@@ -336,7 +386,7 @@
 			MX8MM_IOMUXC_ECSPI2_MISO_ECSPI2_MISO		0x82
 			MX8MM_IOMUXC_ECSPI2_MOSI_ECSPI2_MOSI		0x82
 			MX8MM_IOMUXC_ECSPI2_SCLK_ECSPI2_SCLK		0x82
-			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13		0x19
+			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13		0x19 /* ECSPI2_CS1 */
 		>;
 	};
 
@@ -345,7 +395,7 @@
 			MX8MM_IOMUXC_UART2_RXD_ECSPI3_MISO		0x82
 			MX8MM_IOMUXC_UART1_TXD_ECSPI3_MOSI		0x82
 			MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK		0x82
-			MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25		0x19
+			MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25		0x19 /* ECSPI3_CS1 */
 		>;
 	};
 
@@ -365,40 +415,45 @@
 			MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x91
 			MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
 			MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
-			MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27		0x19 /* PHY RST */
-			MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25		0x19 /* ETH IRQ */
+			MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27		0x19 /* PHY_RST */
+			MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25		0x19 /* ETH_IRQ */
 		>;
 	};
 
 	pinctrl_gpio_led: gpioledgrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16		0x19
-			MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7		0x19
-			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8		0x19
-			MX8MM_IOMUXC_SAI1_RXD7_GPIO4_IO9		0x19
-			MX8MM_IOMUXC_SAI1_TXD5_GPIO4_IO17		0x19
-			MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18		0x19
-			MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19		0x19
+			MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7		0x19 /* LED6 */
+			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8		0x19 /* LED4 */
+			MX8MM_IOMUXC_SAI1_RXD7_GPIO4_IO9		0x19 /* LED5 */
+			MX8MM_IOMUXC_SAI1_TXD5_GPIO4_IO17		0x19 /* LED1 */
+			MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18		0x19 /* LED3 */
+			MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19		0x19 /* LED2 */
 		>;
 	};
 
 	pinctrl_gpio: gpiogrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x19
-			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
-			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9		0x19
-			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x19
-			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6		0x19
-			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x19
-			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x19
-			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2		0x19
+			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x19 /* DOUT1 */
+			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6		0x19 /* DIN1 */
+			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19 /* DOUT2 */
+			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x19 /* DIN2 */
+			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9		0x19 /* DOUT3 */
+			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x19 /* DIN3 */
+			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x19 /* DOUT4 */
+			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2		0x19 /* DIN4 */
 		>;
 	};
 
 	pinctrl_gpio4: gpio4grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14		0x19
-			MX8MM_IOMUXC_SAI1_TXD3_GPIO4_IO15		0x19
+			/* CAN address DIP switches 1-4 */
+			MX8MM_IOMUXC_SAI1_RXC_GPIO4_IO1			0x19 /* CAN_ADR0 */
+			MX8MM_IOMUXC_SAI1_RXD2_GPIO4_IO4		0x19 /* CAN_ADR1 */
+			MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5		0x19 /* CAN_ADR2 */
+			MX8MM_IOMUXC_SAI1_RXD4_GPIO4_IO6		0x19 /* CAN_ADR3 */
+			MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14		0x19 /* DSI_MUX_SEL */
+			MX8MM_IOMUXC_SAI1_TXD3_GPIO4_IO15		0x19 /* DSI_MUX_OE */
 		>;
 	};
 
@@ -424,7 +479,7 @@
 
 	pinctrl_sn65dsi84: sn65dsi84grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26		0x19
+			MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26		0x19 /* LVDS_EN */
 			MX8MM_IOMUXC_SD2_WP_GPIO2_IO20			0x19
 		>;
 	};
@@ -443,13 +498,13 @@
 			MX8MM_IOMUXC_SAI3_TXFS_UART2_DCE_RX		0x0
 			MX8MM_IOMUXC_SAI3_TXC_UART2_DCE_TX		0x0
 			MX8MM_IOMUXC_SAI3_RXD_UART2_DCE_RTS_B		0x0
-			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29		0x19
+			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29		0x19 /* UART2_RTS */
 		>;
 	};
 
 	pinctrl_usb_eth2: usbeth2grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x19
+			MX8MM_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x19 /* ETH_RST */
 		>;
 	};
 
@@ -461,7 +516,7 @@
 			MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1		0x1d0
 			MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x1d0
 			MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x1d0
-			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x19
+			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x19 /* SD2_CD */
 			MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0xd0
 		>;
 	};

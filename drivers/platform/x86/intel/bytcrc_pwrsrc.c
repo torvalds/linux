@@ -221,7 +221,7 @@ static int crc_pwrsrc_probe(struct platform_device *pdev)
 						crc_pwrsrc_irq_handler,
 						IRQF_ONESHOT, KBUILD_MODNAME, data);
 		if (ret)
-			return dev_err_probe(dev, ret, "requesting IRQ\n");
+			return ret;
 	}
 
 	data->debug_dentry = debugfs_create_dir(KBUILD_MODNAME, NULL);

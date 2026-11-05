@@ -402,6 +402,8 @@ static u8 nxpwifi_is_ap_11ax_twt_supported(struct nxpwifi_bssdescriptor *bss_des
 		return false;
 	ext_cap = (struct element *)bss_desc->bcn_ext_cap;
 
+	if (ext_cap->datalen < 10)
+		return false;
 	if (!(ext_cap->data[9] & WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT))
 		return false;
 	return true;

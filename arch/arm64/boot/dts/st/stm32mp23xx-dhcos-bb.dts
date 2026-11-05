@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
+/*
+ * Copyright (C) 2026 Marek Vasut <marex@nabladev.com>
+ */
+
+/dts-v1/;
+
+#include "stm32mp235.dtsi"
+#include "stm32mp23xc.dtsi"
+#include "stm32mp23xx-dhcos-som.dtsi"
+
+/ {
+	model = "DH electronics STM32MP23xx DHCOS Breakout Board";
+	compatible = "dh,stm32mp231a-dhcos-bb", "dh,stm32mp231a-dhcos-som", "st,stm32mp231";
+};

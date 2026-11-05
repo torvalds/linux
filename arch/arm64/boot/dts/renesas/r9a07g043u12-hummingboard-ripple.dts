@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Description for SolidRun RZ/G2UL Type-2 HummingBoard Ripple.
+ *
+ * Copyright 2025 Josua Mayer <josua@solid-run.com>
+ */
+
+/dts-v1/;
+
+#include "r9a07g043u.dtsi"
+#include "rzg2ul-sr-som.dtsi"
+#include "rzg2l-hummingboard-pulse-common.dtsi"
+
+/ {
+	compatible = "solidrun,rzg2ul-hummingboard-ripple", "solidrun,rzg2ul-sr-som",
+		     "renesas,r9a07g043u12", "renesas,r9a07g043";
+	model = "SolidRun RZ/G2UL HummingBoard Ripple";
+
+	leds: leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "on";
+			gpios = <&pinctrl RZG2L_GPIO(12, 1) GPIO_ACTIVE_LOW>;
+			label = "D30";
+		};
+	};
+
+	vbus1: regulator-vbus-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus1";
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		gpios = <&pinctrl RZG2L_GPIO(5, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&hub_2_0 {
+	reset-gpios = <&pinctrl RZG2L_GPIO(13, 3) GPIO_ACTIVE_LOW>;
+};
+
+&pinctrl {
+	hdmi_pd_hog: hdmi-pd-hog {
+		/*
+		 * RZ/G2UL does not have DSI output to feed DSI-to-HDMI
+		 * bridge. Keep its shutdown signal asserted.
+		 */
+		gpio-hog;
+		gpios = <RZG2L_GPIO(14, 2) GPIO_ACTIVE_LOW>;
+		line-name = "hdmi-pd";
+		output-high;
+	};
+
+	mpcie_rst_hog: mpcie-reset-hog {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(0, 3) GPIO_ACTIVE_LOW>;
+		line-name = "mpcie-reset";
+		output-low;
+	};
+
+	mikro_uart_pins: pinctrl-mikro-uart-grp {
+		pinmux = <RZG2L_PORT_PINMUX(14, 1, 1)>, /* SCIF1_RXD */
+			 <RZG2L_PORT_PINMUX(14, 0, 1)>; /* SCIF1_TXD */
+	};
+
+	usb0_vbus_pins: usb0-vbus {
+		pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>; /* USB0_VBUSEN */
+	};
+};
+
+&usb2_phy1 {
+	vbus-supply = <&vbus1>;
+};
+
+&vmmc {
+	gpios = <&pinctrl RZG2L_GPIO(0, 1) GPIO_ACTIVE_LOW>;
+};
+
+&vmpcie {
+	/*
+	 * G2UL SoM v1.2 moved this IO from J7-28 (CON4-12)
+	 * to J7-18 (this regulator).
+	 * There are no known users of CON4-12 and thus no need
+	 * to differentiate here between SoM v1.1 and v1.2.
+	 */
+	gpios = <&pinctrl RZG2L_GPIO(13, 4) GPIO_ACTIVE_HIGH>;
+};

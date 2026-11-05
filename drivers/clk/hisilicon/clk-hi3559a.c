@@ -456,8 +456,8 @@ static void hisi_clk_register_pll(struct hi3559av100_pll_clock *clks,
 {
 	void __iomem *base = data->base;
 	struct hi3559av100_clk_pll *p_clk = NULL;
+	struct clk_init_data init = {};
 	struct clk *clk = NULL;
-	struct clk_init_data init;
 	int i;
 
 	p_clk = devm_kcalloc(dev, nums, sizeof(*p_clk), GFP_KERNEL);

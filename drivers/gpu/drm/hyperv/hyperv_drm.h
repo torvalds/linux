@@ -29,7 +29,6 @@ struct hv_drm_device {
 	unsigned long fb_base;
 	unsigned long fb_size;
 	struct completion wait;
-	u32 synthvid_version;
 	u32 mmio_megabytes;
 	bool dirt_needed;
 

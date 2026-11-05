@@ -161,8 +161,9 @@ void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno);
 
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
-int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex);
-void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex);
+int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex, unsigned int *nofs_flag);
+void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex,
+			   unsigned int nofs_flag);
 void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb);
 void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb);
 int ocfs2_trim_fs_lock(struct ocfs2_super *osb,

@@ -54,7 +54,7 @@
 /*
  * The time value of one counter tick. Note that NSEC_PER_SEC is an integer
  * multiple of PCA9685_OSC_CLOCK_HZ, so there is no rounding involved and we're
- * not loosing precision due to the early division.
+ * not losing precision due to the early division.
  */
 #define PCA9685_QUANTUM_NS(_prescale)	((NSEC_PER_SEC / PCA9685_OSC_CLOCK_HZ) * (_prescale + 1))
 

@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/net.h>
 #include <linux/refcount.h>
 #include <linux/sockptr.h>
 #include <uapi/linux/igmp.h>
@@ -273,7 +274,7 @@ extern int ip_mc_source(int add, int omode, struct sock *sk,
 		struct ip_mreq_source *mreqs, int ifindex);
 extern int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf,int ifindex);
 extern int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
-			sockptr_t optval, sockptr_t optlen);
+			sockopt_t *opt);
 extern int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 			sockptr_t optval, size_t offset);
 extern int ip_mc_sf_allow(const struct sock *sk, __be32 local, __be32 rmt,

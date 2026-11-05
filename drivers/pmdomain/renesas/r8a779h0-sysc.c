@@ -11,7 +11,7 @@
 
 #include "rcar-gen4-sysc.h"
 
-static struct rcar_gen4_sysc_area r8a779h0_areas[] __initdata = {
+static const struct rcar_gen4_sysc_area r8a779h0_areas[] __initconst = {
 	{ "always-on",	R8A779H0_PD_ALWAYS_ON, -1, PD_ALWAYS_ON },
 	{ "c4",		R8A779H0_PD_C4, R8A779H0_PD_ALWAYS_ON },
 	{ "a2e0d0",	R8A779H0_PD_A2E0D0, R8A779H0_PD_C4, PD_SCU },

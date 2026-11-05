@@ -487,6 +487,7 @@ struct dml2_display_cfg {
 			bool mode_support_check_disable;
 			bool mcache_admissibility_check_disable;
 			bool surface_viewport_size_check_disable;
+			bool outstanding_requests_check_disable;
 			double dlg_ref_clk_mhz;
 			double dispclk_mhz;
 			double dcfclk_mhz;

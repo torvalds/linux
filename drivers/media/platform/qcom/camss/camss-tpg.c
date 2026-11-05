@@ -292,6 +292,7 @@ static int tpg_get_format(struct v4l2_subdev *sd,
 }
 
 static int tpg_set_format(struct v4l2_subdev *sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
@@ -322,7 +323,7 @@ static int tpg_init_formats(struct v4l2_subdev *sd,
 		}
 	};
 
-	return tpg_set_format(sd, fh ? fh->state : NULL, &format);
+	return tpg_set_format(sd, NULL, fh ? fh->state : NULL, &format);
 }
 
 static int tpg_s_ctrl(struct v4l2_ctrl *ctrl)

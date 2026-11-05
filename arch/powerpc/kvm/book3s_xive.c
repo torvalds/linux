@@ -961,9 +961,11 @@ static int xive_provision_queue(struct kvm_vcpu *vcpu, u8 prio)
 	 */
 	rc = xive_native_configure_queue(xc->vp_id, q, prio, qpage,
 					 xive->q_order, true);
-	if (rc)
+	if (rc) {
 		pr_err("Failed to configure queue %d for VCPU %d\n",
 		       prio, xc->server_num);
+		free_pages((unsigned long)qpage, xive->q_page_order);
+	}
 	return rc;
 }
 

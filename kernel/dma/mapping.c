@@ -1012,19 +1012,19 @@ size_t dma_max_mapping_size(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dma_max_mapping_size);
 
-size_t dma_opt_mapping_size(struct device *dev)
+size_t dma_max_opt_mapping_size(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	size_t size = SIZE_MAX;
 
 	if (use_dma_iommu(dev))
-		size = iommu_dma_opt_mapping_size();
-	else if (ops && ops->opt_mapping_size)
-		size = ops->opt_mapping_size();
+		size = iommu_dma_max_opt_mapping_size();
+	else if (ops && ops->max_opt_mapping_size)
+		size = ops->max_opt_mapping_size();
 
 	return min(dma_max_mapping_size(dev), size);
 }
-EXPORT_SYMBOL_GPL(dma_opt_mapping_size);
+EXPORT_SYMBOL_GPL(dma_max_opt_mapping_size);
 
 unsigned long dma_get_merge_boundary(struct device *dev)
 {

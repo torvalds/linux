@@ -12,7 +12,7 @@
 #include "include/irq_service_interface.h"
 #include "basics/conversion.h"
 #include "dcn36_resource.h"
-#include "dml2_0/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_wrapper.h"
 
 #include "dcn20/dcn20_resource.h"
 #include "dcn30/dcn30_resource.h"

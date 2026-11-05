@@ -126,11 +126,6 @@ static int isp_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool isp_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	return true;
-}
-
 static int isp_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 				     enum amd_clockgating_state state)
 {
@@ -345,7 +340,6 @@ static const struct amd_ip_funcs isp_ip_funcs = {
 	.early_init = isp_early_init,
 	.hw_init = isp_hw_init,
 	.hw_fini = isp_hw_fini,
-	.is_idle = isp_is_idle,
 	.suspend = isp_suspend,
 	.resume = isp_resume,
 	.set_clockgating_state = isp_set_clockgating_state,

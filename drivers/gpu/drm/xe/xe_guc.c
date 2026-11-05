@@ -5,6 +5,7 @@
 
 #include "xe_guc.h"
 
+#include <linux/error-injection.h>
 #include <linux/iopoll.h>
 #include <drm/drm_managed.h>
 
@@ -39,6 +40,7 @@
 #include "xe_guc_rc.h"
 #include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
+#include "xe_log.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
@@ -1468,6 +1470,22 @@ int xe_guc_suspend(struct xe_guc *guc)
 	return 0;
 }
 
+/**
+ * xe_guc_bo_wa_flags - Extra BO flags for memory shared with the GuC
+ * @gt: the &xe_gt whose GuC the buffer will be shared with
+ *
+ * Wa_22016122933: on the standalone media GT, memory shared between the
+ * CPU and the GuC must not be mapped cached on the CPU side, otherwise
+ * the CPU can read stale data written by the GuC (e.g. G2H CTB writes)
+ * for multiple seconds.
+ *
+ * Return: additional XE_BO_FLAG_* to use when allocating GuC-shared memory
+ */
+u32 xe_guc_bo_wa_flags(struct xe_gt *gt)
+{
+	return XE_GT_WA(gt, 22016122933) ? XE_BO_FLAG_NEEDS_UC : 0;
+}
+
 void xe_guc_notify(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -1542,8 +1560,9 @@ retry:
 		/* scratch registers might be cleared during FLR, try once more */
 		if (!header) {
 			if (++lost > MAX_RETRIES_ON_FLR) {
-				xe_gt_err(gt, "GuC mmio request %#x: lost, too many retries %u\n",
-					  request[0], lost);
+				xe_log_err(gt, GUC, -ENOLINK,
+					   "MMIO request %#x: lost, too many retries %u\n",
+					   request[0], lost);
 				return -ENOLINK;
 			}
 			xe_gt_dbg(gt, "GuC mmio request %#x: lost, trying again\n", request[0]);
@@ -1551,8 +1570,8 @@ retry:
 			goto retry;
 		}
 timeout:
-		xe_gt_err(gt, "GuC mmio request %#x: no reply %#x\n",
-			  request[0], header);
+		xe_log_err(gt, GUC, ret, "MMIO request %#x: no reply %#x\n",
+			   request[0], header);
 		return ret;
 	}
 
@@ -1607,16 +1626,16 @@ timeout:
 			return -EREMCHG;
 		}
 
-		xe_gt_err(gt, "GuC mmio request %#x: failure %#x hint %#x\n",
-			  request[0], error, hint);
+		xe_log_err(gt, GUC, -ENXIO, "MMIO request %#x: failure %#x hint %#x\n",
+			   request[0], error, hint);
 		return -ENXIO;
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) !=
 	    GUC_HXG_TYPE_RESPONSE_SUCCESS) {
 proto:
-		xe_gt_err(gt, "GuC mmio request %#x: unexpected reply %#x\n",
-			  request[0], header);
+		xe_log_err(gt, GUC, -EPROTO, "MMIO request %#x: unexpected reply %#x\n",
+			   request[0], header);
 		return -EPROTO;
 	}
 

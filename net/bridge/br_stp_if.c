@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kmod.h>
+#include <linux/umh.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/switchdev.h>
@@ -114,7 +114,7 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	timer_delete(&p->hold_timer);
 
 	if (!rcu_access_pointer(p->backup_port))
-		br_fdb_delete_by_port(br, p, 0, 0);
+		br_fdb_cleanup_by_dst(br, br_port_to_dst(p), 0, 0);
 	br_multicast_disable_port(p);
 
 	br_configuration_update(br);

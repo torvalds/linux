@@ -1142,7 +1142,7 @@ static inline int ib_is_udata_in_empty(struct ib_udata *udata)
  * @_udata: The system calls ib_udata struct
  *
  * Used when there is no driver response data to return. Provides forward
- * compatability by zeroing any buffer the user may have provided.
+ * compatibility by zeroing any buffer the user may have provided.
  */
 static inline int ib_respond_empty_udata(struct ib_udata *udata)
 {

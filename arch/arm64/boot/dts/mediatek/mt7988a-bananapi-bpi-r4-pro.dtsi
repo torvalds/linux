@@ -315,6 +315,24 @@
 				reg = <0x20>;
 				gpio-controller;
 				#gpio-cells = <2>;
+
+				gpio-line-names =
+					"BKEY-A-PDN",	/* GPIO0 */
+					"BKEY-A-Vset",	/* GPIO1 */
+					"BKEY-B-PDN",	/* GPIO2 */
+					"BKEY-B-Vset",	/* GPIO3 */
+					"BKEY-C-PDN",	/* GPIO4 */
+					"BKEY-C-Vset",	/* GPIO5 */
+					"SIM_SEL",	/* GPIO6 */
+					"mPCIe_AB_Vset",/* GPIO7 */
+					"mPCIe_A_PDN",	/* GPIO8 */
+					"mPCIe_B_PDN",	/* GPIO9 */
+					"BKEY-A-RST",	/* GPIO10 */
+					"VBUS_AB_PDN",	/* GPIO11 */
+					"BKEY-B-RST",	/* GPIO12 */
+					"BKEY-C-RST",	/* GPIO13 */
+					"SYS_LEDB",	/* GPIO14 */
+					"SYS_LEDR";	/* GPIO15 */
 			};
 
 			rtc@51 {

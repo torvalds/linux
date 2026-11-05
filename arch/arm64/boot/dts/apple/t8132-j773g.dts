@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple Mac mini (M4, 2024)
+ *
+ * target-type: J773g
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t8132.dtsi"
+#include "t8132-jxxx.dtsi"
+
+/ {
+	compatible = "apple,j773g", "apple,t8132", "apple,arm-platform";
+	model = "Apple Mac mini (M4, 2024)";
+};
+
+/*
+ * Keep the power-domains used for the HDMI port on.
+ */
+&framebuffer0 {
+	power-domains = <&ps_dispext0_fe>, <&ps_dptx_phy>;
+};

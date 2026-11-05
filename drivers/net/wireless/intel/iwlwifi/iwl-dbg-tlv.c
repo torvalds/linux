@@ -167,10 +167,12 @@ static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
 				  const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_hcmd_tlv *hcmd = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(hcmd->time_point);
+	u32 tp;
 
 	if (le32_to_cpu(tlv->length) <= sizeof(*hcmd))
 		return -EINVAL;
+
+	tp = le32_to_cpu(hcmd->time_point);
 
 	/* Host commands can not be sent in early time point since the FW
 	 * is not ready
@@ -194,9 +196,14 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 {
 	const struct iwl_fw_ini_region_tlv *reg = (const void *)tlv->data;
 	struct iwl_ucode_tlv **active_reg;
-	u32 id = le32_to_cpu(reg->id);
-	u8 type = reg->type;
 	u32 tlv_len = sizeof(*tlv) + le32_to_cpu(tlv->length);
+	u32 id;
+	u8 type;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*reg))
+		return -EINVAL;
+
+	id = le32_to_cpu(reg->id);
 
 	/*
 	 * The higher part of the ID from version 2 is debug policy.
@@ -204,9 +211,6 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	 */
 	if (le32_to_cpu(reg->hdr.version) >= 2)
 		id &= IWL_FW_INI_REGION_ID_MASK;
-
-	if (le32_to_cpu(tlv->length) < sizeof(*reg))
-		return -EINVAL;
 
 	/* for safe use of a string from FW, limit it to IWL_FW_INI_MAX_NAME */
 	IWL_DEBUG_FW(trans, "WRT: parsing region: %.*s\n",
@@ -217,10 +221,24 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
+	type = reg->type;
+
 	if (type <= IWL_FW_INI_REGION_INVALID ||
 	    type >= IWL_FW_INI_REGION_NUM) {
 		IWL_ERR(trans, "WRT: Invalid region type %u\n", type);
 		return -EINVAL;
+	}
+
+	if (type == IWL_FW_INI_REGION_DRAM_BUFFER) {
+		u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
+
+		if (alloc_id <= IWL_FW_INI_ALLOCATION_INVALID ||
+		    alloc_id >= ARRAY_SIZE(trans->dbg.fw_mon_ini)) {
+			IWL_ERR(trans,
+				"WRT: Invalid dram_alloc_id %u for region %u\n",
+				alloc_id, id);
+			return -EINVAL;
+		}
 	}
 
 	if (type == IWL_FW_INI_REGION_INTERNAL_BUFFER) {
@@ -251,12 +269,13 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 				     const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_trigger_tlv *trig = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(trig->time_point);
-	u32 rf = le32_to_cpu(trig->reset_fw);
+	u32 tp, rf;
 	struct iwl_ucode_tlv *new_tlv;
 
 	if (le32_to_cpu(tlv->length) < sizeof(*trig))
 		return -EINVAL;
+
+	tp = le32_to_cpu(trig->time_point);
 
 	if (tp <= IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp >= IWL_FW_INI_TIME_POINT_NUM) {
@@ -265,6 +284,8 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 			tp);
 		return -EINVAL;
 	}
+
+	rf = le32_to_cpu(trig->reset_fw);
 
 	IWL_DEBUG_FW(trans,
 		     "WRT: time point %u for trigger TLV with reset_fw %u\n",
@@ -288,8 +309,13 @@ static int iwl_dbg_tlv_config_set(struct iwl_trans *trans,
 				  const struct iwl_ucode_tlv *tlv)
 {
 	const struct iwl_fw_ini_conf_set_tlv *conf_set = (const void *)tlv->data;
-	u32 tp = le32_to_cpu(conf_set->time_point);
-	u32 type = le32_to_cpu(conf_set->set_type);
+	u32 tp, type;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*conf_set))
+		return -EINVAL;
+
+	tp = le32_to_cpu(conf_set->time_point);
+	type = le32_to_cpu(conf_set->set_type);
 
 	if (tp <= IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp >= IWL_FW_INI_TIME_POINT_NUM) {
@@ -593,7 +619,7 @@ static int iwl_dbg_tlv_alloc_fragments(struct iwl_fw_runtime *fwrt,
 	u32 num_frags, remain_pages, frag_pages;
 	int i;
 
-	if (alloc_id < IWL_FW_INI_ALLOCATION_INVALID ||
+	if (alloc_id <= IWL_FW_INI_ALLOCATION_INVALID ||
 	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM)
 		return -EIO;
 
@@ -676,7 +702,7 @@ static int iwl_dbg_tlv_apply_buffer(struct iwl_fw_runtime *fwrt,
 			 IWL_UCODE_TLV_CAPA_DBG_BUF_ALLOC_CMD_SUPP))
 		return 0;
 
-	if (alloc_id < IWL_FW_INI_ALLOCATION_INVALID ||
+	if (alloc_id <= IWL_FW_INI_ALLOCATION_INVALID ||
 	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM)
 		return -EIO;
 
@@ -886,7 +912,7 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 			for (count = 0; count < len; count++) {
 				address = le32_to_cpu(config_list->addr_val[count].address);
 				value = le32_to_cpu(config_list->addr_val[count].value);
-				iwl_trans_write_prph(fwrt->trans, address + offset, value);
+				iwl_trans_write_prph_no_grab(fwrt->trans, address + offset, value);
 			}
 			iwl_trans_release_nic_access(fwrt->trans);
 		break;
@@ -905,7 +931,7 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 			for (count = 0; count < len; count++) {
 				address = le32_to_cpu(config_list->addr_val[count].address);
 				value = le32_to_cpu(config_list->addr_val[count].value);
-				iwl_write32(fwrt->trans, address + offset, value);
+				iwl_trans_write32(fwrt->trans, address + offset, value);
 				IWL_DEBUG_FW(fwrt, "WRT: CSR: count %u, add: %u val: %u\n",
 					     count, address, value);
 			}

@@ -334,6 +334,8 @@ enum NXPWIFI_802_11_PRIVACY_FILTER {
 #define DFS_CHAN_MOVE_TIME      10000
 
 #define ISSUPP_11AXENABLED(fw_cap_ext) ((fw_cap_ext) & BIT(7))
+#define ISSUPP_NO_80MHZ(fw_cap_ext)      ((fw_cap_ext) & BIT(8))
+#define ISSUPP_40MHZ_ENABLED(fw_cap_ext) ((fw_cap_ext) & BIT(15))
 
 #define HOST_CMD_GET_HW_SPEC                       0x0003
 #define HOST_CMD_802_11_SCAN                       0x0006

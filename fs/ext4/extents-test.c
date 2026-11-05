@@ -151,6 +151,7 @@ static void extents_kunit_exit(struct kunit *test)
 
 	sbi = k_ctx.k_ei->vfs_inode.i_sb->s_fs_info;
 	ext4_es_unregister_shrinker(sbi);
+	ext4_es_destroy_stats(sbi);
 	deactivate_super(sbi->s_sb);
 	kfree(sbi);
 	kfree(k_ctx.k_ei);
@@ -340,6 +341,7 @@ out:
 	k_ctx.k_data = NULL;
 
 	ext4_es_unregister_shrinker(sbi);
+	ext4_es_destroy_stats(sbi);
 out_deactivate:
 	deactivate_locked_super(sb);
 	kfree(sbi);

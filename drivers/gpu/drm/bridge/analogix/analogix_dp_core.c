@@ -29,7 +29,6 @@
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -1244,10 +1243,78 @@ static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.detect = analogix_dp_bridge_detect,
 };
 
+static int analogix_dp_dt_parse_lanes_map(struct analogix_dp_device *dp)
+{
+	struct video_info *video_info = &dp->video_info;
+	struct device_node *endpoint;
+	u32 lane_idx[LANE_COUNT4];
+	u32 map[LANE_COUNT4] = {0, 1, 2, 3};
+	bool used[LANE_COUNT4] = {false};
+	int num_lanes;
+	int ret, i;
+
+	memcpy(video_info->lane_map, map, sizeof(map));
+
+	num_lanes = drm_of_get_data_lanes_count_ep(dp->dev->of_node, 1, 0, 1,
+						   video_info->max_lane_count);
+	if (num_lanes < 0)
+		return -EINVAL;
+
+	endpoint = of_graph_get_endpoint_by_regs(dp->dev->of_node, 1, 0);
+	if (!endpoint)
+		return -EINVAL;
+
+	ret = of_property_read_u32_array(endpoint, "data-lanes", lane_idx, num_lanes);
+	of_node_put(endpoint);
+	if (ret)
+		return -EINVAL;
+
+	for (i = 0; i < num_lanes; i++) {
+		if (lane_idx[i] >= LANE_COUNT4) {
+			dev_dbg(dp->dev, "data-lanes[%d] = %u is out of range\n", i, lane_idx[i]);
+			return -EINVAL;
+		}
+
+		if (used[lane_idx[i]]) {
+			dev_dbg(dp->dev, "data-lanes[%d] = %u is duplicate\n", i, lane_idx[i]);
+			return -EINVAL;
+		}
+
+		used[lane_idx[i]] = true;
+		map[i] = lane_idx[i];
+	}
+
+	/*
+	 * Fill the map[] entries not described by 'data-lanes' with the
+	 * lane indices not used so far, e.g. for 'data-lanes = <3 1>':
+	 *
+	 *	used[]       = {0, 1, 0, 1}  // only lanes 1 and 3 are used
+	 *	map[] before = {3, 1, x, x}  // x = unassigned
+	 *	map[] after  = {3, 1, 0, 2}
+	 *
+	 * Unused entries have no effect on the current link with fewer
+	 * lanes in use, but filling them with distinct indices keeps the
+	 * LANE_MAP register holding a valid permutation, just like its
+	 * reset value (0xe4), so the mapping remains sane if a sink with
+	 * a different lane count is connected later, e.g. via DP hot-plug.
+	 */
+	for (i = 0; i < LANE_COUNT4 && num_lanes < LANE_COUNT4; i++) {
+		if (!used[i])
+			map[num_lanes++] = i;
+	}
+
+	dev_dbg(dp->dev, "Using parsed lane map: <%u %u %u %u>\n", map[0], map[1], map[2], map[3]);
+
+	memcpy(video_info->lane_map, map, sizeof(map));
+
+	return 0;
+}
+
 static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 {
 	struct device_node *dp_node = dp->dev->of_node;
 	struct video_info *video_info = &dp->video_info;
+	u32 val;
 
 	switch (dp->plat_data->dev_type) {
 	case RK3288_DP:
@@ -1269,12 +1336,20 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		 * NOTE: those property parseing code is used for
 		 * providing backward compatibility for samsung platform.
 		 */
-		of_property_read_u32(dp_node, "samsung,link-rate",
-				     &video_info->max_link_rate);
-		of_property_read_u32(dp_node, "samsung,lane-count",
-				     &video_info->max_lane_count);
+		if (of_property_read_u32(dp_node, "samsung,link-rate", &val))
+			return dev_err_probe(dp->dev, -EINVAL,
+					     "Failed to get samsung,link-rate\n");
+		video_info->max_link_rate = val;
+		if (of_property_read_u32(dp_node, "samsung,lane-count", &val) ||
+		    !drm_dp_lane_count_is_valid(val))
+			return dev_err_probe(dp->dev, -EINVAL,
+					     "Failed to get samsung,lane-count\n");
+		video_info->max_lane_count = val;
 		break;
 	}
+
+	if (analogix_dp_dt_parse_lanes_map(dp))
+		dev_dbg(dp->dev, "No valid data-lanes found, using default lane map\n");
 
 	return 0;
 }
@@ -1414,10 +1489,8 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
 					irq_flags, "analogix-dp", dp);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request irq\n");
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	dp->aux.name = "DP-AUX";
 	dp->aux.transfer = analogix_dpaux_transfer;
@@ -1493,15 +1566,6 @@ int analogix_dp_bind(struct analogix_dp_device *dp, struct drm_device *drm_dev)
 	if (ret)
 		goto err_unregister_aux;
 
-	if (dp->plat_data->panel) {
-		dp->plat_data->next_bridge = devm_drm_panel_bridge_add(dp->dev,
-								       dp->plat_data->panel);
-		if (IS_ERR(dp->plat_data->next_bridge)) {
-			ret = PTR_ERR(dp->plat_data->next_bridge);
-			goto err_unregister_aux;
-		}
-	}
-
 	ret = drm_bridge_attach(dp->encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		DRM_ERROR("failed to create bridge (%d)\n", ret);
@@ -1573,6 +1637,11 @@ struct drm_dp_aux *analogix_dp_get_aux(struct analogix_dp_device *dp)
 }
 EXPORT_SYMBOL_GPL(analogix_dp_get_aux);
 
+static void analogix_dp_put_bridge(void *data)
+{
+	drm_bridge_put(data);
+}
+
 static int analogix_dp_aux_done_probing(struct drm_dp_aux *aux)
 {
 	struct analogix_dp_device *dp = to_dp(aux);
@@ -1581,14 +1650,25 @@ static int analogix_dp_aux_done_probing(struct drm_dp_aux *aux)
 	int ret;
 
 	/*
-	 * If drm_of_find_panel_or_bridge() returns -ENODEV, there may be no valid panel
-	 * or bridge nodes. The driver should go on for the driver-free bridge or the DP
-	 * mode applications.
+	 * If of_drm_get_bridge_by_endpoint() returns -ENODEV, there may be no
+	 * valid panel or bridge nodes. The driver should go on for the
+	 * driver-free bridge or the DP mode applications.
 	 */
-	ret = drm_of_find_panel_or_bridge(dp->dev->of_node, port, 0,
-					  &plat_data->panel, &plat_data->next_bridge);
-	if (ret && ret != -ENODEV)
-		return ret;
+	plat_data->next_bridge = of_drm_get_bridge_by_endpoint(dp->dev->of_node,
+							       port, 0);
+	if (IS_ERR(plat_data->next_bridge)) {
+		if (PTR_ERR(plat_data->next_bridge) == -ENODEV)
+			plat_data->next_bridge = NULL;
+		else
+			return PTR_ERR(plat_data->next_bridge);
+	}
+
+	if (plat_data->next_bridge) {
+		ret = devm_add_action_or_reset(dp->dev, analogix_dp_put_bridge,
+					       plat_data->next_bridge);
+		if (ret)
+			return ret;
+	}
 
 	return component_add(dp->dev, plat_data->ops);
 }

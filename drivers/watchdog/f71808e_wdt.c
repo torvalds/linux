@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define DRVNAME "f71808e_wdt"
@@ -81,20 +82,20 @@ static int timeout = WATCHDOG_TIMEOUT;	/* default timeout in seconds */
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <="
-			__MODULE_STRING(WATCHDOG_MAX_TIMEOUT) " (default="
-			__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+			__stringify(WATCHDOG_MAX_TIMEOUT) " (default="
+			__stringify(WATCHDOG_TIMEOUT) ")");
 
 static unsigned int pulse_width = WATCHDOG_PULSE_WIDTH;
 module_param(pulse_width, uint, 0);
 MODULE_PARM_DESC(pulse_width,
 	"Watchdog signal pulse width. 0(=level), 1, 25, 30, 125, 150, 5000 or 6000 ms"
-			" (default=" __MODULE_STRING(WATCHDOG_PULSE_WIDTH) ")");
+			" (default=" __stringify(WATCHDOG_PULSE_WIDTH) ")");
 
 static unsigned int f71862fg_pin = WATCHDOG_F71862FG_PIN;
 module_param(f71862fg_pin, uint, 0);
 MODULE_PARM_DESC(f71862fg_pin,
 	"Watchdog f71862fg reset output pin configuration. Choose pin 56 or 63"
-			" (default=" __MODULE_STRING(WATCHDOG_F71862FG_PIN)")");
+			" (default=" __stringify(WATCHDOG_F71862FG_PIN)")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0444);

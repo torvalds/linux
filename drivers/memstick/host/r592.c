@@ -289,7 +289,7 @@ static int r592_transfer_fifo_dma(struct r592_device *dev)
 	dev->dma_error = 0;
 	reinit_completion(&dev->dma_done);
 
-	/* TODO: hidden assumption about nenth beeing always 1 */
+	/* TODO: hidden assumption about nenth being always 1 */
 	sg_count = dma_map_sg(&dev->pci_dev->dev, &dev->req->sg, 1, is_write ?
 			      DMA_TO_DEVICE : DMA_FROM_DEVICE);
 

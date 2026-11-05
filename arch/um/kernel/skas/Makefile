@@ -3,8 +3,12 @@
 # Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
 #
 
-obj-y := stub.o mmu.o process.o syscall.o uaccess.o \
+obj-y := stub.o process.o syscall.o \
 	 stub_exe_embed.o
+obj-$(CONFIG_MMU) += mmu.o uaccess.o
+ifneq ($(CONFIG_MMU),y)
+obj-y += nommu.o
+endif
 
 # Stub executable
 
@@ -40,8 +44,14 @@ targets += stub_exe.dbg stub_exe $(stub_exe_objs-y)
 CFLAGS_stub.o := $(CFLAGS_NO_HARDENING)
 CFLAGS_stub_exe.o := $(CFLAGS_NO_HARDENING)
 
-# Clang will call memset() from __builtin_alloca() when stack variable
-# initialization is enabled, which is used in stub_exe.c.
+# stub_signal_restorer() must not touch stack pointer, clang doesn't
+# always omit the frame pointer automatically
+CFLAGS_stub.o += -fomit-frame-pointer
+CFLAGS_stub_exe.o += -fomit-frame-pointer
+
+# Clang's stack var initialisation can use memset() or similar and that
+# cannot be done for this code since we embed/move the stub
+CFLAGS_stub.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
 CFLAGS_stub_exe.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
 
 UNPROFILE_OBJS := stub.o stub_exe.o

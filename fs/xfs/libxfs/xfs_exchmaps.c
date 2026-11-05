@@ -133,7 +133,6 @@ xmi_has_postop_work(const struct xfs_exchmaps_intent *xmi)
 /* Check all mappings to make sure we can actually exchange them. */
 int
 xfs_exchmaps_check_forks(
-	struct xfs_mount		*mp,
 	const struct xfs_exchmaps_req	*req)
 {
 	struct xfs_ifork		*ifp1, *ifp2;

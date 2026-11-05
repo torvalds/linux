@@ -225,8 +225,6 @@ static int ufs_versal2_setup_phy(struct ufs_hba *hba)
 static int ufs_versal2_phy_init(struct ufs_hba *hba)
 {
 	struct ufs_versal2_host *host = ufshcd_get_variant(hba);
-	u32 time_left;
-	bool is_ready;
 	int ret;
 	static const struct ufshcd_dme_attr_val rmmi_attrs[] = {
 		{ UIC_ARG_MIB(CBREFCLKCTRL2), CBREFREFCLK_GATE_OVR_EN, DME_LOCAL },
@@ -235,23 +233,15 @@ static int ufs_versal2_phy_init(struct ufs_hba *hba)
 		{ UIC_ARG_MIB(VS_MPHYCFGUPDT), 1, DME_LOCAL }
 	};
 
-	/* Wait for Tx/Rx config_rdy */
-	time_left = TIMEOUT_MICROSEC;
-	do {
-		time_left--;
-		ret = zynqmp_pm_is_mphy_tx_rx_config_ready(&is_ready);
-		if (ret)
-			return ret;
-
-		if (!is_ready)
-			break;
-
-		usleep_range(1, 5);
-	} while (time_left);
-
-	if (!time_left) {
+	/*
+	 * Wait for Tx/Rx config_rdy. The poll loop lives in the firmware
+	 * backend (EEMI today, SCMI in future) so this driver stays
+	 * backend-agnostic; the timeout budget stays here with the consumer.
+	 */
+	ret = zynqmp_pm_wait_mphy_tx_rx_config_ready(TIMEOUT_MICROSEC);
+	if (ret) {
 		dev_err(hba->dev, "Tx/Rx configuration signal busy.\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
 	ret = ufshcd_dwc_dme_set_attrs(hba, rmmi_attrs, ARRAY_SIZE(rmmi_attrs));
@@ -264,23 +254,11 @@ static int ufs_versal2_phy_init(struct ufs_hba *hba)
 		return ret;
 	}
 
-	/* Wait for SRAM init done */
-	time_left = TIMEOUT_MICROSEC;
-	do {
-		time_left--;
-		ret = zynqmp_pm_is_sram_init_done(&is_ready);
-		if (ret)
-			return ret;
-
-		if (is_ready)
-			break;
-
-		usleep_range(1, 5);
-	} while (time_left);
-
-	if (!time_left) {
+	/* Wait for SRAM init done (poll handled by the firmware backend). */
+	ret = zynqmp_pm_wait_sram_init_done(TIMEOUT_MICROSEC);
+	if (ret) {
 		dev_err(hba->dev, "SRAM initialization failed.\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
 	ret = ufs_versal2_setup_phy(hba);

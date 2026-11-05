@@ -200,6 +200,7 @@ static int rzg2l_cru_ip_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int rzg2l_cru_ip_set_format(struct v4l2_subdev *sd,
+				   const struct v4l2_subdev_client_info *ci,
 				   struct v4l2_subdev_state *state,
 				   struct v4l2_subdev_format *fmt)
 {
@@ -300,7 +301,7 @@ static int rzg2l_cru_ip_init_state(struct v4l2_subdev *sd,
 	fmt.format.quantization = V4L2_QUANTIZATION_DEFAULT;
 	fmt.format.xfer_func = V4L2_XFER_FUNC_DEFAULT;
 
-	return rzg2l_cru_ip_set_format(sd, sd_state, &fmt);
+	return rzg2l_cru_ip_set_format(sd, NULL, sd_state, &fmt);
 }
 
 static const struct v4l2_subdev_video_ops rzg2l_cru_ip_video_ops = {

@@ -619,6 +619,9 @@ STATIC_IFN_KUNIT void amdgpu_dm_irq_schedule_work(struct amdgpu_device *adev,
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
+	if (!adev->dm.irq_wq)
+		goto out_unlock;
+
 	if (list_empty(handler_list))
 		goto out_unlock;
 
@@ -727,6 +730,11 @@ STATIC_IFN_KUNIT int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
 			adev->dm.dc,
 			entry->src_id,
 			entry->src_data[0]);
+
+	if (!DAL_VALID_IRQ_SRC_NUM(src)) {
+		DRM_ERROR("DM_IRQ: invalid irq_source:%d!\n", src);
+		return 0;
+	}
 
 	amdgpu_dm_irq_ack(adev, src);
 
@@ -976,11 +984,23 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 	int i;
 	bool use_polling = false;
 
-	/* First, clear all hpd and hpdrx interrupts */
-	for (i = DC_IRQ_SOURCE_HPD1; i <= DC_IRQ_SOURCE_HPD6RX; i++) {
-		if (!amdgpu_dm_irq_set(adev, i, false))
-			drm_err(dev, "Failed to clear hpd(rx) source=%d on init\n",
-				i);
+	/*
+	 * First, clear all hpd and hpdrx interrupts, over the links this ASIC
+	 * has rather than over the whole enum: the unused slots of the DC
+	 * interrupt table hold dummy handlers that assert when touched.
+	 */
+	for (i = 0; i < adev->dm.dc->link_count; i++) {
+		const struct dc_link *link = adev->dm.dc->links[i];
+
+		if (link->irq_source_hpd != DC_IRQ_SOURCE_INVALID &&
+		    !amdgpu_dm_irq_set(adev, link->irq_source_hpd, false))
+			drm_err(dev, "Failed to clear hpd source=%d on init\n",
+				link->irq_source_hpd);
+
+		if (link->irq_source_hpd_rx != DC_IRQ_SOURCE_INVALID &&
+		    !amdgpu_dm_irq_set(adev, link->irq_source_hpd_rx, false))
+			drm_err(dev, "Failed to clear hpdrx source=%d on init\n",
+				link->irq_source_hpd_rx);
 	}
 
 	drm_connector_list_iter_begin(dev, &iter);

@@ -4,6 +4,7 @@
 
 struct trace_events {
 	struct trace_events *next;
+	struct trace_events *prev;
 	char *system;
 	char *event;
 	char *filter;
@@ -18,6 +19,7 @@ struct trace_instance {
 	struct tep_handle		*tep;
 	struct trace_seq		*seq;
 	unsigned long long		missed_events;
+	unsigned long long		invalid_events;
 	unsigned long long		processed_events;
 };
 

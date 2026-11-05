@@ -212,9 +212,9 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 			       size_t len, loff_t *off)
 {
 	struct axis_fifo *fifo = f->private_data;
-	unsigned int words_to_write;
+	size_t words_to_write;
 	u32 *txbuf;
-	int ret;
+	ssize_t ret;
 
 	words_to_write = len / sizeof(u32);
 
@@ -256,7 +256,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		goto end_unlock;
 	}
 
-	for (int i = 0; i < words_to_write; ++i)
+	for (size_t i = 0; i < words_to_write; ++i)
 		iowrite32(txbuf[i], fifo->base_addr + XLLF_TDFD_OFFSET);
 
 	iowrite32(len, fifo->base_addr + XLLF_TLR_OFFSET);

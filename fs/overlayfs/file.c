@@ -30,7 +30,7 @@ static struct file *ovl_open_realfile(const struct file *file,
 {
 	struct inode *realinode = d_inode(realpath->dentry);
 	struct inode *inode = file_inode(file);
-	struct mnt_idmap *real_idmap;
+	const struct mnt_idmap *real_idmap;
 	struct file *realfile;
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int acc_mode = ACC_MODE(flags);

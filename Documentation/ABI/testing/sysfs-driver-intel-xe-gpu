@@ -1,0 +1,10 @@
+What:		/sys/bus/pci/drivers/xe/.../device_uid
+Date:		October 2026
+KernelVersion:	7.4
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		RO. Unique 64-bit identifier of the GPU SoC device, exposed as
+		hexadecimal value.
+
+		This sysfs file is present only on supported Intel Xe platforms.
+		Accessible only to users with administrative privileges.

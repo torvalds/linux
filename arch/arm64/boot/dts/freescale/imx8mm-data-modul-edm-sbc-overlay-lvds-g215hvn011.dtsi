@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2022-2026 Marek Vasut
+ */
+
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-5v0.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-dual.dtsi"
+
+&backlight {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_panel_backlight>;
+	enable-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
+	/* 6.5 POWER ON/OFF SEQUENCE, T6 >= 10 ms */
+	post-pwm-on-delay-ms = <10>;
+	/* 6.5 POWER ON/OFF SEQUENCE, T7 >= 0 ms */
+	pwm-off-delay-ms = <10>;
+	/* 5.2 BACKLIGHT UNIT 200Hz..20kHz, value below in ns */
+	pwms = <&pwm1 0 66666 0>;	/* 15 kHz = 66666ns */
+	status = "okay";
+};
+
+&panel {
+	/* The G215HVN01 is replacement for T215HVN01, which is supported. */
+	compatible = "auo,t215hvn01";
+};
+
+&reg_panel_vcc {
+	/* 6.5 POWER ON/OFF SEQUENCE */
+	startup-delay-us = <40000>; /* 30.5ms <= T1 + T2 <= 60 ms */
+};

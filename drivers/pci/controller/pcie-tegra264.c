@@ -49,8 +49,7 @@
 #define XAL_RC_BAR_CNTL_STANDARD_64B_BAR_EN	BIT(2)
 
 /* XTL registers */
-#define XTL_RC_PCIE_CFG_LINK_CAPS		0x56
-#define XTL_RC_PCIE_CFG_LINK_STATUS		0x5a
+#define XTL_RC_PCIE_CAP				0x48	/* PCIe Capability */
 
 #define XTL_RC_MGMT_PERST_CONTROL		0x218
 #define XTL_RC_MGMT_PERST_CONTROL_PERST_O_N	BIT(0)
@@ -118,11 +117,11 @@ static void tegra264_pcie_icc_set(struct tegra264_pcie *pcie)
 	 * possible, so this is as good as it gets for now.
 	 */
 	if (pcie->link_up) {
-		value = readw(pcie->ecam + XTL_RC_PCIE_CFG_LINK_STATUS);
+		value = readw(pcie->ecam + XTL_RC_PCIE_CAP + PCI_EXP_LNKSTA);
 		speed = FIELD_GET(PCI_EXP_LNKSTA_CLS, value);
 		width = FIELD_GET(PCI_EXP_LNKSTA_NLW, value);
 	} else {
-		value = readw(pcie->ecam + XTL_RC_PCIE_CFG_LINK_CAPS);
+		value = readl(pcie->ecam + XTL_RC_PCIE_CAP + PCI_EXP_LNKCAP);
 		speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, value);
 		width = FIELD_GET(PCI_EXP_LNKCAP_MLW, value);
 	}
@@ -263,7 +262,7 @@ static bool tegra264_pcie_supports_hotplug(struct tegra264_pcie *pcie)
 static bool tegra264_pcie_link_up(struct tegra264_pcie *pcie,
 				  enum pci_bus_speed *speed)
 {
-	u16 value = readw(pcie->ecam + XTL_RC_PCIE_CFG_LINK_STATUS);
+	u16 value = readw(pcie->ecam + XTL_RC_PCIE_CAP + PCI_EXP_LNKSTA);
 
 	if (value & PCI_EXP_LNKSTA_DLLLA) {
 		if (speed)

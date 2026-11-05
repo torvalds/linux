@@ -1233,6 +1233,29 @@ static void hci_conn_unlink(struct hci_conn *conn)
 	if (!conn->parent) {
 		struct hci_link *link, *t;
 
+		conn->sec_level = BT_SECURITY_SDP;
+		clear_bit(HCI_CONN_ENCRYPT, &conn->flags);
+		clear_bit(HCI_CONN_AES_CCM, &conn->flags);
+		/* mgmt_security_level_changed() reports the reset only if
+		 * this connection was actually reported to userspace as
+		 * connected (it checks HCI_CONN_MGMT_CONNECTED itself), so it
+		 * must be called before the flag is cleared below.
+		 * Callers that already know whether the connection was
+		 * mgmt-connected (e.g. disconnect event handlers) only peek
+		 * at the flag, so it is still set here; this is the place
+		 * actually clearing it.
+		 *
+		 * Skip the report if hdev is down: this means
+		 * hci_dev_close_sync()/hci_conn_hash_flush() is in progress
+		 * and no MGMT_EV_DEVICE_DISCONNECTED was ever sent for this
+		 * connection, so sending a security level reset here would
+		 * be a spurious, order-less event; the adapter-wide powered
+		 * off notification is enough for userspace to reset state.
+		 */
+		if (test_bit(HCI_UP, &hdev->flags))
+			mgmt_security_level_changed(conn);
+		clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+
 		list_for_each_entry_safe(link, t, &conn->link_list, list) {
 			struct hci_conn *child = link->conn;
 
@@ -1543,6 +1566,11 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		conn->pending_sec_level = sec_level;
 	}
 
+	/* Do not report the security level here: conn->dst may still hold
+	 * the peer's RPA instead of its identity address, and the connection
+	 * is not established yet. le_conn_complete_evt() reports it once the
+	 * connection completes and the identity address has been resolved.
+	 */
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->conn_timeout = conn_timeout;
 	conn->le_adv_phy = phy;

@@ -198,7 +198,7 @@ static inline bool is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 
 	if (!name || !strlen(name))
 		return false;
-	return !is_mapping_symbol(name);
+	return !is_ignored_kernel_symbol(name);
 }
 
 /* symsearch.c */

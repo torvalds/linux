@@ -210,8 +210,8 @@ static int xo15_sci_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(xo15_sci_pm, NULL, xo15_sci_resume);
 
 static const struct acpi_device_id xo15_sci_device_ids[] = {
-	{"XO15EC", 0},
-	{"", 0},
+	{ .id = "XO15EC" },
+	{ }
 };
 
 static struct platform_driver xo15_sci_drv = {

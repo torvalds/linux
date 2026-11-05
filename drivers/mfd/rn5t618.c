@@ -243,7 +243,7 @@ static void rn5t618_i2c_remove(struct i2c_client *i2c)
 	unregister_restart_handler(&rn5t618_restart_handler);
 }
 
-static int __maybe_unused rn5t618_i2c_suspend(struct device *dev)
+static int rn5t618_i2c_suspend(struct device *dev)
 {
 	struct rn5t618 *priv = dev_get_drvdata(dev);
 
@@ -253,7 +253,7 @@ static int __maybe_unused rn5t618_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rn5t618_i2c_resume(struct device *dev)
+static int rn5t618_i2c_resume(struct device *dev)
 {
 	struct rn5t618 *priv = dev_get_drvdata(dev);
 
@@ -263,7 +263,7 @@ static int __maybe_unused rn5t618_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rn5t618_i2c_dev_pm_ops,
+static DEFINE_SIMPLE_DEV_PM_OPS(rn5t618_i2c_dev_pm_ops,
 			rn5t618_i2c_suspend,
 			rn5t618_i2c_resume);
 
@@ -271,7 +271,7 @@ static struct i2c_driver rn5t618_i2c_driver = {
 	.driver = {
 		.name = "rn5t618",
 		.of_match_table = rn5t618_of_match,
-		.pm = &rn5t618_i2c_dev_pm_ops,
+		.pm = pm_sleep_ptr(&rn5t618_i2c_dev_pm_ops),
 	},
 	.probe = rn5t618_i2c_probe,
 	.remove = rn5t618_i2c_remove,

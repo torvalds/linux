@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test bounds checks for 'int' and 'hex' constants
+
+config INT_SOURCE
+	int
+
+config HEX_SOURCE
+	hex
+
+config BOOL_SOURCE
+	bool
+
+# Valid values at the limits of the type
+
+config INT_MIN
+	int
+	default -9223372036854775808
+
+config INT_MAX
+	int
+	default 9223372036854775807
+
+config HEX_MIN
+	hex
+	default 0x0
+
+config HEX_MAX
+	hex
+	default 0xffffffffffffffff
+
+config INT_RANGE_LIMITS
+	int
+	range -9223372036854775808 9223372036854775807
+
+config HEX_RANGE_LIMITS
+	hex
+	range 0 0xffffffffffffffff
+
+config INT_FROM_INT
+	int
+	default INT_SOURCE
+
+config HEX_FROM_HEX
+	hex
+	default HEX_SOURCE
+
+# Constants outside the bounds
+
+config INT_DEFAULT_TOO_HIGH
+	int
+	default 10000000000000000000
+
+config INT_DEFAULT_TOO_LOW
+	int
+	default -9223372036854775809
+
+config INT_RANGE_TOO_HIGH
+	int
+	range 0 10000000000000000000
+
+config INT_RANGE_TOO_LOW
+	int
+	range -10000000000000000000 0
+
+config INT_RANGE_BOTH_OUTSIDE
+	int
+	range -9223372036854775809 10000000000000000000
+
+config HEX_DEFAULT_TOO_HIGH
+	hex
+	default 0x10000000000000000
+
+config HEX_RANGE_TOO_HIGH
+	hex
+	range 0 0x10000000000000000
+
+config HEX_RANGE_BOTH_TOO_HIGH
+	hex
+	range 0x10000000000000000 0x20000000000000000

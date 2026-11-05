@@ -38,7 +38,7 @@ enum ice_fdir_tunnel_type {
 };
 
 struct virtchnl_fdir_fltr_conf {
-	struct ice_fdir_fltr input;
+	struct ice_ntuple_fltr input;
 	enum ice_fdir_tunnel_type ttype;
 	u64 inset_flag;
 	u32 flow_id;
@@ -567,12 +567,12 @@ static bool
 ice_vc_fdir_has_prof_conflict(struct ice_vf *vf,
 			      struct virtchnl_fdir_fltr_conf *conf)
 {
-	struct ice_fdir_fltr *desc;
+	struct ice_ntuple_fltr *desc;
 
 	list_for_each_entry(desc, &vf->fdir.fdir_rule_list, fltr_node) {
 		struct virtchnl_fdir_fltr_conf *existing_conf;
 		enum ice_fltr_ptype flow_type_a, flow_type_b;
-		struct ice_fdir_fltr *a, *b;
+		struct ice_ntuple_fltr *a, *b;
 
 		existing_conf = to_fltr_conf_from_desc(desc);
 		a = &existing_conf->input;
@@ -748,7 +748,7 @@ static int
 ice_vc_fdir_config_input_set(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 			     struct virtchnl_fdir_fltr_conf *conf, int tun)
 {
-	struct ice_fdir_fltr *input = &conf->input;
+	struct ice_ntuple_fltr *input = &conf->input;
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	struct ice_flow_seg_info *seg;
 	enum ice_fltr_ptype flow;
@@ -924,8 +924,8 @@ ice_vc_fdir_parse_pattern(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 	struct virtchnl_proto_hdrs *proto = &fltr->rule_cfg.proto_hdrs;
 	enum virtchnl_proto_hdr_type l3 = VIRTCHNL_PROTO_HDR_NONE;
 	enum virtchnl_proto_hdr_type l4 = VIRTCHNL_PROTO_HDR_NONE;
+	struct ice_ntuple_fltr *input = &conf->input;
 	struct device *dev = ice_pf_to_dev(vf->pf);
-	struct ice_fdir_fltr *input = &conf->input;
 	int i;
 
 	if (proto->count > VIRTCHNL_MAX_NUM_PROTO_HDRS) {
@@ -1150,8 +1150,8 @@ ice_vc_fdir_parse_action(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 			 struct virtchnl_fdir_fltr_conf *conf)
 {
 	struct virtchnl_filter_action_set *as = &fltr->rule_cfg.action_set;
+	struct ice_ntuple_fltr *input = &conf->input;
 	struct device *dev = ice_pf_to_dev(vf->pf);
-	struct ice_fdir_fltr *input = &conf->input;
 	u32 dest_num = 0;
 	u32 mark_num = 0;
 	int i;
@@ -1249,8 +1249,8 @@ static bool
 ice_vc_fdir_comp_rules(struct virtchnl_fdir_fltr_conf *conf_a,
 		       struct virtchnl_fdir_fltr_conf *conf_b)
 {
-	struct ice_fdir_fltr *a = &conf_a->input;
-	struct ice_fdir_fltr *b = &conf_b->input;
+	struct ice_ntuple_fltr *a = &conf_a->input;
+	struct ice_ntuple_fltr *b = &conf_b->input;
 
 	if (conf_a->ttype != conf_b->ttype)
 		return false;
@@ -1288,7 +1288,7 @@ ice_vc_fdir_comp_rules(struct virtchnl_fdir_fltr_conf *conf_a,
 static bool
 ice_vc_fdir_is_dup_fltr(struct ice_vf *vf, struct virtchnl_fdir_fltr_conf *conf)
 {
-	struct ice_fdir_fltr *desc;
+	struct ice_ntuple_fltr *desc;
 	bool ret;
 
 	list_for_each_entry(desc, &vf->fdir.fdir_rule_list, fltr_node) {
@@ -1317,7 +1317,7 @@ static int
 ice_vc_fdir_insert_entry(struct ice_vf *vf,
 			 struct virtchnl_fdir_fltr_conf *conf, u32 *id)
 {
-	struct ice_fdir_fltr *input = &conf->input;
+	struct ice_ntuple_fltr *input = &conf->input;
 	int i;
 
 	/* alloc ID corresponding with conf */
@@ -1341,7 +1341,7 @@ static void
 ice_vc_fdir_remove_entry(struct ice_vf *vf,
 			 struct virtchnl_fdir_fltr_conf *conf, u32 id)
 {
-	struct ice_fdir_fltr *input = &conf->input;
+	struct ice_ntuple_fltr *input = &conf->input;
 
 	idr_remove(&vf->fdir.fdir_rule_idr, id);
 	list_del(&input->fltr_node);
@@ -1367,7 +1367,7 @@ ice_vc_fdir_lookup_entry(struct ice_vf *vf, u32 id)
 static void ice_vc_fdir_flush_entry(struct ice_vf *vf)
 {
 	struct virtchnl_fdir_fltr_conf *conf;
-	struct ice_fdir_fltr *desc, *temp;
+	struct ice_ntuple_fltr *desc, *temp;
 
 	list_for_each_entry_safe(desc, temp,
 				 &vf->fdir.fdir_rule_list, fltr_node) {
@@ -1390,7 +1390,7 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 				  struct virtchnl_fdir_fltr_conf *conf,
 				  bool add, bool is_tun)
 {
-	struct ice_fdir_fltr *input = &conf->input;
+	struct ice_ntuple_fltr *input = &conf->input;
 	struct ice_vsi *vsi, *ctrl_vsi;
 	struct ice_fltr_desc desc;
 	struct device *dev;
@@ -2315,7 +2315,7 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 	struct virtchnl_fdir_fltr_conf *conf;
 	struct ice_vf_fdir *fdir = &vf->fdir;
 	enum virtchnl_status_code v_ret;
-	struct ice_fdir_fltr *input;
+	struct ice_ntuple_fltr *input;
 	enum ice_fltr_ptype flow;
 	struct device *dev;
 	struct ice_pf *pf;

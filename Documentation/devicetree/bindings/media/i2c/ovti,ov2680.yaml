@@ -90,22 +90,22 @@ examples:
         #size-cells = <0>;
 
         ov2680: camera-sensor@36 {
-                compatible = "ovti,ov2680";
-                reg = <0x36>;
-                clocks = <&osc>;
-                clock-names = "xvclk";
-                reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+            compatible = "ovti,ov2680";
+            reg = <0x36>;
+            clocks = <&osc>;
+            clock-names = "xvclk";
+            reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 
-                DOVDD-supply = <&sw2_reg>;
-                DVDD-supply = <&sw2_reg>;
-                AVDD-supply = <&reg_peri_3p15v>;
+            DOVDD-supply = <&sw2_reg>;
+            DVDD-supply = <&sw2_reg>;
+            AVDD-supply = <&reg_peri_3p15v>;
 
-                port {
-                        ov2680_to_mipi: endpoint {
-                                remote-endpoint = <&mipi_from_sensor>;
-                                link-frequencies = /bits/ 64 <330000000>;
-                        };
+            port {
+                ov2680_to_mipi: endpoint {
+                    remote-endpoint = <&mipi_from_sensor>;
+                    link-frequencies = /bits/ 64 <330000000>;
                 };
+            };
         };
     };
 

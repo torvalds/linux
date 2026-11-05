@@ -37,6 +37,12 @@ static u32 iwl_mld_get_key_flags(struct iwl_mld *mld,
 		break;
 	}
 
+	/* Note that sta->mfp might not be set yet, as it is set only
+	 * after association.
+	 */
+	if (sta && pairwise && sta->epp_peer)
+		flags |= IWL_SEC_KEY_FLAG_ASSOC_ENC | IWL_SEC_KEY_FLAG_MFP;
+
 	/* If we are installing an iGTK (in AP or STA mode), we need to tell
 	 * the firmware this key will en/decrypt MGMT frames.
 	 * Same goes if we are installing a pairwise key for an MFP station.

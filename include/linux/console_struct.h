@@ -204,6 +204,10 @@ struct vc {
 extern struct vc vc_cons [MAX_NR_CONSOLES];
 extern void vc_SAK(struct work_struct *work);
 
+/*
+ * Cursors
+ */
+
 #define CUR_MAKE(size, change, set)	((size) | ((change) << 8) |	\
 		((set) << 16))
 #define CUR_SIZE(c)		 ((c) & 0x00000f)
@@ -221,6 +225,10 @@ extern void vc_SAK(struct work_struct *work);
 #define CUR_BG				0x007000
 #define CUR_CHANGE(c)		 ((c) & 0x00ff00)
 #define CUR_SET(c)		(((c) & 0xff0000) >> 8)
+
+unsigned int vc_cursor_valid_size(unsigned int cursor_size);
+unsigned int vc_cursor_start(unsigned int cell_height, unsigned int cursor_size);
+unsigned int vc_cursor_end(unsigned int cell_height, unsigned int cursor_size);
 
 bool con_is_visible(const struct vc_data *vc);
 

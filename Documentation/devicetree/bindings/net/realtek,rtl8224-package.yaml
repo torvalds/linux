@@ -1,0 +1,332 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/realtek,rtl8224-package.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek RTL8224 Ethernet PHY package
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Heiner Kallweit <hkallweit1@gmail.com>
+
+description:
+  The RTL8224 is a four-port 2.5Gbps Ethernet PHY. Its PHYs occupy four
+  consecutive MDIO addresses and share package-wide configuration registers.
+
+  A package node is required when the first PHY's MDIO address is not a
+  multiple of four. Existing aligned layouts without a package node remain
+  supported.
+
+  The package reg must identify the first physical PHY's MDIO address,
+  even if that PHY has no child node. Each child PHY reg is its absolute
+  MDIO address, not an offset from the package base. Unused PHY ports may
+  be omitted. The base address must not exceed 28, so that all four PHY
+  addresses fit within the MDIO address space.
+
+  The enet-phy-pair-order and enet-phy-pair-polarity properties belong
+  to the individual PHY nodes and describe each port's MDI wiring.
+
+$ref: ethernet-phy-package.yaml#
+
+properties:
+  compatible:
+    const: realtek,rtl8224-package
+
+  reg:
+    maximum: 28
+
+patternProperties:
+  "^ethernet-phy@[a-f0-9]+$":
+    $ref: ethernet-phy.yaml#
+
+    properties:
+      compatible:
+        const: ethernet-phy-ieee802.3-c45
+
+      leds: false
+
+    required:
+      - compatible
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+
+# Enumerate the ranges because child addresses depend on the package base.
+allOf:
+  - if:
+      properties:
+        reg: { const: 0 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 0, maximum: 3 }
+  - if:
+      properties:
+        reg: { const: 1 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 1, maximum: 4 }
+  - if:
+      properties:
+        reg: { const: 2 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 2, maximum: 5 }
+  - if:
+      properties:
+        reg: { const: 3 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 3, maximum: 6 }
+  - if:
+      properties:
+        reg: { const: 4 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 4, maximum: 7 }
+  - if:
+      properties:
+        reg: { const: 5 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 5, maximum: 8 }
+  - if:
+      properties:
+        reg: { const: 6 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 6, maximum: 9 }
+  - if:
+      properties:
+        reg: { const: 7 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 7, maximum: 10 }
+  - if:
+      properties:
+        reg: { const: 8 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 8, maximum: 11 }
+  - if:
+      properties:
+        reg: { const: 9 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 9, maximum: 12 }
+  - if:
+      properties:
+        reg: { const: 10 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 10, maximum: 13 }
+  - if:
+      properties:
+        reg: { const: 11 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 11, maximum: 14 }
+  - if:
+      properties:
+        reg: { const: 12 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 12, maximum: 15 }
+  - if:
+      properties:
+        reg: { const: 13 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 13, maximum: 16 }
+  - if:
+      properties:
+        reg: { const: 14 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 14, maximum: 17 }
+  - if:
+      properties:
+        reg: { const: 15 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 15, maximum: 18 }
+  - if:
+      properties:
+        reg: { const: 16 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 16, maximum: 19 }
+  - if:
+      properties:
+        reg: { const: 17 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 17, maximum: 20 }
+  - if:
+      properties:
+        reg: { const: 18 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 18, maximum: 21 }
+  - if:
+      properties:
+        reg: { const: 19 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 19, maximum: 22 }
+  - if:
+      properties:
+        reg: { const: 20 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 20, maximum: 23 }
+  - if:
+      properties:
+        reg: { const: 21 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 21, maximum: 24 }
+  - if:
+      properties:
+        reg: { const: 22 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 22, maximum: 25 }
+  - if:
+      properties:
+        reg: { const: 23 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 23, maximum: 26 }
+  - if:
+      properties:
+        reg: { const: 24 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 24, maximum: 27 }
+  - if:
+      properties:
+        reg: { const: 25 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 25, maximum: 28 }
+  - if:
+      properties:
+        reg: { const: 26 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 26, maximum: 29 }
+  - if:
+      properties:
+        reg: { const: 27 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 27, maximum: 30 }
+  - if:
+      properties:
+        reg: { const: 28 }
+    then:
+      patternProperties:
+        "^ethernet-phy@[a-f0-9]+$":
+          properties:
+            reg: { minimum: 28, maximum: 31 }
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet-phy-package@1 {
+            compatible = "realtek,rtl8224-package";
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ethernet-phy@1 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <1>;
+                enet-phy-pair-order = <0>;
+            };
+
+            ethernet-phy@2 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <2>;
+                enet-phy-pair-order = <0>;
+            };
+
+            ethernet-phy@3 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <3>;
+                enet-phy-pair-order = <1>;
+            };
+
+            ethernet-phy@4 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <4>;
+                enet-phy-pair-order = <1>;
+                enet-phy-pair-polarity = <0x1>;
+            };
+        };
+    };

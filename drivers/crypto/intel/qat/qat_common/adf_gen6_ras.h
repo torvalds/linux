@@ -170,23 +170,25 @@ struct adf_ras_ops;
 #define ADF_GEN6_TI_CD_PAR_ERR_MASK			0x500638
 
 /*
- * TI CD parity status mask
+ * TI CD parity status mask - TI_INT_ERR_DEVHALT bits
  * BIT(0) - BIT(15) - CtxMdRam[0:15]_sts parity status
  * BIT(16) - Leaf2ClusterRam_sts parity status
  * BIT(17) - BIT(18) - Ring2LeafRam[0:1]_sts parity status
- * BIT(19) - VirtualQ_sts parity status
- * BIT(20) - DtRdQ_sts parity status
- * BIT(21) - DtWrQ_sts parity status
- * BIT(22) - RiCmdQ_sts parity status
- * BIT(23) - BypassQ_sts parity status
- * BIT(24) - DtRdQ_sc_sts parity status
- * BIT(25) - DtWrQ_sc_sts parity status
  */
-#define ADF_GEN6_TI_CD_PAR_STS_MASK \
+#define ADF_GEN6_TI_CD_PAR_STS_TI_INT_ERR_DEVHALT_MASK \
 	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | \
 	 BIT(7) | BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12) | BIT(13) | \
-	 BIT(14) | BIT(15) | BIT(16) | BIT(17) | BIT(18) | BIT(19) | BIT(20) | \
-	 BIT(21) | BIT(22) | BIT(23) | BIT(24) | BIT(25))
+	 BIT(14) | BIT(15) | BIT(16) | BIT(17) | BIT(18))
+
+/*
+ * TI CD parity status mask - TIMISCSTS bit
+ * BIT(19) - VirtualQ_sts parity status
+ */
+#define ADF_GEN6_TI_CD_PAR_STS_TI_MISC_MASK		BIT(19)
+
+#define ADF_GEN6_TI_CD_PAR_STS_MASK \
+	(ADF_GEN6_TI_CD_PAR_STS_TI_INT_ERR_DEVHALT_MASK | \
+	 ADF_GEN6_TI_CD_PAR_STS_TI_MISC_MASK)
 
 /* TI TRNSB parity status */
 #define ADF_GEN6_TI_TRNSB_PAR_STS			0x500648

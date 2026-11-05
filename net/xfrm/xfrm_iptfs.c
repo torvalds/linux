@@ -486,8 +486,7 @@ static int iptfs_skb_add_frags(struct sk_buff *skb,
 			tofrag->len -= offset;
 			offset = 0;
 		}
-		__skb_frag_ref(tofrag);
-		shinfo->nr_frags++;
+		skb_frag_ref(skb, shinfo->nr_frags++);
 		shinfo->flags |= SKBFL_SHARED_FRAG;
 
 		/* see if we are done */

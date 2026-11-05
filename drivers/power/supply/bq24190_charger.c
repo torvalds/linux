@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/devm-helpers.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/power_supply.h>
 #include <linux/power/bq24190_charger.h>
 #include <linux/regulator/driver.h>
@@ -1294,6 +1295,58 @@ static int bq24190_charger_set_iinlimit(struct bq24190_dev_info *bdi,
 			ARRAY_SIZE(bq24190_isc_iinlim_values), val->intval);
 }
 
+static int bq24190_charger_get_batfet_ctrl(struct bq24190_dev_info *bdi,
+					   union power_supply_propval *val)
+{
+	u8 regval;
+	int ret;
+
+	ret = bq24190_read_mask(bdi, BQ24190_REG_MOC,
+				BQ24190_REG_MOC_BATFET_DISABLE_MASK,
+				BQ24190_REG_MOC_BATFET_DISABLE_SHIFT,
+				&regval);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Datasheet defines shipping mode as BATFET off _and_ the watchdog
+	 * disabled. Since the watchdog is disabled during the whole lifetime
+	 * (from probe), shipping mode is the only "off" state that can be
+	 * achievable.
+	 */
+	val->intval = regval ? POWER_SUPPLY_LOAD_SWITCH_SHIP :
+			       POWER_SUPPLY_LOAD_SWITCH_ON;
+	return 0;
+}
+
+static int
+bq24190_charger_set_batfet_ctrl(struct bq24190_dev_info *bdi,
+				const union power_supply_propval *val)
+{
+	u8 regval;
+
+	/*
+	 * Datasheet defines shipping mode as BATFET off _and_ the watchdog
+	 * disabled. Since the watchdog is disabled during the whole lifetime
+	 * (from probe), shipping mode is the only "off" state that can be
+	 * achievable.
+	 */
+	switch (val->intval) {
+	case POWER_SUPPLY_LOAD_SWITCH_ON:
+		regval = 0;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_SHIP:
+		regval = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return bq24190_write_mask(bdi, BQ24190_REG_MOC,
+				  BQ24190_REG_MOC_BATFET_DISABLE_MASK,
+				  BQ24190_REG_MOC_BATFET_DISABLE_SHIFT, regval);
+}
+
 static int bq24190_charger_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -1350,6 +1403,9 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
 		ret = 0;
 		break;
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		ret = bq24190_charger_get_batfet_ctrl(bdi, val);
+		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = bdi->model_name;
 		ret = 0;
@@ -1400,6 +1456,9 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = bq24190_charger_set_iinlimit(bdi, val);
 		break;
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		ret = bq24190_charger_set_batfet_ctrl(bdi, val);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1420,6 +1479,7 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
 		return 1;
 	default:
 		return 0;
@@ -1480,6 +1540,7 @@ static enum power_supply_property bq24190_charger_properties[] = {
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 };
 
 static char *bq24190_charger_supplied_to[] = {
@@ -1498,6 +1559,8 @@ static const struct power_supply_desc bq24190_charger_desc = {
 	.charge_types		= BIT(POWER_SUPPLY_CHARGE_TYPE_NONE)    |
 				  BIT(POWER_SUPPLY_CHARGE_TYPE_TRICKLE) |
 				  BIT(POWER_SUPPLY_CHARGE_TYPE_FAST),
+	.load_switches		= BIT(POWER_SUPPLY_LOAD_SWITCH_ON) |
+				  BIT(POWER_SUPPLY_LOAD_SWITCH_SHIP),
 };
 
 /* Battery power supply property routines */
@@ -2168,7 +2231,13 @@ static int bq24190_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto out_charger;
 
-	enable_irq_wake(client->irq);
+	ret = devm_device_init_wakeup(dev);
+	if (ret < 0)
+		goto out_charger;
+
+	ret = devm_pm_set_wake_irq(dev, client->irq);
+	if (ret < 0)
+		goto out_charger;
 
 	pm_runtime_put_autosuspend(dev);
 
@@ -2242,25 +2311,6 @@ static __maybe_unused int bq24190_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int bq24190_pm_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
-	int error;
-
-	error = pm_runtime_resume_and_get(bdi->dev);
-	if (error < 0)
-		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-
-	bq24190_register_reset(bdi);
-
-	if (error >= 0) {
-		pm_runtime_put_autosuspend(bdi->dev);
-	}
-
-	return 0;
-}
-
 static __maybe_unused int bq24190_pm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -2274,7 +2324,14 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 	if (error < 0)
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
 
-	bq24190_register_reset(bdi);
+	/*
+	 * The chip kept its configuration through the sleep: it is in host
+	 * mode with the i2c watchdog off, so nothing expired and nothing was
+	 * reset. Do not reset it here either -- a userspace setting such as
+	 * EN_HIZ or IINLIM would otherwise be silently lost on every resume.
+	 * Re-applying the probe-time configuration is idempotent and cheap,
+	 * and covers a part that did somehow fall back to default mode.
+	 */
 	bq24190_set_config(bdi);
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 
@@ -2293,7 +2350,7 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 static const struct dev_pm_ops bq24190_pm_ops = {
 	SET_RUNTIME_PM_OPS(bq24190_runtime_suspend, bq24190_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(bq24190_pm_suspend, bq24190_pm_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, bq24190_pm_resume)
 };
 
 static const struct i2c_device_id bq24190_i2c_ids[] = {

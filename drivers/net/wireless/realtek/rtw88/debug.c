@@ -315,6 +315,11 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 	int i;
 	int ret;
 
+	if (!buf_size) {
+		seq_puts(m, "usage: echo <page_offset> <page_num> > rsvd_page\n");
+		return 0;
+	}
+
 	buf = vzalloc(buf_size);
 	if (!buf)
 		return -ENOMEM;
@@ -1051,10 +1056,7 @@ static ssize_t rtw_debugfs_set_force_lowest_basic_rate(struct file *filp,
 	if (err)
 		return err;
 
-	if (input)
-		set_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags);
-	else
-		clear_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags);
+	assign_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags, input);
 
 	return count;
 }

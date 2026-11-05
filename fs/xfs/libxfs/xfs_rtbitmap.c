@@ -16,7 +16,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
 #include "xfs_trans.h"
-#include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_health.h"
@@ -125,6 +124,26 @@ const struct xfs_buf_ops xfs_rtsummary_buf_ops = {
 	.verify_struct	= xfs_rtbuf_verify,
 };
 
+static const struct xfs_buf_ops *xfs_rtblock_buf_ops[XFS_RTGI_MAX] = {
+	[XFS_RTGI_SUMMARY]	= &xfs_rtsummary_buf_ops,
+	[XFS_RTGI_BITMAP]	= &xfs_rtbitmap_buf_ops,
+};
+
+const struct xfs_buf_ops *
+xfs_rtblock_ops(
+	struct xfs_mount	*mp,
+	enum xfs_rtg_inodes	type)
+{
+	if (!xfs_has_rtgroups(mp))
+		return &xfs_rtbuf_ops;
+	return xfs_rtblock_buf_ops[type];
+}
+
+static enum xfs_blft xfs_rtblock_buf_types[XFS_RTGI_MAX] = {
+	[XFS_RTGI_SUMMARY]	= XFS_BLFT_RTSUMMARY_BUF,
+	[XFS_RTGI_BITMAP]	= XFS_BLFT_RTBITMAP_BUF,
+};
+
 /* Release cached rt bitmap and summary buffers. */
 void
 xfs_rtbuf_cache_relse(
@@ -158,7 +177,6 @@ xfs_rtbuf_get(
 	xfs_fileoff_t		*coffp;	/* cached block number */
 	struct xfs_buf		*bp;	/* block buffer, result */
 	struct xfs_bmbt_irec	map;
-	enum xfs_blft		buf_type;
 	int			nmap = 1;
 	int			error;
 
@@ -166,12 +184,10 @@ xfs_rtbuf_get(
 	case XFS_RTGI_SUMMARY:
 		cbpp = &args->sumbp;
 		coffp = &args->sumoff;
-		buf_type = XFS_BLFT_RTSUMMARY_BUF;
 		break;
 	case XFS_RTGI_BITMAP:
 		cbpp = &args->rbmbp;
 		coffp = &args->rbmoff;
-		buf_type = XFS_BLFT_RTBITMAP_BUF;
 		break;
 	default:
 		return -EINVAL;
@@ -222,7 +238,7 @@ xfs_rtbuf_get(
 		}
 	}
 
-	xfs_trans_buf_set_type(args->tp, bp, buf_type);
+	xfs_trans_buf_set_type(args->tp, bp, xfs_rtblock_buf_types[type]);
 	*cbpp = bp;
 	*coffp = block;
 	return 0;
@@ -1361,6 +1377,27 @@ out_trans_cancel:
 	return error;
 }
 
+void
+xfs_rtfile_initialize_buf(
+	struct xfs_rtgroup	*rtg,
+	enum xfs_rtg_inodes	type,
+	struct xfs_buf		*bp,
+	struct xfs_trans	*tp)
+{
+	bp->b_ops = xfs_rtblock_ops(bp->b_mount, type);
+	if (tp)
+		xfs_trans_buf_set_type(tp, bp, xfs_rtblock_buf_types[type]);
+	if (xfs_has_rtgroups(bp->b_mount)) {
+		struct xfs_rtbuf_blkinfo	*hdr = bp->b_addr;
+
+		hdr->rt_magic = bp->b_ops->magic[1];
+		hdr->rt_owner = cpu_to_be64(I_INO(rtg->rtg_inodes[type]));
+		hdr->rt_blkno = cpu_to_be64(xfs_buf_daddr(bp));
+		hdr->rt_lsn = 0;
+		uuid_copy(&hdr->rt_uuid, &bp->b_mount->m_sb.sb_meta_uuid);
+	}
+}
+
 /* Get a buffer for the block. */
 static int
 xfs_rtfile_initialize_block(
@@ -1373,17 +1410,8 @@ xfs_rtfile_initialize_block(
 	struct xfs_inode	*ip = rtg->rtg_inodes[type];
 	struct xfs_trans	*tp;
 	struct xfs_buf		*bp;
-	void			*bufdata;
 	const size_t		copylen = mp->m_blockwsize << XFS_WORDLOG;
-	enum xfs_blft		buf_type;
 	int			error;
-
-	if (type == XFS_RTGI_BITMAP)
-		buf_type = XFS_BLFT_RTBITMAP_BUF;
-	else if (type == XFS_RTGI_SUMMARY)
-		buf_type = XFS_BLFT_RTSUMMARY_BUF;
-	else
-		return -EINVAL;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtzero, 0, 0, 0, &tp);
 	if (error)
@@ -1397,30 +1425,12 @@ xfs_rtfile_initialize_block(
 		xfs_trans_cancel(tp);
 		return error;
 	}
-	bufdata = bp->b_addr;
 
-	xfs_trans_buf_set_type(tp, bp, buf_type);
-	bp->b_ops = xfs_rtblock_ops(mp, type);
-
-	if (xfs_has_rtgroups(mp)) {
-		struct xfs_rtbuf_blkinfo	*hdr = bp->b_addr;
-
-		if (type == XFS_RTGI_BITMAP)
-			hdr->rt_magic = cpu_to_be32(XFS_RTBITMAP_MAGIC);
-		else
-			hdr->rt_magic = cpu_to_be32(XFS_RTSUMMARY_MAGIC);
-		hdr->rt_owner = cpu_to_be64(I_INO(ip));
-		hdr->rt_blkno = cpu_to_be64(XFS_FSB_TO_DADDR(mp, fsbno));
-		hdr->rt_lsn = 0;
-		uuid_copy(&hdr->rt_uuid, &mp->m_sb.sb_meta_uuid);
-
-		bufdata += sizeof(*hdr);
-	}
-
+	xfs_rtfile_initialize_buf(rtg, type, bp, tp);
 	if (data)
-		memcpy(bufdata, data, copylen);
+		memcpy(xfs_rtblock_payload(bp), data, copylen);
 	else
-		memset(bufdata, 0, copylen);
+		memset(xfs_rtblock_payload(bp), 0, copylen);
 	xfs_trans_log_buf(tp, bp, 0, mp->m_sb.sb_blocksize - 1);
 	return xfs_trans_commit(tp);
 }

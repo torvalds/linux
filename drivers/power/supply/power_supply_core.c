@@ -190,7 +190,35 @@ static void power_supply_deferred_register_work(struct work_struct *work)
 		device_unlock(psy->dev.parent);
 }
 
-#ifdef CONFIG_OF
+static int power_supply_check_supplies_by_name(struct power_supply *psy)
+{
+	struct device *parent = psy->dev.parent;
+	int nval, ret;
+
+	if (!parent)
+		return 0;
+
+	nval = device_property_string_array_count(parent, "supplied-from");
+	if (nval <= 0)
+		return 0;
+
+	psy->supplied_from = devm_kmalloc_array(&psy->dev, nval,
+						sizeof(*psy->supplied_from),
+						GFP_KERNEL);
+	if (!psy->supplied_from)
+		return -ENOMEM;
+
+	ret = device_property_read_string_array(parent, "supplied-from",
+						(const char **)psy->supplied_from,
+						nval);
+	if (ret < 0)
+		return ret;
+
+	psy->num_supplies = nval;
+
+	return 0;
+}
+
 static int __power_supply_populate_supplied_from(struct power_supply *epsy,
 						 void *data)
 {
@@ -262,22 +290,21 @@ static int power_supply_find_supply_from_fwnode(struct fwnode_handle *supply_nod
 static int power_supply_check_supplies(struct power_supply *psy)
 {
 	struct fwnode_handle *np;
-	int cnt = 0;
+	int cnt, ret;
 
 	/* If there is already a list honor it */
 	if (psy->supplied_from && psy->num_supplies > 0)
 		return 0;
 
-	/* No device node found, nothing to do */
-	if (!psy->dev.fwnode)
-		return 0;
+	for (cnt = 0; psy->dev.fwnode; cnt++) {
+		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", cnt);
+		if (IS_ERR(np)) {
+			ret = PTR_ERR(np);
+			if (ret != -ENOENT)
+				return ret;
 
-	do {
-		int ret;
-
-		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", cnt++);
-		if (IS_ERR(np))
 			break;
+		}
 
 		ret = power_supply_find_supply_from_fwnode(np);
 		fwnode_handle_put(np);
@@ -286,48 +313,21 @@ static int power_supply_check_supplies(struct power_supply *psy)
 			dev_dbg(&psy->dev, "Failed to find supply!\n");
 			return ret;
 		}
-	} while (!IS_ERR(np));
+	}
 
-	/* Missing valid "power-supplies" entries */
-	if (cnt == 1)
-		return 0;
+	/* Fall back to the name-based property if no references were specified. */
+	if (!cnt)
+		return power_supply_check_supplies_by_name(psy);
 
 	/* All supplies found, allocate char * array for filling */
 	psy->supplied_from = devm_kcalloc(&psy->dev,
-					  cnt - 1, sizeof(*psy->supplied_from),
+					  cnt, sizeof(*psy->supplied_from),
 					  GFP_KERNEL);
 	if (!psy->supplied_from)
 		return -ENOMEM;
 
 	return power_supply_populate_supplied_from(psy);
 }
-#else
-static int power_supply_check_supplies(struct power_supply *psy)
-{
-	int nval, ret;
-
-	if (!psy->dev.parent)
-		return 0;
-
-	nval = device_property_string_array_count(psy->dev.parent, "supplied-from");
-	if (nval <= 0)
-		return 0;
-
-	psy->supplied_from = devm_kmalloc_array(&psy->dev, nval,
-						sizeof(char *), GFP_KERNEL);
-	if (!psy->supplied_from)
-		return -ENOMEM;
-
-	ret = device_property_read_string_array(psy->dev.parent,
-		"supplied-from", (const char **)psy->supplied_from, nval);
-	if (ret < 0)
-		return ret;
-
-	psy->num_supplies = nval;
-
-	return 0;
-}
-#endif
 
 struct psy_am_i_supplied_data {
 	struct power_supply *psy;
@@ -907,7 +907,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		u32 *propdata __free(kfree) = kzalloc_objs(*propdata, proplen);
 		if (!propdata) {
 			power_supply_put_battery_info(psy, info);
-			err = -EINVAL;
+			err = -ENOMEM;
 			goto out_put_node;
 		}
 		err = fwnode_property_read_u32_array(fwnode, propname, propdata, proplen);
@@ -1422,6 +1422,12 @@ static int __power_supply_get_property(struct power_supply *psy, enum power_supp
 int power_supply_get_property(struct power_supply *psy, enum power_supply_property psp,
 			      union power_supply_propval *val)
 {
+	/* Protect driver data from being free'd */
+	guard(rwsem_read)(&psy->epc_sem);
+
+	if (psy->removing)
+		return -ENODEV;
+
 	return __power_supply_get_property(psy, psp, val, true);
 }
 EXPORT_SYMBOL_GPL(power_supply_get_property);
@@ -1442,7 +1448,7 @@ EXPORT_SYMBOL_GPL(power_supply_get_property);
 int power_supply_get_property_direct(struct power_supply *psy, enum power_supply_property psp,
 				     union power_supply_propval *val)
 {
-        return __power_supply_get_property(psy, psp, val, false);
+	return __power_supply_get_property(psy, psp, val, false);
 }
 EXPORT_SYMBOL_GPL(power_supply_get_property_direct);
 
@@ -1479,6 +1485,12 @@ static int __power_supply_set_property(struct power_supply *psy, enum power_supp
 int power_supply_set_property(struct power_supply *psy, enum power_supply_property psp,
 			      const union power_supply_propval *val)
 {
+	/* Protect driver data from being free'd */
+	guard(rwsem_read)(&psy->epc_sem);
+
+	if (psy->removing)
+		return -ENODEV;
+
 	return __power_supply_set_property(psy, psp, val, true);
 }
 EXPORT_SYMBOL_GPL(power_supply_set_property);
@@ -1528,6 +1540,19 @@ void power_supply_external_power_changed(struct power_supply *psy)
 {
 	if (atomic_read(&psy->use_cnt) <= 0 ||
 			!psy->desc->external_power_changed)
+		return;
+
+	/*
+	 * Keep power_supply_unregister() from returning, and thus from letting
+	 * the driver's data be freed, while the callback is running. The
+	 * ->removing check has to happen under the lock: on its own, just like
+	 * the use_cnt check above, it only tells us the supply was still there
+	 * when we looked, not that it still is by the time the callback
+	 * dereferences its driver data.
+	 */
+	guard(rwsem_read)(&psy->epc_sem);
+
+	if (psy->removing)
 		return;
 
 	psy->desc->external_power_changed(psy);
@@ -1595,6 +1620,16 @@ int power_supply_register_extension(struct power_supply *psy, const struct power
 
 sysfs_hwmon_failed:
 	power_supply_sysfs_remove_extension(psy, ext);
+	list_del(&reg->list_head);
+	kfree(reg);
+	/*
+	 * update_sysfs_and_hwmon() may have already torn down hwmon before
+	 * failing to recreate it. Recreate without the failed extension.
+	 */
+	if (power_supply_add_hwmon_sysfs(psy))
+		dev_warn(&psy->dev, "failed to restore hwmon after extension error\n");
+	return ret;
+
 sysfs_add_failed:
 	list_del(&reg->list_head);
 	kfree(reg);
@@ -1774,6 +1809,7 @@ __power_supply_register(struct device *parent,
 	}
 
 	spin_lock_init(&psy->changed_lock);
+	init_rwsem(&psy->epc_sem);
 	init_rwsem(&psy->extensions_sem);
 	INIT_LIST_HEAD(&psy->extensions);
 
@@ -1914,7 +1950,17 @@ EXPORT_SYMBOL_GPL(devm_power_supply_register);
 void power_supply_unregister(struct power_supply *psy)
 {
 	WARN_ON(atomic_dec_return(&psy->use_cnt));
-	psy->removing = true;
+
+	/*
+	 * Publish ->removing so that no new ->external_power_changed() call can
+	 * start, and wait via semaphore for one that is already running: it may
+	 * be a supplier's changed_work, which cancel_work_sync() below does not
+	 * cover, and it may still dereference driver data that the caller is
+	 * about to free.
+	 */
+	scoped_guard(rwsem_write, &psy->epc_sem)
+		psy->removing = true;
+
 	cancel_work_sync(&psy->changed_work);
 	cancel_delayed_work_sync(&psy->deferred_register_work);
 	sysfs_remove_link(&psy->dev.kobj, "powers");

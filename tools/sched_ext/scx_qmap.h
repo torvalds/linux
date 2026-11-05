@@ -163,6 +163,17 @@ struct qmap_arena {
 	u64 alloc_ts;			/* last accounting timestamp */
 	u64 alloc_window_ns;		/* total accounted time, the alloc denominator */
 
+	/*
+	 * The per-cid fields are written only by that cid's notifications and
+	 * read by flush_alloc() for the snapshot userspace displays.
+	 */
+	s32 cid_sched[SCX_QMAP_MAX_CPUS]; /* per cid: owner id of the sched running there */
+	u64 cid_sched_since[SCX_QMAP_MAX_CPUS]; /* when that last changed */
+	u64 used_ns[MAX_SUB_SCHEDS];	/* per child slot, closed intervals */
+	u64 self_used_ns;
+	u64 used_snap_ns[MAX_SUB_SCHEDS]; /* used_ns[] plus the intervals open at the flush */
+	u64 self_used_snap_ns;
+
 	/* bpf-internal cmasks (embedded, see struct qmap_cmask) */
 	struct qmap_cmask self_cids;	/* cids this node runs its own tasks on */
 	struct qmap_cmask avail_cids;	/* cids with caps in effect on the cpu */
@@ -181,8 +192,10 @@ struct qmap_arena {
 	/* bpf -> userspace: stats */
 	u64 nr_reenq_cap;		/* SCX_TASK_REENQ_CAP bounces */
 	u64 nr_reenq_immed;		/* SCX_TASK_REENQ_IMMED bounces */
+	u64 nr_enq_blocked;		/* SCX_ENQ_BLOCKED dispatches */
 	u64 nr_inject_attempts;		/* fault-injection: dispatches to an unheld cid */
 	u64 nr_rescue_dsp;		/* SCX_ENQ_RESCUE dispatch attempts */
+	u64 nr_child_ecaps;		/* ops.sub_child_ecaps_updated() deliveries */
 	u32 inject_mode;		/* fault-injection mode (QMAP_INJ_*) */
 };
 

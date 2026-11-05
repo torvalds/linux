@@ -624,11 +624,15 @@ static int ads1018_trigger_setup(struct iio_dev *indio_dev)
 
 static int ads1018_spi_probe(struct spi_device *spi)
 {
-	const struct ads1018_chip_info *info = spi_get_device_match_data(spi);
+	const struct ads1018_chip_info *info;
 	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ads1018 *ads1018;
 	int ret;
+
+	info = spi_get_device_match_data(spi);
+	if (!info)
+		return -ENODATA;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ads1018));
 	if (!indio_dev)

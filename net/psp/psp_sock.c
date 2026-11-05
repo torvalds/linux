@@ -78,16 +78,33 @@ static struct psp_assoc *psp_assoc_dummy(struct psp_assoc *pas)
 }
 
 static int psp_dev_tx_key_add(struct psp_dev *psd, struct psp_assoc *pas,
+			      struct psp_key_parsed *key,
 			      struct netlink_ext_ack *extack)
 {
-	return psd->ops->tx_key_add(psd, pas, extack);
+	struct psp_assoc *dummy;
+	int err;
+
+	/* Pass a fake association to drivers to make sure they don't
+	 * try to store pointers to it. For re-keying we'll need to
+	 * re-allocate the assoc structures.
+	 */
+	dummy = psp_assoc_dummy(pas);
+	if (!dummy)
+		return -ENOMEM;
+
+	memcpy(&dummy->tx, key, sizeof(*key));
+	err = psd->ops->tx_key_add(psd, dummy, extack);
+	if (!err)
+		memcpy(pas->drv_data, dummy->drv_data,
+		       psd->caps->assoc_drv_spc);
+
+	kfree(dummy);
+	return err;
 }
 
 void psp_dev_tx_key_del(struct psp_dev *psd, struct psp_assoc *pas)
 {
-	if (pas->tx.spi)
-		psd->ops->tx_key_del(psd, pas);
-	list_del(&pas->assocs_list);
+	psd->ops->tx_key_del(psd, pas);
 }
 
 static void psp_assoc_free(struct work_struct *work)
@@ -96,8 +113,11 @@ static void psp_assoc_free(struct work_struct *work)
 	struct psp_dev *psd = pas->psd;
 
 	mutex_lock(&psd->lock);
-	if (psp_dev_is_registered(psd))
-		psp_dev_tx_key_del(psd, pas);
+	if (psp_dev_is_registered(psd)) {
+		if (psp_assoc_needs_tx_key_del(pas))
+			psp_dev_tx_key_del(psd, pas);
+		list_del(&pas->assocs_list);
+	}
 	mutex_unlock(&psd->lock);
 	psp_dev_put(psd);
 	kfree(pas);
@@ -139,6 +159,12 @@ int psp_sock_assoc_set_rx(struct sock *sk, struct psp_assoc *pas,
 
 	lock_sock(sk);
 
+	if (sk->sk_state != TCP_ESTABLISHED) {
+		NL_SET_ERR_MSG(extack, "Socket must be in established state");
+		err = -ENOTCONN;
+		goto exit_unlock;
+	}
+
 	if (psp_sk_assoc(sk)) {
 		NL_SET_ERR_MSG(extack, "Socket already has PSP state");
 		err = -EBUSY;
@@ -157,6 +183,22 @@ exit_unlock:
 	release_sock(sk);
 
 	return err;
+}
+
+static int psp_assoc_set_tx(struct psp_dev *psd, struct psp_assoc *pas,
+			    struct psp_key_parsed *key,
+			    struct netlink_ext_ack *extack)
+{
+	int err;
+
+	if (psp_dev_has_sadb(psd)) {
+		err = psp_dev_tx_key_add(psd, pas, key, extack);
+		if (err)
+			return err;
+	}
+
+	memcpy(&pas->tx, key, sizeof(*key));
+	return 0;
 }
 
 static int psp_sock_recv_queue_check(struct sock *sk, struct psp_assoc *pas)
@@ -178,15 +220,49 @@ static int psp_sock_recv_queue_check(struct sock *sk, struct psp_assoc *pas)
 	return 0;
 }
 
+static int
+psp_sock_set_tx_key(struct sock *sk, struct psp_dev *psd, struct psp_assoc *pas,
+		    struct psp_key_parsed *key, struct netlink_ext_ack *extack)
+{
+	struct inet_connection_sock *icsk;
+	int err;
+
+	err = psp_sock_recv_queue_check(sk, pas);
+	if (err) {
+		NL_SET_ERR_MSG(extack,
+			       "Socket has incompatible segments already in the recv queue");
+		return err;
+	}
+
+	err = psp_assoc_set_tx(psd, pas, key, extack);
+	if (err)
+		return err;
+
+	WRITE_ONCE(sk->sk_validate_xmit_skb, psp_validate_xmit);
+	tcp_write_collapse_fence(sk);
+	pas->upgrade_seq = tcp_sk(sk)->rcv_nxt;
+
+	icsk = inet_csk(sk);
+	icsk->icsk_ext_hdr_len += psp_sk_overhead(sk);
+	icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
+
+	return err;
+}
+
 int psp_sock_assoc_set_tx(struct sock *sk, struct psp_dev *psd,
 			  u32 version, struct psp_key_parsed *key,
 			  struct netlink_ext_ack *extack)
 {
-	struct inet_connection_sock *icsk;
-	struct psp_assoc *pas, *dummy;
+	struct psp_assoc *pas;
 	int err;
 
 	lock_sock(sk);
+
+	if (sk->sk_state != TCP_ESTABLISHED) {
+		NL_SET_ERR_MSG(extack, "Socket must be in established state");
+		err = -ENOTCONN;
+		goto exit_unlock;
+	}
 
 	pas = psp_sk_assoc(sk);
 	if (!pas) {
@@ -211,40 +287,7 @@ int psp_sock_assoc_set_tx(struct sock *sk, struct psp_dev *psd,
 		goto exit_unlock;
 	}
 
-	err = psp_sock_recv_queue_check(sk, pas);
-	if (err) {
-		NL_SET_ERR_MSG(extack, "Socket has incompatible segments already in the recv queue");
-		goto exit_unlock;
-	}
-
-	/* Pass a fake association to drivers to make sure they don't
-	 * try to store pointers to it. For re-keying we'll need to
-	 * re-allocate the assoc structures.
-	 */
-	dummy = psp_assoc_dummy(pas);
-	if (!dummy) {
-		err = -ENOMEM;
-		goto exit_unlock;
-	}
-
-	memcpy(&dummy->tx, key, sizeof(*key));
-	err = psp_dev_tx_key_add(psd, dummy, extack);
-	if (err)
-		goto exit_free_dummy;
-
-	memcpy(pas->drv_data, dummy->drv_data, psd->caps->assoc_drv_spc);
-	memcpy(&pas->tx, key, sizeof(*key));
-
-	WRITE_ONCE(sk->sk_validate_xmit_skb, psp_validate_xmit);
-	tcp_write_collapse_fence(sk);
-	pas->upgrade_seq = tcp_sk(sk)->rcv_nxt;
-
-	icsk = inet_csk(sk);
-	icsk->icsk_ext_hdr_len += psp_sk_overhead(sk);
-	icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
-
-exit_free_dummy:
-	kfree(dummy);
+	err = psp_sock_set_tx_key(sk, psd, pas, key, extack);
 exit_unlock:
 	release_sock(sk);
 	return err;

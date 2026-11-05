@@ -575,7 +575,7 @@ static ssize_t x1205_sysfs_show_atrim(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d.%02d pF\n", atrim / 1000, atrim % 1000);
+	return sysfs_emit(buf, "%d.%02d pF\n", atrim / 1000, atrim % 1000);
 }
 static DEVICE_ATTR(atrim, S_IRUGO, x1205_sysfs_show_atrim, NULL);
 
@@ -588,7 +588,7 @@ static ssize_t x1205_sysfs_show_dtrim(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d ppm\n", dtrim);
+	return sysfs_emit(buf, "%d ppm\n", dtrim);
 }
 static DEVICE_ATTR(dtrim, S_IRUGO, x1205_sysfs_show_dtrim, NULL);
 

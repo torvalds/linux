@@ -49,17 +49,26 @@ static const int pf1550_ldo13_volts[] = {
 static int pf1550_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
 	int id = rdev_get_id(rdev);
-	unsigned int ramp_bits = 0;
+	unsigned int ramp_bits;
 	int ret;
 
 	if (id > PF1550_VREFDDR)
 		return -EACCES;
 
-	if (ramp_delay < 0 || ramp_delay > 6250)
+	switch (ramp_delay) {
+	case 0:
+		/* Ramp control is disabled, so use the fastest rate. */
+		ramp_bits = 0;
+		break;
+	case 1 ... 3125:
+		ramp_bits = 1;
+		break;
+	case 3126 ... 6250:
+		ramp_bits = 0;
+		break;
+	default:
 		return -EINVAL;
-
-	ramp_delay = 6250 / ramp_delay;
-	ramp_bits = ramp_delay >> 1;
+	}
 
 	ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg + 4, 0x10,
 				 ramp_bits << 4);

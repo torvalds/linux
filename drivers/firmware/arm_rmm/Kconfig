@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARCH_SUPPORTS_RMM
+	bool
+
+config ARM_RMM_RMI
+	bool "Realm Management Interface (RMI) Support"
+	depends on ARCH_SUPPORTS_RMM
+	help
+	  Support the Realm Management Monitor (RMM) on Arm systems that
+	  implement the Realm Management Extension (RME), as defined by the
+	  Arm Confidential Compute Architecture.
+
+	  The RMM runs at EL2 in the Realm world and provides the Realm
+	  Management Interface (RMI) used by a Normal World host to create,
+	  manage and run protected virtual machines called Realms. The RMM can
+	  also act as a TSM, as defined by the PCIe TDISP and can manage the
+	  PCI IDE setup for securing the PCIe links.
+
+	  This option builds the host-side RMI support used by KVM to detect a
+	  compatible RMM, configure it, manage delegated memory and enable
+	  Realm guests.
+
+	  Selecting this option does not by itself make Realm guests available:
+	  the system must also provide RME-capable hardware and firmware with a
+	  compatible RMM implementation.
+
+config ARM_RMM_RSI
+	bool "Realm Service Interface (RSI) Support"
+	depends on ARCH_SUPPORTS_RMM
+	default y
+	help
+	  Enable support for running Linux as a Realm guest under a Realm
+	  Management Monitor (RMM), as defined by the Arm Confidential
+	  Compute Architecture.
+
+	  The RMM exposes the Realm Service Interface (RSI) to Realm guests.
+	  Linux uses RSI to negotiate the interface version, obtain the Realm
+	  configuration, and manage the protected or shared state of guest
+	  memory.

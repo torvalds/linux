@@ -2,8 +2,8 @@
 # Makefile for YNL tests
 
 include ../Makefile.deps
+include ../../../scripts/Makefile.include
 
-CC=gcc
 CFLAGS += -std=gnu11 -O2 -W -Wall -Wextra -Wno-unused-parameter -Wshadow \
 	-I../lib/ -I../generated/ -I../../../testing/selftests/ \
 	-idirafter $(UAPI_PATH)

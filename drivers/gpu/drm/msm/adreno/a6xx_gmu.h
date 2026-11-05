@@ -77,6 +77,7 @@ struct a6xx_gmu {
 
 	struct device *gxpd;
 	struct device *cxpd;
+	struct device *gmu_mxpd;
 
 	int idle_level;
 

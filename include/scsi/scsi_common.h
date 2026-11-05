@@ -71,8 +71,7 @@ extern u64 scsilun_to_int(struct scsi_lun *);
 struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
 	u8 response_code;	/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
 	u8 sense_key;
-	u8 asc;
-	u8 ascq;
+	u16 sense_code;
 	u8 byte4;
 	u8 byte5;
 	u8 byte6;
@@ -87,10 +86,21 @@ static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr)
 	return (sshdr->response_code & 0x70) == 0x70;
 }
 
+static inline u8 scsi_sense_asc(const struct scsi_sense_hdr *sshdr)
+{
+	return scsi_sense_code_asc(sshdr->sense_code);
+}
+
+static inline u8 scsi_sense_ascq(const struct scsi_sense_hdr *sshdr)
+{
+	return scsi_sense_code_ascq(sshdr->sense_code);
+}
+
 extern bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 				 struct scsi_sense_hdr *sshdr);
 
-extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
+void scsi_set_sense_buffer(int desc, u8 *buf, u8 key, u16 code);
+
 int scsi_set_sense_information(u8 *buf, int buf_len, u64 info);
 int scsi_set_sense_field_pointer(u8 *buf, int buf_len, u16 fp, u8 bp, bool cd);
 extern const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,

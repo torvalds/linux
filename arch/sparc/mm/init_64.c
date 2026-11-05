@@ -413,7 +413,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 	if (mm->context.hugetlb_pte_count || mm->context.thp_pte_count) {
 		unsigned long hugepage_size = PAGE_SIZE;
 
-		if (is_vm_hugetlb_page(vma))
+		if (vma_is_hugetlb(vma))
 			hugepage_size = huge_page_size(hstate_vma(vma));
 
 		if (hugepage_size >= PUD_SIZE) {

@@ -263,7 +263,7 @@ pll_clk_register(struct device *dev, const char *name,
 {
 	int ret;
 	struct clk_pll *pll;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	if (id != 1 && id != 2) {
 		pr_err("%s: the Nomadik has only PLL 1 & 2\n", __func__);
@@ -355,7 +355,7 @@ src_clk_register(struct device *dev, const char *name,
 {
 	int ret;
 	struct clk_src *sclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	sclk = kzalloc_obj(*sclk);
 	if (!sclk)

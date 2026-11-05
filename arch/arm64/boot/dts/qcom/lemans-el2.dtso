@@ -31,9 +31,9 @@
 };
 
 &remoteproc_gpdsp0 {
-       iommus = <&apps_smmu 0x38a0 0x0>;
+	iommus = <&apps_smmu 0x38a0 0x0>;
 };
 
 &remoteproc_gpdsp1 {
-       iommus = <&apps_smmu 0x38c0 0x0>;
+	iommus = <&apps_smmu 0x38c0 0x0>;
 };

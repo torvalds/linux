@@ -2347,7 +2347,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 
 		/* RESET SAA7146 */
 		saa7146_write(dev, MC1, MASK_31);
-		/* autodetection success seems to be time-dependend after reset */
+		/* autodetection success seems to be time-dependent after reset */
 
 		/* Fix VSYNC level */
 		saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);

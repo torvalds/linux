@@ -301,11 +301,10 @@ struct kx022a_data {
 	__le16 *fifo_buffer;
 
 	/* 3 x 16bit accel data + timestamp */
-	__le16 buffer[8] __aligned(IIO_DMA_MINALIGN);
 	struct {
 		__le16 channels[3];
 		aligned_s64 ts;
-	} scan;
+	} scan __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_mount_matrix *
@@ -611,14 +610,15 @@ static int kx022a_get_axis(struct kx022a_data *data,
 			   struct iio_chan_spec const *chan,
 			   int *val)
 {
+	__le16 *buf = &data->scan.channels[0];
 	int ret;
 
-	ret = regmap_bulk_read(data->regmap, chan->address, &data->buffer[0],
-			       sizeof(__le16));
+	ret = regmap_bulk_read(data->regmap, chan->address,
+			       buf, sizeof(*buf));
 	if (ret)
 		return ret;
 
-	*val = (s16)le16_to_cpu(data->buffer[0]);
+	*val = (s16)le16_to_cpup(buf);
 
 	return IIO_VAL_INT;
 }
@@ -809,7 +809,7 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 		 * the timestamps. If we are ran from IRQ, then the
 		 * IRQF_ONESHOT has us covered - but if we are ran by the
 		 * user-space read we need to disable the IRQ to be on a safe
-		 * side. We do this usng synchronous disable so that if the
+		 * side. We do this using synchronous disable so that if the
 		 * IRQ thread is being ran on other CPU we wait for it to be
 		 * finished.
 		 */
@@ -864,7 +864,8 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 		for_each_set_bit(bit, idev->active_scan_mask, AXIS_MAX)
 			chs[bit] = sam[bit];
 
-		iio_push_to_buffers_with_timestamp(idev, &data->scan, tstamp);
+		iio_push_to_buffers_with_ts(idev, &data->scan,
+					    sizeof(data->scan), tstamp);
 
 		tstamp += sample_period;
 	}
@@ -1047,12 +1048,13 @@ static irqreturn_t kx022a_trigger_handler(int irq, void *p)
 	struct kx022a_data *data = iio_priv(idev);
 	int ret;
 
-	ret = regmap_bulk_read(data->regmap, data->chip_info->xout_l, data->buffer,
-			       KX022A_FIFO_SAMPLES_SIZE_BYTES);
+	ret = regmap_bulk_read(data->regmap, data->chip_info->xout_l,
+			       data->scan.channels, KX022A_FIFO_SAMPLES_SIZE_BYTES);
 	if (ret < 0)
 		goto err_read;
 
-	iio_push_to_buffers_with_timestamp(idev, data->buffer, data->timestamp);
+	iio_push_to_buffers_with_ts(idev, &data->scan, sizeof(data->scan),
+				    data->timestamp);
 err_read:
 	iio_trigger_notify_done(idev->trig);
 

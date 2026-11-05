@@ -281,10 +281,9 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	    par->cursor_reset) {
 		unsigned char *tmp, *mask;
 
-		tmp = kmalloc_array(vc->vc_font.height, vc_font_pitch(&vc->vc_font), GFP_ATOMIC);
+		tmp = fbcon_cursor_glyph(&vc->vc_font, vc->vc_cursor_type);
 		if (!tmp)
 			return;
-		fbcon_fill_cursor_mask(par, vc, tmp);
 
 		mask = kmalloc_array(vc->vc_font.width, w, GFP_ATOMIC);
 		if (!mask) {

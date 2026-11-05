@@ -10,8 +10,8 @@
 
 /*
  * Note: originally, this file contained 12000+ lines of data
- * Probably a few lines for every firwmare assembler instruction. However,
- * only a few defines were actually used. So, removed all uneeded lines.
+ * Probably a few lines for every firmware assembler instruction. However,
+ * only a few defines were actually used. So, removed all unneeded lines.
  * If ever needed, the other lines can be easily obtained via git history.
  */
 

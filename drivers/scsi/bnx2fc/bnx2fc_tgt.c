@@ -224,7 +224,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 				 bnx2fc_cmd_release); /* drop timer hold */
 
 		if ((io_req->cb_func) && (io_req->cb_arg)) {
-			io_req->cb_func(io_req->cb_arg);
+			io_req->cb_func(tgt, io_req->cb_arg);
 			io_req->cb_arg = NULL;
 		}
 

@@ -40,6 +40,103 @@ static const char *const zone_cond_name[] = {
 #undef ZONE_COND_NAME
 
 /*
+ * Internal and compact representation of enum blk_zone_cond values for zone
+ * conditions. All these values fit into 4-bits, allowing using the high order
+ * bits as the zone type.
+ */
+enum blk_zstate {
+	BLK_ZSTATE_NOT_WP	= 0x00,
+	BLK_ZSTATE_EMPTY	= 0x01,
+	BLK_ZSTATE_IMP_OPEN	= 0x02,
+	BLK_ZSTATE_EXP_OPEN	= 0x03,
+	BLK_ZSTATE_CLOSED	= 0x04,
+	BLK_ZSTATE_READONLY	= 0x05,
+	BLK_ZSTATE_FULL		= 0x06,
+	BLK_ZSTATE_OFFLINE	= 0x07,
+	BLK_ZSTATE_ACTIVE	= 0x08,
+
+	BLK_ZSTATE_COND_MASK	= 0x0F,
+
+	/* Conventional zone. */
+	BLK_ZFLAG_CONV		= 0x80,
+	BLK_ZSTATE_FLAGS_MASK	= ~BLK_ZSTATE_COND_MASK,
+};
+
+/*
+ * Lookup table and helper to convert enum blk_zstate conditions into enum
+ * blk_zone_condition values.
+ */
+static const u8 blk_zstate2zcond[] = {
+	[BLK_ZSTATE_NOT_WP]	= BLK_ZONE_COND_NOT_WP,
+	[BLK_ZSTATE_EMPTY]	= BLK_ZONE_COND_EMPTY,
+	[BLK_ZSTATE_IMP_OPEN]	= BLK_ZONE_COND_IMP_OPEN,
+	[BLK_ZSTATE_EXP_OPEN]	= BLK_ZONE_COND_EXP_OPEN,
+	[BLK_ZSTATE_CLOSED]	= BLK_ZONE_COND_CLOSED,
+	[BLK_ZSTATE_READONLY]	= BLK_ZONE_COND_READONLY,
+	[BLK_ZSTATE_FULL]	= BLK_ZONE_COND_FULL,
+	[BLK_ZSTATE_OFFLINE]	= BLK_ZONE_COND_OFFLINE,
+	[BLK_ZSTATE_ACTIVE]	= BLK_ZONE_COND_ACTIVE,
+};
+
+static inline enum blk_zone_cond blk_zstate_to_zone_cond(enum blk_zstate zs)
+{
+	u8 idx = zs & BLK_ZSTATE_COND_MASK;
+
+	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_zstate2zcond)))
+		return 0;
+
+	return blk_zstate2zcond[idx];
+}
+
+/*
+ * Lookup table and helper to convert an enum blk_zone_condition into an enum
+ * blk_zstate condition value. To keep the lookup table small, the
+ * BLK_ZONE_COND_ACTIVE condition is not added and handled separately.
+ */
+static const u8 blk_zcond2zstate[] = {
+	[BLK_ZONE_COND_NOT_WP]		= BLK_ZSTATE_NOT_WP,
+	[BLK_ZONE_COND_EMPTY]		= BLK_ZSTATE_EMPTY,
+	[BLK_ZONE_COND_IMP_OPEN]	= BLK_ZSTATE_ACTIVE,
+	[BLK_ZONE_COND_EXP_OPEN]	= BLK_ZSTATE_ACTIVE,
+	[BLK_ZONE_COND_CLOSED]		= BLK_ZSTATE_ACTIVE,
+	[BLK_ZONE_COND_READONLY]	= BLK_ZSTATE_READONLY,
+	[BLK_ZONE_COND_FULL]		= BLK_ZSTATE_FULL,
+	[BLK_ZONE_COND_OFFLINE]		= BLK_ZSTATE_OFFLINE,
+};
+
+static inline enum blk_zstate blk_zone_cond_to_zstate(enum blk_zone_cond cond)
+{
+	if (cond == BLK_ZONE_COND_ACTIVE)
+		return BLK_ZSTATE_ACTIVE;
+
+	if (WARN_ON_ONCE(cond >= ARRAY_SIZE(blk_zcond2zstate)))
+		return 0;
+
+	return blk_zcond2zstate[cond];
+}
+
+/*
+ * Combine an enum blk_zone_condition and zone flags into a zones_state array
+ * entry.
+ */
+static inline void blk_zstate_set(u8 *zones_state, unsigned int nr_zones,
+			unsigned int zno, enum blk_zone_cond cond, u8 flags)
+{
+	if (zones_state && zno < nr_zones)
+		zones_state[zno] = flags | blk_zone_cond_to_zstate(cond);
+}
+
+static inline u8 blk_zstate_flags(enum blk_zstate zs)
+{
+	return zs & BLK_ZSTATE_FLAGS_MASK;
+}
+
+static inline bool blk_zstate_is_conv(enum blk_zstate zs)
+{
+	return blk_zstate_flags(zs) & BLK_ZFLAG_CONV;
+}
+
+/*
  * Per-zone write plug.
  * @node: hlist_node structure for managing the plug using a hash table.
  * @entry: list_head structure for listing the plug in the disk list of active
@@ -135,55 +232,64 @@ const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 }
 EXPORT_SYMBOL_GPL(blk_zone_cond_str);
 
-static void blk_zone_set_cond(u8 *zones_cond, unsigned int zno,
-			      enum blk_zone_cond cond)
-{
-	if (!zones_cond)
-		return;
-
-	switch (cond) {
-	case BLK_ZONE_COND_IMP_OPEN:
-	case BLK_ZONE_COND_EXP_OPEN:
-	case BLK_ZONE_COND_CLOSED:
-		zones_cond[zno] = BLK_ZONE_COND_ACTIVE;
-		return;
-	case BLK_ZONE_COND_NOT_WP:
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_FULL:
-	case BLK_ZONE_COND_OFFLINE:
-	case BLK_ZONE_COND_READONLY:
-	default:
-		zones_cond[zno] = cond;
-		return;
-	}
-}
-
 static void disk_zone_set_cond(struct gendisk *disk, sector_t sector,
 			       enum blk_zone_cond cond)
 {
-	u8 *zones_cond;
+	unsigned int zno = disk_zone_no(disk, sector);
+	u8 *zones_state;
 
 	rcu_read_lock();
-	zones_cond = rcu_dereference(disk->zones_cond);
-	if (zones_cond) {
-		unsigned int zno = disk_zone_no(disk, sector);
-
-		/*
-		 * The condition of a conventional, readonly and offline zones
-		 * never changes, so do nothing if the target zone is in one of
-		 * these conditions.
-		 */
-		switch (zones_cond[zno]) {
-		case BLK_ZONE_COND_NOT_WP:
-		case BLK_ZONE_COND_READONLY:
-		case BLK_ZONE_COND_OFFLINE:
-			break;
-		default:
-			blk_zone_set_cond(zones_cond, zno, cond);
-			break;
-		}
-	}
+	zones_state = rcu_dereference(disk->zones_state);
+	if (likely(zones_state && zno < disk->nr_zones))
+		blk_zstate_set(zones_state, disk->nr_zones, zno, cond,
+			       blk_zstate_flags(zones_state[zno]));
 	rcu_read_unlock();
+}
+
+static inline u8 disk_zone_get_state(struct gendisk *disk, sector_t sector)
+{
+	unsigned int zno = disk_zone_no(disk, sector);
+	u8 *zones_state, zs;
+
+	rcu_read_lock();
+	zones_state = rcu_dereference(disk->zones_state);
+	if (likely(zones_state && zno < disk->nr_zones))
+		zs = zones_state[zno];
+	else
+		zs = BLK_ZFLAG_CONV;
+	rcu_read_unlock();
+
+	return zs;
+}
+
+static enum blk_zone_cond disk_zone_get_cond(struct gendisk *disk,
+					     sector_t sector)
+{
+	u8 zs = disk_zone_get_state(disk, sector);
+
+	return blk_zstate_to_zone_cond(zs);
+}
+
+static inline bool
+disk_zone_cond_is_offline_or_readonly(enum blk_zone_cond cond)
+{
+	return cond == BLK_ZONE_COND_READONLY ||
+		cond == BLK_ZONE_COND_OFFLINE;
+}
+
+static inline bool disk_zone_is_offline_or_readonly(struct gendisk *disk,
+						    sector_t sector)
+{
+	enum blk_zone_cond cond = disk_zone_get_cond(disk, sector);
+
+	return disk_zone_cond_is_offline_or_readonly(cond);
+}
+
+static bool disk_zone_is_seq(struct gendisk *disk, sector_t sector)
+{
+	u8 zs = disk_zone_get_state(disk, sector);
+
+	return !blk_zstate_is_conv(zs);
 }
 
 /**
@@ -195,23 +301,37 @@ static void disk_zone_set_cond(struct gendisk *disk, sector_t sector,
  */
 bool bdev_zone_is_seq(struct block_device *bdev, sector_t sector)
 {
-	struct gendisk *disk = bdev->bd_disk;
-	unsigned int zno = disk_zone_no(disk, sector);
-	bool is_seq = false;
-	u8 *zones_cond;
+	if (!bdev_is_zoned(bdev))
+		return false;
+
+	return disk_zone_is_seq(bdev->bd_disk, sector);
+}
+EXPORT_SYMBOL_GPL(bdev_zone_is_seq);
+
+/**
+ * bdev_zone_mgmt_allowed - check if management operations are allowed on a zone
+ * @bdev:       block device to check
+ * @sector:     sector number
+ *
+ * Check if the zone containing @sector on @bdev can be a target for a zone
+ * management operation, that is, if the zone is a sequential write required
+ * zone that is not offline nor read-only.
+ */
+bool bdev_zone_mgmt_allowed(struct block_device *bdev, sector_t sector)
+{
+	enum blk_zone_cond cond;
+	u8 zs;
 
 	if (!bdev_is_zoned(bdev))
 		return false;
 
-	rcu_read_lock();
-	zones_cond = rcu_dereference(disk->zones_cond);
-	if (zones_cond && zno < disk->nr_zones)
-		is_seq = zones_cond[zno] != BLK_ZONE_COND_NOT_WP;
-	rcu_read_unlock();
+	zs = disk_zone_get_state(bdev->bd_disk, sector);
+	if (blk_zstate_is_conv(zs))
+		return false;
 
-	return is_seq;
+	cond = blk_zstate_to_zone_cond(zs);
+	return !disk_zone_cond_is_offline_or_readonly(cond);
 }
-EXPORT_SYMBOL_GPL(bdev_zone_is_seq);
 
 /*
  * Zone report arguments for block device drivers report_zones operation.
@@ -500,12 +620,17 @@ static bool disk_zone_wplug_is_full(struct gendisk *disk,
 	return zwplug->wp_offset >= disk->last_zone_capacity;
 }
 
+static bool disk_zone_wplug_is_offline_or_readonly(struct blk_zone_wplug *zwplug)
+{
+	return disk_zone_cond_is_offline_or_readonly(zwplug->cond);
+}
+
 static bool disk_insert_zone_wplug(struct gendisk *disk,
 				   struct blk_zone_wplug *zwplug)
 {
 	struct blk_zone_wplug *zwplg;
 	unsigned long flags;
-	u8 *zones_cond;
+	u8 *zones_state;
 	unsigned int idx =
 		hash_32(zwplug->zone_no, disk->zone_wplugs_hash_bits);
 
@@ -524,15 +649,16 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 	}
 
 	/*
-	 * Set the zone condition: if we do not yet have a zones_cond array
+	 * Set the zone condition: if we do not yet have a zones_state array
 	 * attached to the disk, then this is a zone write plug insert from the
 	 * first call to blk_revalidate_disk_zones(), in which case the zone is
 	 * necessarilly in the active condition.
 	 */
-	zones_cond = rcu_dereference_check(disk->zones_cond,
+	zones_state = rcu_dereference_check(disk->zones_state,
 				lockdep_is_held(&disk->zone_wplugs_hash_lock));
-	if (zones_cond)
-		zwplug->cond = zones_cond[zwplug->zone_no];
+	if (zones_state)
+		zwplug->cond =
+			blk_zstate_to_zone_cond(zones_state[zwplug->zone_no]);
 	else
 		zwplug->cond = BLK_ZONE_COND_ACTIVE;
 
@@ -574,6 +700,26 @@ static inline struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
 	return disk_get_hashed_zone_wplug(disk, sector);
 }
 
+static void disk_for_all_zone_wplugs(struct gendisk *disk,
+				     void (*actor)(struct blk_zone_wplug *,
+						   void *),
+				     void *data)
+{
+	struct blk_zone_wplug *zwplug;
+	unsigned int i;
+
+	if (!disk->zone_wplugs_hash)
+		return;
+
+	rcu_read_lock();
+	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
+		hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[i],
+					 node)
+			actor(zwplug, data);
+	}
+	rcu_read_unlock();
+}
+
 static void disk_free_zone_wplug_rcu(struct rcu_head *rcu_head)
 {
 	struct blk_zone_wplug *zwplug =
@@ -592,9 +738,9 @@ static void disk_free_zone_wplug(struct blk_zone_wplug *zwplug)
 	WARN_ON_ONCE(!bio_list_empty(&zwplug->bio_list));
 
 	spin_lock_irqsave(&disk->zone_wplugs_hash_lock, flags);
-	blk_zone_set_cond(rcu_dereference_check(disk->zones_cond,
+	blk_zstate_set(rcu_dereference_check(disk->zones_state,
 				lockdep_is_held(&disk->zone_wplugs_hash_lock)),
-			  zwplug->zone_no, zwplug->cond);
+		       disk->nr_zones, zwplug->zone_no, zwplug->cond, 0);
 	hlist_del_init_rcu(&zwplug->node);
 	atomic_dec(&disk->nr_zone_wplugs);
 	spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock, flags);
@@ -606,6 +752,53 @@ static inline void disk_put_zone_wplug(struct blk_zone_wplug *zwplug)
 {
 	if (refcount_dec_and_test(&zwplug->ref))
 		disk_free_zone_wplug(zwplug);
+}
+
+static inline void blk_zone_wplug_bio_io_error(struct blk_zone_wplug *zwplug,
+					       struct bio *bio)
+{
+	struct request_queue *q = zwplug->disk->queue;
+
+	bio_clear_flag(bio, BIO_ZONE_WRITE_PLUGGING);
+	bio_io_error(bio);
+	disk_put_zone_wplug(zwplug);
+	/* Drop the reference taken by disk_zone_wplug_add_bio(). */
+	blk_queue_exit(q);
+}
+
+/*
+ * Abort (fail) all plugged BIOs of a zone write plug.
+ */
+static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
+{
+	struct gendisk *disk = zwplug->disk;
+	struct bio *bio;
+
+	lockdep_assert_held(&zwplug->lock);
+
+	if (bio_list_empty(&zwplug->bio_list))
+		return;
+
+	pr_warn_ratelimited("%s: zone %u: Aborting plugged BIOs\n",
+			    zwplug->disk->disk_name, zwplug->zone_no);
+	while ((bio = bio_list_pop(&zwplug->bio_list)))
+		blk_zone_wplug_bio_io_error(zwplug, bio);
+
+	zwplug->flags &= ~BLK_ZONE_WPLUG_PLUGGED;
+
+	/*
+	 * If we are using the per disk zone write plugs worker thread, remove
+	 * the zone write plug from the work list and drop the reference we
+	 * took when the zone write plug was added to that list.
+	 */
+	if (blk_queue_zoned_qd1_writes(disk->queue)) {
+		spin_lock(&disk->zone_wplugs_list_lock);
+		if (!list_empty(&zwplug->entry)) {
+			list_del_init(&zwplug->entry);
+			disk_put_zone_wplug(zwplug);
+		}
+		spin_unlock(&disk->zone_wplugs_list_lock);
+	}
 }
 
 /*
@@ -625,6 +818,12 @@ static void disk_mark_zone_wplug_dead(struct blk_zone_wplug *zwplug)
 
 static inline bool disk_check_zone_wplug_dead(struct blk_zone_wplug *zwplug)
 {
+	if (disk_zone_wplug_is_offline_or_readonly(zwplug)) {
+		disk_zone_wplug_abort(zwplug);
+		disk_mark_zone_wplug_dead(zwplug);
+		return true;
+	}
+
 	if (!(zwplug->flags & BLK_ZONE_WPLUG_DEAD))
 		return false;
 
@@ -708,53 +907,6 @@ again:
 	return zwplug;
 }
 
-static inline void blk_zone_wplug_bio_io_error(struct blk_zone_wplug *zwplug,
-					       struct bio *bio)
-{
-	struct request_queue *q = zwplug->disk->queue;
-
-	bio_clear_flag(bio, BIO_ZONE_WRITE_PLUGGING);
-	bio_io_error(bio);
-	disk_put_zone_wplug(zwplug);
-	/* Drop the reference taken by disk_zone_wplug_add_bio(). */
-	blk_queue_exit(q);
-}
-
-/*
- * Abort (fail) all plugged BIOs of a zone write plug.
- */
-static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
-{
-	struct gendisk *disk = zwplug->disk;
-	struct bio *bio;
-
-	lockdep_assert_held(&zwplug->lock);
-
-	if (bio_list_empty(&zwplug->bio_list))
-		return;
-
-	pr_warn_ratelimited("%s: zone %u: Aborting plugged BIOs\n",
-			    zwplug->disk->disk_name, zwplug->zone_no);
-	while ((bio = bio_list_pop(&zwplug->bio_list)))
-		blk_zone_wplug_bio_io_error(zwplug, bio);
-
-	zwplug->flags &= ~BLK_ZONE_WPLUG_PLUGGED;
-
-	/*
-	 * If we are using the per disk zone write plugs worker thread, remove
-	 * the zone write plug from the work list and drop the reference we
-	 * took when the zone write plug was added to that list.
-	 */
-	if (blk_queue_zoned_qd1_writes(disk->queue)) {
-		spin_lock(&disk->zone_wplugs_list_lock);
-		if (!list_empty(&zwplug->entry)) {
-			list_del_init(&zwplug->entry);
-			disk_put_zone_wplug(zwplug);
-		}
-		spin_unlock(&disk->zone_wplugs_list_lock);
-	}
-}
-
 /*
  * Update a zone write plug condition based on the write pointer offset.
  */
@@ -785,8 +937,10 @@ static void disk_zone_wplug_set_wp_offset(struct gendisk *disk,
 
 	/* Update the zone write pointer and abort all plugged BIOs. */
 	zwplug->flags &= ~BLK_ZONE_WPLUG_NEED_WP_UPDATE;
-	zwplug->wp_offset = wp_offset;
-	disk_zone_wplug_update_cond(disk, zwplug);
+	if (!disk_zone_wplug_is_offline_or_readonly(zwplug)) {
+		zwplug->wp_offset = wp_offset;
+		disk_zone_wplug_update_cond(disk, zwplug);
+	}
 
 	disk_zone_wplug_abort(zwplug);
 	if (!zwplug->wp_offset || disk_zone_wplug_is_full(disk, zwplug))
@@ -816,8 +970,8 @@ static unsigned int blk_zone_wp_offset(struct blk_zone *zone)
 	}
 }
 
-static unsigned int disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
-						   struct blk_zone *zone)
+static unsigned int disk_zone_wplug_sync_state(struct gendisk *disk,
+					       struct blk_zone *zone)
 {
 	struct blk_zone_wplug *zwplug;
 	unsigned int wp_offset = blk_zone_wp_offset(zone);
@@ -827,6 +981,12 @@ static unsigned int disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
 		unsigned long flags;
 
 		spin_lock_irqsave(&zwplug->lock, flags);
+		if (disk_zone_cond_is_offline_or_readonly(zone->cond)) {
+			zwplug->flags &= ~BLK_ZONE_WPLUG_NEED_WP_UPDATE;
+			zwplug->cond = zone->cond;
+			zwplug->wp_offset = UINT_MAX;
+			disk_mark_zone_wplug_dead(zwplug);
+		}
 		if (zwplug->flags & BLK_ZONE_WPLUG_NEED_WP_UPDATE)
 			disk_zone_wplug_set_wp_offset(disk, zwplug, wp_offset);
 		spin_unlock_irqrestore(&zwplug->lock, flags);
@@ -871,7 +1031,7 @@ int disk_report_zone(struct gendisk *disk, struct blk_zone *zone,
 	}
 
 	if (disk->zone_wplugs_hash)
-		disk_zone_wplug_sync_wp_offset(disk, zone);
+		disk_zone_wplug_sync_state(disk, zone);
 
 	if (args && args->cb)
 		return args->cb(zone, idx, args->data);
@@ -938,29 +1098,36 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
+	unsigned int zno = disk_zone_no(disk, sector);
 	struct blk_zone_wplug *zwplug;
 	unsigned long flags;
-	u8 *zones_cond;
+	u8 *zones_state, zs;
 
 	if (!bdev_is_zoned(bdev))
 		return -EOPNOTSUPP;
 
-	if (sector >= get_capacity(disk))
+	if (sector >= get_capacity(disk) || zno >= disk->nr_zones)
 		return -EINVAL;
 
 	memset(zone, 0, sizeof(*zone));
 	sector = bdev_zone_start(bdev, sector);
 
 	if (!blkdev_has_cached_report_zones(bdev))
-		return blkdev_report_zone_fallback(bdev, sector, zone);
+		goto fallback;
 
 	rcu_read_lock();
-	zones_cond = rcu_dereference(disk->zones_cond);
-	if (!disk->zone_wplugs_hash || !zones_cond) {
+	zones_state = rcu_dereference(disk->zones_state);
+	if (!disk->zone_wplugs_hash || !zones_state) {
 		rcu_read_unlock();
-		return blkdev_report_zone_fallback(bdev, sector, zone);
+		goto fallback;
 	}
-	zone->cond = zones_cond[disk_zone_no(disk, sector)];
+
+	zs = zones_state[zno];
+	zone->cond = blk_zstate_to_zone_cond(zs);
+	if (blk_zstate_is_conv(zs))
+		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
+	else
+		zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 	rcu_read_unlock();
 
 	zone->start = sector;
@@ -970,8 +1137,7 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 	 * If this is a conventional zone, we do not have a zone write plug and
 	 * can report the zone immediately.
 	 */
-	if (zone->cond == BLK_ZONE_COND_NOT_WP) {
-		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
 		zone->capacity = zone_sectors;
 		zone->wp = ULLONG_MAX;
 		return 0;
@@ -982,14 +1148,12 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 	 * offline, only set the zone write pointer to an invalid value and
 	 * report the zone.
 	 */
-	zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 	if (disk_zone_is_last(disk, zone))
 		zone->capacity = disk->last_zone_capacity;
 	else
 		zone->capacity = disk->zone_capacity;
 
-	if (zone->cond == BLK_ZONE_COND_READONLY ||
-	    zone->cond == BLK_ZONE_COND_OFFLINE) {
+	if (disk_zone_cond_is_offline_or_readonly(zone->cond)) {
 		zone->wp = ULLONG_MAX;
 		return 0;
 	}
@@ -1022,6 +1186,9 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 	disk_put_zone_wplug(zwplug);
 
 	return 0;
+
+fallback:
+	return blkdev_report_zone_fallback(bdev, sector, zone);
 }
 EXPORT_SYMBOL_GPL(blkdev_get_zone_info);
 
@@ -1108,34 +1275,32 @@ static void blk_zone_reset_bio_endio(struct bio *bio)
 	}
 }
 
+static void disk_zone_wplug_reset_wp(struct blk_zone_wplug *zwplug, void *data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&zwplug->lock, flags);
+	disk_zone_wplug_set_wp_offset(zwplug->disk, zwplug, 0);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+}
+
 static void blk_zone_reset_all_bio_endio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	sector_t capacity = get_capacity(disk);
-	struct blk_zone_wplug *zwplug;
-	unsigned long flags;
 	sector_t sector;
-	unsigned int i;
 
-	if (atomic_read(&disk->nr_zone_wplugs)) {
-		/* Update the condition of all zone write plugs. */
-		rcu_read_lock();
-		for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
-			hlist_for_each_entry_rcu(zwplug,
-						 &disk->zone_wplugs_hash[i],
-						 node) {
-				spin_lock_irqsave(&zwplug->lock, flags);
-				disk_zone_wplug_set_wp_offset(disk, zwplug, 0);
-				spin_unlock_irqrestore(&zwplug->lock, flags);
-			}
-		}
-		rcu_read_unlock();
-	}
+	/* Update the condition of all zone write plugs. */
+	if (atomic_read(&disk->nr_zone_wplugs))
+		disk_for_all_zone_wplugs(disk, disk_zone_wplug_reset_wp, NULL);
 
 	/* Update the cached zone conditions. */
-	for (sector = 0; sector < capacity;
-	     sector += bdev_zone_sectors(bio->bi_bdev))
+	for (sector = 0; sector < get_capacity(disk);
+	     sector += bdev_zone_sectors(bio->bi_bdev)) {
+		if (!disk_zone_is_seq(disk, sector) ||
+		    disk_zone_is_offline_or_readonly(disk, sector))
+			continue;
 		disk_zone_set_cond(disk, sector, BLK_ZONE_COND_EMPTY);
+	}
 	clear_bit(GD_ZONE_APPEND_USED, &disk->state);
 }
 
@@ -1381,11 +1546,12 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 		return false;
 
 	/*
-	 * Check that the user is not attempting to write to a full zone.
-	 * We know such BIO will fail, and that would potentially overflow our
-	 * write pointer offset beyond the end of the zone.
+	 * Check that the user is not attempting to write to a full, read-only
+	 * or offline zone. We know such BIOs will fail, so there is no point
+	 * in issuing them.
 	 */
-	if (disk_zone_wplug_is_full(disk, zwplug))
+	if (disk_zone_wplug_is_full(disk, zwplug) ||
+	    disk_zone_wplug_is_offline_or_readonly(zwplug))
 		return false;
 
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
@@ -1442,7 +1608,7 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 	}
 
 	/* Conventional zones do not need write plugging. */
-	if (!bdev_zone_is_seq(bio->bi_bdev, sector)) {
+	if (!disk_zone_is_seq(disk, sector)) {
 		/* Zone append to conventional zones is not allowed. */
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 			bio_io_error(bio);
@@ -1854,10 +2020,29 @@ static int disk_zone_wplugs_worker(void *data)
 
 void disk_init_zone_resources(struct gendisk *disk)
 {
+	mutex_init(&disk->zone_revalidate_mutex);
+	atomic_set(&disk->nr_zone_wplugs, 0);
 	spin_lock_init(&disk->zone_wplugs_hash_lock);
 	spin_lock_init(&disk->zone_wplugs_list_lock);
 	INIT_LIST_HEAD(&disk->zone_wplugs_list);
 	init_completion(&disk->zone_wplugs_worker_bio_done);
+}
+
+static unsigned int disk_get_nr_zones(struct gendisk *disk, sector_t capacity)
+{
+	struct queue_limits *lim = &disk->queue->limits;
+	unsigned long long nr_zones;
+
+	if (!capacity || !lim->chunk_sectors)
+		return 0;
+
+	nr_zones = DIV_ROUND_UP_ULL(capacity, lim->chunk_sectors);
+	if (nr_zones > UINT_MAX) {
+		pr_warn("%s: Too many zones (%llu)\n", disk->disk_name, nr_zones);
+		return 0;
+	}
+
+	return nr_zones;
 }
 
 /*
@@ -1869,13 +2054,24 @@ void disk_init_zone_resources(struct gendisk *disk)
 #define BLK_ZONE_WPLUG_MAX_HASH_BITS		9
 #define BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE	128
 
-static int disk_alloc_zone_resources(struct gendisk *disk,
-				     unsigned int pool_size)
+static int disk_alloc_zone_resources(struct gendisk *disk, sector_t capacity)
 {
-	unsigned int i;
+	struct queue_limits *lim = &disk->queue->limits;
+	unsigned int nr_zones, pool_size, i;
 	int ret = -ENOMEM;
 
-	atomic_set(&disk->nr_zone_wplugs, 0);
+	nr_zones = disk_get_nr_zones(disk, capacity);
+	if (!nr_zones)
+		return -ENODEV;
+
+	/*
+	 * If the device has no limit on the maximum number of open and active
+	 * zones, use BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE.
+	 */
+	pool_size = max(lim->max_open_zones, lim->max_active_zones);
+	if (!pool_size)
+		pool_size = min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, nr_zones);
+
 	disk->zone_wplugs_hash_bits =
 		min(ilog2(pool_size) + 1, BLK_ZONE_WPLUG_MAX_HASH_BITS);
 
@@ -1893,21 +2089,6 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 	if (!disk->zone_wplugs_pool)
 		goto free_hash;
 
-	/*
-	 * We may already have a zone write plug workqueue as this function may
-	 * be called after disk_free_zone_resources(), which does not destroy
-	 * the workqueue (the zone write plugs workqueue is destroyed at
-	 * disk_release() time).
-	 */
-	if (!disk->zone_wplugs_wq) {
-		disk->zone_wplugs_wq =
-			alloc_workqueue("%s_zwplugs",
-					WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
-					pool_size, disk->disk_name);
-		if (!disk->zone_wplugs_wq)
-			goto destroy_pool;
-	}
-
 	disk->zone_wplugs_worker =
 		kthread_create(disk_zone_wplugs_worker, disk,
 			       "%s_zwplugs_worker", disk->disk_name);
@@ -1918,8 +2099,18 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 	}
 	wake_up_process(disk->zone_wplugs_worker);
 
+	disk->zone_wplugs_wq =
+		alloc_workqueue("%s_zwplugs",
+				WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
+				pool_size, disk->disk_name);
+	if (!disk->zone_wplugs_wq)
+		goto stop_worker;
+
 	return 0;
 
+stop_worker:
+	kthread_stop(disk->zone_wplugs_worker);
+	disk->zone_wplugs_worker = NULL;
 destroy_pool:
 	mempool_destroy(disk->zone_wplugs_pool);
 	disk->zone_wplugs_pool = NULL;
@@ -1963,19 +2154,19 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 	disk->zone_wplugs_pool = NULL;
 }
 
-static void disk_set_zones_cond_array(struct gendisk *disk, u8 *zones_cond)
+static void disk_set_zones_state_array(struct gendisk *disk, u8 *zones_state)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&disk->zone_wplugs_hash_lock, flags);
-	zones_cond = rcu_replace_pointer(disk->zones_cond, zones_cond,
+	zones_state = rcu_replace_pointer(disk->zones_state, zones_state,
 				lockdep_is_held(&disk->zone_wplugs_hash_lock));
 	spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock, flags);
 
-	kfree_rcu_mightsleep(zones_cond);
+	kfree_rcu_mightsleep(zones_state);
 }
 
-static void disk_free_zone_resources(struct gendisk *disk)
+void disk_release_zone_resources(struct gendisk *disk)
 {
 	if (disk->zone_wplugs_worker) {
 		kthread_stop(disk->zone_wplugs_worker);
@@ -1983,30 +2174,24 @@ static void disk_free_zone_resources(struct gendisk *disk)
 	}
 	WARN_ON_ONCE(!list_empty(&disk->zone_wplugs_list));
 
-	if (disk->zone_wplugs_wq)
-		drain_workqueue(disk->zone_wplugs_wq);
-
-	disk_destroy_zone_wplugs_hash_table(disk);
-
-	disk_set_zones_cond_array(disk, NULL);
-	disk->zone_capacity = 0;
-	disk->last_zone_capacity = 0;
-	disk->nr_zones = 0;
-}
-
-void disk_release_zone_resources(struct gendisk *disk)
-{
 	if (disk->zone_wplugs_wq) {
 		destroy_workqueue(disk->zone_wplugs_wq);
 		disk->zone_wplugs_wq = NULL;
 	}
 
-	disk_free_zone_resources(disk);
+	disk_destroy_zone_wplugs_hash_table(disk);
+
+	disk_set_zones_state_array(disk, NULL);
+	disk->zone_capacity = 0;
+	disk->last_zone_capacity = 0;
+	disk->nr_zones = 0;
+	mutex_destroy(&disk->zone_revalidate_mutex);
 }
 
 struct blk_revalidate_zone_args {
 	struct gendisk	*disk;
-	u8		*zones_cond;
+	sector_t	capacity;
+	u8		*zones_state;
 	unsigned int	nr_zones;
 	unsigned int	nr_conv_zones;
 	unsigned int	zone_capacity;
@@ -2014,78 +2199,76 @@ struct blk_revalidate_zone_args {
 	sector_t	sector;
 };
 
-static int disk_revalidate_zone_resources(struct gendisk *disk,
-				struct blk_revalidate_zone_args *args)
+static int disk_init_revalidate_args(struct gendisk *disk,
+				     struct blk_revalidate_zone_args *args)
 {
-	struct queue_limits *lim = &disk->queue->limits;
-	unsigned long long nr_zones;
-	unsigned int pool_size;
-	int ret = 0;
-
 	args->disk = disk;
-	nr_zones = DIV_ROUND_UP_ULL(get_capacity(disk), lim->chunk_sectors);
-	if (nr_zones > UINT_MAX) {
-		pr_warn("%s: Too many zones (%llu)\n", disk->disk_name, nr_zones);
-		return -EINVAL;
-	}
-	args->nr_zones = nr_zones;
+	args->nr_zones = disk_get_nr_zones(disk, args->capacity);
+	if (!args->nr_zones)
+		return -ENODEV;
 
 	/* Cached zone conditions: 1 byte per zone */
-	args->zones_cond = kzalloc(args->nr_zones, GFP_NOIO);
-	if (!args->zones_cond)
+	args->zones_state = kzalloc(args->nr_zones, GFP_NOIO);
+	if (!args->zones_state)
 		return -ENOMEM;
 
-	if (!disk_need_zone_resources(disk))
-		return 0;
-
-	/*
-	 * If the device has no limit on the maximum number of open and active
-	 * zones, use BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE.
-	 */
-	pool_size = max(lim->max_open_zones, lim->max_active_zones);
-	if (!pool_size)
-		pool_size =
-			min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, args->nr_zones);
-
-	if (!disk->zone_wplugs_hash) {
-		ret = disk_alloc_zone_resources(disk, pool_size);
-		if (ret)
-			kfree(args->zones_cond);
-	}
-
-	return ret;
+	return 0;
 }
 
 /*
- * Update the disk zone resources information and device queue limits.
- * The disk queue is frozen when this is executed.
+ * Revalidate and update the disk zone resources information and device queue
+ * limits.
  */
-static int disk_update_zone_resources(struct gendisk *disk,
-				      struct blk_revalidate_zone_args *args)
+static int disk_revalidate_zone_resources(struct gendisk *disk,
+					  struct blk_revalidate_zone_args *args)
 {
 	struct request_queue *q = disk->queue;
 	unsigned int nr_seq_zones;
 	unsigned int pool_size, memflags;
 	struct queue_limits lim;
+	sector_t capacity;
 	int ret = 0;
 
 	lim = queue_limits_start_update(q);
 
 	memflags = blk_mq_freeze_queue(q);
 
-	disk->nr_zones = args->nr_zones;
-	if (args->nr_conv_zones >= disk->nr_zones) {
-		queue_limits_cancel_update(q);
-		pr_warn("%s: Invalid number of conventional zones %u / %u\n",
-			disk->disk_name, args->nr_conv_zones, disk->nr_zones);
+	/*
+	 * Using the re-evaluated disk capacity, make sure that the entire disk
+	 * has been checked.
+	 */
+	capacity = get_capacity(disk);
+	if (args->capacity != capacity) {
+		pr_warn("%s: Capacity has changed (%llu -> %llu)\n",
+			disk->disk_name, args->capacity, capacity);
+		/* Force a retry if we have a valid (non-zero) capacity. */
+		if (capacity)
+			ret = -EAGAIN;
+		else
+			ret = -ENODEV;
+		goto unfreeze;
+	}
+
+	/* Make sure that all zones have been checked. */
+	if (args->sector != capacity) {
+		pr_warn("%s: last zone and capacity mismatch (%llu != %llu)\n",
+			disk->disk_name, args->sector, capacity);
 		ret = -ENODEV;
 		goto unfreeze;
 	}
 
+	if (args->nr_conv_zones >= args->nr_zones) {
+		pr_warn("%s: Invalid number of conventional zones %u / %u\n",
+			disk->disk_name, args->nr_conv_zones, args->nr_zones);
+		ret = -ENODEV;
+		goto unfreeze;
+	}
+
+	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
 	disk->last_zone_capacity = args->last_zone_capacity;
-	disk_set_zones_cond_array(disk, args->zones_cond);
-	args->zones_cond = NULL;
+	disk_set_zones_state_array(disk, args->zones_state);
+	args->zones_state = NULL;
 
 	/*
 	 * Some devices can advertise zone resource limits that are larger than
@@ -2100,7 +2283,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 		lim.max_active_zones = 0;
 
 	if (!disk->zone_wplugs_pool)
-		goto commit;
+		goto unfreeze;
 
 	/*
 	 * If the device has no limit on the maximum number of open and active
@@ -2122,57 +2305,65 @@ static int disk_update_zone_resources(struct gendisk *disk,
 			lim.max_open_zones = 0;
 	}
 
-commit:
-	ret = queue_limits_commit_update(q, &lim);
-
 unfreeze:
+	if (ret)
+		queue_limits_cancel_update(q);
+	else
+		ret = queue_limits_commit_update(q, &lim);
+
 	blk_mq_unfreeze_queue(q, memflags);
 
 	return ret;
 }
 
-static int blk_revalidate_zone_cond(struct blk_zone *zone, unsigned int idx,
+static void disk_drop_zone_wplug(struct blk_zone_wplug *zwplug, void *data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&zwplug->lock, flags);
+	disk_zone_wplug_abort(zwplug);
+	disk_mark_zone_wplug_dead(zwplug);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+}
+
+static int disk_revalidate_capacity(struct gendisk *disk,
 				    struct blk_revalidate_zone_args *args)
 {
-	enum blk_zone_cond cond = zone->cond;
+	struct queue_limits *lim = &disk->queue->limits;
+	sector_t zone_sectors = lim->chunk_sectors;
+	unsigned int nr_zones;
+	int ret = -ENODEV;
 
-	if (idx >= args->nr_zones) {
-		pr_warn("%s: Zone report index %u exceeds zone count %u\n",
-			args->disk->disk_name, idx, args->nr_zones);
-		return -EINVAL;
+	/* Checks that the device driver indicated a valid zone size. */
+	if (!zone_sectors || !is_power_of_2(zone_sectors)) {
+		pr_warn("%s: Invalid non power of two zone size (%llu)\n",
+			disk->disk_name, zone_sectors);
+		goto drop_all_zwplugs;
 	}
 
-	/* Check that the zone condition is consistent with the zone type. */
-	switch (cond) {
-	case BLK_ZONE_COND_NOT_WP:
-		if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL)
-			goto invalid_condition;
-		break;
-	case BLK_ZONE_COND_IMP_OPEN:
-	case BLK_ZONE_COND_EXP_OPEN:
-	case BLK_ZONE_COND_CLOSED:
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_FULL:
-	case BLK_ZONE_COND_OFFLINE:
-	case BLK_ZONE_COND_READONLY:
-		if (zone->type != BLK_ZONE_TYPE_SEQWRITE_REQ)
-			goto invalid_condition;
-		break;
-	default:
-		pr_warn("%s: Invalid zone condition 0x%X\n",
-			args->disk->disk_name, cond);
-		return -ENODEV;
-	}
+	args->capacity = get_capacity(disk);
+	nr_zones = disk_get_nr_zones(disk, args->capacity);
+	if (!args->capacity || !nr_zones)
+		goto drop_all_zwplugs;
 
-	blk_zone_set_cond(args->zones_cond, idx, cond);
+	/*
+	 * Check if the capacity has changed. If it did, assume that the device
+	 * was reformatted and that all sequential zones are now empty. So drop
+	 * all zone write plug.
+	 */
+	if (disk->nr_zones && disk->nr_zones != nr_zones) {
+		pr_warn("%s: Number of zones changed (%u -> %u)\n",
+			disk->disk_name, disk->nr_zones, nr_zones);
+		ret = 0;
+		goto drop_all_zwplugs;
+	}
 
 	return 0;
 
-invalid_condition:
-	pr_warn("%s: Invalid zone condition 0x%x for type 0x%x\n",
-		args->disk->disk_name, cond, zone->type);
+drop_all_zwplugs:
+	disk_for_all_zone_wplugs(disk, disk_drop_zone_wplug, NULL);
 
-	return -ENODEV;
+	return ret;
 }
 
 static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
@@ -2180,11 +2371,26 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 {
 	struct gendisk *disk = args->disk;
 
+	/* Check the zone condition. */
+	switch (zone->cond) {
+	case BLK_ZONE_COND_NOT_WP:
+	case BLK_ZONE_COND_OFFLINE:
+	case BLK_ZONE_COND_READONLY:
+		break;
+	default:
+		pr_warn("%s: Invalid conv. zone condition 0x%X at sector %llu\n",
+			disk->disk_name, zone->cond, zone->start);
+		return -ENODEV;
+	}
+
 	if (zone->capacity != zone->len) {
 		pr_warn("%s: Invalid conventional zone capacity\n",
 			disk->disk_name);
 		return -ENODEV;
 	}
+
+	blk_zstate_set(args->zones_state, args->nr_zones, idx,
+		       zone->cond, BLK_ZFLAG_CONV);
 
 	if (disk_zone_is_last(disk, zone))
 		args->last_zone_capacity = zone->capacity;
@@ -2200,6 +2406,24 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	struct gendisk *disk = args->disk;
 	struct blk_zone_wplug *zwplug;
 	unsigned int wp_offset;
+
+	/* Check the zone condition. */
+	switch (zone->cond) {
+	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
+	case BLK_ZONE_COND_EMPTY:
+	case BLK_ZONE_COND_FULL:
+	case BLK_ZONE_COND_OFFLINE:
+	case BLK_ZONE_COND_READONLY:
+		break;
+	default:
+		pr_warn("%s: Invalid seq. zone condition 0x%X at sector %llu\n",
+			disk->disk_name, zone->cond, zone->start);
+		return -ENODEV;
+	}
+
+	blk_zstate_set(args->zones_state, args->nr_zones, idx, zone->cond, 0);
 
 	/*
 	 * Remember the capacity of the first sequential zone and check
@@ -2225,7 +2449,7 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	if (!disk->zone_wplugs_hash)
 		return 0;
 
-	wp_offset = disk_zone_wplug_sync_wp_offset(disk, zone);
+	wp_offset = disk_zone_wplug_sync_state(disk, zone);
 	if (!wp_offset || wp_offset >= zone->capacity)
 		return 0;
 
@@ -2255,10 +2479,16 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
-	if (zone->start >= get_capacity(disk) || !zone->len) {
+	if (zone->start >= args->capacity || !zone->len) {
 		pr_warn("%s: Invalid zone start %llu, length %llu\n",
 			disk->disk_name, zone->start, zone->len);
 		return -ENODEV;
+	}
+
+	if (idx >= args->nr_zones) {
+		pr_warn("%s: Zone report index %u exceeds zone count %u\n",
+			disk->disk_name, idx, args->nr_zones);
+		return -EINVAL;
 	}
 
 	/*
@@ -2282,11 +2512,6 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 			disk->disk_name);
 		return -ENODEV;
 	}
-
-	/* Check zone condition */
-	ret = blk_revalidate_zone_cond(zone, idx, args);
-	if (ret)
-		return ret;
 
 	/* Check zone type */
 	switch (zone->type) {
@@ -2324,42 +2549,48 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
  */
 int blk_revalidate_disk_zones(struct gendisk *disk)
 {
-	struct request_queue *q = disk->queue;
-	sector_t zone_sectors = q->limits.chunk_sectors;
-	sector_t capacity = get_capacity(disk);
 	struct blk_revalidate_zone_args args = { };
-	unsigned int memflags, noio_flag;
 	struct blk_report_zones_args rep_args = {
 		.cb = blk_revalidate_zone_cb,
 		.data = &args,
 	};
-	int ret = -ENOMEM;
+	unsigned int noio_flag;
+	int retries = 2;
+	int ret;
 
-	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
+	if (WARN_ON_ONCE(!blk_queue_is_zoned(disk->queue)))
 		return -EIO;
 
-	if (!capacity)
-		return -ENODEV;
-
 	/*
-	 * Checks that the device driver indicated a valid zone size and that
-	 * the max zone append limit is set.
+	 * Serialize calls to this function so that we can safely look at and
+	 * eventually change the disk zone information.
 	 */
-	if (!zone_sectors || !is_power_of_2(zone_sectors)) {
-		pr_warn("%s: Invalid non power of two zone size (%llu)\n",
-			disk->disk_name, zone_sectors);
-		return -ENODEV;
-	}
+	mutex_lock(&disk->zone_revalidate_mutex);
+
+again:
+	ret = disk_revalidate_capacity(disk, &args);
+	if (ret)
+		goto unlock;
 
 	/*
-	 * Ensure that all memory allocations in this context are done as if
-	 * GFP_NOIO was specified.
+	 * Allocate zone resources if they are needed and we have not done
+	 * so yet, and initialize the revalidation arguments passed to report
+	 * zones. Ensure that all memory allocations in this context are done as
+	 * if GFP_NOIO was specified.
 	 */
 	noio_flag = memalloc_noio_save();
-	ret = disk_revalidate_zone_resources(disk, &args);
+	if (disk_need_zone_resources(disk) && !disk->zone_wplugs_hash) {
+		ret = disk_alloc_zone_resources(disk, args.capacity);
+		if (ret) {
+			memalloc_noio_restore(noio_flag);
+			goto unlock;
+		}
+	}
+
+	ret = disk_init_revalidate_args(disk, &args);
 	if (ret) {
 		memalloc_noio_restore(noio_flag);
-		return ret;
+		goto unlock;
 	}
 
 	ret = disk->fops->report_zones(disk, 0, UINT_MAX, &rep_args);
@@ -2369,33 +2600,32 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	}
 	memalloc_noio_restore(noio_flag);
 
-	if (ret <= 0)
-		goto free_resources;
+	if (ret < 0)
+		goto free_args;
 
-	/*
-	 * If zones where reported, make sure that the entire disk capacity
-	 * has been checked.
-	 */
-	if (args.sector != capacity) {
-		pr_warn("%s: Missing zones from sector %llu\n",
-			disk->disk_name, args.sector);
-		ret = -ENODEV;
-		goto free_resources;
-	}
-
-	ret = disk_update_zone_resources(disk, &args);
+	ret = disk_revalidate_zone_resources(disk, &args);
 	if (ret)
-		goto free_resources;
+		goto free_args;
+
+	mutex_unlock(&disk->zone_revalidate_mutex);
 
 	return 0;
 
-free_resources:
-	pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
+free_args:
+	kfree(args.zones_state);
 
-	kfree(args.zones_cond);
-	memflags = blk_mq_freeze_queue(q);
-	disk_free_zone_resources(disk);
-	blk_mq_unfreeze_queue(q, memflags);
+	if (ret == -EAGAIN) {
+		if (retries) {
+			memset(&args, 0, sizeof(args));
+			retries--;
+			goto again;
+		}
+		ret = -ENODEV;
+	}
+
+	pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
+unlock:
+	mutex_unlock(&disk->zone_revalidate_mutex);
 
 	return ret;
 }
@@ -2446,8 +2676,9 @@ EXPORT_SYMBOL_GPL(blk_zone_issue_zeroout);
 
 #ifdef CONFIG_BLK_DEBUG_FS
 static void queue_zone_wplug_show(struct blk_zone_wplug *zwplug,
-				  struct seq_file *m)
+				  void *data)
 {
+	struct seq_file *m = data;
 	unsigned int zwp_wp_offset, zwp_flags;
 	unsigned int zwp_zone_no, zwp_ref;
 	unsigned int zwp_bio_list_size;
@@ -2472,19 +2703,8 @@ static void queue_zone_wplug_show(struct blk_zone_wplug *zwplug,
 int queue_zone_wplugs_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
-	struct gendisk *disk = q->disk;
-	struct blk_zone_wplug *zwplug;
-	unsigned int i;
 
-	if (!disk->zone_wplugs_hash)
-		return 0;
-
-	rcu_read_lock();
-	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++)
-		hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[i],
-					 node)
-			queue_zone_wplug_show(zwplug, m);
-	rcu_read_unlock();
+	disk_for_all_zone_wplugs(q->disk, queue_zone_wplug_show, m);
 
 	return 0;
 }

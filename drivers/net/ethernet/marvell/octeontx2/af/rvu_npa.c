@@ -169,10 +169,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 			ena = (req->aura.ena & req->aura_mask.ena) |
 				(test_bit(req->aura_id, pfvf->aura_bmap) &
 				~req->aura_mask.ena);
-			if (ena)
-				__set_bit(req->aura_id, pfvf->aura_bmap);
-			else
-				__clear_bit(req->aura_id, pfvf->aura_bmap);
+			__assign_bit(req->aura_id, pfvf->aura_bmap, ena);
 		}
 	}
 
@@ -184,10 +181,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 			ena = (req->pool.ena & req->pool_mask.ena) |
 				(test_bit(req->aura_id, pfvf->pool_bmap) &
 				~req->pool_mask.ena);
-			if (ena)
-				__set_bit(req->aura_id, pfvf->pool_bmap);
-			else
-				__clear_bit(req->aura_id, pfvf->pool_bmap);
+			__assign_bit(req->aura_id, pfvf->pool_bmap, ena);
 		}
 	}
 	spin_unlock(&aq->lock);

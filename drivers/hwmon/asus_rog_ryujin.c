@@ -20,6 +20,7 @@
 #define USB_PRODUCT_ID_RYUJIN_III_EXTREME	0x1bcb
 #define USB_PRODUCT_ID_RYUJIN_III_EVA		0x1ade
 #define USB_PRODUCT_ID_RYUJIN_III_WHITE		0x1ada
+#define USB_PRODUCT_ID_RYUJIN_III		0x1aa2
 
 struct rog_ryujin_device_info {
 	u8 temp_offset;
@@ -612,6 +613,8 @@ static const struct hid_device_id rog_ryujin_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS_ROG, USB_PRODUCT_ID_RYUJIN_III_EVA),
 	  .driver_data = (kernel_ulong_t)&rog_ryujin_iii_info },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS_ROG, USB_PRODUCT_ID_RYUJIN_III_WHITE),
+	  .driver_data = (kernel_ulong_t)&rog_ryujin_iii_info },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS_ROG, USB_PRODUCT_ID_RYUJIN_III),
 	  .driver_data = (kernel_ulong_t)&rog_ryujin_iii_info },
 	{ }
 };

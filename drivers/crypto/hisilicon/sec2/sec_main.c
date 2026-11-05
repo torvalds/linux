@@ -484,7 +484,7 @@ static void sec_set_endian(struct hisi_qm *qm)
 	if (!IS_ENABLED(CONFIG_64BIT))
 		reg |= BIT(1);
 
-	if (!IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN))
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
 		reg |= BIT(0);
 
 	writel_relaxed(reg, qm->io_base + SEC_CONTROL_REG);
@@ -1285,8 +1285,8 @@ static int sec_pre_store_cap_reg(struct hisi_qm *qm)
 				     i, qm->cap_ver);
 	}
 
-	qm->cap_tables.dev_cap_table = sec_cap;
 	qm->cap_tables.dev_cap_size = size;
+	qm->cap_tables.dev_cap_table = sec_cap;
 
 	return 0;
 }

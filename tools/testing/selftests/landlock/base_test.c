@@ -76,7 +76,7 @@ TEST(abi_version)
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(11, landlock_create_ruleset(NULL, 0,
+	ASSERT_EQ(12, landlock_create_ruleset(NULL, 0,
 					      LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
@@ -140,6 +140,25 @@ TEST(errata)
 					      LANDLOCK_CREATE_RULESET_ERRATA |
 						      1 << 31));
 	ASSERT_EQ(EINVAL, errno);
+}
+
+#define PERMISSION_LAST LANDLOCK_PERMISSION_CAPABILITY_USE
+
+TEST(ruleset_with_unknown_permission)
+{
+	__u64 permission_mask;
+
+	for (permission_mask = 1ULL << 63; permission_mask != PERMISSION_LAST;
+	     permission_mask >>= 1) {
+		struct landlock_ruleset_attr ruleset_attr = {
+			.handled_permissions = permission_mask,
+		};
+
+		/* Unknown handled_permissions values must be rejected. */
+		ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
+						      sizeof(ruleset_attr), 0));
+		ASSERT_EQ(EINVAL, errno);
+	}
 }
 
 /* Tests ordering of syscall argument checks. */

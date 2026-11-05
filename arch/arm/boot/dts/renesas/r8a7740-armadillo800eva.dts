@@ -197,6 +197,8 @@
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 		reset-gpios = <&pfc 18 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <25000>;
+		reset-deassert-us = <300>;
 	};
 };
 

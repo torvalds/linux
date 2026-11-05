@@ -5,6 +5,7 @@
  * Copyright (C) 2024 Renesas Electronics Corp.
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/io.h>
@@ -148,6 +149,10 @@ static int rz_sysc_probe(struct platform_device *pdev)
 	regmap = devm_regmap_init_mmio(dev, sysc->base, regmap_cfg);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	if (data->soc_id_init_data->pwrrdy_pwrseq &&
+	    !devm_auxiliary_device_create(dev, "pwrseq-pwrrdy", regmap))
+		return -ENODEV;
 
 	return of_syscon_register_regmap(dev->of_node, regmap);
 }

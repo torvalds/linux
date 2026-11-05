@@ -461,7 +461,7 @@ static const struct clk_ops adf4350_clk_ops = {
 static int adf4350_clk_register(struct adf4350_state *st)
 {
 	struct spi_device *spi = st->spi;
-	struct clk_init_data init;
+	struct clk_init_data init = { };
 	struct clk *clk;
 	const char *parent_name;
 	int ret;

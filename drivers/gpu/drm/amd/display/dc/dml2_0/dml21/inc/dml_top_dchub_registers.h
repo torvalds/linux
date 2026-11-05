@@ -87,6 +87,7 @@ struct dml2_display_arb_regs {
 	uint32_t hvm_max_qos_commit_threshold;
 	uint32_t hvm_min_req_outstand_commit_threshold;
 	uint32_t compbuf_reserved_space_kbytes;
+	uint32_t compbuf_reserved_space_zs;
 	uint32_t compbuf_size;
 	uint32_t sdpif_request_rate_limit;
 	uint32_t allow_sdpif_rate_limit_when_cstate_req;

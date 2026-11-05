@@ -92,6 +92,23 @@ struct pinctrl_pin_desc;
 		.pin_offset = 0,				\
 	}
 
+#define LPI_PINGROUP6(id, soff, f1, f2, f3, f4, f5)		\
+	{							\
+		.pin = id,					\
+		.slew_offset = soff,				\
+		.slew_base_spare_1 = false,			\
+		.funcs = (int[]){				\
+			LPI_MUX_gpio,				\
+			LPI_MUX_##f1,				\
+			LPI_MUX_##f2,				\
+			LPI_MUX_##f3,				\
+			LPI_MUX_##f4,				\
+			LPI_MUX_##f5,				\
+		},						\
+		.nfuncs = 6,					\
+		.pin_offset = 0,				\
+	}
+
 /*
  * Slew rate control is done in the same register as rest of the
  * pin configuration.

@@ -425,8 +425,8 @@ static struct clk_hw *aspeed_g6_clk_hw_register_gate(struct device *dev,
 		struct regmap *map, u8 clock_idx, u8 reset_idx,
 		u8 clk_gate_flags, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct aspeed_clk_gate *gate;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 

@@ -951,13 +951,31 @@ class TypeSubMessage(TypeNest):
             sel_var = f"_sel_{sel}"
         else:
             sel_var = f"{var}->{sel}"
-        get_lines = [f'if (!{sel_var})',
-                     f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");',
-                     f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
-                     "return YNL_PARSE_CB_ERROR;"]
+
+        local_vars = None
+
+        if self.selector.is_enum_val() and not self.selector.is_external():
+            enum = self.family.consts[self.selector.get_enum_name()]
+            pres_var = f"{var}->_present.{sel}"
+            parse_sel = f"{sel}_str"
+            local_vars = [f'const char *{parse_sel};']
+
+            get_lines = [
+                f'if (!{pres_var})',
+                f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");',
+                f'{parse_sel} = {enum.render_name}_str({sel_var});',
+                f'if (!{parse_sel})',
+                f'return ynl_submsg_failed(yarg, "{self.name}", "enum-lookup-failed");']
+        else:
+            parse_sel = sel_var
+            get_lines = [f'if (!{parse_sel})',
+                         f'return ynl_submsg_failed(yarg, "{self.name}", "{selector}");']
+
+        get_lines += [f"if ({self.nested_render_name}_parse(&parg, {parse_sel}, attr))",
+                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
-        return get_lines, init_lines, None
+        return get_lines, init_lines, local_vars
 
 
 class Selector:
@@ -979,6 +997,12 @@ class Selector:
     def is_external(self):
         return self._external
 
+    def is_enum_val(self):
+        return self.get_enum_name() is not None
+
+    def get_enum_name(self):
+        return self.attr and self.attr.attr.get("enum")
+
 
 class Struct:
     def __init__(self, family, space_name, type_list=None, fixed_header=None,
@@ -986,7 +1010,8 @@ class Struct:
         self.family = family
         self.space_name = space_name
         self.attr_set = family.attr_sets[space_name]
-        # Use list to catch comparisons with empty sets
+        # Stored by reference, _load_nested_set_nest() fills the list in
+        # after constructing us.
         self._inherited = inherited if inherited is not None else []
         self.inherited = []
         self.fixed_header = None
@@ -1038,9 +1063,11 @@ class Struct:
         return self.attr_list
 
     def set_inherited(self, new_inherited):
+        if self.submsg:
+            raise Exception("Nesting a sub-message as an attribute set not supported")
         if self._inherited != new_inherited:
-            raise Exception("Inheriting different members not supported")
-        self.inherited = [c_lower(x) for x in sorted(self._inherited)]
+            raise Exception("Inheriting different members, or a different order, not supported")
+        self.inherited = [c_lower(x) for x in self._inherited]
 
     def external_selectors(self):
         sels = []
@@ -1394,7 +1421,7 @@ class Family(SpecFamily):
                 pns_key_list.append(name)
 
     def _load_nested_set_nest(self, spec):
-        inherit = set()
+        inherit = []
         nested = spec['nested-attributes']
         if nested not in self.root_sets:
             if nested not in self.pure_nested_structs:
@@ -1407,9 +1434,9 @@ class Family(SpecFamily):
         if 'type-value' in spec:
             if nested in self.root_sets:
                 raise Exception("Inheriting members to a space used as root not supported")
-            inherit.update(set(spec['type-value']))
+            inherit.extend(spec['type-value'])
         elif spec['type'] == 'indexed-array':
-            inherit.add('idx')
+            inherit.append('idx')
         self.pure_nested_structs[nested].set_inherited(inherit)
 
         return nested

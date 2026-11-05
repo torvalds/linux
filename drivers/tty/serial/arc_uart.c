@@ -304,7 +304,7 @@ static unsigned int arc_serial_get_mctrl(struct uart_port *port)
 {
 	/*
 	 * Pretend we have a Modem status reg and following bits are
-	 *  always set, to satify the serial core state machine
+	 *  always set, to satisfy the serial core state machine
 	 *  (DSR) Data Set Ready
 	 *  (CTS) Clear To Send
 	 *  (CAR) Carrier Detect

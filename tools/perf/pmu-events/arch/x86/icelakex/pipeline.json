@@ -170,11 +170,10 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RET",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
         "SampleAfterValue": "50021",
         "UMask": "0x8"
     },
@@ -531,11 +530,11 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Increments whenever there is an update to the LBR array.",
+        "BriefDescription": "Increments whenever there is an update to the LBR array. [This event is alias to LBR_INSERTS.ANY]",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcc",
         "EventName": "MISC_RETIRED.LBR_INSERTS",
-        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR to be enabled properly.",
+        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR to be enabled properly. [This event is alias to LBR_INSERTS.ANY]",
         "SampleAfterValue": "100003",
         "UMask": "0x20"
     },

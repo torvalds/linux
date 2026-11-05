@@ -869,8 +869,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	for (i = 1; i <= HCS_N_PORTS(ehci->hcs_params); i++) {
 		temp = dbg_port_buf(scratch, sizeof(scratch), label, i,
-				ehci_readl(ehci,
-					&ehci->regs->port_status[i - 1]));
+				ehci_readl(ehci, ehci_portsc(ehci, i - 1)));
 		temp = scnprintf(next, size, fmt, temp, scratch);
 		size -= temp;
 		next += temp;

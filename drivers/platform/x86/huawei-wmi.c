@@ -79,6 +79,7 @@ static const struct key_entry huawei_wmi_keymap[] = {
 	{ KE_KEY,    0x285, { KEY_VOLUMEDOWN } },
 	{ KE_KEY,    0x286, { KEY_VOLUMEUP } },
 	{ KE_KEY,    0x287, { KEY_MICMUTE } },
+	{ KE_KEY,    0x288, { KEY_CAMERA_ACCESS_TOGGLE } },
 	{ KE_KEY,    0x289, { KEY_WLAN } },
 	// Huawei |M| key
 	{ KE_KEY,    0x28a, { KEY_CONFIG } },

@@ -55,6 +55,7 @@
 #include <linux/cpu.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/stringify.h>
 
 #include <asm/mipsregs.h>
 #include <asm/uasm.h>
@@ -93,13 +94,13 @@ static int heartbeat = WD_TIMO;
 module_param(heartbeat, int, 0444);
 MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (0 < heartbeat, default="
-				__MODULE_STRING(WD_TIMO) ")");
+				__stringify(WD_TIMO) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0444);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static int disable;
 module_param(disable, int, 0444);

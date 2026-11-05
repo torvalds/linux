@@ -160,50 +160,50 @@ examples:
         phy-names = "dphy";
 
         ports {
-                #address-cells = <1>;
-                #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                port@0 {
-                    reg = <0>;
+            port@0 {
+                reg = <0>;
 
-                    csi2rx_in_sensor: endpoint {
-                        remote-endpoint = <&sensor_out_csi2rx>;
-                        clock-lanes = <0>;
-                        data-lanes = <1 2>;
-                    };
+                csi2rx_in_sensor: endpoint {
+                    remote-endpoint = <&sensor_out_csi2rx>;
+                    clock-lanes = <0>;
+                    data-lanes = <1 2>;
                 };
+            };
 
-                port@1 {
-                    reg = <1>;
+            port@1 {
+                reg = <1>;
 
-                    csi2rx_out_grabber0: endpoint {
-                        remote-endpoint = <&grabber0_in_csi2rx>;
-                    };
+                csi2rx_out_grabber0: endpoint {
+                    remote-endpoint = <&grabber0_in_csi2rx>;
                 };
+            };
 
-                port@2 {
-                    reg = <2>;
+            port@2 {
+                reg = <2>;
 
-                    csi2rx_out_grabber1: endpoint {
-                        remote-endpoint = <&grabber1_in_csi2rx>;
-                    };
+                csi2rx_out_grabber1: endpoint {
+                    remote-endpoint = <&grabber1_in_csi2rx>;
                 };
+            };
 
-                port@3 {
-                    reg = <3>;
+            port@3 {
+                reg = <3>;
 
-                    csi2rx_out_grabber2: endpoint {
-                        remote-endpoint = <&grabber2_in_csi2rx>;
-                    };
+                csi2rx_out_grabber2: endpoint {
+                    remote-endpoint = <&grabber2_in_csi2rx>;
                 };
+            };
 
-                port@4 {
-                    reg = <4>;
+            port@4 {
+                reg = <4>;
 
-                    csi2rx_out_grabber3: endpoint {
-                        remote-endpoint = <&grabber3_in_csi2rx>;
-                    };
+                csi2rx_out_grabber3: endpoint {
+                    remote-endpoint = <&grabber3_in_csi2rx>;
                 };
+            };
         };
     };
 

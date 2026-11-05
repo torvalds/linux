@@ -123,7 +123,7 @@ static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct e
 	return 0;
 }
 
-static bool auxtrace__dont_decode(struct perf_session *session)
+bool auxtrace__dont_decode(struct perf_session *session)
 {
 	return !session->itrace_synth_opts ||
 	       session->itrace_synth_opts->dont_decode;
@@ -1478,8 +1478,15 @@ s64 perf_event__process_auxtrace(const struct perf_tool *tool __maybe_unused,
 #define PERF_ITRACE_MAX_LAST_BRANCH_SZ		1024
 
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
-				    bool no_sample)
+				    bool no_sample, bool single_event_per_ip)
 {
+	if (single_event_per_ip) {
+		synth_opts->instructions = true;
+		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
+		synth_opts->period = 1;
+		return;
+	}
+
 	synth_opts->branches = true;
 	synth_opts->transactions = true;
 	synth_opts->ptwrites = true;
@@ -1582,7 +1589,8 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 
 	if (!str) {
 		itrace_synth_opts__set_default(synth_opts,
-					       synth_opts->default_no_sample);
+					       synth_opts->default_no_sample,
+					       synth_opts->default_single_event_per_ip);
 		return 0;
 	}
 
@@ -2968,6 +2976,13 @@ void auxtrace__dump_auxtrace_sample(struct perf_session *session,
 int auxtrace__flush_events(struct perf_session *session, const struct perf_tool *tool)
 {
 	if (!session->auxtrace)
+		return 0;
+
+	/*
+	 * Processing was stopped early, e.g. by SIGINT, so don't decode and
+	 * deliver the remaining trace data which can be slow.
+	 */
+	if (session_done())
 		return 0;
 
 	return session->auxtrace->flush_events(session, tool);

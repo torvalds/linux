@@ -328,10 +328,9 @@ void vc4_irq_reset(struct drm_device *dev)
 	V3D_WRITE(V3D_INTCTL, V3D_DRIVER_IRQS);
 
 	/*
-	 * Turn all our interrupts on.  Binner out of memory is the
-	 * only one we expect to trigger at this point, since we've
-	 * just come from poweron and haven't supplied any overflow
-	 * memory yet.
+	 * Turn all our interrupts on. Binner out of memory is the only
+	 * one we expect to trigger at this point, since the reset cleared
+	 * the overflow memory address and none has been supplied yet.
 	 */
 	V3D_WRITE(V3D_INTENA, V3D_DRIVER_IRQS);
 

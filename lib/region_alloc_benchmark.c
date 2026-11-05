@@ -78,10 +78,12 @@ static size_t __init ida_size(unsigned long nr_ids)
 
 static unsigned long __init benchmark_ida(unsigned long cap)
 {
-	struct ida ida = IDA_INIT(ida);
+	struct ida ida;
 	unsigned long cnt, idx, off, nr_ids = 0;
 	ktime_t alloc_time, free_time;
 	int id = -ENOSPC;
+
+	ida_init(&ida);
 
 	alloc_time = ktime_get();
 	for (cnt = 0; cnt <= cap; cnt++) {
@@ -125,11 +127,13 @@ static unsigned long __init benchmark_ida(unsigned long cap)
 
 static unsigned long __init benchmark_maple_tree(unsigned long cap)
 {
-	struct maple_tree mt = MTREE_INIT(mt, MT_FLAGS_ALLOC_RANGE);
+	struct maple_tree mt;
 	unsigned long cnt, idx;
 	ktime_t alloc_time, free_time;
 	size_t sz;
 	int ret;
+
+	mt_init_flags(&mt, MT_FLAGS_ALLOC_RANGE);
 
 	alloc_time = ktime_get();
 	for (cnt = 0; cnt <= cap; cnt++) {

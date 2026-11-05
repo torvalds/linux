@@ -107,7 +107,7 @@ struct audit_aux_data_pids {
 
 struct audit_aux_data_bprm_fcaps {
 	struct audit_aux_data	d;
-	struct audit_cap_data	fcap;
+	struct audit_file_caps	fcap;
 	unsigned int		fcap_ver;
 	struct audit_cap_data	old_pcap;
 	struct audit_cap_data	new_pcap;
@@ -459,7 +459,7 @@ static int audit_field_compare(struct task_struct *tsk,
  *
  * If task_creation is true, this is an explicit indication that we are
  * filtering a task rule at task creation time.  This and tsk == current are
- * the only situations where tsk->cred may be accessed without an rcu read lock.
+ * the only situations where tsk->cred may be accessed.
  */
 static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_krule *rule,
@@ -476,7 +476,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 	if (ctx && rule->prio <= ctx->prio)
 		return 0;
 
-	cred = rcu_dereference_check(tsk->cred, tsk == current || task_creation);
+	WARN_ON(tsk != current && !task_creation);
+	cred = tsk->cred;
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
@@ -2601,6 +2602,8 @@ void __audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_context *context = audit_context();
 
+	/* clear proctitle in audit context to allow replacement */
+	audit_proctitle_free(context);
 	context->type = AUDIT_EXECVE;
 	context->execve.argc = bprm->argc;
 }
@@ -2882,6 +2885,19 @@ void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
 	audit_log_end(ab);
 }
 EXPORT_SYMBOL_GPL(__audit_log_nfcfg);
+
+void __audit_log_fsopen(const char *fs_name)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_FSOPEN);
+	if (!ab)
+		return;
+
+	audit_log_format(ab, "fs_name=");
+	audit_log_untrustedstring(ab, fs_name);
+	audit_log_end(ab);
+}
 
 static void audit_log_task(struct audit_buffer *ab)
 {

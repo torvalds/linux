@@ -9,6 +9,7 @@
  * Copyright 2008 Freescale Semiconductor Inc.
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "mpc5121.dtsi"
 
 / {
@@ -176,11 +177,12 @@
 
 			/* ADS7845 touch screen controller */
 			ts@0 {
-				compatible = "ti,ads7846";
+				compatible = "ti,ads7845";
 				reg = <0x0>;
 				spi-max-frequency = <3000000>;
-				/* pen irq is GPIO25 */
-				interrupts = <78 0x8>;
+				interrupt-parent = <&gpio_pic>;
+				interrupts = <25 0x8>;
+				pendown-gpio = <&gpio_pic 25 GPIO_ACTIVE_LOW>;
 			};
 		};
 

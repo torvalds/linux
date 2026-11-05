@@ -195,7 +195,7 @@ static struct f2fs_dir_entry *find_in_block(struct inode *dir,
 				int *max_slots,
 				bool use_hash)
 {
-	struct f2fs_dentry_block *dentry_blk;
+	void *dentry_blk;
 	struct f2fs_dentry_ptr d;
 
 	dentry_blk = folio_address(dentry_folio);
@@ -282,7 +282,7 @@ found:
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 					unsigned int level,
 					const struct f2fs_filename *fname,
-					struct folio **res_folio,
+					void **dentry_block,
 					bool use_hash)
 {
 	int s = GET_DENTRY_SLOTS(fname->disk_name.len);
@@ -313,7 +313,7 @@ start_find_bucket:
 				bidx = next_pgofs;
 				continue;
 			} else {
-				*res_folio = dentry_folio;
+				*dentry_block = dentry_folio;
 				break;
 			}
 		}
@@ -321,11 +321,11 @@ start_find_bucket:
 		de = find_in_block(dir, dentry_folio, fname, &max_slots, use_hash);
 		if (IS_ERR(de)) {
 			f2fs_folio_put(dentry_folio, false);
-			*res_folio = ERR_CAST(de);
+			*dentry_block = ERR_CAST(de);
 			de = NULL;
 			break;
 		} else if (de) {
-			*res_folio = dentry_folio;
+			*dentry_block = dentry_folio;
 			break;
 		}
 
@@ -352,7 +352,7 @@ start_find_bucket:
 
 struct f2fs_dir_entry *__f2fs_find_entry(struct inode *dir,
 					 const struct f2fs_filename *fname,
-					 struct folio **res_folio)
+					 void **dentry_block)
 {
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
@@ -360,13 +360,13 @@ struct f2fs_dir_entry *__f2fs_find_entry(struct inode *dir,
 	unsigned int level;
 	bool use_hash = true;
 
-	*res_folio = NULL;
+	*dentry_block = NULL;
 
 #if IS_ENABLED(CONFIG_UNICODE)
 start_find_entry:
 #endif
 	if (f2fs_has_inline_dentry(dir)) {
-		de = f2fs_find_in_inline_dir(dir, fname, res_folio, use_hash);
+		de = f2fs_find_in_inline_dir(dir, fname, dentry_block, use_hash);
 		goto out;
 	}
 
@@ -382,8 +382,8 @@ start_find_entry:
 	}
 
 	for (level = 0; level < max_depth; level++) {
-		de = find_in_level(dir, level, fname, res_folio, use_hash);
-		if (de || IS_ERR(*res_folio))
+		de = find_in_level(dir, level, fname, dentry_block, use_hash);
+		if (de || IS_ERR(*dentry_block))
 			break;
 	}
 
@@ -408,7 +408,7 @@ out:
  * Entry is guaranteed to be valid.
  */
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
-			const struct qstr *child, struct folio **res_folio)
+			const struct qstr *child, void **dentry_block)
 {
 	struct f2fs_dir_entry *de = NULL;
 	struct f2fs_filename fname;
@@ -417,67 +417,78 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	err = f2fs_setup_filename(dir, child, 1, &fname);
 	if (err) {
 		if (err == -ENOENT)
-			*res_folio = NULL;
+			*dentry_block = NULL;
 		else
-			*res_folio = ERR_PTR(err);
+			*dentry_block = ERR_PTR(err);
 		return NULL;
 	}
 
-	de = __f2fs_find_entry(dir, &fname, res_folio);
+	de = __f2fs_find_entry(dir, &fname, dentry_block);
 
 	f2fs_free_filename(&fname);
 	return de;
 }
 
-struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct folio **f)
+struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, void **dentry_block)
 {
-	return f2fs_find_entry(dir, &dotdot_name, f);
+	return f2fs_find_entry(dir, &dotdot_name, dentry_block);
 }
 
 ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
-							struct folio **folio)
+							void **dentry_block)
 {
 	ino_t res = 0;
 	struct f2fs_dir_entry *de;
 
-	de = f2fs_find_entry(dir, qstr, folio);
+	de = f2fs_find_entry(dir, qstr, dentry_block);
 	if (de) {
 		res = le32_to_cpu(de->ino);
-		f2fs_folio_put(*folio, false);
+		f2fs_put_dentry_block(*dentry_block, false);
 	}
 
 	return res;
 }
 
 void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
-		struct folio *folio, struct inode *inode)
+		void *dentry_block, struct inode *inode)
 {
-	enum page_type type = f2fs_has_inline_dentry(dir) ? NODE : DATA;
+	if (f2fs_dentry_is_cache(dentry_block)) {
+		struct f2fs_cached_block *entry =
+				f2fs_dentry_cache(dentry_block);
 
-	folio_lock(folio);
-	f2fs_folio_wait_writeback(folio, type, true, true);
-	de->ino = cpu_to_le32(inode->i_ino);
-	de->file_type = fs_umode_to_ftype(inode->i_mode);
-	folio_mark_dirty(folio);
+		f2fs_lock_cache(entry);
+		f2fs_cache_wait_writeback(entry);
+		de->ino = cpu_to_le32(inode->i_ino);
+		de->file_type = fs_umode_to_ftype(inode->i_mode);
+		f2fs_mark_cache_dirty(entry);
+	} else {
+		struct folio *folio = f2fs_dentry_folio(dentry_block);
+
+		folio_lock(folio);
+		f2fs_folio_wait_writeback(folio, true, true);
+		de->ino = cpu_to_le32(inode->i_ino);
+		de->file_type = fs_umode_to_ftype(inode->i_mode);
+		folio_mark_dirty(folio);
+	}
 
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	f2fs_mark_inode_dirty_sync(dir, true);
-	f2fs_folio_put(folio, true);
+	f2fs_put_dentry_block(dentry_block, true);
 }
 
 static void init_dent_inode(struct inode *dir, struct inode *inode,
 			    const struct f2fs_filename *fname,
-			    struct folio *ifolio)
+			    struct f2fs_cached_block *ientry)
 {
 	struct f2fs_inode *ri;
 
 	if (!fname) /* tmpfile case? */
 		return;
 
-	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
+	f2fs_cache_wait_writeback(ientry);
 
 	/* copy name info. to this inode folio */
-	ri = F2FS_INODE(ifolio);
+	ri = F2FS_INODE(ientry);
 	ri->i_namelen = cpu_to_le32(fname->disk_name.len);
 	memcpy(ri->i_name, fname->disk_name.name, fname->disk_name.len);
 	if (IS_ENCRYPTED(dir)) {
@@ -498,7 +509,7 @@ static void init_dent_inode(struct inode *dir, struct inode *inode,
 				file_lost_pino(inode);
 		}
 	}
-	folio_mark_dirty(ifolio);
+	f2fs_mark_cache_dirty(ientry);
 }
 
 void f2fs_do_make_empty_dir(struct inode *inode, struct inode *parent,
@@ -515,22 +526,22 @@ void f2fs_do_make_empty_dir(struct inode *inode, struct inode *parent,
 }
 
 static int make_empty_dir(struct inode *inode,
-		struct inode *parent, struct folio *folio)
+		struct inode *parent, struct f2fs_cached_block *ientry)
 {
 	struct folio *dentry_folio;
-	struct f2fs_dentry_block *dentry_blk;
+	void *dentry_blk;
 	struct f2fs_dentry_ptr d;
 
 	if (f2fs_has_inline_dentry(inode))
-		return f2fs_make_empty_inline_dir(inode, parent, folio);
+		return f2fs_make_empty_inline_dir(inode, parent, ientry);
 
-	dentry_folio = f2fs_get_new_data_folio(inode, folio, 0, true);
+	dentry_folio = f2fs_get_new_data_folio(inode, ientry, 0, true);
 	if (IS_ERR(dentry_folio))
 		return PTR_ERR(dentry_folio);
 
 	dentry_blk = folio_address(dentry_folio);
 
-	make_dentry_ptr_block(NULL, &d, dentry_blk);
+	make_dentry_ptr_block(inode, &d, dentry_blk);
 	f2fs_do_make_empty_dir(inode, parent, &d);
 
 	folio_mark_dirty(dentry_folio);
@@ -538,50 +549,50 @@ static int make_empty_dir(struct inode *inode,
 	return 0;
 }
 
-struct folio *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
-		const struct f2fs_filename *fname, struct folio *dfolio)
+struct f2fs_cached_block *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
+		const struct f2fs_filename *fname, struct f2fs_cached_block *dentry)
 {
-	struct folio *folio;
+	struct f2fs_cached_block *ientry;
 	int err;
 
 	if (is_inode_flag_set(inode, FI_NEW_INODE)) {
-		folio = f2fs_new_inode_folio(inode);
-		if (IS_ERR(folio))
-			return folio;
+		ientry = f2fs_new_inode_cache(inode);
+		if (IS_ERR(ientry))
+			return ientry;
 
 		if (S_ISDIR(inode->i_mode)) {
 			/* in order to handle error case */
-			folio_get(folio);
-			err = make_empty_dir(inode, dir, folio);
+			f2fs_cache_get(ientry);
+			err = make_empty_dir(inode, dir, ientry);
 			if (err) {
-				folio_lock(folio);
+				f2fs_lock_cache(ientry);
 				goto put_error;
 			}
-			folio_put(folio);
+			f2fs_put_cache(ientry, false);
 		}
 
-		err = f2fs_init_acl(inode, dir, folio, dfolio);
+		err = f2fs_init_acl(inode, dir, ientry, dentry);
 		if (err)
 			goto put_error;
 
 		err = f2fs_init_security(inode, dir,
 					 fname ? fname->usr_fname : NULL,
-					 folio);
+					 ientry);
 		if (err)
 			goto put_error;
 
 		if (IS_ENCRYPTED(inode)) {
-			err = fscrypt_set_context(inode, folio);
+			err = fscrypt_set_context(inode, ientry);
 			if (err)
 				goto put_error;
 		}
 	} else {
-		folio = f2fs_get_inode_folio(F2FS_I_SB(dir), inode->i_ino);
-		if (IS_ERR(folio))
-			return folio;
+		ientry = f2fs_get_inode_cache(F2FS_I_SB(dir), inode->i_ino);
+		if (IS_ERR(ientry))
+			return ientry;
 	}
 
-	init_dent_inode(dir, inode, fname, folio);
+	init_dent_inode(dir, inode, fname, ientry);
 
 	/*
 	 * This file should be checkpointed during fsync.
@@ -598,12 +609,12 @@ struct folio *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			f2fs_remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
 		f2fs_i_links_write(inode, true);
 	}
-	return folio;
+	return ientry;
 
 put_error:
 	clear_nlink(inode);
-	f2fs_update_inode(inode, folio);
-	f2fs_folio_put(folio, true);
+	f2fs_update_inode(inode, ientry);
+	f2fs_put_cache(ientry, true);
 	return ERR_PTR(err);
 }
 
@@ -645,14 +656,14 @@ next:
 	goto next;
 }
 
-bool f2fs_has_enough_room(struct inode *dir, struct folio *ifolio,
+bool f2fs_has_enough_room(struct inode *dir, struct f2fs_cached_block *ientry,
 			  const struct f2fs_filename *fname)
 {
 	struct f2fs_dentry_ptr d;
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(fname->disk_name.len);
 
-	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, ifolio));
+	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, ientry));
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
 
@@ -690,9 +701,9 @@ int f2fs_add_regular_entry(struct inode *dir, const struct f2fs_filename *fname,
 	unsigned long bidx, block;
 	unsigned int nbucket, nblock;
 	struct folio *dentry_folio = NULL;
-	struct f2fs_dentry_block *dentry_blk = NULL;
+	void *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
-	struct folio *folio = NULL;
+	struct f2fs_cached_block *entry = NULL;
 	int slots, err = 0;
 
 	level = 0;
@@ -727,9 +738,9 @@ start:
 			return PTR_ERR(dentry_folio);
 
 		dentry_blk = folio_address(dentry_folio);
-		bit_pos = f2fs_room_for_filename(&dentry_blk->dentry_bitmap,
-						slots, NR_DENTRY_IN_BLOCK);
-		if (bit_pos < NR_DENTRY_IN_BLOCK)
+		make_dentry_ptr_block(dir, &d, dentry_blk);
+		bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
+		if (bit_pos < d.max)
 			goto add_dentry;
 
 		f2fs_folio_put(dentry_folio, true);
@@ -739,18 +750,17 @@ start:
 	++level;
 	goto start;
 add_dentry:
-	f2fs_folio_wait_writeback(dentry_folio, DATA, true, true);
+	f2fs_folio_wait_writeback(dentry_folio, true, true);
 
 	if (inode) {
 		f2fs_down_write(&F2FS_I(inode)->i_sem);
-		folio = f2fs_init_inode_metadata(inode, dir, fname, NULL);
-		if (IS_ERR(folio)) {
-			err = PTR_ERR(folio);
+		entry = f2fs_init_inode_metadata(inode, dir, fname, NULL);
+		if (IS_ERR(entry)) {
+			err = PTR_ERR(entry);
 			goto fail;
 		}
 	}
 
-	make_dentry_ptr_block(NULL, &d, dentry_blk);
 	f2fs_update_dentry(ino, mode, &d, &fname->disk_name, fname->hash,
 			   bit_pos);
 
@@ -761,9 +771,9 @@ add_dentry:
 
 		/* synchronize inode page's data from inode cache */
 		if (is_inode_flag_set(inode, FI_NEW_INODE))
-			f2fs_update_inode(inode, folio);
+			f2fs_update_inode(inode, entry);
 
-		f2fs_folio_put(folio, true);
+		f2fs_put_cache(entry, true);
 	}
 
 	f2fs_update_parent_metadata(dir, inode, current_depth);
@@ -805,7 +815,7 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 				struct inode *inode, nid_t ino, umode_t mode)
 {
 	struct f2fs_filename fname;
-	struct folio *folio = NULL;
+	void *dentry_blk = NULL;
 	struct f2fs_dir_entry *de = NULL;
 	int err;
 
@@ -821,14 +831,14 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 	 * consistency more.
 	 */
 	if (current != F2FS_I(dir)->task) {
-		de = __f2fs_find_entry(dir, &fname, &folio);
+		de = __f2fs_find_entry(dir, &fname, &dentry_blk);
 		F2FS_I(dir)->task = NULL;
 	}
 	if (de) {
-		f2fs_folio_put(folio, false);
+		f2fs_put_dentry_block(dentry_blk, false);
 		err = -EEXIST;
-	} else if (IS_ERR(folio)) {
-		err = PTR_ERR(folio);
+	} else if (IS_ERR(dentry_blk)) {
+		err = PTR_ERR(dentry_blk);
 	} else {
 		err = f2fs_add_dentry(dir, &fname, inode, ino, mode);
 	}
@@ -839,16 +849,16 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 int f2fs_do_tmpfile(struct inode *inode, struct inode *dir,
 					struct f2fs_filename *fname)
 {
-	struct folio *folio;
+	struct f2fs_cached_block *ientry;
 	int err = 0;
 
 	f2fs_down_write(&F2FS_I(inode)->i_sem);
-	folio = f2fs_init_inode_metadata(inode, dir, fname, NULL);
-	if (IS_ERR(folio)) {
-		err = PTR_ERR(folio);
+	ientry = f2fs_init_inode_metadata(inode, dir, fname, NULL);
+	if (IS_ERR(ientry)) {
+		err = PTR_ERR(ientry);
 		goto fail;
 	}
-	f2fs_folio_put(folio, true);
+	f2fs_put_cache(ientry, true);
 
 	clear_inode_flag(inode, FI_NEW_INODE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
@@ -884,13 +894,15 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
  * It only removes the dentry from the dentry page, corresponding name
  * entry in name page does not need to be touched during deletion.
  */
-void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct folio *folio,
+void f2fs_delete_entry(struct f2fs_dir_entry *dentry, void *dentry_block,
 					struct inode *dir, struct inode *inode)
 {
-	struct f2fs_dentry_block *dentry_blk;
+	void *dentry_blk;
+	struct f2fs_dentry_ptr d;
+	struct folio *folio;
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
-	pgoff_t index = folio->index;
+	pgoff_t index;
 	int i;
 
 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
@@ -899,24 +911,27 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct folio *folio,
 		f2fs_add_ino_entry(F2FS_I_SB(dir), dir->i_ino, TRANS_DIR_INO);
 
 	if (f2fs_has_inline_dentry(dir))
-		return f2fs_delete_inline_entry(dentry, folio, dir, inode);
+		return f2fs_delete_inline_entry(dentry,
+				f2fs_dentry_cache(dentry_block), dir, inode);
+
+	folio = f2fs_dentry_folio(dentry_block);
+	index = folio->index;
 
 	folio_lock(folio);
-	f2fs_folio_wait_writeback(folio, DATA, true, true);
+	f2fs_folio_wait_writeback(folio, true, true);
 
 	dentry_blk = folio_address(folio);
-	bit_pos = dentry - dentry_blk->dentry;
+	make_dentry_ptr_block(dir, &d, dentry_blk);
+	bit_pos = dentry - d.dentry;
 	for (i = 0; i < slots; i++)
-		__clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
+		__clear_bit_le(bit_pos + i, d.bitmap);
 
 	/* Let's check and deallocate this dentry page */
-	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
-			NR_DENTRY_IN_BLOCK,
-			0);
+	bit_pos = find_next_bit_le(d.bitmap, d.max, 0);
 	folio_mark_dirty(folio);
 
-	if (bit_pos == NR_DENTRY_IN_BLOCK &&
-		!f2fs_truncate_hole(dir, index, index + 1)) {
+	if (bit_pos == d.max &&
+	    !f2fs_truncate_hole(dir, index, index + 1)) {
 		f2fs_clear_page_cache_dirty_tag(folio);
 		folio_clear_dirty_for_io(folio);
 		folio_clear_uptodate(folio);
@@ -938,7 +953,8 @@ bool f2fs_empty_dir(struct inode *dir)
 {
 	unsigned long bidx = 0;
 	unsigned int bit_pos;
-	struct f2fs_dentry_block *dentry_blk;
+	void *dentry_blk;
+	struct f2fs_dentry_ptr d;
 	unsigned long nblock = dir_blocks(dir);
 
 	if (f2fs_has_inline_dentry(dir))
@@ -959,17 +975,16 @@ bool f2fs_empty_dir(struct inode *dir)
 		}
 
 		dentry_blk = folio_address(dentry_folio);
+		make_dentry_ptr_block(dir, &d, dentry_blk);
 		if (bidx == 0)
 			bit_pos = 2;
 		else
 			bit_pos = 0;
-		bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
-						NR_DENTRY_IN_BLOCK,
-						bit_pos);
+		bit_pos = find_next_bit_le(d.bitmap, d.max, bit_pos);
 
 		f2fs_folio_put(dentry_folio, false);
 
-		if (bit_pos < NR_DENTRY_IN_BLOCK)
+		if (bit_pos < d.max)
 			return false;
 
 		bidx++;
@@ -1051,7 +1066,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 		}
 
 		if (readdir_ra)
-			f2fs_ra_node_page(sbi, le32_to_cpu(de->ino));
+			f2fs_ra_node_cache(sbi, le32_to_cpu(de->ino));
 
 		ctx->pos = start_pos + bit_pos;
 		found_valid_dirent = true;
@@ -1066,10 +1081,12 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	unsigned long npages = dir_blocks(inode);
-	struct f2fs_dentry_block *dentry_blk = NULL;
+	void *dentry_blk = NULL;
 	struct file_ra_state *ra = &file->f_ra;
 	loff_t start_pos = ctx->pos;
-	unsigned int n = ((unsigned long)ctx->pos / NR_DENTRY_IN_BLOCK);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	unsigned int entries = sbi->dentries_per_block;
+	unsigned int n = (unsigned long)ctx->pos / entries;
 	struct f2fs_dentry_ptr d;
 	struct fscrypt_str fstr = FSTR_INIT(NULL, 0);
 	int err = 0;
@@ -1089,7 +1106,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 		goto out_free;
 	}
 
-	for (; n < npages; ctx->pos = n * NR_DENTRY_IN_BLOCK) {
+	for (; n < npages; ctx->pos = n * entries) {
 		struct folio *dentry_folio;
 		pgoff_t next_pgofs;
 
@@ -1122,7 +1139,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 		make_dentry_ptr_block(inode, &d, dentry_blk);
 
 		err = f2fs_fill_dentries(ctx, &d,
-				n * NR_DENTRY_IN_BLOCK, &fstr);
+				n * entries, &fstr);
 		f2fs_folio_put(dentry_folio, false);
 		if (err)
 			break;

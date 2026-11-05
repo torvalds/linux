@@ -148,7 +148,7 @@ struct pll_info {
  * This structure contains the various registers manipulated by this
  * driver for setting or restoring a mode. It's mostly copied from
  * XFree's RADEONSaveRec structure. A few chip settings might still be
- * tweaked without beeing reflected or saved in these registers though
+ * tweaked without being reflected or saved in these registers though
  */
 struct radeon_regs {
 	/* Common registers */

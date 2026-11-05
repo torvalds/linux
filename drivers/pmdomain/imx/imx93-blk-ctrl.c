@@ -152,9 +152,8 @@ static int imx93_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 		return ret;
 	}
 
-	ret = pm_runtime_get_sync(bc->dev);
+	ret = pm_runtime_resume_and_get(bc->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(bc->dev);
 		dev_err(bc->dev, "failed to power up domain\n");
 		goto disable_clk;
 	}

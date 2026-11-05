@@ -75,20 +75,6 @@ Description:
 		the ID of the AP endpoint on which packets destined
 		for the embedded modem are sent.
 
-What:		.../XXXXXXX.ipa/endpoint_id/monitor_rx
-Date:		July 2022
-KernelVersion:	v5.19
-Contact:	Alex Elder <elder@kernel.org>
-Description:
-		The .../XXXXXXX.ipa/endpoint_id/monitor_rx file contains
-		the ID of the AP endpoint on which IPA "monitor" data is
-		received.  The monitor endpoint supplies replicas of
-		packets that enter the IPA hardware for processing.
-		Each replicated packet is preceded by a fixed-size "ODL"
-		header (see .../XXXXXXX.ipa/feature/monitor, above).
-		Large packets are truncated, to reduce the bandwidth
-		required to provide the monitor function.
-
 What:		.../XXXXXXX.ipa/modem/
 Date:		June 2021
 KernelVersion:	v5.14

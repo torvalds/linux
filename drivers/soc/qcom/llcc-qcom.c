@@ -626,11 +626,11 @@ static const struct llcc_slice_config glymur_data[] = {
 
 static const struct llcc_slice_config ipq5424_data[] =  {
 	{
-		.usecase_id = LLCC_CPUSS,
+		.usecase_id = LLCC_PPE_RXDESC,
 		.slice_id = 1,
-		.max_cap = 768,
-		.priority = 1,
-		.bonus_ways = 0xFFFF,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x0FFF,
 		.retain_on_pc = true,
 		.activate_on_init = true,
 		.write_scid_cacheable_en = true,
@@ -642,12 +642,52 @@ static const struct llcc_slice_config ipq5424_data[] =  {
 		.vict_prio = true,
 	},
 	{
-		.usecase_id = LLCC_VIDSC0,
+		.usecase_id = LLCC_CPUSS,
 		.slice_id = 2,
-		.max_cap = 256,
-		.priority = 2,
+		.max_cap = 768,
+		.priority = 1,
 		.fixed_size = true,
-		.bonus_ways = 0xF000,
+		.bonus_ways = 0x0FFF,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+	},
+	{
+		.usecase_id = LLCC_PPE_RXFILL,
+		.slice_id = 5,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x0FFF,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+		.alloc_oneway_en = true,
+		.ovcap_en = true,
+		.ovcap_prio = true,
+		.vict_prio = true,
+	},
+	{
+		.usecase_id = LLCC_WLAN_5G,
+		.slice_id = 6,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0xC000,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+		.write_scid_cacheable_en = true,
+		.stale_en = true,
+		.stale_cap_en = true,
+	},
+	{
+		.usecase_id = LLCC_WLAN_6G,
+		.slice_id = 7,
+		.max_cap = 128,
+		.priority = 3,
+		.bonus_ways = 0x3000,
 		.retain_on_pc = true,
 		.activate_on_init = true,
 		.write_scid_cacheable_en = true,
@@ -1012,6 +1052,128 @@ static const struct llcc_slice_config kaanapali_data[] = {
 		.mru_uncap_en = true,
 		.vict_prio = true,
 	   },
+};
+
+static const struct llcc_slice_config nord_data[] = {
+	{
+		.usecase_id = LLCC_CPUSS,
+		.slice_id = 1,
+		.max_cap = 3072,
+		.priority = 0,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.write_scid_en = true,
+		.write_scid_cacheable_en = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_CMPT,
+		.slice_id = 34,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_GPUHTW,
+		.slice_id = 11,
+		.max_cap = 512,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_GPU,
+		.slice_id = 12,
+		.max_cap = 2048,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.write_scid_en = true,
+		.write_scid_cacheable_en = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_MMUHWT,
+		.slice_id = 13,
+		.max_cap = 1024,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_CAMFW,
+		.slice_id = 20,
+		.max_cap = 512,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_ECC,
+		.slice_id = 26,
+		.max_cap = 1536,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.write_scid_en = true,
+		.write_scid_cacheable_en = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_WRCACHE,
+		.slice_id = 31,
+		.max_cap = 2048,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_LCPDARE,
+		.slice_id = 30,
+		.max_cap = 512,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.alloc_oneway_en = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_COMPUTE1,
+		.slice_id = 22,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_PCIE_TCU,
+		.slice_id = 15,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.activate_on_init = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_GPU_LITTLE,
+		.slice_id = 9,
+		.max_cap = 2048,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.write_scid_en = true,
+		.write_scid_cacheable_en = true,
+		.vict_prio = true,
+	}, {
+		.usecase_id = LLCC_GPUHTW_LITTLE,
+		.slice_id = 14,
+		.max_cap = 512,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xff,
+		.vict_prio = true,
+	},
 };
 
 static const struct llcc_slice_config sa8775p_data[] =  {
@@ -4444,6 +4606,17 @@ static const struct qcom_llcc_config glymur_cfg[] = {
 	},
 };
 
+static const struct qcom_llcc_config nord_cfg[] = {
+	{
+		.sct_data	= nord_data,
+		.size		= ARRAY_SIZE(nord_data),
+		.reg_offset	= llcc_v6_reg_offset,
+		.edac_reg_offset = &llcc_v6_edac_reg_offset,
+		.num_banks	= 16,
+		.no_edac	= true,
+	},
+};
+
 static const struct qcom_llcc_config qcs615_cfg[] = {
 	{
 		.sct_data	= qcs615_data,
@@ -4709,6 +4882,11 @@ static const struct qcom_sct_config kaanapali_cfgs = {
 static const struct qcom_sct_config glymur_cfgs = {
 	.llcc_config	= glymur_cfg,
 	.num_config	= ARRAY_SIZE(glymur_cfg),
+};
+
+static const struct qcom_sct_config nord_cfgs = {
+	.llcc_config	= nord_cfg,
+	.num_config	= ARRAY_SIZE(nord_cfg),
 };
 
 static const struct qcom_sct_config qcs615_cfgs = {
@@ -5617,6 +5795,10 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	}
 
 	drv_data->ecc_irq = platform_get_irq_optional(pdev, 0);
+	if (drv_data->ecc_irq < 0 && drv_data->ecc_irq != -ENXIO)
+		return dev_err_probe(&pdev->dev, drv_data->ecc_irq,
+				     "failed to get IRQ resource\n");
+
 	drv_data->edac_reg_offset = cfg->edac_reg_offset;
 	drv_data->ecc_irq_configured = cfg->irq_configured;
 	drv_data->dev = dev;
@@ -5649,6 +5831,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,hawi-llcc", .data = &hawi_sct_cfgs },
 	{ .compatible = "qcom,ipq5424-llcc", .data = &ipq5424_cfgs},
 	{ .compatible = "qcom,kaanapali-llcc", .data = &kaanapali_cfgs},
+	{ .compatible = "qcom,nord-llcc", .data = &nord_cfgs},
 	{ .compatible = "qcom,qcs615-llcc", .data = &qcs615_cfgs},
 	{ .compatible = "qcom,qcs8300-llcc", .data = &qcs8300_cfgs},
 	{ .compatible = "qcom,qdu1000-llcc", .data = &qdu1000_cfgs},

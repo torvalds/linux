@@ -1006,8 +1006,8 @@ static const struct of_device_id mpxy_mbox_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpxy_mbox_of_match);
 
 static const struct acpi_device_id mpxy_mbox_acpi_match[] = {
-	{ "RSCV0005" },
-	{}
+	{ .id = "RSCV0005" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mpxy_mbox_acpi_match);
 

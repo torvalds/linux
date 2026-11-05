@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 Marek Vasut
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+&{/} {
+	reg_backlight_en_level: regulator-backlight-en-level {
+		compatible = "regulator-gpio";
+		regulator-name = "Backlight_SEL_EN";
+		regulator-type = "voltage";
+		states = <3300000 0x0>,
+			 <5000000 0x1>;
+
+		/* Default setting: lowest supported voltage. */
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_backlight_pwm_level: regulator-backlight-pwm-level {
+		compatible = "regulator-gpio";
+		regulator-name = "Backlight_SEL_PWM";
+		regulator-type = "voltage";
+		gpios = <&gpio_display 2 GPIO_ACTIVE_HIGH>; /* SEL_PWM */
+		states = <3300000 0x0>,
+			 <5000000 0x1>;
+
+		/* Default setting: lowest supported voltage. */
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_panel_bl: regulator-panel-bl {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_panel_backlight>;
+		regulator-name = "PANEL_BL";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 0 0>;
+		enable-active-high;
+		/* Used by panels which enable PWM signal before BL ON/OFF */
+		status = "disabled";
+	};
+};
+
+&reg_panel_vcc {
+	compatible = "regulator-gpio";
+	regulator-type = "voltage";
+	enable-active-high;
+	status = "okay";
+
+	/* Default setting: lowest supported voltage. */
+	gpios-states = <0 0>;	/* Default GPIO state is LOW/LOW, so 3V3 out */
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};

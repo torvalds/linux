@@ -53,11 +53,11 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
-        isp@880000  {
-             compatible = "brcm,bcm2712-pispbe", "raspberrypi,pispbe";
-             reg = <0x10 0x00880000 0x0 0x4000>;
-             interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
-             clocks = <&firmware_clocks 7>;
-             iommus = <&iommu2>;
+        isp@880000 {
+            compatible = "brcm,bcm2712-pispbe", "raspberrypi,pispbe";
+            reg = <0x10 0x00880000 0x0 0x4000>;
+            interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&firmware_clocks 7>;
+            iommus = <&iommu2>;
         };
     };

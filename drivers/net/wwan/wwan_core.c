@@ -25,6 +25,10 @@
 #include <net/rtnetlink.h>
 #include <uapi/linux/wwan.h>
 
+/* Modem control bits userspace may set on an AT port, as for tty_tiocmset() */
+#define WWAN_TIOCM_OUTPUTS	(TIOCM_DTR | TIOCM_RTS | TIOCM_OUT1 | \
+				 TIOCM_OUT2 | TIOCM_LOOP)
+
 /* Maximum number of minors in use */
 #define WWAN_MAX_MINORS		(1 << MINORBITS)
 
@@ -73,11 +77,10 @@ struct wwan_device {
  * @start_count: Port start counter
  * @flags: Store port state and capabilities
  * @ops: Pointer to WWAN port operations
- * @ops_lock: Protect port ops
+ * @ops_lock: Protect port ops, and the AT/QCDM termios and TIOCM state
  * @dev: Underlying device
  * @rxq: Buffer inbound queue
  * @waitqueue: The waitqueue for port fops (read/write/poll)
- * @data_lock: Port specific data access serialization
  * @headroom_len: SKB reserved headroom size
  * @frag_len: Length to fragment packet
  * @at_data: AT port specific data
@@ -88,11 +91,10 @@ struct wwan_port {
 	unsigned int start_count;
 	unsigned long flags;
 	const struct wwan_port_ops *ops;
-	struct mutex ops_lock; /* Serialize ops + protect against removal */
+	struct mutex ops_lock; /* Serialize ops + at_data, protect against removal */
 	struct device dev;
 	struct sk_buff_head rxq;
 	wait_queue_head_t waitqueue;
-	struct mutex data_lock;	/* Port specific data access serialization */
 	size_t headroom_len;
 	size_t frag_len;
 	union {
@@ -374,7 +376,6 @@ static void wwan_port_destroy(struct device *dev)
 
 	if (dev->class == &wwan_class)
 		ida_free(&minors, MINOR(dev->devt));
-	mutex_destroy(&port->data_lock);
 	mutex_destroy(&port->ops_lock);
 	kfree(port);
 }
@@ -653,7 +654,10 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	mutex_init(&port->ops_lock);
 	skb_queue_head_init(&port->rxq);
 	init_waitqueue_head(&port->waitqueue);
-	mutex_init(&port->data_lock);
+
+	/* AT ports default to HUPCL, so DTR/RTS are dropped on last close */
+	if (type == WWAN_PORT_AT)
+		port->at_data.termios.c_cflag = HUPCL;
 
 	port->dev.parent = &wwandev->dev;
 	port->dev.type = &wwan_port_dev_type;
@@ -679,12 +683,44 @@ error_wwandev_remove:
 }
 EXPORT_SYMBOL_GPL(wwan_create_port);
 
+/* Raise DTR/RTS when an AT port is first opened, as a TTY does on open.
+ * Unlike a TTY the termios baud rate is not used. Called with ops_lock held.
+ */
+static void wwan_port_raise_dtr_rts(struct wwan_port *port)
+{
+	lockdep_assert_held(&port->ops_lock);
+
+	if (port->type != WWAN_PORT_AT || !port->ops->dtr_rts)
+		return;
+
+	port->at_data.mdmbits |= TIOCM_DTR | TIOCM_RTS;
+	port->ops->dtr_rts(port, port->at_data.mdmbits);
+}
+
+/* Drop DTR/RTS on an AT port. Called with ops_lock held. On last close
+ * the lines are only dropped if HUPCL is set, as for a TTY. When a port is
+ * removed while still open they are always dropped.
+ */
+static void wwan_port_drop_dtr_rts(struct wwan_port *port, bool hupcl_only)
+{
+	lockdep_assert_held(&port->ops_lock);
+
+	if (port->type != WWAN_PORT_AT || !port->ops->dtr_rts)
+		return;
+	if (hupcl_only && !(port->at_data.termios.c_cflag & HUPCL))
+		return;
+
+	port->at_data.mdmbits &= ~(TIOCM_DTR | TIOCM_RTS);
+	port->ops->dtr_rts(port, port->at_data.mdmbits);
+}
+
 void wwan_remove_port(struct wwan_port *port)
 {
 	struct wwan_device *wwandev = to_wwan_dev(port->dev.parent);
 
 	mutex_lock(&port->ops_lock);
 	if (port->start_count) {
+		wwan_port_drop_dtr_rts(port, false);
 		port->ops->stop(port);
 		port->start_count = 0;
 	}
@@ -756,8 +792,11 @@ static int wwan_port_op_start(struct wwan_port *port)
 	}
 
 	/* If port is already started, don't start again */
-	if (!port->start_count)
+	if (!port->start_count) {
 		ret = port->ops->start(port);
+		if (!ret)
+			wwan_port_raise_dtr_rts(port);
+	}
 
 	if (!ret)
 		port->start_count++;
@@ -773,8 +812,10 @@ static void wwan_port_op_stop(struct wwan_port *port)
 	mutex_lock(&port->ops_lock);
 	port->start_count--;
 	if (!port->start_count) {
-		if (port->ops)
+		if (port->ops) {
+			wwan_port_drop_dtr_rts(port, true);
 			port->ops->stop(port);
+		}
 		skb_queue_purge(&port->rxq);
 		clear_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
 	}
@@ -976,92 +1017,109 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 }
 
 /* Implements minimalistic stub terminal IOCTLs support */
+/* TCGETS/TCSETS and their termios2 variants. @size is the size of the user
+ * structure, a prefix of struct ktermios. As for the TIOCM ioctls, user
+ * memory is only accessed outside ops_lock.
+ */
+static long wwan_port_termios_ioctl(struct wwan_port *port, bool set,
+				    void __user *uarg, size_t size)
+{
+	struct ktermios termios;
+
+	if (!set) {
+		scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &port->ops_lock)
+			termios = port->at_data.termios;
+		return copy_to_user(uarg, &termios, size) ? -EFAULT : 0;
+	}
+
+	/* Commit only on success, a partial copy must not clear HUPCL */
+	if (copy_from_user(&termios, uarg, size))
+		return -EFAULT;
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &port->ops_lock)
+		memcpy(&port->at_data.termios, &termios, size);
+	return 0;
+}
+
 static long wwan_port_fops_at_ioctl(struct wwan_port *port, unsigned int cmd,
 				    unsigned long arg)
 {
-	int ret = 0;
-
-	mutex_lock(&port->data_lock);
-
+	/* ops_lock serialises the termios/TIOCM state with port ops and
+	 * removal. It is only held while that state is read or updated, never
+	 * across a user copy, and is taken interruptibly as a blocking write
+	 * holds it too.
+	 */
 	switch (cmd) {
 	case TCFLSH:
-		break;
+		return 0;
 
 	case TCGETS:
-		if (copy_to_user((void __user *)arg, &port->at_data.termios,
-				 sizeof(struct termios)))
-			ret = -EFAULT;
-		break;
-
 	case TCSETS:
 	case TCSETSW:
 	case TCSETSF:
-		if (copy_from_user(&port->at_data.termios, (void __user *)arg,
-				   sizeof(struct termios)))
-			ret = -EFAULT;
-		break;
+		return wwan_port_termios_ioctl(port, cmd != TCGETS,
+					       (void __user *)arg,
+					       sizeof(struct termios));
 
 #ifdef TCGETS2
 	case TCGETS2:
-		if (copy_to_user((void __user *)arg, &port->at_data.termios,
-				 sizeof(struct termios2)))
-			ret = -EFAULT;
-		break;
-
 	case TCSETS2:
 	case TCSETSW2:
 	case TCSETSF2:
-		if (copy_from_user(&port->at_data.termios, (void __user *)arg,
-				   sizeof(struct termios2)))
-			ret = -EFAULT;
-		break;
+		return wwan_port_termios_ioctl(port, cmd != TCGETS2,
+					       (void __user *)arg,
+					       sizeof(struct termios2));
 #endif
 
-	case TIOCMGET:
-		ret = put_user(port->at_data.mdmbits, (int __user *)arg);
-		break;
+	case TIOCMGET: {
+		int mdmbits;
+
+		scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &port->ops_lock)
+			mdmbits = port->at_data.mdmbits;
+		return put_user(mdmbits, (int __user *)arg);
+	}
 
 	case TIOCMSET:
 	case TIOCMBIC:
 	case TIOCMBIS: {
 		int mdmbits;
 
-		if (copy_from_user(&mdmbits, (int __user *)arg, sizeof(int))) {
-			ret = -EFAULT;
-			break;
+		if (get_user(mdmbits, (int __user *)arg))
+			return -EFAULT;
+		mdmbits &= WWAN_TIOCM_OUTPUTS;
+
+		scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &port->ops_lock) {
+			int old = port->at_data.mdmbits;
+
+			if (cmd == TIOCMBIC)
+				port->at_data.mdmbits &= ~mdmbits;
+			else if (cmd == TIOCMBIS)
+				port->at_data.mdmbits |= mdmbits;
+			else
+				port->at_data.mdmbits = mdmbits;
+			/* Only signal the driver when DTR or RTS actually changes */
+			if (port->type == WWAN_PORT_AT && port->ops &&
+			    port->ops->dtr_rts &&
+			    (old ^ port->at_data.mdmbits) & (TIOCM_DTR | TIOCM_RTS))
+				port->ops->dtr_rts(port, port->at_data.mdmbits);
 		}
-		if (cmd == TIOCMBIC)
-			port->at_data.mdmbits &= ~mdmbits;
-		else if (cmd == TIOCMBIS)
-			port->at_data.mdmbits |= mdmbits;
-		else
-			port->at_data.mdmbits = mdmbits;
-		break;
+		return 0;
 	}
 
 	case TIOCEXCL:
 		set_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
-		break;
+		return 0;
 
 	case TIOCNXCL:
 		clear_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
-		break;
+		return 0;
 
 	case TIOCGEXCL:
-	{
-		int excl = test_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
-
-		ret = put_user(excl, (int __user *)arg);
-		break;
-	}
+		return put_user(test_bit(WWAN_PORT_EXCLUSIVE, &port->flags),
+				(int __user *)arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-
-	mutex_unlock(&port->data_lock);
-
-	return ret;
 }
 
 static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,

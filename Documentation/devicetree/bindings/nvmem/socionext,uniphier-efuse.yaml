@@ -16,7 +16,11 @@ allOf:
 
 properties:
   compatible:
-    const: socionext,uniphier-efuse
+    oneOf:
+      - const: socionext,uniphier-efuse
+      - items:
+          - const: ti,am62p-efuse
+          - const: socionext,uniphier-efuse
 
   reg:
     maxItems: 1

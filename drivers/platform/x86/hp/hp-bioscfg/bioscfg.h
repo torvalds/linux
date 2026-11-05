@@ -493,5 +493,8 @@ void hp_friendly_user_name_update(char *path, const char *attr_name,
 				  char *attr_display, int attr_size);
 int hp_wmi_error_and_message(int error_code);
 int hp_get_common_data_from_buffer(u8 **buffer_ptr, u32 *buffer_size, struct common_data *common);
+int hp_get_common_data_from_package(union acpi_object *obj, int obj_count,
+				    int *elem, int *eloc, u32 int_value,
+				    char **str_value, struct common_data *common);
 
 #endif

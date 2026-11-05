@@ -98,17 +98,17 @@ static void l1_svm_code(struct svm_test_data *svm)
 
 static void l1_vmx_code(struct vmx_pages *vmx)
 {
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
-	GUEST_ASSERT(load_vmcs(vmx));
+	prepare_for_vmx_operation(vmx);
+	load_vmcs(vmx);
 	prepare_vmcs(vmx, guest_access_memory);
 
-	GUEST_ASSERT(!vmwrite(EXCEPTION_BITMAP, BIT(UD_VECTOR)));
+	vmwrite(EXCEPTION_BITMAP, BIT(UD_VECTOR));
 
-	GUEST_ASSERT(!vmlaunch());
+	vmlaunch();
 	while (1) {
-		GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
-		GUEST_ASSERT_EQ(vmreadz(VM_EXIT_INTR_INFO) & 0xff, UD_VECTOR);
-		GUEST_ASSERT(!vmresume());
+		GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
+		GUEST_ASSERT_EQ(vmread(VM_EXIT_INTR_INFO) & 0xff, UD_VECTOR);
+		vmresume();
 	}
 }
 

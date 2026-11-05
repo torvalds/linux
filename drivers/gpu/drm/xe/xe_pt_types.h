@@ -65,11 +65,17 @@ struct xe_vm_pgtable_update {
 	/** @qwords: number of PTE's to write */
 	u32 qwords;
 
-	/** @pt: opaque pointer useful for the caller of xe_migrate_update_pgtables */
+	/**
+	 * @pt: opaque pointer useful for PT building in the bind IOCTL. Only
+	 * safe to touch during the bind IOCTL (i.e., not in bind jobs).
+	 */
 	struct xe_pt *pt;
 
 	/** @pt_entries: Newly added pagetable entries */
 	struct xe_pt_entry *pt_entries;
+
+	/** @level: level of update */
+	unsigned int level;
 
 	/** @flags: Target flags */
 	u32 flags;
@@ -91,14 +97,29 @@ struct xe_vm_pgtable_update_op {
 	bool rebind;
 };
 
+/**
+ * struct xe_pt_job_ops - Page-table update operations (dynamically allocated)
+ *
+ * This is the portion of &struct xe_vma_ops and
+ * &struct xe_vm_pgtable_update_ops that is dynamically allocated, as it
+ * must remain valid until the associated bind job completes. A reference
+ * count controls its lifetime.
+ */
+struct xe_pt_job_ops {
+	/** @current_op: current page-table update operation */
+	u32 current_op;
+	/** @refcount: reference count */
+	struct kref refcount;
+	/** @deferred: list of deferred PT entries to destroy */
+	struct llist_head deferred;
+	/** @ops: page-table update operations */
+	struct xe_vm_pgtable_update_op *ops;
+};
+
 /** struct xe_vm_pgtable_update_ops: page table update operations */
 struct xe_vm_pgtable_update_ops {
-	/** @ops: operations */
-	struct xe_vm_pgtable_update_op *ops;
-	/** @deferred: deferred list to destroy PT entries */
-	struct llist_head deferred;
-	/** @q: exec queue for PT operations */
-	struct xe_exec_queue *q;
+	/** @pt_job_ops: PT update operations dynamic allocation*/
+	struct xe_pt_job_ops *pt_job_ops;
 	/** @prl: embedded page reclaim list */
 	struct xe_page_reclaim_list prl;
 	/** @start: start address of ops */
@@ -107,24 +128,10 @@ struct xe_vm_pgtable_update_ops {
 	u64 last;
 	/** @num_ops: number of operations */
 	u32 num_ops;
-	/** @current_op: current operations */
-	u32 current_op;
 	/** @needs_svm_lock: Needs SVM lock */
 	bool needs_svm_lock;
 	/** @needs_invalidation: Needs invalidation */
 	bool needs_invalidation;
-	/**
-	 * @wait_vm_bookkeep: PT operations need to wait until VM is idle
-	 * (bookkeep dma-resv slots are idle) and stage all future VM activity
-	 * behind these operations (install PT operations into VM kernel
-	 * dma-resv slot).
-	 */
-	bool wait_vm_bookkeep;
-	/**
-	 * @wait_vm_kernel: PT operations need to wait until VM kernel dma-resv
-	 * slots are idle.
-	 */
-	bool wait_vm_kernel;
 };
 
 #endif

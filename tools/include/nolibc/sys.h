@@ -71,16 +71,6 @@ static __inline__ int __nolibc_enosys(const char *syscall, ...)
 #endif
 
 
-/*
- * Helper for 32-bit machines where a 64-bit syscall arg needs to be split into
- * two 32-bit parts while making sure the order of the low/high parts are correct
- * for the endianness:
- * __NOLIBC_LLARGPART(x, 0), __NOLIBC_LLARGPART(x, 1)
- */
-#define __NOLIBC_LLARGPART(_arg, _part) \
-	(((union { long long ll; long l[2]; }) { .ll = _arg }).l[_part])
-
-
 /* Functions in this file only describe syscalls. They're declared static so
  * that the compiler usually decides to inline them while still being allowed
  * to pass a pointer to one of their instances. Each syscall exists in two
@@ -752,6 +742,56 @@ static __attribute__((unused))
 int pivot_root(const char *new, const char *old)
 {
 	return __sysret(_sys_pivot_root(new, old));
+}
+
+
+/*
+ * ssize_t pread(int fd, void *buf, size_t count, off_t offset);
+ * ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);
+ */
+
+#ifndef _sys_pread
+static __attribute__((unused))
+ssize_t _sys_pread(int fd, void *buf, size_t count, off_t offset)
+{
+#if __NOLIBC_BITS_PER_SYSCALL_ARG == 64
+	return __nolibc_syscall4(__NR_pread64, fd, buf, count, offset);
+#elif defined(__NOLIBC_PAD_64BIT_SYSCALL_ARGUMENT_PAIR)
+	return __nolibc_syscall6(__NR_pread64, fd, buf, count, 0,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+#else
+	return __nolibc_syscall5(__NR_pread64, fd, buf, count,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+#endif
+}
+#endif /* _sys_pread */
+
+static __attribute__((unused))
+ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+{
+	return __sysret(_sys_pread(fd, buf, count, offset));
+}
+
+#ifndef _sys_pwrite
+static __attribute__((unused))
+ssize_t _sys_pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+#if __NOLIBC_BITS_PER_SYSCALL_ARG == 64
+	return __nolibc_syscall4(__NR_pwrite64, fd, buf, count, offset);
+#elif defined(__NOLIBC_PAD_64BIT_SYSCALL_ARGUMENT_PAIR)
+	return __nolibc_syscall6(__NR_pwrite64, fd, buf, count, 0,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+#else
+	return __nolibc_syscall5(__NR_pwrite64, fd, buf, count,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+#endif
+}
+#endif /* _sys_pwrite */
+
+static __attribute__((unused))
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+	return __sysret(_sys_pwrite(fd, buf, count, offset));
 }
 
 

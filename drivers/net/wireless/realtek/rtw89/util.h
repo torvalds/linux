@@ -21,6 +21,10 @@
 #define rtw89_for_each_rtwvif(rtwdev, rtwvif)				       \
 	list_for_each_entry(rtwvif, &(rtwdev)->rtwvifs_list, list)
 
+/* call this function with wiphy mutex is held */
+#define rtw89_for_each_active_rtwvif(rtwdev, rtwvif) \
+	list_for_each_entry(rtwvif, &(rtwdev)->hal.entity_mgnt.active_list, mgnt_entry)
+
 /* Before adding rtwvif to list, we need to check if it already exist, beacase
  * in some case such as SER L2 happen during WoWLAN flow, calling reconfig
  * twice cause the list to be added twice.

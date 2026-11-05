@@ -71,6 +71,13 @@ int sdw_slave_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static void sdw_slave_ida_free(void *data)
+{
+	struct sdw_slave *slave = data;
+
+	ida_free(&slave->bus->slave_ida, slave->index);
+}
+
 static int sdw_bus_probe(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -104,15 +111,16 @@ static int sdw_bus_probe(struct device *dev)
 		return ret;
 	}
 	slave->index = ret;
+	ret = devm_add_action_or_reset(dev, sdw_slave_ida_free, slave);
+	if (ret)
+		return ret;
 
 	/* Create IRQ mapping now so the driver can get it in probe() */
 	sdw_irq_create_mapping(slave);
 
 	ret = drv->probe(slave, id);
-	if (ret) {
-		ida_free(&slave->bus->slave_ida, slave->index);
+	if (ret)
 		return ret;
-	}
 
 	mutex_lock(&slave->sdw_dev_lock);
 
@@ -170,8 +178,6 @@ static void sdw_bus_remove(struct device *dev)
 
 	if (drv->remove)
 		drv->remove(slave);
-
-	ida_free(&slave->bus->slave_ida, slave->index);
 }
 
 static void sdw_bus_shutdown(struct device *dev)

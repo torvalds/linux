@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/err.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -15,6 +16,85 @@
 #define VRANGE_SELECT_BIT	BIT(1)
 
 #define LTC4286_MFR_ID_SIZE	3
+
+struct ltc4286_data {
+	struct pmbus_driver_info info;
+	u32 rsense;
+	bool vrange_low_enable;
+};
+
+#define to_ltc4286_data(x) container_of((x), struct ltc4286_data, info)
+
+static ssize_t ltc4286_rsense_show(struct device *dev,
+				   struct device_attribute *devattr,
+				   char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ltc4286_data *data = to_ltc4286_data(info);
+	u32 rsense;
+	int ret;
+
+	ret = pmbus_lock_interruptible(client);
+	if (ret)
+		return ret;
+
+	rsense = data->rsense;
+
+	pmbus_unlock(client);
+
+	return sysfs_emit(buf, "%u\n", rsense);
+}
+
+static ssize_t ltc4286_rsense_store(struct device *dev,
+				    struct device_attribute *devattr,
+				    const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	const struct pmbus_driver_info *info_ro = pmbus_get_driver_info(client);
+	struct ltc4286_data *data = to_ltc4286_data(info_ro);
+	struct pmbus_driver_info *info = &data->info;
+	u32 rsense;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &rsense);
+	if (ret)
+		return ret;
+
+	if (rsense == 0)
+		return -EINVAL;
+
+	if (rsense > (INT_MAX / 1024))
+		return -EINVAL;
+
+	ret = pmbus_lock_interruptible(client);
+	if (ret)
+		return ret;
+
+	data->rsense = rsense;
+	info->m[PSC_CURRENT_OUT] = 1024 * rsense;
+	info->m[PSC_POWER] = data->vrange_low_enable ? 4 * rsense : rsense;
+
+	pmbus_unlock(client);
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RW(shunt_resistor, ltc4286_rsense, 0);
+
+static struct attribute *ltc4286_attrs[] = {
+	&sensor_dev_attr_shunt_resistor.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ltc4286_group = {
+	.attrs = ltc4286_attrs,
+};
+
+static const struct attribute_group *ltc4286_attribute_groups[] = {
+	&ltc4286_group,
+	NULL,
+};
 
 /*
  * Initialize the MBR as default settings which is referred to LTC4286 datasheet
@@ -55,6 +135,7 @@ static struct pmbus_driver_info ltc4286_info = {
 	.func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_VOUT | PMBUS_HAVE_IOUT |
 		   PMBUS_HAVE_PIN | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_VOUT |
 		   PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_STATUS_TEMP,
+	.groups = ltc4286_attribute_groups,
 };
 
 static const struct i2c_device_id ltc4286_id[] = {
@@ -69,6 +150,7 @@ static int ltc4286_probe(struct i2c_client *client)
 	int ret;
 	const struct i2c_device_id *mid;
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
+	struct ltc4286_data *data;
 	struct pmbus_driver_info *info;
 	u32 rsense;
 	int vrange_nval, vrange_oval;
@@ -114,10 +196,13 @@ static int ltc4286_probe(struct i2c_client *client)
 	if (rsense > (INT_MAX / 1024))
 		return -EINVAL;
 
-	info = devm_kmemdup(&client->dev, &ltc4286_info, sizeof(*info),
-			    GFP_KERNEL);
-	if (!info)
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
+
+	data->info = ltc4286_info;
+	data->rsense = rsense;
+	info = &data->info;
 
 	/* Check MFR1 CONFIG register bit 1 VRANGE_SELECT before driver loading */
 	vrange_oval = i2c_smbus_read_word_data(client, LTC4286_MFR_CONFIG1);
@@ -126,7 +211,10 @@ static int ltc4286_probe(struct i2c_client *client)
 				     "Failed to read manufacturer configuration one\n");
 	vrange_nval = vrange_oval;
 
-	if (device_property_read_bool(&client->dev, "adi,vrange-low-enable")) {
+	data->vrange_low_enable =
+		device_property_read_bool(&client->dev, "adi,vrange-low-enable");
+
+	if (data->vrange_low_enable) {
 		vrange_nval &=
 			~VRANGE_SELECT_BIT; /* VRANGE_SELECT = 0, 25.6 volts */
 

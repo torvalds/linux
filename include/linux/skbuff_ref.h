@@ -9,66 +9,78 @@
 
 #include <linux/skbuff.h>
 
+bool napi_pp_get_page(netmem_ref netmem);
+
 /**
- * __skb_frag_ref - take an addition reference on a paged fragment.
- * @frag: the paged fragment
+ * skb_netmem_ref - acquire a fragment reference on a netmem
+ * @netmem: netmem to reference
+ * @recycle: whether page_pool recycling is enabled (e.g. skb->pp_recycle)
  *
- * Takes an additional reference on the paged fragment @frag.
+ * Acquires pp_ref_count via napi_pp_get_page() if @recycle is true and
+ * @netmem belongs to a page_pool; otherwise acquires a non-pp backing
+ * reference via netmem_inc_ref(). Counterpart to skb_netmem_unref().
  */
-static __always_inline void __skb_frag_ref(skb_frag_t *frag)
+static __always_inline void skb_netmem_ref(netmem_ref netmem, bool recycle)
 {
-	get_netmem(skb_frag_netmem(frag));
+#ifdef CONFIG_PAGE_POOL
+	if (recycle && napi_pp_get_page(netmem))
+		return;
+#endif
+	netmem_inc_ref(netmem);
 }
 
 /**
- * skb_frag_ref - take an addition reference on a paged fragment of an skb.
+ * skb_frag_ref - acquire a reference on a paged fragment of an skb
  * @skb: the buffer
- * @f: the fragment offset.
+ * @f: the fragment offset
  *
- * Takes an additional reference on the @f'th paged fragment of @skb.
+ * Acquires a reference on the @f'th fragment of @skb via skb_netmem_ref()
+ * (pp_ref_count if skb->pp_recycle and page_pool-backed, else non-pp
+ * backing refcount). Counterpart to skb_frag_unref().
  */
 static __always_inline void skb_frag_ref(struct sk_buff *skb, int f)
 {
-	__skb_frag_ref(&skb_shinfo(skb)->frags[f]);
+	skb_netmem_ref(skb_frag_netmem(&skb_shinfo(skb)->frags[f]),
+		       skb->pp_recycle);
 }
 
 bool napi_pp_put_page(netmem_ref netmem);
 
-static __always_inline void skb_page_unref(netmem_ref netmem, bool recycle)
+/**
+ * skb_netmem_unref - release a fragment reference on a netmem
+ * @netmem: netmem to unreference
+ * @recycle: whether page_pool recycling is enabled (e.g. skb->pp_recycle)
+ *
+ * Drops pp_ref_count via napi_pp_put_page() if @recycle is true and @netmem
+ * belongs to a page_pool; otherwise drops a non-pp backing reference via
+ * netmem_dec_ref(). Counterpart to skb_netmem_ref().
+ */
+static __always_inline void skb_netmem_unref(netmem_ref netmem, bool recycle)
 {
 #ifdef CONFIG_PAGE_POOL
 	if (recycle && napi_pp_put_page(netmem))
 		return;
 #endif
-	put_netmem(netmem);
+	netmem_dec_ref(netmem);
 }
 
 /**
- * __skb_frag_unref - release a reference on a paged fragment.
- * @frag: the paged fragment
- * @recycle: recycle the page if allocated via page_pool
- *
- * Releases a reference on the paged fragment @frag
- * or recycles the page via the page_pool API.
- */
-static __always_inline void __skb_frag_unref(skb_frag_t *frag, bool recycle)
-{
-	skb_page_unref(skb_frag_netmem(frag), recycle);
-}
-
-/**
- * skb_frag_unref - release a reference on a paged fragment of an skb.
+ * skb_frag_unref - release a reference on a paged fragment of an skb
  * @skb: the buffer
  * @f: the fragment offset
  *
- * Releases a reference on the @f'th paged fragment of @skb.
+ * Drops a reference on the @f'th fragment of @skb via skb_netmem_unref()
+ * (pp_ref_count if skb->pp_recycle and page_pool-backed, else non-pp
+ * backing refcount), skipping managed zerocopy fragments. Counterpart to
+ * skb_frag_ref().
  */
 static __always_inline void skb_frag_unref(struct sk_buff *skb, int f)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 
 	if (!skb_zcopy_managed(skb))
-		__skb_frag_unref(&shinfo->frags[f], skb->pp_recycle);
+		skb_netmem_unref(skb_frag_netmem(&shinfo->frags[f]),
+				 skb->pp_recycle);
 }
 
 #endif	/* _LINUX_SKBUFF_REF_H */

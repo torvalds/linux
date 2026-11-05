@@ -167,7 +167,6 @@ static int mt6360_tcpc_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(mti->dev, mti->irq, NULL, mt6360_irq, IRQF_ONESHOT,
 					dev_name(&pdev->dev), mti);
 	if (ret) {
-		dev_err(mti->dev, "Failed to register irq\n");
 		tcpci_unregister_port(mti->tcpci);
 		return ret;
 	}

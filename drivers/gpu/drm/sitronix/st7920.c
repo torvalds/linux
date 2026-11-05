@@ -453,17 +453,17 @@ static void st7920_primary_plane_atomic_disable(struct drm_plane *plane,
 }
 
 /* Called during init to allocate the plane's atomic state. */
-static void st7920_primary_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *st7920_primary_plane_create_state(struct drm_plane *plane)
 {
 	struct st7920_plane_state *st7920_state;
 
-	drm_WARN_ON_ONCE(plane->dev, plane->state);
-
 	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	__drm_gem_reset_shadow_plane(plane, &st7920_state->base);
+	__drm_gem_shadow_plane_state_init(plane, &st7920_state->base);
+
+	return &(&st7920_state->base)->base;
 }
 
 static struct drm_plane_state *st7920_primary_plane_duplicate_state(struct drm_plane *plane)
@@ -507,7 +507,7 @@ static const struct drm_plane_helper_funcs st7920_primary_plane_helper_funcs = {
 static const struct drm_plane_funcs st7920_primary_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = st7920_primary_plane_reset,
+	.atomic_create_state = st7920_primary_plane_create_state,
 	.atomic_duplicate_state = st7920_primary_plane_duplicate_state,
 	.atomic_destroy_state = st7920_primary_plane_destroy_state,
 	.destroy = drm_plane_cleanup,
@@ -575,17 +575,17 @@ static void st7920_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 /* Called during init to allocate the CRTC's atomic state. */
-static void st7920_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *st7920_crtc_create_state(struct drm_crtc *crtc)
 {
 	struct st7920_crtc_state *st7920_state;
 
-	drm_WARN_ON_ONCE(crtc->dev, crtc->state);
-
 	st7920_state = kzalloc_obj(*st7920_state);
 	if (!st7920_state)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_crtc_reset(crtc, &st7920_state->base);
+	__drm_atomic_helper_crtc_state_init(&st7920_state->base, crtc);
+
+	return &st7920_state->base;
 }
 
 static struct drm_crtc_state *st7920_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -629,7 +629,7 @@ static const struct drm_crtc_helper_funcs st7920_crtc_helper_funcs = {
 };
 
 static const struct drm_crtc_funcs st7920_crtc_funcs = {
-	.reset = st7920_crtc_reset,
+	.atomic_create_state = st7920_crtc_create_state,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,

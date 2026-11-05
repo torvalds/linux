@@ -397,7 +397,8 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	nvif_event_dtor(&nv_connector->irq);
 	nvif_event_dtor(&nv_connector->hpd);
-	kfree(nv_connector->edid);
+	cancel_work_sync(&nv_connector->irq_work);
+	drm_edid_free(nv_connector->drm_edid);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	if (nv_connector->aux.transfer)
@@ -469,6 +470,36 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	return found;
 }
 
+static void
+nouveau_connector_set_edid(struct nouveau_connector *nv_connector,
+			   const struct drm_edid *drm_edid)
+{
+	if (nv_connector->drm_edid == drm_edid)
+		return;
+
+	/* Updates the EDID property and display_info with HF-EEODB-aware
+	 * sizing. The legacy helpers truncate both to what EDID byte 126
+	 * admits, hiding the DisplayID extension blocks that carry the
+	 * high-refresh timings.
+	 */
+	drm_edid_connector_update(&nv_connector->base, drm_edid);
+
+	drm_edid_free(nv_connector->drm_edid);
+	nv_connector->drm_edid = drm_edid;
+
+	/* The SPWG link-count byte lives in a vendor descriptor drm has no
+	 * accessor for. Peek at it once here so nothing else needs the raw
+	 * EDID.
+	 */
+	nv_connector->spwg_links = 0;
+	if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
+		const u8 *raw = (const u8 *)drm_edid_raw(drm_edid);
+
+		if (raw)
+			nv_connector->spwg_links = raw[121] == 2 ? 2 : 1;
+	}
+}
+
 static struct nouveau_encoder *
 nouveau_connector_of_detect(struct drm_connector *connector)
 {
@@ -490,8 +521,17 @@ nouveau_connector_of_detect(struct drm_connector *connector)
 		int idx = name ? name[strlen(name) - 1] - 'A' : 0;
 
 		if (nv_encoder->dcb->i2c_index == idx && edid) {
-			nv_connector->edid =
-				kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+			const struct drm_edid *drm_edid =
+				drm_edid_alloc(edid, EDID_LENGTH);
+
+			/* Firmware-provided, so validate it like the DDC
+			 * readers would.
+			 */
+			if (drm_edid && !drm_edid_valid(drm_edid)) {
+				drm_edid_free(drm_edid);
+				drm_edid = NULL;
+			}
+			nouveau_connector_set_edid(nv_connector, drm_edid);
 			return nv_encoder;
 		}
 	}
@@ -546,17 +586,23 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	}
 }
 
-static void
-nouveau_connector_set_edid(struct nouveau_connector *nv_connector,
-			   struct edid *edid)
-{
-	if (nv_connector->edid != edid) {
-		struct edid *old_edid = nv_connector->edid;
+struct nouveau_rm_edid {
+	u8 *data;
+	size_t size;
+};
 
-		drm_connector_update_edid_property(&nv_connector->base, edid);
-		kfree(old_edid);
-		nv_connector->edid = edid;
-	}
+static int
+nouveau_connector_rm_edid_block(void *context, u8 *buf, unsigned int block,
+				size_t len)
+{
+	struct nouveau_rm_edid *rm = context;
+	size_t offset = (size_t)block * EDID_LENGTH;
+
+	if (offset + len > rm->size)
+		return -EINVAL;
+
+	memcpy(buf, rm->data + offset, len);
+	return 0;
 }
 
 static enum drm_connector_status
@@ -590,25 +636,37 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);
 	if (nv_encoder) {
-		struct edid *new_edid = NULL;
+		const struct drm_edid *new_edid = NULL;
 
 		if (nv_encoder->i2c) {
 			if ((vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
 			    nv_connector->type == DCB_CONNECTOR_LVDS)
-				new_edid = drm_get_edid_switcheroo(connector, nv_encoder->i2c);
+				new_edid = drm_edid_read_switcheroo(connector, nv_encoder->i2c);
 			else
-				new_edid = drm_get_edid(connector, nv_encoder->i2c);
+				new_edid = drm_edid_read_ddc(connector, nv_encoder->i2c);
 		} else {
-			ret = nvif_outp_edid_get(&nv_encoder->outp, (u8 **)&new_edid);
-			if (ret < 0) {
-				pm_runtime_mark_last_busy(dev->dev);
-				pm_runtime_put_autosuspend(dev->dev);
-				return connector_status_disconnected;
+			struct nouveau_rm_edid rm = {};
+
+			/* RM (which owns the DDC pads on GSP boards) reads the
+			 * EDID whole and returns its true size, which for an
+			 * HF-EEODB EDID exceeds what byte 126 admits. Serve it
+			 * through drm's block reader so EEODB sizing, block
+			 * validation, and the debugfs EDID override all apply.
+			 * A failed read is treated like an empty DDC read,
+			 * which releases the runtime-PM reference.
+			 */
+			ret = nvif_outp_edid_get(&nv_encoder->outp, &rm.data);
+			if (ret >= 0) {
+				rm.size = ret;
+				new_edid = drm_edid_read_custom(connector,
+								nouveau_connector_rm_edid_block,
+								&rm);
+				kfree(rm.data);
 			}
 		}
 
 		nouveau_connector_set_edid(nv_connector, new_edid);
-		if (!nv_connector->edid) {
+		if (!nv_connector->drm_edid) {
 			NV_ERROR(drm, "DDC responded, but no EDID for %s\n",
 				 connector->name);
 			goto detect_analog;
@@ -629,7 +687,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 				    nv_partner->dcb->type == DCB_OUTPUT_TMDS) ||
 				   (nv_encoder->dcb->type == DCB_OUTPUT_TMDS &&
 				    nv_partner->dcb->type == DCB_OUTPUT_ANALOG))) {
-			if (nv_connector->edid->input & DRM_EDID_INPUT_DIGITAL)
+			if (drm_edid_is_digital(nv_connector->drm_edid))
 				type = DCB_OUTPUT_TMDS;
 			else
 				type = DCB_OUTPUT_ANALOG;
@@ -641,7 +699,8 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		conn_status = connector_status_connected;
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
-			drm_dp_cec_set_edid(&nv_connector->aux, nv_connector->edid);
+			drm_dp_cec_attach(&nv_connector->aux,
+					  connector->display_info.source_physical_address);
 
 		goto out;
 	} else {
@@ -673,7 +732,7 @@ detect_analog:
 	}
 
  out:
-	if (!nv_connector->edid)
+	if (!nv_connector->drm_edid)
 		drm_dp_cec_unset_edid(&nv_connector->aux);
 
 	pm_runtime_mark_last_busy(dev->dev);
@@ -689,7 +748,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
-	struct edid *edid = NULL;
+	const struct drm_edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
 	nv_encoder = find_encoder(connector, DCB_OUTPUT_LVDS);
@@ -700,7 +759,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 	if (!drm->vbios.fp_no_ddc) {
 		status = nouveau_connector_detect(connector, force);
 		if (status == connector_status_connected) {
-			edid = nv_connector->edid;
+			edid = nv_connector->drm_edid;
 			goto out;
 		}
 	}
@@ -736,11 +795,20 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 	 * stored for the panel stored in them.
 	 */
 	if (!drm->vbios.fp_no_ddc) {
-		edid = (struct edid *)nouveau_bios_embedded_edid(dev);
-		if (edid) {
-			edid = kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+		const void *embedded = nouveau_bios_embedded_edid(dev);
+
+		if (embedded) {
+			edid = drm_edid_alloc(embedded, EDID_LENGTH);
+			/* The panel is there either way, so report it
+			 * connected and let the probe helper fall back to a
+			 * default mode if the EDID itself is unusable.
+			 */
 			if (edid)
 				status = connector_status_connected;
+			if (edid && !drm_edid_valid(edid)) {
+				drm_edid_free(edid);
+				edid = NULL;
+			}
 		}
 	}
 
@@ -889,7 +957,7 @@ nouveau_connector_detect_depth(struct drm_connector *connector)
 	bool duallink;
 
 	/* if the edid is feeling nice enough to provide this info, use it */
-	if (nv_connector->edid && connector->display_info.bpc)
+	if (nv_connector->drm_edid && connector->display_info.bpc)
 		return;
 
 	/* EDID 1.4 is *supposed* to be supported on eDP, but, Apple... */
@@ -916,9 +984,8 @@ nouveau_connector_detect_depth(struct drm_connector *connector)
 	/* LVDS: DDC panel, need to first determine the number of links to
 	 * know which if_is_24bit flag to check...
 	 */
-	if (nv_connector->edid &&
-	    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG)
-		duallink = ((u8 *)nv_connector->edid)[121] == 2;
+	if (nv_connector->spwg_links)
+		duallink = nv_connector->spwg_links == 2;
 	else
 		duallink = mode->clock >= bios->fp.duallink_transition_clk;
 
@@ -976,12 +1043,17 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		nv_connector->native_mode = NULL;
 	}
 
-	if (nv_connector->edid)
-		ret = drm_add_edid_modes(connector, nv_connector->edid);
-	else
-	if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS &&
-	    (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
-	     drm->vbios.fp_no_ddc) && nouveau_bios_fp_mode(dev, NULL)) {
+	if (nv_connector->drm_edid) {
+		/* The probe helper clears the property and display_info for
+		 * a forced-off connector without calling detect(). Re-sync
+		 * from our copy then, since add_modes() reads the property.
+		 */
+		if (!connector->edid_blob_ptr)
+			drm_edid_connector_update(connector, nv_connector->drm_edid);
+		ret = drm_edid_connector_add_modes(connector);
+	} else if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS &&
+		   (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
+		    drm->vbios.fp_no_ddc) && nouveau_bios_fp_mode(dev, NULL)) {
 		struct drm_display_mode mode;
 
 		nouveau_bios_fp_mode(dev, &mode);

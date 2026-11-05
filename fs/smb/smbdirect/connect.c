@@ -581,7 +581,7 @@ static void smbdirect_connect_negotiate_recv_done(struct ib_cq *cq, struct ib_wc
 	struct smbdirect_socket *sc = recv_io->socket;
 	unsigned long flags;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS || WARN_ON_ONCE(wc->opcode != IB_WC_RECV))) {
+	if (unlikely(wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV)) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			smbdirect_log_rdma_recv(sc, SMBDIRECT_LOG_ERR,
 				"wc->status=%s (%d) wc->opcode=%d\n",

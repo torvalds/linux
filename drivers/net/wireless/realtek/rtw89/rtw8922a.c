@@ -1152,7 +1152,7 @@ static int rtw8922a_ctrl_sco_cck(struct rtw89_dev *rtwdev,
 {
 	u8 ch_element;
 
-	if (primary_ch >= 14)
+	if (primary_ch > 14 || unlikely(primary_ch == 0))
 		return -EINVAL;
 
 	ch_element = primary_ch - 1;
@@ -2796,7 +2796,7 @@ static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 	default:
 	case BTC_ESOC_NONE:
 		memset(&btc->cx.bt_ext, 0, sizeof(struct rtw89_btc_extsoc_info));
-		btc->cx.bt_ext.max_tx_pwr = RTW89_BTC_BT_DEF_LE_TX_PWR_1;
+		btc->cx.bt_ext.max_tx_pwr = RTW89_BTC_BT_DEF_LE_TX_PWR;
 		btc->cx.bt_ext.ant_iso_to_wl = RTW89_BTC_DEFAULT_ANISO;
 		break;
 	case BTC_ESOC_8771:

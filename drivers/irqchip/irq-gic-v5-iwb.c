@@ -282,8 +282,8 @@ MODULE_DEVICE_TABLE(of, gicv5_iwb_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id iwb_acpi_match[] = {
-	{ "ARMH0003", 0 },
-	{}
+	{ .id = "ARMH0003" },
+	{ }
 };
 #endif
 

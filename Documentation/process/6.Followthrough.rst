@@ -114,7 +114,7 @@ What happens next
 If a patch is considered to be a good thing to add to the kernel, and once
 most of the review issues have been resolved, the next step is usually
 entry into a subsystem maintainer's tree.  How that works varies from one
-subsystem to the next; each maintainer has his or her own way of doing
+subsystem to the next; each maintainer has their own way of doing
 things.  In particular, there may be more than one tree - one, perhaps,
 dedicated to patches planned for the next merge window, and another for
 longer-term work.

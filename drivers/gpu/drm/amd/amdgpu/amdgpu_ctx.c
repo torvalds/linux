@@ -28,6 +28,7 @@
 #include "amdgpu_sched.h"
 #include "amdgpu_ras.h"
 #include <linux/nospec.h>
+#include <linux/pm_runtime.h>
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -532,7 +533,7 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	out->state.flags = 0x0;
 	out->state.hangs = 0x0;
 
-	/* determine if a GPU reset has occured since the last call */
+	/* determine if a GPU reset has occurred since the last call */
 	reset_counter = atomic_read(&adev->gpu_reset_counter);
 	/* TODO: this should ideally return NO, GUILTY, or INNOCENT. */
 	if (ctx->reset_counter_query == reset_counter)
@@ -643,10 +644,15 @@ static int amdgpu_ctx_stable_pstate(struct amdgpu_device *adev,
 	 * context id.
 	 */
 
-	if (set)
+	if (set) {
+		r = pm_runtime_resume_and_get(adev->dev);
+		if (r < 0)
+			return r;
 		r = amdgpu_ctx_set_stable_pstate(ctx, *stable_pstate);
-	else
+		pm_runtime_put_autosuspend(adev->dev);
+	} else {
 		*stable_pstate = amdgpu_get_stable_pstate(adev);
+	}
 
 	amdgpu_ctx_put(ctx);
 	return r;

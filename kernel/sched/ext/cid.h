@@ -13,11 +13,12 @@
  * kernel type sized for the maximum NR_CPUS (4k), with verbose helper sequences
  * for every op.
  *
- * cids give every cpu a dense, topology-ordered id. CPUs sharing a core, LLC or
- * NUMA node get contiguous cid ranges, so a topology unit becomes a (start,
- * length) slice of cid space. Communication can pass a slice instead of a
- * cpumask, and BPF code can process, for example, a u64 word's worth of cids at
- * a time.
+ * cids give every cpu a dense, topology-ordered id. CPUs in each core,
+ * cluster, LLC or NUMA node get contiguous cid ranges, so a topology unit
+ * becomes a (start, length) slice of cid space. A core without a wider cluster
+ * level forms a cluster of its own. Communication can pass a slice
+ * instead of a cpumask, and BPF code can process, for example, a u64 word's
+ * worth of cids at a time.
  *
  * The mapping is built once at root scheduler enable time by walking the
  * topology of online cpus only. Going by online cpus is out of necessity:

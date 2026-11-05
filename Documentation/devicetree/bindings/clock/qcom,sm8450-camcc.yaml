@@ -16,8 +16,10 @@ description: |
   domains on SM8450.
 
   See also:
+    include/dt-bindings/clock/qcom,hawi-camcc.h
     include/dt-bindings/clock/qcom,kaanapali-camcc.h
     include/dt-bindings/clock/qcom,kaanapali-cambistmclkcc.h
+    include/dt-bindings/clock/qcom,nord-camcc.h
     include/dt-bindings/clock/qcom,sm8450-camcc.h
     include/dt-bindings/clock/qcom,sm8550-camcc.h
     include/dt-bindings/clock/qcom,sm8650-camcc.h
@@ -26,15 +28,24 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,kaanapali-cambistmclkcc
-      - qcom,kaanapali-camcc
-      - qcom,sm8450-camcc
-      - qcom,sm8475-camcc
-      - qcom,sm8550-camcc
-      - qcom,sm8650-camcc
-      - qcom,sm8750-cambistmclkcc
-      - qcom,sm8750-camcc
+    oneOf:
+      - enum:
+          - qcom,hawi-camcc
+          - qcom,kaanapali-cambistmclkcc
+          - qcom,kaanapali-camcc
+          - qcom,maili-camcc
+          - qcom,nord-camcc
+          - qcom,sm8450-camcc
+          - qcom,sm8475-camcc
+          - qcom,sm8550-camcc
+          - qcom,sm8650-camcc
+          - qcom,sm8750-cambistmclkcc
+          - qcom,sm8750-camcc
+      - items:
+          - enum:
+              - qcom,hawi-cambistmclkcc
+              - qcom,maili-cambistmclkcc
+          - const: qcom,kaanapali-cambistmclkcc
 
   clocks:
     items:
@@ -42,6 +53,10 @@ properties:
       - description: Board XO source
       - description: Board active XO source
       - description: Sleep clock source
+
+  interconnects:
+    items:
+      - description: Interconnect path to enable the MultiMedia NoC
 
   power-domains:
     description:
@@ -78,12 +93,24 @@ allOf:
     then:
       required:
         - required-opps
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,hawi-camcc
+              - qcom,maili-camcc
+    then:
+      required:
+        - interconnects
 
 unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-sm8450.h>
+    #include <dt-bindings/interconnect/qcom,icc.h>
+    #include <dt-bindings/interconnect/qcom,sm8450.h>
     #include <dt-bindings/clock/qcom,rpmh.h>
     #include <dt-bindings/power/qcom,rpmhpd.h>
     clock-controller@ade0000 {
@@ -97,6 +124,8 @@ examples:
                       <&rpmhpd RPMHPD_MXC>;
       required-opps = <&rpmhpd_opp_low_svs>,
                       <&rpmhpd_opp_low_svs>;
+      interconnects = <&mmss_noc MASTER_CAMNOC_HF QCOM_ICC_TAG_ALWAYS
+                      &mmss_noc SLAVE_MNOC_HF_MEM_NOC QCOM_ICC_TAG_ALWAYS>;
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;

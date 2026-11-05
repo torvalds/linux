@@ -27,6 +27,7 @@
 #include "dcn42/dcn42_hubbub.h"
 #include "dcn401/dcn401_mpc.h"
 #include "dcn42/dcn42_mpc.h"
+#include "dcn42/dcn42_rmcm.h"
 #include "dcn35/dcn35_hubp.h"
 #include "dcn42/dcn42_hubp.h"
 #include "irq/dcn42/irq_service_dcn42.h"
@@ -87,7 +88,7 @@
 #include "dc_state_priv.h"
 #include "link_enc_cfg.h"
 
-#include "dml2_0/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_wrapper.h"
 
 #define regBIF_BX0_BIOS_SCRATCH_3                            0x003b
 #define regBIF_BX0_BIOS_SCRATCH_3_BASE_IDX                   1
@@ -436,15 +437,25 @@ static struct dcn42_mpc_registers mpc_regs;
 		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1), \
 		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2), \
 		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3), \
-		MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0), \
-		MPC_RMCM_REG_LIST_DCN42(0),		   \
-		MPC_RMCM_REG_LIST_DCN42(1)
+		MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)
 
 static const struct dcn42_mpc_shift mpc_shift = {
 	MPC_COMMON_MASK_SH_LIST_DCN42(__SHIFT)};
 
 static const struct dcn42_mpc_mask mpc_mask = {
 	MPC_COMMON_MASK_SH_LIST_DCN42(_MASK)};
+
+static struct dcn42_rmcm_registers rmcm_regs;
+
+#define dcn_rmcm_regs_init()               \
+	MPC_RMCM_REG_LIST_DCN42(0),            \
+		MPC_RMCM_REG_LIST_DCN42(1)
+
+static const struct dcn42_rmcm_shift rmcm_shift = {
+	MPC_RMCM_COMMON_MASK_SH_LIST_DCN42(__SHIFT)};
+
+static const struct dcn42_rmcm_mask rmcm_mask = {
+	MPC_RMCM_COMMON_MASK_SH_LIST_DCN42(_MASK)};
 
 #define optc_regs_init(id) \
 	OPTC_COMMON_REG_LIST_DCN42_RI(id)
@@ -1069,6 +1080,29 @@ static struct mpc *dcn42_mpc_create(
 	return &mpc401->base;
 }
 
+static struct rmcm *dcn42_rmcm_create(
+	struct dc_context *ctx,
+	int inst)
+{
+	struct dcn42_rmcm *rmcm42 = kzalloc(sizeof(struct dcn42_rmcm), GFP_KERNEL);
+
+	if (!rmcm42)
+		return NULL;
+
+#undef REG_STRUCT
+#define REG_STRUCT rmcm_regs
+	dcn_rmcm_regs_init();
+
+	dcn42_rmcm_construct(rmcm42,
+		ctx,
+		&rmcm_regs,
+		&rmcm_shift,
+		&rmcm_mask,
+		inst);
+
+	return &rmcm42->base;
+}
+
 static struct output_pixel_processor *dcn42_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -1547,6 +1581,12 @@ static void dcn42_resource_destruct(struct dcn42_resource_pool *pool)
 	if (pool->base.mpc != NULL) {
 		kfree(TO_DCN20_MPC(pool->base.mpc));
 		pool->base.mpc = NULL;
+	}
+	for (i = 0; i < MAX_RMCM_INST; i++) {
+		if (pool->base.rmcm[i] != NULL) {
+			kfree(TO_DCN42_RMCM(pool->base.rmcm[i]));
+			pool->base.rmcm[i] = NULL;
+		}
 	}
 	if (pool->base.hubbub != NULL) {
 		kfree(TO_DCN20_HUBBUB(pool->base.hubbub));
@@ -2330,6 +2370,16 @@ static bool dcn42_resource_construct(
 		goto create_fail;
 	}
 
+	/* RMCMs */
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_rmcm && i < (unsigned int)MAX_RMCM_INST; i++) {
+		pool->base.rmcm[i] = dcn42_rmcm_create(ctx, i);
+		if (pool->base.rmcm[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create rmcm%d!\n", i);
+			goto create_fail;
+		}
+	}
+
 	/* DSCs */
 	for (i = 0; i < (unsigned int)pool->base.res_cap->num_dsc; i++) {
 		pool->base.dscs[i] = dcn42_dsc_create(ctx, i);
@@ -2403,9 +2453,7 @@ static bool dcn42_resource_construct(
 	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
 	 /*this will use real soc clock table*/
 	dc->dml2_options.use_native_soc_bb_construction = true;
-	dc->dml2_options.minimize_dispclk_using_odm = false;
-	if (dc->config.EnableMinDispClkODM)
-		dc->dml2_options.minimize_dispclk_using_odm = true;
+	dc->dml2_options.minimize_dispclk_using_odm = dc->config.EnableMinDispClkODM;
 	dc->dml2_options.enable_windowed_mpo_odm = dc->config.enable_windowed_mpo_odm;
 	dc->dml2_options.map_dc_pipes_with_callbacks = true;
 	dc->dml2_options.force_tdlut_enable = true;

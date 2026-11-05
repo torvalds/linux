@@ -3171,6 +3171,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
+	dev->netdev_ops = &mv643xx_eth_netdev_ops;
+
 	err = 0;
 	if (pd->phy_node) {
 		phydev = of_phy_connect(mp->dev, pd->phy_node,
@@ -3220,8 +3222,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		goto out;
 	}
 	dev->irq = irq;
-
-	dev->netdev_ops = &mv643xx_eth_netdev_ops;
 
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;

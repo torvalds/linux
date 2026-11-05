@@ -274,6 +274,7 @@ bool optc31_immediate_disable_crtc(struct timing_generator *optc);
 void optc31_set_drr(struct timing_generator *optc, const struct drr_params *params);
 
 void optc3_init_odm(struct timing_generator *optc);
+bool optc3_is_odm_enabled(struct timing_generator *optc);
 
 void optc31_read_otg_state(struct timing_generator *optc,
 		struct dcn_otg_state *s);

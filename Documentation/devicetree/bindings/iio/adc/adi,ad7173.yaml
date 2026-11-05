@@ -443,7 +443,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-       adc@0 {
+      adc@0 {
         compatible = "adi,ad4111";
         reg = <0>;
 

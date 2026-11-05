@@ -240,7 +240,7 @@ static int isp4vid_set_fmt_2_isp(struct v4l2_subdev *sdev,
 	fmt.pad = ISP4VID_PAD_VIDEO_OUTPUT;
 	fmt.format.width = pix_fmt->width;
 	fmt.format.height = pix_fmt->height;
-	return v4l2_subdev_call(sdev, pad, set_fmt, NULL, &fmt);
+	return v4l2_subdev_call(sdev, pad, set_fmt, NULL, NULL, &fmt);
 }
 
 static int isp4vid_s_fmt_vid_cap(struct file *file, void *priv,

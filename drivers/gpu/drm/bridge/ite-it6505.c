@@ -3607,10 +3607,8 @@ static int it6505_i2c_probe(struct i2c_client *client)
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT |
 					IRQF_NO_AUTOEN,
 					"it6505-intp", it6505);
-	if (err) {
-		dev_err(dev, "Failed to request INTP threaded IRQ: %d", err);
+	if (err)
 		return err;
-	}
 
 	INIT_WORK(&it6505->link_works, it6505_link_training_work);
 	INIT_WORK(&it6505->hdcp_wait_ksv_list, it6505_hdcp_wait_ksv_list);

@@ -86,6 +86,8 @@ properties:
           - apple,avalanche
           - apple,blizzard
           - apple,cyclone
+          - apple,donan-e
+          - apple,donan-p
           - apple,everest
           - apple,firestorm
           - apple,hurricane-zephyr
@@ -93,6 +95,8 @@ properties:
           - apple,mistral
           - apple,monsoon
           - apple,sawtooth
+          - apple,tahiti-e
+          - apple,tahiti-p
           - apple,twister
           - apple,typhoon
           - arm,arm710t
@@ -212,6 +216,7 @@ properties:
           - qcom,kryo465
           - qcom,kryo468
           - qcom,kryo470
+          - qcom,kryo475
           - qcom,kryo485
           - qcom,kryo560
           - qcom,kryo570
@@ -227,6 +232,9 @@ properties:
           - qcom,oryon-2-1
           - qcom,oryon-2-2
           - qcom,oryon-2-3
+          - qcom,oryon-3-0
+          - qcom,oryon-3-1
+          - qcom,oryon-3-2
           - qcom,scorpion
           - samsung,mongoose-m2
           - samsung,mongoose-m3

@@ -78,8 +78,8 @@ struct clk_hw *imx_clk_hw_busy_divider(const char *name, const char *parent_name
 				 void __iomem *busy_reg, u8 busy_shift)
 {
 	struct clk_busy_divider *busy;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	busy = kzalloc_obj(*busy);
@@ -157,9 +157,9 @@ struct clk_hw *imx_clk_hw_busy_mux(const char *name, void __iomem *reg, u8 shift
 			     u8 width, void __iomem *busy_reg, u8 busy_shift,
 			     const char * const *parent_names, int num_parents)
 {
+	struct clk_init_data init = {};
 	struct clk_busy_mux *busy;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	busy = kzalloc_obj(*busy);

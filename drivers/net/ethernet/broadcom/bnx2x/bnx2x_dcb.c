@@ -1986,7 +1986,7 @@ static void bnx2x_dcbnl_set_pg_tccfg_tx(struct net_device *netdev, int prio,
 		return;
 
 	/**
-	 * bw_pct ignored -	band-width percentage devision between user
+	 * bw_pct ignored -	band-width percentage division between user
 	 *			priorities within the same group is not
 	 *			standard and hence not supported
 	 *
@@ -2038,7 +2038,7 @@ static void bnx2x_dcbnl_get_pg_tccfg_tx(struct net_device *netdev, int prio,
 	DP(BNX2X_MSG_DCB, "prio = %d\n", prio);
 
 	/**
-	 * bw_pct ignored -	band-width percentage devision between user
+	 * bw_pct ignored -	band-width percentage division between user
 	 *			priorities within the same group is not
 	 *			standard and hence not supported
 	 *

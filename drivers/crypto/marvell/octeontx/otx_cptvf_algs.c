@@ -16,6 +16,7 @@
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
 #include <crypto/xts.h>
+#include <crypto/utils.h>
 #include <crypto/scatterwalk.h>
 #include <linux/sort.h>
 #include <linux/module.h>
@@ -105,9 +106,9 @@ static inline int validate_hmac_cipher_null(struct otx_cpt_req_info *cpt_req)
 	req = container_of(cpt_req->areq, struct aead_request, base);
 	tfm = crypto_aead_reqtfm(req);
 	rctx = aead_request_ctx_dma(req);
-	if (memcmp(rctx->fctx.hmac.s.hmac_calc,
-		   rctx->fctx.hmac.s.hmac_recv,
-		   crypto_aead_authsize(tfm)) != 0)
+	if (crypto_memneq(rctx->fctx.hmac.s.hmac_calc,
+			  rctx->fctx.hmac.s.hmac_recv,
+			  crypto_aead_authsize(tfm)))
 		return -EBADMSG;
 
 	return 0;
@@ -792,8 +793,7 @@ static int aead_hmac_init(struct crypto_aead *cipher,
 	ipad = ctx->ipad;
 	opad = ctx->opad;
 
-	memcpy(ipad, ctx->key, authkeylen);
-	memset(ipad + authkeylen, 0, bs - authkeylen);
+	memcpy_and_pad(ipad, bs, ctx->key, authkeylen, 0);
 	memcpy(opad, ipad, bs);
 
 	for (icount = 0; icount < bs; icount++) {

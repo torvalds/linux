@@ -200,9 +200,6 @@ static void set_next_compound(struct cifs_tcon *tcon,
 	(*num_rqst)++;
 }
 
-#define COMP_PID(cfile) ((cfile) ? (cfile)->fid.persistent_fid : COMPOUND_FID)
-#define COMP_VID(cfile) ((cfile) ? (cfile)->fid.volatile_fid : COMPOUND_FID)
-
 /*
  * note: If cfile is passed, the reference to it is dropped here.
  * So make sure that you do not reuse cfile after return from this func.
@@ -320,7 +317,7 @@ replay_again:
 		/* Operation */
 		switch (cmds[i]) {
 		case SMB2_OP_QUERY_INFO:
-			rqst[num_rqst].rq_iov = &vars->qi_iov;
+			rqst[num_rqst].rq_iov = vars->qi_iov;
 			rqst[num_rqst].rq_nvec = 1;
 
 			rc = SMB2_query_info_init(tcon, server,
@@ -337,7 +334,7 @@ replay_again:
 							     ses->Suid, full_path);
 			break;
 		case SMB2_OP_POSIX_QUERY_INFO:
-			rqst[num_rqst].rq_iov = &vars->qi_iov;
+			rqst[num_rqst].rq_iov = vars->qi_iov;
 			rqst[num_rqst].rq_nvec = 1;
 
 			/* TBD: fix following to allow for longer SIDs */

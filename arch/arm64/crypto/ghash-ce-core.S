@@ -148,7 +148,7 @@ SYM_FUNC_START(pmull_ghash_update_p64)
 	sub		w0, w0, #1
 
 3:	/* multiply XL by SHASH in GF(2^128) */
-CPU_LE(	rev64		T1.16b, T1.16b	)
+	rev64		T1.16b, T1.16b
 
 	ext		T2.16b, XL.16b, XL.16b, #8
 	ext		IN1.16b, T1.16b, T1.16b, #8
@@ -272,7 +272,7 @@ SYM_FUNC_END(pmull_ghash_update_p64)
 	cbz		x0, 3f				// tag only?
 
 	ldr		w8, [x5, #12]			// load lower counter
-CPU_LE(	rev		w8, w8		)
+	rev		w8, w8
 
 0:	mov		w9, #4				// max blocks per round
 	add		x10, x0, #0xf
@@ -380,7 +380,7 @@ CPU_LE(	rev		w8, w8		)
 	ret
 
 5:
-CPU_LE(	rev		w8, w8		)
+	rev		w8, w8
 	str		w8, [x5, #12]			// store lower counter
 	st1		{XL.2d}, [x4]
 	b		4b

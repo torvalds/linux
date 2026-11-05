@@ -209,9 +209,7 @@ static void pl111_versatile_enable(struct drm_device *drm, u32 format)
 	drm_info(drm, "enable Versatile CLCD connectors\n");
 
 	switch (format) {
-	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB8888:
 		val |= SYS_CLCD_MODE_888;
 		break;
@@ -221,9 +219,7 @@ static void pl111_versatile_enable(struct drm_device *drm, u32 format)
 	case DRM_FORMAT_RGB565:
 		val |= SYS_CLCD_MODE_565_B_LSB;
 		break;
-	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_XBGR1555:
-	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_XRGB1555:
 		val |= SYS_CLCD_MODE_5551;
 		break;
@@ -266,44 +262,30 @@ static void pl111_realview_clcd_enable(struct drm_device *drm, u32 format)
 
 /* PL110 pixel formats for Integrator, vanilla PL110 */
 static const u32 pl110_integrator_pixel_formats[] = {
-	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ABGR1555,
 	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
 };
 
 /* Extended PL110 pixel formats for Integrator and Versatile */
 static const u32 pl110_versatile_pixel_formats[] = {
-	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_BGR565, /* Uses external PLD */
 	DRM_FORMAT_RGB565, /* Uses external PLD */
-	DRM_FORMAT_ABGR1555,
 	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
 };
 
 static const u32 pl111_realview_pixel_formats[] = {
-	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_BGR565,
 	DRM_FORMAT_RGB565,
-	DRM_FORMAT_ABGR1555,
 	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_ABGR4444,
 	DRM_FORMAT_XBGR4444,
-	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_XRGB4444,
 };
 

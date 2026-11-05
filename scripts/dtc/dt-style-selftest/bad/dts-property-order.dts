@@ -6,6 +6,11 @@
 /dts-v1/;
 
 / {
+	compatible = "example,test-board", "example,test-soc";
+	model = "DT style selftest";
+	qcom,board-id = <8 0>;
+	chassis-type = "handset";
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -38,6 +43,19 @@
 				     <4 5 6>,
 				     <7 8 9>;
 			compatible = "example,intc";
+			qcom,calibration-variant = "foo";
+			clocks = <6>;
+			qcom,opp-fuse-level = <1>;
 		};
 	};
+};
+
+/  {
+	compatible = "example,test-board", "example,test-soc";
+	model = "DT style selftest";
+};
+
+/{
+	compatible = "example,test-board", "example,test-soc";
+	model = "DT style selftest";
 };

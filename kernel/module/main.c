@@ -60,6 +60,7 @@
 #include <linux/codetag.h>
 #include <linux/debugfs.h>
 #include <linux/execmem.h>
+#include <linux/error-injection.h>
 #include <uapi/linux/module.h>
 #include "internal.h"
 
@@ -191,11 +192,22 @@ static inline int strong_try_module_get(struct module *mod)
 		return -ENOENT;
 }
 
-static inline void add_taint_module(struct module *mod, unsigned flag,
-				    enum lockdep_ok lockdep_ok)
+/**
+ * add_taint_module: add a taint flag if not already set for a specific module
+ * @mod: pointer to the module that caused the problem
+ * @flag: one of the TAINT_* constants.
+ * @lockdep_ok: whether lock debugging is still OK.
+ *
+ * If something bad has gone wrong, you'll want
+ * @lockdep_ok = LOCKDEP_NOW_UNRELIABLE, but for some
+ * noteworthy-but-not-corrupting cases, it can be set to LOCKDEP_STILL_OK.
+ */
+void add_taint_module(struct module *mod, unsigned flag,
+		      enum lockdep_ok lockdep_ok)
 {
 	add_taint(flag, lockdep_ok);
-	set_bit(flag, &mod->taints);
+	if (mod)
+		set_bit(flag, &mod->taints);
 }
 
 /*
@@ -2723,6 +2735,10 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	mod->btf_base_data = any_section_objs(info, ".BTF.base", 1,
 					      &mod->btf_base_data_size);
 #endif
+#if IS_ENABLED(CONFIG_DEBUG_INFO_BTF_INLINE)
+	mod->btf_inline_data = any_section_objs(info, ".BTF.inline", 1,
+						&mod->btf_inline_data_size);
+#endif
 #ifdef CONFIG_JUMP_LABEL
 	mod->jump_entries = section_objs(info, "__jump_table",
 					sizeof(*mod->jump_entries),
@@ -3176,6 +3192,9 @@ static noinline int do_init_module(struct module *mod)
 	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointers */
 	mod->btf_data = NULL;
 	mod->btf_base_data = NULL;
+#endif
+#if IS_ENABLED(CONFIG_DEBUG_INFO_BTF_INLINE)
+	mod->btf_inline_data = NULL;
 #endif
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be

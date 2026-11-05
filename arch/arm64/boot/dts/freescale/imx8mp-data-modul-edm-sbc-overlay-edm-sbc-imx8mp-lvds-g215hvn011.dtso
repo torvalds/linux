@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023-2026 Marek Vasut
+ */
+
+#include "imx8mp-data-modul-edm-sbc-overlay-edm-sbc-imx8mp-lvds.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-g215hvn011.dtsi"
+
+&backlight {
+	power-supply = <&reg_panel_bl_supply>;
+};
+
+&media_blk_ctrl {
+	/*
+	 * The G215HVN01 panel requires 148.8 MHz LVDS clock.
+	 * Set IMX8MP_VIDEO_PLL1 to 1041.6 MHz , since 1041.6 MHz / 7 = 148.8 MHz .
+	 */
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <500000000>, <1041600000>;
+};
+
+&ldb_lvds_ch0 {
+	remote-endpoint = <&panel_lvds_b>;
+};
+
+&ldb_lvds_ch1 {
+	remote-endpoint = <&panel_lvds_a>;
+};
+
+&panel_lvds_a {
+	remote-endpoint = <&ldb_lvds_ch1>;
+};
+
+&panel_lvds_b {
+	remote-endpoint = <&ldb_lvds_ch0>;
+};

@@ -135,8 +135,9 @@ The above-described ordering follows this approach:
 3. Status is the last information to annotate that device node is or is not
    finished (board resources are needed).
 
-The individual properties inside each group shall use natural sort order by
-the property name.
+The individual properties inside each group shall use usually natural sort
+order by the property name, with exceptions of logical grouping of properties,
+e.g. supplies.
 
 Example::
 

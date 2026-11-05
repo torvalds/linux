@@ -24,6 +24,8 @@
 #include "ras.h"
 #include "ras_umc.h"
 #include "ras_umc_v12_0.h"
+#include "ras_umc_v13_0.h"
+#include "ras_umc_v15_0.h"
 
 #define MAX_ECC_NUM_PER_RETIREMENT  16
 
@@ -69,10 +71,19 @@ static uint64_t ras_umc_get_eeprom_timestamp(struct ras_core_context *ras_core)
 static const struct ras_umc_ip_func *ras_umc_get_ip_func(
 				struct ras_core_context *ras_core, uint32_t ip_version)
 {
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+
 	switch (ip_version) {
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 5, 0):
+		ras_umc->max_pages_per_row = 16;
 		return &ras_umc_func_v12_0;
+	case IP_VERSION(15, 0, 0):
+		ras_umc->max_pages_per_row = 128;
+		return &ras_umc_func_v15_0;
+	case IP_VERSION(13, 1, 0):
+		ras_umc->max_pages_per_row = 128;
+		return &ras_umc_func_v13_0;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"UMC ip version(0x%x) is not supported!\n", ip_version);
@@ -82,7 +93,7 @@ static const struct ras_umc_ip_func *ras_umc_get_ip_func(
 	return NULL;
 }
 
-int ras_umc_psp_ma2pa(struct ras_core_context *ras_core,
+int ras_umc_ras_ta_translate_addr(struct ras_core_context *ras_core,
 		struct umc_mca_addr *in, struct umc_phy_addr *out,
 		uint32_t nps)
 {
@@ -121,6 +132,28 @@ int ras_umc_psp_ma2pa(struct ras_core_context *ras_core,
 	return 0;
 }
 
+int ras_umc_psp_translate_addr(struct ras_core_context *ras_core,
+		struct umc_mca_addr *in, struct umc_phy_addr *out,
+		uint32_t nps)
+{
+	struct ras_psp_addr_trans_in psp_in = {0};
+	struct ras_psp_addr_trans_out psp_out = {0};
+	int ret;
+
+	psp_in.mca_addr = in->mca_addr;
+	psp_in.ipid = in->ipid;
+	psp_in.nps = nps;
+
+	ret = ras_psp_translate_addr(ras_core, &psp_in, &psp_out);
+	if (ret)
+		return ret;
+
+	out->pa = psp_out.row_pa;
+	out->pa_flip_mask = psp_out.pa_flip_mask;
+
+	return 0;
+}
+
 static int ras_umc_log_ecc(struct ras_core_context *ras_core,
 		unsigned long idx, void *data)
 {
@@ -129,8 +162,6 @@ static int ras_umc_log_ecc(struct ras_core_context *ras_core,
 
 	mutex_lock(&ras_umc->tree_lock);
 	ret = radix_tree_insert(&ras_umc->root, idx, data);
-	if (!ret)
-		radix_tree_tag_set(&ras_umc->root, idx, UMC_ECC_NEW_DETECTED_TAG);
 	mutex_unlock(&ras_umc->tree_lock);
 
 	return ret;
@@ -154,42 +185,119 @@ int ras_umc_clear_logged_ecc(struct ras_core_context *ras_core)
 	return 0;
 }
 
-int ras_umc_convert_record_to_nps_pages(struct ras_core_context *ras_core,
-		struct eeprom_umc_record *record, uint32_t nps,
-		uint64_t *page_pfn, uint32_t max_pages)
+int ras_umc_alloc_row_pages(struct ras_core_context *ras_core,
+		uint64_t **page_pfns, uint32_t *nr_page_pfns)
 {
-	int count = 0;
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	uint64_t *address;
+	uint64_t page_num;
 
-	if (!page_pfn || !max_pages)
+	if (!page_pfns || !nr_page_pfns)
 		return -EINVAL;
 
-	if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_pages)
-		count = ras_umc->ip_func->eeprom_record_to_nps_pages(ras_core,
-					record, nps, page_pfn, max_pages);
+	if (!ras_umc->max_pages_per_row) {
+		RAS_DEV_ERR(ras_core->dev, "max_pages_per_row was not initialized!\n");
+		return -EPERM;
+	}
+
+	page_num = ras_umc->max_pages_per_row;
+
+	address = kcalloc(page_num, sizeof(*address), GFP_KERNEL);
+	if (!address)
+		return -ENOMEM;
+
+	*page_pfns = address;
+	*nr_page_pfns = page_num;
+
+	return 0;
+}
+
+int ras_umc_free_row_pages(struct ras_core_context *ras_core,
+		uint64_t *page_pfns)
+{
+	if (!page_pfns)
+		return -EINVAL;
+
+	kfree(page_pfns);
+
+	return 0;
+}
+
+static int ras_umc_expand_row_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *page_pfns, uint32_t nr_page_pfns)
+{
+	uint64_t retired_addr = RAS_PFN_TO_ADDR(record->cur_nps_retired_row_pfn);
+	uint64_t flip_mask = record->cur_nps_pa_flip_mask;
+	uint64_t subset;
+	uint64_t row_pa, addr;
+	uint32_t count = 0;
+
+	if (!retired_addr || !flip_mask || !page_pfns || !nr_page_pfns)
+		return -ENOEXEC;
+
+	row_pa = retired_addr & ~(flip_mask);
+
+	if ((count < nr_page_pfns) &&
+	    !ras_core_check_address_sanity(ras_core, row_pa))
+		page_pfns[count++] = RAS_ADDR_TO_PFN(row_pa);
+
+	subset = flip_mask;
+	while (subset) {
+		addr = row_pa ^ subset;
+
+		if (count >= nr_page_pfns)
+			break;
+
+		if (!ras_core_check_address_sanity(ras_core, addr))
+			page_pfns[count++] = RAS_ADDR_TO_PFN(addr);
+
+		subset = (subset - 1) & flip_mask;
+	};
 
 	return count;
 }
 
-static void ras_umc_reserve_eeprom_record(struct ras_core_context *ras_core,
-				struct eeprom_umc_record *record)
+int ras_umc_convert_record_to_row_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *page_pfns, uint32_t nr_page_pfns)
 {
-	uint64_t page_pfn[16];
-	int count = 0, i;
+	uint32_t new_nps;
+	int ret, count = 0;
 
-	memset(page_pfn, 0, sizeof(page_pfn));
-	count = ras_umc_convert_record_to_nps_pages(ras_core,
-					record, record->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
-	if (count <= 0) {
-		RAS_DEV_ERR(ras_core->dev,
-			"Fail to convert error address! count:%d\n", count);
-		return;
+	if (!page_pfns || !nr_page_pfns || !record ||
+	    (record->cur_nps > UMC_MEMORY_PARTITION_MODE_NPS8))
+		return -EINVAL;
+
+	if (!record->cur_nps || !record->cur_nps_retired_row_pfn ||
+	    !record->cur_nps_pa_flip_mask) {
+		new_nps = record->cur_nps ?
+			record->cur_nps : ras_core_get_curr_nps_mode(ras_core);
+		ret = ras_umc_record_to_nps_record(ras_core, record, new_nps);
+		if (ret)
+			return ret;
 	}
 
+	count = ras_umc_expand_row_pages(ras_core, record, page_pfns, nr_page_pfns);
+	if (count >= 0)
+		record->cur_nps_valid_page_num = count;
+
+	return count;
+}
+
+static void ras_umc_reserve_row_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *pages, uint32_t nr_pages)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	int i;
+
+	if (!pages || !nr_pages ||
+		(nr_pages > ras_umc->max_pages_per_row))
+		return;
+
 	/* Reserve memory */
-	for (i = 0; i < count; i++)
-		ras_core_event_notify(ras_core,
-			RAS_EVENT_ID__RESERVE_BAD_PAGE, &page_pfn[i]);
+	for (i = 0; i < nr_pages; i++)
+		ras_core_event_notify(ras_core, ras_core_in_early_init(ras_core) ?
+			RAS_EVENT_ID__EARLY_INIT_RESERVE_PAGE : RAS_EVENT_ID__RESERVE_BAD_PAGE,
+			&pages[i]);
 }
 
 /* When gpu reset is ongoing, ecc logging operations will be pended.
@@ -268,39 +376,24 @@ int ras_umc_log_pending_bad_bank(struct ras_core_context *ras_core)
 int ras_umc_log_bad_bank(struct ras_core_context *ras_core, struct ras_bank_ecc *bank)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
-	struct eeprom_umc_record umc_rec;
-	struct eeprom_umc_record *err_rec;
+	struct eeprom_umc_record umc_rec = {0};
+	uint32_t c = 0;
 	int ret;
 
-	memset(&umc_rec, 0, sizeof(umc_rec));
-
 	mutex_lock(&ras_umc->bank_log_lock);
-	ret = ras_umc->ip_func->bank_to_eeprom_record(ras_core, bank, &umc_rec);
+	ret = ras_umc_bank_to_umc_record(ras_core, bank, &umc_rec);
 	if (ret)
 		goto out;
 
-	err_rec = kzalloc_obj(*err_rec);
-	if (!err_rec) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(err_rec, &umc_rec, sizeof(umc_rec));
-	ret = ras_umc_log_ecc(ras_core, err_rec->cur_nps_retired_row_pfn, err_rec);
+	ret = ras_umc_add_bad_pages(ras_core, &umc_rec, 1, &c);
 	if (ret) {
-		if (ret == -EEXIST) {
-			RAS_DEV_INFO(ras_core->dev, "The bad pages have been logged before.\n");
-			ret = 0;
-		}
-
-		kfree(err_rec);
+		RAS_DEV_ERR(ras_core->dev, "Failed to log bad bank! ret:%x\n", ret);
 		goto out;
 	}
 
-	ras_umc_reserve_eeprom_record(ras_core, err_rec);
-
-	ret = ras_core_event_notify(ras_core,
-			RAS_EVENT_ID__BAD_PAGE_DETECTED, NULL);
+	if (c)
+		ret = ras_core_event_notify(ras_core,
+				RAS_EVENT_ID__BAD_PAGE_DETECTED, NULL);
 
 out:
 	mutex_unlock(&ras_umc->bank_log_lock);
@@ -315,7 +408,7 @@ int ras_umc_ma2pa(struct ras_core_context *ras_core,
 	int ret;
 
 	if (ras_psp_check_supported_cmd(ras_core, RAS_TA_CMD_ID__QUERY_ADDRESS)) {
-		ret = ras_umc_psp_ma2pa(ras_core, addr_in, addr_out, nps);
+		ret = ras_umc_ras_ta_translate_addr(ras_core, addr_in, addr_out, nps);
 	} else {
 		if (ras_umc->ip_func && ras_umc->ip_func->ma2pa) {
 			ret = ras_umc->ip_func->ma2pa(ras_core, addr_in, addr_out, nps);
@@ -411,8 +504,9 @@ static int ras_umc_eeprom_rec2nps_addr_legacy(struct ras_core_context *ras_core,
 	 * only ever existed on NPS1 systems)
 	 */
 	if (ras_core->ras_umc.ip_func && ras_core->ras_umc.ip_func->get_die_id) {
-		die_id = ras_core->ras_umc.ip_func->get_die_id(record->address,
-			RAS_PFN_TO_ADDR(EEPROM_RECORD_UMC_ADDR_PFN(record)));
+		die_id = ras_core->ras_umc.ip_func->get_die_id(ras_core,
+				record->address,
+				RAS_PFN_TO_ADDR(EEPROM_RECORD_UMC_ADDR_PFN(record)));
 	} else {
 		RAS_DEV_ERR(ras_core->dev, "get_die_id is not supported!\n");
 		return -EOPNOTSUPP;
@@ -434,7 +528,8 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 	record->cur_nps = nps;
 
 	if (save_nps || ch_idx_v2) {
-		if ((nps == save_nps) && !ras_fw_eeprom_supported(ras_core)) {
+		if ((nps == save_nps) &&
+		    !ras_eeprom_mgr_fw_record_enabled(ras_core)) {
 			record->cur_nps_retired_row_pfn =
 				EEPROM_RECORD_UMC_ADDR_PFN(record);
 		} else {
@@ -466,57 +561,55 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 	return ret;
 }
 
-static int ras_umc_get_new_records(struct ras_core_context *ras_core,
-			struct eeprom_umc_record *records, u32 num)
+static bool ras_umc_check_logged_record(struct ras_core_context *ras_core,
+			struct eeprom_umc_record *record)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
-	struct eeprom_umc_record *entries[MAX_ECC_NUM_PER_RETIREMENT];
-	u32 entry_num = num < MAX_ECC_NUM_PER_RETIREMENT ? num : MAX_ECC_NUM_PER_RETIREMENT;
-	int count = 0;
-	int new_detected, i;
+	void *res = NULL;
 
 	mutex_lock(&ras_umc->tree_lock);
-	new_detected = radix_tree_gang_lookup_tag(&ras_umc->root, (void **)entries,
-			0, entry_num, UMC_ECC_NEW_DETECTED_TAG);
-	for (i = 0; i < new_detected; i++) {
-		if (!entries[i])
-			continue;
-
-		memcpy(&records[i], entries[i], sizeof(struct eeprom_umc_record));
-		count++;
-		radix_tree_tag_clear(&ras_umc->root,
-				entries[i]->cur_nps_retired_row_pfn, UMC_ECC_NEW_DETECTED_TAG);
-	}
+	res = radix_tree_lookup(&ras_umc->root, record->cur_nps_retired_row_pfn);
 	mutex_unlock(&ras_umc->tree_lock);
 
-	return count;
+	return res ? true : false;
 }
 
 static bool ras_umc_check_retired_record(struct ras_core_context *ras_core,
-				struct eeprom_umc_record *record, bool from_eeprom)
+				struct eeprom_umc_record *record)
 {
-	struct ras_umc *ras_umc = &ras_core->ras_umc;
-	struct eeprom_store_record *data = &ras_umc->umc_err_data.rom_data;
 	uint32_t nps = 0;
-	int i, ret;
+	int ret;
 
-	if (from_eeprom) {
-		nps = ras_umc->umc_err_data.umc_nps_mode;
-		ret = ras_umc_eeprom_rec2nps_rec(ras_core, record, nps);
-		if (ret)
-			RAS_DEV_WARN_RATELIMITED(ras_core->dev,
-				"Failed to adjust eeprom record, ret:%d", ret);
-
-		return false;
+	nps = ras_core_get_curr_nps_mode(ras_core);
+	ret = ras_umc_record_to_nps_record(ras_core, record, nps);
+	if (ret) {
+		RAS_DEV_ERR(ras_core->dev, "Failed to translate nps record! ret:%d\n", ret);
+		return true;
 	}
 
-	for (i = 0; i < data->count; i++) {
-		if ((data->bps[i].retired_row_pfn == record->retired_row_pfn) &&
-		    (data->bps[i].cur_nps_retired_row_pfn == record->cur_nps_retired_row_pfn))
-			return true;
-	}
+	if (ras_umc_check_logged_record(ras_core, record))
+		return true;
 
 	return false;
+}
+
+static int ras_umc_log_record(struct ras_core_context *ras_core,
+				struct eeprom_umc_record *record)
+{
+	struct eeprom_umc_record *rec;
+	int ret;
+
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	if (!rec)
+		return -ENOMEM;
+
+	memcpy(rec, record, sizeof(*rec));
+
+	ret = ras_umc_log_ecc(ras_core, rec->cur_nps_retired_row_pfn, rec);
+	if (ret)
+		kfree(rec);
+
+	return ret;
 }
 
 /* alloc/realloc bps array */
@@ -555,97 +648,127 @@ static int ras_umc_update_eeprom_rom_data(struct ras_core_context *ras_core,
 	memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
 	data->count++;
 	data->space_left--;
+
+	/* update bad channel bitmap */
+	if (bps->mem_channel < BITS_PER_TYPE(data->umc_channel_bitmap))
+		data->umc_channel_bitmap |= 0x1ULL << bps->mem_channel;
+
 	return 0;
 }
 
 static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
-				struct eeprom_umc_record *bps)
+		struct eeprom_umc_record *bps, uint64_t *page_pfns, uint32_t nr_page_pfns)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
-	uint64_t page_pfn[16];
-	int count = 0, i, j;
+	int j;
+
+	if (!bps || !page_pfns ||
+		(nr_page_pfns > ras_umc->max_pages_per_row))
+		return -EINVAL;
+
+	if (!nr_page_pfns)
+		return 0;
 
 	if (!data->space_left &&
-		ras_umc_realloc_err_data_space(ras_core, data, 256)) {
-		return	-ENOMEM;
+		ras_umc_realloc_err_data_space(ras_core, data, 256))
+		return -ENOMEM;
+
+	for (j = 0; j < nr_page_pfns; j++) {
+		bps->cur_nps_retired_row_pfn = page_pfns[j];
+		memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
+		data->count++;
+		data->space_left--;
 	}
 
-	memset(page_pfn, 0, sizeof(page_pfn));
-	count = ras_umc_convert_record_to_nps_pages(ras_core,
-					bps, bps->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
-	if (count > 0) {
-		for (j = 0; j < count; j++) {
-			if (ras_core_check_address_sanity(ras_core,
-				page_pfn[j] << AMDGPU_GPU_PAGE_SHIFT)) {
-
-				for (i = 0; i < data->count; i++)
-					if (page_pfn[j] == data->bps[i].cur_nps_retired_row_pfn)
-						break;
-				data->bps[data->count].cur_nps_retired_row_pfn = U64_MAX;
-				data->count++;
-				data->space_left--;
-				continue;
-			}
-
-			bps->cur_nps_retired_row_pfn = page_pfn[j];
-			memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
-			data->count++;
-			data->space_left--;
-			data->bad_page_num++;
-		}
-	} else {
-		RAS_DEV_ERR(ras_core->dev, "Failed to convert record to nps pages!");
-		return -EINVAL;
-	}
+	/* update bad channel bitmap */
+	if (bps->mem_channel < BITS_PER_TYPE(data->umc_channel_bitmap))
+		data->umc_channel_bitmap |= 0x1ULL << bps->mem_channel;
 
 	return 0;
 }
 
-static void ras_umc_update_bad_pages(struct ras_core_context *ras_core)
+void ras_umc_report_badpage_info(struct ras_core_context *ras_core)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
 
-	data->bad_page_num_old = data->bad_page_num;
+	if (ras_umc->last_record_count != data->count) {
+		ras_umc->last_record_count = data->count;
+		ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
+			&ras_umc->last_record_count);
+	}
+
+	if (ras_umc->last_channel_bitmap != data->umc_channel_bitmap) {
+		ras_umc->last_channel_bitmap = data->umc_channel_bitmap;
+		ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_CHANNEL_BITMAP,
+			&ras_umc->last_channel_bitmap);
+	}
+
+	if (ras_core->is_rma)
+		ras_core_event_notify(ras_core, RAS_EVENT_ID__DEVICE_RMA, NULL);
 }
 
-/* it deal with vram only. */
-static int ras_umc_add_bad_pages(struct ras_core_context *ras_core,
-				 struct eeprom_umc_record *bps,
-				 int pages, bool from_eeprom)
+int ras_umc_add_bad_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *bps, uint32_t bps_sz, uint32_t *valid_sz)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
-	struct ras_umc_err_data *data = &ras_umc->umc_err_data;
-	int i, ret = 0;
+	uint64_t *page_pfns = NULL;
+	uint32_t nr_page_pfns = 0;
+	int nr_valid_pfns = 0;
+	uint32_t i, c = 0;
+	int ret = 0;
 
-	if (!bps || pages <= 0)
-		return 0;
+	if (!bps || !bps_sz || !valid_sz)
+		return -EINVAL;
+
+	ret = ras_umc_alloc_row_pages(ras_core, &page_pfns, &nr_page_pfns);
+	if (ret)
+		return ret;
 
 	mutex_lock(&ras_umc->umc_lock);
-	for (i = 0; i < pages; i++) {
-		if (ras_umc_check_retired_record(ras_core, &bps[i], from_eeprom))
+	for (i = 0; i < bps_sz; i++) {
+		if (ras_umc_check_retired_record(ras_core, &bps[i]))
 			continue;
+
+		nr_valid_pfns = ras_umc_convert_record_to_row_pages(ras_core,
+					&bps[i], page_pfns, nr_page_pfns);
+		if (nr_valid_pfns < 0) {
+			RAS_DEV_ERR(ras_core->dev,
+				"Failed to lookup record bad pages! %d\n", nr_valid_pfns);
+			ret = nr_valid_pfns;
+			goto out;
+		}
 
 		ret = ras_umc_update_eeprom_rom_data(ras_core, &bps[i]);
 		if (ret)
 			goto out;
 
-		if (data->last_retired_pfn == bps[i].cur_nps_retired_row_pfn)
-			continue;
-
-		data->last_retired_pfn = bps[i].cur_nps_retired_row_pfn;
-
-		if (from_eeprom)
-			ras_umc_reserve_eeprom_record(ras_core, &bps[i]);
-
-		ret = ras_umc_update_eeprom_ram_data(ras_core, &bps[i]);
+		ret = ras_umc_log_record(ras_core, &bps[i]);
 		if (ret)
 			goto out;
+
+		ras_umc_reserve_row_pages(ras_core,
+			&bps[i], page_pfns, nr_valid_pfns);
+
+		ret = ras_umc_update_eeprom_ram_data(ras_core,
+				&bps[i], page_pfns, nr_valid_pfns);
+		if (ret)
+			goto out;
+		c++;
 	}
+
+	*valid_sz = c;
+
+	if (c) {
+		ras_eeprom_mgr_check_and_report_status(ras_core, true);
+		if (!ras_core_in_early_init(ras_core))
+			ras_umc_report_badpage_info(ras_core);
+	}
+
 out:
 	mutex_unlock(&ras_umc->umc_lock);
-
+	ras_umc_free_row_pages(ras_core, page_pfns);
 	return ret;
 }
 
@@ -656,40 +779,37 @@ out:
 int ras_umc_load_bad_pages(struct ras_core_context *ras_core)
 {
 	struct eeprom_umc_record *bps;
-	uint32_t ras_num_recs;
-	int ret;
+	uint32_t c = 0;
+	int ras_num_recs, ret;
 
-	if (ras_fw_eeprom_supported(ras_core)) {
-		ras_num_recs = ras_fw_eeprom_get_record_count(ras_core);
-		/* no bad page record, skip eeprom access */
-		if (!ras_num_recs ||
-		    ras_core->ras_fw_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
-			return 0;
-	} else {
-		ras_num_recs = ras_eeprom_get_record_count(ras_core);
-		if (!ras_num_recs ||
-		    ras_core->ras_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
-			return 0;
-	}
+	ras_num_recs = ras_eeprom_mgr_get_record_count(ras_core);
+	if (ras_num_recs <= 0)
+		return ras_num_recs;
 
 	bps = kzalloc_objs(*bps, ras_num_recs);
 	if (!bps)
 		return -ENOMEM;
 
-	if (ras_fw_eeprom_supported(ras_core))
-		ret = ras_fw_eeprom_read_idx(ras_core, bps, 0, 0, ras_num_recs);
+	ret = ras_eeprom_mgr_get_records(ras_core, 0, bps, ras_num_recs);
+	if (ret)
+		RAS_DEV_ERR(ras_core->dev,
+			"Failed to load EEPROM table records! ret:%d\n", ret);
 	else
-		ret = ras_eeprom_read(ras_core, bps, ras_num_recs);
-	if (ret) {
-		RAS_DEV_ERR(ras_core->dev, "Failed to load EEPROM table records!");
-	} else {
-		ras_core->ras_umc.umc_err_data.last_retired_pfn = UMC_INV_MEM_PFN;
-		ret = ras_umc_add_bad_pages(ras_core, bps, ras_num_recs, true);
-		ras_umc_update_bad_pages(ras_core);
-	}
+		ret = ras_umc_add_bad_pages(ras_core, bps, ras_num_recs, &c);
 
 	kfree(bps);
 	return ret;
+}
+
+static int ras_umc_count_valid_pages(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *records, const u32 nr_records)
+{
+	int count = 0, i;
+
+	for (i = 0; i < nr_records; i++)
+		count += records[i].cur_nps_valid_page_num;
+
+	return count;
 }
 
 /*
@@ -701,36 +821,37 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.rom_data;
-	struct eeprom_store_record *ram_data = &ras_umc->umc_err_data.ram_data;
-	uint32_t eeprom_record_num, logical_count = 0;
+	int eeprom_record_num;
 	int save_count;
-	int ret = 0;
+	int ret = -ENODATA;
 
-	if (!data->bps)
+	/* Not need to save bad pages when FW management EEPROM is enabled. */
+	if (ras_eeprom_mgr_fw_record_enabled(ras_core))
 		return 0;
 
-	if (ras_fw_eeprom_supported(ras_core))
-		eeprom_record_num = ras_fw_eeprom_get_record_count(ras_core);
-	else
-		eeprom_record_num = ras_eeprom_get_record_count(ras_core);
+	if (!data->bps)
+		return -EINVAL;
+
+	eeprom_record_num = ras_eeprom_mgr_get_record_count(ras_core);
+	if (eeprom_record_num < 0)
+		return eeprom_record_num;
+
 	mutex_lock(&ras_umc->umc_lock);
 	save_count = data->count - eeprom_record_num;
-	logical_count = ram_data->bad_page_num - ram_data->bad_page_num_old;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (ras_fw_eeprom_supported(ras_core))
-			ret = ras_fw_eeprom_append(ras_core, &data->bps[eeprom_record_num],
-					save_count);
-		else
-			ret = ras_eeprom_append(ras_core, &data->bps[eeprom_record_num],
-					save_count);
+		ret = ras_eeprom_mgr_append_records(ras_core,
+				&data->bps[eeprom_record_num], save_count);
 		if (ret) {
-			RAS_DEV_ERR(ras_core->dev, "Failed to save EEPROM table data!");
+			RAS_DEV_ERR(ras_core->dev,
+				"Failed to save EEPROM table data! ret:%d\n", ret);
 			ret = -EIO;
 			goto exit;
 		}
-		ras_umc_update_bad_pages(ras_core);
-		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n", logical_count);
+
+		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n",
+			ras_umc_count_valid_pages(ras_core,
+				&data->bps[eeprom_record_num], save_count));
 	}
 
 exit:
@@ -740,39 +861,7 @@ exit:
 
 int ras_umc_handle_bad_pages(struct ras_core_context *ras_core, void *data)
 {
-	struct eeprom_umc_record *records;
-	int count, ret;
-
-	records = kzalloc_objs(*records, MAX_ECC_NUM_PER_RETIREMENT);
-	if (!records)
-		return -ENOMEM;
-
-	count = ras_umc_get_new_records(ras_core, records,
-					MAX_ECC_NUM_PER_RETIREMENT);
-	if (count <= 0) {
-		ret = -ENODATA;
-		goto out;
-	}
-
-	ret = ras_umc_add_bad_pages(ras_core, records, count, false);
-	if (ret) {
-		RAS_DEV_ERR(ras_core->dev, "Failed to add ras bad page!\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = ras_umc_save_bad_pages(ras_core);
-	if (ret) {
-		RAS_DEV_ERR(ras_core->dev, "Failed to save ras bad page\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = 0;
-
-out:
-	kfree(records);
-	return ret;
+	return ras_umc_save_bad_pages(ras_core);
 }
 
 int ras_umc_sw_init(struct ras_core_context *ras_core)
@@ -789,6 +878,13 @@ int ras_umc_sw_init(struct ras_core_context *ras_core)
 	mutex_init(&ras_umc->pending_ecc_lock);
 	mutex_init(&ras_umc->umc_lock);
 	mutex_init(&ras_umc->bank_log_lock);
+
+	ras_umc->umc_ip_version = ras_core->config->umc_ip_version;
+	ras_umc->ip_func = ras_umc_get_ip_func(ras_core, ras_umc->umc_ip_version);
+	if (!ras_umc->ip_func) {
+		RAS_DEV_ERR(ras_core->dev, "Failed to get umc ip function!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -837,29 +933,17 @@ int ras_umc_sw_fini(struct ras_core_context *ras_core)
 int ras_umc_hw_init(struct ras_core_context *ras_core)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
-	uint32_t nps;
+	int count = ras_umc_get_badpage_count(ras_core);
 
-	nps = ras_core_get_curr_nps_mode(ras_core);
-
-	if (!nps || (nps >= UMC_MEMORY_PARTITION_MODE_UNKNOWN)) {
-		RAS_DEV_ERR(ras_core->dev, "Invalid memory NPS mode: %u!\n", nps);
-		return -ENODATA;
-	}
-
-	ras_umc->umc_err_data.umc_nps_mode = nps;
-
-	ras_umc->umc_vram_type = ras_core->config->umc_cfg.umc_vram_type;
 	ras_umc->num_umc = ras_core->config->umc_cfg.num_umc;
-	if (!ras_umc->umc_vram_type) {
-		RAS_DEV_ERR(ras_core->dev, "Invalid UMC VRAM Type: %u!\n",
-			ras_umc->umc_vram_type);
-		return -ENODATA;
-	}
+	ras_umc->pa_base = ras_core->config->umc_cfg.pa_base;
+	ras_umc->lfb_size = ras_core->config->umc_cfg.lfb_size;
 
-	ras_umc->umc_ip_version = ras_core->config->umc_ip_version;
-	ras_umc->ip_func = ras_umc_get_ip_func(ras_core, ras_umc->umc_ip_version);
-	if (!ras_umc->ip_func)
-		return -EINVAL;
+	/* For preloaded bad pages case, bad page info is
+	 * deferred to report in hw init.
+	 */
+	if (count > 0)
+		ras_umc_report_badpage_info(ras_core);
 
 	return 0;
 }
@@ -901,6 +985,7 @@ int ras_umc_fill_eeprom_record(struct ras_core_context *ras_core,
 	err_rec->mem_channel = cur_nps_addr->channel_idx;
 	err_rec->mcumc_id = umc_inst;
 	err_rec->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(cur_nps_addr->pa);
+	err_rec->cur_nps_pa_flip_mask = cur_nps_addr->pa_flip_mask;
 	err_rec->cur_nps_bank = cur_nps_addr->bank;
 	err_rec->cur_nps = cur_nps;
 	return 0;
@@ -973,4 +1058,86 @@ uint32_t ras_umc_bit_wise_xor(uint32_t val)
 		result = result ^ ((val >> i) & 0x1);
 
 	return result;
+}
+
+int ras_umc_bank_to_umc_record(struct ras_core_context *ras_core,
+		struct ras_bank_ecc *bank, struct eeprom_umc_record *record)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	int ret;
+
+	if (!bank || !record || !ras_umc->ip_func ||
+	    !ras_umc->ip_func->bank_to_eeprom_record)
+		return -EINVAL;
+
+	ret = ras_umc->ip_func->bank_to_eeprom_record(ras_core, bank, record);
+	if (ret)
+		return ret;
+
+	record->ipid = bank->ipid;
+
+	return 0;
+}
+
+int ras_umc_record_to_nps_record(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record,  uint32_t nps)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	uint64_t ch_idx_v2;
+	uint32_t save_nps;
+
+	if (!record || !nps ||
+		(nps >= UMC_MEMORY_PARTITION_MODE_UNKNOWN))
+		return -EINVAL;
+
+	/* Avoid redundant conversion for the same NPS mode */
+	if ((record->cur_nps == nps) && record->cur_nps_retired_row_pfn &&
+	    record->cur_nps_pa_flip_mask)
+		return 0;
+
+	save_nps = EEPROM_RECORD_UMC_NPS_MODE(record);
+	ch_idx_v2 = record->retired_row_pfn & UMC_CHANNEL_IDX_V2;
+	if (!save_nps && !ch_idx_v2)
+		return ras_umc_eeprom_rec2nps_rec(ras_core, record, nps);
+
+	if (!ras_umc->ip_func || !ras_umc->ip_func->eeprom_record_to_nps_record)
+		return -EOPNOTSUPP;
+
+	return ras_umc->ip_func->eeprom_record_to_nps_record(ras_core, record, nps);
+}
+
+int ras_umc_dump_fw_records(struct ras_core_context *ras_core)
+{
+	struct eeprom_umc_record rec;
+	int eeprom_count, umc_count, new_count = 0;
+	uint32_t c;
+	int i, ret;
+
+	eeprom_count = ras_eeprom_mgr_get_record_count(ras_core);
+	/* no bad page record, skip eeprom access */
+	if (eeprom_count <= 0)
+		return eeprom_count;
+
+	umc_count = ras_umc_get_saved_eeprom_count(ras_core);
+	if (umc_count == eeprom_count) {
+		return 0;
+	} else if (umc_count > eeprom_count) {
+		RAS_DEV_ERR(ras_core->dev, "Invalid error count: eeprom:%d, umc:%d\n",
+			eeprom_count, umc_count);
+		return 0;
+	}
+
+	for (i = umc_count; i < eeprom_count; i++) {
+		memset(&rec, 0, sizeof(rec));
+		ret = ras_eeprom_mgr_get_records(ras_core, i, &rec, 1);
+		if (ret)
+			return 0;
+
+		c = 0;
+		ret = ras_umc_add_bad_pages(ras_core, &rec, 1, &c);
+		if (!ret)
+			new_count += c;
+	}
+
+	return new_count;
 }

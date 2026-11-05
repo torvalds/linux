@@ -11,6 +11,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/console.h>
+#include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -59,11 +60,10 @@ static void __init earlycon_init(struct earlycon_device *device,
 	const char *s;
 	size_t len;
 
-	/* scan backwards from end of string for first non-numeral */
-	for (s = name + strlen(name);
-	     s > name && s[-1] >= '0' && s[-1] <= '9';
-	     s--)
-		;
+	/* Scan backwards to split the trailing index from the console name. */
+	s = name + strlen(name);
+	while (s > name && isdigit(s[-1]))
+		s--;
 	if (*s)
 		earlycon->index = simple_strtoul(s, NULL, 10);
 	len = s - name;

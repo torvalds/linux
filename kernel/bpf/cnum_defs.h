@@ -33,7 +33,12 @@ struct cnum_t FN(from_srange)(st min, st max)
 	return (struct cnum_t){ .base = base, .size = size };
 }
 
-/* True if this cnum represents two unsigned ranges. */
+/*
+ * True if this cnum represents two unsigned ranges.
+ *
+ * The caller should ensure !is_empty(cnum) holds when calling
+ * this function.
+ */
 static inline bool FN(urange_overflow)(struct cnum_t cnum)
 {
 	/* Same as cnum.base + cnum.size > UT_MAX but avoids overflow */
@@ -44,6 +49,9 @@ static inline bool FN(urange_overflow)(struct cnum_t cnum)
  * cnum{T}_umin / cnum{T}_umax query an unsigned range represented by this cnum.
  * If cnum represents a range crossing the UT_MAX/0 boundary, the unbound range
  * [0..UT_MAX] is returned.
+ *
+ * The caller should ensure !is_empty(cnum) holds when calling
+ * cnum{T}_umin / cnum{T}_umax.
  */
 ut FN(umin)(struct cnum_t cnum)
 {
@@ -57,7 +65,12 @@ ut FN(umax)(struct cnum_t cnum)
 }
 EXPORT_SYMBOL_GPL(FN(umax));
 
-/* True if this cnum represents two signed ranges. */
+/*
+ * True if this cnum represents two signed ranges.
+ *
+ * The caller should ensure !is_empty(cnum) holds when calling
+ * this function.
+ */
 static inline bool FN(srange_overflow)(struct cnum_t cnum)
 {
 	return FN(contains)(cnum, (ut)ST_MAX) && FN(contains)(cnum, (ut)ST_MIN);
@@ -67,19 +80,18 @@ static inline bool FN(srange_overflow)(struct cnum_t cnum)
  * cnum{T}_smin / cnum{T}_smax query a signed range represented by this cnum.
  * If cnum represents a range crossing the ST_MAX/ST_MIN boundary, the unbound range
  * [ST_MIN..ST_MAX] is returned.
+ *
+ * The caller should ensure !is_empty(cnum) holds when calling
+ * cnum{T}_smin / cnum{T}_smax.
  */
 st FN(smin)(struct cnum_t cnum)
 {
-	return FN(srange_overflow)(cnum)
-	       ? ST_MIN
-	       : min((st)cnum.base, (st)(cnum.base + cnum.size));
+	return FN(srange_overflow)(cnum) ? ST_MIN : (st)cnum.base;
 }
 
 st FN(smax)(struct cnum_t cnum)
 {
-	return FN(srange_overflow)(cnum)
-	       ? ST_MAX
-	       : max((st)cnum.base, (st)(cnum.base + cnum.size));
+	return FN(srange_overflow)(cnum) ? ST_MAX : (st)(cnum.base + cnum.size);
 }
 
 /*
@@ -181,9 +193,53 @@ void FN(intersect_with_srange)(struct cnum_t *dst, st min, st max)
 
 static inline struct cnum_t FN(normalize)(struct cnum_t cnum)
 {
-	if (cnum.size == UT_MAX && cnum.base != 0 && cnum.base != (ut)ST_MAX)
+	if (cnum.size == UT_MAX)
 		cnum.base = 0;
 	return cnum;
+}
+
+/*
+ * Return a smallest arc containing both 'a' and 'b'.
+ * Break equal-size ties by choosing the smaller base.
+ */
+struct cnum_t FN(union)(struct cnum_t a, struct cnum_t b)
+{
+	struct cnum_t b1, ab, ba;
+	ut end;
+
+	if (FN(is_empty)(a))
+		return b;
+	if (FN(is_empty)(b))
+		return a;
+
+	/*
+	 * Rotate so that a1.base == 0 and a1.end == a.size.
+	 * Normalize b1 to preserve the full-circle representation.
+	 */
+	b1 = FN(normalize)((struct cnum_t){ b.base - a.base, b.size });
+	end = max(a.size, (ut)(b1.base + b1.size));
+
+	if (FN(urange_overflow)(b1)) {
+		/* a1 reaches b1's main arc: together they cover the circle. */
+		if (b1.base <= a.size)
+			return (struct cnum_t){ 0, UT_MAX };
+
+		/* Extend b1's tail through a1's end, then rotate back. */
+		return FN(normalize)((struct cnum_t){ b.base, end - b1.base });
+	}
+
+	/* ab, rotated back, covers both nonwrapping arcs. */
+	ab = (struct cnum_t){ a.base, end };
+	if (b1.base <= a.size)
+		return FN(normalize)(ab);
+
+	/* The arcs are disjoint; ba is the other possible covering arc. */
+	ba = (struct cnum_t){ b.base, a.size - b1.base };
+	if (ba.size < ab.size ||
+	    (ba.size == ab.size && ba.base < ab.base))
+		ab = ba;
+
+	return FN(normalize)(ab);
 }
 
 struct cnum_t FN(add)(struct cnum_t a, struct cnum_t b)
@@ -210,12 +266,7 @@ bool FN(is_empty)(struct cnum_t cnum)
 
 bool FN(contains)(struct cnum_t cnum, ut v)
 {
-	if (FN(is_empty)(cnum))
-		return false;
-	if (FN(urange_overflow)(cnum))
-		return v >= cnum.base || v <= (ut)cnum.base + cnum.size;
-	else
-		return v >= cnum.base && v <= (ut)cnum.base + cnum.size;
+	return !FN(is_empty)(cnum) && v - cnum.base <= cnum.size;
 }
 
 bool FN(is_const)(struct cnum_t cnum)

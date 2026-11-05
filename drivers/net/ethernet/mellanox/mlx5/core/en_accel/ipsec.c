@@ -364,9 +364,9 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	return;
 
 neigh:
-	n = neigh_lookup(&arp_tbl, pkey, netdev);
+	n = ipv4_neigh_lookup(netdev, pkey);
 	if (!n) {
-		n = neigh_create(&arp_tbl, pkey, netdev);
+		n = ipv4_neigh_create(netdev, pkey);
 		if (IS_ERR(n))
 			return;
 		neigh_event_send(n, NULL);
@@ -957,6 +957,9 @@ static int mlx5e_ipsec_netevent_event(struct notifier_block *nb,
 	ipsec = container_of(nb, struct mlx5e_ipsec, netevent_nb);
 	xa_for_each_marked(&ipsec->sadb, idx, sa_entry, MLX5E_IPSEC_TUNNEL_SA) {
 		attrs = &sa_entry->attrs;
+
+		if (attrs->addrs.family != n->tbl->family)
+			continue;
 
 		if (attrs->addrs.family == AF_INET) {
 			if (!neigh_key_eq32(n, &attrs->addrs.saddr.a4) &&

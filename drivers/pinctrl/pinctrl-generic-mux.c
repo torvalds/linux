@@ -10,13 +10,11 @@
 #include <linux/mutex.h>
 #include <linux/mux/consumer.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
 
 #include "core.h"
-#include "pinconf.h"
 #include "pinmux.h"
 #include "pinctrl-utils.h"
 
@@ -38,34 +36,68 @@ mux_pinmux_dt_node_to_map(struct pinctrl_dev *pctldev,
 			  struct pinctrl_map **maps, unsigned int *num_maps)
 {
 	unsigned int num_reserved_maps = 0;
-	struct mux_pin_function *function;
-	const char **group_names;
 	int ret;
 
-	function = devm_kzalloc(pctldev->dev, sizeof(*function), GFP_KERNEL);
-	if (!function)
-		return -ENOMEM;
+	*maps = NULL;
+	*num_maps = 0;
 
-	group_names = devm_kcalloc(pctldev->dev, 1, sizeof(*group_names), GFP_KERNEL);
-	if (!group_names)
-		return -ENOMEM;
+	if (pinctrl_get_group_selector(pctldev, np_config->name) < 0)
+		return -ENODEV;
 
-	function->mux_state = devm_mux_state_get_from_np(pctldev->dev, NULL, np_config);
-	if (IS_ERR(function->mux_state))
-		return PTR_ERR(function->mux_state);
-
-	ret = pinctrl_generic_to_map(pctldev, np_config, np_config, maps,
-				     num_maps, &num_reserved_maps, group_names,
-				     0, &np_config->name, NULL, 0);
-
+	ret = pinctrl_utils_reserve_map(pctldev, maps, &num_reserved_maps,
+					num_maps, 1);
 	if (ret)
 		return ret;
 
-	ret = pinmux_generic_add_function(pctldev, np_config->name, group_names,
-					  1, function);
+	ret = pinctrl_utils_add_map_mux(pctldev, maps, &num_reserved_maps,
+					num_maps, np_config->name,
+					np_config->name);
 	if (ret < 0) {
 		pinctrl_utils_free_map(pctldev, *maps, *num_maps);
+		*maps = NULL;
+		*num_maps = 0;
 		return ret;
+	}
+
+	return 0;
+}
+
+static int mux_pinctrl_probe_dt(struct pinctrl_dev *pctldev,
+				struct device_node *np)
+{
+	struct device *dev = pctldev->dev;
+
+	for_each_available_child_of_node_scoped(np, grp) {
+		struct mux_pin_function *function;
+		const char **group_names;
+		int ret;
+
+		function = devm_kzalloc(dev, sizeof(*function), GFP_KERNEL);
+		if (!function)
+			return -ENOMEM;
+
+		group_names = devm_kcalloc(dev, 1, sizeof(*group_names), GFP_KERNEL);
+		if (!group_names)
+			return -ENOMEM;
+
+		group_names[0] = grp->name;
+
+		function->mux_state = devm_mux_state_get_from_np(dev, NULL, grp);
+		if (IS_ERR(function->mux_state))
+			return dev_err_probe(dev, PTR_ERR(function->mux_state),
+					     "failed to get mux-state for %pOFn\n",
+					     grp);
+
+		ret = pinctrl_generic_add_group(pctldev, grp->name, NULL, 0, NULL);
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "failed to add group %pOFn\n", grp);
+
+		ret = pinmux_generic_add_function(pctldev, grp->name, group_names,
+						  1, function);
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "failed to add function %pOFn\n", grp);
 	}
 
 	return 0;
@@ -156,6 +188,10 @@ static int mux_pinctrl_probe(struct platform_device *pdev)
 					     &mpctl->pctl);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to register pinctrl.\n");
+
+	ret = mux_pinctrl_probe_dt(mpctl->pctl, dev->of_node);
+	if (ret)
+		return ret;
 
 	ret = pinctrl_enable(mpctl->pctl);
 	if (ret)

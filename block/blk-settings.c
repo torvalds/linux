@@ -230,14 +230,20 @@ static unsigned int blk_queue_max_guaranteed_bio(struct queue_limits *lim)
 
 static void blk_atomic_writes_update_limits(struct queue_limits *lim)
 {
+	unsigned int integrity_max = lim->integrity.metadata_size ?
+					max_integrity_io_size(lim) : 0;
 	unsigned int unit_limit = min(lim->max_hw_sectors << SECTOR_SHIFT,
 					blk_queue_max_guaranteed_bio(lim));
 
+	unit_limit = min_not_zero(unit_limit, integrity_max);
 	unit_limit = rounddown_pow_of_two(unit_limit);
 
 	lim->atomic_write_max_sectors =
 		min(lim->atomic_write_hw_max >> SECTOR_SHIFT,
 			lim->max_hw_sectors);
+	lim->atomic_write_max_sectors =
+		min_not_zero(lim->atomic_write_max_sectors,
+				integrity_max >> SECTOR_SHIFT);
 	lim->atomic_write_unit_min =
 		min(lim->atomic_write_hw_unit_min, unit_limit);
 	lim->atomic_write_unit_max =
@@ -505,11 +511,13 @@ int blk_validate_limits(struct queue_limits *lim)
 	if (!(lim->features & BLK_FEAT_WRITE_CACHE))
 		lim->features &= ~BLK_FEAT_FUA;
 
-	blk_validate_atomic_write_limits(lim);
-
 	err = blk_validate_integrity_limits(lim);
 	if (err)
 		return err;
+
+	/* atomics limits depend on integrity limits */
+	blk_validate_atomic_write_limits(lim);
+
 	return blk_validate_zoned_limits(lim);
 }
 EXPORT_SYMBOL_GPL(blk_validate_limits);

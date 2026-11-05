@@ -6,6 +6,7 @@
 #ifndef __KERN_UTIL_H__
 #define __KERN_UTIL_H__
 
+#include <linux/compiler_types.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/faultinfo.h>
 
@@ -37,7 +38,7 @@ extern void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs
 
 extern void uml_pm_wake(void);
 
-extern int start_uml(void);
+extern void __noreturn start_uml(void);
 
 extern void uml_cleanup(void);
 extern void do_uml_exitcalls(void);

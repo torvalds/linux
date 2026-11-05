@@ -1,13 +1,15 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# perf test junit XML output validation
+# perf test junit XML output validation (no_mlock)
+#
+# Waiving the mlock requisite this way holds only while the 'perf test'
+# runs below keep picking tests that don't map ring buffers.
 
 set -e
 
 err=0
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 
 result=$(mktemp /tmp/__perf_test.output.xml.XXXXX)

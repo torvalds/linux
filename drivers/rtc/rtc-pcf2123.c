@@ -310,7 +310,8 @@ static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
 	unsigned int val = 0;
 	int ret = IRQ_NONE;
 
-	rtc_lock(pcf2123->rtc);
+	guard(rtc_ops)(pcf2123->rtc);
+
 	regmap_read(pcf2123->map, PCF2123_REG_CTRL2, &val);
 
 	/* Alarm? */
@@ -322,8 +323,6 @@ static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
 
 		rtc_update_irq(pcf2123->rtc, 1, RTC_IRQF | RTC_AF);
 	}
-
-	rtc_unlock(pcf2123->rtc);
 
 	return ret;
 }

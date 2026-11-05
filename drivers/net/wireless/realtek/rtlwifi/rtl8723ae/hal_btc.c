@@ -889,7 +889,7 @@ void rtl8723e_dm_bt_set_bt_dm(struct ieee80211_hw *hw,
 
 	/* Note:
 	 * We should add delay for making sure
-	 *	sw DacSwing can be set sucessfully.
+	 *	sw DacSwing can be set successfully.
 	 * because of that rtl8723e_dm_bt_set_fw_2_ant_hid()
 	 *	and rtl8723e_dm_bt_set_fw_tdma_ctrl()
 	 * will overwrite the reg 0x880.

@@ -2772,7 +2772,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	err = -ENODEV;
 	rcu_read_lock();
 	dev = dst_dev_rcu(dst);
-	if (!dev) {
+	if (!dev || !netif_is_alive(dev)) {
 		rcu_read_unlock();
 		goto free_dst;
 	}
@@ -3066,7 +3066,7 @@ static struct xfrm_dst *xfrm_create_dummy_bundle(struct net *net,
 	err = -ENODEV;
 	rcu_read_lock();
 	dev = dst_dev_rcu(dst);
-	if (!dev) {
+	if (!dev || !netif_is_alive(dev)) {
 		rcu_read_unlock();
 		goto free_dst;
 	}

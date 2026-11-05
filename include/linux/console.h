@@ -55,9 +55,12 @@ enum vc_intensity;
  *		Invoked by csi_M and printing to the console.
  * @con_switch: notifier about the console switch; it is supposed to return
  *		true if a redraw is needed.
- * @con_blank:  blank/unblank the console. The target mode is passed in @blank.
- *		@mode_switch is set if changing from/to text/graphics. The hook
- *		is supposed to return true if a redraw is needed.
+ * @con_blank:  blank the console. The preferred VESA blank mode is passed in
+ *		@blank. @mode_switch is set if changing from/to text/graphics.
+ *		The hook is supposed to return true if a redraw is needed.
+ * @con_unblank: unblank the console. The hook is supposed to return true if
+ *		a redraw is needed. @mode_switch is set if changing from/to
+ *		text/graphics.
  * @con_font_set: set console @vc font to @font with height @vpitch. @flags can
  *		be %KD_FONT_FLAG_DONT_RECALC. (optional)
  * @con_font_get: fetch the current font on @vc of height @vpitch into @font.
@@ -99,6 +102,7 @@ struct consw {
 	bool	(*con_switch)(struct vc_data *vc);
 	bool	(*con_blank)(struct vc_data *vc, enum vesa_blank_mode blank,
 			     bool mode_switch);
+	bool	(*con_unblank)(struct vc_data *vc, bool mode_switch);
 	int	(*con_font_set)(struct vc_data *vc,
 				const struct console_font *font,
 				unsigned int vpitch, unsigned int flags);

@@ -244,6 +244,7 @@ static int csi2dc_get_fmt(struct v4l2_subdev *csi2dc_sd,
 }
 
 static int csi2dc_set_fmt(struct v4l2_subdev *csi2dc_sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *req_fmt)
 {
@@ -735,6 +736,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	return 0;
 
 csi2dc_probe_cleanup_notifier:
+	v4l2_async_nf_unregister(&csi2dc->notifier);
 	v4l2_async_nf_cleanup(&csi2dc->notifier);
 csi2dc_probe_cleanup_entity:
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);

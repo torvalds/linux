@@ -93,6 +93,7 @@ static inline int rpmi_to_linux_error(int rpmi_error)
 /* RPMI service group IDs */
 #define RPMI_SRVGRP_SYSTEM_MSI		0x00002
 #define RPMI_SRVGRP_CLOCK		0x00008
+#define RPMI_SRVGRP_DEVICE_POWER	0x00009
 
 /* RPMI clock service IDs */
 enum rpmi_clock_service_id {
@@ -117,6 +118,16 @@ enum rpmi_sysmsi_service_id {
 	RPMI_SYSMSI_SRV_SET_MSI_TARGET = 0x06,
 	RPMI_SYSMSI_SRV_GET_MSI_TARGET = 0x07,
 	RPMI_SYSMSI_SRV_ID_MAX_COUNT
+};
+
+/* RPMI device power service IDs */
+enum rpmi_device_power_service_id {
+	RPMI_DP_SRV_ENABLE_NOTIFICATION = 0x01,
+	RPMI_DP_SRV_GET_NUM_DOMAINS  = 0x02,
+	RPMI_DP_SRV_GET_ATTRS = 0x03,
+	RPMI_DP_SRV_SET_STATE = 0x04,
+	RPMI_DP_SRV_GET_STATE = 0x05,
+	RPMI_DP_SRV_ID_MAX_COUNT,
 };
 
 /* RPMI Linux mailbox attribute IDs */

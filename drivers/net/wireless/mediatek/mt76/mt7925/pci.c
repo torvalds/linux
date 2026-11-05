@@ -9,6 +9,7 @@
 #include "mac.h"
 #include "mcu.h"
 #include "regd.h"
+#include "cached_cal.h"
 #include "../dma.h"
 
 static const struct pci_device_id mt7925_pci_device_table[] = {
@@ -38,6 +39,62 @@ static int mt7925e_init_reset(struct mt792x_dev *dev)
 	return mt792x_wpdma_reset(dev, true);
 }
 
+/* Set up the factory-calibration cache in host memory. PCIe only: the FW
+ * reaches the buffer through AXI DMA, so it has no meaning on other buses.
+ * Every failure just leaves the cache off, which is not fatal.
+ */
+void mt7925e_axidma_cal_cache_init(struct mt792x_dev *dev)
+{
+	if (!(dev->phy.chip_cap & MT792x_CHIP_CAP_AXIDMA_EN))
+		return;
+
+	if (dev->cached_cal.va) {
+		/* Carried-over buffer still holds FW-written cal data. */
+		dev->cached_cal.reused = true;
+	} else {
+		if (mt7925_axidma_alloc(dev)) {
+			dev_warn(dev->mt76.dev,
+				 "AXI DMA cal cache disabled: buffer alloc failed\n");
+			return;
+		}
+		/* Freshly allocated buffer is zeroed: no cal data yet. */
+		dev->cached_cal.reused = false;
+	}
+
+	if (mt7925_mcu_send_axidma_info(dev)) {
+		dev_warn(dev->mt76.dev,
+			 "AXI DMA cal cache disabled: info cmd to FW failed\n");
+		return;
+	}
+
+	/* Enable the bypass-cal flow so the FW reuses cached cal data
+	 * (common / power-on group) instead of running a full calibration;
+	 * must be set before the mapping table is sent.
+	 */
+	if (mt7925_mcu_fact_cal_set_bypass(dev, true)) {
+		dev_warn(dev->mt76.dev,
+			 "AXI DMA cal cache disabled: bypass flag set failed\n");
+		return;
+	}
+
+	if (mt7925_mcu_send_fact_cal_mapping_tbl(dev)) {
+		dev_warn(dev->mt76.dev,
+			 "AXI DMA cal cache disabled: mapping tbl send failed\n");
+		return;
+	}
+
+	if (mt7925_mcu_fact_cal_set_bypass(dev, false)) {
+		dev_warn(dev->mt76.dev,
+			 "AXI DMA cal cache disabled: bypass flag set failed\n");
+		return;
+	}
+
+	dev_info(dev->mt76.dev,
+		 "AXI DMA cal cache enabled (DMA=%pad, size=%u, reused=%d)\n",
+		 &dev->cached_cal.dma_addr, dev->cached_cal.size,
+		 dev->cached_cal.reused);
+}
+
 static void mt7925e_unregister_device(struct mt792x_dev *dev)
 {
 	int i;
@@ -47,19 +104,22 @@ static void mt7925e_unregister_device(struct mt792x_dev *dev)
 	if (dev->phy.chip_cap & MT792x_CHIP_CAP_WF_RF_PIN_CTRL_EVT_EN)
 		wiphy_rfkill_stop_polling(hw->wiphy);
 
-	cancel_work_sync(&dev->reset_work);
 	cancel_work_sync(&dev->init_work);
 	mt76_unregister_device(&dev->mt76);
+	set_bit(MT76_REMOVED, &dev->mphy.state);
+	cancel_work_sync(&dev->reset_work);
 	mt76_for_each_q_rx(&dev->mt76, i)
 		napi_disable(&dev->mt76.napi[i]);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_delayed_work_sync(&dev->mlo_pm_work);
 	cancel_work_sync(&pm->wake_work);
+	cancel_work_sync(&dev->nan_deferred_work);
 
 	mt7925_tx_token_put(dev);
 	__mt792x_mcu_drv_pmctrl(dev);
 	mt792x_dma_cleanup(dev);
 	mt792x_wfsys_reset(dev);
+	mt7925_axidma_free(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	tasklet_disable(&dev->mt76.irq_tasklet);
@@ -493,7 +553,6 @@ static const struct mt792x_irq_map mt7925_irq_map = {
 		.all_complete_mask = MT7925_INT_RX_DONE_ALL,
 		.data_complete_mask = MT7925_INT_RX_DONE_DATA,
 		.wm_complete_mask = MT7925_INT_RX_DONE_WM,
-		.wm2_complete_mask = MT_INT_RX_DONE_WM2,
 	},
 };
 
@@ -587,7 +646,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	is_mt7928_hw = (pdev->device == 0x7928 || pdev->device == 0x7935);
 
 	if (is_mt7928_hw)
-		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(34));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 	else
 		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 
@@ -725,7 +784,6 @@ static void mt7925_pci_remove(struct pci_dev *pdev)
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
-	set_bit(MT76_REMOVED, &mdev->phy.state);
 	mt7925e_unregister_device(dev);
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
 	mt76_free_device(&dev->mt76);

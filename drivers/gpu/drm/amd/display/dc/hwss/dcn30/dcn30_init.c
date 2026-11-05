@@ -41,6 +41,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.wait_for_pending_cleared = dcn10_wait_for_pending_cleared,
 	.post_unlock_program_front_end = dcn20_post_unlock_program_front_end,
 	.update_plane_addr = dcn20_update_plane_addr,
+	.prepare_plane_addr_update = dcn20_prepare_plane_addr_update,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.program_output_csc = dcn20_program_output_csc,
@@ -57,7 +58,8 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn20_disable_plane,
 	.disable_pixel_data = dcn20_disable_pixel_data,
-	.pipe_control_lock = dcn20_pipe_control_lock,
+	.build_pipe_control_lock_sequence = dcn20_build_pipe_control_lock_sequence,
+	.tg_lock = dcn20_tg_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.cursor_lock = dcn10_cursor_lock,
 	.prepare_bandwidth = dcn30_prepare_bandwidth,
@@ -115,6 +117,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 };
 
 static const struct hwseq_private_funcs dcn30_private_funcs = {
+	.build_cursor_pos_update_params = dcn10_build_cursor_pos_update_params,
 	.init_pipes = dcn10_init_pipes,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,

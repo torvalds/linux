@@ -304,7 +304,12 @@ DECLARE_RC_STRUCT(dso) {
 	const char	 *short_name;
 	const char	 *long_name;
 	void		 *a2l;
+#ifdef HAVE_LIBBFD_SUPPORT
+	void		 *a2l_libbfd;
+#endif
+#ifdef HAVE_LIBDW_SUPPORT
 	void		 *libdw;
+#endif
 	char		 *symsrc_filename;
 	struct nsinfo	*nsinfo;
 	struct auxtrace_cache *auxtrace_cache;
@@ -323,8 +328,14 @@ DECLARE_RC_STRUCT(dso) {
 	enum dso_load_errno	load_errno;
 	u16		 long_name_len;
 	u16		 short_name_len;
+	/*
+	 * DSO file data can be spread into multiple places.  Distros usually
+	 * place debug info to a separate file.  Symbol tables may exist in
+	 * the binary or the debug file.  Let's separate them.
+	 */
 	enum dso_binary_type	symtab_type:8;
 	enum dso_binary_type	binary_type:8;
+	enum dso_binary_type	dbginfo_type:8;
 	enum dso_space_type	kernel:2;
 	enum dso_swap_type	needs_swap:2;
 	bool			is_kmod:1;
@@ -338,6 +349,8 @@ DECLARE_RC_STRUCT(dso) {
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
+	u8		 bintype_searched:1;
+	u8		 debuginfo_searched:1;
 	bool		 sorted_by_name;
 	bool		 loaded;
 	u8		 rel;
@@ -368,6 +381,20 @@ static inline void dso__set_a2l(struct dso *dso, void *val)
 	RC_CHK_ACCESS(dso)->a2l = val;
 }
 
+#ifdef HAVE_LIBBFD_SUPPORT
+static inline void *dso__a2l_libbfd(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->a2l_libbfd;
+}
+
+static inline void dso__set_a2l_libbfd(struct dso *dso, void *val)
+{
+	RC_CHK_ACCESS(dso)->a2l_libbfd = val;
+}
+#endif
+
+struct Dwfl;
+#ifdef HAVE_LIBDW_SUPPORT
 static inline void *dso__libdw(const struct dso *dso)
 {
 	return RC_CHK_ACCESS(dso)->libdw;
@@ -378,8 +405,6 @@ static inline void dso__set_libdw(struct dso *dso, void *val)
 	RC_CHK_ACCESS(dso)->libdw = val;
 }
 
-struct Dwfl;
-#ifdef HAVE_LIBDW_SUPPORT
 struct Dwfl *dso__libdw_dwfl(struct dso *dso);
 #else
 static inline struct Dwfl *dso__libdw_dwfl(struct dso *dso __maybe_unused)
@@ -735,10 +760,7 @@ static inline const char *dso__symsrc_filename(const struct dso *dso)
 	return RC_CHK_ACCESS(dso)->symsrc_filename;
 }
 
-static inline void dso__set_symsrc_filename(struct dso *dso, char *val)
-{
-	RC_CHK_ACCESS(dso)->symsrc_filename = val;
-}
+void dso__set_symsrc_filename(struct dso *dso, char *val) EXCLUSIVE_LOCKS_REQUIRED(dso__lock(dso));
 
 static inline void dso__free_symsrc_filename(struct dso *dso)
 {
@@ -821,6 +843,10 @@ int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   const char *root_dir, char *filename, size_t size);
+/* returned filename should be freed by dso__put_filename() */
+char *dso__get_filename(struct dso *dso, const char *root_dir, bool *decomp,
+			enum dso_binary_type type);
+void dso__put_filename(struct dso *dso, char *filename, bool decomp);
 bool is_kernel_module(const char *pathname, int cpumode);
 bool dso__needs_decompress(struct dso *dso);
 int dso__decompress_kmodule_fd(struct dso *dso, const char *name);
@@ -932,6 +958,8 @@ void dso__reset_find_symbol_cache(struct dso *dso);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
 size_t dso__fprintf(struct dso *dso, FILE *fp);
 
+enum dso_binary_type dso__find_binary_type(struct dso *dso);
+
 static inline enum dso_binary_type dso__binary_type(const struct dso *dso)
 {
 	return RC_CHK_ACCESS(dso)->binary_type;
@@ -940,6 +968,16 @@ static inline enum dso_binary_type dso__binary_type(const struct dso *dso)
 static inline void dso__set_binary_type(struct dso *dso, enum dso_binary_type bt)
 {
 	RC_CHK_ACCESS(dso)->binary_type = bt;
+}
+
+static inline bool dso__bintype_searched(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->bintype_searched;
+}
+
+static inline void dso__set_bintype_searched(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->bintype_searched = 1;
 }
 
 static inline bool dso__is_vmlinux(const struct dso *dso)
@@ -981,6 +1019,28 @@ static inline bool dso__is_kallsyms(const struct dso *dso)
 		return true;
 
 	return is_guest_kallsyms_pid_name(name);
+}
+
+static inline enum dso_binary_type dso__dbginfo_type(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->dbginfo_type;
+}
+
+static inline void dso__set_dbginfo_type(struct dso *dso, enum dso_binary_type bt)
+{
+	RC_CHK_ACCESS(dso)->dbginfo_type = bt;
+}
+
+void dso__find_dbginfo_type(struct dso *dso);
+
+static inline bool dso__debuginfo_searched(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->debuginfo_searched;
+}
+
+static inline void dso__set_debuginfo_searched(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->debuginfo_searched = 1;
 }
 
 bool dso__is_object_file(const struct dso *dso);

@@ -7,8 +7,8 @@
 #include <assert.h>
 #include <linux/mman.h>
 #include <sys/mman.h>
+#include <mm/hugepage_settings.h>
 #include "kselftest.h"
-#include "hugepage_settings.h"
 #include "uffd-common.h"
 
 static int pagemap_fd;
@@ -346,6 +346,8 @@ int main(int argc, char **argv)
 	uffd_global_test_opts_t gopts = { 0 };
 	struct thp_settings settings;
 	int i, j, plan = 0;
+
+	ksft_print_header();
 
 	hugepage_save_settings(true, true);
 

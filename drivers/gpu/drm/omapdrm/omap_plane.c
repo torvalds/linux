@@ -403,18 +403,17 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	drm_object_attach_property(obj, priv->zorder_prop, 0);
 }
 
-static void omap_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *omap_plane_create_state(struct drm_plane *plane)
 {
 	struct omap_plane_state *omap_state;
 
-	if (plane->state)
-		drm_atomic_helper_plane_destroy_state(plane, plane->state);
-
 	omap_state = kzalloc_obj(*omap_state);
 	if (!omap_state)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_plane_reset(plane, &omap_state->base);
+	__drm_atomic_helper_plane_state_init(&omap_state->base, plane);
+
+	return &omap_state->base;
 }
 
 static struct drm_plane_state *
@@ -491,7 +490,7 @@ static int omap_plane_atomic_get_property(struct drm_plane *plane,
 static const struct drm_plane_funcs omap_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = omap_plane_reset,
+	.atomic_create_state = omap_plane_create_state,
 	.destroy = omap_plane_destroy,
 	.atomic_duplicate_state = omap_plane_atomic_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

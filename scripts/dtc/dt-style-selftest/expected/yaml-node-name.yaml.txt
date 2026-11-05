@@ -1,0 +1,7 @@
+# mode=strict
+bad/yaml-node-name.yaml:25: example 0 [node-name] node name "foo_bar" is using discouraged style
+bad/yaml-node-name.yaml:30: example 0 [node-name] node name "foo,bar" is using discouraged style
+bad/yaml-node-name.yaml:35: example 0 [node-name] node name "foo.bar" is using discouraged style
+bad/yaml-node-name.yaml:40: example 0 [node-name] node name "foo+bar" is using discouraged style
+bad/yaml-node-name.yaml:45: example 0 [node-name] node name "foo-bar-" is using discouraged style
+bad/yaml-node-name.yaml:52: example 0 [node-name] node name "foo_bar" is using discouraged style

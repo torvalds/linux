@@ -60,7 +60,7 @@ test_buffer() {
 	# the size must be greater than or equal to page_size - data_offset
 	page_size=$((page_size-data_offset))
 	if [ $size -lt $page_size ]; then
-		exit fail
+		exit_fail
 	fi
 
 	# Now add a little more the meta data overhead will overflow
@@ -71,14 +71,14 @@ test_buffer() {
 	new_str=`awk ' /tracing_mark_write:/ { sub(/^.*tracing_mark_write: /,"");printf "%s", $0; exit}' trace`
 
 	if [ "$new_str" = "$str" ]; then
-		exit fail;
+		exit_fail
 	fi
 
 	# Make sure the entire line can be found
 	new_str=`awk ' /tracing_mark_write:/ { sub(/^.*tracing_mark_write: /,"");printf "%s", $0; }' trace`
 
 	if [ "$new_str" != "$str" ]; then
-		exit fail;
+		exit_fail
 	fi
 }
 

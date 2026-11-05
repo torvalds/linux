@@ -255,8 +255,8 @@ static void garp_pdu_queue(struct garp_applicant *app)
 	garp_pdu_append_end_mark(app);
 	garp_pdu_append_end_mark(app);
 
-	llc_pdu_header_init(app->pdu, LLC_PDU_TYPE_U, LLC_SAP_BSPAN,
-			    LLC_SAP_BSPAN, LLC_PDU_CMD);
+	llc_pdu_header_init(app->pdu, LLC_SAP_BSPAN, LLC_SAP_BSPAN,
+			    LLC_PDU_CMD);
 	llc_pdu_init_as_ui_cmd(app->pdu);
 	llc_mac_hdr_init(app->pdu, app->dev->dev_addr,
 			 app->app->proto.group_address);

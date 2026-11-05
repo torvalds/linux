@@ -266,7 +266,8 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		goto out_err;
 	}
 
-	if (ofs->casefold != ovl_dentry_casefolded(this)) {
+	/* Filesystems set the casefold flag only on directories */
+	if (d_is_dir(this) && ofs->casefold != ovl_dentry_casefolded(this)) {
 		warn = "child wrong casefold";
 		err = -EREMOTE;
 		goto out_warn;
@@ -712,7 +713,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 		if (err)
 			goto fail;
 
-		if (ovl_get_nlink(ofs, origin.dentry, index, 0) == 0)
+		if (ovl_get_nlink(ofs, origin.dentry, index, true, 0) == 0)
 			goto orphan;
 	}
 
@@ -942,8 +943,10 @@ static int ovl_fix_origin(struct ovl_fs *ofs, struct dentry *dentry,
 		goto out;
 
 	err = ovl_set_origin_fh(ofs, fh, upper);
-	if (!err)
-		err = ovl_set_impure(dentry->d_parent, upper->d_parent);
+	if (!err) {
+		/* upper->d_parent is not stable, use the overlay parent */
+		err = ovl_set_impure_dir(dentry->d_parent);
+	}
 
 	ovl_drop_write(dentry);
 out:

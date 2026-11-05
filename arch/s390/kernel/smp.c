@@ -48,7 +48,7 @@
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/tlbflush.h>
-#include <asm/vtimer.h>
+#include <asm/vtime.h>
 #include <asm/abs_lowcore.h>
 #include <asm/sclp.h>
 #include <asm/debug.h>

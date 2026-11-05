@@ -89,4 +89,9 @@ config OCTEON_ILM
 	  To compile this driver as a module, choose M here.  The module
 	  will be called octeon-ilm
 
+config OCTEON_BOARD_UBNT
+	bool "Support Ubiquiti Devices"
+	help
+	  Enable this for missing Ubiquit device trees and quirks
+
 endif # CAVIUM_OCTEON_SOC

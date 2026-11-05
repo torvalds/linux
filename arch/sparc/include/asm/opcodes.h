@@ -96,5 +96,11 @@
 	.word	0xbbb02303;
 #define MOVXTOD_G7_F62		\
 	.word	0xbfb02307;
+#define MOVXTOD_L4_F56		\
+	.word	0xb3b02314;
+#define MOVXTOD_L5_F58		\
+	.word	0xb7b02315;
+#define ADDXC_L1_L1_L1		\
+	.word	0xa3b44231;
 
 #endif /* _SPARC_ASM_OPCODES_H */

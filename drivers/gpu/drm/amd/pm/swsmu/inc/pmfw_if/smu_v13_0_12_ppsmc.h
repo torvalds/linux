@@ -105,6 +105,7 @@
 #define PPSMC_MSG_UpdatePccWaitDecMaxStr            0x4C
 #define PPSMC_MSG_ResetSDMA                         0x4D
 #define PPSMC_MSG_GetRasTableVersion                0x4E
+#define PPSMC_MSG_GetRmaStatus                      0x4F
 #define PPSMC_MSG_GetBadPageCount                   0x50
 #define PPSMC_MSG_GetBadPageMcaAddress              0x51
 #define PPSMC_MSG_SetTimestamp                      0x53

@@ -73,7 +73,7 @@ static int ntfs_collate_ntofs_ulongs(struct ntfs_volume *vol,
 
 	if (data1_len != data2_len || data1_len & 3) {
 		ntfs_error(vol->sb, "data1_len or data2_len not valid\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	len = data1_len;
@@ -100,11 +100,11 @@ static int ntfs_collate_file_name(struct ntfs_volume *vol,
 {
 	int rc;
 
-	rc = ntfs_file_compare_values(data1, data2, -EINVAL,
-			IGNORE_CASE, vol->upcase, vol->upcase_len);
+	rc = ntfs_file_compare_values(data1, data2,
+				      true, IGNORE_CASE, vol->upcase, vol->upcase_len);
 	if (!rc)
 		rc = ntfs_file_compare_values(data1, data2,
-			-EINVAL, CASE_SENSITIVE, vol->upcase, vol->upcase_len);
+			true, CASE_SENSITIVE, vol->upcase, vol->upcase_len);
 	return rc;
 }
 

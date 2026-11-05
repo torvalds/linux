@@ -759,12 +759,14 @@ static int _mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags,
 		}
 
 		if (dd) {
+			struct mlx5_data_direct *mdd = dev->mdev->data_direct;
+
 			cur_ksm->va = cpu_to_be64(rdma_block_iter_dma_address(&biter));
 			if (mr->access_flags & IB_ACCESS_RELAXED_ORDERING &&
-			    dev->ddr.mkey_ro_valid)
-				cur_ksm->key = cpu_to_be32(dev->ddr.mkey_ro);
+			    mdd->mkey_ro_valid)
+				cur_ksm->key = cpu_to_be32(mdd->mkey_ro);
 			else
-				cur_ksm->key = cpu_to_be32(dev->ddr.mkey);
+				cur_ksm->key = cpu_to_be32(mdd->mkey);
 			if (mr->umem->is_dmabuf &&
 			    (flags & MLX5_IB_UPD_XLT_ZAP)) {
 				cur_ksm->va = 0;
@@ -809,7 +811,8 @@ int mlx5r_umr_update_data_direct_ksm_pas_range(struct mlx5_ib_mr *mr,
 	    !(flags & MLX5_IB_UPD_XLT_KEEP_PGSZ)))
 		return -EINVAL;
 
-	return _mlx5r_umr_update_mr_pas(mr, flags, mr_to_mdev(mr)->ddr.pdn,
+	return _mlx5r_umr_update_mr_pas(mr, flags,
+					mr_to_mdev(mr)->mdev->data_direct->pdn,
 					true, start_block, nblocks);
 }
 

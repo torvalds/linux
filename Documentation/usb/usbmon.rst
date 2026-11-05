@@ -361,7 +361,7 @@ Then, execute a loop similar to the one written in pseudo-code below::
       ioctl(fd, MON_IOCX_MFETCH, &fetch);   // Process errors, too
       nflush = fetch.nfetch;       // This many packets to flush when done
       for (i = 0; i < nflush; i++) {
-         hdr = (struct ubsmon_packet *) &mmap_area[vec[i]];
+         hdr = (struct usbmon_packet *) &mmap_area[vec[i]];
          if (hdr->type == '@')     // Filler packet
             continue;
          caddr_t data = &mmap_area[vec[i]] + 64;

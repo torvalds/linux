@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test non-numeric symbol references from numeric symbols
+
+config BOOL_SOURCE
+	bool
+
+config TRISTATE_SOURCE
+	tristate
+
+config STRING_SOURCE
+	string
+
+# Invalid int defaults
+
+config INT_DEFAULT_BOOL
+	int
+	default BOOL_SOURCE
+
+config INT_DEFAULT_TRISTATE
+	int
+	default TRISTATE_SOURCE
+
+config INT_DEFAULT_STRING
+	int
+	default STRING_SOURCE
+
+# Invalid hex defaults
+
+config HEX_DEFAULT_BOOL
+	hex
+	default BOOL_SOURCE
+
+config HEX_DEFAULT_TRISTATE
+	hex
+	default TRISTATE_SOURCE
+
+config HEX_DEFAULT_STRING
+	hex
+	default STRING_SOURCE
+
+# Invalid int ranges
+
+config INT_RANGE_BOOL
+	int
+	range BOOL_SOURCE 1
+
+config INT_RANGE_TRISTATE
+	int
+	range TRISTATE_SOURCE 1
+
+config INT_RANGE_STRING
+	int
+	range STRING_SOURCE 1
+
+config INT_RANGE_MULTIPLE
+	int
+	range BOOL_SOURCE TRISTATE_SOURCE
+
+# Invalid hex ranges
+
+config HEX_RANGE_BOOL
+	hex
+	range BOOL_SOURCE 0x1
+
+config HEX_RANGE_TRISTATE
+	hex
+	range TRISTATE_SOURCE 0x1
+
+config HEX_RANGE_STRING
+	hex
+	range STRING_SOURCE 0x1
+
+config HEX_RANGE_MULTIPLE
+	hex
+	range BOOL_SOURCE TRISTATE_SOURCE

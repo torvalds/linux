@@ -225,9 +225,9 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 						  struct netfs_group *netfs_group)
 {
 	struct netfs_io_request *wreq;
-	unsigned long long start = iocb->ki_pos;
-	unsigned long long end = start + iov_iter_count(iter);
 	ssize_t ret, n;
+	uoff_t start = iocb->ki_pos;
+	uoff_t end = start + iov_iter_count(iter);
 	size_t len = iov_iter_count(iter);
 	bool async = !is_sync_kiocb(iocb);
 
@@ -336,8 +336,8 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = mapping->host;
 	struct netfs_inode *ictx = netfs_inode(inode);
 	ssize_t ret;
-	loff_t pos = iocb->ki_pos;
-	unsigned long long end = pos + iov_iter_count(from) - 1;
+	uoff_t pos = iocb->ki_pos;
+	uoff_t end = pos + iov_iter_count(from) - 1;
 
 	_enter("%llx,%zx,%llx", pos, iov_iter_count(from), i_size_read(inode));
 

@@ -140,6 +140,7 @@ static const struct alpha_pll_config gcc_gpll3_config = {
 };
 
 static struct clk_alpha_pll gcc_gpll3 = {
+	.config = &gcc_gpll3_config,
 	.offset = 0x3000,
 	.vco_table = lucid_evo_vco,
 	.num_vco = ARRAY_SIZE(lucid_evo_vco),
@@ -2815,7 +2816,41 @@ static const struct regmap_config gcc_sm4450_regmap_config = {
 	.fast_io = true,
 };
 
+static struct clk_alpha_pll *gcc_sm4450_plls[] = {
+	&gcc_gpll3,
+};
+
+static const u32 gcc_sm4450_critical_cbcrs[] = {
+	0x36004, /* GCC_CAMERA_AHB_CLK */
+	0x36018, /* GCC_CAMERA_SLEEP_CLK */
+	0x3601c, /* GCC_CAMERA_XO_CLK */
+	0x37004, /* GCC_DISP_AHB_CLK */
+	0x37014, /* GCC_DISP_XO_CLK */
+	0x81004, /* GCC_GPU_CFG_AHB_CLK */
+	0x42004, /* GCC_VIDEO_AHB_CLK */
+	0x42018, /* GCC_VIDEO_XO_CLK */
+};
+
+static void gcc_sm4450_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	/* FORCE_MEM_CORE_ON for the UFS PHY ICE core clock */
+	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
+
+	regmap_update_bits(regmap, 0x4201c, BIT(21), BIT(21));
+}
+
+static const struct qcom_cc_driver_data gcc_sm4450_driver_data = {
+	.alpha_plls = gcc_sm4450_plls,
+	.num_alpha_plls = ARRAY_SIZE(gcc_sm4450_plls),
+	.clk_cbcrs = gcc_sm4450_critical_cbcrs,
+	.num_clk_cbcrs = ARRAY_SIZE(gcc_sm4450_critical_cbcrs),
+	.dfs_rcgs = gcc_dfs_clocks,
+	.num_dfs_rcgs = ARRAY_SIZE(gcc_dfs_clocks),
+	.clk_regs_configure = gcc_sm4450_regs_configure,
+};
+
 static const struct qcom_cc_desc gcc_sm4450_desc = {
+	.driver_data = &gcc_sm4450_driver_data,
 	.config = &gcc_sm4450_regmap_config,
 	.clks = gcc_sm4450_clocks,
 	.num_clks = ARRAY_SIZE(gcc_sm4450_clocks),
@@ -2823,6 +2858,7 @@ static const struct qcom_cc_desc gcc_sm4450_desc = {
 	.num_resets = ARRAY_SIZE(gcc_sm4450_resets),
 	.gdscs = gcc_sm4450_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_sm4450_gdscs),
+	.use_rpm = true,
 };
 
 static const struct of_device_id gcc_sm4450_match_table[] = {
@@ -2833,34 +2869,7 @@ MODULE_DEVICE_TABLE(of, gcc_sm4450_match_table);
 
 static int gcc_sm4450_probe(struct platform_device *pdev)
 {
-	struct regmap *regmap;
-	int ret;
-
-	regmap = qcom_cc_map(pdev, &gcc_sm4450_desc);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	clk_lucid_evo_pll_configure(&gcc_gpll3, regmap, &gcc_gpll3_config);
-	ret = qcom_cc_register_rcg_dfs(regmap, gcc_dfs_clocks,
-				       ARRAY_SIZE(gcc_dfs_clocks));
-	if (ret)
-		return ret;
-
-	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
-
-	/* Keep some clocks always-on */
-	qcom_branch_set_clk_en(regmap, 0x36004); /* GCC_CAMERA_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x36018); /* GCC_CAMERA_SLEEP_CLK */
-	qcom_branch_set_clk_en(regmap, 0x3601c); /* GCC_CAMERA_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x37004); /* GCC_DISP_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x37014); /* GCC_DISP_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x81004); /* GCC_GPU_CFG_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x42004); /* GCC_VIDEO_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x42018); /* GCC_VIDEO_XO_CLK */
-
-	regmap_update_bits(regmap, 0x4201c, BIT(21), BIT(21));
-
-	return qcom_cc_really_probe(&pdev->dev, &gcc_sm4450_desc, regmap);
+	return qcom_cc_probe(pdev, &gcc_sm4450_desc);
 }
 
 static struct platform_driver gcc_sm4450_driver = {
@@ -2871,17 +2880,7 @@ static struct platform_driver gcc_sm4450_driver = {
 	},
 };
 
-static int __init gcc_sm4450_init(void)
-{
-	return platform_driver_register(&gcc_sm4450_driver);
-}
-subsys_initcall(gcc_sm4450_init);
-
-static void __exit gcc_sm4450_exit(void)
-{
-	platform_driver_unregister(&gcc_sm4450_driver);
-}
-module_exit(gcc_sm4450_exit);
+subsys_platform_driver(gcc_sm4450_driver);
 
 MODULE_DESCRIPTION("QTI GCC SM4450 Driver");
 MODULE_LICENSE("GPL");

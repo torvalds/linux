@@ -2235,11 +2235,18 @@ static const struct regmap_config cam_cc_glymur_regmap_config = {
 	.fast_io = true,
 };
 
+static void cam_cc_glymur_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	regmap_write(regmap, 0x2018, 0); /* CAM_CC_PLL2_PLL_USER_CTL_U */
+	regmap_write(regmap, 0x2028, 0); /* CAM_CC_PLL2_PLL_CONFIG_CTL_U2 */
+}
+
 static const struct qcom_cc_driver_data cam_cc_glymur_driver_data = {
 	.alpha_plls = cam_cc_glymur_plls,
 	.num_alpha_plls = ARRAY_SIZE(cam_cc_glymur_plls),
 	.clk_cbcrs = cam_cc_glymur_critical_cbcrs,
 	.num_clk_cbcrs = ARRAY_SIZE(cam_cc_glymur_critical_cbcrs),
+	.clk_regs_configure = cam_cc_glymur_regs_configure,
 };
 
 static const struct qcom_cc_desc cam_cc_glymur_desc = {

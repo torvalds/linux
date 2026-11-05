@@ -6,19 +6,26 @@
  *             http://www.samsung.com/
  */
 /* start node id of a node block dedicated to the given node id */
-#define	START_NID(nid) (((nid) / NAT_ENTRY_PER_BLOCK) * NAT_ENTRY_PER_BLOCK)
+static inline nid_t f2fs_start_nid(struct f2fs_sb_info *sbi, nid_t nid)
+{
+	unsigned int entries = NAT_ENTRY_PER_BLOCK(sbi);
+
+	return (nid / entries) * entries;
+}
 
 /* node block offset on the NAT area dedicated to the given start node id */
-#define	NAT_BLOCK_OFFSET(start_nid) ((start_nid) / NAT_ENTRY_PER_BLOCK)
+#define	NAT_BLOCK_OFFSET(sbi, start_nid) \
+	((start_nid) / NAT_ENTRY_PER_BLOCK(sbi))
 
-/* # of pages to perform synchronous readahead before building free nids */
-#define FREE_NID_PAGES	8
-#define MAX_FREE_NIDS	(NAT_ENTRY_PER_BLOCK * FREE_NID_PAGES)
+/* # of blocks to perform synchronous readahead before building free nids */
+#define FREE_NID_BLOCKS	8
+#define MAX_FREE_NIDS(sbi)	((unsigned long)NAT_ENTRY_PER_BLOCK(sbi) * \
+				 FREE_NID_BLOCKS)
 
 /* size of free nid batch when shrinking */
 #define SHRINK_NID_BATCH_SIZE	8
 
-#define DEF_RA_NID_PAGES	0	/* # of nid pages to be readaheaded */
+#define DEF_RA_NID_BLOCKS	0	/* # of nid blocks to be readaheaded */
 
 /* maximum readahead size for node during getting data blocks */
 #define MAX_RA_NODE		128
@@ -37,8 +44,8 @@
 /* vector size for gang look-up from nat cache that consists of radix tree */
 #define NAT_VEC_SIZE	32
 
-/* return value for read_node_page */
-#define LOCKED_PAGE	1
+/* return value for read_node_cache */
+#define LOCKED_CACHE	1
 
 /* check pinned file's alignment status of physical blocks */
 #define FILE_NOT_ALIGNED	1
@@ -150,7 +157,9 @@ enum mem_type {
 	READ_EXTENT_CACHE,	/* indicates read extent cache */
 	AGE_EXTENT_CACHE,	/* indicates age extent cache */
 	DISCARD_CACHE,	/* indicates memory of cached discard cmds */
-	COMPRESS_PAGE,	/* indicates memory of cached compressed pages */
+	COMPRESS_BLOCK,	/* indicates memory of cached compressed blocks */
+	META_BLOCK,	/* indicates memory of cached meta blocks */
+	NODE_BLOCK,	/* indicates memory of cached node blocks */
 	BASE_CHECK,	/* check kernel status */
 };
 
@@ -208,7 +217,7 @@ static inline pgoff_t current_nat_addr(struct f2fs_sb_info *sbi, nid_t start)
 	 * OLD = (segment_off * 512) * 2 + off_in_segment
 	 * NEW = 2 * (segment_off * 512 + off_in_segment) - off_in_segment
 	 */
-	block_off = NAT_BLOCK_OFFSET(start);
+	block_off = NAT_BLOCK_OFFSET(sbi, start);
 
 	block_addr = (pgoff_t)(nm_i->nat_blkaddr +
 		(block_off << 1) -
@@ -230,9 +239,10 @@ static inline pgoff_t next_nat_addr(struct f2fs_sb_info *sbi,
 	return block_addr + nm_i->nat_blkaddr;
 }
 
-static inline void set_to_next_nat(struct f2fs_nm_info *nm_i, nid_t start_nid)
+static inline void set_to_next_nat(struct f2fs_sb_info *sbi,
+				   struct f2fs_nm_info *nm_i, nid_t start_nid)
 {
-	unsigned int block_off = NAT_BLOCK_OFFSET(start_nid);
+	unsigned int block_off = NAT_BLOCK_OFFSET(sbi, start_nid);
 
 	f2fs_change_bit(block_off, nm_i->nat_bitmap);
 #ifdef CONFIG_F2FS_CHECK_FS
@@ -240,90 +250,95 @@ static inline void set_to_next_nat(struct f2fs_nm_info *nm_i, nid_t start_nid)
 #endif
 }
 
-static inline nid_t ino_of_node(const struct folio *node_folio)
+static inline nid_t ino_of_node(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_folio);
-	return le32_to_cpu(rn->footer.ino);
+	return le32_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->ino);
 }
 
-static inline nid_t nid_of_node(const struct folio *node_folio)
+static inline nid_t nid_of_node(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_folio);
-	return le32_to_cpu(rn->footer.nid);
+	return le32_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->nid);
 }
 
-static inline unsigned int ofs_of_node(const struct folio *node_folio)
+static inline unsigned int ofs_of_node(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_folio);
-	unsigned flag = le32_to_cpu(rn->footer.flag);
+	unsigned int flag = le32_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->flag);
 	return flag >> OFFSET_BIT_SHIFT;
 }
 
-static inline __u64 cpver_of_node(const struct folio *node_folio)
+static inline __u64 cpver_of_node(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_folio);
-	return le64_to_cpu(rn->footer.cp_ver);
+	return le64_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->cp_ver);
 }
 
-static inline block_t next_blkaddr_of_node(const struct folio *node_folio)
+static inline block_t next_blkaddr_of_node(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_folio);
-	return le32_to_cpu(rn->footer.next_blkaddr);
+	return le32_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->next_blkaddr);
 }
 
-static inline void fill_node_footer(const struct folio *folio, nid_t nid,
+static inline void fill_node_footer(struct f2fs_sb_info *sbi,
+				struct f2fs_cached_block *entry, nid_t nid,
 				nid_t ino, unsigned int ofs, bool reset)
 {
-	struct f2fs_node *rn = F2FS_NODE(folio);
+	struct f2fs_node *rn = CACHED_NODE(entry);
+	struct node_footer *footer = F2FS_NODE_FOOTER(sbi, entry);
 	unsigned int old_flag = 0;
 
 	if (reset)
-		memset(rn, 0, sizeof(*rn));
+		memset(rn, 0, F2FS_BLKSIZE(sbi));
 	else
-		old_flag = le32_to_cpu(rn->footer.flag);
+		old_flag = le32_to_cpu(footer->flag);
 
-	rn->footer.nid = cpu_to_le32(nid);
-	rn->footer.ino = cpu_to_le32(ino);
+	memset(footer, 0, sizeof(*footer));
+	footer->nid = cpu_to_le32(nid);
+	footer->ino = cpu_to_le32(ino);
 
 	/* should remain old flag bits such as COLD_BIT_SHIFT */
-	rn->footer.flag = cpu_to_le32((ofs << OFFSET_BIT_SHIFT) |
+	footer->flag = cpu_to_le32((ofs << OFFSET_BIT_SHIFT) |
 					(old_flag & OFFSET_BIT_MASK));
 }
 
-static inline void copy_node_footer(const struct folio *dst,
-		const struct folio *src)
+static inline void copy_node_footer(struct f2fs_sb_info *sbi,
+		struct f2fs_cached_block *dst,
+		const struct f2fs_cached_block *src)
 {
-	struct f2fs_node *src_rn = F2FS_NODE(src);
-	struct f2fs_node *dst_rn = F2FS_NODE(dst);
-	memcpy(&dst_rn->footer, &src_rn->footer, sizeof(struct node_footer));
+	memcpy(F2FS_NODE_FOOTER(sbi, dst), F2FS_NODE_FOOTER(sbi, src),
+	       sizeof(struct node_footer));
 }
 
-static inline void fill_node_footer_blkaddr(struct folio *folio, block_t blkaddr)
+static inline void fill_node_footer_blkaddr(struct f2fs_sb_info *sbi,
+				struct f2fs_cached_block *entry, block_t blkaddr)
 {
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_F_SB(folio));
-	struct f2fs_node *rn = F2FS_NODE(folio);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+	struct node_footer *footer = F2FS_NODE_FOOTER(sbi, entry);
 	__u64 cp_ver = cur_cp_version(ckpt);
 
 	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG))
 		cp_ver |= (cur_cp_crc(ckpt) << 32);
 
-	rn->footer.cp_ver = cpu_to_le64(cp_ver);
-	rn->footer.next_blkaddr = cpu_to_le32(blkaddr);
+	footer->cp_ver = cpu_to_le64(cp_ver);
+	footer->next_blkaddr = cpu_to_le32(blkaddr);
 }
 
-static inline bool is_recoverable_dnode(const struct folio *folio)
+static inline bool is_recoverable_dnode(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_F_SB(folio));
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	__u64 cp_ver = cur_cp_version(ckpt);
 
 	/* Don't care crc part, if fsck.f2fs sets it. */
 	if (__is_set_ckpt_flags(ckpt, CP_NOCRC_RECOVERY_FLAG))
-		return (cp_ver << 32) == (cpver_of_node(folio) << 32);
+		return (cp_ver << 32) == (cpver_of_node(sbi, entry) << 32);
 
 	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG))
 		cp_ver |= (cur_cp_crc(ckpt) << 32);
 
-	return cp_ver == cpver_of_node(folio);
+	return cp_ver == cpver_of_node(sbi, entry);
 }
 
 /*
@@ -347,43 +362,50 @@ static inline bool is_recoverable_dnode(const struct folio *folio)
  *                 `- indirect node ((6 + 2N) + (N - 1)(N + 1))
  *                       `- direct node
  */
-static inline bool IS_DNODE(const struct folio *node_folio)
+static inline bool IS_DNODE(struct f2fs_sb_info *sbi,
+				const struct f2fs_cached_block *entry)
 {
-	unsigned int ofs = ofs_of_node(node_folio);
+	unsigned int ofs = ofs_of_node(sbi, entry);
 
 	if (f2fs_has_xattr_block(ofs))
 		return true;
 
-	if (ofs == 3 || ofs == 4 + NIDS_PER_BLOCK ||
-			ofs == 5 + 2 * NIDS_PER_BLOCK)
+	if (ofs == 3 || ofs == 4 + NIDS_PER_BLOCK(sbi) ||
+	    ofs == 5 + 2 * NIDS_PER_BLOCK(sbi))
 		return false;
-	if (ofs >= 6 + 2 * NIDS_PER_BLOCK) {
-		ofs -= 6 + 2 * NIDS_PER_BLOCK;
-		if (!((long int)ofs % (NIDS_PER_BLOCK + 1)))
+	if (ofs >= 6 + 2 * NIDS_PER_BLOCK(sbi)) {
+		ofs -= 6 + 2 * NIDS_PER_BLOCK(sbi);
+		if (!((long)ofs % (NIDS_PER_BLOCK(sbi) + 1)))
 			return false;
 	}
 	return true;
 }
 
-static inline int set_nid(struct folio *folio, int off, nid_t nid, bool i)
+static inline bool set_nid(struct f2fs_sb_info *sbi,
+			struct f2fs_cached_block *entry, int off, nid_t nid, bool i)
 {
-	struct f2fs_node *rn = F2FS_NODE(folio);
+	struct f2fs_node *rn = CACHED_NODE(entry);
+	__le32 *inode_nids = F2FS_INODE_NIDS(sbi, entry);
+	__le32 *addr = i ? &inode_nids[off - NODE_DIR1_BLOCK(sbi)] : &rn->in.nid[off];
 
-	f2fs_folio_wait_writeback(folio, NODE, true, true);
+	f2fs_cache_wait_writeback(entry);
+	if (*addr == cpu_to_le32(nid))
+		return false;
 
-	if (i)
-		rn->i.i_nid[off - NODE_DIR1_BLOCK] = cpu_to_le32(nid);
-	else
-		rn->in.nid[off] = cpu_to_le32(nid);
-	return folio_mark_dirty(folio);
+	*addr = cpu_to_le32(nid);
+	f2fs_mark_cache_dirty(entry);
+	return true;
 }
 
-static inline nid_t get_nid(const struct folio *folio, int off, bool i)
+static inline nid_t get_nid(struct f2fs_sb_info *sbi,
+			const struct f2fs_cached_block *entry, int off, bool i)
 {
-	struct f2fs_node *rn = F2FS_NODE(folio);
+	struct f2fs_node *rn = CACHED_NODE(entry);
+	const __le32 *inode_nids = F2FS_INODE_NIDS(sbi, entry);
+	int nid_index = off - NODE_DIR1_BLOCK(sbi);
 
 	if (i)
-		return le32_to_cpu(rn->i.i_nid[off - NODE_DIR1_BLOCK]);
+		return le32_to_cpu(inode_nids[nid_index]);
 	return le32_to_cpu(rn->in.nid[off]);
 }
 
@@ -394,40 +416,43 @@ static inline nid_t get_nid(const struct folio *folio, int off, bool i)
  *  - Mark cold data pages in page cache
  */
 
-static inline int is_node(const struct folio *folio, int type)
+static inline int is_node(struct f2fs_sb_info *sbi,
+			const struct f2fs_cached_block *entry, int type)
 {
-	struct f2fs_node *rn = F2FS_NODE(folio);
-	return le32_to_cpu(rn->footer.flag) & BIT(type);
+	return le32_to_cpu(F2FS_NODE_FOOTER(sbi, entry)->flag) & BIT(type);
 }
 
-#define is_cold_node(folio)	is_node(folio, COLD_BIT_SHIFT)
-#define is_fsync_dnode(folio)	is_node(folio, FSYNC_BIT_SHIFT)
-#define is_dent_dnode(folio)	is_node(folio, DENT_BIT_SHIFT)
+#define is_cold_node(sbi, entry)	is_node(sbi, entry, COLD_BIT_SHIFT)
+#define is_fsync_dnode(sbi, entry)	is_node(sbi, entry, FSYNC_BIT_SHIFT)
+#define is_dent_dnode(sbi, entry)	is_node(sbi, entry, DENT_BIT_SHIFT)
 
-static inline void __set_mark(const struct folio *folio, bool mark, int type)
+static inline void __set_mark(struct f2fs_sb_info *sbi,
+			struct f2fs_cached_block *entry, bool mark, int type)
 {
-	struct f2fs_node *rn = F2FS_NODE(folio);
-	unsigned int flag = le32_to_cpu(rn->footer.flag);
+	struct node_footer *footer = F2FS_NODE_FOOTER(sbi, entry);
+	unsigned int flag = le32_to_cpu(footer->flag);
 
 	if (mark)
 		flag |= BIT(type);
 	else
 		flag &= ~BIT(type);
-	rn->footer.flag = cpu_to_le32(flag);
+	footer->flag = cpu_to_le32(flag);
 }
 
-static inline void set_cold_node(const struct folio *folio, bool is_dir)
+static inline void set_cold_node(struct f2fs_sb_info *sbi,
+			struct f2fs_cached_block *entry, bool is_dir)
 {
-	__set_mark(folio, !is_dir, COLD_BIT_SHIFT);
+	__set_mark(sbi, entry, !is_dir, COLD_BIT_SHIFT);
 }
 
-static inline void set_mark(struct folio *folio, bool mark, int type)
+static inline void set_mark(struct f2fs_sb_info *sbi,
+			struct f2fs_cached_block *entry, bool mark, int type)
 {
-	__set_mark(folio, mark, type);
-
+	__set_mark(sbi, entry, mark, type);
 #ifdef CONFIG_F2FS_CHECK_FS
-	f2fs_inode_chksum_set(F2FS_F_SB(folio), folio);
+	f2fs_inode_chksum_set(sbi, entry);
 #endif
 }
-#define set_dentry_mark(folio, mark)	set_mark(folio, mark, DENT_BIT_SHIFT)
-#define set_fsync_mark(folio, mark)	set_mark(folio, mark, FSYNC_BIT_SHIFT)
+
+#define set_dentry_mark(sbi, entry, mark)	set_mark(sbi, entry, mark, DENT_BIT_SHIFT)
+#define set_fsync_mark(sbi, entry, mark)	set_mark(sbi, entry, mark, FSYNC_BIT_SHIFT)

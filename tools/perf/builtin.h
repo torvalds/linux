@@ -2,6 +2,9 @@
 #ifndef BUILTIN_H
 #define BUILTIN_H
 
+extern const char perf_usage_string[];
+extern const char perf_more_info_string[];
+
 struct feature_status {
 	const char *name;
 	const char *macro;

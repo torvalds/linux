@@ -1445,7 +1445,7 @@ static void lm85_init_client(struct i2c_client *client)
 static int lm85_is_fake(struct i2c_client *client)
 {
 	/*
-	 * Differenciate between real LM96000 and Winbond WPCD377I. The latter
+	 * Differentiate between real LM96000 and Winbond WPCD377I. The latter
 	 * emulate the former except that it has no hardware monitoring function
 	 * so the readings are always 0.
 	 */

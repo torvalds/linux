@@ -66,15 +66,16 @@ static int slider_def_balance_set(const char *arg, const struct kernel_param *kp
 	guard(mutex)(&slider_param_lock);
 
 	ret = kstrtou8(arg, 16, &slider_val);
-	if (!ret) {
-		if (slider_val <= slider_values[SOC_POWER_SLIDER_PERFORMANCE] ||
-		    slider_val >= slider_values[SOC_POWER_SLIDER_POWERSAVE])
-			return -EINVAL;
+	if (ret)
+		return ret;
 
-		slider_balanced_param = slider_val;
-	}
+	if (slider_val <= slider_values[SOC_POWER_SLIDER_PERFORMANCE] ||
+	    slider_val >= slider_values[SOC_POWER_SLIDER_POWERSAVE])
+		return -EINVAL;
 
-	return ret;
+	slider_balanced_param = slider_val;
+
+	return 0;
 }
 
 static int slider_def_balance_get(char *buf, const struct kernel_param *kp)
@@ -101,14 +102,15 @@ static int slider_def_offset_set(const char *arg, const struct kernel_param *kp)
 	guard(mutex)(&slider_param_lock);
 
 	ret = kstrtou8(arg, 16, &offset);
-	if (!ret) {
-		if (offset > SOC_SLIDER_VALUE_MAXIMUM)
-			return -EINVAL;
+	if (ret)
+		return ret;
 
-		slider_offset = offset;
-	}
+	if (offset > SOC_SLIDER_VALUE_MAXIMUM)
+		return -EINVAL;
 
-	return ret;
+	slider_offset = offset;
+
+	return 0;
 }
 
 static int slider_def_offset_get(char *buf, const struct kernel_param *kp)

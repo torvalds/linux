@@ -15,10 +15,33 @@ Byte swap instructions
 Jump instructions
 =================
 
-``BPF_CALL | BPF_X | BPF_JMP`` (0x8d), where the helper function
-integer would be read from a specified register, is not currently supported
-by the verifier.  Any programs with this instruction will fail to load
-until such support is added.
+``BPF_CALL | BPF_X | BPF_JMP`` (0x8d), ``callx dst``, performs an indirect
+call of a BPF function whose address is held in the ``dst`` register. The
+``src``, ``offset`` and ``imm`` fields are reserved and must be zero.
+
+The address of a BPF function gets into a register in one of two ways:
+
+* it is loaded by a 64-bit immediate instruction with ``src`` =
+  ``BPF_PSEUDO_FUNC``;
+* it is read, with a 64-bit load, from a frozen read-only array map, that no
+  other program uses, that holds its read-only data: tables of functions,
+  structures of operations, vtables, where pointers to functions may be mixed
+  with other data. In the map a pointer to a function is the offset in bytes
+  of its first instruction in the program, and that is how the verifier
+  recognizes it. It is replaced with the address of the function when
+  the program is loaded. The program reads it from there, which requires
+  ``CAP_PERFMON``.
+
+In both cases only static functions can be referenced. Therefore all functions
+that can be called indirectly are known to the verifier before it starts to
+analyze the program, and ``callx`` is verified as a direct call of every
+function that ``dst`` may point to at that instruction. The same rules apply:
+the calls can not be recursive, and the depth of the call chain and its
+combined stack size are limited.
+
+Calling helper or kernel functions through a register, indirect calls of global
+functions, and tail calls in functions that are called via ``callx`` are not
+supported. ``callx`` requires the BPF JIT.
 
 Maps
 ====

@@ -153,10 +153,15 @@ static int vsc73xx_spi_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(dev, "spi setup failed.\n");
+		spi_dev_put(vsc_spi->spi);
 		return ret;
 	}
 
-	return vsc73xx_probe(&vsc_spi->vsc);
+	ret = vsc73xx_probe(&vsc_spi->vsc);
+	if (ret)
+		spi_dev_put(vsc_spi->spi);
+
+	return ret;
 }
 
 static void vsc73xx_spi_remove(struct spi_device *spi)
@@ -167,6 +172,8 @@ static void vsc73xx_spi_remove(struct spi_device *spi)
 		return;
 
 	vsc73xx_remove(&vsc_spi->vsc);
+
+	spi_dev_put(vsc_spi->spi);
 }
 
 static void vsc73xx_spi_shutdown(struct spi_device *spi)

@@ -220,6 +220,7 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 
 static bool dce_abm_immediate_disable(struct abm *abm, uint32_t panel_inst)
 {
+
 	if (abm->dmcu_is_running == false)
 		return true;
 
@@ -272,6 +273,7 @@ static void dce_abm_construct(
 	base->ctx = ctx;
 	base->funcs = &dce_funcs;
 	base->dmcu_is_running = false;
+	base->inst = 0;
 
 	abm_dce->regs = regs;
 	abm_dce->abm_shift = abm_shift;

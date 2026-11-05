@@ -119,7 +119,7 @@ bool hubp21_construct(
 	const struct dcn_hubp2_shift *hubp_shift,
 	const struct dcn_hubp2_mask *hubp_mask);
 
-void apply_DEDCN21_142_wa_for_hostvm_deadline(
+void apply_hubp21_wa_for_hostvm_deadline(
 		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr);
 

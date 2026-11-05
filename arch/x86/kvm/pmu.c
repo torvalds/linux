@@ -662,7 +662,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
-	int bit;
+	int bit, r;
 
 	bitmap_copy(bitmap, pmu->reprogram_pmi, X86_PMC_IDX_MAX);
 
@@ -676,12 +676,14 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 
 	kvm_for_each_pmc(pmu, pmc, bit, bitmap) {
 		/*
-		 * If reprogramming fails, e.g. due to contention, re-set the
-		 * reprogram bit, i.e. opportunistically try again on the next
-		 * PMU refresh.  Don't make a new request as doing so can stall
-		 * the guest if reprogramming repeatedly fails.
+		 * If reprogramming fails on a transient condition, e.g. due to
+		 * contention, re-set the reprogram bit, i.e. opportunistically
+		 * try again on the next PMU refresh.  Don't make a new request
+		 * as doing so can stall the guest if reprogramming repeatedly
+		 * fails.
 		 */
-		if (reprogram_counter(pmc))
+		r = reprogram_counter(pmc);
+		if (r == -EBUSY || r == -ENOMEM)
 			set_bit(pmc->idx, pmu->reprogram_pmi);
 	}
 

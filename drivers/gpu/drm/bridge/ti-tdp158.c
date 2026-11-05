@@ -8,6 +8,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_panel.h>
 
 struct tdp158 {
 	struct drm_bridge bridge;

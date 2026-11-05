@@ -66,9 +66,14 @@ Memory scanning parameters can be modified at run-time by writing to the
 Kmemleak can also be disabled at boot-time by passing ``kmemleak=off`` on
 the kernel command line.
 
-Memory may be allocated or freed before kmemleak is initialised and
-these actions are stored in an early log buffer. The size of this buffer
-is configured via the CONFIG_DEBUG_KMEMLEAK_MEM_POOL_SIZE option.
+Memory may be allocated or freed before kmemleak is initialised, so a
+static pool of metadata objects is used to track those allocations. Once
+kmemleak is fully initialised the pool becomes an emergency reserve, used
+whenever a metadata object cannot be allocated from the slab. The number
+of objects in the pool is configured via the
+CONFIG_DEBUG_KMEMLEAK_MEM_POOL_SIZE option. Exhausting it at run time
+prints "Cannot allocate a kmemleak_object structure" and disables
+kmemleak.
 
 If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command
@@ -185,7 +190,8 @@ reported by kmemleak because values found during the memory scanning
 point to such objects. To reduce the number of false negatives, kmemleak
 provides the kmemleak_ignore, kmemleak_scan_area, kmemleak_no_scan and
 kmemleak_erase functions (see above). The task stacks also increase the
-amount of false negatives and their scanning is not enabled by default.
+amount of false negatives and their scanning is enabled by default; it
+can be turned off with ``stack=off``.
 
 The false positives are objects wrongly reported as being memory leaks
 (orphan). For objects known not to be leaks, kmemleak provides the
@@ -195,12 +201,12 @@ longer be scanned.
 
 Some of the reported leaks are only transient, especially on SMP
 systems, because of pointers temporarily stored in CPU registers or
-stacks. Kmemleak defines MSECS_MIN_AGE (defaulting to 1000) representing
+stacks. Kmemleak defines MSECS_MIN_AGE (defaulting to 5000) representing
 the minimum age of an object to be reported as a memory leak.
 
 The ``min_unref_scans`` module parameter requires an object to be seen
 unreferenced in that many consecutive scans before it is reported. It
-defaults to 2 when CONFIG_DEBUG_KMEMLEAK_VERBOSE is enabled, where the
+defaults to 3 when CONFIG_DEBUG_KMEMLEAK_VERBOSE is enabled, where the
 periodic scan thread confirms a leak on its own, and to 1 otherwise. A
 value of 1 preserves the historical behaviour; higher values filter the
 transient false positives described above, at the cost of delaying genuine
@@ -212,8 +218,10 @@ Limitations and Drawbacks
 -------------------------
 
 The main drawback is the reduced performance of memory allocation and
-freeing. To avoid other penalties, the memory scanning is only performed
-when the /sys/kernel/debug/kmemleak file is read. Anyway, this tool is
+freeing. To avoid other penalties, the memory scanning is performed by a
+periodic thread rather than on every allocation. Reading the
+/sys/kernel/debug/kmemleak file only lists the objects found by the last
+scan; writing ``scan`` to it triggers a new one. Anyway, this tool is
 intended for debugging purposes where the performance might not be the
 most important requirement.
 

@@ -79,6 +79,8 @@
 
 #define NEXTHDR_TCP		6
 
+#define TCPHDR_FIN		0x01
+
 #define TCPOPT_NOP		1
 #define TCPOPT_EOL		0
 #define TCPOPT_MSS		2

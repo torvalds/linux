@@ -417,6 +417,10 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 		 */
 		wptr = le32_to_cpu(*ih->wptr_cpu);
 
+		if (ih == &adev->irq.ih_soft)
+			goto out;
+
+
 		if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 			goto out;
 	}
@@ -625,22 +629,10 @@ static int navi10_ih_resume(struct amdgpu_ip_block *ip_block)
 	return navi10_ih_hw_init(ip_block);
 }
 
-static bool navi10_ih_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return true;
-}
-
 static int navi10_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return -ETIMEDOUT;
-}
-
-static int navi10_ih_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return 0;
 }
 
 static void navi10_ih_update_clockgating_state(struct amdgpu_device *adev,
@@ -699,9 +691,7 @@ static const struct amd_ip_funcs navi10_ih_ip_funcs = {
 	.hw_fini = navi10_ih_hw_fini,
 	.suspend = navi10_ih_suspend,
 	.resume = navi10_ih_resume,
-	.is_idle = navi10_ih_is_idle,
 	.wait_for_idle = navi10_ih_wait_for_idle,
-	.soft_reset = navi10_ih_soft_reset,
 	.set_clockgating_state = navi10_ih_set_clockgating_state,
 	.set_powergating_state = navi10_ih_set_powergating_state,
 	.get_clockgating_state = navi10_ih_get_clockgating_state,

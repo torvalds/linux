@@ -147,23 +147,41 @@ void BPF_STRUCT_OPS(allowed_cpus_exit, struct scx_exit_info *ei)
 }
 
 struct task_cpu_arg {
-	pid_t pid;
+	u64 pid;
+	s64 custom_cpu;
 };
 
 SEC("syscall")
 int select_cpu_from_user(struct task_cpu_arg *input)
 {
 	struct task_struct *p;
-	int cpu;
+	struct bpf_cpumask *mask;
+	s32 cpu;
 
 	p = bpf_task_from_pid(input->pid);
 	if (!p)
 		return -EINVAL;
 
+	mask = bpf_cpumask_create();
+	if (!mask) {
+		bpf_task_release(p);
+		return -ENOMEM;
+	}
+
+	/* A negative custom_cpu leaves the custom mask empty. */
+	if (input->custom_cpu >= 0)
+		bpf_cpumask_set_cpu(input->custom_cpu, mask);
+
 	bpf_rcu_read_lock();
-	cpu = scx_bpf_select_cpu_and(p, bpf_get_smp_processor_id(), 0, p->cpus_ptr, 0);
+	cpu = scx_bpf_select_cpu_and(p, bpf_get_smp_processor_id(), 0,
+				     cast_mask(mask), 0);
+	if (cpu >= 0 &&
+	    (!bpf_cpumask_test_cpu(cpu, cast_mask(mask)) ||
+	     !bpf_cpumask_test_cpu(cpu, &p->cpus_mask)))
+		cpu = -ERANGE;
 	bpf_rcu_read_unlock();
 
+	bpf_cpumask_release(mask);
 	bpf_task_release(p);
 
 	return cpu;

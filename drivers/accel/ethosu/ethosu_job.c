@@ -345,10 +345,8 @@ int ethosu_job_init(struct ethosu_device *edev)
 					ethosu_job_irq_handler_thread,
 					0, KBUILD_MODNAME,
 					edev);
-	if (ret) {
-		dev_err(dev, "failed to request irq\n");
+	if (ret)
 		return ret;
-	}
 
 	edev->fence_context = dma_fence_context_alloc(1);
 

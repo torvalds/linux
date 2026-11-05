@@ -556,6 +556,14 @@ struct cgroup {
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
 
 	/*
+	 * Effective css for each subsystem: the css of the nearest ancestor,
+	 * including this cgroup, that has the subsystem enabled, or the root
+	 * css if the subsystem isn't bound to this hierarchy. Updated under
+	 * cgroup_mutex and read under RCU.
+	 */
+	struct cgroup_subsys_state __rcu *e_css[CGROUP_SUBSYS_COUNT];
+
+	/*
 	 * Keep track of total number of dying CSSes at and below this cgroup.
 	 * Protected by cgroup_mutex.
 	 */

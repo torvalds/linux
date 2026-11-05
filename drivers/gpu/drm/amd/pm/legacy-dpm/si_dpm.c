@@ -7929,12 +7929,6 @@ static int si_dpm_resume(struct amdgpu_ip_block *ip_block)
 	return ret;
 }
 
-static bool si_dpm_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* XXX */
-	return true;
-}
-
 static int si_dpm_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX */
@@ -8135,7 +8129,6 @@ static const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.hw_fini = si_dpm_hw_fini,
 	.suspend = si_dpm_suspend,
 	.resume = si_dpm_resume,
-	.is_idle = si_dpm_is_idle,
 	.wait_for_idle = si_dpm_wait_for_idle,
 	.set_clockgating_state = si_dpm_set_clockgating_state,
 	.set_powergating_state = si_dpm_set_powergating_state,

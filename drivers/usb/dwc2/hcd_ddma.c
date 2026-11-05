@@ -963,7 +963,7 @@ static void dwc2_complete_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 		 * whether some of the descriptors (frames) succeeded or not.
 		 * Pass error code to completion routine as well, to update
 		 * urb->status, some of class drivers might use it to stop
-		 * queing transfer requests.
+		 * queuing transfer requests.
 		 */
 		int err = halt_status == DWC2_HC_XFER_AHB_ERR ?
 			  -EIO : -EOVERFLOW;

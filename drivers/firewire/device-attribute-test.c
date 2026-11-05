@@ -86,7 +86,7 @@ static void device_attr_simple_avc(struct kunit *test)
 			.type = &fw_device_type,
 		},
 		.config_rom = simple_avc_config_rom,
-		.config_rom_length = sizeof(simple_avc_config_rom),
+		.config_rom_length = ARRAY_SIZE(simple_avc_config_rom),
 	};
 	static const struct fw_unit unit0 = {
 		.device = {
@@ -168,7 +168,7 @@ static void device_attr_legacy_avc(struct kunit *test)
 			.type = &fw_device_type,
 		},
 		.config_rom = legacy_avc_config_rom,
-		.config_rom_length = sizeof(legacy_avc_config_rom),
+		.config_rom_length = ARRAY_SIZE(legacy_avc_config_rom),
 	};
 	static const struct fw_unit unit0 = {
 		.device = {

@@ -767,7 +767,6 @@ struct mt76_rx_status {
 	u8 amsdu:1, first_amsdu:1, last_amsdu:1;
 	u8 rate_idx;
 	u8 nss:5, band:3;
-	s8 signal;
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
@@ -847,7 +846,6 @@ struct mt76_vif_link {
 
 struct mt76_vif_data {
 	struct mt76_vif_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
-	struct mt76_vif_link __rcu *offchannel_link;
 
 	struct mt76_phy *roc_phy;
 	u16 valid_links;
@@ -878,6 +876,15 @@ struct mt76_phy {
 	struct delayed_work roc_work;
 	struct ieee80211_vif *roc_vif;
 	struct mt76_vif_link *roc_link;
+
+	struct delayed_work scan_work;
+	struct {
+		struct ieee80211_channel *chan;
+		struct mt76_vif_link *mlink;
+		int chan_idx;
+		bool beacon_wait;
+		bool beacon_received;
+	} scan;
 
 	struct mt76_chanctx *chanctx;
 
@@ -1015,17 +1022,12 @@ struct mt76_dev {
 
 	u32 rxfilter;
 
-	struct delayed_work scan_work;
 	spinlock_t scan_lock;
 	struct {
-		struct cfg80211_scan_request *req;
-		struct ieee80211_channel *chan;
+		struct ieee80211_scan_request *req;
 		struct ieee80211_vif *vif;
-		struct mt76_vif_link *mlink;
-		struct mt76_phy *phy;
-		int chan_idx;
-		bool beacon_wait;
-		bool beacon_received;
+		unsigned long phy_mask;
+		bool aborted;
 	} scan;
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -1398,6 +1400,11 @@ mt76_phy_hw(struct mt76_dev *dev, u8 phy_idx)
 	return mt76_dev_phy(dev, phy_idx)->hw;
 }
 
+static inline bool mt76_phy_scanning(struct mt76_phy *phy)
+{
+	return test_bit(phy->band_idx, &phy->dev->scan.phy_mask);
+}
+
 static inline u8 *
 mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
@@ -1555,6 +1562,8 @@ void mt76_sta_ps_transition(struct mt76_dev *dev, struct mt76_wcid *wcid,
 bool mt76_has_tx_pending(struct mt76_phy *phy);
 int mt76_update_channel(struct mt76_phy *phy);
 void mt76_update_survey(struct mt76_phy *phy);
+void mt76_phy_chandef_set(struct mt76_phy *phy,
+			  struct cfg80211_chan_def *chandef);
 void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);
@@ -1623,7 +1632,7 @@ int mt76_get_rate(struct mt76_dev *dev,
 int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 struct ieee80211_scan_request *hw_req);
 void mt76_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void mt76_scan_rx_beacon(struct mt76_dev *dev, struct ieee80211_channel *chan);
+void mt76_scan_rx_beacon(struct mt76_phy *phy, struct ieee80211_channel *chan);
 void mt76_rx_beacon(struct mt76_phy *phy, struct sk_buff *skb);
 void mt76_beacon_mon_check(struct mt76_phy *phy);
 void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

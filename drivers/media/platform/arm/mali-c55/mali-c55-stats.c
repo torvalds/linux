@@ -200,9 +200,9 @@ static const struct vb2_ops mali_c55_stats_vb2_ops = {
 	.stop_streaming = mali_c55_stats_stop_streaming,
 };
 
-static void mali_c55_stats_cpu_read(struct mali_c55_stats *stats,
-				    struct mali_c55_stats_buf *buf,
-				    enum mali_c55_config_spaces cfg_space)
+static int mali_c55_stats_cpu_read(struct mali_c55_stats *stats,
+				   struct mali_c55_stats_buf *buf,
+				   enum mali_c55_config_spaces cfg_space)
 {
 	struct mali_c55 *mali_c55 = stats->mali_c55;
 	const void __iomem *src;
@@ -211,12 +211,18 @@ static void mali_c55_stats_cpu_read(struct mali_c55_stats *stats,
 
 	src = mali_c55->base + MALI_C55_REG_1024BIN_HIST;
 	dst = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
+
+	if (!dst)
+		return -EFAULT;
+
 	memcpy_fromio(dst, src, MALI_C55_1024BIN_HIST_SIZE);
 
 	src = mali_c55->base + metering_space_addrs[cfg_space];
 	dst += MALI_C55_1024BIN_HIST_SIZE;
 	length = sizeof(struct mali_c55_stats_buffer) - MALI_C55_1024BIN_HIST_SIZE;
 	memcpy_fromio(dst, src, length);
+
+	return 0;
 }
 
 void mali_c55_stats_fill_buffer(struct mali_c55 *mali_c55,
@@ -224,6 +230,7 @@ void mali_c55_stats_fill_buffer(struct mali_c55 *mali_c55,
 {
 	struct mali_c55_stats *stats = &mali_c55->stats;
 	struct mali_c55_stats_buf *buf = NULL;
+	int ret;
 
 	spin_lock(&stats->buffers.lock);
 	if (!list_empty(&stats->buffers.queue)) {
@@ -239,8 +246,9 @@ void mali_c55_stats_fill_buffer(struct mali_c55 *mali_c55,
 	buf->vb.sequence = mali_c55->isp.frame_sequence;
 	buf->vb.vb2_buf.timestamp = ktime_get_boottime_ns();
 
-	mali_c55_stats_cpu_read(stats, buf, cfg_space);
-	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	ret = mali_c55_stats_cpu_read(stats, buf, cfg_space);
+	vb2_buffer_done(&buf->vb.vb2_buf,
+			ret ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 }
 
 void mali_c55_unregister_stats(struct mali_c55 *mali_c55)

@@ -1434,4 +1434,3 @@
 		power-domains = <&ps_atc3_usb_aon>, <&ps_atc3_common>;
 	};
 };
-

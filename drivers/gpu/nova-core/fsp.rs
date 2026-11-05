@@ -3,9 +3,12 @@
 
 //! FSP (Foundation Security Processor) interface for Hopper/Blackwell GPUs.
 //!
-//! Hopper/Blackwell use a simplified firmware boot sequence: FMC, then FSP, then GSP.
+//! Hopper/Blackwell use a simplified firmware boot sequence: FSP secure-boots independently before
+//! the driver starts. The driver then sends FSP a Chain-of-Trust request containing the GSP-FMC
+//! image. FSP authenticates the image and launches GSP-FMC on the GSP RISC-V core; GSP-FMC
+//! subsequently authenticates and boots GSP-RM.
+//!
 //! Unlike Turing/Ampere/Ada, there is no SEC2 (Security Engine 2) usage.
-//! FSP handles secure boot directly using FMC firmware and Chain of Trust.
 
 use kernel::{
     device,
@@ -32,9 +35,9 @@ use crate::{
         Falcon, //
     },
     fb::FbSizes,
-    firmware::fsp::{
+    firmware::gsp_fmc::{
         FmcSignatures,
-        FspFirmware, //
+        GspFmcFirmware, //
     },
     gpu::Chipset,
     gsp::{
@@ -267,7 +270,7 @@ impl FspCotMessage {
     /// Returns an in-place initializer for [`FspCotMessage`].
     fn new<'a>(
         fb_info: &FbSizes,
-        fsp_fw: &'a FspFirmware,
+        fmc_fw: &'a GspFmcFirmware<'_>,
         args: &'a FmcBootArgs<'_>,
     ) -> Result<impl Init<Self> + 'a> {
         let hal = hal::fsp_hal(args.chipset).ok_or(ENOTSUPP)?;
@@ -296,13 +299,13 @@ impl FspCotMessage {
         .chain(move |msg| {
             msg.cot.version = version;
             msg.cot.size = size;
-            msg.cot.gsp_fmc_sysmem_offset = fsp_fw.fmc_image.dma_address();
+            msg.cot.gsp_fmc_sysmem_offset = fmc_fw.fmc_image.dma_address();
             msg.cot.frts_vidmem_offset = frts_vidmem_offset;
             msg.cot.frts_vidmem_size = frts_size;
             // frts_sysmem_* are left at zero because this path places FRTS in vidmem. The sysmem
             // fields point to an FRTS buffer in sysmem instead, for systems without VRAM.
             msg.cot.gsp_boot_args_sysmem_offset = args.fmc_boot_params.dma_address();
-            msg.cot.sigs = *fsp_fw.fmc_sigs;
+            msg.cot.sigs = *fmc_fw.fmc_sigs;
 
             Ok(())
         }))
@@ -345,28 +348,28 @@ impl MessageToFsp for FspPrcMessage {
 /// Bundled arguments for FMC boot via FSP Chain of Trust.
 pub(crate) struct FmcBootArgs<'a> {
     chipset: Chipset,
-    fmc_boot_params: Coherent<GspFmcBootParams>,
+    fmc_boot_params: Coherent<'a, GspFmcBootParams>,
     resume: bool,
     // Additional dependencies required to be kept alive for FMC boot.
-    _wpr_meta: Coherent<GspFwWprMeta>,
-    _libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
+    _wpr_meta: Coherent<'a, GspFwWprMeta>,
+    _libos: &'a Coherent<'a, [LibosMemoryRegionInitArgument]>,
 }
 
 impl<'a> FmcBootArgs<'a> {
     /// Builds FMC boot arguments, allocating the DMA-coherent boot parameter
     /// structure that FSP will read.
     pub(crate) fn new(
-        dev: &device::Device<device::Bound>,
+        dev: &'a device::Device<device::Bound>,
         chipset: Chipset,
-        wpr_meta: Coherent<GspFwWprMeta>,
-        libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
+        wpr_meta: Coherent<'a, GspFwWprMeta>,
+        libos: &'a Coherent<'a, [LibosMemoryRegionInitArgument]>,
         resume: bool,
     ) -> Result<Self> {
         let init = GspFmcBootParams::new(wpr_meta.dma_address(), libos.dma_address());
 
         Ok(Self {
             chipset,
-            fmc_boot_params: Coherent::<GspFmcBootParams>::init(dev, GFP_KERNEL, init)?,
+            fmc_boot_params: Coherent::init(dev, GFP_KERNEL, init)?,
             resume,
             _wpr_meta: wpr_meta,
             _libos: libos,
@@ -374,19 +377,19 @@ impl<'a> FmcBootArgs<'a> {
     }
 
     /// Returns the FMC boot parameters allocation.
-    pub(crate) fn boot_params(&self) -> &Coherent<GspFmcBootParams> {
+    pub(crate) fn boot_params(&self) -> &Coherent<'_, GspFmcBootParams> {
         &self.fmc_boot_params
     }
 }
 
 /// FSP interface for Hopper/Blackwell GPUs.
 ///
-/// An `Fsp` is produced by [`Fsp::wait_secure_boot`], which only returns once FSP secure boot
-/// has completed. It owns the FSP falcon and the FMC firmware, which are used for the subsequent
+/// An `Fsp` is produced by [`Fsp::wait_secure_boot`], which only returns once FSP secure boot has
+/// completed. It owns the FSP falcon and the GSP-FMC firmware, which are used for the subsequent
 /// Chain of Trust boot.
 pub(crate) struct Fsp<'a> {
     falcon: Falcon<'a, FspEngine>,
-    fsp_fw: FspFirmware,
+    fmc_fw: GspFmcFirmware<'a>,
 }
 
 impl<'a> Fsp<'a> {
@@ -422,7 +425,7 @@ impl<'a> Fsp<'a> {
         const FSP_SECURE_BOOT_TIMEOUT_MS: i64 = 5000;
 
         let falcon = Falcon::<FspEngine>::new(dev, chipset, bar)?;
-        let fsp_fw = FspFirmware::new(dev, chipset)?;
+        let fmc_fw = GspFmcFirmware::new(dev, chipset)?;
 
         read_poll_timeout(
             || Ok(hal.fsp_boot_status(bar)),
@@ -434,7 +437,7 @@ impl<'a> Fsp<'a> {
             dev_err!(dev, "FSP secure boot completion error: {:?}\n", e);
         })?;
 
-        Ok(Fsp { falcon, fsp_fw })
+        Ok(Fsp { falcon, fmc_fw })
     }
 
     /// Sends a message to FSP and waits for the response.
@@ -540,7 +543,7 @@ impl<'a> Fsp<'a> {
     ) -> Result {
         dev_dbg!(dev, "Starting FSP boot sequence for {}\n", args.chipset);
 
-        let msg = KBox::init(FspCotMessage::new(fb_info, &self.fsp_fw, args)?, GFP_KERNEL)?;
+        let msg = KBox::init(FspCotMessage::new(fb_info, &self.fmc_fw, args)?, GFP_KERNEL)?;
 
         let _response_buf = self.send_sync_fsp(dev, &*msg)?;
 

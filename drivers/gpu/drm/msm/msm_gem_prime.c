@@ -109,20 +109,13 @@ struct dma_buf *msm_gem_prime_export(struct drm_gem_object *obj, int flags)
 
 int msm_gem_prime_pin(struct drm_gem_object *obj)
 {
-	struct page **pages;
-	int ret = 0;
-
 	if (drm_gem_is_imported(obj))
 		return 0;
 
 	if (to_msm_bo(obj)->flags & MSM_BO_NO_SHARE)
 		return -EINVAL;
 
-	pages = msm_gem_pin_pages_locked(obj);
-	if (IS_ERR(pages))
-		ret = PTR_ERR(pages);
-
-	return ret;
+	return msm_gem_pin_pages_locked(obj);
 }
 
 void msm_gem_prime_unpin(struct drm_gem_object *obj)

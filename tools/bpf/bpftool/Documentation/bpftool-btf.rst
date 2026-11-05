@@ -16,7 +16,7 @@ SYNOPSIS
 
 **bpftool** [*OPTIONS*] **btf** *COMMAND*
 
-*OPTIONS* := { |COMMON_OPTIONS| | { **-B** | **--base-btf** } }
+*OPTIONS* := { |COMMON_OPTIONS| | [{ **-B** | **--base-btf**} *FILE*]...  }
 
 *COMMANDS* := { **dump** | **help** }
 
@@ -87,7 +87,10 @@ OPTIONS
     objects for kernel modules. To avoid duplicating all kernel symbols
     required by modules, BTF objects for modules are "split", they are
     built incrementally on top of the kernel (vmlinux) BTF object. So the
-    base BTF reference should usually point to the kernel BTF.
+    base BTF reference should usually point to the kernel BTF.  Multiple
+    base BTF objects can be passed, where the first is assumed to be the
+    root BTF, followed by split BTF based upon it, followed by split
+    BTF based upon the first split BTF and so on.
 
     When the main BTF object to process (for example, the module BTF to
     dump) is passed as a *FILE*, bpftool attempts to autodetect the path

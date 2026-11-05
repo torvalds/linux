@@ -196,17 +196,17 @@ int i915_gem_mmap_gtt_version(void)
 	return 5;
 }
 
-static inline struct i915_gtt_view
+static inline struct intel_gtt_view
 compute_partial_view(const struct drm_i915_gem_object *obj,
 		     pgoff_t page_offset,
 		     unsigned int chunk)
 {
-	struct i915_gtt_view view;
+	struct intel_gtt_view view;
 
 	if (i915_gem_object_is_tiled(obj))
 		chunk = roundup(chunk, tile_row_pages(obj) ?: 1);
 
-	view.type = I915_GTT_VIEW_PARTIAL;
+	view.type = INTEL_GTT_VIEW_PARTIAL;
 	view.partial.offset = rounddown(page_offset, chunk);
 	view.partial.size =
 		min_t(unsigned int, chunk,
@@ -214,7 +214,7 @@ compute_partial_view(const struct drm_i915_gem_object *obj,
 
 	/* If the partial covers the entire object, just create a normal VMA. */
 	if (chunk >= obj->base.size >> PAGE_SHIFT)
-		view.type = I915_GTT_VIEW_NORMAL;
+		view.type = INTEL_GTT_VIEW_NORMAL;
 
 	return view;
 }
@@ -391,12 +391,12 @@ retry:
 					  PIN_NOEVICT);
 	if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK)) {
 		/* Use a partial view if it is bigger than available space */
-		struct i915_gtt_view view =
+		struct intel_gtt_view view =
 			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
 		unsigned int flags;
 
 		flags = PIN_MAPPABLE | PIN_NOSEARCH;
-		if (view.type == I915_GTT_VIEW_NORMAL)
+		if (intel_gtt_view_is_normal(&view))
 			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
 
 		/*
@@ -407,7 +407,7 @@ retry:
 		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, &view, 0, 0, flags);
 		if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK)) {
 			flags = PIN_MAPPABLE;
-			view.type = I915_GTT_VIEW_PARTIAL;
+			view.type = INTEL_GTT_VIEW_PARTIAL;
 			vma = i915_gem_object_ggtt_pin_ww(obj, &ww, &view, 0, 0, flags);
 		}
 

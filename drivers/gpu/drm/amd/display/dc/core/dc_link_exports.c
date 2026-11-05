@@ -263,6 +263,11 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 			lt_overrides, link, skip_immediate_retrain);
 }
 
+void dc_link_set_skip_link_bw_clear(struct dc_link *link, bool skip)
+{
+	link->preferred_training_settings.skip_link_bw_clear = skip;
+}
+
 bool dc_dp_trace_is_initialized(struct dc_link *link)
 {
 	return link->dc->link_srv->dp_trace_is_initialized(link);
@@ -368,8 +373,7 @@ enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc
 
 		if (frl_link_settings->frl_link_rate == HDMI_FRL_LINK_RATE_DISABLE)
 			return DC_LINK_ENCODING_HDMI_TMDS;
-		else if (frl_link_settings->frl_link_rate >= HDMI_FRL_LINK_RATE_3GBPS &&
-				frl_link_settings->frl_link_rate <= HDMI_FRL_LINK_RATE_12GBPS)
+		else if (frl_link_settings->frl_link_rate >= HDMI_FRL_LINK_RATE_3GBPS)
 			return DC_LINK_ENCODING_HDMI_FRL;
 	}
 
@@ -600,4 +604,26 @@ void dc_link_get_alpm_support(struct dc_link *link,
 	bool *auxwake_support)
 {
 	link->dc->link_srv->edp_get_alpm_support(link, auxless_support, auxwake_support);
+}
+
+void dc_link_set_panel_polarity_enable(struct dc_link *link, bool enable)
+{
+	if (link->dc->link_srv->edp_set_panel_polarity_enabled)
+		link->dc->link_srv->edp_set_panel_polarity_enabled(link, enable);
+}
+
+void dc_link_panel_polarity_reset(struct dc_link *link)
+{
+	if (link->dc->link_srv->edp_panel_polarity_reset)
+		link->dc->link_srv->edp_panel_polarity_reset(link);
+}
+
+bool dc_link_get_panel_polarity(struct dc_link *link, int32_t *polarity)
+{
+	bool ret = false;
+
+	if (link->dc->link_srv->edp_get_panel_polarity)
+		ret = link->dc->link_srv->edp_get_panel_polarity(link, polarity);
+
+	return ret;
 }

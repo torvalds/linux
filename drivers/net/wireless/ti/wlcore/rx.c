@@ -316,10 +316,7 @@ int wl1271_rx_filter_enable(struct wl1271 *wl,
 		return ret;
 	}
 
-	if (enable)
-		__set_bit(index, wl->rx_filter_enabled);
-	else
-		__clear_bit(index, wl->rx_filter_enabled);
+	__assign_bit(index, wl->rx_filter_enabled, enable);
 
 	return 0;
 }

@@ -621,6 +621,16 @@ user/system lands:
 
 Those times are the very same as displayed by the 'time' tool.
 
+We also display a clock-based timing metric that depends on the
+target being monitored:
+
+        83723.452481      task-clock (msec)       #    1.004 CPUs utilized
+
+For a single task, task-clock reports a clock count specific to that
+task. When the target is a CPU or the whole system (-a or -C),
+cpu-clock is reported instead. cpu-clock is a high-resolution per-CPU
+timer. See perf_event_open(2) for more details.
+
 CSV FORMAT
 ----------
 
@@ -671,4 +681,4 @@ that can be used for parsing.
 
 SEE ALSO
 --------
-linkperf:perf-top[1], linkperf:perf-list[1]
+linkperf:perf-top[1], linkperf:perf-list[1], perf_event_open(2)

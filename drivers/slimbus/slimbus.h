@@ -317,6 +317,18 @@ enum slim_transport_protocol {
 };
 
 /**
+ * enum slim_ch_control: Channel control.
+ * @SLIM_CH_ACTIVATE: Schedules channel or group of channels in the TDM frame.
+ * @SLIM_CH_SUSPEND: Keeps the TDM schedule but halts data transfer.
+ * @SLIM_CH_REMOVE: Drops the channel or group from the TDM frame.
+ */
+enum slim_ch_control {
+	SLIM_CH_ACTIVATE,
+	SLIM_CH_SUSPEND,
+	SLIM_CH_REMOVE,
+};
+
+/**
  * struct slim_stream_runtime  - SLIMbus stream runtime instance
  *
  * @name: Name of the stream
@@ -325,7 +337,7 @@ enum slim_transport_protocol {
  * @prot: Transport protocol used in this stream
  * @rate: Data rate of samples *
  * @bps: bits per sample
- * @ratem: rate multipler which is super frame rate/data rate
+ * @ratem: rate multiplier which is super frame rate/data rate
  * @num_ports: number of ports
  * @ports: pointer to instance of ports
  * @node: list head for stream associated with slim device.

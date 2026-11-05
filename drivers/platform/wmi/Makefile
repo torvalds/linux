@@ -9,3 +9,7 @@ obj-$(CONFIG_ACPI_WMI)	+= wmi.o
 
 # Unit tests
 obj-y			+= tests/
+
+# Binary MOF driver
+wmi-bmof-y		:= bmof.o
+obj-$(CONFIG_WMI_BMOF)	+= wmi-bmof.o

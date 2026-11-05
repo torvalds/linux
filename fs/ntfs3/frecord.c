@@ -2190,10 +2190,13 @@ remove_wof:
 
 	/* Clear cached flag. */
 	ni->ni_flags &= ~NI_FLAG_COMPRESSED_MASK;
+	/* offs_folio is accessed under run_lock in attr_wof_frame_info(). */
+	down_write(&ni->file.run_lock);
 	if (ni->file.offs_folio) {
 		folio_put(ni->file.offs_folio);
 		ni->file.offs_folio = NULL;
 	}
+	up_write(&ni->file.run_lock);
 	mapping->a_ops = &ntfs_aops;
 
 out:
@@ -2287,7 +2290,6 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 	u64 vbo_disk;
 	size_t unc_size = 0;
 	u32 frame_size, i, ondisk_size;
-	struct page *pg;
 	struct ATTRIB *attr;
 	CLST frame, clst_data;
 
@@ -2519,9 +2521,10 @@ out1:
 #endif
 	vunmap(frame_mem);
 out:
-	for (i = 0; i < pages_per_frame; i++) {
-		pg = pages[i];
-		SetPageUptodate(pg);
+	if (!err) {
+		for (i = 0; i < pages_per_frame; i++) {
+			SetPageUptodate(pages[i]);
+		}
 	}
 
 	return err;
@@ -2569,9 +2572,8 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 
 	if (!attr->non_res) {
 		down_write(&ni->file.run_lock);
-		err = attr_make_nonresident(ni, attr, le, mi,
-					    le32_to_cpu(attr->res.data_size),
-					    &ni->file.run, &attr, pages[0]);
+		err = attr_make_nonresident(ni, attr, le, mi, &ni->file.run,
+					    &attr, pages[0]);
 		up_write(&ni->file.run_lock);
 		if (err)
 			goto out;

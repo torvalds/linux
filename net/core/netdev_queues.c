@@ -61,21 +61,24 @@ struct device *netdev_queue_get_dma_dev(struct net_device *dev,
 bool netdev_can_create_queue(const struct net_device *dev,
 			     struct netlink_ext_ack *extack)
 {
-	if (dev->dev.parent) {
-		NL_SET_ERR_MSG(extack, "Device is not a virtual device");
-		return false;
-	}
-	if (!dev->queue_mgmt_ops ||
-	    !dev->queue_mgmt_ops->ndo_queue_create) {
-		NL_SET_ERR_MSG(extack, "Device does not support queue creation");
-		return false;
-	}
+	const char *msg = NULL;
+
 	if (dev->real_num_rx_queues < 1 ||
-	    dev->real_num_tx_queues < 1) {
-		NL_SET_ERR_MSG(extack, "Device must have at least one real queue");
-		return false;
-	}
-	return true;
+	    dev->real_num_tx_queues < 1)
+		msg = "Device must have at least one real queue";
+	if (!dev->queue_mgmt_ops ||
+	    !dev->queue_mgmt_ops->ndo_queue_create)
+		msg = "Device does not support queue creation";
+	if (dev->dev.parent)
+		msg = "Device is not a virtual device";
+
+	/* callers with extack=NULL are not from uAPI and don't want to trigger
+	 * the extack tracepoint.
+	 */
+	if (msg && extack)
+		NL_SET_ERR_MSG_FMT(extack, "%s", msg);
+
+	return !msg;
 }
 
 bool netdev_can_lease_queue(const struct net_device *dev,

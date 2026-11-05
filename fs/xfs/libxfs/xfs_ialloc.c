@@ -615,7 +615,7 @@ xfs_inobt_insert_sprec(
 
 	trace_xfs_irec_merge_post(pag, nrec);
 
-	error = xfs_inobt_rec_check_count(mp, nrec);
+	error = xfs_inobt_rec_check_count(nrec);
 	if (error)
 		goto error;
 
@@ -733,6 +733,10 @@ xfs_ialloc_ag_alloc(
 							igeo->maxicount)
 		return -ENOSPC;
 	args.minlen = args.maxlen = igeo->ialloc_blks;
+
+	/* Allow space for the inode btree to split. */
+	args.minleft = igeo->inobt_maxlevels;
+
 	/*
 	 * First try to allocate inodes contiguous with the last-allocated
 	 * chunk of inodes.  If the filesystem is striped, this will fill
@@ -764,8 +768,6 @@ xfs_ialloc_ag_alloc(
 		args.alignment = 1;
 		args.minalignslop = igeo->cluster_align - 1;
 
-		/* Allow space for the inode btree to split. */
-		args.minleft = igeo->inobt_maxlevels;
 		error = xfs_alloc_vextent_exact_bno(&args,
 				xfs_agbno_to_fsb(pag, args.agbno));
 		if (error)
@@ -804,10 +806,6 @@ xfs_ialloc_ag_alloc(
 		 * Allocate a fixed-size extent of inodes.
 		 */
 		args.prod = 1;
-		/*
-		 * Allow space for the inode btree to split.
-		 */
-		args.minleft = igeo->inobt_maxlevels;
 		error = xfs_alloc_vextent_near_bno(&args,
 				xfs_agbno_to_fsb(pag,
 					be32_to_cpu(agi->agi_root)));
@@ -1628,12 +1626,20 @@ xfs_dialloc_ag(
 	 */
 	rec.ir_free &= ~XFS_INOBT_MASK(offset);
 	rec.ir_freecount--;
-	if (rec.ir_freecount)
+	if (rec.ir_freecount) {
 		error = xfs_inobt_update(cur, &rec);
-	else
+		if (error)
+			goto error_cur;
+	} else {
 		error = xfs_btree_delete(cur, &i);
-	if (error)
-		goto error_cur;
+		if (error)
+			goto error_cur;
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			xfs_btree_mark_sick(cur);
+			error = -EFSCORRUPTED;
+			goto error_cur;
+		}
+	}
 
 	/*
 	 * The finobt has now been updated appropriately. We haven't updated the
@@ -2166,6 +2172,11 @@ xfs_difree_inobt(
 				__func__, error);
 			goto error0;
 		}
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			xfs_btree_mark_sick(cur);
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 
 		error = xfs_difree_inode_chunk(tp, pag, &rec);
 		if (error)
@@ -2292,7 +2303,11 @@ xfs_difree_finobt(
 		error = xfs_btree_delete(cur, &i);
 		if (error)
 			goto error;
-		ASSERT(i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			xfs_btree_mark_sick(cur);
+			error = -EFSCORRUPTED;
+			goto error;
+		}
 	} else {
 		error = xfs_inobt_update(cur, &rec);
 		if (error)
@@ -2845,6 +2860,11 @@ xfs_ialloc_count_ondisk(
 		error = xfs_inobt_get_rec(cur, &irec, &has_record);
 		if (error)
 			return error;
+		if (XFS_IS_CORRUPT(cur->bc_mp, has_record != 1)) {
+			xfs_btree_mark_sick(cur);
+			return -EFSCORRUPTED;
+		}
+
 		if (irec.ir_startino > high)
 			break;
 
@@ -3076,6 +3096,7 @@ xfs_ialloc_calc_rootino(
 {
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	xfs_agblock_t		first_bno;
+	unsigned int		min_free;
 
 	/*
 	 * Pre-calculate the geometry of AG 0.  We know what it looks like
@@ -3094,7 +3115,8 @@ xfs_ialloc_calc_rootino(
 	first_bno += 1;
 
 	/* ...the initial AGFL... */
-	first_bno += xfs_alloc_min_freelist(mp, NULL);
+	xfs_alloc_freelist(mp, NULL, &min_free, NULL);
+	first_bno += min_free;
 
 	/* ...the free inode btree root... */
 	if (xfs_has_finobt(mp))

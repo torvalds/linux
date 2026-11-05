@@ -71,7 +71,7 @@ alternative_if_not ARM64_HAS_ADDRESS_AUTH
 	b	.L__skip_switch\@
 alternative_else_nop_endif
 	mrs	\reg1, hcr_el2
-	and	\reg1, \reg1, #(HCR_API | HCR_APK)
+	and	\reg1, \reg1, #(HCR_EL2_API | HCR_EL2_APK)
 	cbz	\reg1, .L__skip_switch\@
 	add	\reg1, \g_ctxt, #CPU_APIAKEYLO_EL1
 	ptrauth_restore_state	\reg1, \reg2, \reg3
@@ -83,7 +83,7 @@ alternative_if_not ARM64_HAS_ADDRESS_AUTH
 	b	.L__skip_switch\@
 alternative_else_nop_endif
 	mrs	\reg1, hcr_el2
-	and	\reg1, \reg1, #(HCR_API | HCR_APK)
+	and	\reg1, \reg1, #(HCR_EL2_API | HCR_EL2_APK)
 	cbz	\reg1, .L__skip_switch\@
 	add	\reg1, \g_ctxt, #CPU_APIAKEYLO_EL1
 	ptrauth_save_state	\reg1, \reg2, \reg3

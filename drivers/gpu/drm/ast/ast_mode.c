@@ -43,6 +43,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -652,6 +653,7 @@ static const struct drm_plane_funcs ast_primary_plane_funcs = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
 	DRM_GEM_SHADOW_PLANE_FUNCS,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static int ast_primary_plane_init(struct ast_device *ast)
@@ -888,17 +890,17 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.atomic_disable = ast_crtc_helper_atomic_disable,
 };
 
-static void ast_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *ast_crtc_create_state(struct drm_crtc *crtc)
 {
-	struct ast_crtc_state *ast_state = kzalloc_obj(*ast_state);
+	struct ast_crtc_state *ast_state;
 
-	if (crtc->state)
-		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+	ast_state = kzalloc_obj(*ast_state);
+	if (!ast_state)
+		return ERR_PTR(-ENOMEM);
 
-	if (ast_state)
-		__drm_atomic_helper_crtc_reset(crtc, &ast_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_state_init(&ast_state->base, crtc);
+
+	return &ast_state->base;
 }
 
 static struct drm_crtc_state *
@@ -934,7 +936,7 @@ static void ast_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_funcs ast_crtc_funcs = {
-	.reset = ast_crtc_reset,
+	.atomic_create_state = ast_crtc_create_state,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,

@@ -573,7 +573,7 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 
 		sensor_data->wmi.info[type] = devm_kcalloc(dev,
 							   nr_count[type],
-							   sizeof(*sensor_data->wmi.info),
+							   sizeof(*sensor_data->wmi.info[type]),
 							   GFP_KERNEL);
 		if (!sensor_data->wmi.info[type])
 			return -ENOMEM;

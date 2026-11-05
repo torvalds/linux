@@ -1578,11 +1578,13 @@ static int spi_imx_dma_tx_data_handle(struct spi_imx_data *spi_imx,
 		dma_data->dma_len = ALIGN(dma_data->data_len, BYTES_PER_32BITS_WORD);
 	}
 
-	dma_data->dma_tx_buf = kzalloc(dma_data->dma_len, GFP_KERNEL);
+	dma_data->dma_tx_buf = kzalloc(DMA_CACHE_ALIGNED_LEN(dma_data->dma_len),
+				       GFP_KERNEL);
 	if (!dma_data->dma_tx_buf)
 		return -ENOMEM;
 
-	dma_data->dma_rx_buf = kzalloc(dma_data->dma_len, GFP_KERNEL);
+	dma_data->dma_rx_buf = kzalloc(DMA_CACHE_ALIGNED_LEN(dma_data->dma_len),
+				       GFP_KERNEL);
 	if (!dma_data->dma_rx_buf) {
 		kfree(dma_data->dma_tx_buf);
 		return -ENOMEM;
@@ -1920,7 +1922,8 @@ static int spi_imx_dma_package_transfer(struct spi_imx_data *spi_imx,
 
 	/* Trim the DMA RX buffer and copy the actual data to rx_buf */
 	dma_sync_single_for_cpu(dmaengine_get_dma_device(controller->dma_rx), dma_data->dma_rx_addr,
-				dma_data->dma_len, DMA_FROM_DEVICE);
+				DMA_CACHE_ALIGNED_LEN(dma_data->dma_len),
+				DMA_FROM_DEVICE);
 	spi_imx_dma_rx_data_handle(spi_imx, dma_data, transfer->rx_buf + spi_imx->rx_offset,
 				   word_delay);
 	spi_imx->rx_offset += dma_data->data_len;

@@ -332,7 +332,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   psock_stats.tx_bytes,
 		   psock_stats.reserved,
 		   psock_stats.unreserved,
-		   strp_stats.aborts,
+		   0,
 		   strp_stats.interrupted,
 		   strp_stats.unrecov_intr,
 		   strp_stats.mem_fail,

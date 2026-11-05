@@ -76,6 +76,12 @@
 #define OV13858_DGTL_GAIN_DEFAULT	1024	/* Default gain = 1 X */
 #define OV13858_DGTL_GAIN_STEP		1	/* Each step = 1/1024 */
 
+/* Readout direction */
+#define OV13858_REG_FORMAT1		0x3820
+#define OV13858_FORMAT1_VFLIP		BIT(4)
+/* Horizontal flip, active low: every mode table sets this bit */
+#define OV13858_FORMAT1_HFLIP_N		BIT(3)
+
 /* Test Pattern Control */
 #define OV13858_REG_TEST_PATTERN	0x4503
 #define OV13858_TEST_PATTERN_ENABLE	BIT(7)
@@ -1042,6 +1048,8 @@ struct ov13858 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
 
 	/* Current mode */
 	const struct ov13858_mode *cur_mode;
@@ -1208,6 +1216,31 @@ static int ov13858_enable_test_pattern(struct ov13858 *ov13858, u32 pattern)
 				 OV13858_REG_VALUE_08BIT, val);
 }
 
+static int ov13858_update_flips(struct ov13858 *ov13858)
+{
+	u32 val;
+	int ret;
+
+	ret = ov13858_read_reg(ov13858, OV13858_REG_FORMAT1,
+			       OV13858_REG_VALUE_08BIT, &val);
+	if (ret)
+		return ret;
+
+	if (ov13858->vflip->val)
+		val |= OV13858_FORMAT1_VFLIP;
+	else
+		val &= ~OV13858_FORMAT1_VFLIP;
+
+	/* The mirror bit is active low, as it is on ov13b10. */
+	if (ov13858->hflip->val)
+		val &= ~OV13858_FORMAT1_HFLIP_N;
+	else
+		val |= OV13858_FORMAT1_HFLIP_N;
+
+	return ov13858_write_reg(ov13858, OV13858_REG_FORMAT1,
+				 OV13858_REG_VALUE_08BIT, val);
+}
+
 static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov13858 *ov13858 = container_of(ctrl->handler,
@@ -1253,6 +1286,10 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 					OV13858_REG_VALUE_16BIT,
 					ov13858->cur_mode->height
 					  + ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+	case V4L2_CID_VFLIP:
+		ret = ov13858_update_flips(ov13858);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov13858_enable_test_pattern(ov13858, ctrl->val);
@@ -1345,6 +1382,7 @@ static int ov13858_get_pad_format(struct v4l2_subdev *sd,
 
 static int
 ov13858_set_pad_format(struct v4l2_subdev *sd,
+		       const struct v4l2_subdev_client_info *ci,
 		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *fmt)
 {
@@ -1479,6 +1517,13 @@ static int ov13858_set_stream(struct v4l2_subdev *sd, int enable)
 		ov13858_stop_streaming(ov13858);
 		pm_runtime_put(ov13858->dev);
 	}
+
+	/*
+	 * Do not let the flips change while streaming. ov13858->mutex is the
+	 * control handler's own lock and is held here, hence the __ form.
+	 */
+	__v4l2_ctrl_grab(ov13858->hflip, enable);
+	__v4l2_ctrl_grab(ov13858->vflip, enable);
 
 	mutex_unlock(&ov13858->mutex);
 
@@ -1617,6 +1662,12 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov13858_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
 			  OV13858_DGTL_GAIN_MIN, OV13858_DGTL_GAIN_MAX,
 			  OV13858_DGTL_GAIN_STEP, OV13858_DGTL_GAIN_DEFAULT);
+
+	ov13858->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov13858_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+	ov13858->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov13858_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_cluster(2, &ov13858->hflip);
 
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &ov13858_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,

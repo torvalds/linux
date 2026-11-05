@@ -1562,10 +1562,13 @@ xlog_cil_push_work(
 		}
 
 		/*
-		 * We need to issue a pre-flush so that the ordering for this
-		 * checkpoint is correctly preserved down to stable storage.
+		 * We need to issue a pre-flush on the device containing the log
+		 * so that the ordering for this checkpoint is correctly
+		 * preserved down to stable storage.
+		 * There is no need for an extra flush on devices that only
+		 * contain data or non-log metadata.
 		 */
-		ctx->commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
+		ctx->commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH_LOG;
 	}
 
 	/*

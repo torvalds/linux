@@ -934,8 +934,7 @@ nfs_mark_return_if_closed_delegation(struct nfs_server *server,
 {
 	struct inode *inode;
 
-	if (!list_empty_careful(&server->delegations_return) ||
-	    test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags))
+	if (test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags))
 		return;
 	spin_lock(&delegation->lock);
 	inode = delegation->inode;

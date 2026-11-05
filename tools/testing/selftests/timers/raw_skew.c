@@ -91,6 +91,7 @@ int main(int argc, char **argv)
 {
 	struct timespec mon, raw, start, end;
 	long long delta1, delta2, interval, eppm, ppm;
+	long tick_nom;
 	struct timex tx1, tx2;
 
 	setbuf(stdout, NULL);
@@ -129,6 +130,17 @@ int main(int argc, char **argv)
 	/* Avg the two actual freq samples adjtimex gave us */
 	ppm = (long long)(tx1.freq + tx2.freq) * 1000 / 2;
 	ppm = shift_right(ppm, 16);
+
+	/*
+	 * The tick value holds the coarse part of the adjustment, a
+	 * microsecond of the tick length per unit, and time sync daemons
+	 * do put part of their correction there. What it is worth has to
+	 * be counted in as well, or a clock disciplined through it looks
+	 * off by a hundred ppm a unit against what the two clocks show.
+	 */
+	tick_nom = USEC_PER_SEC / sysconf(_SC_CLK_TCK);
+	ppm += (long long)(tx1.tick + tx2.tick - 2 * tick_nom) *
+	       (USEC_PER_SEC / tick_nom) * 1000 / 2;
 	printf(" %lld.%i(act)", ppm/1000, abs((int)(ppm%1000)));
 
 	if (llabs(eppm - ppm) > 1000) {

@@ -294,13 +294,16 @@ psp_nl_dev_fill(struct psp_dev *psd, struct sk_buff *rsp,
 		return -EMSGSIZE;
 
 	if (nla_put_u32(rsp, PSP_A_DEV_ID, psd->id) ||
-	    nla_put_u32(rsp, PSP_A_DEV_IFINDEX, psd->main_netdev->ifindex) ||
 	    nla_put_u32(rsp, PSP_A_DEV_PSP_VERSIONS_CAP, psd->caps->versions) ||
 	    nla_put_u32(rsp, PSP_A_DEV_PSP_VERSIONS_ENA, psd->config.versions))
 		goto err_cancel_msg;
 
 	if (cur_net == dev_net(psd->main_netdev)) {
-		/* Primary device - dump assoc list */
+		/* Primary device - report the netdev, dump assoc list. */
+		if (nla_put_u32(rsp, PSP_A_DEV_IFINDEX,
+				psd->main_netdev->ifindex))
+			goto err_cancel_msg;
+
 		err = psp_nl_fill_assoc_dev_list(psd, rsp, cur_net, NULL);
 		if (err)
 			goto err_cancel_msg;
@@ -351,6 +354,40 @@ void psp_nl_notify_dev(struct psp_dev *psd, u32 cmd)
 {
 	psp_nl_multicast_per_ns(psd, PSP_NLGRP_MGMT,
 				psp_nl_build_dev_ntf, &cmd);
+}
+
+/**
+ * psp_nl_notify_disassoc() - notify about a device losing an association
+ * @psd: PSP device (must be locked)
+ * @net: netns of the netdevice which got disassociated
+ *
+ * Must be called once @psd no longer has the association, so that the
+ * notifications carry the state after the change.
+ */
+void psp_nl_notify_disassoc(struct psp_dev *psd, struct net *net)
+{
+	struct sk_buff *ntf;
+	bool still_visible;
+	u32 cmd;
+
+	lockdep_assert_held(&psd->lock);
+
+	psp_nl_notify_dev(psd, PSP_CMD_DEV_CHANGE_NTF);
+
+	/* psp_nl_notify_dev() reaches the main netdevice's netns and every
+	 * netns which still has an associated device. If @net is neither,
+	 * the device is gone from @net and we should send a delete ntf.
+	 */
+	still_visible = !psp_dev_check_access(psd, net, false);
+	if (still_visible || !maybe_get_net(net))
+		return;
+
+	cmd = PSP_CMD_DEV_DEL_NTF;
+	ntf = psp_nl_build_dev_ntf(psd, net, &cmd);
+	if (ntf)
+		genlmsg_multicast_netns(&psp_nl_family, net, ntf, 0,
+					PSP_NLGRP_MGMT, GFP_KERNEL);
+	put_net(net);
 }
 
 int psp_nl_dev_get_doit(struct sk_buff *req, struct genl_info *info)
@@ -617,19 +654,15 @@ int psp_nl_dev_disassoc_doit(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	put_net(net);
-
-	/* Notify before removal so listeners in the disassociated namespace
-	 * still receive the notification.
-	 */
-	psp_nl_notify_dev(psd, PSP_CMD_DEV_CHANGE_NTF);
-
 	/* Remove from the association list */
 	list_del(&found->dev_list);
 	psd->assoc_dev_cnt--;
 	rcu_assign_pointer(found->assoc_dev->psp_dev, NULL);
 	netdev_put(found->assoc_dev, &found->dev_tracker);
 	kfree(found);
+
+	psp_nl_notify_disassoc(psd, net);
+	put_net(net);
 
 	return psp_nl_reply_send(rsp, info);
 }

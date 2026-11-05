@@ -1,0 +1,3 @@
+.config:1:warning: value '-9223372036854775809' for INT_TOO_LOW is outside the 64-bit signed integer bounds
+.config:2:warning: value '9223372036854775808' for INT_TOO_HIGH is outside the 64-bit signed integer bounds
+.config:3:warning: value '0x10000000000000000' for HEX_TOO_HIGH is outside the 64-bit unsigned integer bounds

@@ -70,6 +70,7 @@
 
 &rmi4_f12 {
 	touchscreen-y-mm = <148>;
+	syna,clip-y-high = <2339>;
 };
 
 &wcd9340 {

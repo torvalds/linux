@@ -72,6 +72,13 @@ fn main() {
     // Figure out a smaller test name based on the generated function name.
     let name = rustdoc_function_name.split_once("_rust_kernel_").unwrap().1;
 
+    // The `rustdoc` function name can include the absolute path when building with `O=` which is
+    // undesirable and creates overlong symbol names. Remap it to use a relative path.
+    // TODO: Remove when bumping the minimum version since with Rust >= 1.95 we already do the
+    // path remapping via the `rustdoc` `--remap-path-prefix` flag.
+    let trimmed_function_name = format!("_doctest_main_rust_kernel_{name}");
+    let body = body.replace(&rustdoc_function_name, &trimmed_function_name);
+
     let path = format!("rust/test/doctests/kernel/{name}");
 
     std::fs::write(path, body.as_bytes()).unwrap();

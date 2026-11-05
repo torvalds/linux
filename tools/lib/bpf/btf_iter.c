@@ -29,6 +29,7 @@ int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t,
 		case BTF_KIND_FLOAT:
 		case BTF_KIND_ENUM:
 		case BTF_KIND_ENUM64:
+		case BTF_KIND_LOC_PARAM:
 			it->desc = (struct btf_field_desc) {};
 			break;
 		case BTF_KIND_FWD:
@@ -71,6 +72,20 @@ int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t,
 				1, {offsetof(struct btf_var_secinfo, type)}
 			};
 			break;
+		case BTF_KIND_LOC_PROTO:
+			it->desc = (struct btf_field_desc) {
+				0, {},
+				sizeof(__u32),
+				1, {0}};
+			break;
+		case BTF_KIND_LOCSEC:
+			it->desc = (struct btf_field_desc) {
+				0, {},
+				sizeof(struct btf_loc),
+				2, {offsetof(struct btf_loc, func),
+				    offsetof(struct btf_loc, loc_proto)}};
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -94,6 +109,9 @@ int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t,
 		case BTF_KIND_DECL_TAG:
 		case BTF_KIND_TYPE_TAG:
 		case BTF_KIND_DATASEC:
+		case BTF_KIND_LOC_PARAM:
+		case BTF_KIND_LOC_PROTO:
+		case BTF_KIND_LOCSEC:
 			it->desc = (struct btf_field_desc) {
 				1, {offsetof(struct btf_type, name_off)}
 			};

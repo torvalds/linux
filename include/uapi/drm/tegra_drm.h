@@ -986,8 +986,8 @@ struct drm_tegra_channel_submit {
 	/**
 	 * @syncobj_in: [in]
 	 *
-	 * Handle for DRM syncobj that will be waited before submission.
-	 * Ignored if zero.
+	 * Handle for DRM syncobj that will be waited for before the job
+	 * executes. Ignored if zero.
 	 */
 	__u32 syncobj_in;
 

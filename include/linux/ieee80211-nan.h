@@ -40,6 +40,8 @@
 /* NAN attributes, as defined in Wi-Fi Aware (TM) specification 4.0 Table 42 */
 #define NAN_ATTR_MASTER_INDICATION		0x00
 #define NAN_ATTR_CLUSTER_INFO			0x01
+#define NAN_ATTR_SERVICE_ID_LIST		0x02
+#define NAN_ATTR_SUBSCRIBE_SERVICE_ID_LIST	0x28
 
 struct ieee80211_nan_attr {
 	u8 attr;
@@ -73,5 +75,31 @@ struct ieee80211_nan_anchor_master_info {
 		(int)sizeof(*_attr) + le16_to_cpu(_attr->length);	\
 	     _attr = (const struct ieee80211_nan_attr *)		\
 		(_attr->data + le16_to_cpu(_attr->length)))
+
+static inline bool ieee80211_is_nan_beacon(const struct ieee80211_mgmt *mgmt,
+					   size_t len)
+{
+	const struct element *elem;
+
+	/* The NAN IE is at least 6 octets */
+	if (len < offsetofend(struct ieee80211_mgmt, u.beacon) + 6)
+		return false;
+
+	if (!ieee80211_is_beacon(mgmt->frame_control))
+		return false;
+
+	/* NAN Cluster IDs range from 50-6F-9A-01-00-00 to 50-6F-9A-01-FF-FF */
+	if (get_unaligned_be32(mgmt->bssid) != ((WLAN_OUI_WFA << 8) | 0x01))
+		return false;
+
+	elem = (const struct element *)mgmt->u.beacon.variable;
+	if (elem->id != WLAN_EID_VENDOR_SPECIFIC ||
+	    elem->datalen < 4 ||
+	    get_unaligned_be32(elem->data) !=
+	    (WLAN_OUI_WFA << 8 | WLAN_OUI_TYPE_WFA_NAN))
+		return false;
+
+	return true;
+}
 
 #endif /* LINUX_IEEE80211_NAN_H */

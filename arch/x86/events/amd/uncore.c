@@ -39,11 +39,11 @@ static int pmu_version;
 struct amd_uncore_ctx {
 	int refcnt;
 	int cpu;
-	struct perf_event **events;
 	unsigned long active_mask[BITS_TO_LONGS(NUM_COUNTERS_MAX)];
 	int nr_active;
 	struct hrtimer hrtimer;
 	u64 hrtimer_duration;
+	struct perf_event *events[];
 };
 
 struct amd_uncore_pmu {
@@ -206,16 +206,14 @@ static int amd_uncore_add(struct perf_event *event, int flags)
 	struct amd_uncore_ctx *ctx = *per_cpu_ptr(pmu->ctx, event->cpu);
 	struct hw_perf_event *hwc = &event->hw;
 
-	/* are we already assigned? */
+	/*
+	 * Perf serializes ->add() and ->del() for an event. A successful
+	 * ->add() records the claimed slot in hwc->idx before returning, and
+	 * ->del() clears that slot before resetting hwc->idx. Therefore, an
+	 * existing assignment must be at hwc->idx.
+	 */
 	if (hwc->idx != -1 && ctx->events[hwc->idx] == event)
 		goto out;
-
-	for (i = 0; i < pmu->num_counters; i++) {
-		if (ctx->events[i] == event) {
-			hwc->idx = i;
-			goto out;
-		}
-	}
 
 	/* if not, take the first available counter */
 	hwc->idx = -1;
@@ -248,19 +246,15 @@ out:
 
 static void amd_uncore_del(struct perf_event *event, int flags)
 {
-	int i;
 	struct amd_uncore_pmu *pmu = event_to_amd_uncore_pmu(event);
 	struct amd_uncore_ctx *ctx = *per_cpu_ptr(pmu->ctx, event->cpu);
 	struct hw_perf_event *hwc = &event->hw;
+	struct perf_event *old = event;
 
 	event->pmu->stop(event, PERF_EF_UPDATE);
 
-	for (i = 0; i < pmu->num_counters; i++) {
-		struct perf_event *tmp = event;
-
-		if (try_cmpxchg(&ctx->events[i], &tmp, NULL))
-			break;
-	}
+	/* ->del() follows a successful ->add(), so hwc->idx owns this slot. */
+	WARN_ON_ONCE(!try_cmpxchg(&ctx->events[hwc->idx], &old, NULL));
 
 	hwc->idx = -1;
 }
@@ -519,10 +513,8 @@ static void amd_uncore_ctx_free(struct amd_uncore *uncore, unsigned int cpu)
 		if (cpu == ctx->cpu)
 			cpumask_clear_cpu(cpu, &pmu->active_mask);
 
-		if (!--ctx->refcnt) {
-			kfree(ctx->events);
+		if (!--ctx->refcnt)
 			kfree(ctx);
-		}
 
 		*per_cpu_ptr(pmu->ctx, cpu) = NULL;
 	}
@@ -567,18 +559,11 @@ static int amd_uncore_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 		/* Allocate context if sibling does not exist */
 		if (!curr) {
 			node = cpu_to_node(cpu);
-			curr = kzalloc_node(sizeof(*curr), GFP_KERNEL, node);
+			curr = kzalloc_node(struct_size(curr, events, pmu->num_counters), GFP_KERNEL, node);
 			if (!curr)
 				goto fail;
 
 			curr->cpu = cpu;
-			curr->events = kzalloc_node(sizeof(*curr->events) *
-						    pmu->num_counters,
-						    GFP_KERNEL, node);
-			if (!curr->events) {
-				kfree(curr);
-				goto fail;
-			}
 
 			amd_uncore_init_hrtimer(curr);
 			curr->hrtimer_duration = (u64)update_interval * NSEC_PER_MSEC;

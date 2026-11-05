@@ -33,17 +33,17 @@ static bool afs_lookup_one_filldir(struct dir_context *ctx, const char *name, in
 static bool afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
 			       u64 ino, u32 uniquifier);
 #define AFS_LOOKUP ((filldir_t)0x137UL)
-static int afs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int afs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode);
-static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *afs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode);
 static int afs_rmdir(struct inode *dir, struct dentry *dentry);
 static int afs_unlink(struct inode *dir, struct dentry *dentry);
 static int afs_link(struct dentry *from, struct inode *dir,
 		    struct dentry *dentry);
-static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int afs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *content);
-static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int afs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags);
 static int afs_dir_writepages(struct address_space *mapping,
@@ -1310,7 +1310,7 @@ static const struct afs_operation_ops afs_mkdir_operation = {
 /*
  * create a directory on an AFS filesystem
  */
-static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *afs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				struct dentry *dentry, umode_t mode)
 {
 	struct afs_operation *op;
@@ -1632,7 +1632,7 @@ static const struct afs_operation_ops afs_create_operation = {
 /*
  * create a regular file on an AFS filesystem
  */
-static int afs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int afs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct afs_operation *op;
@@ -1779,7 +1779,7 @@ static const struct afs_operation_ops afs_symlink_operation = {
 /*
  * create a symlink in an AFS filesystem
  */
-static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int afs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *content)
 {
 	struct afs_operation *op;
@@ -2067,7 +2067,7 @@ static const struct afs_operation_ops afs_rename_exchange_operation = {
 /*
  * rename a file in an AFS filesystem and/or move it between directories
  */
-static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int afs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {

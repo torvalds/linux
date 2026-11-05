@@ -1496,7 +1496,6 @@ static const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.prepare_suspend = uvd_v6_0_prepare_suspend,
 	.suspend = uvd_v6_0_suspend,
 	.resume = uvd_v6_0_resume,
-	.is_idle = uvd_v6_0_is_idle,
 	.wait_for_idle = uvd_v6_0_wait_for_idle,
 	.soft_reset = uvd_v6_0_soft_reset,
 	.set_clockgating_state = uvd_v6_0_set_clockgating_state,

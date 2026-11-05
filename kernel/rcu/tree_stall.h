@@ -11,6 +11,8 @@
 #include <linux/kvm_para.h>
 #include <linux/rcu_notifier.h>
 #include <linux/smp.h>
+#include <linux/rtmutex.h>
+#include "../locking/rtmutex_common.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -159,7 +161,8 @@ static int __init check_cpu_stall_init(void)
 early_initcall(check_cpu_stall_init);
 
 /* If so specified via sysctl, panic, yielding cleaner stall-warning output. */
-static void panic_on_rcu_stall(const struct cpumask *stalled_mask)
+static void panic_on_rcu_stall(const struct cpumask *stalled_mask,
+			       unsigned long *gsp, unsigned long gp_seq)
 {
 	static int cpu_stall;
 
@@ -169,6 +172,11 @@ static void panic_on_rcu_stall(const struct cpumask *stalled_mask)
 	 */
 	if (scx_rcu_cpu_stall(stalled_mask))
 		return;
+
+	if (gsp && rcu_seq_current(gsp) != gp_seq) {
+		pr_err("INFO: Stall ended before panic check.\n");
+		return;
+	}
 
 	if (++cpu_stall < sysctl_max_rcu_stall_to_panic)
 		return;
@@ -299,6 +307,8 @@ struct rcu_stall_chk_rdr {
 	int nesting;
 	union rcu_special rs;
 	bool on_blkd_list;
+	bool rcu_rdr_running;
+	int rcu_rdr_boosted;
 };
 
 /*
@@ -307,6 +317,7 @@ struct rcu_stall_chk_rdr {
  */
 static int check_slow_task(struct task_struct *t, void *arg)
 {
+	struct rcu_node *rnp;
 	struct rcu_stall_chk_rdr *rscrp = arg;
 
 	if (task_curr(t))
@@ -314,6 +325,19 @@ static int check_slow_task(struct task_struct *t, void *arg)
 	rscrp->nesting = t->rcu_read_lock_nesting;
 	rscrp->rs = t->rcu_read_unlock_special;
 	rscrp->on_blkd_list = !list_empty(&t->rcu_node_entry);
+	rscrp->rcu_rdr_running = task_curr(t);
+	rscrp->rcu_rdr_boosted = 0;
+	if (rscrp->on_blkd_list) {
+		rnp = READ_ONCE(t->rcu_blocked_node);
+		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
+		if (rnp == READ_ONCE(t->rcu_blocked_node)) {
+			if (rt_mutex_owner(&rnp->boost_mtx.rtmutex) == t)
+				rscrp->rcu_rdr_boosted = 1;
+		} else {
+			rscrp->rcu_rdr_boosted = 2;
+		}
+		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
+	}
 	return 0;
 }
 
@@ -351,12 +375,14 @@ static int rcu_print_task_stall(struct rcu_node *rnp, unsigned long flags)
 		if (task_call_func(t, check_slow_task, &rscr))
 			pr_cont(" P%d", t->pid);
 		else
-			pr_cont(" P%d/%d:%c%c%c%c",
+			pr_cont(" P%d/%d:%c%c%c%c%c%c",
 				t->pid, rscr.nesting,
 				".b"[rscr.rs.b.blocked],
 				".q"[rscr.rs.b.need_qs],
 				".e"[rscr.rs.b.exp_hint],
-				".l"[rscr.on_blkd_list]);
+				".l"[rscr.on_blkd_list],
+				".R"[rscr.rcu_rdr_running],
+				".B?"[rscr.rcu_rdr_boosted]);
 		lockdep_assert_irqs_disabled();
 		put_task_struct(t);
 		ndetected++;
@@ -703,7 +729,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	nbcon_cpu_emergency_exit();
 
-	panic_on_rcu_stall(&rcu_stall_cpumask);
+	panic_on_rcu_stall(&rcu_stall_cpumask, &rcu_state.gp_seq, gp_seq);
 
 	rcu_force_quiescent_state();  /* Kick them all. */
 }
@@ -758,7 +784,7 @@ static void print_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	cpumask_clear(&rcu_stall_cpumask);
 	cpumask_set_cpu(smp_processor_id(), &rcu_stall_cpumask);
-	panic_on_rcu_stall(&rcu_stall_cpumask);
+	panic_on_rcu_stall(&rcu_stall_cpumask, &rcu_state.gp_seq, gp_seq);
 
 	/*
 	 * Attempt to revive the RCU machinery by forcing a context switch.

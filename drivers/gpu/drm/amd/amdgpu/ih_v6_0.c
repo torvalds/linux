@@ -307,6 +307,16 @@ static int ih_v6_0_enable_ring(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint32_t ih_v6_0_setup_retry_doorbell(u32 doorbell_index)
+{
+	u32 val = 0;
+
+	val = REG_SET_FIELD(val, IH_DOORBELL_RPTR, OFFSET, doorbell_index);
+	val = REG_SET_FIELD(val, IH_DOORBELL_RPTR, ENABLE, 1);
+
+	return val;
+}
+
 /**
  * ih_v6_0_irq_init - init and enable the interrupt ring
  *
@@ -392,6 +402,21 @@ static int ih_v6_0_irq_init(struct amdgpu_device *adev)
 
 	pci_set_master(adev->pdev);
 
+	if (!(adev->flags & AMD_IS_APU)) {
+		/* Allocate the doorbell for IH Retry CAM */
+		adev->irq.retry_cam_doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+		WREG32_SOC15(OSSSYS, 0, regIH_DOORBELL_RETRY_CAM,
+			     ih_v6_0_setup_retry_doorbell(adev->irq.retry_cam_doorbell_index));
+
+		/* Enable IH Retry CAM */
+		tmp = RREG32_SOC15(OSSSYS, 0, regIH_RETRY_INT_CAM_CNTL);
+		tmp = REG_SET_FIELD(tmp, IH_RETRY_INT_CAM_CNTL, ENABLE, 1);
+		tmp = REG_SET_FIELD(tmp, IH_RETRY_INT_CAM_CNTL, CAM_SIZE, 0xF);
+		WREG32_SOC15(OSSSYS, 0, regIH_RETRY_INT_CAM_CNTL, tmp);
+
+		adev->irq.retry_cam_enabled = true;
+	}
+
 	/* enable interrupts */
 	ret = ih_v6_0_toggle_interrupts(adev, true);
 	if (ret)
@@ -439,6 +464,10 @@ static u32 ih_v6_0_get_wptr(struct amdgpu_device *adev,
 	struct amdgpu_ih_regs *ih_regs;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
+
+	if (ih == &adev->irq.ih_soft)
+		goto out;
+
 	ih_regs = &ih->ih_regs;
 
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
@@ -513,6 +542,9 @@ static void ih_v6_0_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
 	struct amdgpu_ih_regs *ih_regs;
+
+	if (ih == &adev->irq.ih_soft)
+		return;
 
 	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
@@ -655,22 +687,10 @@ static int ih_v6_0_resume(struct amdgpu_ip_block *ip_block)
 	return ih_v6_0_hw_init(ip_block);
 }
 
-static bool ih_v6_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return true;
-}
-
 static int ih_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return -ETIMEDOUT;
-}
-
-static int ih_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return 0;
 }
 
 static void ih_v6_0_update_clockgating_state(struct amdgpu_device *adev,
@@ -788,9 +808,7 @@ static const struct amd_ip_funcs ih_v6_0_ip_funcs = {
 	.hw_fini = ih_v6_0_hw_fini,
 	.suspend = ih_v6_0_suspend,
 	.resume = ih_v6_0_resume,
-	.is_idle = ih_v6_0_is_idle,
 	.wait_for_idle = ih_v6_0_wait_for_idle,
-	.soft_reset = ih_v6_0_soft_reset,
 	.set_clockgating_state = ih_v6_0_set_clockgating_state,
 	.set_powergating_state = ih_v6_0_set_powergating_state,
 	.get_clockgating_state = ih_v6_0_get_clockgating_state,

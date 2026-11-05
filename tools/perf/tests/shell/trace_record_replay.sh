@@ -4,9 +4,7 @@
 
 # Check that perf trace works with record and replay
 
-# shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
-# shellcheck source=lib/perf_record.sh
 . "$(dirname $0)"/lib/perf_record.sh
 
 skip_if_no_perf_trace || exit 2

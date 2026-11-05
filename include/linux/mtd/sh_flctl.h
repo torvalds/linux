@@ -60,8 +60,8 @@
  * Some hardware uses bits called PULSEx instead of FCKSEL_E and QTSEL_E
  * to control the clock divider used between the High-Speed Peripheral Clock
  * and the FLCTL internal clock. If so, use CLK_8_BIT_xxx for connecting 8 bit
- * and CLK_16_BIT_xxx for connecting 16 bit bus bandwith NAND chips. For the 16
- * bit version the divider is seperate for the pulse width of high and low
+ * and CLK_16_BIT_xxx for connecting 16 bit bus bandwidth NAND chips. For the 16
+ * bit version the divider is separate for the pulse width of high and low
  * signals.
  */
 #define PULSE3	(0x1 << 27)

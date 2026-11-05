@@ -112,6 +112,7 @@ struct lsm_blob_sizes {
 	unsigned int lbs_ipc;
 	unsigned int lbs_key;
 	unsigned int lbs_msg_msg;
+	unsigned int lbs_ns;
 	unsigned int lbs_perf_event;
 	unsigned int lbs_task;
 	unsigned int lbs_xattr_count; /* num xattr slots in new_xattrs array */

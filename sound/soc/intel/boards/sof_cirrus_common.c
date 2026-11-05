@@ -168,7 +168,7 @@ static int cs35l41_compute_codec_conf(void)
 				 cs35l41_name_prefixes[uid]);
 			continue;
 		}
-		physdev = get_device(acpi_get_first_physical_node(adev));
+		physdev = acpi_bus_get_primary_device(adev);
 		acpi_dev_put(adev);
 		if (!physdev) {
 			pr_devel("Cannot find physical node for HID %s UID %u (%s)\n", CS35L41_HID,

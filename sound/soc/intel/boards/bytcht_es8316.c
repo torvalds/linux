@@ -601,11 +601,11 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	codec_dev = acpi_get_first_physical_node(adev);
+	codec_dev = acpi_bus_get_primary_device(adev);
 	acpi_dev_put(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
-	priv->codec_dev = get_device(codec_dev);
+	priv->codec_dev = codec_dev;
 
 	/* override platform name, if required */
 	byt_cht_es8316_card.dev = dev;

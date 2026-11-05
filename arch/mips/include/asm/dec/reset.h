@@ -10,6 +10,7 @@
 #define __ASM_DEC_RESET_H
 
 #include <linux/compiler_attributes.h>
+#include <linux/interrupt.h>
 
 void __noreturn dec_machine_restart(char *command);
 void __noreturn dec_machine_halt(void);

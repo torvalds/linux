@@ -53,6 +53,9 @@ struct menu *current_menu, *current_entry, *current_choice;
 %token T_CONFIG
 %token T_DEFAULT
 %token T_DEF_BOOL
+%token T_DEF_HEX
+%token T_DEF_INT
+%token T_DEF_STRING
 %token T_DEF_TRISTATE
 %token T_DEPENDS
 %token T_ENDCHOICE
@@ -309,6 +312,9 @@ type:
 default:
 	  T_DEFAULT		{ $$ = S_UNKNOWN; }
 	| T_DEF_BOOL		{ $$ = S_BOOLEAN; }
+	| T_DEF_HEX		{ $$ = S_HEX; }
+	| T_DEF_INT		{ $$ = S_INT; }
+	| T_DEF_STRING		{ $$ = S_STRING; }
 	| T_DEF_TRISTATE	{ $$ = S_TRISTATE; }
 
 /* if entry */
@@ -587,7 +593,7 @@ void conf_parse(const char *name)
 		menu_add_prompt(P_MENU, "Main menu", NULL);
 	}
 
-	menu_finalize();
+	yynerrs += menu_finalize();
 
 	menu_for_each_entry(menu) {
 		struct menu *child;

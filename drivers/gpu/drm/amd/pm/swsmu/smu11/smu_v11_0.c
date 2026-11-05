@@ -345,7 +345,6 @@ int smu_v11_0_init_power(struct smu_context *smu)
 	smu_power->power_context = kzalloc(size, GFP_KERNEL);
 	if (!smu_power->power_context)
 		return -ENOMEM;
-	smu_power->power_context_size = size;
 
 	return 0;
 }
@@ -356,7 +355,6 @@ int smu_v11_0_fini_power(struct smu_context *smu)
 
 	kfree(smu_power->power_context);
 	smu_power->power_context = NULL;
-	smu_power->power_context_size = 0;
 
 	return 0;
 }

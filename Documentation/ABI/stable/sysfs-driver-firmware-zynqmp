@@ -141,32 +141,44 @@ Description:
 
 		Usage:
 
-		Select over temperature config ID to enable/disable feature
+		Select over temperature config ID to enable/disable feature::
+
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check over temperature config ID is selected or not
+		Check over temperature config ID is selected or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
+
 		The expected result is 1.
 
-		Select over temperature config ID to configure OT limit
+		Select over temperature config ID to configure OT limit::
+
 		# echo 2 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check over temperature config ID is selected or not
+		Check over temperature config ID is selected or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
+
 		The expected result is 2.
 
-		Select external watchdog config ID to enable/disable feature
+		Select external watchdog config ID to enable/disable feature::
+
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check external watchdog config ID is selected or not
+		Check external watchdog config ID is selected or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
+
 		The expected result is 3.
 
-		Select external watchdog config ID to configure time interval
+		Select external watchdog config ID to configure time interval::
+
 		# echo 4 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check external watchdog config ID is selected or not
+		Check external watchdog config ID is selected or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
+
 		The expected result is 4.
 
 Users:		Xilinx
@@ -205,52 +217,70 @@ Description:
 
 		Usage:
 
-		Enable over temperature feature
+		Enable over temperature feature::
+
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature feature is enabled or not
+		Check whether the over temperature feature is enabled or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 1.
 
-		Disable over temperature feature
+		Disable over temperature feature::
+
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature feature is disabled or not
+		Check whether the over temperature feature is disabled or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 0.
 
-		Configure over temperature limit to 50 Degree Celsius
+		Configure over temperature limit to 50 Degree Celsius::
+
 		# echo 2 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 50 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature limit is configured or not
+		Check whether the over temperature limit is configured or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 50.
 
-		Enable external watchdog feature
+		Enable external watchdog feature::
+
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog feature is enabled or not
+		Check whether the external watchdog feature is enabled or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 1.
 
-		Disable external watchdog feature
+		Disable external watchdog feature::
+
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog feature is disabled or not
+		Check whether the external watchdog feature is disabled or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 0.
 
-		Configure external watchdog timer interval to 500ms
+		Configure external watchdog timer interval to 500ms::
+
 		# echo 4 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 500 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog timer interval is configured or not
+		Check whether the external watchdog timer interval is configured or not::
+
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
+
 		The expected result is 500.
 
 Users:		Xilinx

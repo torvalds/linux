@@ -53,17 +53,6 @@ static void test_aux(const char *main_prog_name,
 	err = summarization_freplace__load(freplace);
 	print_verifier_log(log);
 
-	/* The might_sleep extension doesn't work yet as sleepable calls are not
-	 * allowed, but preserve the check in case it's supported later and then
-	 * this particular combination can be enabled.
-	 */
-	if (!strcmp("might_sleep", replacement) && err) {
-		ASSERT_HAS_SUBSTR(log, "sleepable helper bpf_copy_from_user#", "error log");
-		ASSERT_EQ(err, -EINVAL, "err");
-		test__skip();
-		goto out;
-	}
-
 	if (expect_load) {
 		ASSERT_OK(err, "summarization_freplace__load");
 	} else {
@@ -86,9 +75,8 @@ out:
  * Also test a case when main subprogram itself is replaced and is a single
  * subprogram in a program.
  *
- * This holds for might_sleep programs. It is ok to replace might_sleep with
- * might_sleep and with does_not_sleep, but does_not_sleep cannot be replaced
- * with might_sleep.
+ * An extension is verified as a non-sleepable program, hence nothing that runs
+ * sleepable can be replaced.
  */
 void test_summarization_freplace(void)
 {
@@ -111,7 +99,7 @@ void test_summarization_freplace(void)
 		},
 	};
 	const char *pkt_err = "Extension program changes packet data";
-	const char *slp_err = "Extension program may sleep";
+	const char *slp_err = "Cannot extend a function that runs without RCU read lock";
 	struct {
 		const char *func;
 		bool has_side_effect;
@@ -136,7 +124,8 @@ void test_summarization_freplace(void)
 				if (!test__start_subtest(buf))
 					continue;
 				test_aux(mains[t][i].main, mains[t][i].to_be_replaced, replacements[t][j].func,
-					 mains[t][i].has_side_effect || !replacements[t][j].has_side_effect,
+					 t == 0 &&
+					 (mains[t][i].has_side_effect || !replacements[t][j].has_side_effect),
 					 replacements[t][j].err_msg);
 			}
 		}

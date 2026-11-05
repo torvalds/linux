@@ -30,6 +30,18 @@
 		pinctrl7 = &pinctrl_hsi2;
 	};
 
+	ext_24_5m: clock-1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-output-names = "oscclk";
+	};
+
+	ext_200m: clock-2 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-output-names = "ext-200m";
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -174,34 +186,47 @@
 			entry-method = "psci";
 
 			ananke_cpu_sleep: cpu-ananke-sleep {
-				idle-state-name = "c2";
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0010000>;
+				idle-state-name = "c2";
 				local-timer-stop;
 				entry-latency-us = <70>;
 				exit-latency-us = <160>;
 				min-residency-us = <2000>;
+				arm,psci-suspend-param = <0x0010000>;
 			};
 
 			enyo_cpu_sleep: cpu-enyo-sleep {
-				idle-state-name = "c2";
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0010000>;
+				idle-state-name = "c2";
 				local-timer-stop;
 				entry-latency-us = <150>;
 				exit-latency-us = <190>;
 				min-residency-us = <2500>;
+				arm,psci-suspend-param = <0x0010000>;
 			};
 
 			hera_cpu_sleep: cpu-hera-sleep {
-				idle-state-name = "c2";
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0010000>;
+				idle-state-name = "c2";
 				local-timer-stop;
 				entry-latency-us = <235>;
 				exit-latency-us = <220>;
 				min-residency-us = <3500>;
+				arm,psci-suspend-param = <0x0010000>;
 			};
+		};
+	};
+
+	/* ect node is required to be present by bootloader */
+	ect {
+	};
+
+	firmware {
+		acpm_ipc: power-management {
+			compatible = "google,gs101-acpm-ipc";
+			#clock-cells = <1>;
+			mboxes = <&ap2apm_mailbox>;
+			shmem = <&apm_sram>;
 		};
 	};
 
@@ -472,31 +497,6 @@
 		};
 	};
 
-	/* ect node is required to be present by bootloader */
-	ect {
-	};
-
-	ext_24_5m: clock-1 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-output-names = "oscclk";
-	};
-
-	ext_200m: clock-2 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-output-names = "ext-200m";
-	};
-
-	firmware {
-		acpm_ipc: power-management {
-			compatible = "google,gs101-acpm-ipc";
-			#clock-cells = <1>;
-			mboxes = <&ap2apm_mailbox>;
-			shmem = <&apm_sram>;
-		};
-	};
-
 	pmu-0 {
 		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH &ppi_cluster0>;
@@ -525,9 +525,9 @@
 	};
 
 	reserved_memory: reserved-memory {
+		ranges;
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges;
 
 		gsa_reserved_protected: gsa@90200000 {
 			reg = <0x0 0x90200000 0x400000>;
@@ -572,9 +572,9 @@
 
 	soc: soc@0 {
 		compatible = "simple-bus";
+		ranges = <0x0 0x0 0x0 0x40000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0x0 0x40000000>;
 
 		efuse@10000000 {
 			compatible = "google,gs101-otp";
@@ -657,11 +657,11 @@
 
 		gic: interrupt-controller@10400000 {
 			compatible = "arm,gic-v3";
+			reg = <0x10400000 0x10000>, /* GICD */
+			      <0x10440000 0x100000>;/* GICR * 8 */
 			#address-cells = <0>;
 			#interrupt-cells = <4>;
 			interrupt-controller;
-			reg = <0x10400000 0x10000>, /* GICD */
-			      <0x10440000 0x100000>;/* GICR * 8 */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
 
 			ppi-partitions {
@@ -1778,10 +1778,10 @@
 			compatible = "google,gs101-ufs-phy";
 			reg = <0x14704000 0x3000>;
 			reg-names = "phy-pma";
-			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <0>;
 			clocks = <&ext_24_5m>;
 			clock-names = "ref_clk";
+			samsung,pmu-syscon = <&pmu_system_controller>;
 
 			status = "disabled";
 		};
@@ -1806,17 +1806,6 @@
 			reg = <0x17460000 0x10000>;
 			google,pmu-intr-gen-syscon = <&pmu_intr_gen>;
 
-			poweroff: syscon-poweroff {
-				compatible = "syscon-poweroff";
-				offset = <0x3e9c>; /* PAD_CTRL_PWR_HOLD */
-				mask = <0x00000100>;
-				value = <0x0>;
-			};
-
-			reboot: syscon-reboot {
-				compatible = "google,gs101-reboot";
-			};
-
 			reboot-mode {
 				compatible = "syscon-reboot-mode";
 				offset = <0x0810>; /* EXYNOS_PMU_SYSIP_DAT0 */
@@ -1829,6 +1818,17 @@
 				mode-rescue = <0xf9>;
 				mode-shutdown-thermal = <0x51>;
 				mode-shutdown-thermal-battery = <0x51>;
+			};
+
+			poweroff: syscon-poweroff {
+				compatible = "syscon-poweroff";
+				offset = <0x3e9c>; /* PAD_CTRL_PWR_HOLD */
+				mask = <0x00000100>;
+				value = <0x0>;
+			};
+
+			reboot: syscon-reboot {
+				compatible = "google,gs101-reboot";
 			};
 		};
 
@@ -1920,9 +1920,9 @@
 	apm_sram: sram@2039000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0x2039000 0x40000>;
+		ranges = <0x0 0x0 0x2039000 0x40000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0x2039000 0x40000>;
 	};
 
 	timer {

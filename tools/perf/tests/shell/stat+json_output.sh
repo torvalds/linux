@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat JSON output linter
+# perf stat JSON output linter (no_mlock)
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 # Checks various perf stat JSON output commands for the
 # correct number of fields.
@@ -9,7 +9,6 @@ set -e
 skip_test=0
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 pythonchecker=$(dirname $0)/lib/perf_json_output_lint.py
 

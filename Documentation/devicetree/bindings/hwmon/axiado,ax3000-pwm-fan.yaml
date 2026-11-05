@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/axiado,ax3000-pwm-fan.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Axiado AX3000 and AX3005 PWM Fan Controller
+
+maintainers:
+  - Petar Stepanovic <pstepanovic@axiado.com>
+  - Akhila Kavi <akavi@axiado.com>
+  - Prasad Bolisetty <pbolisetty@axiado.com>
+
+description:
+  The Axiado AX3000 and AX3005 fan controllers use a hardware tachometer
+  block to measure fan speed. Fan speed is controlled through a PWM signal
+  supplied by an external PWM controller.
+
+properties:
+  compatible:
+    oneOf:
+      - const: axiado,ax3000-pwm-fan
+      - items:
+          - const: axiado,ax3005-pwm-fan
+          - const: axiado,ax3000-pwm-fan
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  fan:
+    type: object
+    $ref: fan-common.yaml#
+    unevaluatedProperties: false
+    properties:
+      pulses-per-revolution:
+        minimum: 1
+        default: 2
+
+    required:
+      - pwms
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - fan
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    fan-controller@33001400 {
+        compatible = "axiado,ax3000-pwm-fan";
+        reg = <0x33001400 0x400>;
+        interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk>;
+
+        fan {
+            pwms = <&pwm0 0 400>;
+            pulses-per-revolution = <2>;
+        };
+    };
+...

@@ -28,6 +28,7 @@ properties:
               - qcom,ipq5210-snand
               - qcom,ipq5332-snand
               - qcom,ipq5424-snand
+              - qcom,ipq9650-snand
           - const: qcom,ipq9574-snand
       - const: qcom,ipq9574-snand
 

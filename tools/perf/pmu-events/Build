@@ -183,38 +183,6 @@ $(EMPTY_PMU_EVENTS_TEST_LOG): $(EMPTY_PMU_EVENTS_C) $(TEST_EMPTY_PMU_EVENTS_C)
 # Dependencies for jevents.py
 JEVENTS_DEPS := $(OUT_JSON) $(GEN_JSON) $(JEVENTS_PY) $(METRIC_PY) $(EMPTY_PMU_EVENTS_TEST_LOG) $(METRIC_TEST_LOG)
 
-# Rules to run mypy if enabled.
-ifdef MYPY
-define MYPY_RULE
-$(2): $(1)
-	$$(Q)$$(call echo-cmd,test)mypy $(1) > $(2) || (cat $(2) && rm $(2) && false)
-endef
-$(foreach src,$(wildcard pmu-events/*.py), \
-    $(eval dest := $(patsubst pmu-events/%,$(OUTPUT)pmu-events/%.mypy_log,$(src))) \
-    $(eval $(call MYPY_RULE,$(src),$(dest))) \
-)
-
-MYPY_INPUTS := $(wildcard pmu-events/*.py)
-MYPY_OUTPUTS := $(patsubst pmu-events/%,$(OUTPUT)pmu-events/%.mypy_log,$(MYPY_INPUTS))
-JEVENTS_DEPS += $(MYPY_OUTPUTS)
-endif
-
-# Rules to run pylint if enabled.
-ifdef PYLINT
-define PYLINT_RULE
-$(2): $(1)
-	$$(Q)$$(call echo-cmd,test)pylint $(1) > $(2) || (cat $(2) && rm $(2) && false)
-endef
-$(foreach src,$(wildcard pmu-events/*.py), \
-    $(eval dest := $(patsubst pmu-events/%,$(OUTPUT)pmu-events/%.pylint_log,$(src))) \
-    $(eval $(call PYLINT_RULE,$(src),$(dest))) \
-)
-
-PYLINT_INPUTS := $(wildcard pmu-events/*.py)
-PYLINT_OUTPUTS := $(patsubst pmu-events/%,$(OUTPUT)pmu-events/%.pylint_log,$(PYLINT_INPUTS))
-JEVENTS_DEPS += $(PYLINT_OUTPUTS)
-endif
-
 # If there are orphaned files remove them.
 ifneq ($(strip $(ORPHAN_FILES)),)
 .PHONY: prune_orphans
@@ -223,9 +191,11 @@ ifneq ($(strip $(ORPHAN_FILES)),)
 # of a build step.
 quiet_cmd_rm = RM      ...$(words $^) orphan file(s)...
 
-# The list of files can be long. Use xargs to prevent issues.
+# The list of files can be long. Remove the $(OUT_DIR)/ prefix, and
+# restore it with printf, to prevent "Argument list too long"
+# (see scripts/Makefile.clean).
 prune_orphans: $(ORPHAN_FILES)
-	$(Q)$(call echo-cmd,rm)echo "$^" | xargs rm -f
+	$(Q)$(call echo-cmd,rm)printf '$(OUT_DIR)/%s ' $(patsubst $(OUT_DIR)/%,%,$(ORPHAN_FILES)) | xargs rm -f
 
 JEVENTS_DEPS += prune_orphans
 endif
@@ -241,3 +211,37 @@ $(PMU_EVENTS_STRING_C): $(PMU_EVENTS_C)
 	@:
 
 endif # ifeq ($(NO_JEVENTS),1)
+
+ifneq ($(NO_JEVENTS),1)
+  PY_TESTS := $(wildcard pmu-events/*.py)
+else
+  PY_TESTS :=
+endif
+
+ifdef MYPY
+  MYPY_TEST_LOGS := $(PY_TESTS:%=%.mypy_log)
+else
+  MYPY_TEST_LOGS :=
+endif
+
+$(OUTPUT)%.mypy_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)$(MYPY) "$<" > $@ || (cat $@ && rm $@ && false)
+
+.PHONY: mypy
+mypy: $(addprefix $(OUTPUT),$(MYPY_TEST_LOGS))
+	@:
+
+ifdef PYLINT
+  PYLINT_TEST_LOGS := $(PY_TESTS:%=%.pylint_log)
+else
+  PYLINT_TEST_LOGS :=
+endif
+
+$(OUTPUT)%.pylint_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)$(PYLINT) "$<" > $@ || (cat $@ && rm $@ && false)
+
+.PHONY: pylint
+pylint: $(addprefix $(OUTPUT),$(PYLINT_TEST_LOGS))
+	@:

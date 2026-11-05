@@ -307,7 +307,14 @@ int nvme_mpath_revalidate_zones(struct nvme_ns_head *head)
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
-static bool nvme_path_is_disabled(struct nvme_ns *ns)
+enum nvme_path_state {
+	NVME_PATH_ENABLED,
+	NVME_PATH_DISABLED_CTRL_DOWN,
+	NVME_PATH_DISABLED_ANA_PENDING,
+	NVME_PATH_DISABLED_NS_NOT_READY,
+};
+
+static enum nvme_path_state nvme_path_get_state(struct nvme_ns *ns)
 {
 	enum nvme_ctrl_state state = nvme_ctrl_state(ns->ctrl);
 
@@ -317,11 +324,17 @@ static bool nvme_path_is_disabled(struct nvme_ns *ns)
 	 * Otherwise it will fail immediately and return to the requeue list.
 	 */
 	if (state != NVME_CTRL_LIVE && state != NVME_CTRL_DELETING)
-		return true;
-	if (test_bit(NVME_NS_ANA_PENDING, &ns->flags) ||
-	    !test_bit(NVME_NS_READY, &ns->flags))
-		return true;
-	return false;
+		return NVME_PATH_DISABLED_CTRL_DOWN;
+	if (test_bit(NVME_NS_ANA_PENDING, &ns->flags))
+		return NVME_PATH_DISABLED_ANA_PENDING;
+	if (!test_bit(NVME_NS_READY, &ns->flags))
+		return NVME_PATH_DISABLED_NS_NOT_READY;
+	return NVME_PATH_ENABLED;
+}
+
+static bool nvme_path_is_disabled(struct nvme_ns *ns)
+{
+	return nvme_path_get_state(ns) != NVME_PATH_ENABLED;
 }
 
 static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
@@ -496,9 +509,17 @@ inline struct nvme_ns *nvme_find_path(struct nvme_ns_head *head)
 	}
 }
 
+static inline bool nvme_state_is_live(enum nvme_ana_state state)
+{
+	return state == NVME_ANA_OPTIMIZED || state == NVME_ANA_NONOPTIMIZED;
+}
+
 static bool nvme_available_path(struct nvme_ns_head *head)
 	__must_hold_shared(&head->srcu)
 {
+	bool fail_on_ctrl_loss = test_bit(NVME_NSHEAD_FAIL_ON_CTRL_LOSS,
+					&head->flags);
+	bool failfast = false;
 	struct nvme_ns *ns;
 
 	if (!test_bit(NVME_NSHEAD_DISK_LIVE, &head->flags))
@@ -506,17 +527,29 @@ static bool nvme_available_path(struct nvme_ns_head *head)
 
 	list_for_each_entry_srcu(ns, &head->list, siblings,
 				 srcu_read_lock_held(&head->srcu)) {
-		if (test_bit(NVME_CTRL_FAILFAST_EXPIRED, &ns->ctrl->flags))
+		if (test_bit(NVME_CTRL_FAILFAST_EXPIRED, &ns->ctrl->flags)) {
+			failfast = true;
 			continue;
+		}
 		switch (nvme_ctrl_state(ns->ctrl)) {
 		case NVME_CTRL_LIVE:
-		case NVME_CTRL_RESETTING:
-		case NVME_CTRL_CONNECTING:
+			if (!nvme_state_is_live(ns->ana_state) &&
+			    ns->ana_state != NVME_ANA_CHANGE)
+				continue;
 			return true;
+		case NVME_CTRL_RESETTING:
+			return true;
+		case NVME_CTRL_CONNECTING:
+			if (!fail_on_ctrl_loss)
+				return true;
+			continue;
 		default:
 			break;
 		}
 	}
+
+	if (failfast || fail_on_ctrl_loss)
+		return false;
 
 	/*
 	 * If "head->delayed_removal_secs" is configured (i.e., non-zero), do
@@ -871,11 +904,6 @@ static int nvme_parse_ana_log(struct nvme_ctrl *ctrl, void *data,
 	return 0;
 }
 
-static inline bool nvme_state_is_live(enum nvme_ana_state state)
-{
-	return state == NVME_ANA_OPTIMIZED || state == NVME_ANA_NONOPTIMIZED;
-}
-
 static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 		struct nvme_ns *ns)
 {
@@ -910,8 +938,10 @@ static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 		 * is not live but still create the sysfs link to this path from
 		 * head node if head node of the path has already come alive.
 		 */
-		if (test_bit(NVME_NSHEAD_DISK_LIVE, &ns->head->flags))
+		if (test_bit(NVME_NSHEAD_DISK_LIVE, &ns->head->flags)) {
 			nvme_mpath_add_sysfs_link(ns->head);
+			kblockd_schedule_work(&ns->head->requeue_work);
+		}
 	}
 }
 
@@ -1038,6 +1068,10 @@ static ssize_t nvme_subsys_iopolicy_show(struct device *dev,
 	struct nvme_subsystem *subsys =
 		container_of(dev, struct nvme_subsystem, dev);
 
+	/* A discovery subsystem has no namespaces and hence no I/O paths */
+	if (subsys->subtype == NVME_NQN_DISC)
+		return sysfs_emit(buf, "none\n");
+
 	return sysfs_emit(buf, "%s\n",
 			  nvme_iopolicy_names[READ_ONCE(subsys->iopolicy)]);
 }
@@ -1072,6 +1106,9 @@ static ssize_t nvme_subsys_iopolicy_store(struct device *dev,
 		container_of(dev, struct nvme_subsystem, dev);
 	int policy;
 
+	if (subsys->subtype == NVME_NQN_DISC)
+		return -EOPNOTSUPP;
+
 	policy = nvme_iopolicy_parse(buf);
 	if (policy < 0)
 		return policy;
@@ -1081,6 +1118,26 @@ static ssize_t nvme_subsys_iopolicy_store(struct device *dev,
 }
 SUBSYS_ATTR_RW(iopolicy, S_IRUGO | S_IWUSR,
 		      nvme_subsys_iopolicy_show, nvme_subsys_iopolicy_store);
+
+static ssize_t iopolicies_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct nvme_subsystem *subsys =
+		container_of(dev, struct nvme_subsystem, dev);
+	int i, len = 0;
+
+	if (subsys->subtype == NVME_NQN_DISC)
+		return sysfs_emit(buf, "none\n");
+
+	for (i = 0; i < ARRAY_SIZE(nvme_iopolicy_names); i++)
+		len += sysfs_emit_at(buf, len, "%s%s", i ? " " : "",
+				     nvme_iopolicy_names[i]);
+
+	len += sysfs_emit_at(buf, len, "\n");
+	return len;
+}
+
+struct device_attribute subsys_attr_iopolicies = __ATTR_RO(iopolicies);
 
 static ssize_t ana_grpid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1109,6 +1166,28 @@ static ssize_t queue_depth_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", atomic_read(&ns->ctrl->nr_active));
 }
 DEVICE_ATTR_RO(queue_depth);
+
+static const char * const nvme_path_state_names[] = {
+	[NVME_PATH_ENABLED]			= "enabled",
+	[NVME_PATH_DISABLED_CTRL_DOWN]		= "ctrl-down",
+	[NVME_PATH_DISABLED_ANA_PENDING]	= "ana-pending",
+	[NVME_PATH_DISABLED_NS_NOT_READY]	= "ns-not-ready",
+};
+
+static ssize_t path_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+	enum nvme_path_state state = nvme_path_get_state(ns);
+	const char *name = "unknown";
+
+	if (state < ARRAY_SIZE(nvme_path_state_names) &&
+	    nvme_path_state_names[state])
+		name = nvme_path_state_names[state];
+
+	return sysfs_emit(buf, "%s\n", name);
+}
+DEVICE_ATTR_RO(path_state);
 
 static ssize_t numa_nodes_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1164,10 +1243,7 @@ static ssize_t delayed_removal_secs_store(struct device *dev,
 
 	mutex_lock(&head->subsys->lock);
 	head->delayed_removal_secs = sec;
-	if (sec)
-		set_bit(NVME_NSHEAD_QUEUE_IF_NO_PATH, &head->flags);
-	else
-		clear_bit(NVME_NSHEAD_QUEUE_IF_NO_PATH, &head->flags);
+	assign_bit(NVME_NSHEAD_QUEUE_IF_NO_PATH, &head->flags, sec);
 	mutex_unlock(&head->subsys->lock);
 	/*
 	 * Ensure that update to NVME_NSHEAD_QUEUE_IF_NO_PATH is seen
@@ -1179,6 +1255,47 @@ static ssize_t delayed_removal_secs_store(struct device *dev,
 }
 
 DEVICE_ATTR_RW(delayed_removal_secs);
+
+static ssize_t fail_on_ctrl_loss_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+
+	return sysfs_emit(buf, test_bit(NVME_NSHEAD_FAIL_ON_CTRL_LOSS,
+			&head->flags) ? "on\n" : "off\n");
+}
+
+static ssize_t fail_on_ctrl_loss_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+	bool enable;
+	int ret;
+
+	ret = kstrtobool(buf, &enable);
+	if (ret < 0)
+		return ret;
+
+	if (enable) {
+		if (test_and_set_bit(NVME_NSHEAD_FAIL_ON_CTRL_LOSS, &head->flags))
+			return count;
+	} else {
+		if (!test_and_clear_bit(NVME_NSHEAD_FAIL_ON_CTRL_LOSS,
+					&head->flags))
+			return count;
+	}
+
+	synchronize_srcu(&head->srcu);
+
+	if (enable)
+		kblockd_schedule_work(&head->requeue_work);
+
+	return count;
+}
+
+DEVICE_ATTR_RW(fail_on_ctrl_loss);
 
 static ssize_t multipath_failover_count_show(struct device *dev,
 		struct device_attribute *attr, char *buf)

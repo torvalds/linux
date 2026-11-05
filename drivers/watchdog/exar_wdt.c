@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define DRV_NAME	"exar_wdt"
@@ -70,13 +71,13 @@ static int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. 1<=timeout<=15300, default="
-		 __MODULE_STRING(WATCHDOG_TIMEOUT) ".");
+		 __stringify(WATCHDOG_TIMEOUT) ".");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static int exar_sio_enter(const unsigned short config_port,
 			  const unsigned char key)

@@ -17,6 +17,7 @@
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/fs_helpers.h>
 #include <linux/mlx5/eswitch.h>
+#include <linux/overflow.h>
 #include <net/inet_ecn.h>
 #include "mlx5_ib.h"
 #include "counters.h"
@@ -1647,36 +1648,32 @@ static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *de
 							  struct ib_flow_attr *flow_attr,
 							  struct mlx5_flow_destination *dst)
 {
+	DEFINE_RAW_FLEX(struct ib_flow_attr, flow_attr_wc, flows, 1);
+	DEFINE_RAW_FLEX(struct ib_flow_attr, flow_attr_uc, flows, 1);
+
 	struct mlx5_ib_flow_handler *handler_ucast = NULL;
 	struct mlx5_ib_flow_handler *handler = NULL;
 
-	static struct {
-		struct ib_flow_spec_eth eth_flow;
-		struct ib_flow_attr	flow_attr;
-	} leftovers_wc = { .flow_attr = { .num_of_specs = 1,
-					  .size = sizeof(leftovers_wc) },
-			   .eth_flow = {
-				   .type = IB_FLOW_SPEC_ETH,
-				   .size = sizeof(struct ib_flow_spec_eth),
-				   .mask = { .dst_mac = { 0x1 } },
-				   .val = { .dst_mac = { 0x1 } } } };
+	flow_attr_wc->num_of_specs = 1;
+	flow_attr_wc->size = sizeof(struct ib_flow_attr) +
+			      sizeof(struct ib_flow_spec_eth);
+	flow_attr_wc->flows[0].eth.type = IB_FLOW_SPEC_ETH;
+	flow_attr_wc->flows[0].eth.size = sizeof(struct ib_flow_spec_eth);
+	flow_attr_wc->flows[0].eth.mask.dst_mac[0] = 0x1;
+	flow_attr_wc->flows[0].eth.val.dst_mac[0] = 0x1;
 
-	static struct {
-		struct ib_flow_spec_eth eth_flow;
-		struct ib_flow_attr	flow_attr;
-	} leftovers_uc = { .flow_attr = { .num_of_specs = 1,
-					  .size = sizeof(leftovers_uc) },
-			   .eth_flow = {
-				   .type = IB_FLOW_SPEC_ETH,
-				   .size = sizeof(struct ib_flow_spec_eth),
-				   .mask = { .dst_mac = { 0x1 } },
-				   .val = { .dst_mac = {} } } };
+	flow_attr_uc->num_of_specs = 1;
+	flow_attr_uc->size = sizeof(struct ib_flow_attr) +
+			      sizeof(struct ib_flow_spec_eth);
+	flow_attr_uc->flows[0].eth.type = IB_FLOW_SPEC_ETH;
+	flow_attr_uc->flows[0].eth.size = sizeof(struct ib_flow_spec_eth);
+	flow_attr_uc->flows[0].eth.mask.dst_mac[0] = 0x1;
 
-	handler = create_flow_rule(dev, ft_prio, &leftovers_wc.flow_attr, dst);
+	handler = create_flow_rule(dev, ft_prio, flow_attr_wc, dst);
 	if (!IS_ERR(handler) &&
 	    flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT) {
 		handler_ucast = create_flow_rule(dev, ft_prio,
-						 &leftovers_uc.flow_attr, dst);
+						 flow_attr_uc, dst);
 		if (IS_ERR(handler_ucast)) {
 			mlx5_del_flow_rules(handler->rule);
 			ft_prio->refcount--;
@@ -3017,6 +3014,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_STEERING_ANCHOR_CREATE)(
 	if (err)
 		return err;
 
+	if (priority > MLX5_IB_FLOW_LAST_PRIO)
+		return -EINVAL;
+
 	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return -ENOMEM;
@@ -3056,8 +3056,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_STEERING_ANCHOR_CREATE)(
 	return 0;
 
 destroy_res:
-	--ft_prio->anchor.rule_goto_table_ref;
-	mlx5_steering_anchor_destroy_res(ft_prio);
+	if (!--ft_prio->anchor.rule_goto_table_ref)
+		mlx5_steering_anchor_destroy_res(ft_prio);
 put_flow_table:
 	put_flow_table(dev, ft_prio, true);
 free_obj:

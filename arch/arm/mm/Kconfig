@@ -328,7 +328,6 @@ config CPU_XSC3
 	select CPU_PABRT_LEGACY
 	select CPU_THUMB_CAPABLE
 	select CPU_TLB_V4WBI if MMU
-	select IO_36
 
 # Marvell PJ1 (Mohawk)
 config CPU_MOHAWK
@@ -675,12 +674,6 @@ config CPU_V7M_NUM_IRQ
 	  interrupts supported by the NVIC on Cortex-M family.
 
 	  If unsure, keep default value.
-
-#
-# CPU supports 36-bit I/O
-#
-config IO_36
-	bool
 
 comment "Processor Features"
 

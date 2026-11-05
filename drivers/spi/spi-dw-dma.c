@@ -718,14 +718,18 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 
 static void dw_spi_dma_stop(struct dw_spi *dws)
 {
-	if (test_bit(DW_SPI_TX_BUSY, &dws->dma_chan_busy)) {
+	/*
+	 * This is only called on errors, so don't rely on the busy flags
+	 * being in sync with the DMA engine state. A channel may be missing
+	 * when only one DMA channel is available.
+	 */
+	if (dws->txchan)
 		dmaengine_terminate_sync(dws->txchan);
-		clear_bit(DW_SPI_TX_BUSY, &dws->dma_chan_busy);
-	}
-	if (test_bit(DW_SPI_RX_BUSY, &dws->dma_chan_busy)) {
+	if (dws->rxchan)
 		dmaengine_terminate_sync(dws->rxchan);
-		clear_bit(DW_SPI_RX_BUSY, &dws->dma_chan_busy);
-	}
+
+	clear_bit(DW_SPI_TX_BUSY, &dws->dma_chan_busy);
+	clear_bit(DW_SPI_RX_BUSY, &dws->dma_chan_busy);
 }
 
 /*
@@ -844,21 +848,6 @@ static bool dw_spi_enh_mem_can_dma(struct spi_controller *ctlr)
 	return dws->dma_addr_widths & BIT(dma_bus_width);
 }
 
-static void dw_spi_enh_mem_dma_stop(struct dw_spi *dws)
-{
-	if (dws->tx_dir) {
-		if (test_bit(DW_SPI_TX_BUSY, &dws->dma_chan_busy)) {
-			dmaengine_terminate_sync(dws->txchan);
-			clear_bit(DW_SPI_TX_BUSY, &dws->dma_chan_busy);
-		}
-	} else {
-		if (test_bit(DW_SPI_RX_BUSY, &dws->dma_chan_busy)) {
-			dmaengine_terminate_sync(dws->rxchan);
-			clear_bit(DW_SPI_RX_BUSY, &dws->dma_chan_busy);
-		}
-	}
-}
-
 static int dw_spi_enh_mem_dma_transfer(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct spi_controller *ctlr = mem->spi->controller;
@@ -893,7 +882,7 @@ static int dw_spi_enh_mem_dma_transfer(struct spi_mem *mem, const struct spi_mem
 	}
 
 	if (ret)
-		dw_spi_enh_mem_dma_stop(dws);
+		dw_spi_dma_stop(dws);
 	else
 		ret = dw_spi_check_status(dws, true);
 

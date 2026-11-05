@@ -80,7 +80,7 @@ definitions:
       -
         name: tx-checksum
         doc: >-
-          L3 checksum HW offload is supported by the driver.
+          L4 checksum HW offload is supported by the driver.
       -
         name: tx-launch-time-fifo
         doc: >-
@@ -118,7 +118,8 @@ attribute-sets:
         enum: xdp-act
       -
         name: xdp-zc-max-segs
-        doc: max fragment count supported by ZC driver
+        doc: max buffer count per packet supported by ZC driver,
+             including the head buffer
         type: u32
         checks:
           min: 1

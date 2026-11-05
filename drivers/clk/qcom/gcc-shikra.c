@@ -4416,17 +4416,7 @@ static struct platform_driver gcc_shikra_driver = {
 	},
 };
 
-static int __init gcc_shikra_init(void)
-{
-	return platform_driver_register(&gcc_shikra_driver);
-}
-subsys_initcall(gcc_shikra_init);
-
-static void __exit gcc_shikra_exit(void)
-{
-	platform_driver_unregister(&gcc_shikra_driver);
-}
-module_exit(gcc_shikra_exit);
+subsys_platform_driver(gcc_shikra_driver);
 
 MODULE_DESCRIPTION("QTI GCC Shikra Driver");
 MODULE_LICENSE("GPL");

@@ -19,7 +19,7 @@
  * magic of the ntfs record header being processed with "BAAD" (in memory only!)
  * and abort processing.
  *
- * Return 0 on success and -EINVAL on error ("BAAD" magic will be present).
+ * Return 0 on success and -EIO on error ("BAAD" magic will be present).
  *
  * NOTE: We consider the absence / invalidity of an update sequence array to
  * mean that the structure is not protected at all and hence doesn't need to
@@ -71,7 +71,7 @@ int post_read_mst_fixup(struct ntfs_record *b, const u32 size)
 			 * Note that magic_BAAD is already converted to le32.
 			 */
 			b->magic = magic_BAAD;
-			return -EINVAL;
+			return -EIO;
 		}
 		data_pos += NTFS_BLOCK_SIZE / sizeof(u16);
 	}

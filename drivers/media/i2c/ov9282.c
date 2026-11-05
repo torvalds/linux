@@ -780,6 +780,7 @@ static int ov9282_get_pad_format(struct v4l2_subdev *sd,
 }
 
 static int ov9282_set_pad_format(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
@@ -826,7 +827,7 @@ static int ov9282_init_state(struct v4l2_subdev *sd,
 	ov9282_fill_pad_format(ov9282, &supported_modes[DEFAULT_MODE],
 			       ov9282->code, &fmt);
 
-	return ov9282_set_pad_format(sd, sd_state, &fmt);
+	return ov9282_set_pad_format(sd, NULL, sd_state, &fmt);
 }
 
 static const struct v4l2_rect *
@@ -845,6 +846,7 @@ __ov9282_get_pad_crop(struct ov9282 *ov9282,
 }
 
 static int ov9282_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {

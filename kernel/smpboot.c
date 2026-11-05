@@ -103,6 +103,7 @@ static int smpboot_thread_fn(void *data)
 {
 	struct smpboot_thread_data *td = data;
 	struct smp_hotplug_thread *ht = td->ht;
+	bool should_run;
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -117,7 +118,8 @@ static int smpboot_thread_fn(void *data)
 			return 0;
 		}
 
-		if (kthread_should_park()) {
+		should_run = td->status == HP_THREAD_ACTIVE && ht->thread_should_run(td->cpu);
+		if (kthread_should_park() && !should_run) {
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
 			if (ht->park && td->status == HP_THREAD_ACTIVE) {
@@ -151,7 +153,7 @@ static int smpboot_thread_fn(void *data)
 			continue;
 		}
 
-		if (!ht->thread_should_run(td->cpu)) {
+		if (!should_run) {
 			preempt_enable_no_resched();
 			schedule();
 		} else {

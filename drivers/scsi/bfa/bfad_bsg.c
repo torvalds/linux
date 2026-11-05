@@ -2552,7 +2552,7 @@ static void bfad_reset_sdev_bflags(struct bfad_im_port_s *im_port,
 	struct scsi_device *sdev;
 	unsigned long flags;
 
-	spin_lock_irqsave(im_port->shost->host_lock, flags);
+	spin_lock_irqsave(&im_port->shost->host_lock, flags);
 	list_for_each_entry(itnim, &im_port->itnim_mapped_list, list_entry) {
 		sdev = __scsi_device_lookup(im_port->shost, itnim->channel,
 					    itnim->scsi_tgt_id, 0);
@@ -2563,7 +2563,7 @@ static void bfad_reset_sdev_bflags(struct bfad_im_port_s *im_port,
 				sdev->sdev_bflags &= ~scan_flags;
 		}
 	}
-	spin_unlock_irqrestore(im_port->shost->host_lock, flags);
+	spin_unlock_irqrestore(&im_port->shost->host_lock, flags);
 }
 
 /* Function to reset the LUN SCAN mode */

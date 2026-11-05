@@ -495,6 +495,9 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		client->adapter->timeout = msecs_to_jiffies(arg * 10);
+#ifdef CONFIG_I2C_DYNAMIC_TIMEOUT
+		client->adapter->user_timeout = client->adapter->timeout;
+#endif
 		break;
 	default:
 		/* NOTE:  returning a fault code here could cause trouble

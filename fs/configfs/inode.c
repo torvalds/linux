@@ -32,7 +32,7 @@ static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
 
-int configfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int configfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	struct inode * inode = d_inode(dentry);
@@ -178,7 +178,7 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
  */
 const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 {
-	struct configfs_attribute *attr;
+	const struct configfs_attribute *attr;
 
 	BUG_ON(!sd || !sd->s_element);
 

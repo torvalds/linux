@@ -633,7 +633,7 @@ int dma_resv_get_singleton(struct dma_resv *obj, enum dma_resv_usage usage,
 	int r;
 
 	r = dma_resv_get_fences(obj, usage, &count, &fences);
-        if (r)
+	if (r)
 		return r;
 
 	if (count == 0) {

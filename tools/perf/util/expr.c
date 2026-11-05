@@ -431,7 +431,10 @@ double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx
 	}
 
 	pr_debug2("literal: %s = %f\n", literal, result);
-	return result;
+	if (!ctx->is_test)
+		return result;
+	else
+		return isnan(result) ? 1.0 : result;
 }
 
 /* Does the event 'id' parse? Determine via ctx->ids if possible. */

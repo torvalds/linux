@@ -263,7 +263,7 @@ static int powernv_flash_probe(struct platform_device *pdev)
 }
 
 /**
- * op_release - Release the driver
+ * powernv_flash_release - Release the driver
  * @pdev: the platform device
  *
  * Returns 0

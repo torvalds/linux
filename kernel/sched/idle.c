@@ -429,13 +429,17 @@ void play_idle_precise(u64 duration_ns, u64 latency_ns)
 	cpuidle_use_deepest_state(latency_ns);
 
 	it.done = 0;
-	hrtimer_setup_on_stack(&it.timer, idle_inject_timer_fn, CLOCK_MONOTONIC,
-			       HRTIMER_MODE_REL_HARD);
-	hrtimer_start(&it.timer, ns_to_ktime(duration_ns),
-		      HRTIMER_MODE_REL_PINNED_HARD);
+	{
+		CLASS(hrtimer_on_stack, timer)(&it.timer, idle_inject_timer_fn,
+					       CLOCK_MONOTONIC,
+					       HRTIMER_MODE_REL_HARD);
 
-	while (!READ_ONCE(it.done))
-		do_idle();
+		hrtimer_start(timer, ns_to_ktime(duration_ns),
+			      HRTIMER_MODE_REL_PINNED_HARD);
+
+		while (!READ_ONCE(it.done))
+			do_idle();
+	}
 
 	cpuidle_use_deepest_state(0);
 	current->flags &= ~PF_IDLE;
@@ -487,8 +491,11 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct t
 	update_rq_avg_idle(rq);
 }
 
-static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
+static void set_next_task_idle(struct rq *rq, struct task_struct *next, enum snt_e type)
 {
+	if (type == SNT_REPICK)
+		return;
+
 	update_idle_core(rq);
 	scx_update_idle(rq, true, true);
 	schedstat_inc(rq->sched_goidle);

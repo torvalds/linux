@@ -10,6 +10,7 @@
 #include <drm/intel/intel_pcode_regs.h>
 #include <drm/intel/step.h>
 
+#include "intel_alpm.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
@@ -487,6 +488,14 @@ void intel_display_power_dc3co_compute(struct intel_atomic_state *state)
 		trigger |= DC3CO_TRIGGER_PANEL_REPLAY;
 	if (crtc_state->has_sel_update)
 		trigger |= DC3CO_TRIGGER_PSR2;
+
+	/*
+	 * Periodic AS SDP (skip frames) needs the AS SDP to keep flowing during
+	 * PR active, which is incompatible with DC3co. Keep DC3co disabled while
+	 * skip frames is enabled.
+	 */
+	if (intel_alpm_pr_as_sdp_skip_frames_enabled(intel_dp, crtc_state))
+		trigger = DC3CO_TRIGGER_NONE;
 
 done:
 	intel_display_power_dc3co_update(display, trigger);
@@ -2076,9 +2085,9 @@ static void assert_ved_power_gated(struct intel_display *display)
 static void assert_isp_power_gated(struct intel_display *display)
 {
 	static const struct pci_device_id isp_ids[] = {
-		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0f38)},
-		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x22b8)},
-		{}
+		{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISP_BYT) },
+		{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISP_BSW) },
+		{ }
 	};
 
 	drm_WARN(display->drm, !pci_dev_present(isp_ids) &&

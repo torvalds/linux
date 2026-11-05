@@ -43,7 +43,7 @@ void __init bootmem_init(void)
 	 * accounting doesn't work for pages below that address.
 	 *
 	 * If PHYS_OFFSET is zero reserve page at address 0:
-	 * successfull allocations should never return NULL.
+	 * successful allocations should never return NULL.
 	 */
 	memblock_reserve(0, PHYS_OFFSET ? PHYS_OFFSET : 1);
 

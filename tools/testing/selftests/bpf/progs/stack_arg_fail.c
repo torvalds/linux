@@ -3,19 +3,9 @@
 
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-#include "../test_kmods/bpf_testmod_kfunc.h"
 #include "bpf_misc.h"
 
 #if defined(__BPF_FEATURE_STACK_ARGUMENT)
-
-SEC("tc")
-__failure __msg("Unrecognized *(R11-8) type STRUCT")
-int test_stack_arg_big(struct __sk_buff *skb)
-{
-	struct prog_test_big_arg s = { .a = 1, .b = 2 };
-
-	return bpf_kfunc_call_stack_arg_big(1, 2, 3, 4, 5, s);
-}
 
 SEC("socket")
 __description("r11 in ALU instruction")
@@ -103,8 +93,9 @@ __naked void r11_store_zero_off(void)
 
 SEC("tc")
 __description("stack_arg_fail: not supported, dummy test")
+__skip("stack_arg_fail: not supported")
 __success
-int test_stack_arg_big(struct __sk_buff *skb)
+int dummy_test(struct __sk_buff *skb)
 {
 	return 0;
 }

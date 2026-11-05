@@ -247,6 +247,8 @@ struct audio_support{
 #define NO_UNDERLAY_PIPE -1
 
 struct resource_pool {
+	struct dc_context *ctx;
+
 	struct mem_input *mis[MAX_PIPES];
 	struct hubp *hubps[MAX_PIPES];
 	struct input_pixel_processor *ipps[MAX_PIPES];
@@ -263,6 +265,13 @@ struct resource_pool {
 	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
 	bool i2c_hw_buffer_in_use;
+
+	/* LSDMA scratch memory. buffer is NULL when not allocated. */
+	struct {
+		void *buffer;
+		long long pa;
+		unsigned int size;
+	} lsdma_scratch;
 
 	struct dwbc *dwbc[MAX_DWB_PIPES];
 	struct mcif_wb *mcif_wb[MAX_DWB_PIPES];
@@ -299,7 +308,7 @@ struct resource_pool {
 	struct hpo_dp_link_encoder *hpo_dp_link_enc[MAX_HPO_DP2_LINK_ENCODERS];
 	struct dc_3dlut *mpc_lut[MAX_PIPES];
 	struct dc_transfer_func *mpc_shaper[MAX_PIPES];
-	struct dc_rmcm_3dlut rmcm_3dlut[MAX_RMCM_INST];
+	struct rmcm *rmcm[MAX_RMCM_INST];
 
 	struct {
 		unsigned int xtalin_clock_inKhz;
@@ -392,6 +401,7 @@ struct plane_resource {
 	struct transform *xfm;
 	struct dpp *dpp;
 	uint8_t mpcc_inst;
+	struct rmcm *rmcm;
 
 	struct dcn_fe_bandwidth bw;
 };
@@ -549,6 +559,7 @@ struct resource_context {
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
+	bool rmcm_in_use[MAX_RMCM_INST];
 	/* used to build scalar data in dml2 and for edp backlight programming */
 	struct pipe_ctx temp_pipe;
 };

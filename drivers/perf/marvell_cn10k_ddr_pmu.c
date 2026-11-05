@@ -1165,6 +1165,47 @@ static const struct ddr_pmu_platform_data odyssey_ddr_pmu_pdata = {
 };
 #endif
 
+static const struct pmu cn10k_pmu = {
+	.module	      = THIS_MODULE,
+	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+	.task_ctx_nr = perf_invalid_context,
+	.attr_groups = cn10k_attr_groups,
+	.event_init  = cn10k_ddr_perf_event_init,
+	.add	     = cn10k_ddr_perf_event_add,
+	.del	     = cn10k_ddr_perf_event_del,
+	.start	     = cn10k_ddr_perf_event_start,
+	.stop	     = cn10k_ddr_perf_event_stop,
+	.read	     = cn10k_ddr_perf_event_update,
+	.pmu_enable  = cn10k_ddr_perf_pmu_enable,
+	.pmu_disable = cn10k_ddr_perf_pmu_disable,
+};
+
+static const struct pmu ody_pmu = {
+	.module       = THIS_MODULE,
+	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+	.task_ctx_nr = perf_invalid_context,
+	.attr_groups = odyssey_attr_groups,
+	.event_init  = cn10k_ddr_perf_event_init,
+	.add         = cn10k_ddr_perf_event_add,
+	.del         = cn10k_ddr_perf_event_del,
+	.start       = cn10k_ddr_perf_event_start,
+	.stop        = cn10k_ddr_perf_event_stop,
+	.read        = cn10k_ddr_perf_event_update,
+};
+
+static const struct pmu cn20k_pmu = {
+	.module       = THIS_MODULE,
+	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+	.task_ctx_nr = perf_invalid_context,
+	.attr_groups = cn20k_attr_groups,
+	.event_init  = cn10k_ddr_perf_event_init,
+	.add         = cn10k_ddr_perf_event_add,
+	.del         = cn10k_ddr_perf_event_del,
+	.start       = cn10k_ddr_perf_event_start,
+	.stop        = cn10k_ddr_perf_event_stop,
+	.read        = cn10k_ddr_perf_event_update,
+};
+
 static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 {
 	const struct ddr_pmu_platform_data *dev_data;
@@ -1202,56 +1243,20 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 		/* Setup the PMU counter to work in manual mode */
 		writeq_relaxed(OP_MODE_CTRL_VAL_MANUAL, ddr_pmu->base +
 			       ddr_pmu->p_data->cnt_op_mode_ctrl);
+		ddr_pmu->pmu = cn10k_pmu;
 
-		ddr_pmu->pmu = (struct pmu) {
-			.module	      = THIS_MODULE,
-			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
-			.task_ctx_nr = perf_invalid_context,
-			.attr_groups = cn10k_attr_groups,
-			.event_init  = cn10k_ddr_perf_event_init,
-			.add	     = cn10k_ddr_perf_event_add,
-			.del	     = cn10k_ddr_perf_event_del,
-			.start	     = cn10k_ddr_perf_event_start,
-			.stop	     = cn10k_ddr_perf_event_stop,
-			.read	     = cn10k_ddr_perf_event_update,
-			.pmu_enable  = cn10k_ddr_perf_pmu_enable,
-			.pmu_disable = cn10k_ddr_perf_pmu_disable,
-		};
 	}
 
 	if (silicon_flags & IS_ODY) {
 		ddr_pmu->ops = &ddr_pmu_ody_ops;
-
-		ddr_pmu->pmu = (struct pmu) {
-			.module       = THIS_MODULE,
-			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
-			.task_ctx_nr = perf_invalid_context,
-			.attr_groups = odyssey_attr_groups,
-			.event_init  = cn10k_ddr_perf_event_init,
-			.add         = cn10k_ddr_perf_event_add,
-			.del         = cn10k_ddr_perf_event_del,
-			.start       = cn10k_ddr_perf_event_start,
-			.stop        = cn10k_ddr_perf_event_stop,
-			.read        = cn10k_ddr_perf_event_update,
-		};
+		ddr_pmu->pmu = ody_pmu;
 	}
 
 	if (silicon_flags & IS_CN20K) {
 		ddr_pmu->ops = &ddr_pmu_ody_ops;
-
-		ddr_pmu->pmu = (struct pmu) {
-			.module       = THIS_MODULE,
-			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
-			.task_ctx_nr = perf_invalid_context,
-			.attr_groups = cn20k_attr_groups,
-			.event_init  = cn10k_ddr_perf_event_init,
-			.add         = cn10k_ddr_perf_event_add,
-			.del         = cn10k_ddr_perf_event_del,
-			.start       = cn10k_ddr_perf_event_start,
-			.stop        = cn10k_ddr_perf_event_stop,
-			.read        = cn10k_ddr_perf_event_update,
-		};
+		ddr_pmu->pmu = cn20k_pmu;
 	}
+
 	/* Choose this cpu to collect perf data */
 	ddr_pmu->cpu = raw_smp_processor_id();
 

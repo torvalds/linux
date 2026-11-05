@@ -697,25 +697,7 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 	if (err)
 		return err;
 
-	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
-		pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
-		if (IS_ERR(pvr_dev->kernel_vm_ctx))
-			return PTR_ERR(pvr_dev->kernel_vm_ctx);
-	}
-
-	err = pvr_fw_init(pvr_dev);
-	if (err)
-		goto err_vm_ctx_put;
-
-	return 0;
-
-err_vm_ctx_put:
-	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
-		pvr_vm_context_put(pvr_dev->kernel_vm_ctx);
-		pvr_dev->kernel_vm_ctx = NULL;
-	}
-
-	return err;
+	return pvr_fw_init(pvr_dev);
 }
 
 /**
@@ -726,11 +708,6 @@ static void
 pvr_device_gpu_fini(struct pvr_device *pvr_dev)
 {
 	pvr_fw_fini(pvr_dev);
-
-	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
-		WARN_ON(!pvr_vm_context_put(pvr_dev->kernel_vm_ctx));
-		pvr_dev->kernel_vm_ctx = NULL;
-	}
 }
 
 /**

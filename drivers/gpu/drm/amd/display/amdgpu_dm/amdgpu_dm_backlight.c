@@ -42,13 +42,32 @@
 #include <linux/minmax.h>
 #include <linux/power_supply.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_utils.h>
+#include <drm/drm_panel_quirks.h>
 
 #include <acpi/video.h>
 
 #include "amdgpu_dm_trace.h"
 #include "amd_shared.h"
 #include "dm_helpers.h"
+
+#if defined(CONFIG_ACPI) || IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+STATIC_IFN_KUNIT
+void amdgpu_dm_validate_backlight_caps(struct amdgpu_display_manager *dm, int bl_idx)
+{
+	struct amdgpu_dm_backlight_caps *caps = &dm->backlight_caps[bl_idx];
+	int spread = caps->max_input_signal - caps->min_input_signal;
+
+	if (caps->max_input_signal > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
+	    caps->min_input_signal < 0 ||
+	    spread > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
+	    spread < AMDGPU_DM_MIN_SPREAD) {
+		drm_dbg_kms(adev_to_drm(dm->adev), "DM: Invalid backlight caps: min=%d, max=%d\n",
+			    caps->min_input_signal, caps->max_input_signal);
+		caps->caps_valid = false;
+	}
+}
+EXPORT_IF_KUNIT(amdgpu_dm_validate_backlight_caps);
+#endif
 
 void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 				     int bl_idx)
@@ -62,18 +81,8 @@ void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 	amdgpu_acpi_get_backlight_caps(caps);
 
 	/* validate the firmware value is sane */
-	if (caps->caps_valid) {
-		int spread = caps->max_input_signal - caps->min_input_signal;
-
-		if (caps->max_input_signal > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
-		    caps->min_input_signal < 0 ||
-		    spread > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
-		    spread < AMDGPU_DM_MIN_SPREAD) {
-			drm_dbg_kms(adev_to_drm(dm->adev), "DM: Invalid backlight caps: min=%d, max=%d\n",
-				      caps->min_input_signal, caps->max_input_signal);
-			caps->caps_valid = false;
-		}
-	}
+	if (caps->caps_valid)
+		amdgpu_dm_validate_backlight_caps(dm, bl_idx);
 #else
 	if (caps->aux_support)
 		return;

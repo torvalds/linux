@@ -33,7 +33,9 @@ static bool ath11k_regdom_changes(struct ath11k *ar, char *alpha2)
 {
 	const struct ieee80211_regdomain *regd;
 
-	regd = rcu_dereference_rtnl(ar->hw->wiphy->regd);
+	guard(rcu)();
+
+	regd = get_wiphy_regdom(ar->hw->wiphy);
 	/* This can happen during wiphy registration where the previous
 	 * user request is received before we update the regd received
 	 * from firmware.

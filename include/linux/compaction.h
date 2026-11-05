@@ -81,10 +81,6 @@ static inline unsigned long compact_gap(unsigned int order)
 	return min(2UL << order, COMPACT_CLUSTER_MAX);
 }
 
-static inline int current_is_kcompactd(void)
-{
-	return current->flags & PF_KCOMPACTD;
-}
 
 #ifdef CONFIG_COMPACTION
 
@@ -103,7 +99,7 @@ extern void compaction_defer_reset(struct zone *zone, int order,
 
 bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 					int alloc_flags, gfp_t gfp_mask);
-
+bool current_is_kcompactd(void);
 extern void __meminit kcompactd_run(int nid);
 extern void __meminit kcompactd_stop(int nid);
 extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int highest_zoneidx);
@@ -116,6 +112,11 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
 static inline bool compaction_suitable(struct zone *zone, int order,
 				       unsigned long watermark,
 				       int highest_zoneidx)
+{
+	return false;
+}
+
+static inline bool current_is_kcompactd(void)
 {
 	return false;
 }

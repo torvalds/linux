@@ -456,6 +456,7 @@ timerlat_print_stats(struct osnoise_tool *top)
 
 	trace_seq_do_printf(trace->seq);
 	trace_seq_reset(trace->seq);
+	osnoise_report_invalid_events(top);
 	osnoise_report_missed_events(top);
 }
 

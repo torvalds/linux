@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _pt_BR_securitybugs:
+
 Falhas de segurança
 ===================
 
@@ -59,11 +61,11 @@ Além disso, as seguintes informações são altamente desejáveis:
     mantenedores, mesmo que a correção acabe não sendo a correta, pois ajuda a
     entender o bug. Ao propor uma correção testada, por favor, formate-a
     sempre de uma maneira que possa ser mesclada imediatamente (consulte
-    Documentation/process/submitting-patches.rst). Isso evitará algumas trocas
-    de mensagens caso ela seja aceita, e você receberá o crédito por
-    encontrar e corrigir o problema. Observe que, neste caso, apenas uma tag
-    ``Signed-off-by:`` é necessária, sem ``Reported-by:`` quando o relator e
-    o autor forem a mesma pessoa.
+    Documentation/translations/pt_BR/process/submitting-patches.rst). Isso
+    evitará algumas trocas de mensagens caso ela seja aceita, e você receberá
+    o crédito por encontrar e corrigir o problema. Observe que, neste caso,
+    apenas uma tag ``Signed-off-by:`` é necessária, sem ``Reported-by:``
+    quando o relator e o autor forem a mesma pessoa.
 
   * **mitigações**: com muita frequência, durante a análise de um bug,
     surgem algumas maneiras de mitigar o problema. É útil compartilhá-las,
@@ -228,8 +230,8 @@ a tornar esses relatórios desnecessariamente difíceis de lidar:
     Se a correção não puder ser testada porque depende de hardware raro ou de
     protocolos de rede quase extintos, é provável que o problema não seja um
     bug de segurança. Em qualquer caso, se uma correção for proposta, ela deve
-    aderir a Documentation/process/submitting-patches.rst e incluir uma tag
-    'Fixes:' designando o commit que introduziu o bug.
+    aderir a Documentation/translations/pt_BR/process/submitting-patches.rst
+    e incluir uma tag 'Fixes:' designando o commit que introduziu o bug.
 
 A falha em considerar estes pontos expõe seu relatório ao risco de ser
 ignorado.
@@ -280,7 +282,7 @@ entender e corrigir a vulnerabilidade de segurança.
 Por favor, envie e-mails em **texto simples** sem anexos, sempre que possível.
 É muito mais difícil ter uma discussão com citações de contexto sobre um
 problema complexo se todos os detalhes estiverem ocultos em anexos. Pense nisso
-como uma :doc:`regular path submission </../../../process/submitting-patches>`
+como uma :doc:`submissão pelo caminho normal <submitting-patches>`
 (mesmo que você ainda não tenha um patch): descreva o problema e o impacto,
 liste as etapas de reprodução e siga com uma proposta de correção, tudo em
 texto simples. Relatórios formatados em Markdown, HTML e RST são
@@ -288,8 +290,9 @@ particularmente malvistos, pois são bastante difíceis de ler por humanos e
 incentivam o uso de visualizadores dedicados, às vezes online, o que por
 definição não é aceitável para um relatório de segurança confidencial. Note
 que alguns clientes de e-mail tendem a corromper a formatação de texto simples
-por padrão; por favor, consulte Documentation/process/email-clients.rst para
-mais informações.
+por padrão; por favor, consulte
+Documentation/translations/pt_BR/process/email-clients.rst para mais
+informações.
 
 Divulgação e informações sob embargo
 ------------------------------------
@@ -359,7 +362,7 @@ A equipe de segurança não atribui CVEs, nem os exigimos para relatórios ou
 correções, pois isso pode complicar desnecessariamente o processo e adiar o
 tratamento do bug. Se um relator desejar que um identificador CVE seja
 atribuído para um problema confirmado, ele pode entrar em contato com a
-:doc:`kernel CVE assignment team<../../../process/cve>` para obter um.
+:doc:`equipe de atribuição de CVEs do kernel <cve>` para obter um.
 
 Acordo de não divulgação
 ------------------------

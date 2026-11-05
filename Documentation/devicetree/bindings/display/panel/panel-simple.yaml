@@ -338,6 +338,8 @@ properties:
       - tpk,f07a-0102
         # TPK U.S.A. LLC Fusion 10.1" 1024 x 600 (WSVGA) LCD panel with capacitive touch
       - tpk,f10a-0102
+        # Truly Semiconductors Limited 3.5" QVGA (320 x 240) TFT LCD panel
+      - truly,tft320240-229-e
         # United Radiant Technology UMSH-8596MD-xT 7.0" WVGA TFT LCD panel
         # Supported are LVDS versions (-11T, -19T) and parallel ones
         # (-T, -1T, -7T, -20T).

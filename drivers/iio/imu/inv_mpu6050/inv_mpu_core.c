@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
+#include <linux/kstrtox.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/math64.h>
@@ -1303,8 +1304,9 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *pdev = regmap_get_device(st->map);
 
-	if (kstrtoint(buf, 10, &fifo_rate))
-		return -EINVAL;
+	result = kstrtoint(buf, 10, &fifo_rate);
+	if (result)
+		return result;
 	if (fifo_rate < INV_MPU6050_MIN_FIFO_RATE ||
 	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;

@@ -363,17 +363,6 @@ static int tonga_ih_resume(struct amdgpu_ip_block *ip_block)
 	return tonga_ih_hw_init(ip_block);
 }
 
-static bool tonga_ih_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	u32 tmp = RREG32(mmSRBM_STATUS);
-
-	if (REG_GET_FIELD(tmp, SRBM_STATUS, IH_BUSY))
-		return false;
-
-	return true;
-}
-
 static int tonga_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
@@ -388,37 +377,6 @@ static int tonga_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 		udelay(1);
 	}
 	return -ETIMEDOUT;
-}
-
-static int tonga_ih_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	u32 srbm_soft_reset;
-
-	if (!adev->irq.srbm_soft_reset)
-		return 0;
-	srbm_soft_reset = adev->irq.srbm_soft_reset;
-
-	if (srbm_soft_reset) {
-		u32 tmp;
-
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-		tmp |= srbm_soft_reset;
-		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~srbm_soft_reset;
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		/* Wait a little for things to settle down */
-		udelay(50);
-	}
-
-	return 0;
 }
 
 static int tonga_ih_set_clockgating_state(struct amdgpu_ip_block *ip_block,
@@ -442,9 +400,7 @@ static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.hw_fini = tonga_ih_hw_fini,
 	.suspend = tonga_ih_suspend,
 	.resume = tonga_ih_resume,
-	.is_idle = tonga_ih_is_idle,
 	.wait_for_idle = tonga_ih_wait_for_idle,
-	.soft_reset = tonga_ih_soft_reset,
 	.set_clockgating_state = tonga_ih_set_clockgating_state,
 	.set_powergating_state = tonga_ih_set_powergating_state,
 };

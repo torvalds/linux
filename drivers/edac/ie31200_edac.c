@@ -660,7 +660,9 @@ static int ie31200_init_one(struct pci_dev *pdev,
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
 	rc = ie31200_probe1(pdev, (struct res_config *)ent->driver_data);
-	if (rc == 0 && !mci_pdev)
+	if (rc)
+		pci_disable_device(pdev);
+	else if (!mci_pdev)
 		mci_pdev = pci_dev_get(pdev);
 
 	return rc;

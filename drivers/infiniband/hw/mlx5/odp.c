@@ -300,7 +300,7 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	/*
 	 * Iteration one - zap the HW's MTTs. The notifiers_count ensures that
 	 * while we are doing the invalidation, no page fault will attempt to
-	 * overwrite the same MTTs.  Concurent invalidations might race us,
+	 * overwrite the same MTTs.  Concurrent invalidations might race us,
 	 * but they will write 0s as well, so no difference in the end result.
 	 */
 	for (addr = start; addr < end; addr += BIT(umem_odp->page_shift)) {
@@ -953,7 +953,7 @@ int mlx5_ib_init_dmabuf_mr(struct mlx5_ib_mr *mr, struct ib_pd *pd)
 	int ret;
 
 	if (mr->data_direct)
-		pdn = dev->ddr.pdn;
+		pdn = dev->mdev->data_direct->pdn;
 	else
 		pdn = to_mpd(pd)->pdn;
 
@@ -1885,8 +1885,8 @@ mlx5_ib_odp_destroy_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 	if (!eq->core)
 		return 0;
 	mlx5_eq_disable(dev->mdev, eq->core, &eq->irq_nb);
-	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
 	cancel_work_sync(&eq->work);
+	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
 	destroy_workqueue(eq->wq);
 	mempool_destroy(eq->pool);
 

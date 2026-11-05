@@ -6,6 +6,36 @@
 #include "ste-ab8505.dtsi"
 
 / {
+	href_sound: sound {
+		compatible = "audio-graph-card2";
+		label = "HREF-500";
+		widgets =
+			"Headphone", "Headset",
+			"Speaker", "Earpiece Speaker",
+			"Speaker", "Loudspeaker",
+			"Line", "Line Out",
+			"Speaker", "Vibra 1 Motor",
+			"Speaker", "Vibra 2 Motor",
+			"Microphone", "Mic 1 Jack",
+			"Microphone", "Mic 2 Jack",
+			"Line", "Line In";
+		routing =
+			"Headset", "Headset Left",
+			"Headset", "Headset Right",
+			"Earpiece Speaker", "Earpiece",
+			"Loudspeaker", "Speaker Left",
+			"Loudspeaker", "Speaker Right",
+			"Line Out", "LineOut Left",
+			"Line Out", "LineOut Right",
+			"Vibra 1 Motor", "Vibra 1",
+			"Vibra 2 Motor", "Vibra 2",
+			"Mic 1", "Mic 1 Jack",
+			"Mic 2", "Mic 2 Jack",
+			"LineIn Left", "Line In",
+			"LineIn Right", "Line In";
+		links = <&href_msp1_port &href_msp3_port>;
+	};
+
 	soc {
 		prcmu@80157000 {
 			ab8505 {
@@ -48,10 +78,6 @@
 						regulator-name = "V-AMIC2";
 					};
 
-					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
-						regulator-name = "V-DMIC";
-					};
-
 					ab8500_ldo_ana_reg: ab8500_ldo_ana {
 						regulator-name = "V-CSI/DSI";
 					};
@@ -80,7 +106,6 @@
 						    <&pwm_default_mode>,
 						    <&adi1_default_mode>,
 						    <&usbuicc_default_mode>,
-						    <&dmic_default_mode>,
 						    <&extcpena_default_mode>,
 						    <&modsclsda_default_mode>;
 
@@ -365,27 +390,6 @@
 							};
 						};
 					};
-					/* This sets up the microphone pins */
-					dmic {
-						dmic_default_mode: dmic_default {
-							default_mux {
-								function = "dmic";
-								groups = "dmic12_d_1",
-									 "dmic34_d_1",
-									 "dmic56_d_1";
-							};
-							default_cfg {
-								pins = "GPIO27_J6",
-									 "GPIO28_K6",
-									 "GPIO29_G6",
-									 "GPIO30_H6",
-									 "GPIO31_F5",
-									 "GPIO32_G5";
-								input-enable;
-								bias-pull-down;
-							};
-						};
-					};
 					extcpena {
 						extcpena_default_mode: extcpena_default {
 							default_mux {
@@ -485,6 +489,68 @@
 					status = "disabled";
 				};
 			};
+		};
+	};
+};
+
+&codec {
+	assigned-clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+	assigned-clock-parents = <&ab8500_clock AB8500_SYSCLK_ULP>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			href_codec_playback: endpoint {
+				remote-endpoint = <&href_msp1_endpoint>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <16>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-tx-mask = <0 1 0 1>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			href_codec_capture: endpoint {
+				remote-endpoint = <&href_msp3_endpoint>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <16>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-rx-mask = <1>;
+			};
+		};
+	};
+};
+
+&msp1 {
+	href_msp1_port: port {
+		href_msp1_endpoint: endpoint {
+			continuous-clock;
+			remote-endpoint = <&href_codec_playback>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <16>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-tx-mask = <0 1 0 1>;
+		};
+	};
+};
+
+&msp3 {
+	href_msp3_port: port {
+		href_msp3_endpoint: endpoint {
+			continuous-clock;
+			remote-endpoint = <&href_codec_capture>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <16>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-rx-mask = <1>;
 		};
 	};
 };

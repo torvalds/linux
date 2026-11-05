@@ -117,8 +117,11 @@ retry:
 	if (d_is_negative(subdir)) {
 		ret = cachefiles_has_space(cache, 1, 0,
 					   cachefiles_has_space_for_create);
-		if (ret < 0)
+		if (ret < 0) {
+			if (ret == -ENOBUFS)
+				trace_cachefiles_no_space(NULL, cachefiles_trace_mkdir_nospace);
 			goto mkdir_error;
+		}
 
 		_debug("attempt mkdir");
 
@@ -414,7 +417,6 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	struct dentry *fan = volume->fanout[(u8)object->cookie->key_hash];
 	struct file *file;
 	const struct path parentpath = { .mnt = cache->mnt, .dentry = fan };
-	uint64_t ni_size;
 	long ret;
 
 
@@ -442,31 +444,20 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	if (!cachefiles_mark_inode_in_use(object, file_inode(file)))
 		WARN_ON(1);
 
-	ni_size = object->cookie->object_size;
-	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
-
-	if (ni_size > 0) {
-		trace_cachefiles_trunc(object, file_inode(file), 0, ni_size,
-				       cachefiles_trunc_expand_tmpfile);
-		ret = cachefiles_inject_write_error();
-		if (ret == 0)
-			ret = vfs_truncate(&file->f_path, ni_size);
-		if (ret < 0) {
-			trace_cachefiles_vfs_error(
-				object, file_inode(file), ret,
-				cachefiles_trace_trunc_error);
-			goto err_unuse;
-		}
-	}
-
 	ret = -EINVAL;
 	if (unlikely(!file->f_op->read_iter) ||
 	    unlikely(!file->f_op->write_iter)) {
 		pr_notice("Cache does not support read_iter and write_iter\n");
 		goto err_unuse;
 	}
+
+	/* Preallocate space for the xattr. */
+	ret = cachefiles_preset_object_xattr(object, file);
+	if (ret < 0)
+		goto err_unuse;
 out:
 	cachefiles_end_secure(cache, saved_cred);
+	object->content_info = CACHEFILES_CONTENT_ALL;
 	return file;
 
 err_unuse:
@@ -487,8 +478,11 @@ static bool cachefiles_create_file(struct cachefiles_object *object)
 
 	ret = cachefiles_has_space(object->volume->cache, 1, 0,
 				   cachefiles_has_space_for_create);
-	if (ret < 0)
+	if (ret < 0) {
+		if (ret == -ENOBUFS)
+			trace_cachefiles_no_space(object, cachefiles_trace_create_nospace);
 		return false;
+	}
 
 	file = cachefiles_create_tmpfile(object);
 	if (IS_ERR(file))

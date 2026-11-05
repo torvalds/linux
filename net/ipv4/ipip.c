@@ -379,6 +379,7 @@ static int ipip_fill_forward_path(struct net_device_path_ctx *ctx,
 	path->tun.src_v4.s_addr = tiph->saddr;
 	path->tun.dst_v4.s_addr = tiph->daddr;
 	path->tun.inner_proto = IPPROTO_IPIP;
+	path->tun.encap_proto = AF_INET;
 	path->tun.dst = &rt->dst;
 	path->dev = ctx->dev;
 
@@ -645,7 +646,7 @@ static int __net_init ipip_init_net(struct net *net)
 static void __net_exit ipip_exit_rtnl(struct net *net,
 				      struct list_head *dev_to_kill)
 {
-	ip_tunnel_delete_net(net, ipip_net_id, &ipip_link_ops, dev_to_kill);
+	ip_tunnel_delete_net(net, ipip_net_id, dev_to_kill);
 }
 
 static struct pernet_operations ipip_net_ops = {

@@ -32,6 +32,8 @@ properties:
       the OnKey driver will remove support for the KEY_POWER key press
       when triggered using a long press of the OnKey.
 
+  wakeup-source: true
+
 required:
   - compatible
 

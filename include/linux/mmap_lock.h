@@ -76,8 +76,6 @@ static inline void mmap_assert_write_locked(const struct mm_struct *mm)
 	rwsem_assert_held_write(&mm->mmap_lock);
 }
 
-#ifdef CONFIG_PER_VMA_LOCK
-
 #ifdef CONFIG_LOCKDEP
 #define __vma_lockdep_map(vma) (&vma->vmlock_dep_map)
 #else
@@ -156,7 +154,7 @@ static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt)
 #endif
 	if (reset_refcnt)
 		refcount_set(&vma->vm_refcnt, 0);
-	vma->vm_lock_seq = UINT_MAX;
+	vma->vm_lock_seq = 0;
 }
 
 /*
@@ -230,10 +228,15 @@ static inline void vma_refcount_put(struct vm_area_struct *vma)
 }
 
 /*
- * Use only while holding mmap read lock which guarantees that locking will not
- * fail (nobody can concurrently write-lock the vma). vma_start_read() should
- * not be used in such cases because it might fail due to mm_lock_seq overflow.
+ * Use only while holding mmap read lock which guarantees that vma lock is not
+ * contended (nobody can concurrently write-lock the vma). vma_start_read() need
+ * not be used in such cases, as the mmap lock already excludes VMA writers so
+ * its sequence number checks are redundant.
  * This functionality is used to obtain vma read lock and drop the mmap read lock.
+ *
+ * VMA can't be detached while we are holding mmap lock, therefore in practice this
+ * function can fail only when there are so many readers that vm_refcnt overflows.
+ * The failure case is very unlikely and is already annotated as such internally.
  */
 static inline bool vma_start_read_locked_nested(struct vm_area_struct *vma, int subclass)
 {
@@ -249,22 +252,30 @@ static inline bool vma_start_read_locked_nested(struct vm_area_struct *vma, int 
 }
 
 /*
- * Use only while holding mmap read lock which guarantees that locking will not
- * fail (nobody can concurrently write-lock the vma). vma_start_read() should
- * not be used in such cases because it might fail due to mm_lock_seq overflow.
+ * Use only while holding mmap read lock which guarantees that vma lock is not
+ * contended (nobody can concurrently write-lock the vma). vma_start_read() need
+ * not be used in such cases, as the mmap lock already excludes VMA writers so
+ * its sequence number checks are redundant.
  * This functionality is used to obtain vma read lock and drop the mmap read lock.
+ *
+ * VMA can't be detached while we are holding mmap lock, therefore in practice this
+ * function can fail only when there are so many readers that vm_refcnt overflows.
+ * The failure case is very unlikely and is already annotated as such internally.
  */
 static inline bool vma_start_read_locked(struct vm_area_struct *vma)
 {
 	return vma_start_read_locked_nested(vma, 0);
 }
 
+struct vm_area_struct *vma_start_read_unlocked(struct mm_struct *mm,
+					       unsigned long address);
+
 static inline void vma_end_read(struct vm_area_struct *vma)
 {
 	vma_refcount_put(vma);
 }
 
-static inline unsigned int __vma_raw_mm_seqnum(struct vm_area_struct *vma)
+static inline unsigned int __vma_raw_mm_seqnum(const struct vm_area_struct *vma)
 {
 	const struct mm_struct *mm = vma->vm_mm;
 
@@ -279,7 +290,7 @@ static inline unsigned int __vma_raw_mm_seqnum(struct vm_area_struct *vma)
  *
  * Returns true if write-locked, otherwise false.
  */
-static inline bool __is_vma_write_locked(struct vm_area_struct *vma)
+static inline bool __is_vma_write_locked(const struct vm_area_struct *vma)
 {
 	/*
 	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
@@ -297,6 +308,9 @@ int __vma_start_write(struct vm_area_struct *vma, int state);
  */
 static inline void vma_start_write(struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
+
 	if (__is_vma_write_locked(vma))
 		return;
 
@@ -319,6 +333,9 @@ static inline void vma_start_write(struct vm_area_struct *vma)
 static inline __must_check
 int vma_start_write_killable(struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU))
+		return 0;
+
 	if (__is_vma_write_locked(vma))
 		return 0;
 
@@ -329,8 +346,13 @@ int vma_start_write_killable(struct vm_area_struct *vma)
  * vma_assert_write_locked() - assert that @vma holds a VMA write lock.
  * @vma: The VMA to assert.
  */
-static inline void vma_assert_write_locked(struct vm_area_struct *vma)
+static inline void vma_assert_write_locked(const struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU)) {
+		mmap_assert_write_locked(vma->vm_mm);
+		return;
+	}
+
 	VM_WARN_ON_ONCE_VMA(!__is_vma_write_locked(vma), vma);
 }
 
@@ -339,9 +361,14 @@ static inline void vma_assert_write_locked(struct vm_area_struct *vma)
  * lock and is not detached.
  * @vma: The VMA to assert.
  */
-static inline void vma_assert_locked(struct vm_area_struct *vma)
+static inline void vma_assert_locked(const struct vm_area_struct *vma)
 {
 	unsigned int refcnt;
+
+	if (!IS_ENABLED(CONFIG_MMU)) {
+		mmap_assert_locked(vma->vm_mm);
+		return;
+	}
 
 	if (IS_ENABLED(CONFIG_LOCKDEP)) {
 		if (!lock_is_held(__vma_lockdep_map(vma)))
@@ -385,7 +412,7 @@ static inline void vma_assert_locked(struct vm_area_struct *vma)
  * With lockdep disabled we may sometimes race with other threads acquiring the
  * mmap read lock simultaneous with our VMA read lock.
  */
-static inline void vma_assert_stabilised(struct vm_area_struct *vma)
+static inline void vma_assert_stabilised(const struct vm_area_struct *vma)
 {
 	/*
 	 * If another thread owns an mmap lock, it may go away at any time, and
@@ -420,7 +447,7 @@ static inline void vma_assert_stabilised(struct vm_area_struct *vma)
 	vma_assert_locked(vma);
 }
 
-static inline bool vma_is_attached(struct vm_area_struct *vma)
+static inline bool vma_is_attached(const struct vm_area_struct *vma)
 {
 	return refcount_read(&vma->vm_refcnt);
 }
@@ -432,6 +459,9 @@ static inline bool vma_is_attached(struct vm_area_struct *vma)
  */
 static inline void vma_assert_attached(struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
+
 	WARN_ON_ONCE(!vma_is_attached(vma));
 }
 
@@ -442,6 +472,9 @@ static inline void vma_assert_detached(struct vm_area_struct *vma)
 
 static inline void vma_mark_attached(struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
+
 	vma_assert_write_locked(vma);
 	vma_assert_detached(vma);
 	refcount_set_release(&vma->vm_refcnt, 1);
@@ -451,6 +484,9 @@ void __vma_exclude_readers_for_detach(struct vm_area_struct *vma);
 
 static inline void vma_mark_detached(struct vm_area_struct *vma)
 {
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
+
 	vma_assert_write_locked(vma);
 	vma_assert_attached(vma);
 
@@ -483,54 +519,6 @@ struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
 struct vm_area_struct *lock_next_vma(struct mm_struct *mm,
 				     struct vma_iterator *iter,
 				     unsigned long address);
-
-#else /* CONFIG_PER_VMA_LOCK */
-
-static inline void mm_lock_seqcount_init(struct mm_struct *mm) {}
-static inline void mm_lock_seqcount_begin(struct mm_struct *mm) {}
-static inline void mm_lock_seqcount_end(struct mm_struct *mm) {}
-
-static inline bool mmap_lock_speculate_try_begin(struct mm_struct *mm, unsigned int *seq)
-{
-	return false;
-}
-
-static inline bool mmap_lock_speculate_retry(struct mm_struct *mm, unsigned int seq)
-{
-	return true;
-}
-static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt) {}
-static inline void vma_end_read(struct vm_area_struct *vma) {}
-static inline void vma_start_write(struct vm_area_struct *vma) {}
-static inline __must_check
-int vma_start_write_killable(struct vm_area_struct *vma) { return 0; }
-static inline void vma_assert_write_locked(struct vm_area_struct *vma)
-		{ mmap_assert_write_locked(vma->vm_mm); }
-static inline bool vma_is_attached(struct vm_area_struct *vma)
-		{ return true; }
-static inline void vma_assert_attached(struct vm_area_struct *vma) {}
-static inline void vma_assert_detached(struct vm_area_struct *vma) {}
-static inline void vma_mark_attached(struct vm_area_struct *vma) {}
-static inline void vma_mark_detached(struct vm_area_struct *vma) {}
-
-static inline struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
-		unsigned long address)
-{
-	return NULL;
-}
-
-static inline void vma_assert_locked(struct vm_area_struct *vma)
-{
-	mmap_assert_locked(vma->vm_mm);
-}
-
-static inline void vma_assert_stabilised(struct vm_area_struct *vma)
-{
-	/* If no VMA locks, then either mmap lock suffices to stabilise. */
-	mmap_assert_locked(vma->vm_mm);
-}
-
-#endif /* CONFIG_PER_VMA_LOCK */
 
 static inline void vma_assert_can_modify(struct vm_area_struct *vma)
 {
@@ -566,6 +554,8 @@ static inline int __must_check mmap_write_lock_killable(struct mm_struct *mm)
 	return ret;
 }
 
+void __mm_reset_vma_seqcounts(struct mm_struct *mm);
+
 /*
  * Drop all currently-held per-VMA locks.
  * This is called from the mmap_lock implementation directly before releasing
@@ -578,6 +568,16 @@ static inline void vma_end_write_all(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
 	mm_lock_seqcount_end(mm);
+
+	/*
+	 * VMA seqcounts are not updated on unlock, so once the mm seqcount has
+	 * wrapped, any VMA still carrying a sequence number from before the
+	 * wrap would satisfy __is_vma_write_locked() when that number comes
+	 * round again, and readers would not be excluded. Reset every VMA's
+	 * seqcount so that no stale value survives the wrap.
+	 */
+	if (unlikely(!mm->mm_lock_seq.sequence))
+		__mm_reset_vma_seqcounts(mm);
 }
 
 static inline void mmap_write_unlock(struct mm_struct *mm)

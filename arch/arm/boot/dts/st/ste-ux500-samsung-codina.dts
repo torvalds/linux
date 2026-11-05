@@ -22,6 +22,7 @@
 #include "ste-db8500.dtsi"
 #include "ste-ab8500.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
+#include "ste-ux500-samsung.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -451,7 +452,7 @@
 			no-sdio;
 			no-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
-			vqmmc-supply = <&db8500_vsmps2_reg>;
+			vqmmc-supply = <&ab8500_buck_vsmps2>;
 			pinctrl-names = "default", "sleep";
 			/*
 			 * This muxing excludes the feedback clock on GPIO130
@@ -503,7 +504,7 @@
 				/* GPS_ON_OFF on GPIO86 */
 				enable-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 				/* GPS_1V8 (VSMPS2) */
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&bcm4751_codina_default>;
 			};
@@ -665,6 +666,26 @@
 			};
 		};
 	};
+};
+
+&samsung_playback_cpu {
+	dai-format = "dsp_b";
+	dai-tdm-slot-num = <16>;
+	dai-tdm-slot-tx-mask = <0 1 0 1>;
+};
+
+&samsung_codec_playback {
+	dai-tdm-slot-num = <16>;
+	dai-tdm-slot-tx-mask = <0 1 0 1>;
+};
+
+&samsung_capture_cpu {
+	dai-format = "dsp_b";
+	dai-tdm-slot-num = <16>;
+};
+
+&samsung_codec_capture {
+	dai-tdm-slot-num = <16>;
 };
 
 &pinctrl {

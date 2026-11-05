@@ -61,6 +61,7 @@ DEFINE_CMA_FSM_EVENT(send_sidr_rep);
 DEFINE_CMA_FSM_EVENT(disconnect);
 DEFINE_CMA_FSM_EVENT(sent_drep);
 DEFINE_CMA_FSM_EVENT(sent_dreq);
+DEFINE_CMA_FSM_EVENT(force_disconnect);
 DEFINE_CMA_FSM_EVENT(id_destroy);
 
 TRACE_EVENT(cm_id_attach,

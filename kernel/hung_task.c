@@ -57,7 +57,19 @@ unsigned long __read_mostly sysctl_hung_task_timeout_secs = CONFIG_DEFAULT_HUNG_
  */
 static unsigned long __read_mostly sysctl_hung_task_check_interval_secs;
 
+/*
+ * Limit the number of printed hung tasks to prevent printing
+ * the same or similar backtraces repeatedly.
+ */
 static int __read_mostly sysctl_hung_task_warnings = 10;
+
+/*
+ * The number of hung tasks which still can be reported.
+ * The budget gets restored to the original limit when
+ * the previous stall is resolved.
+ */
+static int hung_task_warnings_budget = 10;
+static atomic_t reset_hung_task_warnings = ATOMIC_INIT(0);
 
 static int __read_mostly did_panic;
 static bool hung_task_call_panic;
@@ -245,11 +257,11 @@ static void hung_task_info(struct task_struct *t, unsigned long timeout,
 	/*
 	 * The given task did not get scheduled for more than
 	 * CONFIG_DEFAULT_HUNG_TASK_TIMEOUT. Therefore, complain
-	 * accordingly
+	 * accordingly with full details if the budget is not exhausted.
 	 */
-	if (sysctl_hung_task_warnings || hung_task_call_panic) {
-		if (sysctl_hung_task_warnings > 0)
-			sysctl_hung_task_warnings--;
+	if (hung_task_warnings_budget || hung_task_call_panic) {
+		if (hung_task_warnings_budget > 0)
+			hung_task_warnings_budget--;
 		pr_err("INFO: task %s:%d blocked%s for more than %ld seconds.\n",
 		       t->comm, t->pid, t->in_iowait ? " in I/O wait" : "",
 		       (jiffies - t->last_switch_time) / HZ);
@@ -264,8 +276,8 @@ static void hung_task_info(struct task_struct *t, unsigned long timeout,
 		sched_show_task(t);
 		debug_show_blocker(t, timeout);
 
-		if (!sysctl_hung_task_warnings)
-			pr_info("Future hung task reports are suppressed, see sysctl kernel.hung_task_warnings\n");
+		if (!hung_task_warnings_budget && !hung_task_call_panic)
+			pr_info("hung_task: further per-task details suppressed until warning budget is reset (see sysctl kernel.hung_task_warnings)\n");
 	}
 
 	touch_nmi_watchdog();
@@ -304,7 +316,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	unsigned long last_break = jiffies;
 	struct task_struct *g, *t;
 	unsigned long this_round_count;
-	int need_warning = sysctl_hung_task_warnings;
+	int need_warning;
 	unsigned long si_mask = hung_task_si_mask;
 
 	/*
@@ -313,6 +325,11 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	 */
 	if (test_taint(TAINT_DIE) || did_panic)
 		return;
+
+	if (atomic_xchg_acquire(&reset_hung_task_warnings, 0))
+		hung_task_warnings_budget =
+			READ_ONCE(sysctl_hung_task_warnings);
+	need_warning = hung_task_warnings_budget;
 
 	this_round_count = 0;
 	rcu_read_lock();
@@ -340,8 +357,15 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
  unlock:
 	rcu_read_unlock();
 
-	if (!this_round_count)
+	if (!this_round_count) {
+		hung_task_warnings_budget =
+			READ_ONCE(sysctl_hung_task_warnings);
 		return;
+	}
+
+	if (!hung_task_warnings_budget && !hung_task_call_panic)
+		pr_info("hung_task: %lu hung tasks detected, warning budget exhausted\n",
+			this_round_count);
 
 	if (need_warning || hung_task_call_panic) {
 		si_mask |= SYS_INFO_LOCKS;
@@ -425,6 +449,19 @@ static int proc_dohung_task_timeout_secs(const struct ctl_table *table, int writ
 	return ret;
 }
 
+static int proc_dohung_task_warnings(const struct ctl_table *table, int write,
+				     void *buffer,
+				     size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!ret && write)
+		atomic_set_release(&reset_hung_task_warnings, 1);
+
+	return ret;
+}
+
 /*
  * This is needed for proc_doulongvec_minmax of sysctl_hung_task_timeout_secs
  * and hung_task_check_interval_secs
@@ -480,7 +517,7 @@ static const struct ctl_table hung_task_sysctls[] = {
 		.data		= &sysctl_hung_task_warnings,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dohung_task_warnings,
 		.extra1		= SYSCTL_NEG_ONE,
 	},
 	{

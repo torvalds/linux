@@ -135,6 +135,114 @@ enum drm_colorop_curve_1d_type {
 };
 
 /**
+ * enum drm_colorop_fixed_matrix_type - type of Fixed Matrix
+ *
+ * Describes a Fixed Matrix operation to be applied by the DRM_COLOROP_FIXED_MATRIX
+ */
+enum drm_colorop_fixed_matrix_type {
+	/**
+	 * @DRM_COLOROP_FM_YCBCR601_FULL_RGB:
+	 *
+	 * enum string "YCbCr 601 Full to RGB"
+	 *
+	 * Converts full-range YCbCr into full-range RGB using the BT.601
+	 * coefficients. Y is normalized to [0, 1] and Cb, Cr are centered
+	 * at 0 (the nominal 0.5 offset removed) before the matrix::
+	 *
+	 *   | R |   | 1.0   0.000000   1.402000 |   | Y  |
+	 *   | G | = | 1.0  -0.344136  -0.714136 | x | Cb |
+	 *   | B |   | 1.0   1.772000   0.000000 |   | Cr |
+	 */
+	DRM_COLOROP_FM_YCBCR601_FULL_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_YCBCR601_LIMITED_RGB:
+	 *
+	 * enum string "YCbCr 601 Limited to RGB"
+	 *
+	 * Converts limited- (narrow-) range YCbCr into full-range RGB using
+	 * the BT.601 coefficients. Before the matrix Y is offset by 16/255
+	 * and Cb, Cr are centered at 0, following the studio-range
+	 * convention of ITU-R BT.601::
+	 *
+	 *   | R |   | 1.164384   0.000000   1.596027 |   | Y - 16/255 |
+	 *   | G | = | 1.164384  -0.391762  -0.812968 | x | Cb         |
+	 *   | B |   | 1.164384   2.017232   0.000000 |   | Cr         |
+	 */
+	DRM_COLOROP_FM_YCBCR601_LIMITED_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_YCBCR709_FULL_RGB:
+	 *
+	 * enum string "YCbCr 709 Full to RGB"
+	 *
+	 * Converts full-range YCbCr into full-range RGB using the BT.709
+	 * coefficients. Y is normalized to [0, 1] and Cb, Cr are centered
+	 * at 0 (the nominal 0.5 offset removed) before the matrix::
+	 *
+	 *   | R |   | 1.0   0.000000   1.574800 |   | Y  |
+	 *   | G | = | 1.0  -0.187324  -0.468124 | x | Cb |
+	 *   | B |   | 1.0   1.855600   0.000000 |   | Cr |
+	 */
+	DRM_COLOROP_FM_YCBCR709_FULL_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_YCBCR709_LIMITED_RGB:
+	 *
+	 * enum string "YCbCr 709 Limited to RGB"
+	 *
+	 * Converts limited- (narrow-) range YCbCr into full-range RGB using
+	 * the BT.709 coefficients. Before the matrix Y is offset by 16/255
+	 * and Cb, Cr are centered at 0, following the studio-range
+	 * convention of ITU-R BT.709::
+	 *
+	 *   | R |   | 1.164384   0.000000   1.792741 |   | Y - 16/255 |
+	 *   | G | = | 1.164384  -0.213249  -0.532909 | x | Cb         |
+	 *   | B |   | 1.164384   2.112402   0.000000 |   | Cr         |
+	 */
+	DRM_COLOROP_FM_YCBCR709_LIMITED_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB:
+	 *
+	 * enum string "YCbCr 2020 NC Full to RGB"
+	 *
+	 * Converts full-range YCbCr into full-range RGB using the BT.2020
+	 * non-constant luminance coefficients. Y is normalized to [0, 1]
+	 * and Cb, Cr are centered at 0 (the nominal 0.5 offset removed)
+	 * before the matrix::
+	 *
+	 *   | R |   | 1.0   0.000000   1.474600 |   | Y  |
+	 *   | G | = | 1.0  -0.164553  -0.571353 | x | Cb |
+	 *   | B |   | 1.0   1.881400   0.000000 |   | Cr |
+	 */
+	DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB:
+	 *
+	 * enum string "YCbCr 2020 NC Limited to RGB"
+	 *
+	 * Converts limited- (narrow-) range YCbCr into full-range RGB using
+	 * the BT.2020 non-constant luminance coefficients. Before the matrix
+	 * Y is offset by 16/255 and Cb, Cr are centered at 0, following the
+	 * studio-range convention of ITU-R BT.2020::
+	 *
+	 *   | R |   | 1.164384   0.000000   1.678674 |   | Y - 16/255 |
+	 *   | G | = | 1.164384  -0.187326  -0.650424 | x | Cb         |
+	 *   | B |   | 1.164384   2.141772   0.000000 |   | Cr         |
+	 */
+	DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB,
+
+	/**
+	 * @DRM_COLOROP_FM_COUNT:
+	 *
+	 * enum value denoting the size of the enum
+	 */
+	DRM_COLOROP_FM_COUNT
+};
+
+/**
  * struct drm_colorop_state - mutable colorop state
  */
 struct drm_colorop_state {
@@ -196,6 +304,13 @@ struct drm_colorop_state {
 	 * Interpolation for DRM_COLOROP_3D_LUT
 	 */
 	enum drm_colorop_lut3d_interpolation_type lut3d_interpolation;
+
+	/**
+	 * @fixed_matrix_type:
+	 *
+	 * Type of Fixed Matrix operation.
+	 */
+	enum drm_colorop_fixed_matrix_type fixed_matrix_type;
 
 	/** @state: backpointer to global drm_atomic_commit */
 	struct drm_atomic_commit *state;
@@ -367,6 +482,13 @@ struct drm_colorop {
 	struct drm_property *data_property;
 
 	/**
+	 * @fixed_matrix_type_property:
+	 *
+	 * Sub-type for DRM_COLOROP_FIXED_MATRIX type.
+	 */
+	struct drm_property *fixed_matrix_type_property;
+
+	/**
 	 * @next_property:
 	 *
 	 * Read-only property to next colorop in the pipeline
@@ -422,6 +544,10 @@ int drm_plane_colorop_3dlut_init(struct drm_device *dev, struct drm_colorop *col
 				 uint32_t lut_size,
 				 enum drm_colorop_lut3d_interpolation_type interpolation,
 				 uint32_t flags);
+int drm_plane_colorop_fixed_matrix_init(struct drm_device *dev, struct drm_colorop *colorop,
+					struct drm_plane *plane,
+					const struct drm_colorop_funcs *funcs,
+					u64 supported_fm, uint32_t flags);
 
 struct drm_colorop_state *
 drm_atomic_helper_colorop_create_state(struct drm_colorop *colorop);
@@ -480,6 +606,7 @@ drm_get_colorop_lut1d_interpolation_name(enum drm_colorop_lut1d_interpolation_ty
 
 const char *
 drm_get_colorop_lut3d_interpolation_name(enum drm_colorop_lut3d_interpolation_type type);
+const char *drm_get_colorop_fixed_matrix_type_name(enum drm_colorop_fixed_matrix_type type);
 
 void drm_colorop_set_next_property(struct drm_colorop *colorop, struct drm_colorop *next);
 

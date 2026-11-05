@@ -409,7 +409,8 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	u64 prev_period = he->stat.period;
 	u64 prev_latency = he->stat.latency;
 
-	if (prev_period == 0)
+	if (prev_period == 0 &&
+	    (!symbol_conf.cumulate_callchain || he->stat_acc->period == 0))
 		return true;
 
 	he_stat__decay(&he->stat);
@@ -442,7 +443,8 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 		}
 	}
 
-	return he->stat.period == 0 && he->stat.latency == 0;
+	return he->stat.period == 0 && he->stat.latency == 0 &&
+	       (!symbol_conf.cumulate_callchain || he->stat_acc->period == 0);
 }
 
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he)

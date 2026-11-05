@@ -27,6 +27,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_ip.h"
 #include "gmc_v12_0.h"
 #include "gmc_v12_1.h"
 #include "athub/athub_4_1_0_sh_mask.h"
@@ -99,6 +100,7 @@ static int gmc_v12_0_process_interrupt(struct amdgpu_device *adev,
 	bool write_fault = !!(entry->src_data[1] &
 			      AMDGPU_GMC9_FAULT_SOURCE_DATA_WRITE);
 	uint32_t status = 0;
+	uint32_t cam_index;
 	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
@@ -110,7 +112,9 @@ static int gmc_v12_0_process_interrupt(struct amdgpu_device *adev,
 		hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 
 	if (retry_fault) {
-		int ret = amdgpu_gmc_handle_retry_fault(adev, entry, addr, 0, 0,
+		cam_index = entry->src_data[2] & 0x3ff;
+
+		int ret = amdgpu_gmc_handle_retry_fault(adev, entry, addr, cam_index, 0,
 							write_fault);
 		/* Returning 1 here also prevents sending the IV to the KFD */
 		if (ret == 1)
@@ -635,17 +639,19 @@ static void gmc_v12_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	int r;
 
 	if (adev->smuio.funcs &&
 	    adev->smuio.funcs->is_host_gpu_xgmi_supported)
 		adev->gmc.xgmi.connected_to_cpu =
 			adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
 
+	adev->gmc.init_pte_flags = AMDGPU_PTE_IS_PTE;
+
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 1, 0):
 		gmc_v12_1_set_gmc_funcs(adev);
 		gmc_v12_1_set_irq_funcs(adev);
-		adev->gmc.init_pte_flags = AMDGPU_PTE_IS_PTE;
 		break;
 	default:
 		gmc_v12_0_set_gmc_funcs(adev);
@@ -655,6 +661,18 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 	gmc_v12_0_set_gfxhub_funcs(adev);
 	gmc_v12_0_set_mmhub_funcs(adev);
 	gmc_v12_0_set_umc_funcs(adev);
+
+	if (amdgpu_virt_vram_is_spm(adev)) {
+		u64 aper_base, aper_size;
+
+		r = amdgpu_acpi_find_gpu_memory_in_srat(adev, &aper_base,
+							&aper_size);
+		if (r)
+			return r;
+
+		adev->gmc.aper_base = aper_base;
+		adev->gmc.aper_size = aper_size;
+	}
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -668,7 +686,7 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 		adev->gmc.private_aperture_end =
 			adev->gmc.private_aperture_start + (4ULL << 30) - 1;
 
-	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
+	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_GFX12;
 
 	return 0;
 }
@@ -702,10 +720,19 @@ static void gmc_v12_0_vram_gtt_location(struct amdgpu_device *adev,
 			amdgpu_gmc_agp_location(adev, mc);
 	}
 	/* base offset of vram pages */
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_virt_vram_is_spm(adev)) {
+		/*
+		 * For SPM-backed VRAM, PDB0 entries use PTE_SYSTEM, so the
+		 * address is a system physical address. vram_base_offset must
+		 * be aper_base so PDB0 maps GPU address 0 onto the HBM system
+		 * physical address.
+		 */
+		adev->vm_manager.vram_base_offset = adev->gmc.aper_base;
+	} else if (amdgpu_sriov_vf(adev)) {
 		adev->vm_manager.vram_base_offset = 0;
-	else
+	} else {
 		adev->vm_manager.vram_base_offset = adev->mmhub.funcs->get_mc_fb_offset(adev);
+	}
 
 	adev->vm_manager.vram_base_offset +=
 		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
@@ -742,17 +769,28 @@ static int gmc_v12_0_mc_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
-
 #ifdef CONFIG_X86_64
-	if (((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) ||
-	    (adev->gmc.xgmi.connected_to_cpu)) {
-		adev->gmc.aper_base =
-			adev->mmhub.funcs->get_mc_fb_offset(adev) +
-			adev->gmc.xgmi.physical_node_id *
-			adev->gmc.xgmi.node_segment_size;
-		adev->gmc.aper_size = adev->gmc.real_vram_size;
+	/*
+	 * SPM-backed devices resolve the aperture from SRAT during early_init.
+	 * For native A+A (non-VF) or APU, override aper_base using mmhub
+	 * offset. Otherwise derive the aperture from BAR 0.
+	 */
+	if (!amdgpu_virt_vram_is_spm(adev)) {
+		if (!amdgpu_sriov_vf(adev) &&
+		    (((adev->flags & AMD_IS_APU) &&
+		      !amdgpu_passthrough(adev)) ||
+		     adev->gmc.xgmi.connected_to_cpu)) {
+			adev->gmc.aper_base =
+				adev->mmhub.funcs->get_mc_fb_offset(adev) +
+				adev->gmc.xgmi.physical_node_id *
+				adev->gmc.xgmi.node_segment_size;
+			adev->gmc.aper_size = adev->gmc.real_vram_size;
+		} else {
+			adev->gmc.aper_base =
+				pci_resource_start(adev->pdev, 0);
+			adev->gmc.aper_size =
+				pci_resource_len(adev->pdev, 0);
+		}
 	}
 #endif
 	/* In case the PCI BAR is larger than the actual amount of vram */
@@ -810,6 +848,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
 	struct amdgpu_device *adev = ip_block->adev;
 	uint64_t pte_addr_mask = 0;
+	u32 mmhub_vmid_mask;
 	int i;
 
 	adev->mmhub.funcs->init(adev);
@@ -845,7 +884,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(12, 1, 0):
 		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0),
 				NUM_XCC(adev->gfx.xcc_mask));
-		for (i = 0; i < hweight32(adev->aid_mask); i++)
+		for_each_inst(i, adev->mmhub.inst_mask)
 			set_bit(AMDGPU_MMHUB0(i), adev->vmhubs_mask);
 		/*
 		 * To fulfill 5-level page support,
@@ -855,6 +894,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 		amdgpu_vm_adjust_size(adev, 128 * 1024 * 1024, 9, 4, 57);
 		pte_addr_mask = 0x000FFFFFFFFFF000ULL; /* 52 bit PA */
 		dma_addr_bits = 52;
+		adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	default:
 		dev_warn(adev->dev, "Unrecognized GC IP version: 0x%08x\n",
@@ -944,23 +984,45 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+		gmc_v12_1_init_nps_details(adev);
+
 	/*
 	 * number of VMs
 	 * VMID 0 is reserved for System
 	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
+	 * amdkfd will use VMIDs 8-15.
+	 * On GFX 12.1, amdkfd will use VMIDs 3-15, with VMID 15 reserved
+	 * for NPA and therefore excluded from the MMHUB VMID pool.
 	 */
-	adev->vm_manager.first_kfd_vmid =
-		 amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0) ?
-		3 : 8;
-	adev->vm_manager.first_kfd_vmid =
-		adev->gfx.disable_kq ? 1 : (adev->vm_manager.first_kfd_vmid);
+	mmhub_vmid_mask = GENMASK(AMDGPU_NUM_VMID - 1, 1);
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0)) {
+		adev->vm_manager.first_kfd_vmid = 3;
+		adev->vm_manager.npa_vmid = 15;
+		mmhub_vmid_mask &= ~BIT(adev->vm_manager.npa_vmid);
+	} else {
+		adev->vm_manager.first_kfd_vmid = 8;
+	}
+
+	if (adev->gfx.disable_kq)
+		adev->vm_manager.first_kfd_vmid = 1;
+
+	amdgpu_vmid_mgr_set_vmid_mask(adev, mmhub_vmid_mask, true);
+	amdgpu_vmid_mgr_set_vmid_mask(adev,
+				      GENMASK(adev->vm_manager.first_kfd_vmid - 1, 1),
+				      false);
 
 	amdgpu_vm_manager_init(adev);
+
+	if (adev->vm_manager.npa_vmid)
+		adev->vm_manager.vmid_uq_mask_mmhub &= ~BIT(adev->vm_manager.npa_vmid);
 
 	r = amdgpu_gmc_ras_sw_init(adev);
 	if (r)
 		return r;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+		amdgpu_gmc_sysfs_init(adev);
 
 	return 0;
 }
@@ -981,11 +1043,17 @@ static int gmc_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+		amdgpu_gmc_sysfs_fini(adev);
+
 	amdgpu_vm_manager_fini(adev);
 	gmc_v12_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_free_kernel(&adev->gmc.pdb0_bo, NULL, &adev->gmc.ptr_pdb0);
 	amdgpu_bo_fini(adev);
+
+	adev->gmc.num_mem_partitions = 0;
+	kfree(adev->gmc.mem_partitions);
 
 	return 0;
 }
@@ -1105,12 +1173,6 @@ static int gmc_v12_0_resume(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool gmc_v12_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* MC is always ready in GMC v11.*/
-	return true;
-}
-
 static int gmc_v12_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* There is no need to wait for MC idle in GMC v11.*/
@@ -1159,7 +1221,6 @@ const struct amd_ip_funcs gmc_v12_0_ip_funcs = {
 	.hw_fini = gmc_v12_0_hw_fini,
 	.suspend = gmc_v12_0_suspend,
 	.resume = gmc_v12_0_resume,
-	.is_idle = gmc_v12_0_is_idle,
 	.wait_for_idle = gmc_v12_0_wait_for_idle,
 	.set_clockgating_state = gmc_v12_0_set_clockgating_state,
 	.set_powergating_state = gmc_v12_0_set_powergating_state,

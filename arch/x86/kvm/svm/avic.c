@@ -395,6 +395,11 @@ static phys_addr_t avic_get_backing_page_address(struct vcpu_svm *svm)
 	return __sme_set(__pa(svm->vcpu.arch.apic->regs));
 }
 
+static bool avic_is_addressable_vcpu(struct kvm_vcpu *vcpu)
+{
+	return vcpu->vcpu_id <= __avic_get_max_physical_id(vcpu->kvm, NULL);
+}
+
 void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 {
 	struct kvm_svm *kvm_svm = to_kvm_svm(svm->vcpu.kvm);
@@ -412,7 +417,6 @@ void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 {
-	u32 max_id = x2avic_enabled ? x2avic_max_physical_id : AVIC_MAX_PHYSICAL_ID;
 	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 id = vcpu->vcpu_id;
@@ -425,7 +429,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	 * avic_vcpu_load() expects to be called if and only if the vCPU has
 	 * fully initialized AVIC.
 	 */
-	if (id > max_id) {
+	if (!avic_is_addressable_vcpu(vcpu)) {
 		kvm_set_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_PHYSICAL_ID_TOO_BIG);
 		vcpu->arch.apic->apicv_active = false;
 		return 0;
@@ -885,6 +889,14 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 	return ret;
 }
 
+void avic_vcpu_free(struct kvm_vcpu *vcpu)
+{
+	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
+
+	if (kvm_svm->avic_physical_id_table && avic_is_addressable_vcpu(vcpu))
+		WRITE_ONCE(kvm_svm->avic_physical_id_table[vcpu->vcpu_id], 0);
+}
+
 void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 {
 	avic_handle_dfr_update(vcpu);
@@ -1045,8 +1057,7 @@ static void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu,
 	if (WARN_ON(h_physical_id & ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK))
 		return;
 
-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
-			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
+	if (WARN_ON_ONCE(!avic_is_addressable_vcpu(vcpu)))
 		return;
 
 	/*
@@ -1108,8 +1119,7 @@ static void __avic_vcpu_put(struct kvm_vcpu *vcpu, enum avic_vcpu_action action)
 
 	lockdep_assert_preemption_disabled();
 
-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
-			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
+	if (WARN_ON_ONCE(!avic_is_addressable_vcpu(vcpu)))
 		return;
 
 	/*

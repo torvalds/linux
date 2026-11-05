@@ -338,6 +338,20 @@ static int wm8904_configure_clocking(struct snd_soc_component *component)
 		dev_dbg(component->dev, "Using %dHz FLL clock\n",
 			wm8904->fll_fout);
 
+		/* The SYSCLK may already be on; if source changes to FLL, ensure
+		 * FLL is enabled before selecting it as SYSCLK source.
+		 */
+		if (clock2 & WM8904_CLK_SYS_ENA) {
+			snd_soc_component_update_bits(component,
+						      WM8904_FLL_CONTROL_1,
+						      WM8904_FLL_OSC_ENA,
+						      WM8904_FLL_OSC_ENA);
+			snd_soc_component_update_bits(component,
+						      WM8904_FLL_CONTROL_1,
+						      WM8904_FLL_ENA,
+						      WM8904_FLL_ENA);
+		}
+
 		clock2 |= WM8904_SYSCLK_SRC;
 		rate = wm8904->fll_fout;
 		break;

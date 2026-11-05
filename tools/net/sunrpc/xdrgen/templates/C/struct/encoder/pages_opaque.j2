@@ -1,0 +1,10 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* member {{ name }} (page-resident variable-length opaque) */
+{% endif %}
+{% if maxsize != "0" %}
+	if (value->{{ name }}.len > {{ maxsize }})
+		return false;
+{% endif %}
+	if (!svcxdr_encode_opaque_payload(xdr, value->{{ name }}.len))
+		return false;

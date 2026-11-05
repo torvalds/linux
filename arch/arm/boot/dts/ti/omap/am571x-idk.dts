@@ -165,6 +165,53 @@
 			default-state = "off";
 		};
 	};
+
+	/* Dual mac ethernet application node on icss1 */
+	pruss1-eth {
+		compatible = "ti,am57-prueth";
+		ti,prus = <&pru1_0>, <&pru1_1>;
+		ti,pruss-gp-mux-sel = <0>,	/* GP, default */
+				<4>;	/* MII2, for PRUSS1_MII1 */
+		sram = <&ocmcram1>;
+		ti,mii-rt = <&pruss1_mii_rt>;
+		ti,iep = <&pruss1_iep>;
+		ti,ecap = <&pruss1_ecap>;
+		interrupts = <20 2 2>, <21 3 3>;
+		interrupt-names = "rx_hp", "rx_lp";
+		interrupt-parent = <&pruss1_intc>;
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pruss1_emac0: ethernet-port@0 {
+				reg = <0>;
+				phy-handle = <&pruss1_eth0_phy>;
+				phy-mode = "mii";
+				interrupts = <20 2 2>, <26 6 6>, <23 6 6>;
+				interrupt-names = "rx", "emac_ptp_tx",
+						"hsr_ptp_tx";
+				/* Filled in by bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+			};
+
+			pruss1_emac1: ethernet-port@1 {
+				reg = <1>;
+				phy-handle = <&pruss1_eth1_phy>;
+				phy-mode = "mii";
+				interrupts = <21 3 3>, <27 9 7>, <24 9 7>;
+				interrupt-names = "rx", "emac_ptp_tx",
+						"hsr_ptp_tx";
+				/* Filled in by bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+			};
+		};
+	};
+};
+
+&pruss1_iep {
+	interrupt-parent = <&pruss1_intc>;
+	interrupts = <7 7 8>;
+	interrupt-names = "iep_cap_cmp";
 };
 
 &extcon_usb2 {
@@ -210,7 +257,23 @@
 };
 
 &pruss1_mdio {
-	status = "disabled";
+	status = "okay";
+	reset-gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
+	reset-delay-us = <2>;   /* PHY datasheet states 1uS min */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	pruss1_eth0_phy: ethernet-phy@0 {
+		reg = <0>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	pruss1_eth1_phy: ethernet-phy@1 {
+		reg = <1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+	};
 };
 
 &pruss2_mdio {

@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,tps61050.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TPS61050/TPS61052 Boost Converter
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+description:
+  The TP61050/TPS61052 is a high-power "white LED driver". The device
+  provides LED, GPIO and regulator functionalities.
+
+properties:
+  compatible:
+    enum:
+      - ti,tps61050
+      - ti,tps61052
+
+  reg:
+    maxItems: 1
+
+  regulator:
+    type: object
+    $ref: /schemas/regulator/regulator.yaml#
+    description: Puts the chip in regulator mode.
+    unevaluatedProperties: false
+
+  led:
+    type: object
+    $ref: /schemas/leds/common.yaml#
+    description: Puts the chip in LED mode.
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - not:
+      required:
+        - regulator
+        - led
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        tps61052@33 {
+            compatible = "ti,tps61052";
+            reg = <0x33>;
+        };
+    };
+
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        tps61052@33 {
+            compatible = "ti,tps61052";
+            reg = <0x33>;
+
+            regulator {
+                regulator-min-microvolt = <5000000>;
+                regulator-max-microvolt = <5000000>;
+                regulator-always-on;
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/leds/common.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        tps61052@33 {
+            compatible = "ti,tps61052";
+            reg = <0x33>;
+
+            led {
+                color = <LED_COLOR_ID_WHITE>;
+            };
+        };
+    };

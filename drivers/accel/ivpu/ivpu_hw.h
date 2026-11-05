@@ -18,7 +18,6 @@ struct ivpu_addr_range {
 struct ivpu_hw_info {
 	struct {
 		bool (*btrs_irq_handler)(struct ivpu_device *vdev, int irq);
-		bool (*ip_irq_handler)(struct ivpu_device *vdev, int irq);
 	} irq;
 	struct {
 		struct ivpu_addr_range runtime;
@@ -49,9 +48,9 @@ struct ivpu_hw_info {
 	u32 tile_fuse;
 	u32 sku;
 	u16 config;
-	int dma_bits;
 	ktime_t d0i3_entry_host_ts;
 	u64 d0i3_entry_vpu_ts;
+	u32 btrs_irq_mask;
 	atomic_t firewall_irq_counter;
 };
 
@@ -72,11 +71,6 @@ bool ivpu_hw_uses_ecc_mca_signal(struct ivpu_device *vdev);
 static inline u32 ivpu_hw_btrs_irq_handler(struct ivpu_device *vdev, int irq)
 {
 	return vdev->hw->irq.btrs_irq_handler(vdev, irq);
-}
-
-static inline u32 ivpu_hw_ip_irq_handler(struct ivpu_device *vdev, int irq)
-{
-	return vdev->hw->irq.ip_irq_handler(vdev, irq);
 }
 
 static inline u64 ivpu_hw_range_size(const struct ivpu_addr_range *range)

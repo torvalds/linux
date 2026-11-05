@@ -210,19 +210,15 @@ static irqreturn_t nct6694_irq(int irq, void *dev_id)
 	};
 	int ret;
 
-	rtc_lock(data->rtc);
+	guard(rtc_ops)(data->rtc);
 
 	sts->irq_en = NCT6694_RTC_IRQ_EN;
 	sts->irq_pend = NCT6694_RTC_IRQ_STS;
 	ret = nct6694_write_msg(data->nct6694, &cmd_hd, sts);
-	if (ret) {
-		rtc_unlock(data->rtc);
+	if (ret)
 		return IRQ_NONE;
-	}
 
 	rtc_update_irq(data->rtc, 1, RTC_IRQF | RTC_AF);
-
-	rtc_unlock(data->rtc);
 
 	return IRQ_HANDLED;
 }

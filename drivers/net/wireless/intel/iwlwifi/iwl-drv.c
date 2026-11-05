@@ -1103,10 +1103,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			const struct iwl_fw_dbg_dest_tlv_v1 *dest_v1 = NULL;
 			u8 mon_mode;
 
+			if (tlv_len < sizeof(*pieces->dbg_dest_ver))
+				goto invalid_tlv_len;
+
 			pieces->dbg_dest_ver = (const u8 *)tlv_data;
 			if (*pieces->dbg_dest_ver == 1) {
+				if (tlv_len < sizeof(*dest))
+					goto invalid_tlv_len;
 				dest = (const void *)tlv_data;
 			} else if (*pieces->dbg_dest_ver == 0) {
+				if (tlv_len < sizeof(*dest_v1))
+					goto invalid_tlv_len;
 				dest_v1 = (const void *)tlv_data;
 			} else {
 				IWL_ERR(drv,
@@ -2039,8 +2046,6 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_trans_debugfs_cleanup(drv->trans);
-
 	debugfs_remove_recursive(drv->dbgfs_drv);
 #endif
 

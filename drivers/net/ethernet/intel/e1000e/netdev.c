@@ -2118,7 +2118,7 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 static int e1000_request_msix(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int err = 0, vector = 0;
+	int err = 0, vector = 0, i;
 
 	if (strlen(netdev->name) < (IFNAMSIZ - 5))
 		snprintf(adapter->rx_ring->name,
@@ -2130,7 +2130,7 @@ static int e1000_request_msix(struct e1000_adapter *adapter)
 			  e1000_intr_msix_rx, 0, adapter->rx_ring->name,
 			  netdev);
 	if (err)
-		return err;
+		goto err_free;
 	adapter->rx_ring->itr_register = adapter->hw.hw_addr +
 	    E1000_EITR_82574(vector);
 	adapter->rx_ring->itr_val = adapter->itr;
@@ -2146,7 +2146,7 @@ static int e1000_request_msix(struct e1000_adapter *adapter)
 			  e1000_intr_msix_tx, 0, adapter->tx_ring->name,
 			  netdev);
 	if (err)
-		return err;
+		goto err_free;
 	adapter->tx_ring->itr_register = adapter->hw.hw_addr +
 	    E1000_EITR_82574(vector);
 	adapter->tx_ring->itr_val = adapter->itr;
@@ -2155,11 +2155,16 @@ static int e1000_request_msix(struct e1000_adapter *adapter)
 	err = request_irq(adapter->msix_entries[vector].vector,
 			  e1000_msix_other, 0, netdev->name, netdev);
 	if (err)
-		return err;
+		goto err_free;
 
 	e1000_configure_msix(adapter);
 
 	return 0;
+
+err_free:
+	for (i = vector - 1; i >= 0; i--)
+		free_irq(adapter->msix_entries[i].vector, netdev);
+	return err;
 }
 
 /**
@@ -7457,6 +7462,12 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mmio_len = pci_resource_len(pdev, 0);
 
 	err = -EIO;
+	/* Smallest BAR0 that covers every register the driver accesses */
+	if (mmio_len < SZ_64K) {
+		dev_err(&pdev->dev, "MMIO len is too small\n");
+		goto err_ioremap;
+	}
+
 	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
 	if (!adapter->hw.hw_addr)
 		goto err_ioremap;

@@ -25,7 +25,9 @@ properties:
               - renesas,r9a07g054-adc   # RZ/V2L
           - const: renesas,rzg2l-adc
       - items:
-          - const: renesas,r9a08g045-adc  # RZ/G3S
+          - enum:
+              - renesas,r9a08g045-adc   # RZ/G3S
+              - renesas,r9a08g046-adc1  # RZ/G3L ADC for TSU
 
   reg:
     maxItems: 1
@@ -120,6 +122,19 @@ allOf:
           properties:
             reg:
               maximum: 7
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a08g046-adc1
+    then:
+      patternProperties:
+        "^channel@[0-7]$": false
+        "^channel@[8]$":
+          properties:
+            reg:
+              const: 8
 
 additionalProperties: false
 

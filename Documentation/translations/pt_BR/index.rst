@@ -67,3 +67,13 @@ kernel e sobre como ver seu trabalho integrado.
    :maxdepth: 1
 
    process/index
+
+Guias do usuário e do administrador
+===================================
+
+Os guias para usuários e administradores do kernel Linux.
+
+.. toctree::
+   :maxdepth: 1
+
+   admin-guide/index

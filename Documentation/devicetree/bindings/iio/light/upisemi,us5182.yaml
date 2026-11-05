@@ -69,7 +69,7 @@ examples:
         light-sensor@39 {
             compatible = "upisemi,usd5182";
             reg = <0x39>;
-            upisemi,glass-coef = < 1000 >;
+            upisemi,glass-coef = <1000>;
             upisemi,dark-ths = /bits/ 16 <170 200 512 512 800 2000 4000 8000>;
             upisemi,upper-dark-gain = /bits/ 8 <0x00>;
             upisemi,lower-dark-gain = /bits/ 8 <0x16>;

@@ -244,6 +244,7 @@ struct mt7996_sta_link {
 	struct mt76_wcid wcid; /* must be first */
 
 	struct mt7996_sta *sta;
+	bool connected;
 
 	struct list_head rc_list;
 	u32 airtime_ac[8];
@@ -263,11 +264,25 @@ struct mt7996_sta_link {
 	struct rcu_head rcu_head;
 };
 
+struct mt7996_sta_ba {
+	u16 ssn;
+	u16 buf_size;
+	bool amsdu;
+};
+
 struct mt7996_sta {
 	struct mt7996_sta_link deflink; /* must be first */
 	struct mt7996_sta_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 	u8 deflink_id;
 	u8 seclink_id;
+	u8 conn_state;
+
+	unsigned long wcid_flags;
+
+	u16 ba_tx_mask;
+	u16 ba_rx_mask;
+	struct mt7996_sta_ba ba_tx[IEEE80211_NUM_TIDS];
+	struct mt7996_sta_ba ba_rx[IEEE80211_NUM_TIDS];
 
 	struct mt7996_vif *vif;
 };
@@ -279,6 +294,7 @@ struct mt7996_vif_link {
 	struct cfg80211_bitrate_mask bitrate_mask;
 
 	u8 mld_idx;
+	u8 bmc_bssid[ETH_ALEN];
 };
 
 struct mt7996_vif_link_info {
@@ -643,6 +659,18 @@ mt7996_vif_conf_link(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 							    link_conf);
 }
 
+static inline struct mt76_vif_link *
+mt7996_offchannel_link(struct mt76_wcid *wcid)
+{
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_vif_link *link;
+
+	msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+	link = container_of(msta_link, struct mt7996_vif_link, msta_link);
+
+	return &link->mt76;
+}
+
 static inline struct mt7996_sta_link *
 mt7996_sta_link(struct mt7996_sta *msta, u8 link_id)
 {
@@ -725,13 +753,20 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev,
 int mt7996_mcu_teardown_mld_sta(struct mt7996_dev *dev,
 				struct mt7996_vif_link *link,
 				struct mt7996_sta_link *msta_link);
+int mt7996_mcu_update_mld_sta(struct mt7996_dev *dev,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct mt7996_vif_link *link,
+			      struct mt7996_sta_link *msta_link);
 void mt7996_mcu_update_sta_rec_bw(void *data, struct ieee80211_sta *sta);
 int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 struct ieee80211_vif *vif, bool enable);
+			 struct ieee80211_vif *vif, unsigned long links,
+			 bool enable);
 int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 struct ieee80211_vif *vif, bool enable);
+			 struct ieee80211_vif *vif, unsigned long links,
+			 bool enable);
 int mt7996_mcu_update_bss_color(struct mt7996_dev *dev,
 				struct mt76_vif_link *mlink,
 				struct cfg80211_he_bss_color *he_bss_color);
@@ -778,6 +813,7 @@ int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
 int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
 int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
 int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy);
+int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 data);
 int mt7996_mcu_rdd_resume_tx(struct mt7996_phy *phy);
 int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 rdd_idx, u8 val);
 int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
@@ -893,6 +929,8 @@ void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
 void mt7996_mac_sta_remove_link(struct mt7996_dev *dev,
 				struct ieee80211_sta *sta,
 				unsigned int link_id, bool flush);
+u16 mt7996_mac_sta_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta);
 void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta,
 			      struct ieee80211_twt_setup *twt);

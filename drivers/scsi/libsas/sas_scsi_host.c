@@ -436,13 +436,13 @@ int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (!i->dft->lldd_abort_task)
 		return FAILED;
 
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	/* We cannot do async aborts for SATA devices */
 	if (dev_is_sata(dev) && !host->host_eh_scheduled) {
-		spin_unlock_irqrestore(host->host_lock, flags);
+		spin_unlock_irqrestore(&host->host_lock, flags);
 		return FAILED;
 	}
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 
 	if (task)
 		res = i->dft->lldd_abort_task(task);
@@ -714,9 +714,9 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 retry:
 	tries++;
 	retry = true;
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	pr_notice("Enter %s busy: %d failed: %d\n",
 		  __func__, scsi_host_busy(shost), shost->host_failed);

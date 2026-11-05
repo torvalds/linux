@@ -74,7 +74,7 @@ Discussão inicial
 
 Ao planejar um projeto de desenvolvimento do kernel, faz todo o sentido realizar
 discussões com a comunidade antes de iniciar a implementação. A comunicação
-inicial pode economizar tempo e problemas de várias maneiras:number of ways:
+inicial pode economizar tempo e problemas de várias maneiras:
 
  - Pode muito bem ser que o problema já seja tratado pelo kernel de maneiras
    que você não compreendeu. O kernel Linux é grande e possui uma série de
@@ -121,8 +121,8 @@ comunidade do kernel. Alguns exemplos incluem:
    consideradas inseguras e não confiáveis. Essa preocupação (entre outras)
    manteve o AppArmor fora do kernel principal (*mainline*) por anos.
 
-In each of these cases, a great deal of pain and extra work could have been
-avoided with some early discussion with the kernel developers.
+Em cada um desses casos, muito sofrimento e trabalho extra poderiam ter sido
+evitados com alguma discussão inicial com os desenvolvedores do kernel.
 
 
 Como encontrar os mantenedores?
@@ -200,8 +200,8 @@ prosseguir, mantendo a comunidade informada à medida que avança.
 Obter a aprovação oficial
 -------------------------
 
-Se o seu trabalho estiver sendo realizado em um ambiente corporativo  como é o
-caso da maior parte do trabalho no kernel do Linux —, você deve, obviamente, ter
+Se o seu trabalho estiver sendo realizado em um ambiente corporativo, como é o
+caso da maior parte do trabalho no kernel do Linux, você deve, obviamente, ter
 a permissão de gerentes devidamente autorizados antes de poder publicar os
 planos ou o código da sua empresa em uma lista de discussão pública.
 A publicação de código que não tenha sido liberado para lançamento sob uma

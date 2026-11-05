@@ -174,6 +174,7 @@ enum replay_event {
 	replay_event_os_request_force_ffu = 0x2000000,
 	replay_event_os_override_hold = 0x4000000,
 	replay_event_crc_window_active = 0x8000000,
+	replay_event_waiting_stream_regen = 0x10000000,
 };
 
 enum replay_enable_option {
@@ -373,6 +374,9 @@ bool mod_power_replay_set_coasting_vtotal(struct mod_power *mod_power,
 
 void mod_power_replay_residency(const struct dc_stream_state *stream,
 	unsigned int *residency, const bool is_start, const bool is_alpm);
+
+bool mod_power_replay_get_cumulative_residency(const struct dc_stream_state *stream,
+	uint32_t *residency_milli_pct);
 
 bool mod_power_replay_set_power_opt_and_coasting_vtotal(struct mod_power *mod_power,
 	const struct dc_stream_state *stream, unsigned int active_replay_events, uint32_t coasting_vtotal,

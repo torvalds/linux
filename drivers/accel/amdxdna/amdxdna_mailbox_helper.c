@@ -44,7 +44,7 @@ int xdna_send_msg_wait(struct amdxdna_dev *xdna, struct mailbox_channel *chann,
 	struct xdna_notify *hdl = msg->handle;
 	int ret;
 
-	ret = xdna_mailbox_send_msg(chann, msg, TX_TIMEOUT);
+	ret = xdna_mailbox_send_msg(chann, msg);
 	if (ret) {
 		XDNA_ERR(xdna, "Send message failed, ret %d", ret);
 		return ret;

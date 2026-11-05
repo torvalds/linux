@@ -417,7 +417,7 @@ static void cptvf_enable_swerr_interrupts(struct cpt_vf *cptvf)
 
 	vqx_misc_ena.u = cpt_read_csr64(cptvf->reg_base,
 					CPTX_VQX_MISC_ENA_W1S(0, 0));
-	/* Set mbox(0) interupts for the requested vf */
+	/* Set mbox(0) interrupts for the requested vf */
 	vqx_misc_ena.s.swerr = 1;
 	cpt_write_csr64(cptvf->reg_base, CPTX_VQX_MISC_ENA_W1S(0, 0),
 			vqx_misc_ena.u);
@@ -429,7 +429,7 @@ static void cptvf_enable_mbox_interrupts(struct cpt_vf *cptvf)
 
 	vqx_misc_ena.u = cpt_read_csr64(cptvf->reg_base,
 					CPTX_VQX_MISC_ENA_W1S(0, 0));
-	/* Set mbox(0) interupts for the requested vf */
+	/* Set mbox(0) interrupts for the requested vf */
 	vqx_misc_ena.s.mbox = 1;
 	cpt_write_csr64(cptvf->reg_base, CPTX_VQX_MISC_ENA_W1S(0, 0),
 			vqx_misc_ena.u);

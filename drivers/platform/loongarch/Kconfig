@@ -23,6 +23,7 @@ config LOONGSON_LAPTOP
 	depends on INPUT
 	depends on MACH_LOONGSON64
 	select ACPI_VIDEO
+	select ACPI_WMI
 	select INPUT_SPARSEKMAP
 	default y
 	help

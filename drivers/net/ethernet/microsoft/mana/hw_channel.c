@@ -170,12 +170,12 @@ static void mana_hwc_init_event_handler(void *ctx, struct gdma_queue *q_self,
 			hwc->txq->msg_buf->gpa_mkey = val;
 			break;
 
-		case HWC_INIT_DATA_PF_DEST_RQ_ID:
-			hwc->pf_dest_vrq_id = val;
+		case HWC_INIT_DATA_DEST_RQ_ID:
+			hwc->dest_vrq_id = val;
 			break;
 
-		case HWC_INIT_DATA_PF_DEST_CQ_ID:
-			hwc->pf_dest_vrcq_id = val;
+		case HWC_INIT_DATA_DEST_CQ_ID:
+			hwc->dest_vrcq_id = val;
 			break;
 		}
 
@@ -855,13 +855,12 @@ void mana_hwc_destroy_channel(struct gdma_context *gc)
 int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 			  const void *req, u32 resp_len, void *resp)
 {
-	struct gdma_context *gc = hwc->gdma_dev->gdma_context;
 	struct hwc_work_request *tx_wr;
 	struct hwc_wq *txq = hwc->txq;
 	struct gdma_req_hdr *req_msg;
 	struct hwc_caller_ctx *ctx;
-	u32 dest_vrcq = 0;
-	u32 dest_vrq = 0;
+	u32 dest_vrcq;
+	u32 dest_vrq;
 	u32 command;
 	u16 msg_id;
 	int err;
@@ -890,10 +889,13 @@ int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 	tx_wr->msg_size = req_len;
 	command = req_msg->req.msg_type;
 
-	if (gc->is_pf) {
-		dest_vrq = hwc->pf_dest_vrq_id;
-		dest_vrcq = hwc->pf_dest_vrcq_id;
-	}
+	/* The hardware reports the HWC destination queues through
+	 * HWC_INIT_DATA_DEST_RQ_ID and HWC_INIT_DATA_DEST_CQ_ID, and
+	 * always supplies values that are valid for this function, so no
+	 * PF-specific handling is needed here.
+	 */
+	dest_vrq = hwc->dest_vrq_id;
+	dest_vrcq = hwc->dest_vrcq_id;
 
 	err = mana_hwc_post_tx_wqe(txq, tx_wr, dest_vrq, dest_vrcq, false);
 	if (err) {

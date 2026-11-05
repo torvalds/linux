@@ -594,7 +594,6 @@ static void tpm_inf_pnp_remove(struct pnp_dev *dev)
 	}
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tpm_inf_resume(struct device *dev)
 {
 	/* Re-configure TPM after suspending */
@@ -611,8 +610,8 @@ static int tpm_inf_resume(struct device *dev)
 	tpm_data_out(RESET_LP_IRQC_DISABLE, CMD);
 	return tpm_pm_resume(dev);
 }
-#endif
-static SIMPLE_DEV_PM_OPS(tpm_inf_pm, tpm_pm_suspend, tpm_inf_resume);
+
+static DEFINE_SIMPLE_DEV_PM_OPS(tpm_inf_pm, tpm_pm_suspend, tpm_inf_resume);
 
 static struct pnp_driver tpm_inf_pnp_driver = {
 	.name = "tpm_inf_pnp",
@@ -620,7 +619,7 @@ static struct pnp_driver tpm_inf_pnp_driver = {
 	.probe = tpm_inf_pnp_probe,
 	.remove = tpm_inf_pnp_remove,
 	.driver = {
-		.pm = &tpm_inf_pm,
+		.pm = pm_sleep_ptr(&tpm_inf_pm),
 	}
 };
 

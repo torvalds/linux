@@ -26,7 +26,6 @@
 #include "xfs_health.h"
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
-#include "xfs_exchrange.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtrefcount_btree.h"
@@ -1458,46 +1457,6 @@ xfs_update_secondary_sbs(
 	if (error)
 		xfs_warn(mp, "error %d writing secondary superblocks", error);
 	return saved_error ? saved_error : error;
-}
-
-/*
- * Same behavior as xfs_sync_sb, except that it is always synchronous and it
- * also writes the superblock buffer to disk sector 0 immediately.
- */
-int
-xfs_sync_sb_buf(
-	struct xfs_mount	*mp,
-	bool			update_rtsb)
-{
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
-	if (error)
-		return error;
-
-	xfs_log_sb(tp);
-	if (update_rtsb)
-		xfs_log_rtsb(tp, xfs_trans_getsb(tp));
-	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp);
-	if (error)
-		return error;
-
-	/* Re-acquire and write the sb and rtsb to disk. */
-	xfs_buf_lock(mp->m_sb_bp);
-	error = xfs_bwrite(mp->m_sb_bp);
-	xfs_buf_unlock(mp->m_sb_bp);
-	if (error)
-		return error;
-
-	if (update_rtsb && mp->m_rtsb_bp) {
-		xfs_buf_lock(mp->m_rtsb_bp);
-		error = xfs_bwrite(mp->m_rtsb_bp);
-		xfs_buf_unlock(mp->m_rtsb_bp);
-	}
-
-	return error;
 }
 
 void

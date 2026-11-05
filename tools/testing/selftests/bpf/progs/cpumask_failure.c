@@ -183,7 +183,7 @@ int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("Possibly NULL pointer passed to helper R2")
+__failure __msg("release function bpf_kptr_xchg expects referenced PTR_TO_BTF_ID passed to R2")
 int BPF_PROG(test_global_mask_rcu_no_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *prev, *curr;
@@ -243,7 +243,7 @@ int BPF_PROG(test_populate_invalid_destination, struct task_struct *task, u64 cl
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("leads to invalid memory access")
+__failure __msg("R2 type=scalar expected=fp")
 int BPF_PROG(test_populate_invalid_source, struct task_struct *task, u64 clone_flags)
 {
 	void *garbage = (void *)0x123456;

@@ -209,71 +209,83 @@ static inline size_t vlan_qos_map_size(unsigned int n)
 
 static size_t vlan_get_size(const struct net_device *dev)
 {
-	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
+	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 
 	return nla_total_size(2) +	/* IFLA_VLAN_PROTOCOL */
 	       nla_total_size(2) +	/* IFLA_VLAN_ID */
 	       nla_total_size(sizeof(struct ifla_vlan_flags)) + /* IFLA_VLAN_FLAGS */
-	       vlan_qos_map_size(vlan->nr_ingress_mappings) +
-	       vlan_qos_map_size(vlan->nr_egress_mappings);
+	       vlan_qos_map_size(READ_ONCE(vlan->nr_ingress_mappings)) +
+	       vlan_qos_map_size(READ_ONCE(vlan->nr_egress_mappings));
 }
 
 static int vlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
-	struct vlan_priority_tci_mapping *pm;
-	struct ifla_vlan_flags f;
+	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
+	const struct vlan_priority_tci_mapping *pm;
 	struct ifla_vlan_qos_mapping m;
+	struct ifla_vlan_flags f;
 	struct nlattr *nest;
 	unsigned int i;
+	u32 flags;
 
 	if (nla_put_be16(skb, IFLA_VLAN_PROTOCOL, vlan->vlan_proto) ||
 	    nla_put_u16(skb, IFLA_VLAN_ID, vlan->vlan_id))
 		goto nla_put_failure;
-	if (vlan->flags) {
-		f.flags = vlan->flags;
+
+	flags = READ_ONCE(vlan->flags);
+	if (flags) {
+		f.flags = flags;
 		f.mask  = ~0;
 		if (nla_put(skb, IFLA_VLAN_FLAGS, sizeof(f), &f))
 			goto nla_put_failure;
 	}
-	if (vlan->nr_ingress_mappings) {
+
+	rcu_read_lock();
+
+	if (READ_ONCE(vlan->nr_ingress_mappings)) {
 		nest = nla_nest_start_noflag(skb, IFLA_VLAN_INGRESS_QOS);
-		if (nest == NULL)
-			goto nla_put_failure;
+		if (!nest)
+			goto nla_put_failure_unlock;
 
 		for (i = 0; i < ARRAY_SIZE(vlan->ingress_priority_map); i++) {
-			if (!vlan->ingress_priority_map[i])
+			u32 skb_prio = READ_ONCE(vlan->ingress_priority_map[i]);
+
+			if (!skb_prio)
 				continue;
 
 			m.from = i;
-			m.to   = vlan->ingress_priority_map[i];
+			m.to   = skb_prio;
 			if (nla_put(skb, IFLA_VLAN_QOS_MAPPING,
 				    sizeof(m), &m))
-				goto nla_put_failure;
+				goto nla_put_failure_unlock;
 		}
 		nla_nest_end(skb, nest);
 	}
 
-	if (vlan->nr_egress_mappings) {
+	if (READ_ONCE(vlan->nr_egress_mappings)) {
 		nest = nla_nest_start_noflag(skb, IFLA_VLAN_EGRESS_QOS);
-		if (nest == NULL)
-			goto nla_put_failure;
+		if (!nest)
+			goto nla_put_failure_unlock;
 
 		for (i = 0; i < ARRAY_SIZE(vlan->egress_priority_map); i++) {
-			for (pm = rcu_dereference_rtnl(vlan->egress_priority_map[i]); pm;
-			     pm = rcu_dereference_rtnl(pm->next)) {
+			for (pm = rcu_dereference(vlan->egress_priority_map[i]); pm;
+			     pm = rcu_dereference(pm->next)) {
 				u16 vlan_qos = READ_ONCE(pm->vlan_qos);
+
 				m.from = pm->priority;
 				m.to   = (vlan_qos >> 13) & 0x7;
 				if (nla_put(skb, IFLA_VLAN_QOS_MAPPING,
 					    sizeof(m), &m))
-					goto nla_put_failure;
+					goto nla_put_failure_unlock;
 			}
 		}
 		nla_nest_end(skb, nest);
 	}
+	rcu_read_unlock();
 	return 0;
 
+nla_put_failure_unlock:
+	rcu_read_unlock();
 nla_put_failure:
 	return -EMSGSIZE;
 }

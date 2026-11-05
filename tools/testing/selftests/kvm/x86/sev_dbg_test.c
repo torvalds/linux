@@ -14,9 +14,11 @@ static u8 *data;
 static u8 src[BUFFER_SIZE] __aligned(PAGE_SIZE);
 static u8 dst[BUFFER_SIZE] __aligned(PAGE_SIZE);
 
-static void validate_dst(int i, int nr_bytes, u8 pattern)
+static void validate_dst(int offset, int nr_bytes, u8 pattern)
 {
-	for ( ; i < nr_bytes; i++)
+	int i;
+
+	for (i = offset; i < offset + nr_bytes; i++)
 		TEST_ASSERT(dst[i] == pattern,
 			    "Expected 0x%x at byte %u, got 0x%x",
 			    pattern, i, dst[i]);

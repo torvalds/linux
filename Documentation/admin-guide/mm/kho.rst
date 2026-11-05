@@ -20,10 +20,10 @@ need to enable if you would like to preserve their respective state across
 kexec.
 
 To use KHO, please boot the kernel with the ``kho=on`` command line
-parameter. You may use ``kho_scratch`` parameter to define size of the
-scratch regions. For example ``kho_scratch=16M,512M,256M`` will reserve a
-16 MiB low memory scratch area, a 512 MiB global scratch region, and 256 MiB
-per NUMA node scratch regions on boot.
+parameter. You may use ``kho_bootmem`` parameter to define size of the
+boot memory regions. For example ``kho_bootmem=16M,512M,256M`` will reserve a
+16 MiB low memory bootmem area, a 512 MiB global bootmem region, and 256 MiB
+per NUMA node bootmem regions on boot.
 
 Perform a KHO kexec
 ===================
@@ -96,15 +96,15 @@ stabilized.
     current KHO state in this file. Kexec user space tooling can use this
     as input file for the KHO payload image.
 
-``/sys/kernel/debug/kho/out/scratch_len``
-    Lengths of KHO scratch regions, which are physically contiguous
+``/sys/kernel/debug/kho/out/bootmem_len``
+    Lengths of KHO bootmem regions, which are physically contiguous
     memory regions that will always stay available for future kexec
     allocations. Kexec user space tools can use this file to determine
     where it should place its payload images.
 
-``/sys/kernel/debug/kho/out/scratch_phys``
-    Physical locations of KHO scratch regions. Kexec user space tools
-    can use this file in conjunction to scratch_phys to determine where
+``/sys/kernel/debug/kho/out/bootmem_phys``
+    Physical locations of KHO bootmem regions. Kexec user space tools
+    can use this file in conjunction to bootmem_len to determine where
     it should place its payload images.
 
 ``/sys/kernel/debug/kho/out/sub_fdts/``

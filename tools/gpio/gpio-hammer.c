@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 		case 'o':
 			/*
 			 * Avoid overflow. Do not immediately error, we want to
-			 * be able to accurately report on the amount of times
+			 * be able to accurately report on the number of times
 			 * '-o' was given to give an accurate error message
 			 */
 			if (i < GPIOHANDLES_MAX)

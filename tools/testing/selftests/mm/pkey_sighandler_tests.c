@@ -543,10 +543,11 @@ static void (*pkey_tests[])(void) = {
 int main(int argc, char *argv[])
 {
 	ksft_print_header();
-	ksft_set_plan(ARRAY_SIZE(pkey_tests));
 
 	if (!is_pkeys_supported())
 		ksft_exit_skip("pkeys not supported\n");
+
+	ksft_set_plan(ARRAY_SIZE(pkey_tests));
 
 	for (test_nr = 0; test_nr < ARRAY_SIZE(pkey_tests); test_nr++) {
 		tracing_on();
@@ -555,5 +556,4 @@ int main(int argc, char *argv[])
 	}
 
 	ksft_finished();
-	return 0;
 }

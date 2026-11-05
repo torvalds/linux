@@ -15,9 +15,9 @@ void qcom_pcie_common_set_equalization(struct dw_pcie *pci)
 	u16 speed;
 
 	/*
-	 * GEN3_RELATED_OFF register is repurposed to apply equalization
+	 * GEN3_CTRL register is repurposed to apply equalization
 	 * settings at various data transmission rates through registers namely
-	 * GEN3_EQ_*. The RATE_SHADOW_SEL bit field of GEN3_RELATED_OFF
+	 * GEN3_EQ_*. The RATE_SHADOW_SEL bit field of GEN3_CTRL
 	 * determines the data rate for which these equalization settings are
 	 * applied.
 	 */
@@ -28,25 +28,25 @@ void qcom_pcie_common_set_equalization(struct dw_pcie *pci)
 			break;
 		}
 
-		reg = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
-		reg &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL;
-		FIELD_MODIFY(GEN3_RELATED_OFF_RATE_SHADOW_SEL_MASK, &reg,
+		reg = dw_pcie_readl_dbi(pci, GEN3_CTRL);
+		reg &= ~GEN3_CTRL_GEN3_ZRXDC_NONCOMPL;
+		FIELD_MODIFY(GEN3_CTRL_RATE_SHADOW_SEL_MASK, &reg,
 			     speed - PCIE_SPEED_8_0GT);
-		dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, reg);
+		dw_pcie_writel_dbi(pci, GEN3_CTRL, reg);
 
-		reg = dw_pcie_readl_dbi(pci, GEN3_EQ_FB_MODE_DIR_CHANGE_OFF);
+		reg = dw_pcie_readl_dbi(pci, GEN3_EQ_FB_MODE_DIR_CHANGE);
 		FIELD_MODIFY(GEN3_EQ_FMDC_T_MIN_PHASE23, &reg, 0x1);
 		FIELD_MODIFY(GEN3_EQ_FMDC_N_EVALS, &reg, 0xd);
 		FIELD_MODIFY(GEN3_EQ_FMDC_MAX_PRE_CURSOR_DELTA, &reg, 0x5);
 		FIELD_MODIFY(GEN3_EQ_FMDC_MAX_POST_CURSOR_DELTA, &reg, 0x5);
-		dw_pcie_writel_dbi(pci, GEN3_EQ_FB_MODE_DIR_CHANGE_OFF, reg);
+		dw_pcie_writel_dbi(pci, GEN3_EQ_FB_MODE_DIR_CHANGE, reg);
 
-		reg = dw_pcie_readl_dbi(pci, GEN3_EQ_CONTROL_OFF);
-		reg &= ~(GEN3_EQ_CONTROL_OFF_FB_MODE |
-			GEN3_EQ_CONTROL_OFF_PHASE23_EXIT_MODE |
-			GEN3_EQ_CONTROL_OFF_FOM_INC_INITIAL_EVAL |
-			GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC);
-		dw_pcie_writel_dbi(pci, GEN3_EQ_CONTROL_OFF, reg);
+		reg = dw_pcie_readl_dbi(pci, GEN3_EQ_CTRL);
+		reg &= ~(GEN3_EQ_CTRL_FB_MODE |
+			GEN3_EQ_CTRL_PHASE23_EXIT_MODE |
+			GEN3_EQ_CTRL_FOM_INC_INITIAL_EVAL |
+			GEN3_EQ_CTRL_PSET_REQ_VEC);
+		dw_pcie_writel_dbi(pci, GEN3_EQ_CTRL, reg);
 	}
 }
 EXPORT_SYMBOL_GPL(qcom_pcie_common_set_equalization);

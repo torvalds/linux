@@ -1,0 +1,26 @@
+bench_ref_type_from_prefix_dynamic_padding:
+	test sil, 3
+	sete al
+	cmp rdx, 12
+	setae cl
+	and cl, al
+	cmp cl, 1
+	je .LBB5_2
+	xor esi, esi
+	mov qword ptr [rdi], rsi
+	mov rax, rdi
+	ret
+.LBB5_2:
+	movabs rcx, 9223372036854775804
+	and rcx, rdx
+	or rdx, 3
+	add rdx, -12
+	movabs r8, -6148914691236517205
+	mov rax, rdx
+	mul r8
+	shr rdx
+	mov qword ptr [rdi + 8], rcx
+	mov qword ptr [rdi + 16], rdx
+	mov qword ptr [rdi], rsi
+	mov rax, rdi
+	ret

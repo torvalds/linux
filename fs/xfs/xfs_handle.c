@@ -272,11 +272,11 @@ xfs_open_by_handle(
 	path.mnt = mntget(parfilp->f_path.mnt);
 
 	FD_PREPARE(fdf, 0, dentry_open(&path, hreq->oflags, cred));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	if (S_ISREG(inode->i_mode)) {
-		struct file *filp = fd_prepare_file(fdf);
+		struct file *filp = fdf->file;
 
 		filp->f_flags |= O_NOATIME;
 		filp->f_mode |= FMODE_NOCMTIME;
@@ -409,7 +409,7 @@ xfs_ioc_attr_list(
 	void				*buffer;
 	int				error;
 
-	if (bufsize < sizeof(struct xfs_attrlist) ||
+	if (bufsize < struct_size(alist, al_offset, 1) ||
 	    bufsize > XFS_XATTR_LIST_MAX)
 		return -EINVAL;
 

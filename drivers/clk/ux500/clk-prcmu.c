@@ -200,8 +200,8 @@ static struct clk_hw *clk_reg_prcmu(const char *name,
 				    unsigned long flags,
 				    const struct clk_ops *clk_prcmu_ops)
 {
+	struct clk_init_data clk_prcmu_init = {};
 	struct clk_prcmu *clk;
-	struct clk_init_data clk_prcmu_init;
 	int ret;
 
 	if (!name) {
@@ -357,8 +357,8 @@ struct clk_hw *clk_reg_prcmu_clkout(const char *name,
 				    u8 source, u8 divider)
 
 {
+	struct clk_init_data clk_prcmu_clkout_init = {};
 	struct clk_prcmu_clkout *clk;
-	struct clk_init_data clk_prcmu_clkout_init;
 	u8 clkout_id;
 	int ret;
 

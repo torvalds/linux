@@ -491,18 +491,16 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 	return &asyh->state;
 }
 
-static void
-nv50_head_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *nv50_head_create_state(struct drm_crtc *crtc)
 {
 	struct nv50_head_atom *asyh;
 
 	if (WARN_ON(!(asyh = kzalloc_obj(*asyh))))
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	if (crtc->state)
-		nv50_head_atomic_destroy_state(crtc, crtc->state);
+	__drm_atomic_helper_crtc_state_init(&asyh->state, crtc);
 
-	__drm_atomic_helper_crtc_reset(crtc, &asyh->state);
+	return &asyh->state;
 }
 
 static int
@@ -525,7 +523,7 @@ nv50_head_destroy(struct drm_crtc *crtc)
 
 static const struct drm_crtc_funcs
 nv50_head_func = {
-	.reset = nv50_head_reset,
+	.atomic_create_state = nv50_head_create_state,
 	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -539,7 +537,7 @@ nv50_head_func = {
 
 static const struct drm_crtc_funcs
 nvd9_head_func = {
-	.reset = nv50_head_reset,
+	.atomic_create_state = nv50_head_create_state,
 	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,

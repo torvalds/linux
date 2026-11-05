@@ -1529,10 +1529,8 @@ static int anx7411_i2c_probe(struct i2c_client *client)
 					IRQF_TRIGGER_FALLING |
 					IRQF_ONESHOT,
 					"anx7411-intp", plat);
-	if (ret) {
-		dev_err(dev, "fail to request irq\n");
+	if (ret)
 		goto free_wq;
-	}
 
 	if (anx7411_typec_check_connection(plat))
 		dev_err(dev, "check status\n");

@@ -312,6 +312,33 @@ properties:
         items:
           - const: audioclk
 
+      '#sound-dai-cells':
+        description: Selects one of the two digital audio interfaces
+        const: 1
+
+      ports:
+        $ref: /schemas/sound/audio-graph-port.yaml#/definitions/ports
+
+      stericsson,amic1-type-single-ended:
+        description: Configure analog microphone 1 as single-ended
+        type: boolean
+
+      stericsson,amic2-type-single-ended:
+        description: Configure analog microphone 2 as single-ended
+        type: boolean
+
+      stericsson,amic1a-bias-vamic2:
+        description: Supply analog microphone 1A from VAMIC2 instead of VAMIC1
+        type: boolean
+
+      stericsson,amic1b-bias-vamic2:
+        description: Supply analog microphone 1B from VAMIC2 instead of VAMIC1
+        type: boolean
+
+      stericsson,amic2-bias-vamic1:
+        description: Supply analog microphone 2 from VAMIC1 instead of VAMIC2
+        type: boolean
+
       stericsson,earpeice-cmv:
         description: Earpiece voltage
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -319,11 +346,14 @@ properties:
 
     required:
       - compatible
+      - '#sound-dai-cells'
 
     additionalProperties: false
 
   regulator:
     description: Node describing the AB8500 internal regulators.
+      LDO means low-dropout regulator. SMPS means switched-mode power
+      supply; the SMPS regulators described here are buck converters.
     type: object
 
     properties:
@@ -439,16 +469,117 @@ properties:
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
 
+    allOf:
+      - if:
+          properties:
+            compatible:
+              const: stericsson,ab8500-regulator
+        then:
+          properties:
+            ab8500_buck_smps1:
+              description: Analog buck converter for the VSMPS1 1.2V I/O
+                and memory supply.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8500_buck_smps2:
+              description: Analog buck converter for the VSMPS2 1.8V I/O
+                and memory supply.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8500_buck_smps3:
+              description: Analog buck converter for VSMPS3, which supplies
+                the VSAFE power domain.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8500_buck_arm:
+              description: Analog buck converter for the VARM processor
+                supply.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8500_buck_ape:
+              description: Analog buck converter for the VAPE application
+                processor supply.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8500_buck_mod:
+              description: Analog buck converter for the VMOD modem supply.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+      - if:
+          properties:
+            compatible:
+              const: stericsson,ab8505-regulator
+        then:
+          properties:
+            ab8505_buck_smpsa:
+              description: Analog buck converter for the VSMPSA 1.2V I/O
+                and memory supply. The selector range depends on OTP
+                configuration.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8505_buck_smpsb:
+              description: Analog buck converter for the VSMPSB 1.8V I/O
+                and memory supply. The selector range depends on OTP
+                configuration.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8505_buck_safe:
+              description: Analog buck converter for the VSAFE permanent
+                logic and DDR supply. The selector range depends on OTP
+                configuration.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8505_buck_arm:
+              description: Analog buck converter for the VARM processor
+                supply, with a 0.6V to 1.39375V selector range.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8505_buck_smpsc:
+              description: Analog buck converter for the VSMPSC multimedia
+                and graphics supply. The selector range depends on OTP
+                configuration.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
+            ab8505_buck_smpsm:
+              description: Analog buck converter for the VSMPSM modem
+                supply. The selector range depends on OTP configuration.
+              type: object
+              $ref: /schemas/regulator/regulator.yaml#
+              unevaluatedProperties: false
+
     required:
       - compatible
 
-    additionalProperties: false
+    unevaluatedProperties: false
 
   regulator-external:
-    description: Node describing the AB8500 external regulators. This
-      concerns the autonomous regulators VSMPS1, VSMPS2 and VSMPS3
-      that are normally controlled by external electronics but also
-      sometimes need to be explicitly controlled by software.
+    description: Node describing AB8500 control interfaces for external
+      regulators. AB8500 controls these external devices through the
+      ExtSupply1Ena, ExtSupply2Ena and ExtSupply3Ena signals and associated
+      low-power-mode signals. They are distinct from the VSMPS1, VSMPS2 and
+      VSMPS3 buck converters integrated into AB8500.
     type: object
 
     properties:
@@ -456,19 +587,22 @@ properties:
         const: stericsson,ab8500-ext-regulator
 
       ab8500_ext1:
-        description: The voltage for the VSMPS1 external regulator
+        description: External regulator controlled through ExtSupply1Ena and
+          ExtSupply12LPn
         type: object
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ext2:
-        description: The voltage for the VSMPS2 external regulator
+        description: External regulator controlled through ExtSupply2Ena and
+          ExtSupply12LPn
         type: object
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ext3:
-        description: The voltage for the VSMPS3 external regulator
+        description: External regulator controlled through ExtSupply3Ena and
+          ExtSupply3LPn
         type: object
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false

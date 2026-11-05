@@ -213,7 +213,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
+affs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
@@ -404,7 +404,8 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	affs_unlock_dir(dir);
 	affs_unlock_link(inode);
 
-	d_instantiate(dentry, inode);
+	if (!retval)
+		d_instantiate(dentry, inode);
 done:
 	affs_brelse(inode_bh);
 	affs_brelse(bh);

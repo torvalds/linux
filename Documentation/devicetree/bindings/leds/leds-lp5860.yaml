@@ -100,18 +100,18 @@ examples:
                 color = <LED_COLOR_ID_RGB>;
 
                 led@0 {
-                     reg = <0x0>;
-                     color = <LED_COLOR_ID_RED>;
+                    reg = <0x0>;
+                    color = <LED_COLOR_ID_RED>;
                 };
 
                 led@1 {
-                     reg = <0x1>;
-                     color = <LED_COLOR_ID_GREEN>;
+                    reg = <0x1>;
+                    color = <LED_COLOR_ID_GREEN>;
                 };
 
                 led@2 {
-                     reg = <0x2>;
-                     color = <LED_COLOR_ID_BLUE>;
+                    reg = <0x2>;
+                    color = <LED_COLOR_ID_BLUE>;
                 };
             };
         };

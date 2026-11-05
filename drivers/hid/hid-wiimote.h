@@ -153,6 +153,7 @@ struct wiimote_data {
 	struct input_dev *mp;
 	struct timer_list timer;
 	struct wiimote_debug *debug;
+	u8 player_id;
 
 	union {
 		struct input_dev *input;

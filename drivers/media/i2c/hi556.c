@@ -960,6 +960,7 @@ __hi556_get_pad_crop(struct hi556 *hi556,
 }
 
 static int hi556_get_selection(struct v4l2_subdev *sd,
+			       const struct v4l2_subdev_client_info *ci,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_selection *sel)
 {
@@ -1071,6 +1072,7 @@ static int hi556_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int hi556_set_format(struct v4l2_subdev *sd,
+			    const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {

@@ -6,10 +6,10 @@
 
 #include <linux/seq_file.h>
 
+#include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 

@@ -3371,7 +3371,7 @@ static int rvu_flr_init(struct rvu *rvu)
 	}
 
 	rvu->flr_wq = alloc_workqueue("rvu_afpf_flr",
-				      WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
+				      WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!rvu->flr_wq)
 		return -ENOMEM;
 
@@ -3467,8 +3467,6 @@ err_put:
 err:
 	return ret;
 }
-
-#define PCI_DEVID_OCTEONTX2_RVU_AFVF	0xA0F8
 
 static int rvu_enable_sriov(struct rvu *rvu)
 {

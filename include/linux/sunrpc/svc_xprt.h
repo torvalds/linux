@@ -37,6 +37,9 @@ struct svc_xprt_class {
 	struct list_head	xcl_list;
 	u32			xcl_max_payload;
 	int			xcl_ident;
+	u32			xcl_flags;
+/* Set only on classes whose xpo_has_wspace() reads xpt_reserved */
+#define SVC_XPRT_FLAG_WSPACE_RESERVE	BIT(0)
 };
 
 /*
@@ -59,7 +62,7 @@ struct svc_xprt {
 	unsigned long		xpt_flags;
 
 	struct svc_serv		*xpt_server;	/* service for transport */
-	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
+	atomic_t		xpt_reserved;	/* outq space rsvd, UDP only */
 	atomic_t		xpt_nr_rqsts;	/* Number of requests */
 	struct mutex		xpt_mutex;	/* to serialize sending data */
 	spinlock_t		xpt_lock;	/* protects sk_deferred

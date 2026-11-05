@@ -19,6 +19,12 @@ __rust_helper resource_size_t rust_helper_pci_resource_len(struct pci_dev *pdev,
 	return pci_resource_len(pdev, bar);
 }
 
+__rust_helper unsigned long rust_helper_pci_resource_flags(const struct pci_dev *pdev,
+							   int bar)
+{
+	return pci_resource_flags(pdev, bar);
+}
+
 __rust_helper bool rust_helper_dev_is_pci(const struct device *dev)
 {
 	return dev_is_pci(dev);
@@ -27,6 +33,11 @@ __rust_helper bool rust_helper_dev_is_pci(const struct device *dev)
 __rust_helper unsigned int rust_helper_pci_irq_type(struct pci_dev *pdev)
 {
 	return pci_irq_type(pdev);
+}
+
+__rust_helper u32 rust_helper_pci_ext_cap_next(u32 header)
+{
+	return PCI_EXT_CAP_NEXT(header);
 }
 
 #ifndef CONFIG_PCI_IOV

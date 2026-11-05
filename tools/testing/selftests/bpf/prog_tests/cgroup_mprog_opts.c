@@ -273,11 +273,64 @@ cleanup:
 	close(cg);
 }
 
+static int find_prog_attach_flags(const struct bpf_prog_query_opts *opts,
+				  __u32 prog_id, __u32 *flags)
+{
+	__u32 i;
+
+	for (i = 0; i < opts->count; i++) {
+		if (opts->prog_ids[i] == prog_id) {
+			*flags = opts->prog_attach_flags[i];
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+static void assert_preorder_query_flags(int cg, int atype,
+					__u32 id1, __u32 id2,
+					__u32 id3, __u32 id4)
+{
+	LIBBPF_OPTS(bpf_prog_query_opts, optq);
+	__u32 prog_attach_flags[10] = {};
+	__u32 prog_ids[10] = {};
+	__u32 flags;
+	int err;
+
+	optq.prog_ids = prog_ids;
+	optq.prog_attach_flags = prog_attach_flags;
+	optq.count = 10;
+	err = bpf_prog_query_opts(cg, atype, &optq);
+	if (!ASSERT_OK(err, "prog_query"))
+		return;
+
+	ASSERT_EQ(optq.count, 4, "count");
+
+	/* Match by prog_id to avoid relying on query order. */
+	err = find_prog_attach_flags(&optq, id1, &flags);
+	if (ASSERT_OK(err, "find id1"))
+		ASSERT_EQ(flags, BPF_F_ALLOW_MULTI, "flags id1");
+
+	err = find_prog_attach_flags(&optq, id2, &flags);
+	if (ASSERT_OK(err, "find id2"))
+		ASSERT_EQ(flags, BPF_F_ALLOW_MULTI | BPF_F_PREORDER,
+			  "flags id2");
+
+	err = find_prog_attach_flags(&optq, id3, &flags);
+	if (ASSERT_OK(err, "find id3"))
+		ASSERT_EQ(flags, BPF_F_ALLOW_MULTI | BPF_F_PREORDER,
+			  "flags id3");
+
+	err = find_prog_attach_flags(&optq, id4, &flags);
+	if (ASSERT_OK(err, "find id4"))
+		ASSERT_EQ(flags, BPF_F_ALLOW_MULTI, "flags id4");
+}
+
 static void test_preorder_prog_attach_detach(int atype)
 {
 	LIBBPF_OPTS(bpf_prog_attach_opts, opta);
 	LIBBPF_OPTS(bpf_prog_detach_opts, optd);
-	__u32 fd1, fd2, fd3, fd4;
+	__u32 fd1, fd2, fd3, fd4, id1, id2, id3, id4;
 	struct cgroup_mprog *skel;
 	int cg, err;
 
@@ -293,6 +346,11 @@ static void test_preorder_prog_attach_detach(int atype)
 	fd2 = bpf_program__fd(skel->progs.getsockopt_2);
 	fd3 = bpf_program__fd(skel->progs.getsockopt_3);
 	fd4 = bpf_program__fd(skel->progs.getsockopt_4);
+
+	id1 = id_from_prog_fd(fd1);
+	id2 = id_from_prog_fd(fd2);
+	id3 = id_from_prog_fd(fd3);
+	id4 = id_from_prog_fd(fd4);
 
 	assert_mprog_count(cg, atype, 0);
 
@@ -357,6 +415,8 @@ static void test_preorder_prog_attach_detach(int atype)
 
 	assert_mprog_count(cg, atype, 4);
 
+	assert_preorder_query_flags(cg, atype, id1, id2, id3, id4);
+
 	err = bpf_prog_detach_opts(fd4, cg, atype, &optd);
 	ASSERT_OK(err, "prog_detach");
 	assert_mprog_count(cg, atype, 3);
@@ -386,7 +446,7 @@ static void test_preorder_link_attach_detach(int atype)
 	LIBBPF_OPTS(bpf_cgroup_opts, opta);
 	struct bpf_link *link1, *link2, *link3, *link4;
 	struct cgroup_mprog *skel;
-	__u32 fd2;
+	__u32 fd2, id1, id2, id3, id4;
 	int cg;
 
 	cg = test__join_cgroup("/preorder_link_attach_detach");
@@ -398,6 +458,11 @@ static void test_preorder_link_attach_detach(int atype)
 		goto cleanup;
 
 	fd2 = bpf_program__fd(skel->progs.getsockopt_2);
+
+	id1 = id_from_prog_fd(bpf_program__fd(skel->progs.getsockopt_1));
+	id2 = id_from_prog_fd(fd2);
+	id3 = id_from_prog_fd(bpf_program__fd(skel->progs.getsockopt_3));
+	id4 = id_from_prog_fd(bpf_program__fd(skel->progs.getsockopt_4));
 
 	assert_mprog_count(cg, atype, 0);
 
@@ -459,6 +524,8 @@ static void test_preorder_link_attach_detach(int atype)
 		goto cleanup3;
 
 	assert_mprog_count(cg, atype, 4);
+
+	assert_preorder_query_flags(cg, atype, id1, id2, id3, id4);
 
 	bpf_link__destroy(link4);
 	assert_mprog_count(cg, atype, 3);

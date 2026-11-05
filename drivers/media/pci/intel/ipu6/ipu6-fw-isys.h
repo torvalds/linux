@@ -8,6 +8,10 @@
 
 struct device;
 struct ipu6_isys;
+struct ipu6_isys_video;
+struct isys_fw_msgs;
+struct ipu6_isys_stream;
+struct ipu6_isys_buffer_list;
 
 /* Max number of Input/Output Pins */
 #define IPU6_MAX_IPINS 4
@@ -512,21 +516,6 @@ struct ipu6_fw_isys_proxy_resp_info_abi {
 };
 
 /**
- * struct ipu6_fw_proxy_write_queue_token - ISYS proxy write queue token
- * @request_id: update id for the specific proxy write request
- * @region_index: Region id for the proxy write request
- * @offset: Offset of the write request according to the base address
- *	    of the region
- * @value: Value that is requested to be written with the proxy write request
- */
-struct ipu6_fw_proxy_write_queue_token {
-	u32 request_id;
-	u32 region_index;
-	u32 offset;
-	u32 value;
-};
-
-/**
  * struct ipu6_fw_resp_queue_token - ISYS response queue token
  * @resp_info: response info
  */
@@ -570,27 +559,10 @@ struct ipu6_fw_proxy_send_queue_token {
 	u32 value;
 };
 
-void
-ipu6_fw_isys_dump_stream_cfg(struct device *dev,
-			     struct ipu6_fw_isys_stream_cfg_data_abi *cfg);
-void
-ipu6_fw_isys_dump_frame_buff_set(struct device *dev,
-				 struct ipu6_fw_isys_frame_buff_set_abi *buf,
-				 unsigned int outputs);
-int ipu6_fw_isys_init(struct ipu6_isys *isys, unsigned int num_streams);
-int ipu6_fw_isys_close(struct ipu6_isys *isys);
-int ipu6_fw_isys_simple_cmd(struct ipu6_isys *isys,
-			    const unsigned int stream_handle, u16 send_type);
-int ipu6_fw_isys_complex_cmd(struct ipu6_isys *isys,
-			     const unsigned int stream_handle,
-			     void *cpu_mapped_buf, dma_addr_t dma_mapped_buf,
-			     size_t size, u16 send_type);
-int ipu6_fw_isys_send_proxy_token(struct ipu6_isys *isys,
-				  unsigned int req_id,
-				  unsigned int index,
-				  unsigned int offset, u32 value);
-void ipu6_fw_isys_cleanup(struct ipu6_isys *isys);
-struct ipu6_fw_isys_resp_info_abi *
-ipu6_fw_isys_get_resp(void *context, unsigned int queue);
-void ipu6_fw_isys_put_resp(void *context, unsigned int queue);
+int ipu6_fw_isys_send_proxy_token(struct ipu6_isys *isys, unsigned int req_id,
+				  unsigned int index, unsigned int offset,
+				  u32 value);
+int ipu6_isys_isr_one(struct ipu6_bus_device *adev);
+irqreturn_t ipu6_isys_isr(struct ipu6_bus_device *adev);
+
 #endif

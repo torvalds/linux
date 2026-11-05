@@ -357,7 +357,7 @@ extern __must_check int check_zeroed_user(const void __user *from, size_t size);
  * struct).
  *
  * @ksize is just sizeof(*dst), and @usize should've been passed by userspace.
- * The recommended usage is something like the following:
+ * The recommended usage is something like the following::
  *
  *   SYSCALL_DEFINE2(foobar, const struct foo __user *, uarg, size_t, usize)
  *   {
@@ -447,7 +447,7 @@ copy_struct_from_user(void *dst, size_t ksize, const void __user *src,
  * about data it does not.
  *
  * @ksize is just sizeof(*src), and @usize should've been passed by userspace.
- * The recommended usage is something like the following:
+ * The recommended usage is something like the following::
  *
  *   SYSCALL_DEFINE2(foobar, struct foo __user *, uarg, size_t, usize)
  *   {
@@ -529,7 +529,7 @@ __copy_struct_generic_bounce_buffer(void *dst, size_t dstsize,
 	memcpy(dst, src, size);
 }
 
-/**
+/*
  * This is like copy_struct_from_user(), but the
  * src buffer was already copied into a kernel
  * bounce buffer, so it will never return -EFAULT.
@@ -553,7 +553,7 @@ copy_struct_from_bounce_buffer(void *dst, size_t dstsize,
 	return 0;
 }
 
-/**
+/*
  * This is like copy_struct_to_user(), but the
  * dst buffer is a kernel bounce buffer instead
  * of a direct userspace buffer, so it will never return -EFAULT.
@@ -770,7 +770,7 @@ static __always_inline void __scoped_user_rw_access_end(const void *p)
  * If the user access function inside the scope requires a fault label, it
  * can use @elbl or a different label outside the scope, which requires
  * that user access which is implemented with ASM GOTO has been properly
- * wrapped. See unsafe_get_user() for reference.
+ * wrapped. See unsafe_get_user() for reference::
  *
  *	scoped_user_rw_access(ptr, efault) {
  *		unsafe_get_user(rval, &ptr->rval, efault);

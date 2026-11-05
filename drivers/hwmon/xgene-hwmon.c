@@ -595,9 +595,9 @@ static void xgene_hwmon_tx_done(struct mbox_client *cl, void *msg, int ret)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_hwmon_acpi_match[] = {
-	{"APMC0D29", XGENE_HWMON_V1},
-	{"APMC0D8A", XGENE_HWMON_V2},
-	{},
+	{ .id = "APMC0D29", .driver_data = XGENE_HWMON_V1 },
+	{ .id = "APMC0D8A", .driver_data = XGENE_HWMON_V2 },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_hwmon_acpi_match);
 #endif

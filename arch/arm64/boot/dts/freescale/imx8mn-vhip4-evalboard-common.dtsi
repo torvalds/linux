@@ -142,9 +142,10 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
 
-	eeprom@51 {
+	cfg_eeprom: eeprom@51 {
 		compatible = "atmel,24c128";
 		reg = <0x51>;
+		label = "ifm-deviceinfo";
 	};
 
 	hw_rtc: rtc@52 {

@@ -252,6 +252,20 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 			 const struct hdmi_vendor_infoframe *hdmi,
 			 unsigned int height);
 
+/*
+ * The time in milliseconds that the HPD should be pulled low when writing
+ * a new EDID. This will tell the HDMI source that the EDID was changed and
+ * that it has to be re-read.
+ *
+ * The source is supposed to re-read the EDID if the HPD is low for more than
+ * 100 ms, but in practice the sink should pull it low for a bit longer due
+ * to clock differences and imprecise video source implementations.
+ *
+ * Practice has shown that setting the delay to HZ / 7 (approx 143 ms) works
+ * well.
+ */
+#define V4L2_SET_EDID_HPD_LOW_JIFFIES (HZ / 7)
+
 unsigned int v4l2_num_edid_blocks(const u8 *edid, unsigned int max_blocks);
 u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			    unsigned int *offset);

@@ -23,7 +23,7 @@ const struct file_operations minix_file_operations = {
 	.splice_read	= filemap_splice_read,
 };
 
-static int minix_setattr(struct mnt_idmap *idmap,
+static int minix_setattr(const struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);

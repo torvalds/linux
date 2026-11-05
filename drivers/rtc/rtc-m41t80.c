@@ -162,19 +162,15 @@ static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
 	unsigned long events = 0;
 	int flags, flags_afe;
 
-	rtc_lock(m41t80->rtc);
+	guard(rtc_ops)(m41t80->rtc);
 
 	flags_afe = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
-	if (flags_afe < 0) {
-		rtc_unlock(m41t80->rtc);
+	if (flags_afe < 0)
 		return IRQ_NONE;
-	}
 
 	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
-	if (flags <= 0) {
-		rtc_unlock(m41t80->rtc);
+	if (flags <= 0)
 		return IRQ_NONE;
-	}
 
 	if (flags & M41T80_FLAGS_AF) {
 		flags &= ~M41T80_FLAGS_AF;
@@ -188,8 +184,6 @@ static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
 		i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
 					  flags_afe);
 	}
-
-	rtc_unlock(m41t80->rtc);
 
 	return IRQ_HANDLED;
 }

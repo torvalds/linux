@@ -93,6 +93,7 @@ struct rzg3e_thermal_info {
  * @info: chip type specific information
  * @trmval0: calibration value 0 (b)
  * @trmval1: calibration value 1 (c)
+ * @sier: cached interrupt enable register
  * @lock: protects hardware access during conversions
  */
 struct rzg3e_thermal_priv {
@@ -103,6 +104,7 @@ struct rzg3e_thermal_priv {
 	const struct rzg3e_thermal_info *info;
 	u16 trmval0;
 	u16 trmval1;
+	u32 sier;
 	struct mutex lock;
 };
 
@@ -148,12 +150,16 @@ static int rzg3e_thermal_power_on(struct rzg3e_thermal_priv *priv)
 		return ret;
 	}
 
+	/* Restore interrupt enable state */
+	writel(priv->sier, priv->base + TSU_SIER);
+
 	return 0;
 }
 
 static void rzg3e_thermal_power_off(struct rzg3e_thermal_priv *priv)
 {
-	/* Disable all interrupts */
+	/* Save and disable all interrupts */
+	priv->sier = readl(priv->base + TSU_SIER);
 	writel(0, priv->base + TSU_SIER);
 
 	/* Clear pending interrupts */
@@ -194,7 +200,12 @@ static u16 rzg3e_thermal_temp_to_code(struct rzg3e_thermal_priv *priv, int temp_
 	s64 numerator, denominator;
 	s64 code;
 
-	numerator = (temp_mc - info->temp_d_mc) * (priv->trmval1 - priv->trmval0);
+	/*
+	 * Perform the arithmetic in 64 bits so that it cannot overflow for
+	 * -INT_MAX/INT_MAX values passed from the thermal core or when
+	 * userspace writes arbitrary trip point temperatures.
+	 */
+	numerator = ((s64)temp_mc - info->temp_d_mc) * (priv->trmval1 - priv->trmval0);
 	denominator = info->temp_e_mc - info->temp_d_mc;
 
 	code = div64_s64(numerator, denominator) + priv->trmval0;
@@ -213,6 +224,16 @@ static int rzg3e_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 		return ret;
 
 	guard(mutex)(&priv->lock);
+
+	/* Make sure a previous conversion is not in progress */
+	ret = readl_poll_timeout(priv->base + TSU_SSR, status,
+				 !(status & TSU_SSR_CONV),
+				 TSU_POLL_DELAY_US,
+				 USEC_PER_MSEC);
+	if (ret) {
+		dev_err(priv->dev, "Timeout waiting for conversion\n");
+		goto out;
+	}
 
 	/* Clear any previous conversion status */
 	writel(TSU_SICR_ADCLR, priv->base + TSU_SICR);
@@ -241,7 +262,6 @@ static int rzg3e_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 		*temp, *temp / 1000, abs(*temp) % 1000, code);
 
 out:
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 	return ret;
 }
@@ -253,10 +273,6 @@ static int rzg3e_thermal_set_trips(struct thermal_zone_device *tz,
 	u16 low_code, high_code;
 	u32 val;
 	int ret;
-
-	/* Hardware requires low < high */
-	if (low >= high)
-		return -EINVAL;
 
 	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret < 0)
@@ -293,11 +309,9 @@ static int rzg3e_thermal_set_trips(struct thermal_zone_device *tz,
 	/* Enable comparison with "out of range" mode (CMPCOND=0) */
 	writel(TSU_CMSR_CMPEN, priv->base + TSU_CMSR);
 
-	/* Unmask compare IRQ and start a conversion to evaluate window */
+	/* Unmask compare IRQ */
 	writel(TSU_SIER_CMPIE, priv->base + TSU_SIER);
-	writel(TSU_STRGR_ADST, priv->base + TSU_STRGR);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 
 	return 0;
@@ -469,7 +483,6 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(dev, "Failed to add hwmon sysfs attributes\n");
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	dev_info(dev, "RZ/G3E thermal sensor registered\n");
@@ -499,15 +512,19 @@ static int rzg3e_thermal_runtime_resume(struct device *dev)
 static int rzg3e_thermal_suspend(struct device *dev)
 {
 	struct rzg3e_thermal_priv *priv = dev_get_drvdata(dev);
+	bool active = pm_runtime_active(dev);
+	int ret;
 
 	/* If device is active, power it off */
-	if (pm_runtime_active(dev))
+	if (active)
 		rzg3e_thermal_power_off(priv);
 
 	/* Assert reset to ensure clean state after resume */
-	reset_control_assert(priv->rstc);
+	ret = reset_control_assert(priv->rstc);
+	if (ret && active)
+		rzg3e_thermal_power_on(priv);
 
-	return 0;
+	return ret;
 }
 
 static int rzg3e_thermal_resume(struct device *dev)

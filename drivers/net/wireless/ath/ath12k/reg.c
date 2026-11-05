@@ -33,7 +33,9 @@ static bool ath12k_regdom_changes(struct ieee80211_hw *hw, char *alpha2)
 {
 	const struct ieee80211_regdomain *regd;
 
-	regd = rcu_dereference_rtnl(hw->wiphy->regd);
+	guard(rcu)();
+
+	regd = get_wiphy_regdom(hw->wiphy);
 	/* This can happen during wiphy registration where the previous
 	 * user request is received before we update the regd received
 	 * from firmware.
@@ -122,9 +124,7 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 					    "failed set INIT Country code: %d\n", ret);
 		}
 
-		wiphy_lock(wiphy);
 		ath12k_mac_11d_scan_stop(ar);
-		wiphy_unlock(wiphy);
 
 		ar->regdom_set_by_user = true;
 	}

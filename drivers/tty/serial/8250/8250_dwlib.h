@@ -13,6 +13,7 @@
 #include "8250.h"
 
 /* Offsets for the DesignWare specific registers */
+#define DW_UART_SRBR_0	0x0c /* Shadow Receive Buffer Register */
 #define DW_UART_USR	0x1f /* UART Status Register */
 #define DW_UART_DMASA	0xa8 /* DMA Software Ack */
 #define DW_UART_TCR	0xac /* Transceiver Control Register (RS485) */
@@ -79,7 +80,7 @@
 
 struct dw8250_port_data {
 	/* Port properties */
-	int			line;
+	struct uart_8250_port *uport;
 
 	/* DMA operations */
 	struct uart_8250_dma	dma;
@@ -90,6 +91,10 @@ struct dw8250_port_data {
 
 	/* RS485 variables */
 	bool			hw_rs485_support;
+
+	/* Register offsets */
+	/* Shadow RBR (if not defined RBR will be used) */
+	int		srbr;
 };
 
 void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, const struct ktermios *old);

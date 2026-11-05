@@ -53,6 +53,14 @@ TIMECHART OPTIONS
 -f::
 --force::
 	Don't complain, do it.
+--tui::
+	Rather than writing an SVG file, interactively display the timechart
+	in the terminal using the 'ttimechart' python script (see
+	linkperf:perf-script[1]). The script requires the perf python module
+	and the python 'textual' library. The CPU, task, I/O and summary views
+	can be zoomed ('+'/'-'), panned (shift+arrows) and the state of the
+	selected row at the cursor is described. The -i, -P, -T and -p options
+	are passed to the script, other output options are ignored.
 --symfs=<directory[,layout]>::
         Look for files with symbols relative to this directory. The optional
         layout can be 'hierarchy' (default, matches full path) or 'flat'

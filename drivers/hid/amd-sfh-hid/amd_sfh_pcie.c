@@ -20,9 +20,9 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/string_choices.h>
 
 #include "amd_sfh_pcie.h"
+#include "amd_sfh_sysfs.h"
 #include "sfh1_1/amd_sfh_init.h"
 
 #define DRIVER_NAME	"pcie_mp2_amd"
@@ -41,6 +41,8 @@ module_param_named(sensor_mask, sensor_mask_override, int, 0444);
 MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
 
 static bool intr_disable = true;
+module_param_named(intr_disable, intr_disable, bool, 0444);
+MODULE_PARM_DESC(intr_disable, "override the interrupt disable sensor bit");
 
 static int amd_sfh_wait_response_v2(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
 {
@@ -313,6 +315,13 @@ static const struct dmi_system_id dmi_sfh_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook x360 435 G7"),
 		},
 	},
+	{
+		.callback = mp2_disable_intr,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VivoBook_ASUSLaptop TP420UA_TM420UA"),
+		},
+	},
 	{}
 };
 
@@ -329,57 +338,6 @@ static const struct dmi_system_id dmi_nodevs[] = {
 		},
 	},
 	{ }
-};
-
-static ssize_t hpd_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-
-	return sysfs_emit(buf, "%s\n", str_enabled_disabled(mp2->dev_en.is_hpd_enabled));
-}
-
-static ssize_t hpd_store(struct device *dev,
-			 struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-	bool enabled;
-	int ret;
-
-	ret = kstrtobool(buf, &enabled);
-	if (ret)
-		return ret;
-
-	mp2->sfh1_1_ops->toggle_hpd(mp2, enabled);
-
-	return count;
-}
-static DEVICE_ATTR_RW(hpd);
-
-static umode_t sfh_attr_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-
-	if (!mp2->sfh1_1_ops || !mp2->dev_en.is_hpd_present)
-		return 0;
-
-	return attr->mode;
-}
-
-static struct attribute *sfh_attrs[] = {
-	&dev_attr_hpd.attr,
-	NULL,
-};
-
-static struct attribute_group sfh_attr_group = {
-	.attrs = sfh_attrs,
-	.is_visible = sfh_attr_is_visible,
-};
-
-static const struct attribute_group *amd_sfh_groups[] = {
-	&sfh_attr_group,
-	NULL,
 };
 
 static DEFINE_IDA(sfh_tm_ida);
@@ -439,7 +397,7 @@ static void sfh1_1_init_work(struct work_struct *work)
 	amd_sfh_clear_intr(mp2);
 	mp2->init_done = 1;
 
-	rc = sysfs_update_group(&mp2->pdev->dev.kobj, &sfh_attr_group);
+	rc = amd_sfh_update_sysfs(mp2);
 	if (rc)
 		dev_warn(&mp2->pdev->dev, "failed to update sysfs group\n");
 
@@ -598,6 +556,7 @@ static SIMPLE_DEV_PM_OPS(amd_mp2_pm_ops, amd_mp2_pci_suspend,
 static const struct pci_device_id amd_mp2_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2) },
 	{ PCI_DEVICE_DATA(AMD, MP2_1_1, MP2_VER_1_1) },
+	{ PCI_DEVICE_DATA(AMD, MP2_1_2, MP2_VER_1_2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, amd_mp2_pci_tbl);

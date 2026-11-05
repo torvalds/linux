@@ -100,6 +100,10 @@ struct target_mem_chunk {
 		void __iomem *ioaddr;
 		void *addr;
 	} v;
+
+	dma_addr_t paddr_unaligned;
+	void *vaddr_unaligned;
+	u32 total_size;
 };
 
 struct target_info {

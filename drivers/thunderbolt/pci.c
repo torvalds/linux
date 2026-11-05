@@ -18,6 +18,7 @@
 #include <linux/property.h>
 #include <linux/string_helpers.h>
 #include <linux/suspend.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -106,6 +107,82 @@ static void nhi_pci_check_iommu(struct tb_nhi_pci *nhi_pci)
 	nhi->iommu_dma_protection = port_ok;
 	dev_dbg(nhi->dev, "IOMMU DMA protection is %s\n",
 		str_enabled_disabled(port_ok));
+}
+
+static bool add_link(struct tb_nhi *nhi, struct pci_dev *pdev)
+{
+	const struct device_link *link;
+
+	link = device_link_add(&pdev->dev, nhi->dev,
+			       DL_FLAG_AUTOREMOVE_SUPPLIER |
+			       DL_FLAG_PM_RUNTIME);
+	if (!link) {
+		dev_warn(nhi->dev, "device link creation from %s failed\n",
+			 dev_name(&pdev->dev));
+		return false;
+	}
+
+	dev_dbg(nhi->dev, "created link from %s\n", dev_name(&pdev->dev));
+	return true;
+}
+
+/*
+ * During suspend the Thunderbolt controller is reset and all PCIe
+ * tunnels are lost. The NHI driver will try to reestablish all tunnels
+ * during resume. This adds device links between the tunneled PCIe
+ * downstream ports and the NHI so that the device core will make sure
+ * NHI is resumed first before the rest.
+ */
+static bool nhi_pci_add_links(struct tb_nhi *nhi)
+{
+	struct pci_dev *nhi_pdev = to_pci_dev(nhi->dev);
+	struct pci_dev *upstream, *pdev;
+	bool ret;
+
+	if (!x86_apple_machine)
+		return false;
+
+	switch (nhi_pdev->device) {
+	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_NHI:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_NHI:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI:
+		break;
+	default:
+		return false;
+	}
+
+	upstream = pci_upstream_bridge(nhi_pdev);
+	while (upstream) {
+		if (!pci_is_pcie(upstream))
+			return false;
+		if (pci_pcie_type(upstream) == PCI_EXP_TYPE_UPSTREAM)
+			break;
+		upstream = pci_upstream_bridge(upstream);
+	}
+
+	if (!upstream)
+		return false;
+
+	/*
+	 * For each hotplug downstream port, create add device link back
+	 * to NHI so that PCIe tunnels can be re-established after
+	 * sleep.
+	 */
+	ret = false;
+	for_each_pci_bridge(pdev, upstream->subordinate) {
+		if (!pci_is_pcie(pdev))
+			continue;
+		if (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM ||
+		    !pdev->is_pciehp)
+			continue;
+
+		ret |= add_link(nhi, pdev);
+	}
+
+	return ret;
 }
 
 static int nhi_pci_init_msi(struct tb_nhi *nhi)
@@ -251,6 +328,7 @@ static bool nhi_pci_is_present(struct tb_nhi *nhi)
 }
 
 static const struct tb_nhi_ops pci_nhi_default_ops = {
+	.add_links = nhi_pci_add_links,
 	.pre_nvm_auth = nhi_pci_start_dma_port,
 	.post_nvm_auth = nhi_pci_complete_dma_port,
 	.request_ring_irq = nhi_pci_ring_request_msix,
@@ -421,6 +499,40 @@ static int icl_nhi_resume(struct tb_nhi *nhi)
 	return 0;
 }
 
+static bool icl_nhi_add_links(struct tb_nhi *nhi)
+{
+	struct pci_dev *nhi_pdev = to_pci_dev(nhi->dev);
+	struct pci_bus *bus = nhi_pdev->bus;
+	struct pci_dev *pdev;
+	bool ret;
+
+	if (!x86_apple_machine)
+		return false;
+
+	/*
+	 * On integrated controllers the tunneled PCIe root ports are
+	 * directly under the host bridge.
+	 */
+	if (!pci_is_root_bus(bus))
+		return false;
+
+	ret = false;
+	for_each_pci_bridge(pdev, bus) {
+		switch (nhi_pdev->device) {
+		case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+			if (pdev->device == 0x8a1d || pdev->device == 0x8a1f)
+				ret |= add_link(nhi, pdev);
+			break;
+		case PCI_DEVICE_ID_INTEL_ICL_NHI1:
+			if (pdev->device == 0x8a21 || pdev->device == 0x8a23)
+				ret |= add_link(nhi, pdev);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static void icl_nhi_shutdown(struct tb_nhi *nhi)
 {
 	nhi_pci_release_irq(nhi);
@@ -430,6 +542,7 @@ static void icl_nhi_shutdown(struct tb_nhi *nhi)
 
 static const struct tb_nhi_ops icl_nhi_ops = {
 	.init = icl_nhi_resume,
+	.add_links = icl_nhi_add_links,
 	.suspend_noirq = icl_nhi_suspend_noirq,
 	.resume_noirq = icl_nhi_resume,
 	.runtime_suspend = icl_nhi_suspend,

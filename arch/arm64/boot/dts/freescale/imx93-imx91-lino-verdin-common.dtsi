@@ -1,0 +1,175 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (c) Toradex
+ *
+ * Lino iMX93/iMX91 SoM on Lino-Verdin Adapter
+ *
+ * https://www.toradex.com/computer-on-modules/verdin-arm-family
+ * https://www.toradex.com/computer-on-modules/lino-arm-family/nxp-imx93
+ * https://www.toradex.com/computer-on-modules/lino-arm-family/nxp-imx91
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/net/ti-dp83867.h>
+
+/ {
+	verdin_i2s1_mclk: clock-24576000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
+
+	verdin_csi1_mclk: clock-25000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		id-gpios = <&adapter_gpio_expander 1 GPIO_ACTIVE_HIGH>;
+		self-powered;
+		type = "micro";
+		vbus-supply = <&reg_usb1_vbus>;
+
+		port {
+			usb_1_connector: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
+			};
+		};
+	};
+
+	verdin_gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		status = "disabled";
+
+		key-wakeup {
+			debounce-interval = <10>;
+			/* Verdin CTRL_WAKE1_MICO# (SODIMM 252) */
+			gpios = <&adapter_gpio_expander 2 GPIO_ACTIVE_LOW>;
+			label = "Wake-Up";
+			wakeup-source;
+			linux,code = <KEY_WAKEUP>;
+		};
+	};
+};
+
+/* Lino ETH_1 */
+&eqos {
+	phy-handle = <&ethphy1>;
+	phy-mode = "rgmii-id";
+};
+
+/* Lino I2C_1 */
+&lpi2c1 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9543";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		verdin_i2c_1: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
+		adapter_i2c: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			adapter_gpio_expander: gpio@21 {
+				compatible = "nxp,pcal6416";
+				reg = <0x21>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_gpio_11>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&gpio1>;
+				interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				gpio-line-names =
+					"SODIMM_244", /* Verdin PCIE_1_RESET#    */
+					"SODIMM_161", /* Verdin USB_1_ID         */
+					"SODIMM_252", /* Verdin CTRL_WAKE1_MICO# */
+					"ETH_1_INT#",
+					"CTRL_EN_WIFI",
+					"",
+					"",
+					"",
+					"SODIMM_42", /* Verdin I2S_2_BCLK  */
+					"SODIMM_48", /* Verdin I2S_2_D_IN  */
+					"SODIMM_46", /* Verdin I2S_2_D_OUT */
+					"SODIMM_44", /* Verdin I2S_2_SYNC  */
+					"SODIMM_64", /* Verdin QSPI_1_CS2# */
+					"SODIMM_66", /* Verdin QSPI_1_DQS  */
+					"SODIMM_60", /* Verdin QSPI_1_IO2  */
+					"SODIMM_62"; /* Verdin QSPI_1_IO3  */
+
+				verdin_pcie_1_reset_hog: pcie-1-reset-hog {
+					gpio-hog;
+					/* Verdin PCIE_1_RESET# (SODIMM 244) */
+					gpios = <0 GPIO_ACTIVE_LOW>;
+					line-name = "PCIE_1_RESET#";
+					output-low;
+
+					status = "disabled";
+				};
+			};
+
+			/* Current measurement into module VCC */
+			hwmon@40 {
+				compatible = "ti,ina219";
+				reg = <0x40>;
+				shunt-resistor = <10000>;
+			};
+		};
+	};
+};
+
+/* Lino UART_1 */
+&lpuart6 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+		fw-init-baudrate = <3000000>;
+	};
+};
+
+/* Lino Ethernet MDIO */
+&mdio {
+	status = "okay";
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+		interrupt-parent = <&adapter_gpio_expander>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+	};
+};
+
+/* Lino USB_1 */
+&usbotg1 {
+	port {
+		usb1_drd_sw: endpoint {
+			remote-endpoint = <&usb_1_connector>;
+		};
+	};
+};
+
+/* Lino SD_2 */
+&usdhc3 {
+	keep-power-in-suspend;
+	non-removable;
+
+	status = "okay";
+};

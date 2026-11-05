@@ -94,9 +94,6 @@
 #endif
 
 /*  Any bigger and the PTE disappears.  */
-#define pgd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__,\
-		pgd_val(e))
 
 /*
  * Page Protection Constants. Includes (in this variant) cache attributes.

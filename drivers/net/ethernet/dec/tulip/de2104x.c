@@ -373,7 +373,7 @@ static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
 		  rx_tail, status, len);
 
 	if ((status & 0x38000300) != 0x0300) {
-		/* Ingore earlier buffers. */
+		/* Ignore earlier buffers. */
 		if ((status & 0xffff) != 0x7fff) {
 			netif_warn(de, rx_err, de->dev,
 				   "Oversized Ethernet frame spanned multiple buffers, status %08x!\n",

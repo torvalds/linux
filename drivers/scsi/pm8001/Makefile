@@ -4,6 +4,7 @@
 #
 # Copyright (C) 2008-2009  USI Co., Ltd.
 
+CONTEXT_ANALYSIS := y
 
 obj-$(CONFIG_SCSI_PM8001) += pm80xx.o
 

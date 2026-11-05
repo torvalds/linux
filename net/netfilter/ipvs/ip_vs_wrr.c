@@ -176,7 +176,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		list_for_each_entry_continue_rcu(dest,
 						 &svc->destinations,
 						 n_list) {
-			if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
+			if (!ip_vs_dest_is_overloaded(dest) &&
 			    atomic_read(&dest->weight) >= mark->cw)
 				goto found;
 			if (dest == stop)

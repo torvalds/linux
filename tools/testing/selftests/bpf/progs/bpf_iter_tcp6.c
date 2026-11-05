@@ -135,8 +135,7 @@ static int dump_tcp6_sock(struct seq_file *seq, struct tcp6_sock *tp,
 		       icsk->icsk_probes_out,
 		       sock_i_ino(sp),
 		       sp->sk_refcnt.refs.counter);
-	BPF_SEQ_PRINTF(seq, "%pK %lu %lu %u %u %d\n",
-		       tp,
+	BPF_SEQ_PRINTF(seq, "0 %lu %lu %u %u %d\n",
 		       jiffies_to_clock_t(icsk->icsk_rto),
 		       jiffies_to_clock_t(icsk->icsk_ack.ato),
 		       (icsk->icsk_ack.quick << 1) | inet_csk_in_pingpong_mode(icsk),
@@ -170,10 +169,10 @@ static int dump_tw_sock(struct seq_file *seq, struct tcp_timewait_sock *ttw,
 		       dest->s6_addr32[0], dest->s6_addr32[1],
 		       dest->s6_addr32[2], dest->s6_addr32[3], destp);
 
-	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %pK\n",
+	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d 0\n",
 		       tw->tw_substate, 0, 0,
 		       3, jiffies_delta_to_clock_t(delta), 0, 0, 0, 0,
-		       tw->tw_refcnt.refs.counter, tw);
+		       tw->tw_refcnt.refs.counter);
 
 	return 0;
 }
@@ -201,9 +200,9 @@ static int dump_req_sock(struct seq_file *seq, struct tcp_request_sock *treq,
 		       dest->s6_addr32[0], dest->s6_addr32[1],
 		       dest->s6_addr32[2], dest->s6_addr32[3],
 		       bpf_ntohs(irsk->ir_rmt_port));
-	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %pK\n",
+	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d 0\n",
 		       TCP_SYN_RECV, 0, 0, 1, jiffies_to_clock_t(ttd),
-		       req->num_timeout, uid, 0, 0, 0, req);
+		       req->num_timeout, uid, 0, 0, 0);
 
 	return 0;
 }

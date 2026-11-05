@@ -50,6 +50,7 @@ u8:1                          tcp_usec_ts             read_mostly         read_m
 u32                           chrono_start            read_write                              tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u32[3]                        chrono_stat             read_write                              tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u8:2                          chrono_type             read_write                              tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
+u8                            tcp_nospace             read_mostly         read_mostly         tcp_check_space(tx);tcp_check_space(rx)
 u8:1                          rate_app_limited                            read_write          tcp_rate_gen
 u8:1                          fastopen_connect
 u8:1                          fastopen_no_cookie
@@ -151,6 +152,7 @@ u32                           urg_seq
 unsigned_int                  keepalive_time
 unsigned_int                  keepalive_intvl
 int                           linger2
+u32                           bpf_tcp_ops_flags       read_mostly         read_mostly         bpf_tcp_ops_hdr_opt_len,bpf_skops_write_hdr_opt(tx);bpf_tcp_ops_parse_hdr,tcp_bpf_rtt,tcp_cleanup_rbuf,tcp_queue_rcv,tcp_ofo_queue,tcp_fastopen_add_skb(rx);
 u8                            bpf_sock_ops_cb_flags
 u8:1                          bpf_chg_cc_inprogress
 u16                           timeout_rehash

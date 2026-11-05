@@ -28,6 +28,7 @@
 	PERF_SAMPLE_CODE_PAGE_SIZE | \
 	PERF_SAMPLE_AUX)
 
+struct perf_session;
 struct perf_tool;
 struct evsel;
 struct evlist;
@@ -36,6 +37,7 @@ union perf_event;
 struct perf_tool *aslr_tool__new(struct perf_tool *delegate);
 void aslr_tool__delete(struct perf_tool *tool);
 
+void aslr_tool__register_session(struct perf_tool *tool, struct perf_session *session);
 void aslr_tool__strip_attr_event(union perf_event *event, struct evlist *evlist);
 int aslr_tool__cache_orig_attrs(struct perf_tool *tool, struct evsel *evsel);
 void aslr_tool__strip_evlist(const struct perf_tool *tool, struct evlist *evlist);

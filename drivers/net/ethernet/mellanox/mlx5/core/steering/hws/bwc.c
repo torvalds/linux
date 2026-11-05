@@ -460,7 +460,9 @@ int mlx5hws_bwc_queue_poll(struct mlx5hws_context *ctx,
 		got_comp = !!ret;
 
 		if (unlikely(!got_comp && time_after(jiffies, timeout))) {
-			mlx5hws_err(ctx, "BWC poll error: polling queue %d - TIMEOUT\n", queue_id);
+			mlx5hws_err(ctx,
+				    "BWC poll error: polling queue %d - TIMEOUT (%d sec)\n",
+				    queue_id, MLX5HWS_BWC_POLLING_TIMEOUT);
 			return -ETIMEDOUT;
 		}
 	}

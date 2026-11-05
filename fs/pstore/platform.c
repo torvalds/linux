@@ -240,9 +240,14 @@ static void allocate_buf_for_compression(void)
 		return;
 	}
 
-	/* A non-NULL big_oops_buf indicates compression is available. */
-	big_oops_buf = buf;
 	max_compressed_size = compressed_size;
+	/*
+	 * A non-NULL big_oops_buf indicates compression is available.
+	 * pstore_dump() tests it without psinfo_lock and then reads
+	 * max_compressed_size, which is stored above. Publish the buffer
+	 * with release semantics.
+	 */
+	smp_store_release(&big_oops_buf, buf);
 
 	pr_info("Using crash dump compression: %s\n", compress);
 }
@@ -316,7 +321,8 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		record.part = part;
 		record.buf = psinfo->buf;
 
-		dst = big_oops_buf ?: psinfo->buf;
+		/* Pairs with the smp_store_release() in allocate_buf_for_compression(). */
+		dst = smp_load_acquire(&big_oops_buf) ?: psinfo->buf;
 		dst_size = max_compressed_size ?: psinfo->bufsize;
 
 		/* Write dump header. */

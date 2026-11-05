@@ -52,7 +52,11 @@ int access(const char *path, int amode)
 static __attribute__((unused))
 int _sys_ftruncate64(int fd, uint32_t length0, uint32_t length1)
 {
+#if defined(__NOLIBC_PAD_64BIT_SYSCALL_ARGUMENT_PAIR)
+	return __nolibc_syscall4(__NR_ftruncate64, fd, 0, length0, length1);
+#else
 	return __nolibc_syscall3(__NR_ftruncate64, fd, length0, length1);
+#endif
 }
 #define _sys_ftruncate64 _sys_ftruncate64
 #endif

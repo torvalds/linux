@@ -861,7 +861,7 @@ static int ubi_get_ec_info(struct ubi_device *ubi, struct ubi_ecinfo_req __user 
 		int ec;
 
 		if (ubi_io_is_bad(ubi, peb)) {
-			if (__put_user(UBI_UNKNOWN, ureq->erase_counters+read_cnt))
+			if (put_user(UBI_UNKNOWN, ureq->erase_counters+read_cnt))
 				return -EFAULT;
 
 			continue;
@@ -877,7 +877,7 @@ static int ubi_get_ec_info(struct ubi_device *ubi, struct ubi_ecinfo_req __user 
 
 		spin_unlock(&ubi->wl_lock);
 
-		if (__put_user(ec, ureq->erase_counters+read_cnt))
+		if (put_user(ec, ureq->erase_counters+read_cnt))
 			return -EFAULT;
 
 	}

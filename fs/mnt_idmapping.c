@@ -28,7 +28,7 @@ struct mnt_idmap {
  * mapping. This means that {g,u}id 0 is mapped to {g,u}id 0, {g,u}id 1 is
  * mapped to {g,u}id 1, [...], {g,u}id 1000 to {g,u}id 1000, [...].
  */
-struct mnt_idmap nop_mnt_idmap = {
+const struct mnt_idmap nop_mnt_idmap = {
 	.count	= REFCOUNT_INIT(1),
 };
 EXPORT_SYMBOL_GPL(nop_mnt_idmap);
@@ -37,7 +37,7 @@ EXPORT_SYMBOL_GPL(nop_mnt_idmap);
  * Carries the invalid idmapping of a full 0-4294967295 {g,u}id range.
  * This means that all {g,u}ids are mapped to INVALID_VFS{G,U}ID.
  */
-struct mnt_idmap invalid_mnt_idmap = {
+const struct mnt_idmap invalid_mnt_idmap = {
 	.count	= REFCOUNT_INIT(1),
 };
 EXPORT_SYMBOL_GPL(invalid_mnt_idmap);
@@ -77,7 +77,7 @@ static inline bool initial_idmapping(const struct user_namespace *ns)
  * returned.
  */
 
-vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
+vfsuid_t make_vfsuid(const struct mnt_idmap *idmap,
 		     struct user_namespace *fs_userns,
 		     kuid_t kuid)
 {
@@ -117,7 +117,7 @@ EXPORT_SYMBOL_GPL(make_vfsuid);
  * If @kgid has no mapping in either @idmap or @fs_userns INVALID_GID is
  * returned.
  */
-vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
+vfsgid_t make_vfsgid(const struct mnt_idmap *idmap,
 		     struct user_namespace *fs_userns, kgid_t kgid)
 {
 	gid_t gid;
@@ -147,7 +147,7 @@ EXPORT_SYMBOL_GPL(make_vfsgid);
  *
  * Return: @vfsuid mapped into the filesystem idmapping
  */
-kuid_t from_vfsuid(struct mnt_idmap *idmap,
+kuid_t from_vfsuid(const struct mnt_idmap *idmap,
 		   struct user_namespace *fs_userns, vfsuid_t vfsuid)
 {
 	uid_t uid;
@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(from_vfsuid);
  *
  * Return: @vfsgid mapped into the filesystem idmapping
  */
-kgid_t from_vfsgid(struct mnt_idmap *idmap,
+kgid_t from_vfsgid(const struct mnt_idmap *idmap,
 		   struct user_namespace *fs_userns, vfsgid_t vfsgid)
 {
 	gid_t gid;
@@ -312,10 +312,12 @@ struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns)
  *
  * Return: @idmap with reference count bumped if @not_mnt_idmap isn't passed.
  */
-struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap)
+const struct mnt_idmap *mnt_idmap_get(const struct mnt_idmap *idmap)
 {
+	struct mnt_idmap *nonconst_idmap = (struct mnt_idmap *)idmap;
+
 	if (idmap != &nop_mnt_idmap && idmap != &invalid_mnt_idmap)
-		refcount_inc(&idmap->count);
+		refcount_inc(&nonconst_idmap->count);
 
 	return idmap;
 }
@@ -328,17 +330,20 @@ EXPORT_SYMBOL_GPL(mnt_idmap_get);
  * If this is a non-initial idmapping, put the reference count when a mount is
  * released and free it if we're the last user.
  */
-void mnt_idmap_put(struct mnt_idmap *idmap)
+void mnt_idmap_put(const struct mnt_idmap *idmap)
 {
+	struct mnt_idmap *nonconst_idmap = (struct mnt_idmap *)idmap;
+
 	if (idmap != &nop_mnt_idmap && idmap != &invalid_mnt_idmap &&
-	    refcount_dec_and_test(&idmap->count))
-		free_mnt_idmap(idmap);
+	    refcount_dec_and_test(&nonconst_idmap->count))
+		free_mnt_idmap(nonconst_idmap);
 }
 EXPORT_SYMBOL_GPL(mnt_idmap_put);
 
-int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map)
+int statmount_mnt_idmap(const struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map)
 {
-	struct uid_gid_map *map, *map_up;
+	const struct uid_gid_map *map;
+	struct uid_gid_map *map_up;
 	u32 idx, nr_mappings;
 
 	if (!is_valid_mnt_idmap(idmap))
@@ -358,7 +363,7 @@ int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_
 
 	for (idx = 0, nr_mappings = 0; idx < map->nr_extents; idx++) {
 		uid_t lower;
-		struct uid_gid_extent *extent;
+		const struct uid_gid_extent *extent;
 
 		if (map->nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
 			extent = &map->extent[idx];

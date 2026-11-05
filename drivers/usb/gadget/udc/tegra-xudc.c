@@ -3803,11 +3803,8 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, xudc->irq, tegra_xudc_irq, 0,
 			       dev_name(&pdev->dev), xudc);
-	if (err < 0) {
-		dev_err(xudc->dev, "failed to claim IRQ#%u: %d\n", xudc->irq,
-			err);
+	if (err < 0)
 		return err;
-	}
 
 	xudc->clks = devm_kcalloc(&pdev->dev, xudc->soc->num_clks, sizeof(*xudc->clks),
 				  GFP_KERNEL);

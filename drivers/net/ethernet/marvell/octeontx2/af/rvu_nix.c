@@ -324,15 +324,23 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 	if (lvl >= hw->cap.nix_tx_aggr_lvl) {
 		if ((nix_get_tx_link(rvu, map_func) !=
 		     nix_get_tx_link(rvu, pcifunc)) &&
-		     (rvu_get_pf(rvu->pdev, map_func) !=
-				rvu_get_pf(rvu->pdev, pcifunc)))
+		    (rvu_get_pf(rvu->pdev, map_func) !=
+		     rvu_get_pf(rvu->pdev, pcifunc))) {
+			dev_err_ratelimited(rvu->dev,
+					    "NIX TX schq %u lvl %d: pcifunc %x PF/link mismatch\n",
+					    schq, lvl, pcifunc);
 			return false;
-		else
+		} else {
 			return true;
+		}
 	}
 
-	if (map_func != pcifunc)
+	if (map_func != pcifunc) {
+		dev_err_ratelimited(rvu->dev,
+				    "NIX TX schq %u lvl %d: not owned by pcifunc %x\n",
+				    schq, lvl, pcifunc);
 		return false;
+	}
 
 	return true;
 }
@@ -1233,28 +1241,19 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 			ena = (req->rq.ena & req->rq_mask.ena) |
 				(test_bit(req->qidx, pfvf->rq_bmap) &
 				~req->rq_mask.ena);
-			if (ena)
-				__set_bit(req->qidx, pfvf->rq_bmap);
-			else
-				__clear_bit(req->qidx, pfvf->rq_bmap);
+			__assign_bit(req->qidx, pfvf->rq_bmap, ena);
 		}
 		if (req->ctype == NIX_AQ_CTYPE_SQ) {
-			ena = (req->rq.ena & req->sq_mask.ena) |
+			ena = (req->sq.ena & req->sq_mask.ena) |
 				(test_bit(req->qidx, pfvf->sq_bmap) &
 				~req->sq_mask.ena);
-			if (ena)
-				__set_bit(req->qidx, pfvf->sq_bmap);
-			else
-				__clear_bit(req->qidx, pfvf->sq_bmap);
+			__assign_bit(req->qidx, pfvf->sq_bmap, ena);
 		}
 		if (req->ctype == NIX_AQ_CTYPE_CQ) {
-			ena = (req->rq.ena & req->cq_mask.ena) |
+			ena = (req->cq.ena & req->cq_mask.ena) |
 				(test_bit(req->qidx, pfvf->cq_bmap) &
 				~req->cq_mask.ena);
-			if (ena)
-				__set_bit(req->qidx, pfvf->cq_bmap);
-			else
-				__clear_bit(req->qidx, pfvf->cq_bmap);
+			__assign_bit(req->qidx, pfvf->cq_bmap, ena);
 		}
 	}
 
@@ -4112,9 +4111,12 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 		case NIX_FLOW_KEY_TYPE_INNR_IPV4:
 			field->lid = NPC_LID_LC;
 			field->ltype_match = NPC_LT_LC_IP;
+			field->ltype_mask = NPC_LT_LC_IP_MATCH_MSK;
+
 			if (key_type == NIX_FLOW_KEY_TYPE_INNR_IPV4) {
 				field->lid = NPC_LID_LG;
 				field->ltype_match = NPC_LT_LG_TU_IP;
+				field->ltype_mask = 0xF;
 			}
 			field->hdr_offset = 12; /* SIP offset */
 			field->bytesm1 = 7; /* SIP + DIP, 8 bytes */
@@ -4133,16 +4135,18 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 					field->bytesm1 = 3; /* DIP, 4 bytes */
 				}
 			}
-			field->ltype_mask = NPC_LT_LC_IP_MATCH_MSK;
 			keyoff_marker = false;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV6:
 		case NIX_FLOW_KEY_TYPE_INNR_IPV6:
 			field->lid = NPC_LID_LC;
 			field->ltype_match = NPC_LT_LC_IP6;
+			field->ltype_mask = NPC_LT_LC_IP6_MATCH_MSK;
+
 			if (key_type == NIX_FLOW_KEY_TYPE_INNR_IPV6) {
 				field->lid = NPC_LID_LG;
 				field->ltype_match = NPC_LT_LG_TU_IP6;
+				field->ltype_mask = 0xF;
 			}
 			field->hdr_offset = 8; /* SIP offset */
 			field->bytesm1 = 31; /* SIP + DIP, 32 bytes */
@@ -4162,7 +4166,6 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 					field->bytesm1 = 15; /* DIP,16 bytes */
 				}
 			}
-			field->ltype_mask = NPC_LT_LC_IP6_MATCH_MSK;
 			break;
 		case NIX_FLOW_KEY_TYPE_TCP:
 		case NIX_FLOW_KEY_TYPE_UDP:
@@ -4974,7 +4977,7 @@ static void rvu_nix_setup_capabilities(struct rvu *rvu, int blkaddr)
 
 	/* On OcteonTx2 DWRR quantum is directly configured into each of
 	 * the transmit scheduler queues. And PF/VF drivers were free to
-	 * config any value upto 2^24.
+	 * config any value up to 2^24.
 	 * On CN10K, HW is modified, the quantum configuration at scheduler
 	 * queues is in terms of weight. And SW needs to setup a base DWRR MTU
 	 * at NIX_AF_DWRR_RPM_MTU / NIX_AF_DWRR_SDP_MTU. HW will do

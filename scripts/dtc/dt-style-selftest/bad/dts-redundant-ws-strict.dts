@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+#define SOME_MACRO(foo)					\
+	(foo) ? <1> : <2> ;
+
+/  {
+	compatible = "example,test-board";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	/* comments  { are okay  =  though ; */
+	soc:  soc@0  { /* comments  { are okay  =  though ; */
+		compatible = "simple-bus";  /* comments  { are okay  =  though ; */
+		ranges = <0 0 0 0xc0000000>;
+
+		#address-cells	= <1>;
+		#size-cells =	<1>;
+	} ;
+}; /* comments  { are okay  =  though ; */
+
+&soc	{
+	serial:	serial@20000  { /* comments  { are okay  =  though ; */
+		compatible  = "example,serial";
+		reg =  <0x20000 0x1000>;
+	}	;
+};

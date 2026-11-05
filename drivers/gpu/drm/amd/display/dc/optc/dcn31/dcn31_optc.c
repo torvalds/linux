@@ -221,6 +221,15 @@ void optc31_set_drr(
 	}
 }
 
+bool optc3_is_odm_enabled(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t num_segments = 0;
+
+	REG_GET(OPTC_DATA_SOURCE_SELECT, OPTC_NUM_OF_INPUT_SEGMENT, &num_segments);
+	return num_segments > 0;
+}
+
 void optc3_init_odm(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -503,6 +512,7 @@ static const struct timing_generator_funcs dcn31_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
+		.is_odm_enabled = optc3_is_odm_enabled,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 		.read_otg_state = optc31_read_otg_state,
 		.optc_read_reg_state = optc31_read_reg_state,

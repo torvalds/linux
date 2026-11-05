@@ -215,10 +215,6 @@ static bool __init obsolete_checksetup(char *line)
 				 * params and __setups of same names 8( */
 				if (line[n] == '\0' || line[n] == '=')
 					had_early_param = true;
-			} else if (!p->setup_func) {
-				pr_warn("Parameter %s is obsolete, ignored\n",
-					p->str);
-				return true;
 			} else if (p->setup_func(line + n))
 				return true;
 		}
@@ -278,7 +274,7 @@ static void * __init get_boot_config_from_initrd(size_t *_size)
 	int i;
 
 	if (!initrd_end || initrd_end < initrd_start ||
-	    initrd_end - initrd_start < BOOTCONFIG_MAGIC_LEN + 8)
+	    initrd_end - initrd_start < BOOTCONFIG_FOOTER_SIZE)
 		return NULL;
 
 	data = (char *)initrd_end - BOOTCONFIG_MAGIC_LEN;
@@ -336,9 +332,64 @@ static void * __init get_boot_config_from_initrd(size_t *_size)
 
 #ifdef CONFIG_BOOT_CONFIG
 
-/* Make an extra command line under given key word */
-static char * __init xbc_make_cmdline(const char *key)
+/* Check if a parameter name matches an obs_kernel_param entry */
+static bool __init match_obs_param(const char *param, const char *pattern)
 {
+	size_t n = strlen(pattern);
+
+	if (n > 0 && pattern[n - 1] == '=')
+		return parameqn(param, pattern, n - 1) && param[n - 1] == '\0';
+
+	return parameq(param, pattern);
+}
+
+/* Return true if the given param is only defined by early_param(). */
+static bool __init is_early_only_param(const char *param)
+{
+	const struct obs_kernel_param *p;
+	const struct kernel_param *kp;
+	bool has_early = false;
+
+	/* If handled by a regular module_param, it is not early-only */
+	for (kp = __start___param; kp < __stop___param; kp++) {
+		if (parameq(param, kp->name))
+			return false;
+	}
+
+	/* Check __setup / early_param table */
+	for (p = __setup_start; p < __setup_end; p++) {
+		if (match_obs_param(param, p->str)) {
+			if (!p->early)
+				return false;
+			has_early = true;
+		}
+	}
+	return has_early;
+}
+
+struct xbc_filter_data {
+	bool warn;
+};
+
+static bool __init xbc_kernel_param_filter(struct xbc_node *node,
+					   const char *key, void *data)
+{
+	struct xbc_filter_data *fdata = data;
+
+	if (is_early_only_param(key)) {
+		if (fdata && fdata->warn)
+			pr_warn("bootconfig: early_param 'kernel.%s' cannot be applied from bootconfig, skipping\n",
+				key);
+		return false;
+	}
+	return true;
+}
+
+/* Make an extra command line under given key word */
+static char * __init xbc_make_cmdline(const char *key, bool is_kernel)
+{
+	struct xbc_filter_data fdata = { .warn = true };
+	xbc_cmdline_filter_fn filter = is_kernel ? xbc_kernel_param_filter : NULL;
 	struct xbc_node *root;
 	char *new_cmdline;
 	int ret, len = 0;
@@ -347,8 +398,12 @@ static char * __init xbc_make_cmdline(const char *key)
 	if (!root)
 		return NULL;
 
-	/* Count required buffer size */
-	len = xbc_snprint_cmdline(NULL, 0, root);
+	/*
+	 * Pass 1: Count required buffer size. Emit warnings for skipped early
+	 * params in this pass so they are logged even if all parameters under
+	 * @key are skipped and len becomes 0.
+	 */
+	len = xbc_snprint_cmdline_filter(NULL, 0, root, filter, &fdata);
 	if (len <= 0)
 		return NULL;
 
@@ -358,7 +413,9 @@ static char * __init xbc_make_cmdline(const char *key)
 		return NULL;
 	}
 
-	ret = xbc_snprint_cmdline(new_cmdline, len + 1, root);
+	/* Pass 2: Render into buffer with warnings suppressed */
+	fdata.warn = false;
+	ret = xbc_snprint_cmdline_filter(new_cmdline, len + 1, root, filter, &fdata);
 	if (ret < 0 || ret > len) {
 		pr_err("Failed to print extra kernel cmdline.\n");
 		memblock_free(new_cmdline, len + 1);
@@ -432,9 +489,9 @@ static void __init setup_boot_config(void)
 		 * before this series.
 		 */
 		if (!from_embedded || !xbc_embedded_cmdline_applied())
-			extra_command_line = xbc_make_cmdline("kernel");
+			extra_command_line = xbc_make_cmdline("kernel", true);
 		/* Also, "init." keys are init arguments */
-		extra_init_args = xbc_make_cmdline("init");
+		extra_init_args = xbc_make_cmdline("init", false);
 	}
 	return;
 }
@@ -548,12 +605,12 @@ static int __init unknown_bootoption(char *param, char *val,
 		/* Environment option */
 		unsigned int i;
 		for (i = 0; envp_init[i]; i++) {
+			if (!strncmp(param, envp_init[i], len+1))
+				break;
 			if (i == MAX_INIT_ENVS) {
 				panic_later = "env";
 				panic_param = param;
 			}
-			if (!strncmp(param, envp_init[i], len+1))
-				break;
 		}
 		envp_init[i] = param;
 	} else {
@@ -581,7 +638,7 @@ static int __init init_setup(char *str)
 	 * the shell think it should execute a script with such name.
 	 * So we ignore all arguments entered _before_ init=... [MJ]
 	 */
-	for (i = 1; i < MAX_INIT_ARGS; i++)
+	for (i = 1; i <= MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
 	return 1;
 }
@@ -594,7 +651,7 @@ static int __init rdinit_setup(char *str)
 	ramdisk_execute_command = str;
 	ramdisk_execute_command_set = true;
 	/* See "auto" comment in init_setup */
-	for (i = 1; i < MAX_INIT_ARGS; i++)
+	for (i = 1; i <= MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
 	return 1;
 }
@@ -1028,12 +1085,12 @@ void start_kernel(void)
 				  __stop___param - __start___param,
 				  -1, -1, NULL, &unknown_bootoption);
 	print_unknown_bootoptions();
-	if (!IS_ERR_OR_NULL(after_dashes))
-		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
-			   NULL, set_init_arg);
 	if (extra_init_args)
 		parse_args("Setting extra init args", extra_init_args,
 			   NULL, 0, -1, -1, NULL, set_init_arg);
+	if (!IS_ERR_OR_NULL(after_dashes))
+		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
+			   NULL, set_init_arg);
 
 	/* Architectural and non-timekeeping rng init, before allocator init */
 	random_init_early(command_line);
@@ -1535,7 +1592,7 @@ static void mark_readonly(void)
 		flush_module_init_free_work();
 		jump_label_init_ro();
 		mark_rodata_ro();
-		debug_checkwx();
+		pgtable_checkwx();
 		rodata_test();
 	} else if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
 		pr_info("Kernel memory protection disabled.\n");

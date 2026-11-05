@@ -145,7 +145,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 		if (skb_has_frag_list(frag) && __skb_linearize(frag))
 			goto err;
 		*buf = NULL;
-		frag = skb_unshare(frag, GFP_ATOMIC);
+		frag = skb_unclone_full(frag, GFP_ATOMIC);
 		if (unlikely(!frag))
 			goto err;
 		head = *headbuf = frag;

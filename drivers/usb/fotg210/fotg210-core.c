@@ -1,37 +1,50 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Central probing code for the FOTG210 dual role driver
- * We register one driver for the hardware and then we decide
- * whether to proceed with probing the host or the peripheral
- * driver.
+ * Central probing code for the FOTG210 dual-role controller.
+ *
+ * The role is selected once at probe time.  The driver does not attempt to
+ * switch between the host and peripheral blocks while it is running.
  */
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/string_choices.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/usb/otg.h>
 
 #include "fotg210.h"
 
-/* Role Register 0x80 */
-#define FOTG210_RR			0x80
-#define FOTG210_RR_ID			BIT(21) /* 1 = B-device, 0 = A-device */
-#define FOTG210_RR_CROLE		BIT(20) /* 1 = device, 0 = host */
+/* OTG control/status register. */
+#define FOTG210_OTGCSR			0x80
+#define FOTG210_OTGCSR_ID		BIT(21)
+#define FOTG210_OTGCSR_CROLE		BIT(20)
+#define FOTG210_OTGCSR_A_VBUS_VLD	BIT(19)
+#define FOTG210_OTGCSR_A_BUS_DROP	BIT(5)
+#define FOTG210_OTGCSR_A_BUS_REQ	BIT(4)
+#define FOTG210_OTGCSR_B_HNP_EN		BIT(1)
 
-/*
- * Gemini-specific initialization function, only executed on the
- * Gemini SoC using the global misc control register.
- *
- * The gemini USB blocks are connected to either Mini-A (host mode) or
- * Mini-B (peripheral mode) plugs. There is no role switch support on the
- * Gemini SoC, just either-or.
- */
+/* OTG interrupt status and enable registers. */
+#define FOTG210_OTGISR			0x84
+#define FOTG210_OTGIEN			0x88
+
+/* Global interrupt mask register; set bits mask the corresponding source. */
+#define FOTG210_GINTM			0xc4
+#define FOTG210_GINTM_INT_POLARITY	BIT(3)
+#define FOTG210_GINTM_MHC_INT		BIT(2)
+#define FOTG210_GINTM_MOTG_INT		BIT(1)
+#define FOTG210_GINTM_MDEV_INT		BIT(0)
+
+/* Gemini global miscellaneous-control register. */
 #define GEMINI_GLOBAL_MISC_CTRL		0x30
 #define GEMINI_MISC_USB0_WAKEUP		BIT(14)
 #define GEMINI_MISC_USB1_WAKEUP		BIT(15)
@@ -40,94 +53,133 @@
 #define GEMINI_MISC_USB0_MINI_B		BIT(29)
 #define GEMINI_MISC_USB1_MINI_B		BIT(30)
 
-static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
-			       enum usb_dr_mode mode)
+static int fotg210_gemini_init(struct fotg210 *fotg)
 {
 	struct device *dev = fotg->dev;
 	struct device_node *np = dev->of_node;
-	struct regmap *map;
-	bool wakeup;
+	bool wakeup = of_property_read_bool(np, "wakeup-source");
 	u32 mask, val;
 	int ret;
 
-	map = syscon_regmap_lookup_by_phandle(np, "syscon");
-	if (IS_ERR(map))
-		return dev_err_probe(dev, PTR_ERR(map), "no syscon\n");
-	fotg->map = map;
-	wakeup = of_property_read_bool(np, "wakeup-source");
+	fotg->map = syscon_regmap_lookup_by_phandle(np, "syscon");
+	if (IS_ERR(fotg->map))
+		return dev_err_probe(dev, PTR_ERR(fotg->map), "no syscon\n");
 
-	/*
-	 * Figure out if this is USB0 or USB1 by simply checking the
-	 * physical base address.
-	 */
-	mask = 0;
-	if (res->start == 0x69000000) {
+	if (fotg->res->start == 0x69000000) {
 		fotg->port = GEMINI_PORT_1;
 		mask = GEMINI_MISC_USB1_VBUS_ON | GEMINI_MISC_USB1_MINI_B |
-			GEMINI_MISC_USB1_WAKEUP;
-		if (mode == USB_DR_MODE_HOST)
-			val = GEMINI_MISC_USB1_VBUS_ON;
-		else
-			val = GEMINI_MISC_USB1_MINI_B;
+		       GEMINI_MISC_USB1_WAKEUP;
+		val = fotg->mode == USB_DR_MODE_HOST ?
+		      GEMINI_MISC_USB1_VBUS_ON : GEMINI_MISC_USB1_MINI_B;
 		if (wakeup)
 			val |= GEMINI_MISC_USB1_WAKEUP;
 	} else {
 		fotg->port = GEMINI_PORT_0;
 		mask = GEMINI_MISC_USB0_VBUS_ON | GEMINI_MISC_USB0_MINI_B |
-			GEMINI_MISC_USB0_WAKEUP;
-		if (mode == USB_DR_MODE_HOST)
-			val = GEMINI_MISC_USB0_VBUS_ON;
-		else
-			val = GEMINI_MISC_USB0_MINI_B;
+		       GEMINI_MISC_USB0_WAKEUP;
+		val = fotg->mode == USB_DR_MODE_HOST ?
+		      GEMINI_MISC_USB0_VBUS_ON : GEMINI_MISC_USB0_MINI_B;
 		if (wakeup)
 			val |= GEMINI_MISC_USB0_WAKEUP;
 	}
 
-	ret = regmap_update_bits(map, GEMINI_GLOBAL_MISC_CTRL, mask, val);
-	if (ret) {
-		dev_err(dev, "failed to initialize Gemini PHY\n");
-		return ret;
-	}
+	ret = regmap_update_bits(fotg->map, GEMINI_GLOBAL_MISC_CTRL,
+				 mask, val);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to initialize Gemini PHY\n");
 
 	dev_info(dev, "initialized Gemini PHY in %s mode\n",
-		 (mode == USB_DR_MODE_HOST) ? "host" : "gadget");
+		 fotg->mode == USB_DR_MODE_HOST ? "host" : "gadget");
 	return 0;
 }
 
 /**
- * fotg210_vbus() - Called by gadget driver to enable/disable VBUS
- * @fotg: pointer to a private fotg210 object
- * @enable: true to enable VBUS, false to disable VBUS
+ * fotg210_vbus() - enable or disable the A-device VBUS supply
+ * @fotg: controller state
+ * @enable: whether to drive VBUS
  */
 void fotg210_vbus(struct fotg210 *fotg, bool enable)
 {
-	u32 mask;
+	u32 mask = 0;
 	u32 val;
 	int ret;
+
+	val = readl(fotg->base + FOTG210_OTGCSR);
+	if (enable) {
+		val &= ~FOTG210_OTGCSR_A_BUS_DROP;
+		val |= FOTG210_OTGCSR_A_BUS_REQ;
+	} else {
+		val &= ~FOTG210_OTGCSR_A_BUS_REQ;
+		val |= FOTG210_OTGCSR_A_BUS_DROP;
+	}
+	writel(val, fotg->base + FOTG210_OTGCSR);
 
 	switch (fotg->port) {
 	case GEMINI_PORT_0:
 		mask = GEMINI_MISC_USB0_VBUS_ON;
-		val = enable ? GEMINI_MISC_USB0_VBUS_ON : 0;
 		break;
 	case GEMINI_PORT_1:
 		mask = GEMINI_MISC_USB1_VBUS_ON;
-		val = enable ? GEMINI_MISC_USB1_VBUS_ON : 0;
 		break;
-	default:
-		return;
+	case GEMINI_PORT_NONE:
+		break;
 	}
-	ret = regmap_update_bits(fotg->map, GEMINI_GLOBAL_MISC_CTRL, mask, val);
+
+	if (mask) {
+		ret = regmap_update_bits(fotg->map, GEMINI_GLOBAL_MISC_CTRL,
+					 mask, enable ? mask : 0);
+		if (ret) {
+			dev_err(fotg->dev, "failed to %s VBUS\n",
+				str_enable_disable(enable));
+			return;
+		}
+	}
+
+	ret = readl_poll_timeout(fotg->base + FOTG210_OTGCSR, val,
+				 enable == !!(val & FOTG210_OTGCSR_A_VBUS_VLD),
+				 1000, 500000);
 	if (ret)
-		dev_err(fotg->dev, "failed to %s VBUS\n",
-			str_enable_disable(enable));
-	dev_info(fotg->dev, "%s: %s VBUS\n", __func__, str_enable_disable(enable));
+		dev_warn(fotg->dev, "timeout waiting for VBUS to %s\n",
+			 str_enable_disable(enable));
+}
+
+static void fotg210_init_host(struct fotg210 *fotg)
+{
+	u32 val;
+
+	/* This driver keeps a fixed A-host role and does not negotiate HNP. */
+	val = readl(fotg->base + FOTG210_OTGCSR);
+	val &= ~FOTG210_OTGCSR_B_HNP_EN;
+	writel(val, fotg->base + FOTG210_OTGCSR);
+
+	/* Mask peripheral and OTG sources, enable the host source, active high. */
+	writel(FOTG210_GINTM_MDEV_INT | FOTG210_GINTM_MOTG_INT |
+	       FOTG210_GINTM_INT_POLARITY, fotg->base + FOTG210_GINTM);
+	writel(0, fotg->base + FOTG210_OTGIEN);
+	writel(readl(fotg->base + FOTG210_OTGISR),
+	       fotg->base + FOTG210_OTGISR);
+
+	/* Vendor trees cycle the A bus before starting the host controller. */
+	fotg210_vbus(fotg, false);
+	usleep_range(10000, 12000);
+	fotg210_vbus(fotg, true);
+	usleep_range(10000, 12000);
+}
+
+static void fotg210_init_peripheral(struct fotg210 *fotg)
+{
+	/* Mask host and OTG sources, enable the device source, active high. */
+	writel(FOTG210_GINTM_MHC_INT | FOTG210_GINTM_MOTG_INT |
+	       FOTG210_GINTM_INT_POLARITY, fotg->base + FOTG210_GINTM);
+	writel(0, fotg->base + FOTG210_OTGIEN);
+	writel(readl(fotg->base + FOTG210_OTGISR),
+	       fotg->base + FOTG210_OTGISR);
 }
 
 static int fotg210_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	enum usb_dr_mode mode;
+	struct reset_control *rst;
 	struct fotg210 *fotg;
 	u32 val;
 	int ret;
@@ -141,62 +193,111 @@ static int fotg210_probe(struct platform_device *pdev)
 	if (IS_ERR(fotg->base))
 		return PTR_ERR(fotg->base);
 
-	fotg->pclk = devm_clk_get_optional_enabled(dev, "PCLK");
+	fotg->pclk = devm_clk_get_enabled(dev, "PCLK");
 	if (IS_ERR(fotg->pclk))
-		return PTR_ERR(fotg->pclk);
+		return dev_err_probe(dev, PTR_ERR(fotg->pclk),
+				     "failed to enable PCLK\n");
 
-	mode = usb_get_dr_mode(dev);
+	rst = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(rst))
+		return dev_err_probe(dev, PTR_ERR(rst),
+				     "failed to get reset\n");
+	ret = reset_control_reset(rst);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to reset controller\n");
+
+	val = readl(fotg->base + FOTG210_OTGCSR);
+	fotg->mode = usb_get_dr_mode(dev);
+	/* Keep the historical fixed-host default for old device trees. */
+	if (fotg->mode == USB_DR_MODE_UNKNOWN)
+		fotg->mode = USB_DR_MODE_HOST;
+	if (fotg->mode != USB_DR_MODE_HOST &&
+	    fotg->mode != USB_DR_MODE_PERIPHERAL)
+		return dev_err_probe(dev, -EINVAL,
+				     "dr_mode must select host or peripheral\n");
 
 	if (of_device_is_compatible(dev->of_node, "cortina,gemini-usb")) {
-		ret = fotg210_gemini_init(fotg, fotg->res, mode);
+		fotg->is_fotg210 = true;
+		ret = fotg210_gemini_init(fotg);
 		if (ret)
 			return ret;
+	} else if (of_device_is_compatible(dev->of_node, "faraday,fotg210")) {
+		fotg->is_fotg210 = true;
 	}
 
-	val = readl(fotg->base + FOTG210_RR);
-	if (mode == USB_DR_MODE_PERIPHERAL) {
-		if (!(val & FOTG210_RR_CROLE))
-			dev_err(dev, "block not in device role\n");
-		ret = fotg210_udc_probe(pdev, fotg);
-	} else {
-		if (val & FOTG210_RR_CROLE)
-			dev_err(dev, "block not in host role\n");
-		ret = fotg210_hcd_probe(pdev, fotg);
+	if (fotg->mode == USB_DR_MODE_PERIPHERAL) {
+		if (!(val & FOTG210_OTGCSR_CROLE))
+			dev_warn(dev, "controller does not report device role\n");
+		if (!(val & FOTG210_OTGCSR_ID))
+			dev_warn(dev, "controller does not report B-device role\n");
+		fotg210_init_peripheral(fotg);
+		return fotg210_udc_probe(pdev, fotg);
 	}
+
+	if (val & FOTG210_OTGCSR_CROLE)
+		dev_warn(dev, "controller does not report host role\n");
+	if (val & FOTG210_OTGCSR_ID)
+		dev_warn(dev, "controller does not report A-device role\n");
+	fotg210_init_host(fotg);
+	ret = fotg210_hcd_probe(pdev, fotg);
+	if (ret)
+		fotg210_vbus(fotg, false);
 
 	return ret;
 }
 
 static void fotg210_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	enum usb_dr_mode mode;
-
-	mode = usb_get_dr_mode(dev);
-
-	if (mode == USB_DR_MODE_PERIPHERAL)
+	/* The subdrivers own drvdata, so recover the fixed role from firmware. */
+	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL)
 		fotg210_udc_remove(pdev);
 	else
 		fotg210_hcd_remove(pdev);
 }
 
-#ifdef CONFIG_OF
+static void fotg210_shutdown(struct platform_device *pdev)
+{
+	if (IS_ENABLED(CONFIG_USB_FOTG210_HCD) &&
+	    usb_get_dr_mode(&pdev->dev) != USB_DR_MODE_PERIPHERAL)
+		usb_hcd_platform_shutdown(pdev);
+}
+
+static int fotg210_suspend(struct device *dev)
+{
+	if (usb_get_dr_mode(dev) == USB_DR_MODE_PERIPHERAL)
+		return 0;
+
+	return fotg210_hcd_suspend(dev);
+}
+
+static int fotg210_resume(struct device *dev)
+{
+	if (usb_get_dr_mode(dev) == USB_DR_MODE_PERIPHERAL)
+		return 0;
+
+	return fotg210_hcd_resume(dev);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(fotg210_pm_ops, fotg210_suspend,
+				fotg210_resume);
+
 static const struct of_device_id fotg210_of_match[] = {
 	{ .compatible = "faraday,fotg200" },
 	{ .compatible = "faraday,fotg210" },
-	/* TODO: can we also handle FUSB220? */
 	{},
 };
 MODULE_DEVICE_TABLE(of, fotg210_of_match);
-#endif
 
 static struct platform_driver fotg210_driver = {
 	.driver = {
-		.name   = "fotg210",
-		.of_match_table = of_match_ptr(fotg210_of_match),
+		.name = "fotg210",
+		.of_match_table = fotg210_of_match,
+		.pm = pm_sleep_ptr(&fotg210_pm_ops),
 	},
-	.probe  = fotg210_probe,
+	.probe = fotg210_probe,
 	.remove = fotg210_remove,
+	.shutdown = fotg210_shutdown,
 };
 
 static int __init fotg210_init(void)

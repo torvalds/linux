@@ -16,7 +16,7 @@ addition to the MDS.  As of now the file system needs to sit directly on the
 exported LUN, striping or concatenation of LUNs on the MDS and clients
 is not supported yet.
 
-On a server built with CONFIG_NFSD_SCSI, the pNFS SCSI volume support is
+On a server built with CONFIG_NFSD_SCSILAYOUT, the pNFS SCSI volume support is
 automatically enabled if the file system is exported using the "pnfs"
 option and the underlying SCSI device support persistent reservations.
 On the client make sure the kernel has the CONFIG_PNFS_BLOCK option

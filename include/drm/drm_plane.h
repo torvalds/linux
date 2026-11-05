@@ -32,6 +32,8 @@
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_util.h>
 
+enum drm_panic_type;
+
 struct drm_crtc;
 struct drm_plane_size_hint;
 struct drm_printer;
@@ -360,18 +362,6 @@ struct drm_plane_funcs {
 	void (*destroy)(struct drm_plane *plane);
 
 	/**
-	 * @reset:
-	 *
-	 * Reset plane hardware and software state to off. This function isn't
-	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
-	 *
-	 * Atomic drivers can use drm_atomic_helper_plane_reset() to reset
-	 * atomic state using this hook.
-	 */
-	void (*reset)(struct drm_plane *plane);
-
-	/**
 	 * @set_property:
 	 *
 	 * This is the legacy entry point to update a property attached to the
@@ -590,6 +580,61 @@ struct drm_plane_funcs {
 	bool (*format_mod_supported_async)(struct drm_plane *plane,
 					   u32 format, u64 modifier);
 
+	/**
+	 * @display_panic_screen:
+	 *
+	 * DRM panic handling invokes this callback on panics.
+	 *
+	 * It is a panic handler, so it can't take locks, allocate memory, run tasks/irq,
+	 * or attempt to sleep. It's a best effort, and it may not be able to display
+	 * the message in all situations (like if the panic occurs in the middle of a
+	 * modesetting).
+	 *
+	 * Panic-printing code must acquire the panic lock before interacting with the
+	 * scanout buffer. Such helpers can make the following assumptions while holding
+	 * the panic lock:
+	 *
+	 * - Anything protected by drm_panic_lock() and drm_panic_unlock() pairs is safe
+	 *   to access.
+	 *
+	 * - Furthermore the panic printing code only registers in drm_dev_unregister()
+	 *   and gets removed in drm_dev_unregister(). This allows the panic code to
+	 *   safely access any state which is invariant in between these two function
+	 *   calls, like the list of planes &drm_mode_config.plane_list or most of the
+	 *   struct drm_plane structure.
+	 *
+	 * Specifically thanks to the protection around plane updates in
+	 * drm_atomic_helper_swap_state() the following additional guarantees hold:
+	 *
+	 * - It is safe to deference the drm_plane.state pointer.
+	 *
+	 * - Anything in struct drm_plane_state or the driver's subclass thereof which
+	 *   stays invariant after the atomic check code has finished is safe to access.
+	 *   Specifically this includes the reference counted pointers to framebuffer
+	 *   and buffer objects.
+	 *
+	 * - Anything set up by &drm_plane_helper_funcs.fb_prepare and cleaned up
+	 *   &drm_plane_helper_funcs.fb_cleanup is safe to access, as long as it stays
+	 *   invariant between these two calls. This also means that for drivers using
+	 *   dynamic buffer management the framebuffer is pinned, and therefer all
+	 *   relevant datastructures can be accessed without taking any further locks
+	 *   (which would be impossible in panic context anyway).
+	 *
+	 * - Importantly, software and hardware state set up by
+	 *   &drm_plane_helper_funcs.begin_fb_access and
+	 *   &drm_plane_helper_funcs.end_fb_access is not safe to access.
+	 *
+	 * It will display only one static frame, so performance optimizations are
+	 * low priority as the machine is already in an unusable state.
+	 *
+	 * This callback is optional. Planes without will not be considered
+	 * for panic output.
+	 */
+	int (*display_panic_screen)(struct drm_plane *plane,
+				    const char *description,
+				    enum drm_panic_type panic_type,
+				    u32 fg_color, u32 bg_color,
+				    unsigned int qr_version);
 };
 
 /**

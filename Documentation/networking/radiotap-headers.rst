@@ -133,7 +133,7 @@ its prototypes available in include/net/cfg80211.h.  You use it like this::
 
 		    case IEEE80211_RADIOTAP_ANTENNA:
 			    /* radiotap uses 0 for 1st ant */
-			    antenna = *iterator.this_arg);
+			    antenna = *iterator.this_arg;
 			    break;
 
 		    case IEEE80211_RADIOTAP_DBM_TX_POWER:

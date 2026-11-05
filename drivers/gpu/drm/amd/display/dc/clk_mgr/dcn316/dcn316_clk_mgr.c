@@ -28,8 +28,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-// For dce12_get_dp_ref_freq_khz
-#include "dce100/dce_clk_mgr.h"
+// For dcn10_get_dp_ref_freq_khz
+#include "dcn10/dcn10_clk_mgr.h"
 // For dcn20_update_clocks_update_dpp_dto
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
@@ -576,7 +576,7 @@ static void dcn316_clk_mgr_helper_populate_bw_params(
 
 static struct clk_mgr_funcs dcn316_funcs = {
 	.enable_pme_wa = dcn316_enable_pme_wa,
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 	.update_clocks = dcn316_update_clocks,
 	.init_clocks = dcn31_init_clocks,
@@ -659,9 +659,9 @@ void dcn316_clk_mgr_construct(
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.base.dprefclk_khz = dcn316_smu_get_dpref_clk(&clk_mgr->base);
 	clk_mgr->base.base.clks.ref_dtbclk_khz = clk_mgr->base.base.dprefclk_khz;
-	dce_clock_read_ss_info(&clk_mgr->base);
+	dcn10_clock_read_ss_info(&clk_mgr->base);
 	/*clk_mgr->base.dccg->ref_dtbclk_khz =
-	dce_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);*/
+	dcn10_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);*/
 
 	clk_mgr->base.base.bw_params = &dcn316_bw_params;
 

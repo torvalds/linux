@@ -240,7 +240,7 @@ void quickspi_handle_input_data(struct quickspi_device *qsdev, u32 buf_len)
 		input_len = sizeof(body_hdr->content_id) + input_len;
 		input_report = input_body->content - sizeof(body_hdr->content_id);
 
-		ret = quickspi_hid_send_report(qsdev, input_report, input_len);
+		ret = quickspi_hid_send_report(qsdev, input_report, qsdev->input_len, input_len);
 		if (ret)
 			dev_err_once(qsdev->dev, "Failed to send HID input report: %d\n", ret);
 

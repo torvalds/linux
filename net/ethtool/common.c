@@ -2,6 +2,9 @@
 
 #include <linux/ethtool_netlink.h>
 #include <linux/net_tstamp.h>
+#include <linux/once.h>
+#include <linux/random.h>
+#include <linux/unaligned.h>
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
 #include <linux/ptp_clock_kernel.h>
@@ -956,6 +959,14 @@ void ethtool_ringparam_get_cfg(struct net_device *dev,
 	kparam->hds_thresh = dev->cfg->hds_thresh;
 }
 
+void ethtool_ringparam_set_cfg(struct netdev_config *cfg,
+			       const struct ethtool_ringparam *param)
+{
+	cfg->rings.rx_pending = param->rx_pending;
+	cfg->rings.rx_mini_pending = param->rx_mini_pending;
+	cfg->rings.rx_jumbo_pending = param->rx_jumbo_pending;
+}
+
 static void ethtool_init_tsinfo(struct kernel_ethtool_ts_info *info)
 {
 	memset(info, 0, sizeof(*info));
@@ -1400,3 +1411,174 @@ enum ethtool_link_medium ethtool_str_to_medium(const char *str)
 	return ETHTOOL_LINK_MEDIUM_NONE;
 }
 EXPORT_SYMBOL_GPL(ethtool_str_to_medium);
+
+u8 netdev_rss_key[NETDEV_RSS_KEY_LEN] __read_mostly;
+bool netdev_rss_key_initialized __read_mostly;
+
+/* Toeplitz is linear over GF(2): the hash is the XOR of the 32-bit key
+ * windows selected by the set bits of the input, and hardware indexes the
+ * indirection table with the low order bits of the hash. Only the tail of
+ * each window therefore matters for queue selection:
+ *
+ *	v(i) = key bits [i + 32 - q .. i + 31]
+ *
+ * for input bit @i, with q = log2(number of RX queues). Consecutive input
+ * bits give windows overlapping in q - 1 positions, so the matrix formed by
+ * the windows of the q lowest bits of a header field is a Toeplitz matrix
+ * built from 2 * q - 1 key bits, not from q * q independent ones. A random
+ * Toeplitz matrix over GF(2) is singular with probability 1/2, whatever its
+ * size, and when it is singular the flows of a burst differing only in the
+ * low order bits of that field (consecutive ephemeral ports, typically)
+ * cannot reach all the RX queues no matter how many of them are configured.
+ *
+ * Keep the key random, but constrain the few bits that decide this. The
+ * fixup is applied at every 16-bit aligned position of the key, rather than
+ * at the offsets of the one hash input layout the software happens to know
+ * about: hardware is free to hash whatever it wants, but the fields it picks
+ * are 16 bits wide at the smallest and are not expected to straddle that
+ * grid, so an encapsulated or offloaded layout is covered like the usual
+ * 2-tuple and 4-tuple ones. Each position constrains 2 * q - 1 bits, so
+ * NETDEV_RSS_KEY_QMAX is both enough for 256 queues and the largest value
+ * keeping the ranges of two adjacent positions disjoint.
+ */
+#define NETDEV_RSS_KEY_QMAX	8
+#define NETDEV_RSS_KEY_SPAN	(2 * NETDEV_RSS_KEY_QMAX - 1)
+
+static bool netdev_rss_key_bit(const u8 *key, unsigned int bit)
+{
+	return key[bit / BITS_PER_BYTE] & (0x80 >> (bit % BITS_PER_BYTE));
+}
+
+static void netdev_rss_key_assign_bit(u8 *key, unsigned int bit, bool value)
+{
+	u8 mask = 0x80 >> (bit % BITS_PER_BYTE);
+
+	if (value)
+		key[bit / BITS_PER_BYTE] |= mask;
+	else
+		key[bit / BITS_PER_BYTE] &= ~mask;
+}
+
+/* Writing d[t] for key bit (@lsb + 31 - t), the matrices of all the q values
+ * up to NETDEV_RSS_KEY_QMAX are non singular if and only if
+ *
+ *	d[2 * i] = 1 ^ d[i] ^ d[i + 1] ^ ... ^ d[2 * i - 1]
+ *
+ * The odd positions stay free, so this is a one pass fixup rather than a
+ * search. It is also a bijection onto the set of the values having the
+ * property, so the key stays uniformly distributed over that set. It costs
+ * NETDEV_RSS_KEY_QMAX bits of entropy per position.
+ */
+static void netdev_rss_key_fixup_field(u8 *key, unsigned int lsb)
+{
+	bool d[NETDEV_RSS_KEY_SPAN];
+	unsigned int i, t;
+
+	for (t = 0; t < NETDEV_RSS_KEY_SPAN; t++)
+		d[t] = netdev_rss_key_bit(key, lsb + 31 - t);
+
+	for (i = 0; 2 * i < NETDEV_RSS_KEY_SPAN; i++) {
+		bool value = true;
+
+		for (t = i; t < 2 * i; t++)
+			value ^= d[t];
+
+		d[2 * i] = value;
+	}
+
+	for (t = 0; t < NETDEV_RSS_KEY_SPAN; t++)
+		netdev_rss_key_assign_bit(key, lsb + 31 - t, d[t]);
+}
+
+/* The 32 key bits starting at @bit, which is what input bit @bit contributes
+ * to the hash. @bit + 32 must fit in the key.
+ */
+static u32 netdev_rss_key_window(const u8 *key, unsigned int bit)
+{
+	unsigned int byte = bit / BITS_PER_BYTE;
+	unsigned int shift = bit % BITS_PER_BYTE;
+	u32 window = get_unaligned_be32(key + byte);
+
+	if (shift)
+		window = (window << shift) |
+			 (key[byte + 4] >> (BITS_PER_BYTE - shift));
+
+	return window;
+}
+
+/* Two input bits contributing the same window are indistinguishable to the
+ * hash, since flipping both of them leaves it unchanged. For a uniformly
+ * random key that is a 2 ** -32 event per pair of positions, but the fixup
+ * makes it likelier: it derives 8 of every 16 bits from the 8 others, so a
+ * 16-bit aligned word only takes 2 ** 8 values and two windows a whole
+ * number of words apart collide with probability 2 ** -16 instead. Half a
+ * word apart is less affected but still well clear of the random odds, so
+ * cover every distance that is a multiple of 8. What is left after that is
+ * below what a plain random key gives.
+ *
+ * Two windows at a distance that is a multiple of 8 are two windows at the
+ * same offset modulo 8. Caching a whole class would put 253 u32 on the
+ * stack, so cache one class modulo 16 and stream the class 8 bits above it
+ * against it.
+ */
+static bool netdev_rss_key_aliases(const u8 *key, unsigned int bits)
+{
+	u32 windows[NETDEV_RSS_KEY_LEN * BITS_PER_BYTE / 16];
+	unsigned int i, j, n, r;
+
+	for (r = 0; r < 16; r++) {
+		n = 0;
+		for (i = r; i + 32 <= bits; i += 16)
+			windows[n++] = netdev_rss_key_window(key, i);
+
+		for (i = 0; i < n; i++)
+			for (j = i + 1; j < n; j++)
+				if (windows[i] == windows[j])
+					return true;
+
+		if (r >= 8)
+			continue;
+
+		for (i = r + 8; i + 32 <= bits; i += 16) {
+			u32 window = netdev_rss_key_window(key, i);
+
+			for (j = 0; j < n; j++)
+				if (windows[j] == window)
+					return true;
+		}
+	}
+
+	return false;
+}
+
+static void netdev_rss_key_init(u8 *key, size_t len)
+{
+	unsigned int lsb, bits = len * BITS_PER_BYTE;
+
+	/* Four keys out of five come out of the fixup free of aliases, so
+	 * drawing another one is both simpler and cheaper than repairing.
+	 */
+	do {
+		get_random_bytes(key, len);
+
+		/* A field ending at bit @lsb uses key bits [.. , @lsb + 31],
+		 * so stop as soon as a 32-bit window no longer fits in the
+		 * key.
+		 */
+		for (lsb = 15; lsb + 32 <= bits; lsb += 16)
+			netdev_rss_key_fixup_field(key, lsb);
+	} while (netdev_rss_key_aliases(key, bits));
+
+	/* Pair with smp_rmb() in proc_do_rss_key(). */
+	smp_wmb();
+	WRITE_ONCE(netdev_rss_key_initialized, true);
+}
+
+void netdev_rss_key_fill(void *buffer, size_t len)
+{
+	if (WARN_ON_ONCE(len > sizeof(netdev_rss_key)))
+		len = sizeof(netdev_rss_key);
+	DO_ONCE(netdev_rss_key_init, netdev_rss_key, sizeof(netdev_rss_key));
+	memcpy(buffer, netdev_rss_key, len);
+}
+EXPORT_SYMBOL(netdev_rss_key_fill);

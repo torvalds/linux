@@ -56,7 +56,9 @@ static double cga_dcn6_adjust_to_dfs_clock_value_mhz(const struct dml2_clock_gra
 	double vco_divider;
 	double adjusted_clock_mhz;
 
-	DML_ASSERT_MSG(adjuster->dispclk_dppclk_vco_speed_mhz > 1, "invalid dispclk_dppclk_vco_speed_mhz value!\n");
+	if (adjuster->dispclk_dppclk_vco_speed_mhz == 0.0)
+		return clk_mhz;
+
 	if (clk_mhz == 0)
 		/* There are cases when a clock is not needed */
 		return 0;

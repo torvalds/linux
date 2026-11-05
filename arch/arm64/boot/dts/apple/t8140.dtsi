@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T8140 "A18 Pro" SoC
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+#include <dt-bindings/interrupt-controller/apple-aic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "apple,t8140", "apple,arm-platform";
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	clkref: clock-ref {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "clkref";
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu_e0>;
+				};
+
+				core1 {
+					cpu = <&cpu_e1>;
+				};
+
+				core2 {
+					cpu = <&cpu_e2>;
+				};
+
+				core3 {
+					cpu = <&cpu_e3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu_p0>;
+				};
+
+				core1 {
+					cpu = <&cpu_p1>;
+				};
+			};
+		};
+
+		cpu_e0: cpu@0 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-e";
+			reg = <0x0 0x0>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x10000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x20000>;
+			next-level-cache = <&l2_cache_0>;
+		};
+
+		cpu_e1: cpu@1 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-e";
+			reg = <0x0 0x1>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x10000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x20000>;
+			next-level-cache = <&l2_cache_0>;
+		};
+
+		cpu_e2: cpu@2 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-e";
+			reg = <0x0 0x2>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x10000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x20000>;
+			next-level-cache = <&l2_cache_0>;
+		};
+
+		cpu_e3: cpu@3 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-e";
+			reg = <0x0 0x3>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x10000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x20000>;
+			next-level-cache = <&l2_cache_0>;
+		};
+
+		cpu_p0: cpu@10100 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-p";
+			reg = <0x0 0x10100>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x20000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x30000>;
+			next-level-cache = <&l2_cache_1>;
+		};
+
+		cpu_p1: cpu@10101 {
+			device_type = "cpu";
+			compatible = "apple,tahiti-p";
+			reg = <0x0 0x10101>;
+			cpu-release-addr = <0 0>;
+			d-cache-size = <0x20000>;
+			enable-method = "spin-table";
+			i-cache-size = <0x30000>;
+			next-level-cache = <&l2_cache_1>;
+		};
+
+		l2_cache_0: l2-cache-0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <0x400000>;
+			cache-unified;
+		};
+
+		l2_cache_1: l2-cache-1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <0x1000000>;
+			cache-unified;
+		};
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		ranges;
+		#address-cells = <2>;
+		nonposted-mmio;
+		#size-cells = <2>;
+
+		pmgr: power-management@300700000 {
+			compatible = "apple,t8140-pmgr", "apple,t8103-pmgr",
+			             "syscon", "simple-mfd";
+			reg = <0x3 0x700000 0 0x14000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/* child nodes are added in t8140-pmgr.dtsi */
+		};
+
+		aic: interrupt-controller@301000000 {
+			compatible = "apple,t8140-aic3", "apple,t8122-aic3";
+			reg = <0x3 0x01000000 0x0 0x1cc000>,
+			      <0x3 0x01040000 0x0 0x4000>;
+			reg-names = "core", "event";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			power-domains = <&ps_aic>;
+		};
+
+		pmgr_mini: power-management@308280000 {
+			compatible = "apple,t8140-pmgr", "apple,t8103-pmgr",
+			             "syscon", "simple-mfd";
+			reg = <0x3 0x8280000 0 0xc000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/* child nodes are added in t8140-pmgr.dtsi */
+		};
+
+		wdt: watchdog@3082b0000 {
+			compatible = "apple,t8140-wdt", "apple,t8103-wdt";
+			reg = <0x3 0x082b0000 0x0 0x4000>;
+			clocks = <&clkref>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 507 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		serial0: serial@385200000 {
+			compatible = "apple,s5l-uart";
+			reg = <0x3 0x85200000 0x0 0x1000>;
+			clocks = <&clkref>, <&clkref>;
+			clock-names = "uart", "clk_uart_baud0";
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 1092 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_uart0>;
+			reg-io-width = <4>;
+
+			status = "disabled";
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_FIQ AIC_TMR_GUEST_PHYS IRQ_TYPE_LEVEL_HIGH>,
+		             <AIC_FIQ AIC_TMR_GUEST_VIRT IRQ_TYPE_LEVEL_HIGH>,
+		             <AIC_FIQ AIC_TMR_HV_PHYS IRQ_TYPE_LEVEL_HIGH>,
+		             <AIC_FIQ AIC_TMR_HV_VIRT IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "phys", "virt", "hyp-phys", "hyp-virt";
+	};
+};
+
+#include "t8140-pmgr.dtsi"

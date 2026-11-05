@@ -82,7 +82,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/hid.h>
 #include <linux/hid.h>
 #include <linux/kfifo.h>
 #include <linux/leds.h>

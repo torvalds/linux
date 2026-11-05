@@ -47,7 +47,7 @@ unsigned long raw_copy_from_user(void *dst, const void __user *src,
 			break;
 		}
 		start += PAGE_SIZE;
-		/* align to page boundry which may have different permission */
+		/* align to page boundary which may have different permission */
 		start = PAGE_ALIGN_DOWN(start);
 	}
 	return len - newlen + pa_memcpy(dst, (void __force *)src, newlen);

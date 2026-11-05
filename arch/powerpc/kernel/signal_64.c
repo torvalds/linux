@@ -624,24 +624,27 @@ static long restore_tm_sigcontexts(struct task_struct *tsk, struct sigcontext __
 static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 {
 	int i;
-	long err = 0;
 
-	/* Call the handler and pop the dummy stackframe*/
-	err |= __put_user(PPC_RAW_BCTRL(), &tramp[0]);
-	err |= __put_user(PPC_RAW_ADDI(_R1, _R1, __SIGNAL_FRAMESIZE), &tramp[1]);
+	scoped_user_write_access_size(tramp, TRAMP_SIZE * sizeof(*tramp), efault) {
+		/* Call the handler and pop the dummy stackframe*/
+		unsafe_put_user(PPC_RAW_BCTRL(), &tramp[0], efault);
+		unsafe_put_user(PPC_RAW_ADDI(_R1, _R1, __SIGNAL_FRAMESIZE), &tramp[1], efault);
 
-	err |= __put_user(PPC_RAW_LI(_R0, syscall), &tramp[2]);
-	err |= __put_user(PPC_RAW_SC(), &tramp[3]);
+		unsafe_put_user(PPC_RAW_LI(_R0, syscall), &tramp[2], efault);
+		unsafe_put_user(PPC_RAW_SC(), &tramp[3], efault);
 
-	/* Minimal traceback info */
-	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
-		err |= __put_user(0, &tramp[i]);
+		/* Minimal traceback info */
+		for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
+			unsafe_put_user(0, &tramp[i], efault);
+	}
 
-	if (!err)
-		flush_icache_range((unsigned long) &tramp[0],
+	flush_icache_range((unsigned long) &tramp[0],
 			   (unsigned long) &tramp[TRAMP_SIZE]);
 
-	return err;
+	return 0;
+
+efault:
+	return -EFAULT;
 }
 
 /*
@@ -711,7 +714,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 
-	if (__get_user_sigset(&set, &new_ctx->uc_sigmask)) {
+	if (get_user_sigset(&set, &new_ctx->uc_sigmask)) {
 		force_exit_sig(SIGSEGV);
 		return -EFAULT;
 	}
@@ -754,7 +757,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
 
-	if (__get_user_sigset(&set, &uc->uc_sigmask))
+	if (get_user_sigset(&set, &uc->uc_sigmask))
 		goto badframe;
 	set_current_blocked(&set);
 
@@ -797,7 +800,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 */
 		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 
-		if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
+		if (get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 			goto badframe;
 	}
 
@@ -809,7 +812,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		if (!cpu_has_feature(CPU_FTR_TM))
 			goto badframe;
 
-		if (__get_user(uc_transact, &uc->uc_link))
+		if (get_user(uc_transact, &uc->uc_link))
 			goto badframe;
 		if (restore_tm_sigcontexts(current, &uc->uc_mcontext,
 					   &uc_transact->uc_mcontext))

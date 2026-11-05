@@ -39,6 +39,24 @@ static __u32 count_free(struct buffer_head *map[], unsigned blocksize, __u32 num
 	return sum;
 }
 
+/*
+ * The bitmap buffers stay pinned for the lifetime of the mount and their
+ * in-memory contents are authoritative.  A failed writeback clears
+ * BH_Uptodate on them, so restore it before redirtying the buffer instead
+ * of tripping the warning in mark_buffer_dirty().  The buffer lock keeps
+ * this from racing with a write that is still in flight.
+ */
+static void minix_mark_bitmap_dirty(struct buffer_head *bh)
+{
+	lock_buffer(bh);
+	if (!buffer_uptodate(bh)) {
+		clear_buffer_write_io_error(bh);
+		set_buffer_uptodate(bh);
+	}
+	mark_buffer_dirty(bh);
+	unlock_buffer(bh);
+}
+
 void minix_free_block(struct inode *inode, unsigned long block)
 {
 	struct super_block *sb = inode->i_sb;
@@ -64,7 +82,7 @@ void minix_free_block(struct inode *inode, unsigned long block)
 		printk("minix_free_block (%s:%lu): bit already cleared\n",
 		       sb->s_id, block);
 	spin_unlock(&bitmap_lock);
-	mark_buffer_dirty(bh);
+	minix_mark_bitmap_dirty(bh);
 	return;
 }
 
@@ -83,7 +101,7 @@ int minix_new_block(struct inode * inode)
 		if (j < bits_per_zone) {
 			minix_set_bit(j, bh->b_data);
 			spin_unlock(&bitmap_lock);
-			mark_buffer_dirty(bh);
+			minix_mark_bitmap_dirty(bh);
 			j += i * bits_per_zone + sbi->s_firstdatazone-1;
 			if (j < sbi->s_firstdatazone || j >= sbi->s_nzones)
 				break;
@@ -207,7 +225,7 @@ void minix_free_inode(struct inode * inode)
 	if (!minix_test_and_clear_bit(bit, bh->b_data))
 		printk("minix_free_inode: bit %lu already cleared\n", bit);
 	spin_unlock(&bitmap_lock);
-	mark_buffer_dirty(bh);
+	minix_mark_bitmap_dirty(bh);
 }
 
 struct inode *minix_new_inode(const struct inode *dir, umode_t mode)
@@ -243,7 +261,7 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode)
 		return ERR_PTR(-ENOSPC);
 	}
 	spin_unlock(&bitmap_lock);
-	mark_buffer_dirty(bh);
+	minix_mark_bitmap_dirty(bh);
 	j += i * bits_per_zone;
 	if (!j || j > sbi->s_ninodes) {
 		iput(inode);

@@ -47,7 +47,7 @@ pub trait Alignment: Sealed {
     fn read<T, I, R>(ptr: crate::Ptr<'_, T, I>) -> T
     where
         T: Copy + Read<I::Aliasing, R>,
-        I: Invariants<Alignment = Self, Validity = Valid>,
+        I: Invariants<Alignment = Self, Validity = Safe>,
         I::Aliasing: Reference;
 }
 
@@ -64,35 +64,39 @@ pub trait Alignment: Sealed {
 /// all `T: ?Sized`. Any `V: Validity` must guarantee that this set is only a
 /// function of the *bit validity* of the referent type, `T`, and not of any
 /// other property of `T`. As a consequence, given `V: Validity`, `T`, and `U`
-/// where `T` and `U` have the same bit validity, `S(V, T) = S(V, U)`.
+/// where `T` and `U` have the same bit validity, `S(T, V) = S(U, V)`.
 ///
 /// It is guaranteed that the referent of any `ptr: Ptr<T, V>` is a member of
 /// `S(T, V)`. Unsafe code must ensure that this guarantee will be upheld for
 /// any existing `Ptr`s or any `Ptr`s that that code creates.
 ///
-/// An important implication of this guarantee is that it restricts what
-/// transmutes are sound, where "transmute" is used in this context to refer to
-/// changing the referent type or validity invariant of a `Ptr`, as either
-/// change may change the set of bit values permitted to appear in the referent.
-/// In particular, the following are necessary (but not sufficient) conditions
-/// in order for a transmute from `src: Ptr<T, V>` to `dst: Ptr<U, W>` to be
-/// sound:
-/// - If `S(T, V) = S(U, W)`, then no restrictions apply; otherwise,
+/// An important implication of this guarantee is that it restricts which exact
+/// reinterpretations are sound. Here, an exact reinterpretation changes the
+/// referent type or validity invariant of a `Ptr` while preserving the exact
+/// byte range. In particular, given `src: Ptr<T, V>` and `dst: Ptr<U, W>` which
+/// refer to the same byte range, the following are necessary (but not
+/// sufficient) conditions:
+/// - If `S(T, V) = S(U, W)`, then no additional validity-preservation
+///   restrictions apply; otherwise,
 /// - If `dst` permits mutation of its referent (e.g. via `Exclusive` aliasing
 ///   or interior mutation under `Shared` aliasing), then it must hold that
-///   `S(T, V) ⊇ S(U, W)` - in other words, the transmute must not expand the
-///   set of allowed referent bit patterns. A violation of this requirement
+///   `S(T, V) ⊇ S(U, W)` - in other words, the reinterpretation must not expand
+///   the set of allowed referent bit patterns. A violation of this requirement
 ///   would permit using `dst` to write `x` where `x ∈ S(U, W)` but `x ∉ S(T,
 ///   V)`, which would violate the guarantee that `src`'s referent may only
 ///   contain values in `S(T, V)`.
 /// - If the referent may be mutated without going through `dst` while `dst` is
 ///   live (e.g. via interior mutation on a `Shared`-aliased `Ptr` or `&`
 ///   reference), then it must hold that `S(T, V) ⊆ S(U, W)` - in other words,
-///   the transmute must not shrink the set of allowed referent bit patterns. A
-///   violation of this requirement would permit using `src` or another
-///   mechanism (e.g. a `&` reference used to derive `src`) to write `x` where
-///   `x ∈ S(T, V)` but `x ∉ S(U, W)`, which would violate the guarantee that
-///   `dst`'s referent may only contain values in `S(U, W)`.
+///   the reinterpretation must not shrink the set of allowed referent bit
+///   patterns. A violation of this requirement would permit using `src` or
+///   another mechanism (e.g. a `&` reference used to derive `src`) to write `x`
+///   where `x ∈ S(T, V)` but `x ∉ S(U, W)`, which would violate the guarantee
+///   that `dst`'s referent may only contain values in `S(U, W)`.
+///
+/// These conditions describe only exact reinterpretations. Shrinking
+/// projections may have validity that depends on the relationship between the
+/// projected region and bytes outside it, and require additional reasoning.
 pub unsafe trait Validity: Sealed {
     const KIND: ValidityKind;
 }
@@ -101,7 +105,7 @@ pub enum ValidityKind {
     Uninit,
     AsInitialized,
     Initialized,
-    Valid,
+    Safe,
 }
 
 /// An [`Aliasing`] invariant which is either [`Shared`] or [`Exclusive`].
@@ -147,7 +151,7 @@ impl Alignment for Unaligned {
     fn read<T, I, R>(ptr: crate::Ptr<'_, T, I>) -> T
     where
         T: Copy + Read<I::Aliasing, R>,
-        I: Invariants<Alignment = Self, Validity = Valid>,
+        I: Invariants<Alignment = Self, Validity = Safe>,
         I::Aliasing: Reference,
     {
         (*ptr.into_unalign().as_ref()).into_inner()
@@ -162,7 +166,7 @@ impl Alignment for Aligned {
     fn read<T, I, R>(ptr: crate::Ptr<'_, T, I>) -> T
     where
         T: Copy + Read<I::Aliasing, R>,
-        I: Invariants<Alignment = Self, Validity = Valid>,
+        I: Invariants<Alignment = Self, Validity = Safe>,
         I::Aliasing: Reference,
     {
         *ptr.as_ref()
@@ -227,13 +231,20 @@ unsafe impl Validity for Initialized {
 
 /// The referent of a `Ptr<T>` is valid for `T`, upholding bit validity and any
 /// library safety invariants.
-pub enum Valid {}
-// SAFETY: `Valid`'s validity is well-defined for all `T: ?Sized`, and is not a
+pub enum Safe {}
+// SAFETY: `Safe`'s validity is well-defined for all `T: ?Sized`, and is not a
 // function of any property of `T` other than its bit validity.
-unsafe impl Validity for Valid {
-    const KIND: ValidityKind = ValidityKind::Valid;
+unsafe impl Validity for Safe {
+    const KIND: ValidityKind = ValidityKind::Safe;
 }
 
+/// Proof helper for casts whose validity requirement does not depend on the
+/// referent type.
+///
+/// Currently this covers `Uninit`, which permits any byte state, and
+/// `Initialized`, which requires every referent byte to be initialized
+/// regardless of referent type.
+///
 /// # Safety
 ///
 /// `DT: CastableFrom<ST, SV, DV>` is sound if `SV = DV = Uninit` or `SV = DV =
@@ -289,7 +300,7 @@ mod sealed {
     impl Sealed for Uninit {}
     impl Sealed for AsInitialized {}
     impl Sealed for Initialized {}
-    impl Sealed for Valid {}
+    impl Sealed for Safe {}
 
     impl<A: Sealed, AA: Sealed, V: Sealed> Sealed for (A, AA, V) {}
 

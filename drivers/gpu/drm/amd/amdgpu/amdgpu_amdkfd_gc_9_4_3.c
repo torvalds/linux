@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_amdkfd_gfx_v9.h"
 #include "amdgpu_amdkfd_aldebaran.h"
@@ -627,5 +628,6 @@ const struct kfd2kgd_calls gc_9_4_3_kfd2kgd = {
 	.hqd_reset = kgd_gfx_v9_hqd_reset,
 	.hqd_sdma_get_doorbell = kgd_gfx_v9_4_3_hqd_sdma_get_doorbell,
 	.ptl_ctrl = kgd_v9_4_3_ptl_ctrl,
-	.hqd_sdma_get_counter = kgd_gfx_v9_4_3_hqd_sdma_get_counter
+	.hqd_sdma_get_counter = kgd_gfx_v9_4_3_hqd_sdma_get_counter,
+	.hqd_gfx_clean_fault = kgd_gfx_v9_clean_fault
 };

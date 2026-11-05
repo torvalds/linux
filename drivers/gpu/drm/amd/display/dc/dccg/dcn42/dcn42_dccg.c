@@ -308,13 +308,25 @@ static void dccg42_init(struct dccg *dccg)
 		}
 	}
 }
+void dccg42_set_hdmistreamclk_root_clock_gating(struct dccg *dccg, bool enable)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.hdmistream && !enable) {
+		DC_LOG_DEBUG("%s: HDMISTREAMCLK0_ROOT_GATE DISABLE = 0 bypassed", __func__);
+		return;
+	}
+	REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, HDMISTREAMCLK0_ROOT_GATE_DISABLE, enable ? 1 : 0);
+	REG_UPDATE(DCCG_GATE_DISABLE_CNTL3, HDMISTREAMCLK0_GATE_DISABLE, enable ? 1 : 0);
+
+	DC_LOG_DEBUG("%s: HDMISTREAMCLK0_ROOT_GATE_DISABLE = %d\n", __func__, enable ? 1 : 0);
+}
 
 static const struct dccg_funcs dccg42_funcs = {
 	.enable_hdmicharclk = dccg401_enable_hdmicharclk,
 	.disable_hdmicharclk = dccg42_disable_hdmicharclk,
 	.set_hdmistreamclk = dccg35_set_hdmistreamclk,
-	.set_hdmistreamclk_root_clock_gating = dccg35_set_hdmistreamclk_root_clock_gating,
+	.set_hdmistreamclk_root_clock_gating = dccg42_set_hdmistreamclk_root_clock_gating,
 	.update_dpp_dto = dccg35_update_dpp_dto,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control,
 	.get_dccg_ref_freq = dccg401_get_dccg_ref_freq,
@@ -370,6 +382,7 @@ struct dccg *dccg42_create(
 	base->ctx = ctx;
 	base->funcs = &dccg42_funcs;
 
+	base->inst = 0;
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
 	dccg_dcn->dccg_mask = dccg_mask;

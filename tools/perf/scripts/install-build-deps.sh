@@ -155,7 +155,7 @@ fedora_pkg_for() {
 	libcapstone)
 		echo "capstone-devel"
 		;;
-	libpython)
+	python-module)
 		echo "python3-devel"
 		;;
 	libtraceevent)
@@ -199,8 +199,8 @@ fedora_pkg_for() {
 	# opt-in features, which a default build does not enable: the libbfd
 	# disassembler family (libbfd, libbfd-threadsafe, libbfd-liberty,
 	# disassembler-*, cplus-demangle), only linked on BUILD_NONDISTRO
-	# builds and deprecated in favor of capstone, GTK2, LIBPERL and
-	# LIBUNWIND support (ifdef GTK2 / ifdef LIBPERL / LIBUNWIND=1),
+	# builds and deprecated in favor of capstone, GTK4, LIBPERL and
+	# LIBUNWIND support (ifdef GTK4 / ifdef LIBPERL / LIBUNWIND=1),
 	# and CoreSight (ifdef CORESIGHT), are deliberately not mapped.
 	# libaio is not mapped either: its
 	# test uses the POSIX AIO API (aio.h, aio_*, -lrt), provided by
@@ -314,7 +314,7 @@ debian_pkg_for() {
 	libcapstone)
 		echo "libcapstone-dev"
 		;;
-	libpython)
+	python-module)
 		echo "python3-dev"
 		;;
 	libtraceevent)

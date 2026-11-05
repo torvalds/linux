@@ -400,7 +400,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 	unsigned long flags = DMA_PREP_INTERRUPT;
 	int ret = 0;
 
-	tx = chan->device->device_prep_dma_memcpy(chan, dest, src, len, flags);
+	tx = dmaengine_prep_dma_memcpy(chan, dest, src, len, flags);
 	if (!tx) {
 		dev_err(acdev->host->dev, "device_prep_dma_memcpy failed\n");
 		return -EAGAIN;
@@ -408,7 +408,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 
 	tx->callback = dma_callback;
 	tx->callback_param = acdev;
-	cookie = tx->tx_submit(tx);
+	cookie = dmaengine_submit(tx);
 
 	ret = dma_submit_error(cookie);
 	if (ret) {
@@ -416,7 +416,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 		return ret;
 	}
 
-	chan->device->device_issue_pending(chan);
+	dma_async_issue_pending(chan);
 
 	/* Wait for DMA to complete */
 	if (!wait_for_completion_timeout(&acdev->dma_completion, TIMEOUT)) {

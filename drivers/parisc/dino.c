@@ -590,7 +590,7 @@ dino_card_fixup(struct pci_dev *dev)
 	dino_cfg_write(dev->bus, dev->devfn, PCI_INTERRUPT_LINE, 1, dev->irq); 
 }
 
-/* The alignment contraints for PCI bridges under dino */
+/* The alignment constraints for PCI bridges under dino */
 #define DINO_BRIDGE_ALIGN 0x100000
 
 

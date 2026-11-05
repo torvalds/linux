@@ -70,6 +70,13 @@ struct xe_exec_queue_group {
 	spinlock_t suspend_lock;
 	/** @sync_pending: CGP_SYNC_DONE g2h response pending */
 	bool sync_pending;
+	/**
+	 * @cgp_update_q: Queue that issued the currently outstanding (sent)
+	 * CGP_SYNC or REGISTER_CONTEXT_MULTI_QUEUE; NULL when none is
+	 * outstanding. Used during VF recovery to identify and replay the
+	 * message whose CGP_SYNC_DONE was not received.
+	 */
+	struct xe_exec_queue *cgp_update_q;
 	/** @banned: Group banned */
 	bool banned;
 	/** @stopped: Group is stopped, protected by list_lock */
@@ -128,20 +135,16 @@ struct xe_exec_queue {
 
 /* queue used for kernel submission only */
 #define EXEC_QUEUE_FLAG_KERNEL			BIT(0)
-/* kernel engine only destroyed at driver unload */
-#define EXEC_QUEUE_FLAG_PERMANENT		BIT(1)
 /* for VM jobs. Caller needs to hold rpm ref when creating queue with this flag */
-#define EXEC_QUEUE_FLAG_VM			BIT(2)
-/* child of VM queue for multi-tile VM jobs */
-#define EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD	BIT(3)
+#define EXEC_QUEUE_FLAG_VM			BIT(1)
 /* kernel exec_queue only, set priority to highest level */
-#define EXEC_QUEUE_FLAG_HIGH_PRIORITY		BIT(4)
+#define EXEC_QUEUE_FLAG_HIGH_PRIORITY		BIT(2)
 /* flag to indicate low latency hint to guc */
-#define EXEC_QUEUE_FLAG_LOW_LATENCY		BIT(5)
+#define EXEC_QUEUE_FLAG_LOW_LATENCY		BIT(3)
 /* for migration (kernel copy, clear, bind) jobs */
-#define EXEC_QUEUE_FLAG_MIGRATE			BIT(6)
+#define EXEC_QUEUE_FLAG_MIGRATE			BIT(4)
 /* for programming COMMON_SLICE_CHICKEN3 on first submission */
-#define EXEC_QUEUE_FLAG_DISABLE_STATE_CACHE_PERF_FIX	BIT(7)
+#define EXEC_QUEUE_FLAG_DISABLE_STATE_CACHE_PERF_FIX	BIT(5)
 
 	/**
 	 * @flags: flags for this exec queue, should statically setup aside from ban
@@ -149,12 +152,8 @@ struct xe_exec_queue {
 	 */
 	unsigned long flags;
 
-	union {
-		/** @multi_gt_list: list head for VM bind engines if multi-GT */
-		struct list_head multi_gt_list;
-		/** @multi_gt_link: link for VM bind engines if multi-GT */
-		struct list_head multi_gt_link;
-	};
+	/** @ban_reason: Bitmask of ban reasons (DRM_XE_EXEC_QUEUE_BAN_REASON_*) */
+	atomic_t ban_reason;
 
 	union {
 		/** @execlist: execlist backend specific state for exec queue */
@@ -222,7 +221,8 @@ struct xe_exec_queue {
 
 #define XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT	0
 #define XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT	1
-#define XE_EXEC_QUEUE_TLB_INVAL_COUNT		(XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT  + 1)
+#define XE_EXEC_QUEUE_TLB_INVAL_COUNT	\
+	((XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT + 1) * 2)
 
 	/** @tlb_inval: TLB invalidations exec queue state */
 	struct {
@@ -343,8 +343,8 @@ struct xe_exec_queue_ops {
 	 * signalled when this function is called.
 	 */
 	void (*resume)(struct xe_exec_queue *q);
-	/** @reset_status: check exec queue reset status */
-	bool (*reset_status)(struct xe_exec_queue *q);
+	/** @reset_status: check exec queue ban status, returns ban reason bitmask */
+	u64 (*reset_status)(struct xe_exec_queue *q);
 };
 
 #endif

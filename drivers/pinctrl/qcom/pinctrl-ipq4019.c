@@ -221,21 +221,21 @@ DECLARE_QCA_GPIO_PINS(99);
 			gpio##id##_pins, 		\
 			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
-			qca_mux_gpio, /* gpio mode */	\
-			qca_mux_##f1,			\
-			qca_mux_##f2,			\
-			qca_mux_##f3,			\
-			qca_mux_##f4,			\
-			qca_mux_##f5,			\
-			qca_mux_##f6,			\
-			qca_mux_##f7,			\
-			qca_mux_##f8,			\
-			qca_mux_##f9,			\
-			qca_mux_##f10,			\
-			qca_mux_##f11,			\
-			qca_mux_##f12,			\
-			qca_mux_##f13,			\
-			qca_mux_##f14			\
+			msm_mux_gpio, /* gpio mode */	\
+			msm_mux_##f1,			\
+			msm_mux_##f2,			\
+			msm_mux_##f3,			\
+			msm_mux_##f4,			\
+			msm_mux_##f5,			\
+			msm_mux_##f6,			\
+			msm_mux_##f7,			\
+			msm_mux_##f8,			\
+			msm_mux_##f9,			\
+			msm_mux_##f10,			\
+			msm_mux_##f11,			\
+			msm_mux_##f12,			\
+			msm_mux_##f13,			\
+			msm_mux_##f14			\
 		},				        \
 		.nfuncs = 15,				\
 		.ctl_reg = 0x0 + 0x1000 * id,		\
@@ -260,51 +260,51 @@ DECLARE_QCA_GPIO_PINS(99);
 
 
 enum ipq4019_functions {
-	qca_mux_gpio,
-	qca_mux_aud_pin,
-	qca_mux_audio_pwm,
-	qca_mux_blsp_i2c0,
-	qca_mux_blsp_i2c1,
-	qca_mux_blsp_spi0,
-	qca_mux_blsp_spi1,
-	qca_mux_blsp_uart0,
-	qca_mux_blsp_uart1,
-	qca_mux_chip_rst,
-	qca_mux_i2s_rx,
-	qca_mux_i2s_spdif_in,
-	qca_mux_i2s_spdif_out,
-	qca_mux_i2s_td,
-	qca_mux_i2s_tx,
-	qca_mux_jtag,
-	qca_mux_led0,
-	qca_mux_led1,
-	qca_mux_led2,
-	qca_mux_led3,
-	qca_mux_led4,
-	qca_mux_led5,
-	qca_mux_led6,
-	qca_mux_led7,
-	qca_mux_led8,
-	qca_mux_led9,
-	qca_mux_led10,
-	qca_mux_led11,
-	qca_mux_mdc,
-	qca_mux_mdio,
-	qca_mux_pcie,
-	qca_mux_pmu,
-	qca_mux_prng_rosc,
-	qca_mux_qpic,
-	qca_mux_rgmii,
-	qca_mux_rmii,
-	qca_mux_sdio,
-	qca_mux_smart0,
-	qca_mux_smart1,
-	qca_mux_smart2,
-	qca_mux_smart3,
-	qca_mux_tm,
-	qca_mux_wifi0,
-	qca_mux_wifi1,
-	qca_mux_NA,
+	msm_mux_gpio,
+	msm_mux_aud_pin,
+	msm_mux_audio_pwm,
+	msm_mux_blsp_i2c0,
+	msm_mux_blsp_i2c1,
+	msm_mux_blsp_spi0,
+	msm_mux_blsp_spi1,
+	msm_mux_blsp_uart0,
+	msm_mux_blsp_uart1,
+	msm_mux_chip_rst,
+	msm_mux_i2s_rx,
+	msm_mux_i2s_spdif_in,
+	msm_mux_i2s_spdif_out,
+	msm_mux_i2s_td,
+	msm_mux_i2s_tx,
+	msm_mux_jtag,
+	msm_mux_led0,
+	msm_mux_led1,
+	msm_mux_led2,
+	msm_mux_led3,
+	msm_mux_led4,
+	msm_mux_led5,
+	msm_mux_led6,
+	msm_mux_led7,
+	msm_mux_led8,
+	msm_mux_led9,
+	msm_mux_led10,
+	msm_mux_led11,
+	msm_mux_mdc,
+	msm_mux_mdio,
+	msm_mux_pcie,
+	msm_mux_pmu,
+	msm_mux_prng_rosc,
+	msm_mux_qpic,
+	msm_mux_rgmii,
+	msm_mux_rmii,
+	msm_mux_sdio,
+	msm_mux_smart0,
+	msm_mux_smart1,
+	msm_mux_smart2,
+	msm_mux_smart3,
+	msm_mux_tm,
+	msm_mux_wifi0,
+	msm_mux_wifi1,
+	msm_mux_NA,
 };
 
 static const char * const gpio_groups[] = {
@@ -470,50 +470,50 @@ static const char * const wifi1_groups[] = {
 };
 
 static const struct pinfunction ipq4019_functions[] = {
-	QCA_PIN_FUNCTION(aud_pin),
-	QCA_PIN_FUNCTION(audio_pwm),
-	QCA_PIN_FUNCTION(blsp_i2c0),
-	QCA_PIN_FUNCTION(blsp_i2c1),
-	QCA_PIN_FUNCTION(blsp_spi0),
-	QCA_PIN_FUNCTION(blsp_spi1),
-	QCA_PIN_FUNCTION(blsp_uart0),
-	QCA_PIN_FUNCTION(blsp_uart1),
-	QCA_PIN_FUNCTION(chip_rst),
-	QCA_GPIO_PIN_FUNCTION(gpio),
-	QCA_PIN_FUNCTION(i2s_rx),
-	QCA_PIN_FUNCTION(i2s_spdif_in),
-	QCA_PIN_FUNCTION(i2s_spdif_out),
-	QCA_PIN_FUNCTION(i2s_td),
-	QCA_PIN_FUNCTION(i2s_tx),
-	QCA_PIN_FUNCTION(jtag),
-	QCA_PIN_FUNCTION(led0),
-	QCA_PIN_FUNCTION(led1),
-	QCA_PIN_FUNCTION(led2),
-	QCA_PIN_FUNCTION(led3),
-	QCA_PIN_FUNCTION(led4),
-	QCA_PIN_FUNCTION(led5),
-	QCA_PIN_FUNCTION(led6),
-	QCA_PIN_FUNCTION(led7),
-	QCA_PIN_FUNCTION(led8),
-	QCA_PIN_FUNCTION(led9),
-	QCA_PIN_FUNCTION(led10),
-	QCA_PIN_FUNCTION(led11),
-	QCA_PIN_FUNCTION(mdc),
-	QCA_PIN_FUNCTION(mdio),
-	QCA_PIN_FUNCTION(pcie),
-	QCA_PIN_FUNCTION(pmu),
-	QCA_PIN_FUNCTION(prng_rosc),
-	QCA_PIN_FUNCTION(qpic),
-	QCA_PIN_FUNCTION(rgmii),
-	QCA_PIN_FUNCTION(rmii),
-	QCA_PIN_FUNCTION(sdio),
-	QCA_PIN_FUNCTION(smart0),
-	QCA_PIN_FUNCTION(smart1),
-	QCA_PIN_FUNCTION(smart2),
-	QCA_PIN_FUNCTION(smart3),
-	QCA_PIN_FUNCTION(tm),
-	QCA_PIN_FUNCTION(wifi0),
-	QCA_PIN_FUNCTION(wifi1),
+	MSM_PIN_FUNCTION(aud_pin),
+	MSM_PIN_FUNCTION(audio_pwm),
+	MSM_PIN_FUNCTION(blsp_i2c0),
+	MSM_PIN_FUNCTION(blsp_i2c1),
+	MSM_PIN_FUNCTION(blsp_spi0),
+	MSM_PIN_FUNCTION(blsp_spi1),
+	MSM_PIN_FUNCTION(blsp_uart0),
+	MSM_PIN_FUNCTION(blsp_uart1),
+	MSM_PIN_FUNCTION(chip_rst),
+	MSM_GPIO_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(i2s_rx),
+	MSM_PIN_FUNCTION(i2s_spdif_in),
+	MSM_PIN_FUNCTION(i2s_spdif_out),
+	MSM_PIN_FUNCTION(i2s_td),
+	MSM_PIN_FUNCTION(i2s_tx),
+	MSM_PIN_FUNCTION(jtag),
+	MSM_PIN_FUNCTION(led0),
+	MSM_PIN_FUNCTION(led1),
+	MSM_PIN_FUNCTION(led2),
+	MSM_PIN_FUNCTION(led3),
+	MSM_PIN_FUNCTION(led4),
+	MSM_PIN_FUNCTION(led5),
+	MSM_PIN_FUNCTION(led6),
+	MSM_PIN_FUNCTION(led7),
+	MSM_PIN_FUNCTION(led8),
+	MSM_PIN_FUNCTION(led9),
+	MSM_PIN_FUNCTION(led10),
+	MSM_PIN_FUNCTION(led11),
+	MSM_PIN_FUNCTION(mdc),
+	MSM_PIN_FUNCTION(mdio),
+	MSM_PIN_FUNCTION(pcie),
+	MSM_PIN_FUNCTION(pmu),
+	MSM_PIN_FUNCTION(prng_rosc),
+	MSM_PIN_FUNCTION(qpic),
+	MSM_PIN_FUNCTION(rgmii),
+	MSM_PIN_FUNCTION(rmii),
+	MSM_PIN_FUNCTION(sdio),
+	MSM_PIN_FUNCTION(smart0),
+	MSM_PIN_FUNCTION(smart1),
+	MSM_PIN_FUNCTION(smart2),
+	MSM_PIN_FUNCTION(smart3),
+	MSM_PIN_FUNCTION(tm),
+	MSM_PIN_FUNCTION(wifi0),
+	MSM_PIN_FUNCTION(wifi1),
 };
 
 static const struct msm_pingroup ipq4019_groups[] = {

@@ -37,7 +37,7 @@
 #if (SW_I2S0_I2S1)
 	/delete-node/ sound;
 
-	sound_card {
+	sound-card {
 		compatible = "audio-graph-card";
 		label = "HDMI-Audio";
 		dais = <&i2s2_port>;

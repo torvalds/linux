@@ -10,19 +10,22 @@ maintainers:
   - Svyatoslav Ryhel <clamor95@gmail.com>
 
 description:
-  Device has multiple DCDC(sd[0-3]) and LDOs(ldo[0-8]). The input supply
-  of these regulators are defined under parent device node. Details of
-  regulator properties are defined as child node under sub-node "regulators"
-  which is child node of device node.
+  Device has multiple DCDC (sd[0-3], plus sd4 on MAX20024) and LDOs
+  (ldo[0-8]). The input supply of these regulators are defined under parent
+  device node. Details of regulator properties are defined as child node under
+  sub-node "regulators" which is child node of device node.
 
 patternProperties:
-  "^in-(sd[0-3]|ldo(0-1|2|3-5|4-6|7-8))-supply$":
+  "^in-(sd[0-4]|ldo(0-1|2|3-5|4-6|7-8))-supply$":
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Input supply for DCDC or LDO
 
-  "^(sd[0-3]|ldo[0-8])$":
+  "^(sd[0-4]|ldo[0-8])$":
     type: object
-    $ref: /schemas/regulator/regulator.yaml#
+    allOf:
+      - $ref: /schemas/regulator/regulator.yaml#
+      - $ref: /schemas/regulator/nvidia,tegra-regulators-coupling.yaml#
+
     unevaluatedProperties: false
 
     properties:

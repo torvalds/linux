@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 use kernel::prelude::*;
 
@@ -12,6 +13,7 @@ use crate::{
         Architecture,
         Chipset, //
     },
+    regs,
 };
 
 mod ga102;
@@ -70,6 +72,20 @@ pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// these. For anything above, the PIO registers appear to be masked to the CPU, so DMA is the
     /// only usable method.
     fn load_method(&self) -> LoadMethod;
+
+    /// Returns the causes in `latched` that are routed to the host, meaning the CPU, rather than
+    /// to the falcon's own RISC-V core.
+    ///
+    /// The causes routed to the core belong to the firmware running on it, and the host does not
+    /// service them.
+    fn host_routed_causes(
+        &self,
+        falcon: &Falcon<'_, E>,
+        latched: regs::NV_PFALCON_FALCON_IRQSTAT,
+    ) -> regs::NV_PFALCON_FALCON_IRQSTAT;
+
+    /// Retriggers the falcon, which then re-emits its host-routed causes into the interrupt tree.
+    fn retrigger(&self, falcon: &Falcon<'_, E>);
 }
 
 /// Returns a boxed falcon HAL adequate for `chipset`.
@@ -82,11 +98,11 @@ pub(super) fn falcon_hal<E: FalconEngine + 'static>(
 ) -> Result<KBox<dyn FalconHal<E>>> {
     let hal = match chipset.arch() {
         Architecture::Turing => {
-            KBox::new(tu102::Tu102::<E>::new(), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
+            KBox::new(tu102::Tu102::<E>::new(false), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
         }
-        // GA100 boots like Turing so use Turing HAL
+        // GA100 boots like Turing, but features the retrigger register.
         Architecture::Ampere if chipset == Chipset::GA100 => {
-            KBox::new(tu102::Tu102::<E>::new(), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
+            KBox::new(tu102::Tu102::<E>::new(true), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
         }
         Architecture::Ampere
         | Architecture::Ada

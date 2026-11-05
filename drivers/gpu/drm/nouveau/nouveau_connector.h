@@ -43,7 +43,7 @@
 
 struct nvkm_i2c_port;
 struct dcb_output;
-struct edid;
+struct drm_edid;
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 struct nouveau_backlight {
@@ -121,6 +121,13 @@ struct nouveau_connector {
 	struct drm_connector base;
 	enum dcb_connector_type type;
 	u8 index;
+	/* LVDS_SPWG panels state their link count in EDID descriptor 4 (SPWG
+	 * byte 0x79), cached by nouveau_connector_set_edid() so nothing else
+	 * needs the raw EDID. 0 = unknown (not an SPWG panel, or no EDID) and
+	 * callers fall back to their transition-clock/VBIOS heuristics;
+	 * 1 = single link; 2 = dual link.
+	 */
+	u8 spwg_links;
 
 	struct nvif_conn conn;
 	u64 hpd_pending;
@@ -137,7 +144,8 @@ struct nouveau_connector {
 	int scaling_mode;
 
 	struct nouveau_encoder *detected_encoder;
-	struct edid *edid;
+	/* Owner of the sink's EDID, HF-EEODB-complete. */
+	const struct drm_edid *drm_edid;
 	struct drm_display_mode *native_mode;
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 	struct nouveau_backlight *backlight;

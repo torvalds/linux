@@ -1272,6 +1272,10 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 				&status_buffer->iu[0];
 
 		sas_ssp_task_response(dev, task, iu);
+		if (unlikely(ts->stat == SAS_SAM_STAT_CHECK_CONDITION &&
+			     !dev_parent_is_expander(device)))
+			hisi_sas_spinup_notify(hisi_hba, task);
+
 		break;
 	}
 	case SAS_PROTOCOL_SMP:

@@ -465,7 +465,7 @@ struct exposed_hook {
 		.expected_err = EXPECTED_ERR, \
 	},
 
-#include "cgroup_getset_retval_hooks.h"
+#include "progs/cgroup_getset_retval_hooks.h"
 
 #undef BPF_RETVAL_HOOK
 };

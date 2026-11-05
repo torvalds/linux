@@ -307,13 +307,11 @@ int tcf_action_update_hw_stats(struct tc_action *action)
 
 	err = tcf_action_offload_cmd(&fl_act, NULL, NULL, NULL);
 	if (!err) {
-		preempt_disable();
 		tcf_action_stats_update(action, fl_act.stats.bytes,
 					fl_act.stats.pkts,
 					fl_act.stats.drops,
 					fl_act.stats.lastused,
 					true);
-		preempt_enable();
 		action->used_hw_stats = fl_act.stats.used_hw_stats;
 		action->used_hw_stats_valid = true;
 	} else {
@@ -372,9 +370,10 @@ static int __tcf_action_put(struct tc_action *p, bool bind)
 {
 	struct tcf_idrinfo *idrinfo = p->idrinfo;
 
-	if (refcount_dec_and_mutex_lock(&p->tcfa_refcnt, &idrinfo->lock)) {
-		if (bind)
-			atomic_dec(&p->tcfa_bindcnt);
+	mutex_lock(&idrinfo->lock);
+	if (bind)
+		atomic_dec(&p->tcfa_bindcnt);
+	if (refcount_dec_and_test(&p->tcfa_refcnt)) {
 		idr_remove(&idrinfo->action_idr, p->tcfa_index);
 		mutex_unlock(&idrinfo->lock);
 
@@ -382,9 +381,7 @@ static int __tcf_action_put(struct tc_action *p, bool bind)
 		return 1;
 	}
 
-	if (bind)
-		atomic_dec(&p->tcfa_bindcnt);
-
+	mutex_unlock(&idrinfo->lock);
 	return 0;
 }
 
@@ -475,6 +472,15 @@ static size_t tcf_action_full_attrs_size(size_t sz)
 		+ sz;
 }
 
+/* tca_get_fill() may append TCA_ROOT_EXT_WARN_MSG from extack->_msg */
+static size_t tcf_action_warn_attr_size(const struct netlink_ext_ack *extack)
+{
+	if (unlikely(extack && extack->_msg))
+		return nla_total_size(strlen(extack->_msg) + 1);
+
+	return 0;
+}
+
 static size_t tcf_action_fill_size(const struct tc_action *act)
 {
 	size_t sz = tcf_action_shared_attrs_size(act);
@@ -549,7 +555,8 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		goto nla_put_failure;
 	err = tcf_action_dump_old(skb, a, bind, ref);
 	if (err > 0) {
-		nla_nest_end(skb, nest);
+		if (nla_nest_end_safe(skb, nest) < 0)
+			goto nla_put_failure;
 		return err;
 	}
 
@@ -589,18 +596,13 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 		tcf_action_update_hw_stats(p);
 
 		nest = nla_nest_start_noflag(skb, n_i);
-		if (!nest) {
-			index--;
+		if (!nest)
 			goto nla_put_failure;
-		}
 		err = (act_flags & TCA_ACT_FLAG_TERSE_DUMP) ?
 			tcf_action_dump_terse(skb, p, true) :
 			tcf_action_dump_1(skb, p, 0, 0);
-		if (err < 0) {
-			index--;
-			nlmsg_trim(skb, nest);
-			goto done;
-		}
+		if (err < 0)
+			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 		n_i++;
 		if (!(act_flags & TCA_ACT_FLAG_LARGE_DUMP_ON) &&
@@ -616,10 +618,21 @@ done:
 		if (act_flags & TCA_ACT_FLAG_LARGE_DUMP_ON)
 			cb->args[1] = n_i;
 	}
-	return n_i;
+
+	/* A positive count means the skb filled up before this action was
+	 * complete, so netlink retries it in a fresh skb. An action that
+	 * does not fit even in an empty dump skb (nothing dumped) must be
+	 * reported as -EMSGSIZE by netlink instead of ending the dump.
+	 */
+	return n_i ?: err;
 
 nla_put_failure:
+	index--;
 	nla_nest_cancel(skb, nest);
+	err = -EMSGSIZE;
+	if (!n_i)
+		NL_SET_ERR_MSG(cb->extack,
+			       "TC action is too large for the dump buffer");
 	goto done;
 }
 
@@ -1270,7 +1283,9 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 			tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
 			goto errout;
-		nla_nest_end(skb, nest);
+		err = nla_nest_end_safe(skb, nest);
+		if (err < 0)
+			goto errout;
 	}
 
 	return 0;
@@ -1545,6 +1560,9 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 					err = -EINVAL;
 					goto err;
 				}
+				/* Other filters share an existing action */
+				if (init_res[i - 1] != ACT_P_CREATED)
+					continue;
 				if (skip_sw)
 					act->tcfa_flags |= TCA_ACT_FLAGS_SKIP_SW;
 				if (skip_hw)
@@ -1588,6 +1606,7 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
 			     u64 drops, bool hw)
 {
 	if (a->cpu_bstats) {
+		local_bh_disable();
 		_bstats_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
 
 		this_cpu_add(a->cpu_qstats->drops, drops);
@@ -1595,13 +1614,16 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
 		if (hw)
 			_bstats_update(this_cpu_ptr(a->cpu_bstats_hw),
 				       bytes, packets);
+		local_bh_enable();
 		return;
 	}
 
+	spin_lock_bh(&a->tcfa_lock);
 	_bstats_update(&a->tcfa_bstats, bytes, packets);
 	atomic_add(drops, &a->tcfa_drops);
 	if (hw)
 		_bstats_update(&a->tcfa_bstats_hw, bytes, packets);
+	spin_unlock_bh(&a->tcfa_lock);
 }
 EXPORT_SYMBOL(tcf_action_update_stats);
 
@@ -1664,27 +1686,42 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
+	int err;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*t), flags);
-	if (!nlh)
+	if (!nlh) {
+		err = -EMSGSIZE;
 		goto out_nlmsg_trim;
+	}
 	t = nlmsg_data(nlh);
 	t->tca_family = AF_UNSPEC;
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
 	if (extack && extack->_msg &&
-	    nla_put_string(skb, TCA_ROOT_EXT_WARN_MSG, extack->_msg))
+	    nla_put_string(skb, TCA_ROOT_EXT_WARN_MSG, extack->_msg)) {
+		err = -EMSGSIZE;
 		goto out_nlmsg_trim;
+	}
 
 	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
-	if (!nest)
+	if (!nest) {
+		err = -EMSGSIZE;
 		goto out_nlmsg_trim;
+	}
 
-	if (tcf_action_dump(skb, actions, bind, ref, false) < 0)
+	err = tcf_action_dump(skb, actions, bind, ref, false);
+	if (err < 0) {
+		/* Report any inner dump failure as -EMSGSIZE so
+		 * tcf_del_notify() drops the notification, not the delete.
+		 */
+		err = -EMSGSIZE;
 		goto out_nlmsg_trim;
+	}
 
-	nla_nest_end(skb, nest);
+	err = nla_nest_end_safe(skb, nest);
+	if (err < 0)
+		goto out_nlmsg_trim;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 
@@ -1692,7 +1729,7 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 
 out_nlmsg_trim:
 	nlmsg_trim(skb, b);
-	return -1;
+	return err;
 }
 
 static int
@@ -1979,16 +2016,19 @@ static struct sk_buff *tcf_del_notify_msg(struct net *net, struct nlmsghdr *n,
 					  struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
+	int err;
 
-	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
+	skb = alloc_skb(max(attr_size + tcf_action_warn_attr_size(extack),
+			    NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
 		return ERR_PTR(-ENOBUFS);
 
-	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, RTM_DELACTION,
-			 0, 2, extack) <= 0) {
+	err = tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, RTM_DELACTION,
+			   0, 2, extack);
+	if (err <= 0) {
 		NL_SET_ERR_MSG(extack, "Failed to fill netlink TC action attributes");
 		kfree_skb(skb);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(err ? err : -EINVAL);
 	}
 
 	return skb;
@@ -2006,8 +2046,14 @@ static int tcf_del_notify(struct net *net, struct nlmsghdr *n,
 	} else {
 		skb = tcf_del_notify_msg(net, n, actions, portid, attr_size,
 					 extack);
-		if (IS_ERR(skb))
-			return PTR_ERR(skb);
+		if (IS_ERR(skb)) {
+			/* Such a dump can never be serialized: drop the
+			 * notification rather than refuse the delete.
+			 */
+			if (PTR_ERR(skb) != -EMSGSIZE)
+				return PTR_ERR(skb);
+			skb = NULL;
+		}
 	}
 
 	/* now do the delete */
@@ -2026,7 +2072,7 @@ static int
 tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	      u32 portid, int event, struct netlink_ext_ack *extack)
 {
-	int i, ret;
+	int i, j, ret;
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
 	size_t attr_size = 0;
@@ -2051,6 +2097,25 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 			ret = PTR_ERR(act);
 			goto err;
 		}
+
+		/* A delete consumes two references per slot (tcf_action_put()
+		 * and tcf_idr_delete_index()) but each entry takes one, so a
+		 * repeated action would hit zero mid-walk.  GET balances its
+		 * own references and keeps accepting duplicates.
+		 */
+		if (event == RTM_DELACTION) {
+			for (j = 0; j < i - 1; j++) {
+				if (actions[j] != act)
+					continue;
+
+				tcf_action_put(act);
+				NL_SET_ERR_MSG(extack,
+					       "Duplicate TC action in a delete batch");
+				ret = -EINVAL;
+				goto err;
+			}
+		}
+
 		attr_size += tcf_action_fill_size(act);
 		actions[i - 1] = act;
 	}
@@ -2078,7 +2143,8 @@ static struct sk_buff *tcf_add_notify_msg(struct net *net, struct nlmsghdr *n,
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
+	skb = alloc_skb(max(attr_size + tcf_action_warn_attr_size(extack),
+			    NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
 		return ERR_PTR(-ENOBUFS);
 
@@ -2130,12 +2196,17 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 	if (ret < 0)
 		return ret;
 
-	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
+	/* The add has already been committed, so a notification failure
+	 * must not turn it into a reported failure (cf. tc_new_tfilter()).
+	 */
+	if (tcf_add_notify(net, n, actions, portid, attr_size, extack))
+		NL_SET_ERR_MSG(extack,
+			       "Action created; event notification could not be sent");
 
 	/* only put bound actions */
 	tca_put_bound_many(actions, init_res);
 
-	return ret;
+	return 0;
 }
 
 static const struct nla_policy tcaa_policy[TCA_ROOT_MAX + 1] = {
@@ -2303,7 +2374,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 out_module_put:
 	module_put(a_o->owner);
 	nlmsg_trim(skb, b);
-	return skb->len;
+	return ret;
 }
 
 static const struct rtnl_msg_handler tc_action_rtnl_msg_handlers[] __initconst = {

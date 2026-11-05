@@ -10,6 +10,7 @@
 #ifndef _REGMAP_INTERNAL_H
 #define _REGMAP_INTERNAL_H
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
 #include <linux/fs.h>
@@ -184,6 +185,16 @@ struct regmap {
 
 	struct hwspinlock *hwlock;
 };
+
+/*
+ * Scoped guard for the regmap lock. The lock/unlock callbacks are selected
+ * at init time (mutex, spinlock, raw spinlock, hwspinlock or none) and never
+ * fail, so an unconditional guard is sufficient. Use with guard(regmap)(map)
+ * or scoped_guard(regmap, map) { ... }.
+ */
+DEFINE_GUARD(regmap, struct regmap *,
+	     _T->lock(_T->lock_arg),
+	     _T->unlock(_T->lock_arg))
 
 struct regcache_ops {
 	const char *name;

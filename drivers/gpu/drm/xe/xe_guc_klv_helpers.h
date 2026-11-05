@@ -26,6 +26,11 @@ u32 *xe_guc_klv_encode_object(u32 *klvs, u32 avail, u16 key, const void *obj,
 int xe_guc_klv_parser(const u32 *klvs, u32 num_dwords, void *obj,
 		      int (*decoder)(void *obj, u16 key, u16 len, const u32 *value));
 
+int xe_guc_klv_decode_u16(const u32 *value, u16 len, u16 *data);
+int xe_guc_klv_decode_u32(const u32 *value, u16 len, u32 *data);
+int xe_guc_klv_decode_u64(const u32 *value, u16 len, u64 *data);
+int xe_guc_klv_decode_string(const u32 *value, u16 len, char **data);
+
 /**
  * PREP_GUC_KLV - Prepare KLV header value based on provided key and len.
  * @key: KLV key

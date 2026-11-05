@@ -2,7 +2,7 @@
 /*
  * Utilities for mac80211 unit testing
  *
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024, 2026 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
@@ -225,10 +225,6 @@ int t_sdata_init(struct kunit_resource *resource, void *ctx)
 
 		sband = t_sdata->wiphy->bands[band];
 		sband->band = band;
-
-		sband->bitrates =
-			kmemdup(bitrates, sizeof(bitrates), GFP_KERNEL);
-		sband->n_bitrates = ARRAY_SIZE(bitrates);
 
 		/* Initialize channels, feel free to add more channels/bands */
 		switch (band) {

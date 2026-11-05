@@ -491,7 +491,7 @@ static void lpuart_dma_tx(struct lpuart_port *sport)
 	sport->dma_tx_nents = kfifo_dma_out_prepare(&tport->xmit_fifo, sgl,
 			ARRAY_SIZE(sport->tx_sgl), sport->dma_tx_bytes);
 
-	ret = dma_map_sg(chan->device->dev, sgl, sport->dma_tx_nents,
+	ret = dma_map_sg(dmaengine_get_dma_device(chan), sgl, sport->dma_tx_nents,
 			 DMA_TO_DEVICE);
 	if (!ret) {
 		dev_err(dev, "DMA mapping error for TX.\n");
@@ -502,7 +502,7 @@ static void lpuart_dma_tx(struct lpuart_port *sport)
 					ret, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT);
 	if (!sport->dma_tx_desc) {
-		dma_unmap_sg(chan->device->dev, sgl, sport->dma_tx_nents,
+		dma_unmap_sg(dmaengine_get_dma_device(chan), sgl, sport->dma_tx_nents,
 			      DMA_TO_DEVICE);
 		dev_err(dev, "Cannot prepare TX slave DMA!\n");
 		return;
@@ -535,7 +535,7 @@ static void lpuart_dma_tx_complete(void *arg)
 		return;
 	}
 
-	dma_unmap_sg(chan->device->dev, sgl, sport->dma_tx_nents,
+	dma_unmap_sg(dmaengine_get_dma_device(chan), sgl, sport->dma_tx_nents,
 		     DMA_TO_DEVICE);
 
 	uart_xmit_advance(&sport->port, sport->dma_tx_bytes);
@@ -606,7 +606,7 @@ static void lpuart_flush_buffer(struct uart_port *port)
 
 	if (sport->lpuart_dma_tx_use) {
 		if (sport->dma_tx_in_progress) {
-			dma_unmap_sg(chan->device->dev, &sport->tx_sgl[0],
+			dma_unmap_sg(dmaengine_get_dma_device(chan), &sport->tx_sgl[0],
 				sport->dma_tx_nents, DMA_TO_DEVICE);
 			sport->dma_tx_in_progress = false;
 		}
@@ -1176,7 +1176,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	}
 
 	/* CPU claims ownership of RX DMA buffer */
-	dma_sync_sg_for_cpu(chan->device->dev, &sport->rx_sgl, 1,
+	dma_sync_sg_for_cpu(dmaengine_get_dma_device(chan), &sport->rx_sgl, 1,
 			    DMA_FROM_DEVICE);
 
 	/*
@@ -1237,7 +1237,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	sport->last_residue = state.residue;
 
 exit:
-	dma_sync_sg_for_device(chan->device->dev, &sport->rx_sgl, 1,
+	dma_sync_sg_for_device(dmaengine_get_dma_device(chan), &sport->rx_sgl, 1,
 			       DMA_FROM_DEVICE);
 
 	uart_port_unlock_irqrestore(&sport->port, flags);
@@ -1374,7 +1374,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 		return -ENOMEM;
 
 	sg_init_one(&sport->rx_sgl, ring->buf, sport->rx_dma_rng_buf_len);
-	nent = dma_map_sg(chan->device->dev, &sport->rx_sgl, 1,
+	nent = dma_map_sg(dmaengine_get_dma_device(chan), &sport->rx_sgl, 1,
 			  DMA_FROM_DEVICE);
 
 	if (!nent) {
@@ -1430,7 +1430,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 	return 0;
 
 err_unmap_sg:
-	dma_unmap_sg(chan->device->dev, &sport->rx_sgl, 1, DMA_FROM_DEVICE);
+	dma_unmap_sg(dmaengine_get_dma_device(chan), &sport->rx_sgl, 1, DMA_FROM_DEVICE);
 err_free_buf:
 	kfree(ring->buf);
 	ring->buf = NULL;
@@ -1447,7 +1447,7 @@ static void lpuart_dma_rx_free(struct uart_port *port)
 	if (!sport->dma_idle_int)
 		timer_delete_sync(&sport->lpuart_timer);
 
-	dma_unmap_sg(chan->device->dev, &sport->rx_sgl, 1, DMA_FROM_DEVICE);
+	dma_unmap_sg(dmaengine_get_dma_device(chan), &sport->rx_sgl, 1, DMA_FROM_DEVICE);
 	kfree(sport->rx_ring.buf);
 	sport->rx_ring.tail = 0;
 	sport->rx_ring.head = 0;

@@ -73,7 +73,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm)
 	BUILD_BUG_ON(offsetof(struct shared_info, wc) != 0xc00);
 	BUILD_BUG_ON(offsetof(struct shared_info, wc_sec_hi) != 0xc0c);
 
-	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+	if (kvm_xen_has_64bit_shinfo(kvm)) {
 		struct shared_info *shinfo = gpc->khva;
 
 		wc_sec_hi = &shinfo->wc_sec_hi;
@@ -389,7 +389,7 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, time) !=
 		     sizeof(vx->runstate_times));
 
-	if (IS_ENABLED(CONFIG_64BIT) && v->kvm->arch.xen.long_mode) {
+	if (kvm_xen_has_64bit_shinfo(v->kvm)) {
 		user_len = sizeof(struct vcpu_runstate_info);
 		times_ofs = offsetof(struct vcpu_runstate_info,
 				     state_entry_time);
@@ -676,28 +676,32 @@ void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 	}
 
 	/* Now gpc->khva is a valid kernel address for the vcpu_info */
-	if (IS_ENABLED(CONFIG_64BIT) && v->kvm->arch.xen.long_mode) {
+	if (kvm_xen_has_64bit_shinfo(v->kvm)) {
 		struct vcpu_info *vi = gpc->khva;
+		void *vi_pending_sel = &vi->evtchn_pending_sel;
 
-		asm volatile(LOCK_PREFIX "orq %0, %1\n"
-			     "notq %0\n"
-			     LOCK_PREFIX "andq %0, %2\n"
-			     : "=r" (evtchn_pending_sel),
-			       "+m" (vi->evtchn_pending_sel),
-			       "+m" (v->arch.xen.evtchn_pending_sel)
-			     : "0" (evtchn_pending_sel));
+		if (IS_ALIGNED((unsigned long)vi_pending_sel, sizeof(u64))) {
+			atomic64_or(evtchn_pending_sel, vi_pending_sel);
+		} else {
+			atomic_or(evtchn_pending_sel, vi_pending_sel);
+			/*
+			 * The cast keeps the shift well-defined on 32-bit,
+			 * where evtchn_pending_sel is 32 bits wide and this
+			 * branch is unreachable anyway (this is inside
+			 * kvm_xen_has_64bit_shinfo(), which is gated on
+			 * IS_ENABLED(CONFIG_64BIT)).
+			 */
+			atomic_or((u64)evtchn_pending_sel >> 32,
+				  vi_pending_sel + 4);
+		}
+
+		atomic64_andnot(evtchn_pending_sel, (void *)&v->arch.xen.evtchn_pending_sel);
 		WRITE_ONCE(vi->evtchn_upcall_pending, 1);
 	} else {
-		u32 evtchn_pending_sel32 = evtchn_pending_sel;
 		struct compat_vcpu_info *vi = gpc->khva;
 
-		asm volatile(LOCK_PREFIX "orl %0, %1\n"
-			     "notl %0\n"
-			     LOCK_PREFIX "andl %0, %2\n"
-			     : "=r" (evtchn_pending_sel32),
-			       "+m" (vi->evtchn_pending_sel),
-			       "+m" (v->arch.xen.evtchn_pending_sel)
-			     : "0" (evtchn_pending_sel32));
+		atomic_or(evtchn_pending_sel, (void *)&vi->evtchn_pending_sel);
+		atomic_andnot(evtchn_pending_sel, (void *)&v->arch.xen.evtchn_pending_sel);
 		WRITE_ONCE(vi->evtchn_upcall_pending, 1);
 	}
 
@@ -727,6 +731,16 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 		     sizeof_field(struct vcpu_info, evtchn_upcall_pending));
 	BUILD_BUG_ON(sizeof(rc) !=
 		     sizeof_field(struct compat_vcpu_info, evtchn_upcall_pending));
+
+	/*
+	 * kvm_gpc_check() checks the memslot generation, so kvm->srcu must be
+	 * held. Most callers hold it already, but this is also reached from
+	 * kvm_emulate_halt() on the VM-Exit path and from kvm_vcpu_block(),
+	 * where vcpu_enter_guest() has already dropped the vCPU's SRCU lock.
+	 * Taking SRCU does not sleep, so it is safe even in the atomic case
+	 * which is handled below.
+	 */
+	guard(srcu)(&v->kvm->srcu);
 
 	read_lock_irqsave(&gpc->lock, flags);
 	while (!kvm_gpc_check(gpc, sizeof(struct vcpu_info))) {
@@ -941,6 +955,10 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 				break;
 			}
 
+			r = -ENXIO;
+			if (!IS_ALIGNED(data->u.gpa, sizeof(u32)))
+				break;
+
 			r = kvm_gpc_activate(&vcpu->arch.xen.vcpu_info_cache,
 					     data->u.gpa, sizeof(struct vcpu_info));
 		} else {
@@ -949,6 +967,10 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 				r = 0;
 				break;
 			}
+
+			r = -ENXIO;
+			if (!IS_ALIGNED(data->u.hva, sizeof(u32)))
+				break;
 
 			r = kvm_gpc_activate_hva(&vcpu->arch.xen.vcpu_info_cache,
 						 data->u.hva, sizeof(struct vcpu_info));
@@ -993,7 +1015,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		 * address, that's actually OK. kvm_xen_update_runstate_guest()
 		 * will cope.
 		 */
-		if (IS_ENABLED(CONFIG_64BIT) && vcpu->kvm->arch.xen.long_mode)
+		if (kvm_xen_has_64bit_shinfo(vcpu->kvm))
 			sz = sizeof(struct vcpu_runstate_info);
 		else
 			sz = sizeof(struct compat_vcpu_runstate_info);
@@ -1439,16 +1461,21 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return kvm_xen_hypercall_set_result(vcpu, run->xen.u.hcall.result);
 }
 
-static inline int max_evtchn_port(struct kvm *kvm)
+static inline int max_evtchn_port(bool has_64bit_shinfo)
 {
-	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode)
+	if (has_64bit_shinfo)
 		return EVTCHN_2L_NR_CHANNELS;
 	else
 		return COMPAT_EVTCHN_2L_NR_CHANNELS;
 }
 
-static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
-			       evtchn_port_t *ports)
+static inline int kvm_max_evtchn_port(struct kvm *kvm)
+{
+	return max_evtchn_port(kvm_xen_has_64bit_shinfo(kvm));
+}
+
+static bool wait_pending_event(struct kvm_vcpu *vcpu, bool has_64bit_shinfo,
+			       int nr_ports, evtchn_port_t *ports)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
@@ -1463,7 +1490,7 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 		goto out_rcu;
 
 	ret = false;
-	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+	if (has_64bit_shinfo) {
 		struct shared_info *shinfo = gpc->khva;
 		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
 	} else {
@@ -1485,9 +1512,10 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 	return ret;
 }
 
-static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
+static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool is_64bit,
 				 u64 param, u64 *r)
 {
+	bool has_64bit_shinfo = kvm_xen_has_64bit_shinfo(vcpu->kvm);
 	struct sched_poll sched_poll;
 	evtchn_port_t port, *ports;
 	struct x86_exception e;
@@ -1497,7 +1525,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	    !(vcpu->kvm->arch.xen.hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
 		return false;
 
-	if (IS_ENABLED(CONFIG_64BIT) && !longmode) {
+	if (IS_ENABLED(CONFIG_64BIT) && !is_64bit) {
 		struct compat_sched_poll sp32;
 
 		/* Sanity check that the compat struct definition is correct */
@@ -1546,20 +1574,20 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	}
 
 	for (i = 0; i < sched_poll.nr_ports; i++) {
-		if (ports[i] >= max_evtchn_port(vcpu->kvm)) {
+		if (ports[i] >= max_evtchn_port(has_64bit_shinfo)) {
 			*r = -EINVAL;
 			goto out;
 		}
 	}
 
 	if (sched_poll.nr_ports == 1)
-		vcpu->arch.xen.poll_evtchn = port;
+		WRITE_ONCE(vcpu->arch.xen.poll_evtchn, port);
 	else
-		vcpu->arch.xen.poll_evtchn = -1;
+		WRITE_ONCE(vcpu->arch.xen.poll_evtchn, -1);
 
 	set_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
-	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports)) {
+	if (!wait_pending_event(vcpu, has_64bit_shinfo, sched_poll.nr_ports, ports)) {
 		kvm_set_mp_state(vcpu, KVM_MP_STATE_HALTED);
 
 		if (sched_poll.timeout)
@@ -1574,7 +1602,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		kvm_set_mp_state(vcpu, KVM_MP_STATE_RUNNABLE);
 	}
 
-	vcpu->arch.xen.poll_evtchn = 0;
+	WRITE_ONCE(vcpu->arch.xen.poll_evtchn, 0);
 	*r = 0;
 out:
 	/* Really, this is only needed in case of timeout */
@@ -1594,12 +1622,12 @@ static void cancel_evtchn_poll(struct timer_list *t)
 	kvm_vcpu_kick(vcpu);
 }
 
-static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, bool longmode,
+static bool kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, bool is_64bit,
 				   int cmd, u64 param, u64 *r)
 {
 	switch (cmd) {
 	case SCHEDOP_poll:
-		if (kvm_xen_schedop_poll(vcpu, longmode, param, r))
+		if (kvm_xen_schedop_poll(vcpu, is_64bit, param, r))
 			return true;
 		fallthrough;
 	case SCHEDOP_yield:
@@ -1618,7 +1646,7 @@ struct compat_vcpu_set_singleshot_timer {
     uint32_t flags;
 } __attribute__((packed));
 
-static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
+static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool is_64bit, int cmd,
 				  int vcpu_id, u64 param, u64 *r)
 {
 	struct vcpu_set_singleshot_timer oneshot;
@@ -1662,7 +1690,7 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, flags) !=
 			     sizeof_field(struct vcpu_set_singleshot_timer, flags));
 
-		if (kvm_read_guest_virt(vcpu, param, &oneshot, longmode ? sizeof(oneshot) :
+		if (kvm_read_guest_virt(vcpu, param, &oneshot, is_64bit ? sizeof(oneshot) :
 					sizeof(struct compat_vcpu_set_singleshot_timer), &e)) {
 			*r = -EFAULT;
 			return true;
@@ -1694,7 +1722,7 @@ static bool kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout,
 
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
-	bool longmode;
+	bool is_64bit;
 	u64 input, params[6], r = -ENOSYS;
 	bool handled = false;
 	u8 cpl;
@@ -1704,8 +1732,8 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	    kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
-	longmode = is_64_bit_hypercall(vcpu);
-	if (!longmode) {
+	is_64bit = is_64_bit_hypercall(vcpu);
+	if (!is_64bit) {
 		input = kvm_eax_read(vcpu);
 		params[0] = kvm_ebx_read(vcpu);
 		params[1] = kvm_ecx_read(vcpu);
@@ -1751,17 +1779,17 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 			handled = kvm_xen_hcall_evtchn_send(vcpu, params[1], &r);
 		break;
 	case __HYPERVISOR_sched_op:
-		handled = kvm_xen_hcall_sched_op(vcpu, longmode, params[0],
+		handled = kvm_xen_hcall_sched_op(vcpu, is_64bit, params[0],
 						 params[1], &r);
 		break;
 	case __HYPERVISOR_vcpu_op:
-		handled = kvm_xen_hcall_vcpu_op(vcpu, longmode, params[0], params[1],
+		handled = kvm_xen_hcall_vcpu_op(vcpu, is_64bit, params[0], params[1],
 						params[2], &r);
 		break;
 	case __HYPERVISOR_set_timer_op: {
 		u64 timeout = params[0];
 		/* In 32-bit mode, the 64-bit timeout is in two 32-bit params. */
-		if (!longmode)
+		if (!is_64bit)
 			timeout |= params[1] << 32;
 		handled = kvm_xen_hcall_set_timer_op(vcpu, timeout, &r);
 		break;
@@ -1776,7 +1804,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 handle_in_userspace:
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
-	vcpu->run->xen.u.hcall.longmode = longmode;
+	vcpu->run->xen.u.hcall.longmode = is_64bit;
 	vcpu->run->xen.u.hcall.cpl = cpl;
 	vcpu->run->xen.u.hcall.input = input;
 	vcpu->run->xen.u.hcall.params[0] = params[0];
@@ -1794,7 +1822,7 @@ handle_in_userspace:
 
 static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 {
-	int poll_evtchn = vcpu->arch.xen.poll_evtchn;
+	int poll_evtchn = READ_ONCE(vcpu->arch.xen.poll_evtchn);
 
 	if ((poll_evtchn == port || poll_evtchn == -1) &&
 	    test_and_clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask)) {
@@ -1816,8 +1844,9 @@ static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 {
 	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
+	bool has_64bit_shinfo = kvm_xen_has_64bit_shinfo(kvm);
+	unsigned long *pending_bits, *mask_bits, vi_pending_sel_ofs;
 	struct kvm_vcpu *vcpu;
-	unsigned long *pending_bits, *mask_bits;
 	unsigned long flags;
 	int port_word_bit;
 	bool kick_vcpu = false;
@@ -1833,7 +1862,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		WRITE_ONCE(xe->vcpu_idx, vcpu->vcpu_idx);
 	}
 
-	if (xe->port >= max_evtchn_port(kvm))
+	if (xe->port >= max_evtchn_port(has_64bit_shinfo))
 		return -EINVAL;
 
 	rc = -EWOULDBLOCK;
@@ -1844,16 +1873,23 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 	if (!kvm_gpc_check(gpc, PAGE_SIZE))
 		goto out_rcu;
 
-	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+	if (has_64bit_shinfo) {
 		struct shared_info *shinfo = gpc->khva;
 		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
 		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
 		port_word_bit = xe->port / 64;
+
+		vi_pending_sel_ofs = offsetof(struct vcpu_info, evtchn_pending_sel);
 	} else {
 		struct compat_shared_info *shinfo = gpc->khva;
 		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
 		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
 		port_word_bit = xe->port / 32;
+
+		vi_pending_sel_ofs = offsetof(struct compat_vcpu_info, evtchn_pending_sel);
+
+		/* test_and_set_bit() needs 64-bit alignment, but that's OK */
+		BUILD_BUG_ON(offsetof(struct compat_shared_info, evtchn_pending) & 7);
 	}
 
 	/*
@@ -1869,6 +1905,8 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		rc = -ENOTCONN; /* Masked */
 		kvm_xen_check_poller(vcpu, xe->port);
 	} else {
+		bool old;
+
 		rc = 1; /* Delivered to the bitmap in shared_info. */
 		/* Now switch to the vCPU's vcpu_info to set the index and pending_sel */
 		read_unlock_irqrestore(&gpc->lock, flags);
@@ -1885,19 +1923,29 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 			goto out_rcu;
 		}
 
-		if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
-			struct vcpu_info *vcpu_info = gpc->khva;
-			if (!test_and_set_bit(port_word_bit, &vcpu_info->evtchn_pending_sel)) {
-				WRITE_ONCE(vcpu_info->evtchn_upcall_pending, 1);
-				kick_vcpu = true;
-			}
-		} else {
-			struct compat_vcpu_info *vcpu_info = gpc->khva;
-			if (!test_and_set_bit(port_word_bit,
-					      (unsigned long *)&vcpu_info->evtchn_pending_sel)) {
-				WRITE_ONCE(vcpu_info->evtchn_upcall_pending, 1);
-				kick_vcpu = true;
-			}
+		/*
+		 * Explicitly use a 32-bit btsl instead of test_and_set_bit(),
+		 * which would use btsq on x86-64. The vcpu_info is guest-
+		 * controlled and only required to be 32-bit aligned, so a
+		 * 64-bit access could generate a split-lock #AC.
+		 *
+		 * Note, this does not apply to the test_and_set_bit() on
+		 * pending_bits above: that is in the per-VM shared_info, which
+		 * is page aligned, so the access is guaranteed to be 64-bit
+		 * aligned.
+		 */
+		old = GEN_BINARY_RMWcc(LOCK_PREFIX "btsl",
+				       *(u32 *)(gpc->khva + vi_pending_sel_ofs),
+				       c, "Ir", port_word_bit);
+		if (!old) {
+			struct vcpu_info *vi = gpc->khva;
+
+			/* No need for compat handling */
+			BUILD_BUG_ON(offsetof(struct vcpu_info, evtchn_upcall_pending) !=
+				     offsetof(struct compat_vcpu_info, evtchn_upcall_pending));
+
+			WRITE_ONCE(vi->evtchn_upcall_pending, 1);
+			kick_vcpu = true;
 		}
 
 		/* For the per-vCPU lapic vector, deliver it as MSI. */
@@ -1995,7 +2043,7 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	struct kvm_vcpu *vcpu;
 
 	/*
-	 * Don't check for the port being within range of max_evtchn_port().
+	 * Don't check for the port being within range of kvm_max_evtchn_port().
 	 * Userspace can configure what ever targets it likes; events just won't
 	 * be delivered if/while the target is invalid, just like userspace can
 	 * configure MSIs which target non-existent APICs.
@@ -2004,8 +2052,8 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	 * can be restored *independently* of other things like creating vCPUs,
 	 * without imposing an ordering dependency on userspace.  In this
 	 * particular case, the problematic ordering would be with setting the
-	 * Xen 'long mode' flag, which changes max_evtchn_port() to allow 4096
-	 * instead of 1024 event channels.
+	 * Xen 'long mode' flag, which changes kvm_max_evtchn_port() to allow
+	 * 4096 instead of 1024 event channels.
 	 */
 
 	/* We only support 2 level event channels for now */
@@ -2042,7 +2090,7 @@ int kvm_xen_hvm_evtchn_send(struct kvm *kvm, struct kvm_irq_routing_xen_evtchn *
 	struct kvm_xen_evtchn e;
 	int ret;
 
-	if (!uxe->port || uxe->port >= max_evtchn_port(kvm))
+	if (!uxe->port || uxe->port >= kvm_max_evtchn_port(kvm))
 		return -EINVAL;
 
 	/* We only support 2 level event channels for now */
@@ -2093,7 +2141,7 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 
 	/* Protect writes to evtchnfd as well as the idr lookup.  */
 	mutex_lock(&kvm->arch.xen.xen_lock);
-	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
+	evtchnfd = xa_load(&kvm->arch.xen.evtchn_ports, port);
 
 	ret = -ENOENT;
 	if (!evtchnfd)
@@ -2152,7 +2200,7 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 
 	case EVTCHNSTAT_interdomain:
 		if (data->u.evtchn.deliver.port.port) {
-			if (data->u.evtchn.deliver.port.port >= max_evtchn_port(kvm))
+			if (data->u.evtchn.deliver.port.port >= kvm_max_evtchn_port(kvm))
 				goto out_noeventfd; /* -EINVAL */
 		} else {
 			eventfd = eventfd_ctx_fdget(data->u.evtchn.deliver.eventfd.fd);
@@ -2187,13 +2235,13 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 	}
 
 	mutex_lock(&kvm->arch.xen.xen_lock);
-	ret = idr_alloc(&kvm->arch.xen.evtchn_ports, evtchnfd, port, port + 1,
+	ret = xa_insert(&kvm->arch.xen.evtchn_ports, port, evtchnfd,
 			GFP_KERNEL);
 	mutex_unlock(&kvm->arch.xen.xen_lock);
-	if (ret >= 0)
+	if (!ret)
 		return 0;
 
-	if (ret == -ENOSPC)
+	if (ret == -EBUSY)
 		ret = -EEXIST;
 out:
 	if (eventfd)
@@ -2208,7 +2256,7 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 	struct evtchnfd *evtchnfd;
 
 	mutex_lock(&kvm->arch.xen.xen_lock);
-	evtchnfd = idr_remove(&kvm->arch.xen.evtchn_ports, port);
+	evtchnfd = xa_erase(&kvm->arch.xen.evtchn_ports, port);
 	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	if (!evtchnfd)
@@ -2224,7 +2272,7 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 static int kvm_xen_eventfd_reset(struct kvm *kvm)
 {
 	struct evtchnfd *evtchnfd, **all_evtchnfds;
-	int i;
+	unsigned long i;
 	int n = 0;
 
 	mutex_lock(&kvm->arch.xen.xen_lock);
@@ -2234,7 +2282,7 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 	 * critical section, first collect all the evtchnfd objects
 	 * in an array as they are removed from evtchn_ports.
 	 */
-	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i)
+	xa_for_each(&kvm->arch.xen.evtchn_ports, i, evtchnfd)
 		n++;
 
 	all_evtchnfds = kmalloc_objs(struct evtchnfd *, n);
@@ -2244,9 +2292,9 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 	}
 
 	n = 0;
-	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
+	xa_for_each(&kvm->arch.xen.evtchn_ports, i, evtchnfd) {
 		all_evtchnfds[n++] = evtchnfd;
-		idr_remove(&kvm->arch.xen.evtchn_ports, evtchnfd->send_port);
+		xa_erase(&kvm->arch.xen.evtchn_ports, evtchnfd->send_port);
 	}
 	mutex_unlock(&kvm->arch.xen.xen_lock);
 
@@ -2270,7 +2318,7 @@ static int kvm_xen_setattr_evtchn(struct kvm *kvm, struct kvm_xen_hvm_attr *data
 	if (data->u.evtchn.flags == KVM_XEN_EVTCHN_RESET)
 		return kvm_xen_eventfd_reset(kvm);
 
-	if (!port || port >= max_evtchn_port(kvm))
+	if (!port || port >= kvm_max_evtchn_port(kvm))
 		return -EINVAL;
 
 	if (data->u.evtchn.flags == KVM_XEN_EVTCHN_DEASSIGN)
@@ -2297,12 +2345,10 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 	}
 
 	/*
-	 * evtchnfd is protected by kvm->srcu; the idr lookup instead
-	 * is protected by RCU.
+	 * evtchnfd is protected by kvm->srcu; the xa_load is RCU-safe
+	 * internally, no explicit rcu_read_lock() needed.
 	 */
-	rcu_read_lock();
-	evtchnfd = idr_find(&vcpu->kvm->arch.xen.evtchn_ports, send.port);
-	rcu_read_unlock();
+	evtchnfd = xa_load(&vcpu->kvm->arch.xen.evtchn_ports, send.port);
 	if (!evtchnfd)
 		return false;
 
@@ -2349,23 +2395,23 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 void kvm_xen_init_vm(struct kvm *kvm)
 {
 	mutex_init(&kvm->arch.xen.xen_lock);
-	idr_init(&kvm->arch.xen.evtchn_ports);
+	xa_init(&kvm->arch.xen.evtchn_ports);
 	kvm_gpc_init(&kvm->arch.xen.shinfo_cache, kvm);
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)
 {
 	struct evtchnfd *evtchnfd;
-	int i;
+	unsigned long i;
 
 	kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
 
-	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
+	xa_for_each(&kvm->arch.xen.evtchn_ports, i, evtchnfd) {
 		if (!evtchnfd->deliver.port.port)
 			eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
 		kfree(evtchnfd);
 	}
-	idr_destroy(&kvm->arch.xen.evtchn_ports);
+	xa_destroy(&kvm->arch.xen.evtchn_ports);
 
 	if (kvm->arch.xen.hvm_config.msr)
 		static_branch_slow_dec_deferred(&kvm_xen_enabled);

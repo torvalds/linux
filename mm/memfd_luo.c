@@ -121,8 +121,7 @@ static int memfd_luo_preserve_folios(struct file *file,
 	/*
 	 * Pin the folios so they don't move around behind our back. This also
 	 * ensures none of the folios are in CMA -- which ensures they don't
-	 * fall in KHO scratch memory. It also moves swapped out folios back to
-	 * memory.
+	 * fall in KHO bootmem. It also moves swapped out folios back to memory.
 	 *
 	 * A side effect of doing this is that it allocates a folio for all
 	 * indices in the file. This might waste memory on sparse memfds. If

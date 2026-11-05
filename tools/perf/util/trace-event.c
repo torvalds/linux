@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <linux/kernel.h>
-#include <linux/err.h>
 #include <event-parse.h>
 #include <api/fs/tracing_path.h>
 #include <api/fs/fs.h>
@@ -15,11 +14,9 @@
 #include "machine.h"
 
 /*
- * global trace_event object used by trace_event__tp_format
- *
- * TODO There's no cleanup call for this. Add some sort of
- * __exit function support and call trace_event__cleanup
- * there.
+ * Global trace_event object used by trace_event__tp_format. It caches the
+ * tracepoint formats of the running kernel for the lifetime of the command
+ * and is released by trace_event__exit.
  */
 static struct trace_event tevent;
 static bool tevent_initialized;
@@ -77,51 +74,104 @@ void trace_event__cleanup(struct trace_event *t)
 }
 
 /*
- * Returns pointer with encoded error via <linux/err.h> interface.
+ * Release the global trace_event. Called once the command is done, when the
+ * tep_event pointers handed out by trace_event__tp_format are no longer in
+ * use.
+ */
+void trace_event__exit(void)
+{
+	if (!tevent_initialized)
+		return;
+
+	trace_event__cleanup(&tevent);
+	tevent_initialized = false;
+}
+
+/*
+ * Returns NULL and sets errno on failure.
  */
 static struct tep_event*
 tp_format(const char *sys, const char *name)
 {
-	char *tp_dir = get_events_file(sys);
 	struct tep_handle *pevent = tevent.pevent;
-	struct tep_event *event = NULL;
+	struct tep_event *event;
+	char *tp_dir;
 	char path[PATH_MAX];
 	size_t size;
 	char *data;
 	int err;
 
-	if (!tp_dir)
-		return ERR_PTR(-errno);
+	/*
+	 * Each parse adds an event to the tep handle that can only be freed
+	 * by freeing the whole handle, so re-reading a format file both
+	 * repeats the work and grows the handle with a duplicate. Reuse the
+	 * event if it was already parsed.
+	 */
+	event = tep_find_event_by_name(pevent, sys, name);
+	if (event)
+		return event;
+
+	tp_dir = get_events_file(sys);
+	if (!tp_dir) {
+		errno = ENOMEM;
+		return NULL;
+	}
 
 	scnprintf(path, PATH_MAX, "%s/%s/format", tp_dir, name);
 	put_events_file(tp_dir);
 
 	err = filename__read_str(path, &data, &size);
-	if (err)
-		return ERR_PTR(err);
+	if (err) {
+		errno = -err;
+		return NULL;
+	}
 
-	tep_parse_format(pevent, &event, data, size, sys);
+	event = NULL;
+	err = tep_parse_format(pevent, &event, data, size, sys);
 
 	free(data);
+
+	/*
+	 * A parse failure leaves no event behind, report it rather than
+	 * letting a NULL be mistaken for a successfully parsed format.
+	 */
+	if (err != TEP_ERRNO__SUCCESS || !event) {
+		errno = EINVAL;
+		return NULL;
+	}
+
 	return event;
 }
 
 /*
- * Returns pointer with encoded error via <linux/err.h> interface.
+ * Returns NULL and sets errno on failure.
  */
 struct tep_event*
 trace_event__tp_format(const char *sys, const char *name)
 {
-	if (!tevent_initialized && trace_event__init2())
-		return ERR_PTR(-ENOMEM);
+	if (!tevent_initialized && trace_event__init2()) {
+		errno = ENOMEM;
+		return NULL;
+	}
 
 	return tp_format(sys, name);
 }
 
+/*
+ * Returns NULL and sets errno on failure.
+ */
 struct tep_event *trace_event__tp_format_id(int id)
 {
-	if (!tevent_initialized && trace_event__init2())
-		return ERR_PTR(-ENOMEM);
+	struct tep_event *event;
 
-	return tep_find_event(tevent.pevent, id);
+	if (!tevent_initialized && trace_event__init2()) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	event = tep_find_event(tevent.pevent, id);
+	if (!event)
+		errno = ENOENT;
+
+	return event;
 }

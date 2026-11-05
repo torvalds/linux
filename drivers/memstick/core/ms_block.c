@@ -720,7 +720,7 @@ static int h_msb_parallel_switch(struct memstick_dev *card,
 
 static int msb_switch_to_parallel(struct msb_data *msb);
 
-/* Reset the card, to guard against hw errors beeing treated as bad blocks */
+/* Reset the card, to guard against hw errors being treated as bad blocks */
 static int msb_reset(struct msb_data *msb, bool full)
 {
 

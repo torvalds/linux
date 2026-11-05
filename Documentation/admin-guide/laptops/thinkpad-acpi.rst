@@ -583,7 +583,8 @@ Events that are propagated by the driver to userspace:
 0x6030		System thermal table changed
 0x6032		Thermal Control command set completion  (DYTC, Windows)
 0x6040		Nvidia Optimus/AC adapter related (TO BE VERIFIED)
-0x60C0		X1 Yoga 2016, Tablet mode status changed
+0x60C0		X1 Yoga 2016 tablet mode or X1 Fold 16 Gen 1 keyboard
+		attachment state changed
 0x60F0		Thermal Transformation changed (GMTS, Windows)
 ======		=====================================================
 
@@ -1656,6 +1657,29 @@ if damage detected:
 - TYPE-C: Base, Right side, Center port
 
 The property is read-only. If feature is not supported then sysfs
+attribute is not created.
+
+X1 Fold keyboard attachment
+---------------------------
+
+sysfs attribute: keyboard_attached_on_screen
+
+ThinkPad X1 Fold 16 Gen 1 systems can report whether the keyboard is
+currently attached on-screen.
+
+This attribute is currently supported on ThinkPad X1 Fold 16 Gen 1
+systems only.
+
+The command to check the keyboard attachment state is::
+
+	cat /sys/devices/platform/thinkpad_acpi/keyboard_attached_on_screen
+
+The values are:
+
+- 0 if the keyboard is not attached on-screen
+- 1 if the keyboard is attached on-screen
+
+The property is read-only. If feature is not supported then the sysfs
 attribute is not created.
 
 Multiple Commands, Module Parameters

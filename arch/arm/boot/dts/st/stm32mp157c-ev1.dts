@@ -81,15 +81,15 @@
 	status = "okay";
 };
 
-&cs_cti_trace {
-	status = "okay";
-};
-
 &cs_cti_cpu0 {
 	status = "okay";
 };
 
 &cs_cti_cpu1 {
+	status = "okay";
+};
+
+&cs_cti_trace {
 	status = "okay";
 };
 
@@ -439,6 +439,7 @@
 		compatible = "usb424,2514";
 		reg = <1>;
 		vdd-supply = <&v3v3>;
+		vdda-supply = <&v3v3>;
 	};
 };
 

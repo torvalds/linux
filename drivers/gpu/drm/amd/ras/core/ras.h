@@ -27,7 +27,7 @@
 #include "ras_sys.h"
 #include "ras_umc.h"
 #include "aca.h"
-#include "eeprom.h"
+#include "ras_eeprom_mgr.h"
 #include "core_status.h"
 #include "ras_process.h"
 #include "ras_gfx.h"
@@ -37,6 +37,8 @@
 #include "ras_psp.h"
 #include "log_ring.h"
 #include "eeprom_fw.h"
+#include "ras_mce.h"
+#include "ras_bert.h"
 
 #define RAS_HW_ERR		"[Hardware Error]: "
 
@@ -81,8 +83,29 @@ enum ras_block_id {
 	RAS_BLOCK_ID__JPEG,
 	RAS_BLOCK_ID__IH,
 	RAS_BLOCK_ID__MPIO,
+	RAS_BLOCK_ID__MMSCH,
+	RAS_BLOCK_ID__MP5,
+	RAS_BLOCK_ID__ATU,
+	RAS_BLOCK_ID__DACC_BE,
+	RAS_BLOCK_ID__ECLR,
+	RAS_BLOCK_ID__KPX_SERDES,
+	RAS_BLOCK_ID__LSDMA,
+	RAS_BLOCK_ID__MPART,
+	RAS_BLOCK_ID__MPIFOE,
+	RAS_BLOCK_ID__MPRAS,
+	RAS_BLOCK_ID__NBIF,
+	RAS_BLOCK_ID__NBIO,
+	RAS_BLOCK_ID__OXRP,
+	RAS_BLOCK_ID__PCIE_PL,
+	RAS_BLOCK_ID__PCS_XGMI,
+	RAS_BLOCK_ID__PIE,
+	RAS_BLOCK_ID__CS,
+	RAS_BLOCK_ID__SHUB,
+	RAS_BLOCK_ID__SSBDCI,
+	RAS_BLOCK_ID__UCIE_PCS,
 
-	RAS_BLOCK_ID__LAST
+	RAS_BLOCK_ID__LAST,
+	MAX_SUPPORTED_RAS_BLOCK_ID  = MAX_RAS_BLOCK_MASK_BITS
 };
 
 enum ras_ecc_err_type {
@@ -97,6 +120,7 @@ enum ras_err_type {
 	RAS_ERR_TYPE__UE = 0,
 	RAS_ERR_TYPE__CE,
 	RAS_ERR_TYPE__DE,
+	RAS_ERR_TYPE__MCE,
 	RAS_ERR_TYPE__LAST
 };
 
@@ -129,6 +153,8 @@ enum ras_notify_event {
 	RAS_EVENT_ID__RESET_VF,
 	RAS_EVENT_ID__RAS_EVENT_PROC_BEGIN,
 	RAS_EVENT_ID__RAS_EVENT_PROC_END,
+	RAS_EVENT_ID__UPDATE_ACA_DATA,
+	RAS_EVENT_ID__EARLY_INIT_RESERVE_PAGE,
 };
 
 enum ras_gpu_status {
@@ -150,6 +176,24 @@ enum ras_fw_eeprom_cmd {
 	RAS_SMU_GetBadPageMcaAddr,
 };
 
+enum ras_unit_id {
+	RAS_UNIT_ID_UMC,
+	RAS_UNIT_ID_GFX,
+	RAS_UNIT_ID_MP1,
+	RAS_UNIT_ID_PSP,
+	RAS_UNIT_ID_NBIO,
+	RAS_UNIT_ID_ACA,
+	RAS_UNIT_ID_EEPROM,
+	RAS_UNIT_ID_MAX
+};
+
+enum ras_work_mode_over_thresh {
+	RAS_WORK_MODE_OVER_THRESH_STRICT,
+	RAS_WORK_MODE_OVER_THRESH_NORMAL,
+	RAS_WORK_MODE_OVER_THRESH_DEBUG,
+	RAS_WORK_MODE_OVER_THRESH_RMA,
+};
+
 struct ras_core_context;
 struct ras_bank_ecc;
 struct ras_umc;
@@ -158,23 +202,31 @@ struct ras_process;
 struct ras_nbio;
 struct ras_log_ring;
 struct ras_psp;
+struct ras_eeprom_mgr;
 
 struct ras_mp1_sys_func {
-	int (*mp1_get_valid_bank_count)(struct ras_core_context *ras_core,
-			u32 msg, u32 *count);
-	int (*mp1_dump_valid_bank)(struct ras_core_context *ras_core,
-			u32 msg, u32 idx, u32 reg_idx, u64 *val);
-	int (*mp1_send_eeprom_msg)(struct ras_core_context *ras_core,
-			enum ras_fw_eeprom_cmd index, uint32_t param, uint32_t *read_arg);
-	int (*mp1_get_ras_enabled_mask)(struct ras_core_context *ras_core,
-			uint64_t *enabled_mask);
-	int (*mp1_set_debug_mode)(struct ras_core_context *ras_core, bool enable);
+	int (*mp1_send_ras_msg)(struct ras_core_context *ras_core, u32 msg_id,
+		u32 *params, u32 num_params, u32 *read_args, u32 num_read_args);
+	int (*check_ras_feature_status)(struct ras_core_context *ras_core,
+		enum ras_mp1_feature_id feature_id, u32 *status);
+};
+
+struct ras_eeprom_param_config {
+	u32 eeprom_ip_version;
+	u64 eeprom_record_threshold_count;
+	enum ras_work_mode_over_thresh work_mode_over_thresh;
+	void *eeprom_i2c_adapter;
+	u32 eeprom_i2c_addr;
+	u32 eeprom_i2c_port;
+	u16 max_i2c_read_len;
+	u16 max_i2c_write_len;
 };
 
 struct ras_eeprom_sys_func {
 	int (*eeprom_i2c_xfer)(struct ras_core_context *ras_core,
 			u32 eeprom_addr, u8 *eeprom_buf, u32 buf_size, bool read);
-	int (*update_eeprom_i2c_config)(struct ras_core_context *ras_core);
+	int (*get_eeprom_config)(struct ras_core_context *ras_core,
+			struct ras_eeprom_param_config *param_cfg);
 };
 
 struct ras_nbio_sys_func {
@@ -204,15 +256,19 @@ enum gpu_mem_type {
 	GPU_MEM_TYPE_RAS_PSP_RING,
 	GPU_MEM_TYPE_RAS_PSP_CMD,
 	GPU_MEM_TYPE_RAS_PSP_FENCE,
-	GPU_MEM_TYPE_RAS_TA_FW,
+	GPU_MEM_TYPE_RAS_FW_BIN,
 	GPU_MEM_TYPE_RAS_TA_CMD,
+	GPU_MEM_TYPE_ALLOC_MEM,
+	GPU_MEM_TYPE_MAX
 };
 
 struct ras_psp_sys_func {
 	int (*get_ras_psp_system_status)(struct ras_core_context *ras_core,
 		struct ras_psp_sys_status *status);
-	int (*get_ras_ta_init_param)(struct ras_core_context *ras_core,
-		struct ras_ta_init_param *ras_ta_param);
+	int (*get_ras_param)(struct ras_core_context *ras_core,
+		struct ras_param *param);
+	int (*psp_translate_addr)(struct ras_core_context *ras_core,
+		struct ras_psp_addr_trans_in *in, struct ras_psp_addr_trans_out *out);
 };
 
 struct ras_sys_func {
@@ -234,6 +290,8 @@ struct ras_sys_func {
 	int (*put_gpu_mem)(struct ras_core_context *ras_core,
 		enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem);
 	int (*check_address_sanity)(struct ras_core_context *ras_core, uint64_t addr);
+	int (*get_nps_mode)(struct ras_core_context *ras_core);
+	int (*get_vram_type)(struct ras_core_context *ras_core);
 };
 
 struct ras_ecc_count {
@@ -246,6 +304,7 @@ struct ras_ecc_count {
 };
 
 struct ras_bank_ecc {
+	uint64_t timestamp;
 	uint32_t nps;
 	uint64_t seq_no;
 	uint64_t status;
@@ -260,7 +319,6 @@ struct ras_bank_ecc_node {
 };
 
 struct ras_aca_config {
-	u32 socket_num_per_hive;
 	u32 aid_num_per_socket;
 	u32 xcd_num_per_aid;
 };
@@ -278,19 +336,22 @@ struct ras_psp_config {
 };
 
 struct ras_umc_config {
-	uint32_t umc_vram_type;
 	uint32_t num_umc;
+	/* this node's base in the hive PA space: physical_node_id * lfb_size */
+	uint64_t pa_base;
+	/* local frame buffer size */
+	uint64_t lfb_size;
 };
 
 struct ras_eeprom_config {
 	const struct ras_eeprom_sys_func *eeprom_sys_fn;
-	int eeprom_record_threshold_config;
-	uint32_t eeprom_record_threshold_count;
-	void *eeprom_i2c_adapter;
-	u32 eeprom_i2c_addr;
-	u32 eeprom_i2c_port;
-	u16 max_i2c_read_len;
-	u16 max_i2c_write_len;
+};
+
+struct ras_module_param {
+	/* driver installation option parameter */
+	int ras_feature_enable;
+	u64 ras_feature_mask;
+	int ras_bad_page_threshold;
 };
 
 struct ras_core_config {
@@ -301,6 +362,7 @@ struct ras_core_config {
 	u32 nbio_ip_version;
 	u32 psp_ip_version;
 
+	bool early_init_service_supported;
 	bool poison_supported;
 	bool ras_eeprom_supported;
 	uint ras_debug_mask;
@@ -312,12 +374,15 @@ struct ras_core_config {
 	struct ras_psp_config psp_cfg;
 	struct ras_eeprom_config eeprom_cfg;
 	struct ras_umc_config umc_cfg;
+
+	struct ras_module_param mod_param;
 };
 
 struct ras_core_context {
 	void *dev;
 	struct ras_core_config *config;
-	u32 socket_num_per_hive;
+	bool bert_platform_owner;
+	u32 socket_num_per_node;
 	u32 aid_num_per_socket;
 	u32 xcd_num_per_aid;
 	int max_ue_banks_per_query;
@@ -325,8 +390,7 @@ struct ras_core_context {
 	struct ras_aca ras_aca;
 
 	bool ras_eeprom_supported;
-	struct ras_eeprom_control ras_eeprom;
-	struct ras_fw_eeprom_control ras_fw_eeprom;
+	struct ras_eeprom_mgr eeprom_mgr;
 
 	struct ras_psp ras_psp;
 	struct ras_umc ras_umc;
@@ -335,6 +399,8 @@ struct ras_core_context {
 	struct ras_mp1 ras_mp1;
 	struct ras_process ras_proc;
 	struct ras_log_ring ras_log_ring;
+	struct ras_mce ras_mce;
+	struct ras_cper ras_cper;
 
 	const struct ras_sys_func *sys_fn;
 
@@ -343,6 +409,8 @@ struct ras_core_context {
 
 	bool is_rma;
 	bool is_initialized;
+	bool in_early_init;
+	bool early_init_service_enabled;
 
 	struct kfifo de_seqno_fifo;
 	struct kfifo consumption_seqno_fifo;
@@ -370,7 +438,7 @@ int ras_core_put_seqno(struct ras_core_context *ras_core,
 
 int ras_core_update_ecc_info(struct ras_core_context *ras_core);
 int ras_core_query_block_ecc_data(struct ras_core_context *ras_core,
-		enum ras_block_id block, struct ras_ecc_count *ecc_count);
+		enum ras_block_id block, struct ras_ecc_count *ecc_count, bool clear);
 
 bool ras_core_gpu_in_reset(struct ras_core_context *ras_core);
 bool ras_core_gpu_is_rma(struct ras_core_context *ras_core);
@@ -380,6 +448,7 @@ bool ras_core_handle_nbio_irq(struct ras_core_context *ras_core, void *data);
 int ras_core_handle_fatal_error(struct ras_core_context *ras_core);
 
 uint32_t ras_core_get_curr_nps_mode(struct ras_core_context *ras_core);
+uint32_t ras_core_get_vram_type(struct ras_core_context *ras_core);
 const char *ras_core_get_ras_block_name(enum ras_block_id block_id);
 int ras_core_convert_timestamp_to_time(struct ras_core_context *ras_core,
 			uint64_t timestamp, struct ras_time *tm);
@@ -408,4 +477,17 @@ int ras_core_check_address_sanity(struct ras_core_context *ras_core, uint64_t ad
 
 int ras_core_set_debug_mode(struct ras_core_context *ras_core, bool enable);
 bool ras_core_is_ce_log_disabled(struct ras_core_context *ras_core);
+int ras_core_get_eeprom_version(struct ras_core_context *ras_core,
+	uint32_t *version);
+int ras_core_get_ip_version(struct ras_core_context *ras_core,
+	enum ras_unit_id unit_id, uint32_t *version);
+uint64_t ras_core_get_ras_caps(struct ras_core_context *ras_core);
+bool ras_core_poison_supported(struct ras_core_context *ras_core);
+bool ras_core_in_early_init(struct ras_core_context *ras_core);
+bool ras_core_early_init_service_enabled(struct ras_core_context *ras_core);
+int ras_core_eeprom_early_init_service(struct ras_core_context *ras_core);
+int ras_core_get_module_param(struct ras_core_context *ras_core,
+		struct ras_module_param *param);
+int ras_core_add_log_event(struct ras_core_context *ras_core,
+		uint32_t event, void *data, uint32_t data_sz);
 #endif

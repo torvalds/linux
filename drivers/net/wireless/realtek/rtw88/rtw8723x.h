@@ -162,6 +162,57 @@ struct rtw8723x_common {
 
 extern const struct rtw8723x_common rtw8723x_common;
 
+struct phy_rx_agc_info {
+#ifdef __LITTLE_ENDIAN
+	u8 gain: 7;
+	u8 trsw: 1;
+#else
+	u8 trsw: 1;
+	u8 gain: 7;
+#endif
+} __packed;
+
+/* Receive PHY status layout, shared by the 8723x chips. */
+struct phy_status_8723x {
+	struct phy_rx_agc_info path_agc[2];
+	u8 ch_corr[2];
+	u8 cck_sig_qual_ofdm_pwdb_all;
+	/* for CCK: bits 0:4: VGA index, bits 5:7: LNA index (low) */
+	u8 cck_agc_rpt_ofdm_cfosho_a;
+	/* for CCK: bit 7 is high bit of LNA index if long report type */
+	u8 cck_rpt_b_ofdm_cfosho_b;
+	u8 reserved_1;
+	u8 noise_power_db_msb;
+	s8 path_cfotail[2];
+	u8 pcts_mask[2];
+	s8 stream_rxevm[2];
+	u8 path_rxsnr[2];
+	u8 noise_power_db_lsb;
+	u8 reserved_2[3];
+	u8 stream_csi[2];
+	u8 stream_target_csi[2];
+	s8 sig_evm;
+	u8 reserved_3;
+
+#ifdef __LITTLE_ENDIAN
+	u8 antsel_rx_keep_2: 1;
+	u8 sgi_en: 1;
+	u8 rxsc: 2;
+	u8 idle_long: 1;
+	u8 r_ant_train_en: 1;
+	u8 ant_sel_b: 1;
+	u8 ant_sel: 1;
+#else /* __BIG_ENDIAN */
+	u8 ant_sel: 1;
+	u8 ant_sel_b: 1;
+	u8 r_ant_train_en: 1;
+	u8 idle_long: 1;
+	u8 rxsc: 2;
+	u8 sgi_en: 1;
+	u8 antsel_rx_keep_2: 1;
+#endif
+} __packed;
+
 #define PATH_IQK_RETRY	2
 #define MAX_TOLERANCE	5
 #define IQK_TX_X_ERR	0x142
@@ -175,6 +226,11 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define IQK_RX_OK	BIT(1)
 
 #define WLAN_TXQ_RPT_EN		0x1F
+
+#define AGG_BURST_NUM		3
+#define AGG_BURST_SIZE		0 /* 1K */
+#define BIT_MASK_AGG_BURST_NUM	(GENMASK(3, 2))
+#define BIT_MASK_AGG_BURST_SIZE	(GENMASK(5, 4))
 
 #define SPUR_THRES		0x16
 #define DIS_3WIRE		0xccf000c0
@@ -201,6 +257,7 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define REG_LTECOEX_WRITE_DATA	0x07c4
 #define REG_LTECOEX_READ_DATA	0x07c8
 #define REG_PSDFN		0x0808
+#define REG_BB_PWR_SAV5_11N	0x0818
 #define REG_BB_PWR_SAV1_11N	0x0874
 #define REG_ANA_PARAM1		0x0880
 #define REG_ANALOG_P4		0x088c
@@ -261,6 +318,7 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define BIT_MASK_TXIQ_ELM_D	GENMASK(31, 22)
 #define REG_TXIQK_MATRIXA_LSB2_11N	0x0c94
 #define BIT_SET_TXIQ_ELM_C1(c)	(((c) & 0x000003C0) >> 6)
+#define REG_TXIQK_MATRIXB_LSB2_11N	0x0c9c
 #define REG_RXIQK_MATRIX_LSB_11N	0x0ca0
 #define BIT_MASK_RXIQ_S1_Y2	0xF0000000
 #define BIT_SET_RXIQ_S1_Y2(y)	(((y) >> 6) & 0xF)
@@ -276,6 +334,7 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define REG_RXIQ_AB_S0		0x0cd8
 #define BIT_MASK_RXIQ_X_S0	0x000003FF
 #define BIT_MASK_RXIQ_Y_S0	0x003FF000
+#define REG_OFDM0_TX_PSD_NOISE	0x0ce4	/* TX pseudo noise weighting */
 #define REG_OFDM_FA_TYPE1_11N	0x0cf0
 #define BIT_MASK_OFDM_FF_CNT	GENMASK(15, 0)
 #define BIT_MASK_OFDM_SF_CNT	GENMASK(31, 16)
@@ -315,6 +374,7 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define REG_RX_IQK_TONE_B	0x0e54
 #define REG_TXIQK_PI_B		0x0e58
 #define REG_RXIQK_PI_B		0x0e5c
+#define REG_IQK_RDY		0x0e90	/* is != 0 when IQK is done */
 #define REG_IQK_RES_TX		0x0e94
 #define BIT_MASK_RES_TX		GENMASK(25, 16)
 #define REG_IQK_RES_TY		0x0e9c

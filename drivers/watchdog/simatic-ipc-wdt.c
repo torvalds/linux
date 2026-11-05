@@ -22,6 +22,7 @@
 #include <linux/sizes.h>
 #include <linux/util_macros.h>
 #include <linux/watchdog.h>
+#include <linux/stringify.h>
 
 #define WD_ENABLE_IOADR			0x62
 #define WD_TRIGGER_IOADR		0x66
@@ -42,7 +43,7 @@
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0000);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static struct resource gp_status_reg_227e_res =
 	DEFINE_RES_IO_NAMED(GP_STATUS_REG_227E, SZ_1, KBUILD_MODNAME);

@@ -88,7 +88,7 @@ static struct regulator_init_data ab8500_ext_regulators[] = {
  * @update_reg: register to control on/off
  * @update_mask: mask to enable/disable and set mode of regulator
  * @update_val: bits holding the regulator current mode
- * @update_val_hp: bits to set EN pin active (LPn pin deactive)
+ * @update_val_hp: bits to set EN pin active (LPn pin deactivate)
  *                 normally this means high power mode
  * @update_val_lp: bits to set EN pin active and LPn pin active
  *                 normally this means low power mode

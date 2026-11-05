@@ -141,7 +141,7 @@ impl<T> RangeAllocator<T> {
         }
     }
 
-    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result<()> {
+    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result {
         match &self.inner {
             Impl::Empty(_size) => Ok(()),
             Impl::Array(array) => array.debug_print(m),

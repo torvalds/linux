@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Meta Platforms, Inc. and affiliates. */
 
 #include <linux/bits.h>
+#include <linux/bpf_verifier.h> /* for imod() */
 
 #define T 32
 #include "cnum_defs.h"
@@ -117,4 +118,39 @@ struct cnum64 cnum64_cnum32_intersect(struct cnum64 a, struct cnum32 b)
 		t.size -= d;
 	}
 	return t;
+}
+
+/* Intersect 'in' with the set of integers defined by equation 'base + step * k'. */
+struct cnum64 cnum64_intersect_linear(struct cnum64 in, u16 base, u16 step)
+{
+	s64 smin = cnum64_smin(in);
+	s64 smax = cnum64_smax(in);
+	s64 lo, hi;
+	u16 d;
+
+	if (step <= 1 || cnum64_is_empty(in) || cnum64_srange_overflow(in))
+		return in;
+	/*
+	 * Round smin up to the next value congruent to 'base' modulo 'step',
+	 * i.e. increase smin by d = (base - smin) mod step:
+	 *
+	 *                 |<---- d ---->|
+	 *     |-----------|=============|...
+	 * base+step*k    smin       base+step*(k+1)
+	 */
+	d = imod(base - imod(smin, step), step);
+	if ((u64)smax - (u64)smin < d)
+		return CNUM64_EMPTY;
+	lo = smin + d;
+	/*
+	 * Round smax down to the previous value congruent to 'base' modulo 'step',
+	 * i.e. decrease smax by d = (smax - base) mod step:
+	 *
+	 *     |<--- d --->|
+	 *  ...|===========|-------------|
+	 * base+step*k    smax       base+step*(k+1)
+	 */
+	d = imod(imod(smax, step) - base, step);
+	hi = smax - d;
+	return cnum64_from_srange(lo, hi);
 }

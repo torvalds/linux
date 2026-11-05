@@ -59,6 +59,7 @@ static inline bool on_stack(struct stack_info *info,
 struct stack_frame {
 	union {
 		unsigned long empty[9];
+		/* SIE stack frame */
 		struct {
 			unsigned long sie_control_block;
 			unsigned long sie_savearea;
@@ -67,6 +68,10 @@ struct stack_frame {
 			unsigned long sie_control_block_phys;
 			unsigned long sie_guest_asce;
 			unsigned long sie_irq;
+		};
+		/* SAE stack frame */
+		struct {
+			unsigned long sae_bear;
 		};
 	};
 	unsigned long gprs[10];

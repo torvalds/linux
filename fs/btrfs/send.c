@@ -7023,7 +7023,7 @@ static int changed_extent(struct send_ctx *sctx,
 	 * get modified or replaced with a new one). Note that deduplication
 	 * updates the inode item, but it only changes the iversion (sequence
 	 * field in the inode item) of the inode, so if a file is deduplicated
-	 * the same amount of times in both the parent and send snapshots, its
+	 * the same number of times in both the parent and send snapshots, its
 	 * iversion becomes the same in both snapshots, whence the inode item is
 	 * the same on both snapshots.
 	 */

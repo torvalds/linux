@@ -142,13 +142,13 @@ examples:
             io-backends = <&iio_backend>;
 
             channel@0 {
-              reg = <0>;
-              diff-channels = <0 0>;
-              bipolar;
+                reg = <0>;
+                diff-channels = <0 0>;
+                bipolar;
             };
 
             channel@1 {
-              reg = <1>;
+                reg = <1>;
             };
         };
     };

@@ -8,6 +8,8 @@
 #include "../helpline.h"
 #include "../string2.h"
 #include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <linux/string.h>
 
@@ -395,11 +397,9 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		}
 	}
 
-	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(view), TRUE);
-
 	g_signal_connect(view, "row-activated",
 			 G_CALLBACK(on_row_activated), NULL);
-	gtk_container_add(GTK_CONTAINER(window), view);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(window), view);
 }
 
 static void perf_gtk__add_hierarchy_entries(struct hists *hists,
@@ -449,7 +449,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 		bf = hpp->buf;
 		size = hpp->size;
 		perf_hpp_list__for_each_format(he->hpp_list, fmt) {
-			int ret;
+			int ret, inc;
 
 			if (fmt->color)
 				ret = fmt->color(fmt, hpp, he);
@@ -457,15 +457,26 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 				ret = fmt->entry(fmt, hpp, he);
 
 			snprintf(hpp->buf + ret, hpp->size - ret, "  ");
-			advance_hpp(hpp, ret + 2);
+			/*
+			 * ret can be as large as hpp->size - 1, so ret + 2
+			 * can exceed hpp->size. advance_hpp() doesn't clamp,
+			 * so passing that through would underflow the
+			 * size_t hpp->size and let a later fmt->entry() in
+			 * this loop write past the end of the caller's
+			 * stack buffer.
+			 */
+			inc = ret + 2;
+			if (inc > (int)hpp->size)
+				inc = hpp->size;
+			advance_hpp(hpp, inc);
 		}
 
 		gtk_tree_store_set(store, &iter, col_idx, strim(bf), -1);
 
-		if (!he->leaf) {
-			hpp->buf = bf;
-			hpp->size = size;
+		hpp->buf = bf;
+		hpp->size = size;
 
+		if (!he->leaf) {
 			perf_gtk__add_hierarchy_entries(hists, &he->hroot_out,
 							store, &iter, hpp,
 							min_pcnt);
@@ -505,6 +516,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	GtkWidget *view;
 	int col_idx;
 	int nr_cols = 0;
+	int ret;
 	char s[512];
 	char buf[512];
 	bool first_node, first_col;
@@ -541,9 +553,10 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	/* construct merged column header since sort keys share single column */
 	buf[0] = '\0';
 	first_node = true;
+	ret = 0;
 	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
 		if (!first_node)
-			strcat(buf, " / ");
+			ret += scnprintf(buf + ret, sizeof(buf) - ret, " / ");
 		first_node = false;
 
 		first_col = true;
@@ -552,11 +565,11 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 				continue;
 
 			if (!first_col)
-				strcat(buf, "+");
+				ret += scnprintf(buf + ret, sizeof(buf) - ret, "+");
 			first_col = false;
 
 			fmt->header(fmt, &hpp, hists, 0, NULL);
-			strcat(buf, strim(hpp.buf));
+			ret += scnprintf(buf + ret, sizeof(buf) - ret, "%s", strim(hpp.buf));
 		}
 	}
 
@@ -583,11 +596,9 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	perf_gtk__add_hierarchy_entries(hists, &hists->entries, store,
 					NULL, &hpp, min_pcnt);
 
-	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(view), TRUE);
-
 	g_signal_connect(view, "row-activated",
 			 G_CALLBACK(on_row_activated), NULL);
-	gtk_container_add(GTK_CONTAINER(window), view);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(window), view);
 }
 
 int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
@@ -600,36 +611,32 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 	GtkWidget *statbar;
 	GtkWidget *window;
 
-	signal(SIGSEGV, perf_gtk__signal);
-	signal(SIGFPE,  perf_gtk__signal);
-	signal(SIGINT,  perf_gtk__signal);
-	signal(SIGQUIT, perf_gtk__signal);
-	signal(SIGTERM, perf_gtk__signal);
+	signal(SIGSEGV, perf_gtk__fatal_signal);
+	signal(SIGFPE,  perf_gtk__fatal_signal);
+	perf_gtk__install_quit_signals();
 
-	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	window = gtk_window_new();
 
 	gtk_window_set_title(GTK_WINDOW(window), "perf report");
-
-	g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
 
 	pgctx = perf_gtk__activate_context(window);
 	if (!pgctx)
 		return -1;
 
-	vbox = gtk_vbox_new(FALSE, 0);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
 	notebook = gtk_notebook_new();
 
-	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+	gtk_widget_set_vexpand(notebook, TRUE);
+	gtk_box_append(GTK_BOX(vbox), notebook);
 
 	info_bar = perf_gtk__setup_info_bar();
-	if (info_bar)
-		gtk_box_pack_start(GTK_BOX(vbox), info_bar, FALSE, FALSE, 0);
+	gtk_box_append(GTK_BOX(vbox), info_bar);
 
 	statbar = perf_gtk__setup_statusbar();
-	gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);
+	gtk_box_append(GTK_BOX(vbox), statbar);
 
-	gtk_container_add(GTK_CONTAINER(window), vbox);
+	gtk_window_set_child(GTK_WINDOW(window), vbox);
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
@@ -649,7 +656,7 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 			}
 		}
 
-		scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+		scrolled_window = gtk_scrolled_window_new();
 
 		gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
 							GTK_POLICY_AUTOMATIC,
@@ -665,15 +672,12 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 		gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window, tab_label);
 	}
 
-	gtk_widget_show_all(window);
-
 	perf_gtk__resize_window(window);
-
-	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+	gtk_widget_set_visible(window, TRUE);
 
 	ui_helpline__push(help);
 
-	gtk_main();
+	perf_gtk__run_main_loop(window);
 
 	perf_gtk__deactivate_context(&pgctx);
 

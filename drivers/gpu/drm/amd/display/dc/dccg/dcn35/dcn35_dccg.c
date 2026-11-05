@@ -1661,6 +1661,7 @@ void dccg35_set_hdmistreamclk(
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
+	dccg35_set_hdmistreamclk_rcg(dccg, 0, false);
 	/* set the dtbclk_p source */
 	dccg35_set_dtbclk_p_src(dccg, src, otg_inst);
 
@@ -2803,6 +2804,7 @@ struct dccg *dccg35_create(
 	base->ctx = ctx;
 	base->funcs = &dccg35_funcs;
 
+	base->inst = 0;
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
 	dccg_dcn->dccg_mask = dccg_mask;

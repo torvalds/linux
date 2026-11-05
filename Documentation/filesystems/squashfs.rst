@@ -177,9 +177,9 @@ or if the compressed block was larger than the uncompressed block.
 
 Inodes are packed into the metadata blocks, and are not aligned to block
 boundaries, therefore inodes overlap compressed blocks.  Inodes are identified
-by a 48-bit number which encodes the location of the compressed metadata block
-containing the inode, and the byte offset into that block where the inode is
-placed (<block, offset>).
+by a 64-bit number: the upper 48 bits encode the location of the compressed
+metadata block containing the inode, and the lower 16 bits give the byte offset
+into that block where the inode is placed (<block, offset>).
 
 To maximise compression there are different inodes for each file type
 (regular file, directory, device, etc.), the inode contents and length

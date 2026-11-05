@@ -725,13 +725,15 @@ static int adin1140_probe(struct spi_device *spi)
 	tc6_quirks.quirk_flags = OA_TC6_BROKEN_PHY;
 
 	priv->tc6 = oa_tc6_init(spi, netdev, &tc6_quirks);
-	if (!priv->tc6)
-		return -ENODEV;
+	if (IS_ERR(priv->tc6))
+		return PTR_ERR(priv->tc6);
 
 	ret = devm_add_action_or_reset(&spi->dev, adin1140_oa_tc6_remove,
 				       priv->tc6);
 	if (ret)
 		return ret;
+
+	netdev->netdev_ops = &adin1140_netdev_ops;
 
 	ret = adin1140_phy_init(priv, spi);
 	if (ret)
@@ -748,7 +750,6 @@ static int adin1140_probe(struct spi_device *spi)
 
 	netdev->if_port = IF_PORT_10BASET;
 	netdev->irq = spi->irq;
-	netdev->netdev_ops = &adin1140_netdev_ops;
 	netdev->ethtool_ops = &adin1140_ethtool_ops;
 	netdev->netns_immutable = true;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE |

@@ -59,7 +59,7 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	} else {
 		__le16 short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
 
-		n = neigh_lookup(&nd_tbl, &hdr->daddr, ldev);
+		n = ipv6_neigh_lookup(ldev, &hdr->daddr);
 		if (n) {
 			llneigh = lowpan_802154_neigh(neighbour_priv(n));
 			read_lock_bh(&n->lock);
@@ -279,7 +279,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 			return NET_XMIT_DROP;
 		}
 	} else {
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 		if (!skb)
 			return NET_XMIT_DROP;
 	}

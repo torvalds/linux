@@ -74,7 +74,8 @@ static ssize_t nullfs_file_splice_write(struct pipe_inode_info *pipe,
 	return splice_from_pipe(pipe, out, ppos, len, flags, nullfs_pipe_to_null);
 }
 
-static int nullfs_file_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int nullfs_file_setattr(const struct mnt_idmap *idmap,
+			       struct dentry *dentry,
 			       struct iattr *attr)
 {
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))

@@ -80,7 +80,7 @@ static __initdata struct hash {
 	int ino, minor, major;
 	umode_t mode;
 	struct hash *next;
-	char name[N_ALIGN(PATH_MAX)];
+	char name[];
 } *head[32];
 static __initdata bool hardlink_seen;
 
@@ -92,7 +92,7 @@ static inline int hash(int major, int minor, int ino)
 }
 
 static char __init *find_link(int major, int minor, int ino,
-			      umode_t mode, char *name)
+			      umode_t mode, const char *name, size_t nlen)
 {
 	struct hash **p, *q;
 	for (p = head + hash(major, minor, ino); *p; p = &(*p)->next) {
@@ -106,14 +106,15 @@ static char __init *find_link(int major, int minor, int ino,
 			continue;
 		return (*p)->name;
 	}
-	q = kmalloc_obj(struct hash);
+
+	q = kmalloc_flex(struct hash, name, nlen);
 	if (!q)
 		panic_show_mem("can't allocate link hash entry");
 	q->major = major;
 	q->minor = minor;
 	q->ino = ino;
 	q->mode = mode;
-	strscpy(q->name, name);
+	strscpy(q->name, name, nlen);
 	q->next = NULL;
 	*p = q;
 	hardlink_seen = true;
@@ -355,7 +356,7 @@ static void __init clean_path(char *path, umode_t fmode)
 static int __init maybe_link(void)
 {
 	if (nlink >= 2) {
-		char *old = find_link(major, minor, ino, mode, collected);
+		char *old = find_link(major, minor, ino, mode, collected, name_len);
 		if (old) {
 			clean_path(collected, 0);
 			return (init_link(old, collected) < 0) ? -1 : 1;

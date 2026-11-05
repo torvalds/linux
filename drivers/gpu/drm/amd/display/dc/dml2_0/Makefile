@@ -62,7 +62,8 @@ subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dml2_0/dml21/src/dml2_cga/
 THIS_MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 DML2_ABS_PATH := $(patsubst %/,%,$(dir $(THIS_MAKEFILE_PATH)))
 
-DML2_C_FILES := $(shell find $(DML2_ABS_PATH) -name '*.c')
+rwildcard = $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$(2)) $(filter $(subst *,%,$(2)),$d))
+DML2_C_FILES := $(call rwildcard,$(DML2_ABS_PATH)/,*.c)
 
 # FPU flags step 2: Convert to .o and make paths relative to $(AMDDALPATH)/dc/dml2_0/
 DML2_RELATIVE_O_FILES := $(patsubst $(DML2_ABS_PATH)/%,dc/dml2_0/%,$(patsubst %.c,%.o,$(DML2_C_FILES)))
@@ -79,8 +80,7 @@ CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn5_funcs_mode_pro
 CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn5_funcs_mode_support.o := $(dml2_ccflags) $(frame_warn_flag)
 CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn6_funcs_mode_programming.o := $(dml2_ccflags) $(frame_warn_flag)
 CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn6_funcs_mode_support.o := $(dml2_ccflags) $(frame_warn_flag)
-CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml2_wrapper.o := $(dml2_rcflags)
-CFLAGS_$(AMDDALPATH)/dc/dml2_0/dml21/dml21_wrapper.o := $(dml2_rcflags)
+
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/display_mode_core.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn4_calcs.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_utils.o := $(dml2_rcflags)
@@ -88,11 +88,9 @@ CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn5_funcs_m
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn5_funcs_mode_support.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn6_funcs_mode_programming.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/src/dml2_core/dml2_core_dcn6_funcs_mode_support.o := $(dml2_rcflags)
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml2_wrapper.o := $(dml2_ccflags)
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2_0/dml21/dml21_wrapper.o := $(dml2_ccflags)
 
-DML2 = display_mode_core.o display_mode_util.o dml2_wrapper_fpu.o dml2_wrapper.o \
-		dml2_utils.o dml2_policy.o dml2_translation_helper.o dml2_dc_resource_mgmt.o dml2_mall_phantom.o \
+# DML2 library core files
+DML2 = display_mode_core.o display_mode_util.o \
 		dml_display_rq_dlg_calc.o
 DML2 += dml_frl_cap_chk.o
 
@@ -130,6 +128,7 @@ DML21 += src/dml2_utm_soc_bb/dml2_utm_soc_bb_dcn5.o
 DML21 += src/dml2_utm_soc_bb/dml2_utm_soc_bb_factory.o
 DML21 += src/dml2_cga/dml2_cga_dcn6.o
 DML21 += src/dml2_cga/dml2_cga_factory.o
+DML21 += src/dml2_core/dml2_core_dcn6_calcs.o
 DML21 += src/dml2_core/dml2_core_dcn6_calcs_dchub.o
 DML21 += src/dml2_core/dml2_core_dcn6_funcs_initialize.o
 DML21 += src/dml2_core/dml2_core_dcn6_funcs_mode_programming.o
@@ -140,10 +139,6 @@ DML21 += src/dml2_pmo/dml2_pmo_dcn6.o
 DML21 += src/dml2_pmo/dml2_pmo_dcn6_stage_optimizers.o
 DML21 += src/dml2_standalone_libraries/alternate_pstate_shared_lib.o
 DML21 += src/dml2_utm_soc_bb/dml2_utm_soc_bb_dcn6.o
-DML21 += dml21_translation_helper.o
-DML21 += dml21_wrapper.o
-DML21 += dml21_wrapper_fpu.o
-DML21 += dml21_utils.o
 
 AMD_DAL_DML21 = $(addprefix $(AMDDALPATH)/dc/dml2_0/dml21/,$(DML21))
 

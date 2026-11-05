@@ -73,13 +73,13 @@ static int sched_feat_show(struct seq_file *m, void *v)
 
 #ifdef CONFIG_JUMP_LABEL
 
-#define jump_label_key__true  STATIC_KEY_INIT_TRUE
-#define jump_label_key__false STATIC_KEY_INIT_FALSE
+#define jump_label_key__true  { .key_true  = STATIC_KEY_TRUE_INIT  }
+#define jump_label_key__false { .key_false = STATIC_KEY_FALSE_INIT }
 
 #define SCHED_FEAT(name, enabled)	\
 	jump_label_key__##enabled ,
 
-struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
+union sched_feat_key sched_feat_keys[__SCHED_FEAT_NR] = {
 #include "features.h"
 };
 
@@ -87,12 +87,12 @@ struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
 
 static void sched_feat_disable(int i)
 {
-	static_key_disable_cpuslocked(&sched_feat_keys[i]);
+	static_branch_disable_cpuslocked(&sched_feat_keys[i].key_true);
 }
 
 static void sched_feat_enable(int i)
 {
-	static_key_enable_cpuslocked(&sched_feat_keys[i]);
+	static_branch_enable_cpuslocked(&sched_feat_keys[i].key_false);
 }
 #else /* !CONFIG_JUMP_LABEL: */
 static void sched_feat_disable(int i) { };
@@ -280,16 +280,10 @@ static ssize_t sched_dynamic_write(struct file *filp, const char __user *ubuf,
 
 static int sched_dynamic_show(struct seq_file *m, void *v)
 {
-	int i = (IS_ENABLED(CONFIG_PREEMPT_RT) || IS_ENABLED(CONFIG_ARCH_HAS_PREEMPT_LAZY)) * 2;
 	int mode = READ_ONCE(preempt_dynamic_mode);
-	int j;
 
-	/* Count entries in NULL terminated preempt_modes */
-	for (j = 0; preempt_modes[j]; j++)
-		;
-	j -= !IS_ENABLED(CONFIG_ARCH_HAS_PREEMPT_LAZY);
-
-	for (; i < j; i++) {
+	/* Stop at NULL terminator */
+	for (int i = 0; preempt_modes[i]; i++) {
 		if (mode == i)
 			seq_puts(m, "(");
 		seq_puts(m, preempt_modes[i]);
@@ -1446,6 +1440,7 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 		P_SCHEDSTAT(nr_failed_migrations_running);
 		P_SCHEDSTAT(nr_failed_migrations_hot);
 		P_SCHEDSTAT(nr_forced_migrations);
+		P_SCHEDSTAT(nr_migrations_cpu_non_preferred);
 		P_SCHEDSTAT(nr_wakeups);
 		P_SCHEDSTAT(nr_wakeups_sync);
 		P_SCHEDSTAT(nr_wakeups_migrate);

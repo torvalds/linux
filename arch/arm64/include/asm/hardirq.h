@@ -40,8 +40,8 @@ do {									\
 	}								\
 									\
 	___hcr = read_sysreg(hcr_el2);					\
-	if (!(___hcr & HCR_TGE)) {					\
-		write_sysreg_hcr(___hcr | HCR_TGE);			\
+	if (!(___hcr & HCR_EL2_TGE)) {					\
+		write_sysreg_hcr(___hcr | HCR_EL2_TGE);			\
 		isb();							\
 	}								\
 	/*								\
@@ -81,7 +81,7 @@ do {									\
 	 * we secured things for it.					\
 	 */								\
 	barrier();							\
-	if (!___ctx->cnt && !(___hcr & HCR_TGE))			\
+	if (!___ctx->cnt && !(___hcr & HCR_EL2_TGE))			\
 		write_sysreg_hcr(___hcr);				\
 } while (0)
 

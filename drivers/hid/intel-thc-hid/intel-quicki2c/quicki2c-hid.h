@@ -7,7 +7,7 @@
 struct quicki2c_device;
 
 int quicki2c_hid_send_report(struct quicki2c_device *qcdev,
-			     void *data, size_t data_size);
+			     void *data, size_t buf_size, size_t data_size);
 int quicki2c_hid_probe(struct quicki2c_device *qcdev);
 void quicki2c_hid_remove(struct quicki2c_device *qcdev);
 

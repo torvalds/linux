@@ -997,7 +997,8 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 		 * TODO: add MST specific link training routine
 		 */
 		decide_mst_link_settings(link, link_setting);
-	} else if (stream->signal == SIGNAL_TYPE_VIRTUAL) {
+	} else if (dc_is_virtual_signal(stream->signal)) {
+		/* virtual signals skip link training; use a valid dummy setting. */
 		link_setting->lane_count = LANE_COUNT_FOUR;
 		link_setting->link_rate = LINK_RATE_HIGH3;
 	} else if (link->connector_signal == SIGNAL_TYPE_EDP) {

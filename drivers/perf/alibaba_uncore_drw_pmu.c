@@ -135,7 +135,7 @@ static ssize_t ali_drw_pmu_event_show(struct device *dev,
 
 #define ALI_DRW_PMU_ATTR(_name, _func, _config)                            \
 		(&((struct dev_ext_attribute[]) {                               \
-				{ __ATTR(_name, 0444, _func, NULL), (void *)_config }   \
+				{ __DEVICE_ATTR(_name, 0444, _func, NULL), (void *)_config }   \
 		})[0].attr.attr)
 
 #define ALI_DRW_PMU_FORMAT_ATTR(_name, _config)            \

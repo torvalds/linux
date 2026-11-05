@@ -16,8 +16,6 @@
 #include <linux/cred.h>
 #include <linux/security.h>
 
-#define CACHEFILES_DIO_BLOCK_SIZE 4096
-
 struct cachefiles_cache;
 struct cachefiles_object;
 
@@ -51,12 +49,17 @@ struct cachefiles_object {
 	struct list_head		cache_link;	/* Link in cache->*_list */
 	struct file			*file;		/* The file representing this object */
 	char				*d_name;	/* Backing file name */
+	unsigned long			flags;
+#define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */
+	uoff_t				object_size;	/* Size of the object stored
+							 * (independent of cookie->object_size for
+							 * coherency reasons)
+							 */
+	atomic64_t			read_limit;	/* Point beyond which uncommitted writes */
 	int				debug_id;
 	spinlock_t			lock;
 	refcount_t			ref;
-	enum cachefiles_content		content_info:8;	/* Info about content presence */
-	unsigned long			flags;
-#define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */
+	enum cachefiles_content		content_info;	/* Info about content presence */
 };
 
 /*
@@ -203,11 +206,11 @@ extern bool cachefiles_begin_operation(struct netfs_cache_resources *cres,
 				       enum fscache_want_state want_state);
 extern int __cachefiles_prepare_write(struct cachefiles_object *object,
 				      struct file *file,
-				      loff_t *_start, size_t *_len, size_t upper_len,
+				      uoff_t *_start, size_t *_len, size_t upper_len,
 				      bool no_space_allocated_yet);
 extern int __cachefiles_write(struct cachefiles_object *object,
 			      struct file *file,
-			      loff_t start_pos,
+			      uoff_t start_pos,
 			      struct iov_iter *iter,
 			      netfs_io_terminated_t term_func,
 			      void *term_func_priv);
@@ -280,6 +283,7 @@ void cachefiles_withdraw_volume(struct cachefiles_volume *volume);
 /*
  * xattr.c
  */
+int cachefiles_preset_object_xattr(struct cachefiles_object *object, struct file *file);
 extern int cachefiles_set_object_xattr(struct cachefiles_object *object);
 extern int cachefiles_check_auxdata(struct cachefiles_object *object,
 				    struct file *file);

@@ -18,6 +18,92 @@
 #define FN(reg_name, field_name) \
 	hubbub2->shifts->field_name, hubbub2->masks->field_name
 
+static void dcn60_control_dchvm_gating(const struct hubbub *hubbub, uint32_t disable_gating)
+{
+	const struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	if (disable_gating != 0) {
+		REG_UPDATE(DCHVM_MEM_CTRL, HVM_GPUVMRET_FORCE_REQ, 0);
+	}
+
+	REG_UPDATE(DCHVM_MEM_CTRL, HVM_GPUVMRET_PWR_REQ_DIS, disable_gating);
+
+	REG_UPDATE_4(DCHVM_CLK_CTRL,
+		     HVM_DISPCLK_R_GATE_DIS, disable_gating,
+		     HVM_DISPCLK_G_GATE_DIS, disable_gating,
+		     HVM_DCFCLK_R_GATE_DIS, disable_gating,
+		     HVM_DCFCLK_G_GATE_DIS, disable_gating);
+
+	udelay(1);
+}
+
+static void dcn60_dchvm_init(struct hubbub *hubbub)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+	uint32_t riommu_active = 0;
+	uint32_t prefetch_done = 0;
+	unsigned int i;
+
+	/* If already prefetched return early. */
+	REG_GET(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, &prefetch_done);
+
+	if (prefetch_done) {
+		hubbub->riommu_active = true;
+		return;
+	}
+
+	/* Init DCHVM block. */
+	REG_UPDATE(DCHVM_CTRL0, HOSTVM_INIT_REQ, 1);
+
+	/* Poll until the rIOMMU and main IOMMU are active. */
+	for (i = 0; i < 100u; i++) {
+		REG_GET(DCHVM_RIOMMU_STAT0, RIOMMU_ACTIVE, &riommu_active);
+		if (riommu_active)
+			break;
+
+		udelay(5);
+	}
+
+	if (!riommu_active) {
+		DC_LOG_ERROR("Timed out waiting for DCHVM RIOMMU_ACTIVE\n");
+		return;
+	}
+
+	/* Disable gating and memory power requests. */
+	dcn60_control_dchvm_gating(hubbub, 1);
+
+	/* Select the physical function's host table for the initial prefetch. */
+	REG_UPDATE(DCHVM_PREFETCH_VFID, HOSTVM_PREFETCH_VFID, 1U << 31);
+
+	/* Reflect the power status of DCHUBBUB. */
+	REG_UPDATE(DCHVM_RIOMMU_CTRL0, HOSTVM_POWERSTATUS, 1);
+
+	/* Wait for power status to propagate to rIOMMU before prefetch req.*/
+	udelay(5);
+
+	/* Start rIOMMU prefetching. */
+	REG_UPDATE(DCHVM_RIOMMU_CTRL0, HOSTVM_PREFETCH_REQ, 1);
+
+	/* Poll for prefetch to be done. */
+	REG_WAIT(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, 1, 5, 100);
+
+	/* Re-enable gating and memory power requests. */
+	dcn60_control_dchvm_gating(hubbub, 0);
+
+	hubbub->riommu_active = true;
+}
+
+static int hubbub60_init_dchub_sys_ctx(struct hubbub *hubbub,
+		struct dcn_hubbub_phys_addr_config *pa_config)
+{
+	int num_vmids = hubbub3_init_dchub_sys_ctx(hubbub, pa_config);
+
+	if (hubbub->funcs->dchvm_init)
+		hubbub->funcs->dchvm_init(hubbub);
+
+	return num_vmids;
+}
+
 static void dcn60_init_crb(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
@@ -656,9 +742,19 @@ static void hubbub60_wm_read_state(struct hubbub *hubbub,
 static void hubbub60_perfmon_reset(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+	unsigned int counter;
 
 	REG_WRITE(DC_PERFMON5_PERFMON_CNTL, 0);
 	REG_WRITE(DC_PERFMON5_PERFMON_CNTL2, 0);
+
+	for (counter = 0; counter < 8; counter++) {
+		REG_SET_2(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
+				PERFCOUNTER_CNTL_SEL, counter,
+				PERFCOUNTER_OFF_MASK, 0x1);
+		REG_SET(DC_PERFMON5_PERFCOUNTER_CNTL2, 0,
+				PERFCOUNTER_CNTL2_SEL, counter);
+	}
+
 	REG_WRITE(DC_PERFMON5_PERFCOUNTER_STATE, 0);
 	REG_WRITE(DC_PERFMON5_PERFMON_CVALUE_INT_MISC, 0xFF00);
 	REG_WRITE(DC_PERFMON5_PERFMON_CVALUE_LOW, 0);
@@ -1288,21 +1384,33 @@ static uint32_t hubbub60_perfmon_get_urgent_ramp_latency_ns(
  * @hubbub: pointer to the hubbub hardware instance
  *
  * Configures the performance monitoring counters to measure out-of-order
- * (peak prefetch) bandwidth using hardware counters 0, 1, and 4:
+ * (peak prefetch) bandwidth using hardware counters 0, 1, 2, and 4:
  *
  * Counter 0: count-off counter — counts response-valid events and gates the
  *            measurement window once it reaches its target value.
  * Counter 1: data counter — tracks total data received during the measurement
- *            period; generates an interrupt when measurement completes.
+ *            period.
+ * Counter 2: target-reached generator — duplicates counter 1's event/target
+ *            and generates the counter-off event that stops counters 1 and 4.
  * Counter 4: duration timer — measures elapsed time in refclk cycles.
  *
  * UTM_FILTER_SEL is set to 0 so that isolation comes from OTG-vblank gating
- * rather than the silicon-broken HW filter.  The first 200 prefetch requests
- * are skipped (ramp-up), and the subsequent 200 are the measurement window.
+ * rather than the silicon-broken HW filter.
  *
  * This function configures counters only; call
  * hubbub60_perfmon_start_measuring_out_of_order_bandwidth() to enable them.
  */
+
+/* Counter0's ramp-up target and counter1's measurement-window target,
+ * packed into PERFMON_CVALUE_LOW's low/high words respectively. Tunable via
+ * windbg (ed dcn60_debug_peak_bw_ramp_size / ed dcn60_debug_peak_bw_window_size).
+ */
+static unsigned int dcn60_debug_peak_bw_ramp_size = 0x100;
+static unsigned int dcn60_debug_peak_bw_window_size = 5000;
+
+/* Minimum count4 (refclk ticks) for a peak-BW sample to be trusted. */
+#define DCN60_OUT_OF_ORDER_BW_MIN_DURATION_TICKS 20
+
 static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 		struct hubbub *hubbub)
 {
@@ -1321,7 +1429,7 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 			UTM_FILTER_SEL, 0x0);
 
 	/* Program counter 0 as the count off counter */
-	REG_SET_8(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
+	REG_SET_9(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
 			PERFCOUNTER_CNTL_SEL, 0x0, // select counter 0
 			PERFCOUNTER_EVENT_SEL, 259, // response vld
 			PERFCOUNTER_CVALUE_SEL, 0x1, // use cvalue bits 15-0
@@ -1329,15 +1437,17 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 			PERFCOUNTER_HW_CNTL_SEL, 0x0, // simutaneous mode
 			PERFCOUNTER_RUNEN_MODE, 0x0, // counter runs as long as run_enable is high
 			PERFCOUNTER_RESTART_EN, 0x0, // stop after counting is done
-			PERFCOUNTER_ACTIVE, 1);
+			PERFCOUNTER_OFF_MASK, 0x1, // do not generate pmon_counter_off_out
+			PERFCOUNTER_ACTIVE, 0x1);
 	REG_SET_4(DC_PERFMON5_PERFCOUNTER_CNTL2, 0,
 			PERFCOUNTER_CNTL2_SEL, 0x0, // select counter 0
 			PERFCOUNTER_COUNTED_VALUE_TYPE, 0x0, // count the accumulated value
 			PERFCOUNTER_HW_STOP1_SEL, 0x1, // the stop trigger is that perfcounter meet the target CVALUE
 			PERFCOUNTER_HW_STOP2_SEL, 0x0); // ignored
 
-	/* Program counter 1 to count total data received */
-	REG_SET_9(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
+	/* Program counter 1 as a passive data accumulator, slaved to the same
+	 * external stop signal as counter 4 (generated by counter 2 below). */
+	REG_SET_10(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
 			PERFCOUNTER_CNTL_SEL, 0x1, // select counter 1
 			PERFCOUNTER_EVENT_SEL, 259, // response vld
 			PERFCOUNTER_CVALUE_SEL, 0x2, // use cvalue bits 31-16
@@ -1345,17 +1455,39 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 			PERFCOUNTER_HW_CNTL_SEL, 0x1, // independent mode
 			PERFCOUNTER_RUNEN_MODE, 0x0, // counter runs as long as run_enable is high
 			PERFCOUNTER_RESTART_EN, 0x0, // stop after counting is done
-			PERFCOUNTER_INT_EN, 1, // signal when the measurement is complete
+			PERFCOUNTER_INT_EN, 0, // counter 2 is the completion source
+			PERFCOUNTER_OFF_MASK, 0x1, // do not generate pmon_counter_off_out
 			PERFCOUNTER_ACTIVE, 0x1);
 	REG_SET_5(DC_PERFMON5_PERFCOUNTER_CNTL2, 0,
 			PERFCOUNTER_CNTL2_SEL, 0x1,
 			PERFCOUNTER_CNTOFF_SEL, 0, // start when count0 stops
 			PERFCOUNTER_COUNTED_VALUE_TYPE, 0x0, // count the accumulated value
 			PERFCOUNTER_HW_STOP1_SEL, 0x0, // ignored
+			PERFCOUNTER_HW_STOP2_SEL, 0x1); // stop via the same external signal as counter 4
+
+	/* Counter 2 is a dedicated "target reached" generator: it duplicates
+	 * counter 1's event/target and is the sole source of the counter-off
+	 * event driving PERFMON_RUN_ENABLE_STOP_SEL. */
+	REG_SET_10(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
+			PERFCOUNTER_CNTL_SEL, 0x2, // select counter 2
+			PERFCOUNTER_EVENT_SEL, 259, // response vld
+			PERFCOUNTER_CVALUE_SEL, 0x2, // use cvalue bits 31-16 (same window target as counter 1)
+			PERFCOUNTER_INC_MODE, 0x2, // count LSB level
+			PERFCOUNTER_HW_CNTL_SEL, 0x1, // independent mode
+			PERFCOUNTER_RUNEN_MODE, 0x0, // counter runs as long as run_enable is high
+			PERFCOUNTER_RESTART_EN, 0x0, // stop after counting is done
+			PERFCOUNTER_INT_EN, 0, // counter-off is the completion source
+			PERFCOUNTER_OFF_MASK, 0x0, // generate pmon_counter_off_out at CVALUE
+			PERFCOUNTER_ACTIVE, 0x1);
+	REG_SET_5(DC_PERFMON5_PERFCOUNTER_CNTL2, 0,
+			PERFCOUNTER_CNTL2_SEL, 0x2,
+			PERFCOUNTER_CNTOFF_SEL, 0, // start when count0 stops
+			PERFCOUNTER_COUNTED_VALUE_TYPE, 0x0, // count the accumulated value
+			PERFCOUNTER_HW_STOP1_SEL, 0x0, // ignored
 			PERFCOUNTER_HW_STOP2_SEL, 0x0); // the stop trigger is that perfcounter meet the target CVALUE
 
 	/* Program counter 4 to count the measuring time */
-	REG_SET_8(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
+	REG_SET_9(DC_PERFMON5_PERFCOUNTER_CNTL, 0,
 			PERFCOUNTER_CNTL_SEL, 0x4, // select counter 4
 			PERFCOUNTER_EVENT_SEL, 19, // always 1 event
 			PERFCOUNTER_CVALUE_SEL, 0x0, // ignored
@@ -1363,6 +1495,7 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 			PERFCOUNTER_HW_CNTL_SEL, 0x1, // independent mode
 			PERFCOUNTER_RUNEN_MODE, 0x0, // counter runs as long as run_enable is high
 			PERFCOUNTER_RESTART_EN, 0x0, // stop after counting is done
+			PERFCOUNTER_OFF_MASK, 0x1, // do not generate pmon_counter_off_out
 			PERFCOUNTER_ACTIVE, 1);
 	REG_SET_5(DC_PERFMON5_PERFCOUNTER_CNTL2, 0,
 			PERFCOUNTER_CNTL2_SEL, 0x4, // select counter 4
@@ -1372,25 +1505,25 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
 			PERFCOUNTER_HW_STOP2_SEL, 0x1); // the stop trigger is from the external 64 pairs of start/stop events
 
 	/* Program perfcounter states */
-	REG_SET_6(DC_PERFMON5_PERFCOUNTER_STATE, 0,
+	REG_SET_8(DC_PERFMON5_PERFCOUNTER_STATE, 0,
 			PERFCOUNTER_STATE_SEL0, 0x1, // independent state mode
 			PERFCOUNTER_CNT0_STATE, 0x3, // hw mode
 			PERFCOUNTER_STATE_SEL1, 0x1, // independent state mode
 			PERFCOUNTER_CNT1_STATE, 0x3, // hw mode
+			PERFCOUNTER_STATE_SEL2, 0x1, // independent state mode
+			PERFCOUNTER_CNT2_STATE, 0x3, // hw mode
 			PERFCOUNTER_STATE_SEL4, 0x1, // independent state mode
 			PERFCOUNTER_CNT4_STATE, 0x3); // hw mode
 
-	/*
-	 * The cvalue is derived based on experimental results at the lowest
-	 * clock state. Out-of-order bandwidth requires ~200 prefetch requests
-	 * to ramp up to full speed; the subsequent 200 requests form the
-	 * measurement window.
-	 */
-	REG_SET(DC_PERFMON5_PERFMON_CVALUE_LOW, 0, PERFMON_CVALUE_LOW, 200 | 200 << 16);
+	/* Ramp/window sizes are derived from experimental results at the
+	 * lowest clock state. */
+	REG_SET(DC_PERFMON5_PERFMON_CVALUE_LOW, 0, PERFMON_CVALUE_LOW,
+			(dcn60_debug_peak_bw_ramp_size & 0xFFFF)
+					| (dcn60_debug_peak_bw_window_size & 0xFFFF) << 16);
 
 	REG_SET_2(DC_PERFMON5_PERFMON_CNTL2, 0,
 			PERFMON_RUN_ENABLE_START_SEL, 0x0,
-			PERFMON_RUN_ENABLE_STOP_SEL, 11); // perfmon counter off event
+			PERFMON_RUN_ENABLE_STOP_SEL, 10); // stop on counter-off event
 }
 
 /**
@@ -1398,9 +1531,9 @@ static void hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(
  * @hubbub: pointer to the hubbub hardware instance
  *
  * Enables the performance monitor counters previously configured by
- * hubbub60_perfmon_arm_measuring_out_of_order_bandwidth().  The counter
- * self-stops once the count-off counter reaches its target; there is no
- * explicit stop step for the peak-BW path.
+ * hubbub60_perfmon_arm_measuring_out_of_order_bandwidth(). Counter 2 stops
+ * the measurement once it reaches its target; there is no explicit stop
+ * step for the peak-BW path.
  */
 static void hubbub60_perfmon_start_measuring_out_of_order_bandwidth(
 		struct hubbub *hubbub)
@@ -1418,27 +1551,48 @@ static void hubbub60_perfmon_start_measuring_out_of_order_bandwidth(
  * @refclk_mhz: reference clock frequency in MHz, used for duration conversion
  * @duration_ns: output parameter; receives the measured duration in nanoseconds
  *
- * Reads hardware counters 1 (data) and 4 (duration) and converts the raw
- * refclk-cycle count into bandwidth in Mbps.
+ * Reads hardware counters 1 (data), 2 (target-reached generator), and 4
+ * (duration), validates the sample, and converts the raw refclk-cycle count
+ * into bandwidth in Mbps.
  *
- * Return: out-of-order bandwidth in Mbps
+ * Return: out-of-order bandwidth in Mbps, or 0 if the sample is invalid
  */
 static uint32_t hubbub60_perfmon_get_out_of_order_bandwidth_mbps(
 		struct hubbub *hubbub, uint32_t refclk_mhz, uint32_t *duration_ns)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
-	uint32_t count0 = 0, count1 = 0, count4 = 0,
+	uint32_t count1 = 0, count2 = 0, count4 = 0,
 			out_of_order_bandwidth_mbps = 0, measuring_duration_ns = 0;
 	struct fixed31_32 temp;
-
-	REG_SET(DC_PERFMON5_PERFMON_HI, 0, PERFMON_READ_SEL, 0x0);
-	REG_GET(DC_PERFMON5_PERFMON_LOW, PERFMON_LOW, &count0);
 
 	REG_SET(DC_PERFMON5_PERFMON_HI, 0, PERFMON_READ_SEL, 0x1);
 	REG_GET(DC_PERFMON5_PERFMON_LOW, PERFMON_LOW, &count1);
 
+	REG_SET(DC_PERFMON5_PERFMON_HI, 0, PERFMON_READ_SEL, 0x2);
+	REG_GET(DC_PERFMON5_PERFMON_LOW, PERFMON_LOW, &count2);
+
 	REG_SET(DC_PERFMON5_PERFMON_HI, 0, PERFMON_READ_SEL, 0x4);
 	REG_GET(DC_PERFMON5_PERFMON_LOW, PERFMON_LOW, &count4);
+
+	/* count1 should never exceed count2's target, doing so means it
+	 * missed the shared stop edge and the sample is corrupted. */
+	if (count1 > count2 + (count2 / 20)) {
+		DC_LOG_WARNING("hubbub60_perfmon_get_out_of_order_bandwidth_mbps: "
+				"count1=%u exceeds count2=%u target, discarding corrupted sample\n",
+				count1, count2);
+		if (duration_ns)
+			*duration_ns = 0;
+		return 0;
+	}
+
+	if (count4 < DCN60_OUT_OF_ORDER_BW_MIN_DURATION_TICKS) {
+		DC_LOG_WARNING("hubbub60_perfmon_get_out_of_order_bandwidth_mbps: "
+				"count4=%u below minimum %u ticks, discarding sample\n",
+				count4, DCN60_OUT_OF_ORDER_BW_MIN_DURATION_TICKS);
+		if (duration_ns)
+			*duration_ns = 0;
+		return 0;
+	}
 
 	if (refclk_mhz == 0)
 		return 0;
@@ -1573,7 +1727,8 @@ static uint32_t hubbub60_perfmon_get_in_order_bandwidth_mbps(
 		return 0;
 
 	measuring_duration_ns = count4 * 1000 / refclk_mhz;
-	*duration_ns = measuring_duration_ns;
+	if (duration_ns)
+		*duration_ns = measuring_duration_ns;
 	if (min_duration_ns > measuring_duration_ns)
 		return 0;
 
@@ -1730,9 +1885,36 @@ static void hubbub60_reset_display_qos_profile(struct hubbub *hubbub)
 	REG_UPDATE(DCHUBBUB_ARB_QOS_FORCE, DCHUBBUB_ARB_UTM_FORCE_URGENT, 0);
 }
 
+static void hubbub60_override_utm_client_qc_profile(struct hubbub *hubbub, uint8_t qc_profile, int index)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	switch (index) {
+	case 0:
+		REG_UPDATE(UTM_CLIENT_TO_SYSTEM_PROFILE_MAPPING_0, SYSTEM_PROFILE_QC0, qc_profile);
+		break;
+	case 1:
+		REG_UPDATE(UTM_CLIENT_TO_SYSTEM_PROFILE_MAPPING_0, SYSTEM_PROFILE_QC1, qc_profile);
+		break;
+	case 2:
+		REG_UPDATE(UTM_CLIENT_TO_SYSTEM_PROFILE_MAPPING_0, SYSTEM_PROFILE_QC2, qc_profile);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		break;
+	}
+}
+
+static void hubbub60_set_sdpif_port_control(struct hubbub *hubbub, bool ignore_cstate_req)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	REG_UPDATE(DCHUBBUB_SDPIF_CFG0, SDPIF_PORT_CONTROL, ignore_cstate_req);
+}
+
 static const struct hubbub_funcs hubbub60_funcs = {
 	.update_dchub = hubbub2_update_dchub,
-	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
+	.init_dchub_sys_ctx = hubbub60_init_dchub_sys_ctx,
 	.init_vm_ctx = hubbub2_init_vm_ctx,
 	.dcc_support_swizzle_addr3 = hubbub401_dcc_support_swizzle,
 	.dcc_support_pixel_format_plane0_plane1 =
@@ -1744,10 +1926,12 @@ static const struct hubbub_funcs hubbub60_funcs = {
 	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.verify_allow_pstate_change_high = NULL,
+	.soft_reset = hubbub1_soft_reset,
 	.force_wm_propagate_to_pipes = hubbub60_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub60_init_watermarks,
 	.init_crb = dcn60_init_crb,
+	.dchvm_init = dcn60_dchvm_init,
 	.hubbub_read_state = hubbub2_read_state,
 	.force_usr_retraining_allow = NULL,
 	.set_request_limit = hubbub32_set_request_limit,
@@ -1755,6 +1939,7 @@ static const struct hubbub_funcs hubbub60_funcs = {
 	.program_compbuf_segments = dcn60_program_compbuf_segments,
 	.wait_for_det_update = dcn60_wait_for_det_update,
 	.program_arbiter = dcn401_program_arbiter,
+	.override_utm_client_qc_profile = hubbub60_override_utm_client_qc_profile,
 	.hubbub_read_reg_state = hubbub3_read_reg_state,
 	.perfmon = {
 		.reset = hubbub60_perfmon_reset,
@@ -1793,6 +1978,7 @@ static const struct hubbub_funcs hubbub60_funcs = {
 		.reset_display_qos_profile =
 			hubbub60_reset_display_qos_profile,
 	},
+	.set_sdpif_port_control = hubbub60_set_sdpif_port_control,
 };
 
 void hubbub60_construct(struct dcn20_hubbub *hubbub2,
@@ -1805,6 +1991,8 @@ void hubbub60_construct(struct dcn20_hubbub *hubbub2,
 	int config_return_buffer_size_kb)
 {
 	hubbub2->base.ctx = ctx;
+
+	hubbub2->base.inst = 0;
 	hubbub2->base.funcs = &hubbub60_funcs;
 	hubbub2->regs = hubbub_regs;
 	hubbub2->shifts = hubbub_shift;

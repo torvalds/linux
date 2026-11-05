@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,lp3943.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI/National Semiconductor LP3943 MFD driver
+
+maintainers:
+  - Chaosheng Qu <quchaosheng000406@163.com>
+
+description:
+  LP3943 is an integrated device capable of driving LEDs. It contains two
+  sub-devices, lp3943-gpio and lp3943-pwm, which are instantiated by the MFD
+  core from the child nodes described below.
+
+properties:
+  compatible:
+    const: ti,lp3943
+
+  reg:
+    maxItems: 1
+    description: I2C slave address, from 0x60 to 0x67
+
+patternProperties:
+  "^gpio":
+    type: object
+    $ref: /schemas/gpio/trivial-gpio.yaml#
+
+  "^pwm":
+    type: object
+    $ref: /schemas/pwm/pwm-lp3943.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        lp3943: gpio@60 {
+            compatible = "ti,lp3943";
+            reg = <0x60>;
+
+            gpio {
+                compatible = "ti,lp3943-gpio";
+                gpio-controller;
+                #gpio-cells = <2>;
+            };
+
+            pwm {
+                compatible = "ti,lp3943-pwm";
+                #pwm-cells = <2>;
+                ti,pwm0 = <8 9 10>;
+                ti,pwm1 = <15>;
+            };
+        };
+    };
+...

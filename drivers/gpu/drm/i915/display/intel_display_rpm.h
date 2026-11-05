@@ -21,6 +21,7 @@ void intel_display_rpm_put(struct intel_display *display, struct ref_tracker *wa
 
 /* Only for special cases. */
 bool intel_display_rpm_suspended(struct intel_display *display);
+bool intel_display_rpm_pme_enabled(struct intel_display *display);
 
 void assert_display_rpm_held(struct intel_display *display);
 void intel_display_rpm_assert_block(struct intel_display *display);

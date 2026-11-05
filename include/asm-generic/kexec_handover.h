@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-struct kho_scratch {
+struct kho_bootmem {
 	phys_addr_t addr;
 	phys_addr_t size;
 };

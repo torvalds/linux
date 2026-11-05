@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-2.0+
+/dts-v1/;
+#include "imx50.dtsi"
+
+/ {
+	model = "Amazon Kindle 4 (Yoshi)";
+	compatible = "amazon,yoshi", "fsl,imx50";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@70000000 {
+		device_type = "memory";
+		reg = <0x70000000 0x10000000>;
+	};
+};
+
+&esdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd3>;
+	bus-width = <8>;
+	non-removable;
+	min-frequency = <400000>;
+	max-frequency = <40000000>;
+	disable-wp;
+	status = "okay";
+
+	/* Internal eMMC */
+};
+
+&iomuxc {
+	pinctrl_sd3: sd3grp {
+		fsl,pins = <
+			MX50_PAD_SD3_CMD__ESDHC3_CMD		0x1e4
+			MX50_PAD_SD3_CLK__ESDHC3_CLK		0xd4
+			MX50_PAD_SD3_D0__ESDHC3_DAT0		0x1d4
+			MX50_PAD_SD3_D1__ESDHC3_DAT1		0x1d4
+			MX50_PAD_SD3_D2__ESDHC3_DAT2		0x1d4
+			MX50_PAD_SD3_D3__ESDHC3_DAT3		0x1d4
+			MX50_PAD_SD3_D4__ESDHC3_DAT4		0x1d4
+			MX50_PAD_SD3_D5__ESDHC3_DAT5		0x1d4
+			MX50_PAD_SD3_D6__ESDHC3_DAT6		0x1d4
+			MX50_PAD_SD3_D7__ESDHC3_DAT7		0x1d4
+		>;
+	};
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX50_PAD_UART1_TXD__UART1_TXD_MUX	0x1e4
+			MX50_PAD_UART1_RXD__UART1_RXD_MUX	0x1e4
+		>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};

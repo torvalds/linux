@@ -260,27 +260,27 @@ static const struct of_device_id dw_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 
 static const struct acpi_device_id dw_i2c_acpi_match[] = {
-	{ "80860F41", ACCESS_NO_IRQ_SUSPEND },
-	{ "808622C1", ACCESS_NO_IRQ_SUSPEND },
-	{ "AMD0010", ACCESS_INTR_MASK },
-	{ "AMDI0010", ACCESS_INTR_MASK },
-	{ "AMDI0019", ACCESS_INTR_MASK | ARBITRATION_SEMAPHORE },
-	{ "AMDI0510", 0 },
-	{ "APMC0D0F", 0 },
-	{ "FUJI200B", 0 },
-	{ "GOOG5000", 0 },
-	{ "HISI02A1", 0 },
-	{ "HISI02A2", 0 },
-	{ "HISI02A3", 0 },
-	{ "HJMC3001", ACCESS_INTR_MASK },
-	{ "HYGO0010", ACCESS_INTR_MASK },
-	{ "INT33C2", 0 },
-	{ "INT33C3", 0 },
-	{ "INT3432", 0 },
-	{ "INT3433", 0 },
-	{ "INTC10EF", 0 },
-	{ "LECA0003", 0 },
-	{}
+	{ .id = "80860F41", .driver_data = ACCESS_NO_IRQ_SUSPEND },
+	{ .id = "808622C1", .driver_data = ACCESS_NO_IRQ_SUSPEND },
+	{ .id = "AMD0010", .driver_data = ACCESS_INTR_MASK },
+	{ .id = "AMDI0010", .driver_data = ACCESS_INTR_MASK },
+	{ .id = "AMDI0019", .driver_data = ACCESS_INTR_MASK | ARBITRATION_SEMAPHORE },
+	{ .id = "AMDI0510" },
+	{ .id = "APMC0D0F" },
+	{ .id = "FUJI200B" },
+	{ .id = "GOOG5000" },
+	{ .id = "HISI02A1" },
+	{ .id = "HISI02A2" },
+	{ .id = "HISI02A3" },
+	{ .id = "HJMC3001", .driver_data = ACCESS_INTR_MASK },
+	{ .id = "HYGO0010", .driver_data = ACCESS_INTR_MASK },
+	{ .id = "INT33C2" },
+	{ .id = "INT33C3" },
+	{ .id = "INT3432" },
+	{ .id = "INT3433" },
+	{ .id = "INTC10EF" },
+	{ .id = "LECA0003" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
 

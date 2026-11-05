@@ -10,6 +10,7 @@
 #include <linux/array_size.h>
 #include <linux/cleanup.h>
 #include <linux/completion.h>
+#include <linux/container_of.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
 #include <linux/device.h>
@@ -32,33 +33,42 @@
 #define GO_S_CFG_INTF_IN	0x84
 #define GO_S_PACKET_SIZE	64
 
-static struct hid_gos_cfg {
-	struct delayed_work gos_cfg_setup;
+struct gos_cfg_drvdata {
+	/* MCU General Variables */
 	struct completion send_cmd_complete;
-	struct led_classdev *led_cdev;
+	struct delayed_work gos_cfg_setup;
 	struct hid_device *hdev;
+	bool orphan_ack_pending;
 	struct mutex cfg_mutex; /*ensure single synchronous output report*/
+	int cmd_status;
+
+	/* Gamepad Variables */
 	u8 gp_auto_sleep_time;
-	u8 gp_dpad_mode;
-	u8 gp_mode;
-	u8 gp_poll_rate;
-	u8 imu_bypass_en;
 	u8 imu_manufacturer;
+	bool gp_registered;
+	u8 tp_windows_mode;
+	u8 tp_manufacturer;
+	u8 tp_linux_mode;
+	u8 imu_bypass_en;
 	u8 imu_sensor_en;
+	u8 gp_dpad_mode;
+	u8 gp_poll_rate;
 	u8 mcu_id[12];
 	u8 mouse_step;
-	u8 os_mode;
-	u8 rgb_effect;
-	u8 rgb_en;
-	u8 rgb_mode;
-	u8 rgb_profile;
-	u8 rgb_speed;
-	u8 tp_en;
-	u8 tp_linux_mode;
-	u8 tp_windows_mode;
 	u8 tp_version;
-	u8 tp_manufacturer;
-} drvdata;
+	u8 gp_mode;
+	u8 os_mode;
+	u8 tp_en;
+
+	/* RGB Variables */
+	struct led_classdev_mc led_mc;
+	bool rgb_registered;
+	u8 rgb_profile;
+	u8 rgb_effect;
+	u8 rgb_speed;
+	u8 rgb_mode;
+	u8 rgb_en;
+};
 
 struct gos_cfg_attr {
 	u8 index;
@@ -234,56 +244,57 @@ static const char *const imu_manufacturer_text[] = {
 	[IMU_ST] = "ST",
 };
 
-static int hid_gos_version_event(u8 *data)
+static int hid_gos_version_event(struct gos_cfg_drvdata *drvdata, u8 *data)
 {
 	struct version_report *ver_rep = (struct version_report *)data;
 
-	drvdata.hdev->firmware_version = get_unaligned_le32(&ver_rep->version);
+	drvdata->hdev->firmware_version = get_unaligned_le32(&ver_rep->version);
 	return 0;
 }
 
-static int hid_gos_mcu_id_event(struct command_report *cmd_rep)
+static int hid_gos_mcu_id_event(struct gos_cfg_drvdata *drvdata, struct command_report *cmd_rep)
 {
-	drvdata.mcu_id[0] = cmd_rep->sub_cmd;
-	memcpy(&drvdata.mcu_id[1], cmd_rep->data, 11);
+	drvdata->mcu_id[0] = cmd_rep->sub_cmd;
+	memcpy(&drvdata->mcu_id[1], cmd_rep->data, 11);
 
 	return 0;
 }
 
-static int hid_gos_gamepad_cfg_event(struct command_report *cmd_rep)
+static int hid_gos_gamepad_cfg_event(struct gos_cfg_drvdata *drvdata,
+				     struct command_report *cmd_rep)
 {
 	int ret = 0;
 
 	switch (cmd_rep->sub_cmd) {
 	case FEATURE_GAMEPAD_MODE:
-		drvdata.gp_mode = cmd_rep->data[0];
+		drvdata->gp_mode = cmd_rep->data[0];
 		break;
 	case FEATURE_AUTO_SLEEP_TIME:
-		drvdata.gp_auto_sleep_time = cmd_rep->data[0];
+		drvdata->gp_auto_sleep_time = cmd_rep->data[0];
 		break;
 	case FEATURE_IMU_BYPASS:
-		drvdata.imu_bypass_en = cmd_rep->data[0];
+		drvdata->imu_bypass_en = cmd_rep->data[0];
 		break;
 	case FEATURE_RGB_ENABLE:
-		drvdata.rgb_en = cmd_rep->data[0];
+		drvdata->rgb_en = cmd_rep->data[0];
 		break;
 	case FEATURE_IMU_ENABLE:
-		drvdata.imu_sensor_en = cmd_rep->data[0];
+		drvdata->imu_sensor_en = cmd_rep->data[0];
 		break;
 	case FEATURE_TOUCHPAD_ENABLE:
-		drvdata.tp_en = cmd_rep->data[0];
+		drvdata->tp_en = cmd_rep->data[0];
 		break;
 	case FEATURE_OS_MODE:
-		drvdata.os_mode = cmd_rep->data[0];
+		drvdata->os_mode = cmd_rep->data[0];
 		break;
 	case FEATURE_POLL_RATE:
-		drvdata.gp_poll_rate = cmd_rep->data[0];
+		drvdata->gp_poll_rate = cmd_rep->data[0];
 		break;
 	case FEATURE_DPAD_MODE:
-		drvdata.gp_dpad_mode = cmd_rep->data[0];
+		drvdata->gp_dpad_mode = cmd_rep->data[0];
 		break;
 	case FEATURE_MOUSE_WHEEL_STEP:
-		drvdata.mouse_step = cmd_rep->data[0];
+		drvdata->mouse_step = cmd_rep->data[0];
 		break;
 	default:
 		ret = -EINVAL;
@@ -293,16 +304,16 @@ static int hid_gos_gamepad_cfg_event(struct command_report *cmd_rep)
 	return ret;
 }
 
-static int hid_gos_touchpad_event(struct command_report *cmd_rep)
+static int hid_gos_touchpad_event(struct gos_cfg_drvdata *drvdata, struct command_report *cmd_rep)
 {
 	int ret = 0;
 
 	switch (cmd_rep->sub_cmd) {
 	case CFG_LINUX_MODE:
-		drvdata.tp_linux_mode = cmd_rep->data[0];
+		drvdata->tp_linux_mode = cmd_rep->data[0];
 		break;
 	case CFG_WINDOWS_MODE:
-		drvdata.tp_windows_mode = cmd_rep->data[0];
+		drvdata->tp_windows_mode = cmd_rep->data[0];
 		break;
 	default:
 		ret = -EINVAL;
@@ -312,21 +323,21 @@ static int hid_gos_touchpad_event(struct command_report *cmd_rep)
 	return ret;
 }
 
-static int hid_gos_pl_test_event(struct command_report *cmd_rep)
+static int hid_gos_pl_test_event(struct gos_cfg_drvdata *drvdata, struct command_report *cmd_rep)
 {
 	int ret = 0;
 
 	switch (cmd_rep->sub_cmd) {
 	case TEST_TP_MFR:
-		drvdata.tp_manufacturer = cmd_rep->data[0];
+		drvdata->tp_manufacturer = cmd_rep->data[0];
 		ret = 0;
 		break;
 	case TEST_IMU_MFR:
-		drvdata.imu_manufacturer = cmd_rep->data[0];
+		drvdata->imu_manufacturer = cmd_rep->data[0];
 		ret = 0;
 		break;
 	case TEST_TP_VER:
-		drvdata.tp_version = cmd_rep->data[0];
+		drvdata->tp_version = cmd_rep->data[0];
 		ret = 0;
 		break;
 	default:
@@ -336,30 +347,30 @@ static int hid_gos_pl_test_event(struct command_report *cmd_rep)
 	return ret;
 }
 
-static int hid_gos_light_event(struct command_report *cmd_rep)
+static int hid_gos_light_event(struct gos_cfg_drvdata *drvdata, struct command_report *cmd_rep)
 {
-	struct led_classdev_mc *mc_cdev;
+	struct led_classdev_mc *led_mc;
 	int ret = 0;
 
 	switch (cmd_rep->sub_cmd) {
 	case LIGHT_MODE_SEL:
-		drvdata.rgb_mode = cmd_rep->data[0];
+		drvdata->rgb_mode = cmd_rep->data[0];
 		ret = 0;
 		break;
 	case LIGHT_PROFILE_SEL:
-		drvdata.rgb_profile = cmd_rep->data[0];
+		drvdata->rgb_profile = cmd_rep->data[0];
 		ret = 0;
 		break;
 	case USR_LIGHT_PROFILE_1:
 	case USR_LIGHT_PROFILE_2:
 	case USR_LIGHT_PROFILE_3:
-		mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
-		drvdata.rgb_effect = cmd_rep->data[0];
-		mc_cdev->subled_info[0].intensity = cmd_rep->data[1];
-		mc_cdev->subled_info[1].intensity = cmd_rep->data[2];
-		mc_cdev->subled_info[2].intensity = cmd_rep->data[3];
-		drvdata.led_cdev->brightness = cmd_rep->data[4];
-		drvdata.rgb_speed = cmd_rep->data[5];
+		led_mc = &drvdata->led_mc;
+		drvdata->rgb_effect = cmd_rep->data[0];
+		led_mc->subled_info[0].intensity = cmd_rep->data[1];
+		led_mc->subled_info[1].intensity = cmd_rep->data[2];
+		led_mc->subled_info[2].intensity = cmd_rep->data[3];
+		led_mc->led_cdev.brightness = cmd_rep->data[4];
+		drvdata->rgb_speed = cmd_rep->data[5];
 		ret = 0;
 		break;
 	default:
@@ -392,12 +403,16 @@ static int get_endpoint_address(struct hid_device *hdev)
 static int hid_gos_raw_event(struct hid_device *hdev, struct hid_report *report,
 			     u8 *data, int size)
 {
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
 	struct command_report *cmd_rep;
 	int ep, ret;
 
 	ep = get_endpoint_address(hdev);
 	if (ep != GO_S_CFG_INTF_IN)
 		return 0;
+
+	if (!drvdata)
+		return -ENODEV;
 
 	if (size != GO_S_PACKET_SIZE)
 		return -EINVAL;
@@ -406,22 +421,22 @@ static int hid_gos_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 	switch (cmd_rep->cmd) {
 	case GET_VERSION:
-		ret = hid_gos_version_event(data);
+		ret = hid_gos_version_event(drvdata, data);
 		break;
 	case GET_MCU_ID:
-		ret = hid_gos_mcu_id_event(cmd_rep);
+		ret = hid_gos_mcu_id_event(drvdata, cmd_rep);
 		break;
 	case GET_GAMEPAD_CFG:
-		ret = hid_gos_gamepad_cfg_event(cmd_rep);
+		ret = hid_gos_gamepad_cfg_event(drvdata, cmd_rep);
 		break;
 	case GET_TP_PARAM:
-		ret = hid_gos_touchpad_event(cmd_rep);
+		ret = hid_gos_touchpad_event(drvdata, cmd_rep);
 		break;
 	case GET_PL_TEST:
-		ret = hid_gos_pl_test_event(cmd_rep);
+		ret = hid_gos_pl_test_event(drvdata, cmd_rep);
 		break;
 	case GET_RGB_CFG:
-		ret = hid_gos_light_event(cmd_rep);
+		ret = hid_gos_light_event(drvdata, cmd_rep);
 		break;
 	case SET_GAMEPAD_CFG:
 	case SET_RGB_CFG:
@@ -435,22 +450,41 @@ static int hid_gos_raw_event(struct hid_device *hdev, struct hid_report *report,
 	dev_dbg(&hdev->dev, "Rx data as raw input report: [%*ph]\n",
 		GO_S_PACKET_SIZE, data);
 
-	complete(&drvdata.send_cmd_complete);
+	drvdata->cmd_status = ret;
+	complete(&drvdata->send_cmd_complete);
+
 	return ret;
 }
 
 static int mcu_property_out(struct hid_device *hdev, u8 command, u8 index,
 			    u8 *data, size_t len)
 {
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
 	unsigned char *dmabuf __free(kfree) = NULL;
 	u8 header[] = { command, index };
 	size_t header_size = ARRAY_SIZE(header);
 	int timeout, ret;
 
+	if (!drvdata)
+		return -ENODEV;
+
 	if (header_size + len > GO_S_PACKET_SIZE)
 		return -EINVAL;
 
-	guard(mutex)(&drvdata.cfg_mutex);
+	guard(mutex)(&drvdata->cfg_mutex);
+
+	/*
+	 * A reply to the previous command may still be in flight. Give it a
+	 * short window to arrive and be consumed before this call reinits the
+	 * completion, so a late reply can't be mistaken for this command's.
+	 */
+	if (drvdata->orphan_ack_pending) {
+		wait_for_completion_timeout(&drvdata->send_cmd_complete, msecs_to_jiffies(25));
+		drvdata->orphan_ack_pending = false;
+		drvdata->cmd_status = -ETIMEDOUT;
+	}
+	reinit_completion(&drvdata->send_cmd_complete);
+
 	/* We can't use a devm_alloc reusable buffer without side effects during suspend */
 	dmabuf = kzalloc(GO_S_PACKET_SIZE, GFP_KERNEL);
 	if (!dmabuf)
@@ -472,14 +506,14 @@ static int mcu_property_out(struct hid_device *hdev, u8 command, u8 index,
 
 	/* PL_TEST commands can take longer because they go out to another device */
 	timeout = (command == GET_PL_TEST) ? 200 : 5;
-	ret = wait_for_completion_interruptible_timeout(&drvdata.send_cmd_complete,
+	ret = wait_for_completion_interruptible_timeout(&drvdata->send_cmd_complete,
 							msecs_to_jiffies(timeout));
+	ret = ret > 0 ? drvdata->cmd_status : ret ?: -EBUSY;
 
-	if (ret == 0) /* timeout occurred */
-		ret = -EBUSY;
+	if (ret)
+		drvdata->orphan_ack_pending = true;
 
-	reinit_completion(&drvdata.send_cmd_complete);
-	return 0;
+	return ret;
 }
 
 static ssize_t gamepad_property_store(struct device *dev,
@@ -487,9 +521,33 @@ static ssize_t gamepad_property_store(struct device *dev,
 				      const char *buf, size_t count,
 				      enum feature_status_index index)
 {
+	struct gos_cfg_drvdata *drvdata;
+	struct led_classdev_mc *led_mc;
+	struct led_classdev *led_cdev;
+	struct hid_device *hdev;
+	bool dev_registered;
 	size_t size = 1;
 	u8 val = 0;
 	int ret;
+
+	/* rgb_enabled is attached to led_classdev, not hid_device */
+	if (index == FEATURE_RGB_ENABLE) {
+		led_cdev = dev_get_drvdata(dev);
+		led_mc = lcdev_to_mccdev(led_cdev);
+		drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+		hdev = drvdata->hdev;
+	/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata->rgb_registered);
+
+	} else {
+		hdev = to_hid_device(dev);
+		drvdata = hid_get_drvdata(hdev);
+	/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata->gp_registered);
+	}
+
+	if (!dev_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case FEATURE_GAMEPAD_MODE:
@@ -559,7 +617,7 @@ static ssize_t gamepad_property_store(struct device *dev,
 	if (!val)
 		size = 0;
 
-	ret = mcu_property_out(drvdata.hdev, SET_GAMEPAD_CFG, index, &val,
+	ret = mcu_property_out(hdev, SET_GAMEPAD_CFG, index, &val,
 			       size);
 	if (ret < 0)
 		return ret;
@@ -571,67 +629,92 @@ static ssize_t gamepad_property_show(struct device *dev,
 				     struct device_attribute *attr, char *buf,
 				     enum feature_status_index index)
 {
+	struct gos_cfg_drvdata *drvdata;
+	struct led_classdev_mc *led_mc;
+	struct led_classdev *led_cdev;
+	struct hid_device *hdev;
+	bool dev_registered;
+
 	ssize_t count = 0;
 	u8 i;
 
-	count = mcu_property_out(drvdata.hdev, GET_GAMEPAD_CFG, index, NULL, 0);
+	/* rgb_enabled is attached to led_classdev, not hid_device */
+	if (index == FEATURE_RGB_ENABLE) {
+		led_cdev = dev_get_drvdata(dev);
+		led_mc = lcdev_to_mccdev(led_cdev);
+		drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+		hdev = drvdata->hdev;
+	/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata->rgb_registered);
+
+	} else {
+		hdev = to_hid_device(dev);
+		drvdata = hid_get_drvdata(hdev);
+	/* Pairs with smp_store_release from gos_cfg_setup */
+		dev_registered = smp_load_acquire(&drvdata->gp_registered);
+	}
+
+	if (!dev_registered)
+		return -ENODEV;
+
+	count = mcu_property_out(hdev, GET_GAMEPAD_CFG, index, NULL, 0);
 	if (count < 0)
 		return count;
 
 	switch (index) {
 	case FEATURE_GAMEPAD_MODE:
-		i = drvdata.gp_mode;
+		i = drvdata->gp_mode;
 		if (i >= ARRAY_SIZE(gamepad_mode_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", gamepad_mode_text[i]);
 		break;
 	case FEATURE_AUTO_SLEEP_TIME:
-		count = sysfs_emit(buf, "%u\n", drvdata.gp_auto_sleep_time);
+		count = sysfs_emit(buf, "%u\n", drvdata->gp_auto_sleep_time);
 		break;
 	case FEATURE_IMU_ENABLE:
-		i = drvdata.imu_sensor_en;
+		i = drvdata->imu_sensor_en;
 		if (i >= ARRAY_SIZE(feature_enabled_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", feature_enabled_text[i]);
 		break;
 	case FEATURE_IMU_BYPASS:
-		i = drvdata.imu_bypass_en;
+		i = drvdata->imu_bypass_en;
 		if (i >= ARRAY_SIZE(feature_enabled_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", feature_enabled_text[i]);
 		break;
 	case FEATURE_RGB_ENABLE:
-		i = drvdata.rgb_en;
+		i = drvdata->rgb_en;
 		if (i >= ARRAY_SIZE(feature_enabled_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", feature_enabled_text[i]);
 		break;
 	case FEATURE_TOUCHPAD_ENABLE:
-		i = drvdata.tp_en;
+		i = drvdata->tp_en;
 		if (i >= ARRAY_SIZE(feature_enabled_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", feature_enabled_text[i]);
 		break;
 	case FEATURE_OS_MODE:
-		i = drvdata.os_mode;
+		i = drvdata->os_mode;
 		if (i >= ARRAY_SIZE(os_type_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", os_type_text[i]);
 		break;
 	case FEATURE_POLL_RATE:
-		i = drvdata.gp_poll_rate;
+		i = drvdata->gp_poll_rate;
 		if (i >= ARRAY_SIZE(poll_rate_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", poll_rate_text[i]);
 		break;
 	case FEATURE_DPAD_MODE:
-		i = drvdata.gp_dpad_mode;
+		i = drvdata->gp_dpad_mode;
 		if (i >= ARRAY_SIZE(dpad_mode_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", dpad_mode_text[i]);
 		break;
 	case FEATURE_MOUSE_WHEEL_STEP:
-		i = drvdata.mouse_step;
+		i = drvdata->mouse_step;
 		if (i < 1 || i > 127)
 			return -EINVAL;
 		count = sysfs_emit(buf, "%u\n", i);
@@ -709,9 +792,20 @@ static ssize_t touchpad_property_store(struct device *dev,
 				       const char *buf, size_t count,
 				       enum touchpad_config_index index)
 {
+	struct hid_device *hdev = to_hid_device(dev);
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+	bool gp_registered;
 	size_t size = 1;
 	u8 val = 0;
 	int ret;
+
+	if (!drvdata)
+		return -ENODEV;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata->gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
 
 	switch (index) {
 	case CFG_WINDOWS_MODE:
@@ -732,7 +826,7 @@ static ssize_t touchpad_property_store(struct device *dev,
 	if (!val)
 		size = 0;
 
-	ret = mcu_property_out(drvdata.hdev, SET_TP_PARAM, index, &val, size);
+	ret = mcu_property_out(hdev, SET_TP_PARAM, index, &val, size);
 	if (ret < 0)
 		return ret;
 
@@ -743,19 +837,30 @@ static ssize_t touchpad_property_show(struct device *dev,
 				      struct device_attribute *attr, char *buf,
 				      enum touchpad_config_index index)
 {
+	struct hid_device *hdev = to_hid_device(dev);
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+	bool gp_registered;
 	int ret = 0;
 	u8 i;
 
-	ret = mcu_property_out(drvdata.hdev, GET_TP_PARAM, index, NULL, 0);
+	if (!drvdata)
+		return -ENODEV;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata->gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
+
+	ret = mcu_property_out(hdev, GET_TP_PARAM, index, NULL, 0);
 	if (ret < 0)
 		return ret;
 
 	switch (index) {
 	case CFG_WINDOWS_MODE:
-		i = drvdata.tp_windows_mode;
+		i = drvdata->tp_windows_mode;
 		break;
 	case CFG_LINUX_MODE:
-		i = drvdata.tp_linux_mode;
+		i = drvdata->tp_linux_mode;
 		break;
 	default:
 		return -EINVAL;
@@ -797,24 +902,35 @@ static ssize_t test_property_show(struct device *dev,
 				  struct device_attribute *attr, char *buf,
 				  enum test_command_index index)
 {
+	struct hid_device *hdev = to_hid_device(dev);
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+	bool gp_registered;
 	size_t count = 0;
 	u8 i;
 
+	if (!drvdata)
+		return -ENODEV;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata->gp_registered);
+	if (!gp_registered)
+		return -ENODEV;
+
 	switch (index) {
 	case TEST_TP_MFR:
-		i = drvdata.tp_manufacturer;
+		i = drvdata->tp_manufacturer;
 		if (i >= ARRAY_SIZE(touchpad_manufacturer_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", touchpad_manufacturer_text[i]);
 		break;
 	case TEST_IMU_MFR:
-		i = drvdata.imu_manufacturer;
+		i = drvdata->imu_manufacturer;
 		if (i >= ARRAY_SIZE(imu_manufacturer_text))
 			return -EINVAL;
 		count = sysfs_emit(buf, "%s\n", imu_manufacturer_text[i]);
 		break;
 	case TEST_TP_VER:
-		count = sysfs_emit(buf, "%u\n", drvdata.tp_version);
+		count = sysfs_emit(buf, "%u\n", drvdata->tp_version);
 		break;
 	default:
 		count = -EINVAL;
@@ -827,7 +943,13 @@ static ssize_t test_property_show(struct device *dev,
 static ssize_t mcu_id_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	return sysfs_emit(buf, "%*phN\n", 12, &drvdata.mcu_id);
+	struct hid_device *hdev = to_hid_device(dev);
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+
+	if (!drvdata)
+		return -ENODEV;
+
+	return sysfs_emit(buf, "%*phN\n", 12, &drvdata->mcu_id);
 }
 
 static int rgb_cfg_call(struct hid_device *hdev, enum mcu_command_index cmd,
@@ -842,58 +964,75 @@ static int rgb_cfg_call(struct hid_device *hdev, enum mcu_command_index cmd,
 	return mcu_property_out(hdev, cmd, index, val, size);
 }
 
-static int rgb_attr_show(void)
+static int rgb_attr_show(struct gos_cfg_drvdata *drvdata)
 {
 	enum rgb_config_index index;
 
-	index = drvdata.rgb_profile + 2;
+	index = drvdata->rgb_profile + 2;
 
-	return rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, index, NULL, 0);
+	return rgb_cfg_call(drvdata->hdev, GET_RGB_CFG, index, NULL, 0);
 };
 
 static ssize_t rgb_effect_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t count)
 {
-	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	u8 effect;
 	int ret;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = sysfs_match_string(rgb_effect_text, buf);
 	if (ret < 0)
 		return ret;
 
 	effect = ret;
-	index = drvdata.rgb_profile + 2;
+	index = drvdata->rgb_profile + 2;
 	u8 rgb_profile[6] = { effect,
-			      mc_cdev->subled_info[0].intensity,
-			      mc_cdev->subled_info[1].intensity,
-			      mc_cdev->subled_info[2].intensity,
-			      drvdata.led_cdev->brightness,
-			      drvdata.rgb_speed };
+			      led_mc->subled_info[0].intensity,
+			      led_mc->subled_info[1].intensity,
+			      led_mc->subled_info[2].intensity,
+			      led_mc->led_cdev.brightness,
+			      drvdata->rgb_speed };
 
-	ret = rgb_cfg_call(drvdata.hdev, SET_RGB_CFG, index, rgb_profile, 6);
+	ret = rgb_cfg_call(drvdata->hdev, SET_RGB_CFG, index, rgb_profile, 6);
 	if (ret)
 		return ret;
 
-	drvdata.rgb_effect = effect;
+	drvdata->rgb_effect = effect;
 	return count;
 };
 
 static ssize_t rgb_effect_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	int ret;
 
-	ret = rgb_attr_show();
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
+
+	ret = rgb_attr_show(drvdata);
 	if (ret)
 		return ret;
 
-	if (drvdata.rgb_effect >= ARRAY_SIZE(rgb_effect_text))
+	if (drvdata->rgb_effect >= ARRAY_SIZE(rgb_effect_text))
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%s\n", rgb_effect_text[drvdata.rgb_effect]);
+	return sysfs_emit(buf, "%s\n", rgb_effect_text[drvdata->rgb_effect]);
 }
 
 static ssize_t rgb_effect_index_show(struct device *dev,
@@ -915,10 +1054,18 @@ static ssize_t rgb_speed_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
 {
-	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	int val = 0;
 	int ret;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = kstrtoint(buf, 10, &val);
 	if (ret)
@@ -927,19 +1074,19 @@ static ssize_t rgb_speed_store(struct device *dev,
 	if (val < 0 || val > 100)
 		return -EINVAL;
 
-	index = drvdata.rgb_profile + 2;
-	u8 rgb_profile[6] = { drvdata.rgb_effect,
-			      mc_cdev->subled_info[0].intensity,
-			      mc_cdev->subled_info[1].intensity,
-			      mc_cdev->subled_info[2].intensity,
-			      drvdata.led_cdev->brightness,
+	index = drvdata->rgb_profile + 2;
+	u8 rgb_profile[6] = { drvdata->rgb_effect,
+			      led_mc->subled_info[0].intensity,
+			      led_mc->subled_info[1].intensity,
+			      led_mc->subled_info[2].intensity,
+			      led_mc->led_cdev.brightness,
 			      val };
 
-	ret = rgb_cfg_call(drvdata.hdev, SET_RGB_CFG, index, rgb_profile, 6);
+	ret = rgb_cfg_call(drvdata->hdev, SET_RGB_CFG, index, rgb_profile, 6);
 	if (ret)
 		return ret;
 
-	drvdata.rgb_speed = val;
+	drvdata->rgb_speed = val;
 
 	return count;
 };
@@ -947,16 +1094,25 @@ static ssize_t rgb_speed_store(struct device *dev,
 static ssize_t rgb_speed_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	int ret;
 
-	ret = rgb_attr_show();
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
+
+	ret = rgb_attr_show(drvdata);
 	if (ret)
 		return ret;
 
-	if (drvdata.rgb_speed > 100)
+	if (drvdata->rgb_speed > 100)
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%hhu\n", drvdata.rgb_speed);
+	return sysfs_emit(buf, "%hhu\n", drvdata->rgb_speed);
 }
 
 static ssize_t rgb_speed_range_show(struct device *dev,
@@ -968,8 +1124,17 @@ static ssize_t rgb_speed_range_show(struct device *dev,
 static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	int ret;
 	u8 val;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = sysfs_match_string(rgb_mode_text, buf);
 	if (ret <= 0)
@@ -977,12 +1142,12 @@ static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 
 	val = ret;
 
-	ret = rgb_cfg_call(drvdata.hdev, SET_RGB_CFG, LIGHT_MODE_SEL, &val,
+	ret = rgb_cfg_call(drvdata->hdev, SET_RGB_CFG, LIGHT_MODE_SEL, &val,
 			   1);
 	if (ret)
 		return ret;
 
-	drvdata.rgb_mode = val;
+	drvdata->rgb_mode = val;
 
 	return count;
 };
@@ -990,16 +1155,25 @@ static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 static ssize_t rgb_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	int ret;
 
-	ret = rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, LIGHT_MODE_SEL, NULL, 0);
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
+
+	ret = rgb_cfg_call(drvdata->hdev, GET_RGB_CFG, LIGHT_MODE_SEL, NULL, 0);
 	if (ret)
 		return ret;
 
-	if (drvdata.rgb_mode >= ARRAY_SIZE(rgb_mode_text))
+	if (drvdata->rgb_mode >= ARRAY_SIZE(rgb_mode_text))
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%s\n", rgb_mode_text[drvdata.rgb_mode]);
+	return sysfs_emit(buf, "%s\n", rgb_mode_text[drvdata->rgb_mode]);
 };
 
 static ssize_t rgb_mode_index_show(struct device *dev,
@@ -1021,9 +1195,18 @@ static ssize_t rgb_profile_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	size_t size = 1;
 	int ret;
 	u8 val;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
 
 	ret = kstrtou8(buf, 10, &val);
 	if (ret < 0)
@@ -1032,11 +1215,11 @@ static ssize_t rgb_profile_store(struct device *dev,
 	if (val < 1 || val > 3)
 		return -EINVAL;
 
-	ret = rgb_cfg_call(drvdata.hdev, SET_RGB_CFG, LIGHT_PROFILE_SEL, &val, size);
+	ret = rgb_cfg_call(drvdata->hdev, SET_RGB_CFG, LIGHT_PROFILE_SEL, &val, size);
 	if (ret)
 		return ret;
 
-	drvdata.rgb_profile = val;
+	drvdata->rgb_profile = val;
 
 	return count;
 };
@@ -1044,16 +1227,25 @@ static ssize_t rgb_profile_store(struct device *dev,
 static ssize_t rgb_profile_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
+	bool rgb_registered;
 	int ret;
 
-	ret = rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, LIGHT_PROFILE_SEL, NULL, 0);
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return -ENODEV;
+
+	ret = rgb_cfg_call(drvdata->hdev, GET_RGB_CFG, LIGHT_PROFILE_SEL, NULL, 0);
 	if (ret)
 		return ret;
 
-	if (drvdata.rgb_profile < 1 || drvdata.rgb_profile > 3)
+	if (drvdata->rgb_profile < 1 || drvdata->rgb_profile > 3)
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%hhu\n", drvdata.rgb_profile);
+	return sysfs_emit(buf, "%hhu\n", drvdata->rgb_profile);
 };
 
 static ssize_t rgb_profile_range_show(struct device *dev,
@@ -1065,24 +1257,31 @@ static ssize_t rgb_profile_range_show(struct device *dev,
 static void hid_gos_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
-	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(drvdata.led_cdev);
+	struct led_classdev_mc *led_mc = lcdev_to_mccdev(led_cdev);
+	struct gos_cfg_drvdata *drvdata = container_of(led_mc, struct gos_cfg_drvdata, led_mc);
 	enum rgb_config_index index;
+	bool rgb_registered;
 	int ret;
+
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!rgb_registered)
+		return;
 
 	if (brightness > led_cdev->max_brightness) {
 		dev_err(led_cdev->dev, "Invalid argument\n");
 		return;
 	}
 
-	index = drvdata.rgb_profile + 2;
-	u8 rgb_profile[6] = { drvdata.rgb_effect,
-			      mc_cdev->subled_info[0].intensity,
-			      mc_cdev->subled_info[1].intensity,
-			      mc_cdev->subled_info[2].intensity,
+	index = drvdata->rgb_profile + 2;
+	u8 rgb_profile[6] = { drvdata->rgb_effect,
+			      led_mc->subled_info[0].intensity,
+			      led_mc->subled_info[1].intensity,
+			      led_mc->subled_info[2].intensity,
 			      brightness,
-			      drvdata.rgb_speed };
+			      drvdata->rgb_speed };
 
-	ret = rgb_cfg_call(drvdata.hdev, SET_RGB_CFG, index, rgb_profile, 6);
+	ret = rgb_cfg_call(drvdata->hdev, SET_RGB_CFG, index, rgb_profile, 6);
 	switch (ret) {
 	case 0:
 		led_cdev->brightness = brightness;
@@ -1318,103 +1517,140 @@ static struct mc_subled gos_rgb_subled_info[] = {
 	},
 };
 
-static struct led_classdev_mc gos_cdev_rgb = {
-	.led_cdev = {
-		.name = "go_s:rgb:joystick_rings",
-		.brightness = 0x50,
-		.max_brightness = 0x64,
-		.brightness_set = hid_gos_brightness_set,
-	},
-	.num_colors = ARRAY_SIZE(gos_rgb_subled_info),
-	.subled_info = gos_rgb_subled_info,
-};
-
 static void cfg_setup(struct work_struct *work)
 {
+	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct gos_cfg_drvdata *drvdata = container_of(dwork, struct gos_cfg_drvdata,
+						       gos_cfg_setup);
+	bool gp_registered, rgb_registered;
 	int ret;
 
+	if (!drvdata)
+		return;
+
 	/* MCU */
-	ret = mcu_property_out(drvdata.hdev, GET_MCU_ID, FEATURE_NONE, NULL, 0);
+	ret = mcu_property_out(drvdata->hdev, GET_MCU_ID, FEATURE_NONE, NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev, "Failed to retrieve MCU ID: %i\n",
+		dev_err(&drvdata->hdev->dev, "Failed to retrieve MCU ID: %i\n",
 			ret);
 		return;
 	}
 
-	ret = mcu_property_out(drvdata.hdev, GET_VERSION, FEATURE_NONE, NULL, 0);
+	ret = mcu_property_out(drvdata->hdev, GET_VERSION, FEATURE_NONE, NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev, "Failed to retrieve MCU Version: %i\n", ret);
+		dev_err(&drvdata->hdev->dev, "Failed to retrieve MCU Version: %i\n", ret);
 		return;
 	}
 
-	ret = mcu_property_out(drvdata.hdev, GET_PL_TEST, TEST_TP_MFR, NULL, 0);
+	ret = mcu_property_out(drvdata->hdev, GET_PL_TEST, TEST_TP_MFR, NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev,
+		dev_err(&drvdata->hdev->dev,
 			"Failed to retrieve Touchpad Manufacturer: %i\n", ret);
 		return;
 	}
 
-	ret = mcu_property_out(drvdata.hdev, GET_PL_TEST, TEST_TP_VER, NULL, 0);
+	ret = mcu_property_out(drvdata->hdev, GET_PL_TEST, TEST_TP_VER, NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev,
+		dev_err(&drvdata->hdev->dev,
 			"Failed to retrieve Touchpad Firmware Version: %i\n", ret);
 		return;
 	}
 
-	ret = mcu_property_out(drvdata.hdev, GET_PL_TEST, TEST_IMU_MFR, NULL, 0);
+	ret = mcu_property_out(drvdata->hdev, GET_PL_TEST, TEST_IMU_MFR, NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev,
+		dev_err(&drvdata->hdev->dev,
 			"Failed to retrieve IMU Manufacturer: %i\n", ret);
 		return;
 	}
 
-	ret = mcu_property_out(drvdata.hdev, GET_GAMEPAD_CFG, FEATURE_OS_MODE,
+	ret = mcu_property_out(drvdata->hdev, GET_GAMEPAD_CFG, FEATURE_OS_MODE,
 			       NULL, 0);
 	if (ret) {
-		dev_err(&drvdata.hdev->dev,
+		dev_err(&drvdata->hdev->dev,
 			"Failed to retrieve OS Mode: %i\n", ret);
 		return;
 	}
+
+/* Pairs with smp_store_release from below */
+	gp_registered = smp_load_acquire(&drvdata->gp_registered);
+	if (gp_registered)
+		goto try_rgb;
+
+	ret = sysfs_create_groups(&drvdata->hdev->dev.kobj, top_level_attr_groups);
+	if (ret) {
+		dev_err(&drvdata->hdev->dev,
+			"Failed to create gamepad configuration attributes: %i\n", ret);
+		goto try_rgb;
+	}
+
+/* Pairs with smp_load_acquire in attribute show/store functions */
+	smp_store_release(&drvdata->gp_registered, true);
+	gp_registered = true;
+
+try_rgb:
+/* Pairs with smp_store_release from below */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (rgb_registered)
+		goto update_kobjects;
+
+	ret = devm_led_classdev_multicolor_register(&drvdata->hdev->dev, &drvdata->led_mc);
+	if (ret) {
+		dev_err(&drvdata->hdev->dev,
+			"Failed to create RGB device: %i\n", ret);
+		goto update_kobjects;
+	}
+
+	ret = devm_device_add_group(drvdata->led_mc.led_cdev.dev, &rgb_attr_group);
+	if (ret) {
+		dev_err(&drvdata->hdev->dev,
+			"Failed to create RGB configuration attributes: %i\n", ret);
+		goto update_kobjects;
+	}
+
+/* Pairs with smp_load_acquire in attribute show/store functions */
+	smp_store_release(&drvdata->rgb_registered, true);
+	rgb_registered = true;
+
+update_kobjects:
+	if (gp_registered)
+		kobject_uevent(&drvdata->hdev->dev.kobj, KOBJ_CHANGE);
+	if (rgb_registered)
+		kobject_uevent(&drvdata->led_mc.led_cdev.dev->kobj, KOBJ_CHANGE);
 }
 
 static int hid_gos_cfg_probe(struct hid_device *hdev,
 			     const struct hid_device_id *_id)
 {
+	struct gos_cfg_drvdata *drvdata;
 	int ret;
 
-	hid_set_drvdata(hdev, &drvdata);
-	drvdata.hdev = hdev;
-	mutex_init(&drvdata.cfg_mutex);
+	drvdata = devm_kzalloc(&hdev->dev, sizeof(struct gos_cfg_drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
 
-	ret = sysfs_create_groups(&hdev->dev.kobj, top_level_attr_groups);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret,
-			      "Failed to create gamepad configuration attributes\n");
-		return ret;
-	}
+	hid_set_drvdata(hdev, drvdata);
+	drvdata->hdev = hdev;
 
-	ret = devm_led_classdev_multicolor_register(&hdev->dev, &gos_cdev_rgb);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret, "Failed to create RGB device\n");
-		return ret;
-	}
+	mutex_init(&drvdata->cfg_mutex);
+	init_completion(&drvdata->send_cmd_complete);
 
-	ret = devm_device_add_group(gos_cdev_rgb.led_cdev.dev, &rgb_attr_group);
-	if (ret) {
-		dev_err_probe(&hdev->dev, ret,
-			      "Failed to create RGB configuration attributes\n");
-		return ret;
-	}
-
-	drvdata.led_cdev = &gos_cdev_rgb.led_cdev;
-
-	init_completion(&drvdata.send_cmd_complete);
+	/* Device is hardwired and name is guaranteed to be unique */
+	drvdata->led_mc.led_cdev.name = "go_s:rgb:joystick_rings";
+	drvdata->led_mc.led_cdev.brightness = 0x50;
+	drvdata->led_mc.led_cdev.max_brightness = 0x64;
+	drvdata->led_mc.led_cdev.color = LED_COLOR_ID_RGB;
+	drvdata->led_mc.led_cdev.brightness_set = hid_gos_brightness_set;
+	drvdata->led_mc.num_colors = 3;
+	drvdata->led_mc.subled_info = devm_kmemdup(&hdev->dev, gos_rgb_subled_info,
+						   sizeof(gos_rgb_subled_info), GFP_KERNEL);
+	if (!drvdata->led_mc.subled_info)
+		return -ENOMEM;
 
 	/* Executing calls prior to returning from probe will lock the MCU. Schedule
 	 * initial data call after probe has completed and MCU can accept calls.
 	 */
-	INIT_DELAYED_WORK(&drvdata.gos_cfg_setup, &cfg_setup);
-	ret = schedule_delayed_work(&drvdata.gos_cfg_setup, msecs_to_jiffies(2));
+	INIT_DELAYED_WORK(&drvdata->gos_cfg_setup, &cfg_setup);
+	ret = schedule_delayed_work(&drvdata->gos_cfg_setup, msecs_to_jiffies(2));
 	if (!ret) {
 		dev_err(&hdev->dev, "Failed to schedule startup delayed work\n");
 		return -ENODEV;
@@ -1425,8 +1661,12 @@ static int hid_gos_cfg_probe(struct hid_device *hdev,
 
 static void hid_gos_cfg_remove(struct hid_device *hdev)
 {
-	guard(mutex)(&drvdata.cfg_mutex);
-	cancel_delayed_work_sync(&drvdata.gos_cfg_setup);
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+
+	if (!drvdata)
+		return;
+
+	disable_delayed_work_sync(&drvdata->gos_cfg_setup);
 	sysfs_remove_groups(&hdev->dev.kobj, top_level_attr_groups);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
@@ -1435,22 +1675,43 @@ static void hid_gos_cfg_remove(struct hid_device *hdev)
 
 static int hid_gos_cfg_reset_resume(struct hid_device *hdev)
 {
-	u8 os_mode = drvdata.os_mode;
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+	bool gp_registered, rgb_registered;
+	u8 os_mode;
 	int ret;
 
-	ret = mcu_property_out(drvdata.hdev, SET_GAMEPAD_CFG,
+	if (!drvdata)
+		return -ENODEV;
+
+	os_mode = drvdata->os_mode;
+/* Pairs with smp_store_release from gos_cfg_setup */
+	gp_registered = smp_load_acquire(&drvdata->gp_registered);
+/* Pairs with smp_store_release from gos_cfg_setup */
+	rgb_registered = smp_load_acquire(&drvdata->rgb_registered);
+	if (!gp_registered || !rgb_registered) {
+		ret = schedule_delayed_work(&drvdata->gos_cfg_setup, msecs_to_jiffies(2));
+		if (!ret) {
+			dev_err(&hdev->dev, "Failed to schedule startup delayed work\n");
+			return -ENODEV;
+		}
+
+		return 0;
+	}
+
+	ret = mcu_property_out(drvdata->hdev, SET_GAMEPAD_CFG,
 			       FEATURE_OS_MODE, &os_mode, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = mcu_property_out(drvdata.hdev, GET_GAMEPAD_CFG,
+	ret = mcu_property_out(drvdata->hdev, GET_GAMEPAD_CFG,
 			       FEATURE_OS_MODE, NULL, 0);
 	if (ret < 0)
 		return ret;
 
-	if (drvdata.os_mode != os_mode)
+	if (drvdata->os_mode != os_mode)
 		return -ENODEV;
 
+	kobject_uevent(&drvdata->hdev->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
 
@@ -1525,6 +1786,35 @@ static int hid_gos_reset_resume(struct hid_device *hdev)
 	return 0;
 }
 
+static int hid_gos_cfg_suspend(struct hid_device *hdev)
+{
+	struct gos_cfg_drvdata *drvdata = hid_get_drvdata(hdev);
+
+	if (!drvdata)
+		return -ENODEV;
+
+	disable_delayed_work_sync(&drvdata->gos_cfg_setup);
+
+	return 0;
+}
+
+static int hid_gos_suspend(struct hid_device *hdev, pm_message_t msg)
+{
+	int ret;
+	u8 ep;
+
+	/* Safe assumption. SET_INTERFACE ioctl can't be used while driver is bound */
+	ret = get_endpoint_address(hdev);
+	if (ret <= 0)
+		return 0;
+
+	ep = ret;
+	if (ep == GO_S_CFG_INTF_IN)
+		return hid_gos_cfg_suspend(hdev);
+
+	return 0;
+}
+
 static const struct hid_device_id hid_gos_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_QHE,
 			 USB_DEVICE_ID_LENOVO_LEGION_GO_S_XINPUT) },
@@ -1540,7 +1830,8 @@ static struct hid_driver hid_lenovo_go_s = {
 	.probe = hid_gos_probe,
 	.remove = hid_gos_remove,
 	.raw_event = hid_gos_raw_event,
-	.reset_resume = hid_gos_reset_resume,
+	.reset_resume = pm_ptr(hid_gos_reset_resume),
+	.suspend = pm_ptr(hid_gos_suspend),
 };
 module_hid_driver(hid_lenovo_go_s);
 

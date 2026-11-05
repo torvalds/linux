@@ -219,8 +219,9 @@ long vhost_dev_set_owner(struct vhost_dev *dev);
 bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
 struct vhost_iotlb *vhost_dev_reset_owner_prepare(void);
-void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_iotlb *iotlb);
-void vhost_dev_cleanup(struct vhost_dev *);
+void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_iotlb *iotlb,
+			   bool sync);
+void vhost_dev_cleanup(struct vhost_dev *dev, bool sync);
 void vhost_dev_stop(struct vhost_dev *);
 long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
 long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp);

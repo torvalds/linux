@@ -652,9 +652,9 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 				void __iomem *reg, unsigned long pll_flags,
 				const char *clk_name, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct clkgen_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	pll = kzalloc_obj(*pll);
 	if (!pll)

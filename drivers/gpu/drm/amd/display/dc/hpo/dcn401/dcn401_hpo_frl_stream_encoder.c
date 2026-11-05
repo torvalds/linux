@@ -904,4 +904,6 @@ void dcn401_hpo_frl_stream_encoder_construct(
 	enc401->hpo_se_shift = hpo_se_shift;
 	enc401->hpo_se_mask = hpo_se_mask;
 	enc401->base.stream_enc_inst = vpg->inst;
+	enc401->base.inst = enc401->base.stream_enc_inst;
+
 }

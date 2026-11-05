@@ -42,13 +42,13 @@ static void l1_svm_code(struct svm_test_data *svm)
 
 static void l1_vmx_code(struct vmx_pages *vmx)
 {
-	GUEST_ASSERT_EQ(prepare_for_vmx_operation(vmx), true);
-	GUEST_ASSERT_EQ(load_vmcs(vmx), true);
+	prepare_for_vmx_operation(vmx);
+	load_vmcs(vmx);
 
 	prepare_vmcs(vmx, NULL);
 
-	GUEST_ASSERT(!vmwrite(GUEST_RIP, (u64)l2_guest_code));
-	GUEST_ASSERT(!vmlaunch());
+	vmwrite(GUEST_RIP, (u64)l2_guest_code);
+	vmlaunch();
 }
 
 static void guest_code(void *test_data)

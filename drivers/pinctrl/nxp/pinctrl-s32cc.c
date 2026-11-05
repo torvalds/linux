@@ -825,7 +825,7 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 				     "No groups defined in %pOF\n", np);
 
 	groups = devm_kcalloc(info->dev, func->ngroups,
-				    sizeof(*func->groups), GFP_KERNEL);
+				    sizeof(*groups), GFP_KERNEL);
 	if (!groups)
 		return -ENOMEM;
 

@@ -306,7 +306,8 @@ static inline void pm_build_dequeue_wait_counts_packet_info(struct packet_manage
 		sch_value,
 		que_sleep,
 		reg_offset,
-		reg_data);
+		reg_data,
+		0);
 }
 
 /* pm_grace_period_0_supported - whether firmware tolerates a CWSR grace

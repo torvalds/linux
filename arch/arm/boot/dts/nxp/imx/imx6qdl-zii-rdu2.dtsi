@@ -22,8 +22,8 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mdio1>;
-		gpios = <&gpio6 5 GPIO_ACTIVE_HIGH
-		         &gpio6 4 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio6 5 GPIO_ACTIVE_HIGH>,
+			<&gpio6 4 GPIO_ACTIVE_HIGH>;
 
 		phy: ethernet-phy@0 {
 			pinctrl-0 = <&pinctrl_rmii_phy_irq>;
@@ -218,9 +218,9 @@
 
 &clks {
 	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-	                  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
 	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
-	                         <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>;
+				 <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>;
 };
 
 &cpu0 {
@@ -629,7 +629,7 @@
 		pinctrl-0 = <&pinctrl_ucs1002_pins>;
 		reg = <0x32>;
 		interrupts-extended = <&gpio5 2 IRQ_TYPE_EDGE_BOTH>,
-		                      <&gpio3 21 IRQ_TYPE_EDGE_FALLING>;
+				      <&gpio3 21 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-names = "a_det", "alert";
 	};
 

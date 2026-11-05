@@ -642,9 +642,6 @@
 };
 
 &pcie0 {
-	wake-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
-	perst-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;
-
 	pinctrl-0 = <&pcie0_default_state>;
 	pinctrl-names = "default";
 
@@ -658,10 +655,12 @@
 	status = "okay";
 };
 
-&pcie1 {
-	wake-gpios = <&tlmm 99 GPIO_ACTIVE_HIGH>;
-	perst-gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+&pcieport0 {
+	reset-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 96 GPIO_ACTIVE_LOW>;
+};
 
+&pcie1 {
 	pinctrl-0 = <&pcie1_default_state>;
 	pinctrl-names = "default";
 
@@ -674,6 +673,11 @@
 	vdda-qref-supply = <&vreg_l1i_0p88>;
 
 	status = "okay";
+};
+
+&pcie1_port0 {
+	reset-gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
 };
 
 &pm8550_gpios {

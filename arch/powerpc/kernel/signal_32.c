@@ -968,7 +968,7 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 
 	user_read_access_end();
 
-	if (__get_user(tm_cmcp, &tm_ucp->uc_regs))
+	if (get_user(tm_cmcp, &tm_ucp->uc_regs))
 		return -EFAULT;
 	mcp = (struct mcontext __user *)(u64)cmcp;
 	tm_mcp = (struct mcontext __user *)(u64)tm_cmcp;
@@ -1009,10 +1009,10 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		 * access_ok since we are dealing with compat
 		 * pointers.
 		 */
-		if (__get_user(cmcp, &new_ctx->uc_regs))
+		if (get_user(cmcp, &new_ctx->uc_regs))
 			return -EFAULT;
 		mcp = (struct mcontext __user *)(u64)cmcp;
-		if (__get_user(new_msr, &mcp->mc_gregs[PT_MSR]))
+		if (get_user(new_msr, &mcp->mc_gregs[PT_MSR]))
 			return -EFAULT;
 	}
 	/*
@@ -1124,19 +1124,19 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (MSR_TM_SUSPENDED(mfmsr()))
 		tm_reclaim_current(0);
 
-	if (__get_user(tmp, &rt_sf->uc.uc_link))
+	if (get_user(tmp, &rt_sf->uc.uc_link))
 		goto bad;
 	uc_transact = (struct ucontext __user *)(uintptr_t)tmp;
 	if (uc_transact) {
 		u32 cmcp;
 		struct mcontext __user *mcp;
 
-		if (__get_user(cmcp, &uc_transact->uc_regs))
+		if (get_user(cmcp, &uc_transact->uc_regs))
 			return -EFAULT;
 		mcp = (struct mcontext __user *)(u64)cmcp;
 		/* The top 32 bits of the MSR are stashed in the transactional
 		 * ucontext. */
-		if (__get_user(msr_hi, &mcp->mc_gregs[PT_MSR]))
+		if (get_user(msr_hi, &mcp->mc_gregs[PT_MSR]))
 			goto bad;
 
 		if (MSR_TM_ACTIVE(msr_hi<<32)) {
@@ -1330,7 +1330,7 @@ SYSCALL_DEFINE0(sigreturn)
 	mcp = (struct mcontext __user *)&sf->mctx;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	tm_mcp = (struct mcontext __user *)&sf->mctx_transact;
-	if (__get_user(msr_hi, &tm_mcp->mc_gregs[PT_MSR]))
+	if (get_user(msr_hi, &tm_mcp->mc_gregs[PT_MSR]))
 		goto badframe;
 #endif
 	if (MSR_TM_ACTIVE(msr_hi<<32)) {

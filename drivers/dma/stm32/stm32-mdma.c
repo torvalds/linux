@@ -276,11 +276,6 @@ static struct stm32_mdma_desc *to_stm32_mdma_desc(struct virt_dma_desc *vdesc)
 	return container_of(vdesc, struct stm32_mdma_desc, vdesc);
 }
 
-static struct device *chan2dev(struct stm32_mdma_chan *chan)
-{
-	return &chan->vchan.chan.dev->device;
-}
-
 static struct device *mdma2dev(struct stm32_mdma_device *mdma_dev)
 {
 	return mdma_dev->ddev.dev;
@@ -334,7 +329,7 @@ static struct stm32_mdma_desc *stm32_mdma_alloc_desc(
 	return desc;
 
 err:
-	dev_err(chan2dev(chan), "Failed to allocate descriptor\n");
+	dev_err(vchan_chan_dev(&chan->vchan), "Failed to allocate descriptor\n");
 	while (--i >= 0)
 		dma_pool_free(chan->desc_pool, desc->node[i].hwdesc,
 			      desc->node[i].hwdesc_phys);
@@ -364,7 +359,7 @@ static int stm32_mdma_get_width(struct stm32_mdma_chan *chan,
 	case DMA_SLAVE_BUSWIDTH_8_BYTES:
 		return ffs(width) - 1;
 	default:
-		dev_err(chan2dev(chan), "Dma bus width %i not supported\n",
+		dev_err(vchan_chan_dev(&chan->vchan), "Dma bus width %i not supported\n",
 			width);
 		return -EINVAL;
 	}
@@ -422,7 +417,7 @@ static int stm32_mdma_disable_chan(struct stm32_mdma_chan *chan)
 				dmadev->base + STM32_MDMA_CISR(id), cisr,
 				(cisr & STM32_MDMA_CISR_CTCIF), 10, 1000);
 		if (ret) {
-			dev_err(chan2dev(chan), "%s: timeout!\n", __func__);
+			dev_err(vchan_chan_dev(&chan->vchan), "%s: timeout!\n", __func__);
 			return -EBUSY;
 		}
 	}
@@ -444,7 +439,7 @@ static void stm32_mdma_stop(struct stm32_mdma_chan *chan)
 	/* Clear interrupt status if it is there */
 	status = stm32_mdma_read(dmadev, STM32_MDMA_CISR(chan->id));
 	if (status) {
-		dev_dbg(chan2dev(chan), "%s(): clearing interrupt: 0x%08x\n",
+		dev_dbg(vchan_chan_dev(&chan->vchan), "%s(): clearing interrupt: 0x%08x\n",
 			__func__, status);
 		stm32_mdma_set_bits(dmadev, STM32_MDMA_CIFCR(chan->id), status);
 	}
@@ -513,7 +508,7 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 	/* Check burst size constraints */
 	if (src_maxburst * src_addr_width > STM32_MDMA_MAX_BURST ||
 	    dst_maxburst * dst_addr_width > STM32_MDMA_MAX_BURST) {
-		dev_err(chan2dev(chan),
+		dev_err(vchan_chan_dev(&chan->vchan),
 			"burst size * bus width higher than %d bytes\n",
 			STM32_MDMA_MAX_BURST);
 		return -EINVAL;
@@ -521,7 +516,7 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 
 	if ((!is_power_of_2(src_maxburst) && src_maxburst > 0) ||
 	    (!is_power_of_2(dst_maxburst) && dst_maxburst > 0)) {
-		dev_err(chan2dev(chan), "burst size must be a power of 2\n");
+		dev_err(vchan_chan_dev(&chan->vchan), "burst size must be a power of 2\n");
 		return -EINVAL;
 	}
 
@@ -658,7 +653,7 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 		break;
 
 	default:
-		dev_err(chan2dev(chan), "Dma direction is not supported\n");
+		dev_err(vchan_chan_dev(&chan->vchan), "Dma direction is not supported\n");
 		return -EINVAL;
 	}
 
@@ -672,16 +667,16 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 static void stm32_mdma_dump_hwdesc(struct stm32_mdma_chan *chan,
 				   struct stm32_mdma_desc_node *node)
 {
-	dev_dbg(chan2dev(chan), "hwdesc:  %pad\n", &node->hwdesc_phys);
-	dev_dbg(chan2dev(chan), "CTCR:    0x%08x\n", node->hwdesc->ctcr);
-	dev_dbg(chan2dev(chan), "CBNDTR:  0x%08x\n", node->hwdesc->cbndtr);
-	dev_dbg(chan2dev(chan), "CSAR:    0x%08x\n", node->hwdesc->csar);
-	dev_dbg(chan2dev(chan), "CDAR:    0x%08x\n", node->hwdesc->cdar);
-	dev_dbg(chan2dev(chan), "CBRUR:   0x%08x\n", node->hwdesc->cbrur);
-	dev_dbg(chan2dev(chan), "CLAR:    0x%08x\n", node->hwdesc->clar);
-	dev_dbg(chan2dev(chan), "CTBR:    0x%08x\n", node->hwdesc->ctbr);
-	dev_dbg(chan2dev(chan), "CMAR:    0x%08x\n", node->hwdesc->cmar);
-	dev_dbg(chan2dev(chan), "CMDR:    0x%08x\n\n", node->hwdesc->cmdr);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "hwdesc:  %pad\n", &node->hwdesc_phys);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CTCR:    0x%08x\n", node->hwdesc->ctcr);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CBNDTR:  0x%08x\n", node->hwdesc->cbndtr);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CSAR:    0x%08x\n", node->hwdesc->csar);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CDAR:    0x%08x\n", node->hwdesc->cdar);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CBRUR:   0x%08x\n", node->hwdesc->cbrur);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CLAR:    0x%08x\n", node->hwdesc->clar);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CTBR:    0x%08x\n", node->hwdesc->ctbr);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CMAR:    0x%08x\n", node->hwdesc->cmar);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CMDR:    0x%08x\n\n", node->hwdesc->cmdr);
 }
 
 static void stm32_mdma_setup_hwdesc(struct stm32_mdma_chan *chan,
@@ -739,7 +734,7 @@ static int stm32_mdma_setup_xfer(struct stm32_mdma_chan *chan,
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		if (sg_dma_len(sg) > STM32_MDMA_MAX_BLOCK_LEN) {
-			dev_err(chan2dev(chan), "Invalid block len\n");
+			dev_err(vchan_chan_dev(&chan->vchan), "Invalid block len\n");
 			return -EINVAL;
 		}
 
@@ -797,7 +792,7 @@ stm32_mdma_prep_slave_sg(struct dma_chan *c, struct scatterlist *sgl,
 	 * for allowing another request.
 	 */
 	if (chan->desc && chan->desc->cyclic) {
-		dev_err(chan2dev(chan),
+		dev_err(vchan_chan_dev(&chan->vchan),
 			"Request not allowed when dma in cyclic mode\n");
 		return NULL;
 	}
@@ -858,18 +853,18 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 	 * for allowing another request.
 	 */
 	if (chan->desc && chan->desc->cyclic) {
-		dev_err(chan2dev(chan),
+		dev_err(vchan_chan_dev(&chan->vchan),
 			"Request not allowed when dma in cyclic mode\n");
 		return NULL;
 	}
 
 	if (!buf_len || !period_len || period_len > STM32_MDMA_MAX_BLOCK_LEN) {
-		dev_err(chan2dev(chan), "Invalid buffer/period len\n");
+		dev_err(vchan_chan_dev(&chan->vchan), "Invalid buffer/period len\n");
 		return NULL;
 	}
 
 	if (buf_len % period_len) {
-		dev_err(chan2dev(chan), "buf_len not multiple of period_len\n");
+		dev_err(vchan_chan_dev(&chan->vchan), "buf_len not multiple of period_len\n");
 		return NULL;
 	}
 
@@ -954,7 +949,7 @@ stm32_mdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest, dma_addr_t src,
 	 * to allow another request
 	 */
 	if (chan->desc && chan->desc->cyclic) {
-		dev_err(chan2dev(chan),
+		dev_err(vchan_chan_dev(&chan->vchan),
 			"Request not allowed when dma in cyclic mode\n");
 		return NULL;
 	}
@@ -1116,25 +1111,25 @@ static void stm32_mdma_dump_reg(struct stm32_mdma_chan *chan)
 {
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
 
-	dev_dbg(chan2dev(chan), "CCR:     0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CCR:     0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CCR(chan->id)));
-	dev_dbg(chan2dev(chan), "CTCR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CTCR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CTCR(chan->id)));
-	dev_dbg(chan2dev(chan), "CBNDTR:  0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CBNDTR:  0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CBNDTR(chan->id)));
-	dev_dbg(chan2dev(chan), "CSAR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CSAR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CSAR(chan->id)));
-	dev_dbg(chan2dev(chan), "CDAR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CDAR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CDAR(chan->id)));
-	dev_dbg(chan2dev(chan), "CBRUR:   0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CBRUR:   0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CBRUR(chan->id)));
-	dev_dbg(chan2dev(chan), "CLAR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CLAR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CLAR(chan->id)));
-	dev_dbg(chan2dev(chan), "CTBR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CTBR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CTBR(chan->id)));
-	dev_dbg(chan2dev(chan), "CMAR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CMAR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CMAR(chan->id)));
-	dev_dbg(chan2dev(chan), "CMDR:    0x%08x\n",
+	dev_dbg(vchan_chan_dev(&chan->vchan), "CMDR:    0x%08x\n",
 		stm32_mdma_read(dmadev, STM32_MDMA_CMDR(chan->id)));
 }
 
@@ -1187,7 +1182,7 @@ static void stm32_mdma_start_transfer(struct stm32_mdma_chan *chan)
 
 	chan->busy = true;
 
-	dev_dbg(chan2dev(chan), "vchan %p: started\n", &chan->vchan);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "vchan %p: started\n", &chan->vchan);
 }
 
 static void stm32_mdma_issue_pending(struct dma_chan *c)
@@ -1200,7 +1195,7 @@ static void stm32_mdma_issue_pending(struct dma_chan *c)
 	if (!vchan_issue_pending(&chan->vchan))
 		goto end;
 
-	dev_dbg(chan2dev(chan), "vchan %p: issued\n", &chan->vchan);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "vchan %p: issued\n", &chan->vchan);
 
 	if (!chan->desc && !chan->busy)
 		stm32_mdma_start_transfer(chan);
@@ -1220,7 +1215,7 @@ static int stm32_mdma_pause(struct dma_chan *c)
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 
 	if (!ret)
-		dev_dbg(chan2dev(chan), "vchan %p: pause\n", &chan->vchan);
+		dev_dbg(vchan_chan_dev(&chan->vchan), "vchan %p: pause\n", &chan->vchan);
 
 	return ret;
 }
@@ -1261,7 +1256,7 @@ static int stm32_mdma_resume(struct dma_chan *c)
 
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 
-	dev_dbg(chan2dev(chan), "vchan %p: resume\n", &chan->vchan);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "vchan %p: resume\n", &chan->vchan);
 
 	return 0;
 }
@@ -1422,10 +1417,10 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 	if (!(status & ien)) {
 		spin_unlock(&chan->vchan.lock);
 		if (chan->busy)
-			dev_warn(chan2dev(chan),
+			dev_warn(vchan_chan_dev(&chan->vchan),
 				 "spurious it (status=0x%04x, ien=0x%04x)\n", status, ien);
 		else
-			dev_dbg(chan2dev(chan),
+			dev_dbg(vchan_chan_dev(&chan->vchan),
 				"spurious it (status=0x%04x, ien=0x%04x)\n", status, ien);
 		return IRQ_NONE;
 	}
@@ -1433,7 +1428,7 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 	reg = STM32_MDMA_CIFCR(id);
 
 	if (status & STM32_MDMA_CISR_TEIF) {
-		dev_err(chan2dev(chan), "Transfer Err: stat=0x%08x\n",
+		dev_err(vchan_chan_dev(&chan->vchan), "Transfer Err: stat=0x%08x\n",
 			readl_relaxed(dmadev->base + STM32_MDMA_CESR(id)));
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CTEIF);
 		status &= ~STM32_MDMA_CISR_TEIF;
@@ -1468,9 +1463,9 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 
 	if (status) {
 		stm32_mdma_set_bits(dmadev, reg, status);
-		dev_err(chan2dev(chan), "DMA error: status=0x%08x\n", status);
+		dev_err(vchan_chan_dev(&chan->vchan), "DMA error: status=0x%08x\n", status);
 		if (!(ccr & STM32_MDMA_CCR_EN))
-			dev_err(chan2dev(chan), "chan disabled by HW\n");
+			dev_err(vchan_chan_dev(&chan->vchan), "chan disabled by HW\n");
 	}
 
 	spin_unlock(&chan->vchan.lock);
@@ -1484,13 +1479,12 @@ static int stm32_mdma_alloc_chan_resources(struct dma_chan *c)
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
 	int ret;
 
-	chan->desc_pool = dmam_pool_create(dev_name(&c->dev->device),
-					   c->device->dev,
+	chan->desc_pool = dmam_pool_create(dma_chan_name(c), c->device->dev,
 					   sizeof(struct stm32_mdma_hwdesc),
 					  __alignof__(struct stm32_mdma_hwdesc),
 					   0);
 	if (!chan->desc_pool) {
-		dev_err(chan2dev(chan), "failed to allocate descriptor pool\n");
+		dev_err(vchan_chan_dev(&chan->vchan), "failed to allocate descriptor pool\n");
 		return -ENOMEM;
 	}
 
@@ -1511,7 +1505,7 @@ static void stm32_mdma_free_chan_resources(struct dma_chan *c)
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
 	unsigned long flags;
 
-	dev_dbg(chan2dev(chan), "Freeing channel %d\n", chan->id);
+	dev_dbg(vchan_chan_dev(&chan->vchan), "Freeing channel %d\n", chan->id);
 
 	if (chan->busy) {
 		spin_lock_irqsave(&chan->vchan.lock, flags);

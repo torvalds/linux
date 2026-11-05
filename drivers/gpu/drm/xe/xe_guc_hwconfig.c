@@ -65,7 +65,7 @@ int xe_guc_hwconfig_init(struct xe_guc *guc)
 	/*
 	 * All hwconfig the same across GTs so only GT0 needs to be configured
 	 */
-	if (gt->info.id != XE_GT0)
+	if (gt != xe_root_mmio_gt(xe))
 		return 0;
 
 	/* ADL_P, DG2+ supports hwconfig table */

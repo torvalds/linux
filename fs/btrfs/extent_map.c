@@ -1220,6 +1220,14 @@ static struct btrfs_inode *find_first_inode_to_shrink(struct btrfs_root *root,
 		tree = &inode->extent_tree;
 
 		/*
+		 * Most inodes have no extent maps, so check without the lock.
+		 * The race is harmless: a false empty just defers the inode to
+		 * a later scan, and a false non-empty is caught under the lock.
+		 */
+		if (data_race(RB_EMPTY_ROOT(&tree->root)))
+			goto next;
+
+		/*
 		 * We want to be fast so if the lock is busy we don't want to
 		 * spend time waiting for it (some task is about to do IO for
 		 * the inode).

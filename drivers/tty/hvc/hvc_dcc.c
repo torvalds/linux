@@ -29,6 +29,9 @@ static DEFINE_SPINLOCK(dcc_lock);
 static DEFINE_KFIFO(inbuf, u8, DCC_INBUF_SIZE);
 static DEFINE_KFIFO(outbuf, u8, DCC_OUTBUF_SIZE);
 
+/* Cached result of hvc_dcc_check() on core 0 */
+static bool dcc_core0_available;
+
 static void dcc_uart_console_putchar(struct uart_port *port, u8 ch)
 {
 	while (__dcc_getstatus() & DCC_STATUS_TX)
@@ -90,36 +93,18 @@ static ssize_t hvc_dcc_get_chars(uint32_t vt, u8 *buf, size_t count)
 }
 
 /*
- * Check if the DCC is enabled. If CONFIG_HVC_DCC_SERIALIZE_SMP is enabled,
- * then we assume then this function will be called first on core0. That way,
- * dcc_core0_available will be true only if it's available on core0.
+ * Check if the DCC is enabled. This function will be called once on core 0.
  */
 static bool hvc_dcc_check(void)
 {
 	unsigned long time = jiffies + (HZ / 10);
-	static bool dcc_core0_available;
-
-	/*
-	 * If we're not on core 0, but we previously confirmed that DCC is
-	 * active, then just return true.
-	 */
-	int cpu = get_cpu();
-
-	if (IS_ENABLED(CONFIG_HVC_DCC_SERIALIZE_SMP) && cpu && dcc_core0_available) {
-		put_cpu();
-		return true;
-	}
-
-	put_cpu();
 
 	/* Write a test character to check if it is handled */
 	__dcc_putchar('\n');
 
 	while (time_is_after_jiffies(time)) {
-		if (!(__dcc_getstatus() & DCC_STATUS_TX)) {
-			dcc_core0_available = true;
+		if (!(__dcc_getstatus() & DCC_STATUS_TX))
 			return true;
-		}
 	}
 
 	return false;
@@ -265,7 +250,8 @@ static int __init hvc_dcc_console_init(void)
 {
 	int ret;
 
-	if (!hvc_dcc_check())
+	dcc_core0_available = hvc_dcc_check();
+	if (!dcc_core0_available)
 		return -ENODEV;
 
 	/* Returns -1 if error */
@@ -279,7 +265,7 @@ static int __init hvc_dcc_init(void)
 {
 	struct hvc_struct *p;
 
-	if (!hvc_dcc_check())
+	if (!dcc_core0_available)
 		return -ENODEV;
 
 	if (IS_ENABLED(CONFIG_HVC_DCC_SERIALIZE_SMP)) {

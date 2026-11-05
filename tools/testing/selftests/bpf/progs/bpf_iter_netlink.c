@@ -25,12 +25,12 @@ int dump_netlink(struct bpf_iter__netlink *ctx)
 		return 0;
 
 	if (ctx->meta->seq_num == 0)
-		BPF_SEQ_PRINTF(seq, "sk               Eth Pid        Groups   "
+		BPF_SEQ_PRINTF(seq, "sk Eth Pid        Groups   "
 				    "Rmem     Wmem     Dump  Locks    Drops    "
 				    "Inode\n");
 
 	s = &nlk->sk;
-	BPF_SEQ_PRINTF(seq, "%pK %-3d ", s, s->sk_protocol);
+	BPF_SEQ_PRINTF(seq, "0  %-3d ", s->sk_protocol);
 
 	if (!nlk->groups)  {
 		group = 0;

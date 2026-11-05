@@ -1164,7 +1164,7 @@ static const struct ethtool_rmon_hist_range emac_rmon_hist_ranges[] = {
 	{  512, 1023 },
 	{ 1024, 1518 },
 	{ 1519, 4096 },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 /* Like dev_fetch_dstats(), but we only use tx_drops */
@@ -2069,7 +2069,7 @@ static const struct dev_pm_ops emac_pm_ops = {
 
 static const struct of_device_id emac_of_match[] = {
 	{ .compatible = "spacemit,k1-emac" },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, emac_of_match);
 

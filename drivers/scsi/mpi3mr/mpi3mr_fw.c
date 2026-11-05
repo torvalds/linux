@@ -124,11 +124,16 @@ void mpi3mr_build_zero_len_sge(void *paddr)
 void *mpi3mr_get_reply_virt_addr(struct mpi3mr_ioc *mrioc,
 	dma_addr_t phys_addr)
 {
+	u64 offset;
+
 	if (!phys_addr)
 		return NULL;
 
+	offset = phys_addr - mrioc->reply_buf_dma;
+
 	if ((phys_addr < mrioc->reply_buf_dma) ||
-	    (phys_addr > mrioc->reply_buf_dma_max_address))
+	    (phys_addr > mrioc->reply_buf_dma_max_address - mrioc->reply_sz) ||
+	    do_div(offset, mrioc->reply_sz))
 		return NULL;
 
 	return mrioc->reply_buf + (phys_addr - mrioc->reply_buf_dma);
@@ -137,7 +142,17 @@ void *mpi3mr_get_reply_virt_addr(struct mpi3mr_ioc *mrioc,
 void *mpi3mr_get_sensebuf_virt_addr(struct mpi3mr_ioc *mrioc,
 	dma_addr_t phys_addr)
 {
+	u64 offset;
+
 	if (!phys_addr)
+		return NULL;
+
+	offset = phys_addr - mrioc->sense_buf_dma;
+
+	if (phys_addr < mrioc->sense_buf_dma ||
+	    (phys_addr > mrioc->sense_buf_dma +
+	     (mrioc->num_sense_bufs * MPI3MR_SENSE_BUF_SZ) - MPI3MR_SENSE_BUF_SZ) ||
+	    do_div(offset, MPI3MR_SENSE_BUF_SZ))
 		return NULL;
 
 	return mrioc->sense_buf + (phys_addr - mrioc->sense_buf_dma);
@@ -404,7 +419,8 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 				scsi_normalize_sense(sense_buf, sense_count,
 				    &sshdr);
 				mpi3mr_scsisense_trigger(mrioc, sshdr.sense_key,
-				    sshdr.asc, sshdr.ascq);
+						scsi_sense_asc(&sshdr),
+						scsi_sense_ascq(&sshdr));
 			}
 		}
 		mpi3mr_reply_trigger(mrioc, masked_ioc_status, ioc_loginfo);
@@ -474,6 +490,12 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		return 0;
 	}
 
+	/*
+	 * Ensure that the descriptor payload is read only after
+	 * the phase bit check is complete.
+	 */
+	dma_rmb();
+
 	do {
 		if (mrioc->unrecoverable || mrioc->io_admin_reset_sync)
 			break;
@@ -494,6 +516,13 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		if ((le16_to_cpu(reply_desc->reply_flags) &
 		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+
+		/*
+		 * Ensure that the descriptor payload is read only after
+		 * the phase bit check is complete.
+		 */
+		dma_rmb();
+
 		if (threshold_comps == MPI3MR_THRESHOLD_REPLY_COUNT) {
 			writel(admin_reply_ci,
 			    &mrioc->sysif_regs->admin_reply_queue_ci);
@@ -554,6 +583,9 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	struct mpi3_default_reply_descriptor *reply_desc;
 	u16 req_q_idx = 0, reply_qidx, threshold_comps = 0;
 
+	if (!op_reply_q)
+		return 0;
+
 	reply_qidx = op_reply_q->qid - 1;
 
 	if (!atomic_add_unless(&op_reply_q->in_use, 1, 1))
@@ -565,15 +597,33 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	reply_desc = mpi3mr_get_reply_desc(op_reply_q, reply_ci);
 	if ((le16_to_cpu(reply_desc->reply_flags) &
 	    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase) {
+		/* Recheck under in_use before releasing, to avoid a reclaim race */
+		dma_rmb();
+		if ((le16_to_cpu(reply_desc->reply_flags) &
+		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) == exp_phase)
+			goto process_desc;
 		atomic_dec(&op_reply_q->in_use);
 		return 0;
 	}
+process_desc:
+	/*
+	 * Ensure that the descriptor payload is read only after
+	 * the phase bit check is complete.
+	 */
+	dma_rmb();
 
 	do {
 		if (mrioc->unrecoverable || mrioc->io_admin_reset_sync)
 			break;
 
 		req_q_idx = le16_to_cpu(reply_desc->request_queue_id) - 1;
+
+		if (unlikely(req_q_idx >= mrioc->num_op_req_q)) {
+			ioc_err(mrioc, "Invalid request queue id %d, skipping reply\n",
+			    req_q_idx + 1);
+			goto next_reply;
+		}
+
 		op_req_q = &mrioc->req_qinfo[req_q_idx];
 
 		WRITE_ONCE(op_req_q->ci, le16_to_cpu(reply_desc->request_queue_ci));
@@ -582,8 +632,9 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 
 		if (reply_dma)
 			mpi3mr_repost_reply_buf(mrioc, reply_dma);
-		num_op_reply++;
 		threshold_comps++;
+next_reply:
+		num_op_reply++;
 
 		if (++reply_ci == op_reply_q->num_replies) {
 			reply_ci = 0;
@@ -593,8 +644,19 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 		reply_desc = mpi3mr_get_reply_desc(op_reply_q, reply_ci);
 
 		if ((le16_to_cpu(reply_desc->reply_flags) &
-		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
+		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase) {
+			dma_rmb();
+			if ((le16_to_cpu(reply_desc->reply_flags) &
+			    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) == exp_phase)
+				goto reply_ready;
 			break;
+		}
+reply_ready:
+		/*
+		 * Ensure that the descriptor payload is read only after
+		 * the phase bit check is complete.
+		 */
+		dma_rmb();
 #ifndef CONFIG_PREEMPT_RT
 		/*
 		 * Exit completion loop to avoid CPU lockup
@@ -656,6 +718,7 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 {
 	struct mpi3mr_intr_info *intr_info = privdata;
 	struct mpi3mr_ioc *mrioc;
+	struct op_reply_qinfo *op_reply_q;
 	u16 midx;
 	u32 num_admin_replies = 0, num_op_reply = 0;
 
@@ -671,9 +734,9 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 
 	if (!midx)
 		num_admin_replies = mpi3mr_process_admin_reply_q(mrioc);
-	if (intr_info->op_reply_q)
-		num_op_reply = mpi3mr_process_op_reply_q(mrioc,
-		    intr_info->op_reply_q);
+	op_reply_q = READ_ONCE(intr_info->op_reply_q);
+	if (op_reply_q)
+		num_op_reply = mpi3mr_process_op_reply_q(mrioc, op_reply_q);
 
 	if (num_admin_replies || num_op_reply)
 		return IRQ_HANDLED;
@@ -686,6 +749,7 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 {
 	struct mpi3mr_intr_info *intr_info = privdata;
+	struct op_reply_qinfo *op_reply_q;
 	int ret;
 
 	if (!intr_info)
@@ -698,11 +762,12 @@ static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 	 * If more IOs are expected, schedule IRQ polling thread.
 	 * Otherwise exit from ISR.
 	 */
-	if ((threaded_isr_poll == false) || !intr_info->op_reply_q)
+	op_reply_q = READ_ONCE(intr_info->op_reply_q);
+	if ((threaded_isr_poll == false) || !op_reply_q)
 		return ret;
 
-	if (!intr_info->op_reply_q->enable_irq_poll ||
-	    !atomic_read(&intr_info->op_reply_q->pend_ios))
+	if (!op_reply_q->enable_irq_poll ||
+	    !atomic_read(&op_reply_q->pend_ios))
 		return ret;
 
 	disable_irq_nosync(intr_info->os_irq);
@@ -724,11 +789,18 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 {
 	struct mpi3mr_intr_info *intr_info = privdata;
 	struct mpi3mr_ioc *mrioc;
+	struct op_reply_qinfo *op_reply_q;
 	u16 midx;
 	u32 num_op_reply = 0;
 
-	if (!intr_info || !intr_info->op_reply_q)
+	if (!intr_info)
 		return IRQ_NONE;
+
+	op_reply_q = READ_ONCE(intr_info->op_reply_q);
+	if (!op_reply_q) {
+		enable_irq(intr_info->os_irq);
+		return IRQ_HANDLED;
+	}
 
 	mrioc = intr_info->mrioc;
 	midx = intr_info->msix_index;
@@ -738,19 +810,23 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 		if (!mrioc->intr_enabled || mrioc->unrecoverable)
 			break;
 
+		op_reply_q = READ_ONCE(intr_info->op_reply_q);
+		if (!op_reply_q)
+			break;
+
 		if (!midx)
 			mpi3mr_process_admin_reply_q(mrioc);
-		if (intr_info->op_reply_q)
-			num_op_reply +=
-			    mpi3mr_process_op_reply_q(mrioc,
-				intr_info->op_reply_q);
+		num_op_reply +=
+		    mpi3mr_process_op_reply_q(mrioc, op_reply_q);
+		if (!atomic_read(&op_reply_q->pend_ios))
+			break;
 
-		usleep_range(MPI3MR_IRQ_POLL_SLEEP, MPI3MR_IRQ_POLL_SLEEP + 1);
+		usleep_range(MPI3MR_IRQ_POLL_SLEEP, 10 * MPI3MR_IRQ_POLL_SLEEP);
 
-	} while (atomic_read(&intr_info->op_reply_q->pend_ios) &&
-	    (num_op_reply < mrioc->max_host_ios));
+	} while (num_op_reply < mrioc->max_host_ios);
 
-	intr_info->op_reply_q->enable_irq_poll = false;
+	if (op_reply_q)
+		op_reply_q->enable_irq_poll = false;
 	enable_irq(intr_info->os_irq);
 
 	return IRQ_HANDLED;
@@ -1934,10 +2010,6 @@ static void mpi3mr_free_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
 	int size;
 	struct segments *segments;
 
-	segments = mrioc->req_qinfo[q_idx].q_segments;
-	if (!segments)
-		return;
-
 	if (mrioc->enable_segqueue) {
 		size = MPI3MR_OP_REQ_Q_SEG_SIZE;
 		if (mrioc->req_qinfo[q_idx].q_segment_list) {
@@ -1950,6 +2022,10 @@ static void mpi3mr_free_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
 	} else
 		size = mrioc->req_qinfo[q_idx].segment_qd *
 		    mrioc->facts.op_req_sz;
+
+	segments = mrioc->req_qinfo[q_idx].q_segments;
+	if (!segments)
+		return;
 
 	for (j = 0; j < mrioc->req_qinfo[q_idx].num_segments; j++) {
 		if (!segments[j].segment)
@@ -1977,10 +2053,17 @@ static void mpi3mr_free_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
 	u16 j;
 	int size;
 	struct segments *segments;
+	u16 midx = REPLY_QUEUE_IDX_TO_MSIX_IDX(q_idx, mrioc->op_reply_q_offset);
 
-	segments = mrioc->op_reply_qinfo[q_idx].q_segments;
-	if (!segments)
-		return;
+	/*
+	 * Stop the ISR/poll thread from picking up this queue before its
+	 * segments are freed below, and wait for any in-flight handler
+	 * that already has the old pointer to finish using it.
+	 */
+	if (midx < mrioc->intr_info_count) {
+		WRITE_ONCE(mrioc->intr_info[midx].op_reply_q, NULL);
+		synchronize_irq(pci_irq_vector(mrioc->pdev, midx));
+	}
 
 	if (mrioc->enable_segqueue) {
 		size = MPI3MR_OP_REP_Q_SEG_SIZE;
@@ -1994,6 +2077,10 @@ static void mpi3mr_free_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
 	} else
 		size = mrioc->op_reply_qinfo[q_idx].segment_qd *
 		    mrioc->op_reply_desc_sz;
+
+	segments = mrioc->op_reply_qinfo[q_idx].q_segments;
+	if (!segments)
+		return;
 
 	for (j = 0; j < mrioc->op_reply_qinfo[q_idx].num_segments; j++) {
 		if (!segments[j].segment)
@@ -2461,7 +2548,7 @@ out:
 static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 {
 	int retval = 0;
-	u16 num_queues = 0, i = 0, msix_count_op_q = 1;
+	u16 num_queues = 0, i = 0, j = 0, msix_count_op_q = 1;
 	u32 ioc_status;
 	enum mpi3mr_iocstate ioc_state;
 
@@ -2513,6 +2600,13 @@ static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 		}
 	}
 
+	if (i < num_queues) {
+		for (j = i; j < num_queues; j++) {
+			mpi3mr_free_op_req_q_segments(mrioc, j);
+			mpi3mr_free_op_reply_q_segments(mrioc, j);
+		}
+	}
+
 	if (i == 0) {
 		/* Not even one queue is created successfully*/
 		retval = -1;
@@ -2534,11 +2628,19 @@ static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 
 	return retval;
 out_failed:
-	kfree(mrioc->req_qinfo);
-	mrioc->req_qinfo = NULL;
+	if (mrioc->req_qinfo) {
+		for (j = 0; j < i; j++) {
+			mpi3mr_free_op_req_q_segments(mrioc, j);
+			mpi3mr_free_op_reply_q_segments(mrioc, j);
+		}
+		kfree(mrioc->req_qinfo);
+		mrioc->req_qinfo = NULL;
+	}
+	mrioc->num_op_req_q = 0;
 
 	kfree(mrioc->op_reply_qinfo);
 	mrioc->op_reply_qinfo = NULL;
+	mrioc->num_op_reply_q = 0;
 
 	return retval;
 }
@@ -2582,7 +2684,8 @@ int mpi3mr_op_request_post(struct mpi3mr_ioc *mrioc,
 	if (mpi3mr_check_req_qfull(op_req_q)) {
 		midx = REPLY_QUEUE_IDX_TO_MSIX_IDX(
 		    reply_qidx, mrioc->op_reply_q_offset);
-		mpi3mr_process_op_reply_q(mrioc, mrioc->intr_info[midx].op_reply_q);
+		mpi3mr_process_op_reply_q(mrioc,
+		    READ_ONCE(mrioc->intr_info[midx].op_reply_q));
 
 		if (mpi3mr_check_req_qfull(op_req_q)) {
 
@@ -2875,8 +2978,9 @@ out:
  * @work: work struct
  *
  * Watch dog work periodically executed (1 second interval) to
- * monitor firmware fault and to issue periodic timer sync to
- * the firmware.
+ * monitor firmware fault and perform timestamp synchronization
+ * to firmware, with an early sync 1 minute after load followed
+ * by periodic updates at ts_update_interval seconds (default 15 minutes).
  *
  * Return: Nothing.
  */
@@ -2922,11 +3026,23 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	}
 
 	if (!(mrioc->facts.ioc_capabilities &
-		MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_IOC) &&
-		(mrioc->ts_update_counter++ >= mrioc->ts_update_interval)) {
+		MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_IOC)) {
+		if (!mrioc->early_ts_sync_done) {
+			/*
+			 * Send time sync 1 min after load
+			 */
+			if (mrioc->ts_update_counter++ >=
+					MPI3MR_EARLY_TSUPDATE_SECONDS) {
+				mrioc->early_ts_sync_done = 1;
+				mrioc->ts_update_counter = 0;
+				mpi3mr_sync_timestamp(mrioc);
+			}
+		} else if (mrioc->ts_update_counter++ >=
+				mrioc->ts_update_interval) {
+			mrioc->ts_update_counter = 0;
+			mpi3mr_sync_timestamp(mrioc);
+		}
 
-		mrioc->ts_update_counter = 0;
-		mpi3mr_sync_timestamp(mrioc);
 	}
 
 	if ((mrioc->prepare_for_reset) &&
@@ -4112,26 +4228,35 @@ static int mpi3mr_repost_diag_bufs(struct mpi3mr_ioc *mrioc)
 }
 
 /**
- * mpi3mr_read_tsu_interval - Update time stamp interval
+ * mpi3mr_read_driver_page1 - Read Driver Page 1 parameters
  * @mrioc: Adapter instance reference
  *
- * Update time stamp interval if its defined in driver page 1,
- * otherwise use default value.
+ * Reads and caches Driver Page 1 parameters such as
+ * timestamp update interval and driver behavior flags.
  *
  * Return: Nothing
  */
 static void
-mpi3mr_read_tsu_interval(struct mpi3mr_ioc *mrioc)
+mpi3mr_read_driver_page1(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3_driver_page1 driver_pg1;
 	u16 pg_sz = sizeof(driver_pg1);
 	int retval = 0;
 
 	mrioc->ts_update_interval = MPI3MR_TSUPDATE_INTERVAL;
+	mrioc->skip_dev_shutdown_on_unload = 0;
 
 	retval = mpi3mr_cfg_get_driver_pg1(mrioc, &driver_pg1, pg_sz);
-	if (!retval && driver_pg1.time_stamp_update)
+
+	if (retval)
+		return;
+
+	if (driver_pg1.time_stamp_update)
 		mrioc->ts_update_interval = (driver_pg1.time_stamp_update * 60);
+
+	mrioc->skip_dev_shutdown_on_unload =
+		(le32_to_cpu(driver_pg1.flags) &
+		 MPI3_DRIVER1_FLAGS_DEVICE_SHUTDOWN_ON_UNLOAD_DISABLE) ? 1 : 0;
 }
 
 /**
@@ -4437,7 +4562,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
-	mpi3mr_read_tsu_interval(mrioc);
+	mpi3mr_read_driver_page1(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	dprint_init(mrioc, "allocating host diag buffers\n");
@@ -4609,7 +4734,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
-	mpi3mr_read_tsu_interval(mrioc);
+	mpi3mr_read_driver_page1(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	if (is_resume) {
@@ -5094,8 +5219,16 @@ static void mpi3mr_issue_ioc_shutdown(struct mpi3mr_ioc *mrioc)
 		return;
 	}
 
-	shutdown_action = MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NORMAL |
-	    MPI3_SYSIF_IOC_CONFIG_DEVICE_SHUTDOWN_SEND_REQ;
+	shutdown_action = MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NORMAL;
+
+	if (!(mrioc->is_unload && mrioc->skip_dev_shutdown_on_unload))
+		shutdown_action |=
+			MPI3_SYSIF_IOC_CONFIG_DEVICE_SHUTDOWN_SEND_REQ;
+	else
+		ioc_info(mrioc,
+		    "The shutdown request is issued without the device shutdown bit set\n"
+		    "as indicated by the controller configuration\n");
+
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
 	ioc_config |= shutdown_action;
 

@@ -68,11 +68,11 @@ static int __diag260(unsigned long rx1, unsigned long rx2)
 	ry = 0x10; /* storage configuration */
 	exception = 1;
 	asm_inline volatile(
-		"	diag	%[rx],%[ry],0x260\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	diag	%[rx],%[ry],0x260\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [exc] "+d" (exception), [ry] "+d" (ry)
 		: [rx] "d" (rx.pair)
 		: CC_CLOBBER_LIST("memory"));
@@ -108,9 +108,9 @@ static int diag500_storage_limit(unsigned long *max_physmem_end)
 	asm_inline volatile(
 		"	lghi	%%r1,%[subcode]\n"
 		"	lghi	%%r2,0\n"
-		"	diag	%%r2,%%r4,0x500\n"
-		"0:	lgr	%[slimit],%%r2\n"
-		EX_TABLE(0b, 0b)
+		"0:	diag	%%r2,%%r4,0x500\n"
+		"1:	lgr	%[slimit],%%r2\n"
+		EX_TABLE_INSN(0b, 1b)
 		: [slimit] "=d" (storage_limit)
 		: [subcode] "i" (DIAG500_SC_STOR_LIMIT)
 		: "memory", "1", "2");
@@ -127,11 +127,11 @@ static int tprot(unsigned long addr)
 
 	exception = 1;
 	asm_inline volatile(
-		"	tprot	0(%[addr]),0\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	tprot	0(%[addr]),0\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [exc] "+d" (exception)
 		: [addr] "a" (addr)
 		: CC_CLOBBER_LIST("memory"));

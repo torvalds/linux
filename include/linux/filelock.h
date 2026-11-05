@@ -530,8 +530,8 @@ static inline bool is_delegated(struct delegated_inode *di)
  *
  * Break delegations in a non-blocking fashion. If there are
  * outstanding delegations and @di is set, then an extra reference
- * will be taken on @inode and @di->di_inode will be populated so
- * that it may be waited upon.
+ * will be taken on @inode and its superblock, and @di->di_inode will
+ * be populated so that it may be waited upon.
  *
  * Returns 0 if there is no need to wait or an error. If -EWOULDBLOCK
  * is returned, then @di will be populated (if non-NULL).
@@ -545,16 +545,21 @@ static inline int try_break_deleg(struct inode *inode, unsigned int flags,
 	if (ret == -EWOULDBLOCK && di) {
 		di->di_inode = inode;
 		ihold(inode);
+		/* The caller may drop its mount before break_deleg_wait(). */
+		atomic_inc(&inode->i_sb->s_active);
 	}
 	return ret;
 }
 
 static inline int break_deleg_wait(struct delegated_inode *di)
 {
+	struct inode *inode = di->di_inode;
+	struct super_block *sb = inode->i_sb;
 	int ret;
 
-	ret = break_deleg(di->di_inode, 0);
-	iput(di->di_inode);
+	ret = break_deleg(inode, 0);
+	iput(inode);
+	deactivate_super(sb);
 	di->di_inode = NULL;
 	return ret;
 }

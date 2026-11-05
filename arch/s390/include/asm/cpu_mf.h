@@ -173,9 +173,9 @@ static inline int qctri(struct cpumf_ctr_info *info)
 
 	asm_inline volatile (
 		"0:	qctri	%1\n"
-		"1:	lhi	%0,0\n"
-		"2:\n"
-		EX_TABLE(1b, 2b)
+		"	lhi	%0,0\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: "+d" (rc), "=Q" (*info));
 	return rc;
 }
@@ -257,9 +257,9 @@ static inline int qsi(struct hws_qsi_info_block *info)
 
 	asm volatile(
 		"0:	qsi	%1\n"
-		"1:	lhi	%0,0\n"
-		"2:\n"
-		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
+		"	lhi	%0,0\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: "+d" (cc), "+Q" (*info));
 	return cc ? -EINVAL : 0;
 }
@@ -272,10 +272,10 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 	exception = 1;
 	asm volatile(
 		"0:	lsctl	%[req]\n"
-		"1:	lhi	%[exc],0\n"
-		"2:\n"
+		"	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [exc] "+d" (exception)
 		: [req] "Q" (*req)
 		: CC_CLOBBER);

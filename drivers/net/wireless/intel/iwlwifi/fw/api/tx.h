@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -292,6 +292,9 @@ struct iwl_tx_cmd_v9 {
  * @dram_info: FW internal DRAM storage
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*; format depends on version
+ * @driver_timestamp: gp2 time, in microseconds, assigned before queueing the
+ *	MPDU. Firmware uses it to detect frames blocked for too long.
+ *	Zero means no timestamp. Used from TX_CMD_API_S_VER_12.
  * @reserved: reserved
  * @hdr: 802.11 header
  */
@@ -301,10 +304,12 @@ struct iwl_tx_cmd {
 	__le32 offload_assist;
 	struct iwl_dram_sec_info dram_info;
 	__le32 rate_n_flags;
-	u8 reserved[8];
+	__le32 driver_timestamp;
+	u8 reserved[4];
 	struct ieee80211_hdr hdr[];
 } __packed; /* TX_CMD_API_S_VER_10,
-	     * TX_CMD_API_S_VER_11
+	     * TX_CMD_API_S_VER_11,
+	     * TX_CMD_API_S_VER_12
 	     */
 
 /*

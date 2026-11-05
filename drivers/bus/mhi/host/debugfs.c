@@ -72,7 +72,7 @@ static int mhi_debugfs_events_show(struct seq_file *m, void *d)
 		seq_printf(m, " rp: 0x%llx wp: 0x%llx", le64_to_cpu(er_ctxt->rp),
 			   le64_to_cpu(er_ctxt->wp));
 
-		seq_printf(m, " local rp: 0x%pK db: 0x%pad\n", ring->rp,
+		seq_printf(m, " local rp: 0x%p db: 0x%pad\n", ring->rp,
 			   &mhi_event->db_cfg.db_val);
 	}
 
@@ -120,7 +120,7 @@ static int mhi_debugfs_channels_show(struct seq_file *m, void *d)
 			   le64_to_cpu(chan_ctxt->rbase), le64_to_cpu(chan_ctxt->rlen),
 			   le64_to_cpu(chan_ctxt->rp), le64_to_cpu(chan_ctxt->wp));
 
-		seq_printf(m, " local rp: 0x%pK local wp: 0x%pK db: 0x%pad\n",
+		seq_printf(m, " local rp: 0x%p local wp: 0x%p db: 0x%pad\n",
 			   ring->rp, ring->wp,
 			   &mhi_chan->db_cfg.db_val);
 	}

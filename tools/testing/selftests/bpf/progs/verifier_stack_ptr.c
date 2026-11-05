@@ -235,6 +235,7 @@ __naked void to_stack_check_low_1(void)
 
 SEC("socket")
 __description("PTR_TO_STACK check low 2")
+__load_if_no_large_stack()
 __success __failure_unpriv
 __msg_unpriv("R1 stack pointer arithmetic goes out of range")
 __retval(42)
@@ -251,7 +252,26 @@ __naked void to_stack_check_low_2(void)
 }
 
 SEC("socket")
+__description("PTR_TO_STACK check low 2, large stack")
+__load_if_large_stack()
+__success __failure_unpriv
+__msg_unpriv("R1 stack pointer arithmetic goes out of range")
+__retval(42)
+__naked void to_stack_check_low_2_large(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -2049;					\
+	r0 = 42;					\
+	*(u8*)(r1 + 1) = r0;				\
+	r0 = *(u8*)(r1 + 1);				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
 __description("PTR_TO_STACK check low 3")
+__load_if_no_large_stack()
 __failure __msg("invalid write to stack R1 off=-513 size=1")
 __msg_unpriv("R1 stack pointer arithmetic goes out of range")
 __naked void to_stack_check_low_3(void)
@@ -259,6 +279,23 @@ __naked void to_stack_check_low_3(void)
 	asm volatile ("					\
 	r1 = r10;					\
 	r1 += -513;					\
+	r0 = 42;					\
+	*(u8*)(r1 + 0) = r0;				\
+	r0 = *(u8*)(r1 + 0);				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__description("PTR_TO_STACK check low 3, large stack")
+__load_if_large_stack()
+__failure __msg("invalid write to stack R1 off=-2049 size=1")
+__msg_unpriv("R1 stack pointer arithmetic goes out of range")
+__naked void to_stack_check_low_3_large(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -2049;					\
 	r0 = 42;					\
 	*(u8*)(r1 + 0) = r0;				\
 	r0 = *(u8*)(r1 + 0);				\
@@ -483,12 +520,28 @@ l1_%=:	r0 = 42;					\
 
 SEC("socket")
 __description("PTR_TO_STACK stack size > 512")
+__load_if_no_large_stack()
 __failure __msg("invalid write to stack R1 off=-520 size=8")
 __naked void stack_check_size_gt_512(void)
 {
 	asm volatile ("					\
 	r1 = r10;					\
 	r1 += -520;					\
+	r0 = 42;					\
+	*(u64*)(r1 + 0) = r0;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__description("PTR_TO_STACK stack size > 2048")
+__load_if_large_stack()
+__failure __msg("invalid write to stack R1 off=-2056 size=8")
+__naked void stack_check_size_gt_2048(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -2056;					\
 	r0 = 42;					\
 	*(u64*)(r1 + 0) = r0;				\
 	exit;						\
@@ -532,5 +585,43 @@ __naked void stack_check_size_512_with_may_goto(void)
 "	::: __clobber_all);
 }
 #endif
+
+/*
+ * Verify that old PTR_TO_STACK state is considered a super-set of
+ * new PTR_TO_STACK state when the new offset is within the old range,
+ * e.g. old [-72, -16] vs new {-16}.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+/*
+ * r7 is widened to [-72, -16] at the loop header (insn 5),
+ * the loop body sees [-64, -8] after 'r7 += 8'.
+ */
+__msg("loop header at 5, widening r7 to -72..-16 step 1")
+__msg("R7=fp(smin=smin32=-64,smax=smax32=-8")
+/* 'r7 = r8' sets r7 to fp-16; its ANY SCEV is not clamped. */
+__msg("R7=fp-16 R8=fp-16 loop_stack=5")
+__not_msg("clamping r7")
+/* back-edge state is pruned because {-16} is within [-72, -16]. */
+__msg("from 8 to 5: safe")
+__msg("processed 12 insns")
+__naked void stack_ptr_subrange_in_loop(void)
+{
+	asm volatile ("					\
+	r7 = r10;					\
+	r7 += -72;					\
+	r8 = r10;					\
+	r8 += -16;					\
+	r6 = 0;						\
+1:	r7 += 8;					\
+	r7 = r8;					\
+	r6 += 1;					\
+	if r6 < 8 goto 1b;				\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
 
 char _license[] SEC("license") = "GPL";

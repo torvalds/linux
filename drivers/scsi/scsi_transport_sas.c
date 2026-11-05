@@ -199,7 +199,8 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 	if (rphy) {
 		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev), NULL,
-				sas_smp_dispatch, NULL, 0);
+				sas_smp_dispatch, NULL, 0,
+				SCSI_SENSE_BUFFERSIZE);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 		rphy->q = q;
@@ -208,7 +209,8 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
 		q = bsg_setup_queue(&shost->shost_gendev, name, NULL,
-				sas_smp_dispatch, NULL, 0);
+				sas_smp_dispatch, NULL, 0,
+				SCSI_SENSE_BUFFERSIZE);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 		to_sas_host_attrs(shost)->q = q;
@@ -223,8 +225,8 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 /*
  * Set shost->opt_sectors from the DMA optimal mapping size, but only
- * when dma_opt_mapping_size() is strictly less than dma_max_mapping_size(),
- * indicating a genuine optimization hint from an IOMMU or DMA backend.
+ * when dma_max_opt_mapping_size() is strictly less than
+ * dma_max_mapping_size(), indicating a genuine optimization hint.
  * When the two are equal (e.g. IOMMU disabled / passthrough), no real
  * hint exists, so leave opt_sectors at 0 to avoid bogus optimal_io_size
  * values that break filesystem geometry (e.g. mkfs.xfs stripe alignment).
@@ -232,16 +234,16 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 static void sas_dma_setup_opt_sectors(struct Scsi_Host *shost)
 {
 	struct device *dma_dev = shost->dma_dev;
-	size_t opt = dma_opt_mapping_size(dma_dev);
+	size_t max_opt = dma_max_opt_mapping_size(dma_dev);
 	size_t max = dma_max_mapping_size(dma_dev);
 	unsigned int opt_sectors;
 
-	/* opt >= max means no real hint was provided by the DMA layer */
-	if (opt >= max)
+	/* max_opt >= max means no real hint was provided by the DMA layer */
+	if (max_opt >= max)
 		return;
 
 	/* Clamp to max_sectors to avoid overflow in sector arithmetic */
-	opt_sectors = min_t(unsigned int, opt >> SECTOR_SHIFT,
+	opt_sectors = min_t(unsigned int, max_opt >> SECTOR_SHIFT,
 			    shost->max_sectors);
 
 	/* Guard against zero before rounddown_pow_of_two() */

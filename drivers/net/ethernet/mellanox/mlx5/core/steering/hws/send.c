@@ -111,9 +111,6 @@ static void hws_send_engine_post_ring(struct mlx5hws_send_ring_sq *sq,
 	wmb();
 
 	mlx5_write64((__be32 *)doorbell_cseg, sq->uar_map);
-
-	/* Ensure doorbell is written on uar_page before poll_cq */
-	WRITE_ONCE(doorbell_cseg, NULL);
 }
 
 static void
@@ -732,7 +729,7 @@ static int hws_send_ring_alloc_sq(struct mlx5_core_dev *mdev,
 		goto destroy_wq_cyc;
 	}
 
-	sq->wr_priv = kzalloc(sizeof(*sq->wr_priv) * buf_sz, GFP_KERNEL);
+	sq->wr_priv = kzalloc_objs(*sq->wr_priv, buf_sz);
 	if (!sq->wr_priv) {
 		err = -ENOMEM;
 		goto free_dep_wqe;
@@ -1192,6 +1189,8 @@ int mlx5hws_send_queue_action(struct mlx5hws_context *ctx,
 			      u16 queue_id,
 			      u32 actions)
 {
+	unsigned long timeout = jiffies +
+				secs_to_jiffies(MLX5HWS_BWC_POLLING_TIMEOUT);
 	struct mlx5hws_send_ring_sq *send_sq;
 	struct mlx5hws_send_engine *queue;
 	bool wait_comp = false;
@@ -1213,8 +1212,17 @@ int mlx5hws_send_queue_action(struct mlx5hws_context *ctx,
 			mlx5hws_send_engine_flush_queue(queue);
 
 		/* Poll queue until empty */
-		while (wait_comp && !mlx5hws_send_engine_empty(queue))
+		while (wait_comp && !mlx5hws_send_engine_empty(queue)) {
 			hws_send_engine_poll_cq(queue, NULL, &polled, 0);
+
+			if (unlikely(time_after(jiffies, timeout))) {
+				mlx5hws_err(ctx,
+					    "Error draining send queue %d - TIMEOUT (%d sec)\n",
+					    queue_id,
+					    MLX5HWS_BWC_POLLING_TIMEOUT);
+				return -ETIMEDOUT;
+			}
+		}
 
 		break;
 	default:
@@ -1287,7 +1295,7 @@ hws_send_wqe_fw(struct mlx5_core_dev *mdev,
 send_wqe:
 	ret = mlx5hws_cmd_generate_wqe(mdev, &attr, &cqe);
 	if (ret) {
-		mlx5_core_err(mdev, "Failed to write WQE using command");
+		mlx5_core_err(mdev, "Failed to write WQE using command\n");
 		return ret;
 	}
 
@@ -1305,7 +1313,7 @@ send_wqe:
 		goto send_wqe;
 	}
 
-	return -1;
+	return -EIO;
 }
 
 void mlx5hws_send_stes_fw(struct mlx5hws_context *ctx,
@@ -1324,10 +1332,14 @@ void mlx5hws_send_stes_fw(struct mlx5hws_context *ctx,
 	pdn = ctx->pd_num;
 
 	/* Writing through FW can't HW fence, therefore we drain the queue */
-	if (send_attr->fence)
-		mlx5hws_send_queue_action(ctx,
-					  queue_id,
-					  MLX5HWS_SEND_QUEUE_ACTION_DRAIN_SYNC);
+	if (send_attr->fence) {
+		enum mlx5hws_send_queue_actions drain =
+			MLX5HWS_SEND_QUEUE_ACTION_DRAIN_SYNC;
+
+		ret = mlx5hws_send_queue_action(ctx, queue_id, drain);
+		if (ret)
+			goto fail_rule;
+	}
 
 	if (ste_attr->rtc_1) {
 		send_attr->id = ste_attr->rtc_1;

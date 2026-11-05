@@ -303,7 +303,6 @@ static int vf50_ts_probe(struct platform_device *pdev)
 
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = dev;
 	input->open = vf50_ts_open;
 	input->close = vf50_ts_close;
 

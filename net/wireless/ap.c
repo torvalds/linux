@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Parts of this file are
- * Copyright (C) 2022-2023 Intel Corporation
+ * Copyright (C) 2022-2023, 2026 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <linux/export.h>
@@ -33,9 +33,8 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 	err = rdev_stop_ap(rdev, dev, link_id);
 	if (!err) {
 		wdev->conn_owner_nlportid = 0;
-		wdev->links[link_id].ap.beacon_interval = 0;
-		memset(&wdev->links[link_id].ap.chandef, 0,
-		       sizeof(wdev->links[link_id].ap.chandef));
+		memset(&wdev->links[link_id].ap, 0,
+		       sizeof(wdev->links[link_id].ap));
 		wdev->u.ap.ssid_len = 0;
 		rdev_set_qos_map(rdev, dev, NULL);
 		if (notify)

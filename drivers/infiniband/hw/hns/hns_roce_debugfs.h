@@ -47,6 +47,7 @@ struct hns_roce_dev_debugfs {
 	struct dentry *root;
 	struct hns_sw_stat_debugfs sw_stat_root;
 	struct hns_cc_param_debugfs cc_param_root[CONG_TYPE_MAX_NUM];
+	struct hns_debugfs_seqfile gsi_sl;
 };
 
 struct hns_roce_dev;

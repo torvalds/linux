@@ -69,6 +69,7 @@ static int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
 			   enum amd_pp_task task_id);
 static int smu_reset(struct smu_context *smu);
+static int smu_set_ac_dc(struct smu_context *smu);
 static int smu_set_fan_speed_pwm(void *handle, u32 speed);
 static int smu_set_fan_control_mode(void *handle, u32 value);
 static int smu_set_ppt_limit(void *handle, uint32_t limit_type, uint32_t limit);
@@ -641,7 +642,8 @@ bool is_support_cclk_dpm(struct amdgpu_device *adev)
 }
 
 int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
-			    uint32_t param, uint32_t *read_arg)
+			const uint32_t *params, size_t num_params,
+			uint32_t *read_args, size_t num_read_args)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret = -EOPNOTSUPP;
@@ -649,8 +651,19 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 	if (!smu)
 		return ret;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->ras_send_msg)
-		ret = smu->ppt_funcs->ras_send_msg(smu, msg, param, read_arg);
+	if (smu->ppt_funcs && smu->ppt_funcs->ras_send_msg) {
+		if (num_params && !params)
+			return -EINVAL;
+
+		if (num_read_args && !read_args)
+			return -EINVAL;
+
+		if (num_params > SMU_MSG_MAX_ARGS || num_read_args > SMU_MSG_MAX_ARGS)
+			return -EINVAL;
+
+		ret = smu->ppt_funcs->ras_send_msg(smu, msg,
+				params, num_params, read_args, num_read_args);
+	}
 
 	return ret;
 }
@@ -960,7 +973,7 @@ static int smu_late_init(struct amdgpu_ip_block *ip_block)
 	 * is unnecessary.
 	 */
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0;
-	smu_set_ac_dc(smu, false);
+	smu_set_ac_dc(smu);
 
 	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 1)) ||
 	    (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 3)))
@@ -2353,6 +2366,13 @@ static int smu_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
+static void smu_enter_umd_pstate(struct smu_context *smu)
+{
+	smu_gpo_control(smu, false);
+	smu_gfx_ulv_control(smu, false);
+	smu_deep_sleep_control(smu, false);
+}
+
 static int smu_enable_umd_pstate(void *handle,
 		      enum amd_dpm_forced_level *level)
 {
@@ -2371,9 +2391,7 @@ static int smu_enable_umd_pstate(void *handle,
 		/* enter umd pstate, save current level, disable gfx cg*/
 		if (*level & profile_mode_mask) {
 			smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
-			smu_gpo_control(smu, false);
-			smu_gfx_ulv_control(smu, false);
-			smu_deep_sleep_control(smu, false);
+			smu_enter_umd_pstate(smu);
 			amdgpu_asic_update_umd_stable_pstate(smu->adev, true);
 		}
 	} else {
@@ -2432,7 +2450,8 @@ static void smu_power_profile_mode_put(struct smu_context *smu,
 
 static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 					  enum amd_dpm_forced_level level,
-					  bool skip_display_settings)
+					  bool skip_display_settings,
+					  bool force_performance_level)
 {
 	int ret = 0;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
@@ -2459,7 +2478,7 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 		}
 	}
 
-	if (smu_dpm_ctx->dpm_level != level) {
+	if (force_performance_level || smu_dpm_ctx->dpm_level != level) {
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
 			if (ret == -EOPNOTSUPP)
@@ -2482,6 +2501,39 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	return ret;
 }
 
+static int
+smu_reapply_power_state_dynamic(struct smu_context *smu,
+				enum amd_dpm_forced_level level)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &smu->smu_dpm;
+	int ret;
+
+	ret = smu_apply_clocks_adjust_rules(smu);
+	if (ret) {
+		dev_err(smu->adev->dev, "Failed to apply clocks adjust rules!");
+		return ret;
+	}
+
+	ret = smu_asic_set_performance_level(smu, level);
+	if (ret) {
+		if (ret == -EOPNOTSUPP)
+			dev_info(smu->adev->dev, "set performance level %d not supported",
+				 level);
+		else
+			dev_err(smu->adev->dev, "Failed to set performance level %d",
+				level);
+		return ret;
+	}
+
+	smu_dpm_ctx->dpm_level = level;
+
+	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL ||
+	    smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
+		return 0;
+
+	return smu_bump_power_profile_mode(smu, NULL, 0);
+}
+
 static int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
 			   enum amd_pp_task task_id)
@@ -2496,13 +2548,13 @@ static int smu_handle_task(struct smu_context *smu,
 		ret = smu_pre_display_config_changed(smu);
 		if (ret)
 			return ret;
-		ret = smu_adjust_power_state_dynamic(smu, level, false);
+		ret = smu_adjust_power_state_dynamic(smu, level, false, false);
 		break;
 	case AMD_PP_TASK_COMPLETE_INIT:
-		ret = smu_adjust_power_state_dynamic(smu, level, true);
+		ret = smu_adjust_power_state_dynamic(smu, level, true, false);
 		break;
 	case AMD_PP_TASK_READJUST_POWER_STATE:
-		ret = smu_adjust_power_state_dynamic(smu, level, true);
+		ret = smu_adjust_power_state_dynamic(smu, level, true, false);
 		break;
 	default:
 		break;
@@ -2629,6 +2681,37 @@ static int smu_force_performance_level(void *handle,
 	}
 
 	return ret;
+}
+
+static int
+smu_reapply_performance_level(void *handle,
+			      enum amd_dpm_forced_level level)
+{
+	struct smu_context *smu = handle;
+	struct smu_dpm_context *smu_dpm_ctx = &smu->smu_dpm;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (smu_dpm_ctx->dpm_level != level)
+		return -EINVAL;
+
+	smu_enter_umd_pstate(smu);
+
+	return smu_reapply_power_state_dynamic(smu, level);
 }
 
 static int smu_set_display_count(void *handle, uint32_t count)
@@ -2774,7 +2857,7 @@ static int smu_set_watermarks_for_clock_ranges(void *handle,
 	return smu_set_watermarks_table(smu, clock_ranges);
 }
 
-int smu_set_ac_dc(struct smu_context *smu, bool restore_ppt_policy)
+static int smu_set_ac_dc(struct smu_context *smu)
 {
 	int ret = 0;
 
@@ -2794,10 +2877,17 @@ int smu_set_ac_dc(struct smu_context *smu, bool restore_ppt_policy)
 		}
 	}
 
-	if (restore_ppt_policy)
-		smu_restore_ppt_limits(smu, true);
-
 	return 0;
+}
+
+static void smu_notify_ac_dc(void *handle)
+{
+	struct smu_context *smu = handle;
+
+	if (smu_set_ac_dc(smu))
+		return;
+
+	smu_restore_ppt_limits(smu, true);
 }
 
 const struct amd_ip_funcs smu_ip_funcs = {
@@ -2811,7 +2901,6 @@ const struct amd_ip_funcs smu_ip_funcs = {
 	.late_fini = smu_late_fini,
 	.suspend = smu_suspend,
 	.resume = smu_resume,
-	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
 	.set_clockgating_state = smu_set_clockgating_state,
@@ -3966,6 +4055,29 @@ static bool smu_temp_metrics_is_supported(void *handle, enum smu_temp_metric_typ
 	return ret;
 }
 
+static u64 smu_get_npm_cap(void *handle)
+{
+	struct smu_context *smu = handle;
+
+	if (!smu->pm_enabled || !smu->ppt_funcs || !smu->ppt_funcs->get_npm_cap)
+		return 0;
+
+	return smu->ppt_funcs->get_npm_cap(smu);
+}
+
+static int smu_set_npm_limit(void *handle, uint32_t limit)
+{
+	struct smu_context *smu = handle;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs || !smu->ppt_funcs->set_npm_limit)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->set_npm_limit(smu, limit);
+}
+
 static ssize_t smu_sys_get_xcp_metrics(void *handle, int xcp_id, void *table)
 {
 	struct smu_context *smu = handle;
@@ -3988,6 +4100,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.force_clock_level       = smu_force_ppclk_levels,
 	.emit_clock_levels       = smu_emit_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
+	.reapply_performance_level = smu_reapply_performance_level,
 	.read_sensor             = smu_read_sensor,
 	.get_apu_thermal_limit       = smu_get_apu_thermal_limit,
 	.set_apu_thermal_limit       = smu_set_apu_thermal_limit,
@@ -4000,6 +4113,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_pp_table            = smu_sys_set_pp_table,
 	.switch_power_profile    = smu_switch_power_profile,
 	.pause_power_profile     = smu_pause_power_profile,
+	.notify_ac_dc            = smu_notify_ac_dc,
 	/* export to amdgpu */
 	.dispatch_tasks          = smu_handle_dpm_task,
 	.load_firmware           = smu_load_microcode,
@@ -4039,6 +4153,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_xcp_metrics                  = smu_sys_get_xcp_metrics,
 	.get_temp_metrics             = smu_sys_get_temp_metrics,
 	.temp_metrics_is_supported      = smu_temp_metrics_is_supported,
+	.set_npm_limit                = smu_set_npm_limit,
+	.get_npm_cap                  = smu_get_npm_cap,
 };
 
 int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,

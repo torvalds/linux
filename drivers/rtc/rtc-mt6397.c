@@ -4,6 +4,8 @@
 * Author: Tianping.Fang <tianping.fang@mediatek.com>
 */
 
+#include <linux/array_size.h>
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/mt6397/core.h>
@@ -243,10 +245,91 @@ static const struct rtc_class_ops mtk_rtc_ops = {
 	.set_alarm  = mtk_rtc_set_alarm,
 };
 
+/*
+ * The spare byte of each of these registers, in the order a board addresses
+ * them as RTC_NEW_SPARE0 to RTC_NEW_SPARE3.
+ */
+static const u32 mtk_rtc_spare_reg[] = {
+	RTC_AL_HOU, RTC_AL_DOM, RTC_AL_DOW, RTC_AL_MTH,
+};
+
+static int mtk_rtc_nvram_read(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct mt6397_rtc *rtc = priv;
+	u8 *buf = val;
+	u32 data;
+	int ret = 0;
+
+	if (offset >= ARRAY_SIZE(mtk_rtc_spare_reg) ||
+	    bytes > ARRAY_SIZE(mtk_rtc_spare_reg) - offset)
+		return -EINVAL;
+
+	mutex_lock(&rtc->lock);
+
+	while (bytes--) {
+		ret = regmap_read(rtc->regmap,
+				  rtc->addr_base + mtk_rtc_spare_reg[offset++],
+				  &data);
+		if (ret)
+			break;
+
+		*buf++ = FIELD_GET(RTC_SPARE_MASK, data);
+	}
+
+	mutex_unlock(&rtc->lock);
+
+	return ret;
+}
+
+static int mtk_rtc_nvram_write(void *priv, unsigned int offset, void *val,
+			       size_t bytes)
+{
+	struct mt6397_rtc *rtc = priv;
+	u8 *buf = val;
+	int ret = 0;
+
+	if (offset >= ARRAY_SIZE(mtk_rtc_spare_reg) ||
+	    bytes > ARRAY_SIZE(mtk_rtc_spare_reg) - offset)
+		return -EINVAL;
+
+	mutex_lock(&rtc->lock);
+
+	while (bytes--) {
+		ret = regmap_update_bits(rtc->regmap,
+					 rtc->addr_base + mtk_rtc_spare_reg[offset++],
+					 RTC_SPARE_MASK,
+					 FIELD_PREP(RTC_SPARE_MASK, *buf++));
+		if (ret)
+			goto out;
+	}
+
+	/*
+	 * None of it reaches the always-on domain until the write trigger,
+	 * which commits every pending alarm register at once -- so this runs
+	 * under the same lock the alarm paths take, rather than landing in
+	 * the middle of one of them.
+	 */
+	ret = mtk_rtc_write_trigger(rtc);
+out:
+	mutex_unlock(&rtc->lock);
+
+	return ret;
+}
+
 static int mtk_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct mt6397_chip *mt6397_chip = dev_get_drvdata(pdev->dev.parent);
+	struct nvmem_config nvmem_cfg = {
+		.name = "mt6397_rtc_spare",
+		.word_size = 1,
+		.stride = 1,
+		.size = ARRAY_SIZE(mtk_rtc_spare_reg),
+		.type = NVMEM_TYPE_BATTERY_BACKED,
+		.reg_read = mtk_rtc_nvram_read,
+		.reg_write = mtk_rtc_nvram_write,
+	};
 	struct mt6397_rtc *rtc;
 	int ret;
 
@@ -293,7 +376,13 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->start_secs = mktime64(1968, 1, 2, 0, 0, 0);
 	rtc->rtc_dev->set_start_time = true;
 
-	return devm_rtc_register_device(rtc->rtc_dev);
+	ret = devm_rtc_register_device(rtc->rtc_dev);
+	if (ret)
+		return ret;
+
+	nvmem_cfg.priv = rtc;
+
+	return devm_rtc_nvmem_register(rtc->rtc_dev, &nvmem_cfg);
 }
 
 #ifdef CONFIG_PM_SLEEP

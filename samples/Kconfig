@@ -166,8 +166,17 @@ config SAMPLE_LANDLOCK
 	bool "Landlock example"
 	depends on CC_CAN_LINK && HEADERS_INSTALL
 	help
-	  Build a simple Landlock sandbox manager able to start a process
-	  restricted by a user-defined filesystem access control policy.
+	  Build a Landlock sandbox manager able to start a process restricted
+	  by user-defined filesystem, network, scope, namespace, and capability
+	  policies.
+
+	  The optional libcap development headers and library enable capability
+	  names.  Without them, the sample still builds, accepts capability
+	  numbers, and warns when capability settings are used.
+
+config SAMPLE_LANDLOCK_LIBCAP
+	def_bool $(cc_can_link_user,-include sys/capability.h -lcap)
+	depends on SAMPLE_LANDLOCK
 
 config SAMPLE_PIDFD
 	bool "pidfd sample"

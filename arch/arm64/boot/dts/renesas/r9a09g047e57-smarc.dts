@@ -112,7 +112,7 @@
 	channel1 {
 		status = "okay";
 #if (!SW_LCD_EN) && (SW_GPIO9_CAN1_STB)
-		phys = <&can_transceiver1>;
+		phys = <&can_transceiver 1>;
 #endif
 	};
 #endif
@@ -121,22 +121,25 @@
 	channel4 {
 		status = "okay";
 #if (SW_GPIO8_CAN0_STB)
-		phys = <&can_transceiver0>;
+		phys = <&can_transceiver 0>;
 #endif
 	};
 #endif
 };
 
-#if (!SW_LCD_EN) && (SW_GPIO8_CAN0_STB)
-&can_transceiver0 {
-	standby-gpios = <&pinctrl RZG3E_GPIO(5, 4) GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
+#if (!SW_LCD_EN) && (SW_GPIO8_CAN0_STB || SW_GPIO9_CAN1_STB)
+&can_transceiver {
+	standby-gpios =
+#if (SW_GPIO8_CAN0_STB)
+			<&pinctrl RZG3E_GPIO(5, 4) GPIO_ACTIVE_HIGH>,
+#else
+			<0>,
 #endif
-
-#if (!SW_LCD_EN) && (SW_GPIO9_CAN1_STB)
-&can_transceiver1 {
-	standby-gpios = <&pinctrl RZG3E_GPIO(5, 5) GPIO_ACTIVE_HIGH>;
+#if (SW_GPIO9_CAN1_STB)
+			<&pinctrl RZG3E_GPIO(5, 5) GPIO_ACTIVE_HIGH>;
+#else
+			<0>;
+#endif
 	status = "okay";
 };
 #endif
@@ -147,6 +150,8 @@
 };
 
 &i2c1 {
+	clock-frequency = <1000000>;
+
 	da7212: codec@1a {
 		compatible = "dlg,da7212";
 		#sound-dai-cells = <0>;
@@ -296,6 +301,17 @@
 		};
 	};
 
+	usb20_pins: usb20 {
+		ovc {
+			pinmux = <RZG3E_PORT_PINMUX(0, 0, 12)>; /* USB20_OVRCURN */
+			bias-pull-up;
+		};
+
+		vbus {
+			pinmux = <RZG3E_PORT_PINMUX(0, 1, 12)>; /* USB20_VBUSEN */
+		};
+	};
+
 	usb3_pins: usb3 {
 		pinmux = <RZG3E_PORT_PINMUX(4, 1, 12)>, /* USB30_VBUSEN */
 			 <RZG3E_PORT_PINMUX(4, 0, 12)>; /* USB30_OVRCURN */
@@ -390,6 +406,26 @@
 
 &ssi4 {
 	shared-pin;
+};
+
+&usb20phyrst {
+	status = "okay";
+};
+
+&usb21phyrst {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb20_pins>;
+	pinctrl-names = "default";
+
+	vbus-supply = <&usb2_phy0_vbus_otg>;
+	status = "okay";
+};
+
+&usb2_phy1 {
+	status = "okay";
 };
 
 &usb3_phy {

@@ -608,7 +608,7 @@ nest_cancel:
 	return -EMSGSIZE;
 }
 
-static bool dpll_pin_is_freq_supported(struct dpll_pin *pin, u32 freq)
+static bool dpll_pin_is_freq_supported(struct dpll_pin *pin, u64 freq)
 {
 	int fs;
 

@@ -70,7 +70,6 @@ struct hpre_debug {
 struct hpre {
 	struct hisi_qm qm;
 	struct hpre_debug debug;
-	unsigned long status;
 };
 
 enum hpre_alg_type {

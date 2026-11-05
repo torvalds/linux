@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/*
+ * Device Tree Source for the HiHope RZ/G2M v3.0 SoC sub board
+ *
+ * Copyright (C) 2026 Renesas Electronics Corp.
+ */
+
+#include "r8a774a3-hihope-rzg2m.dts"
+
+/ {
+	model = "HopeRun HiHope RZ/G2M v3.0 with sub board";
+	compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2m",
+		     "renesas,r8a774a3";
+};

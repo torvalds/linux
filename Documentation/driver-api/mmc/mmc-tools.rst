@@ -32,6 +32,7 @@ The mmc-utils tools can do the following:
  - Write to rpmb device from data file.
  - Enable the eMMC cache feature.
  - Disable the eMMC cache feature.
+ - Print the eMMC health status.
  - Print and parse CID data.
  - Print and parse CSD data.
  - Print and parse SCR data.

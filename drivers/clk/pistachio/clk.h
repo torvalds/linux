@@ -142,6 +142,7 @@ struct pistachio_clk_provider {
 	struct device_node *node;
 	void __iomem *base;
 	struct clk_onecell_data clk_data;
+	struct clk *clks[];
 };
 
 extern struct pistachio_clk_provider *

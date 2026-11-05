@@ -97,7 +97,7 @@ at91_clk_register_h32mx(struct regmap *regmap, const char *name,
 			const char *parent_name)
 {
 	struct clk_sama5d4_h32mx *h32mxclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	h32mxclk = kzalloc_obj(*h32mxclk);

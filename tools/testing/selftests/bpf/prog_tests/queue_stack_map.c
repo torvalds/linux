@@ -2,6 +2,8 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
+#define U32_MAX ((u32)UINT_MAX)
+
 enum {
 	QUEUE,
 	STACK,
@@ -101,8 +103,35 @@ out:
 	bpf_object__close(obj);
 }
 
+static void test_queue_stack_map_alloc_check(void)
+{
+	int fd;
+
+	fd = bpf_map_create(BPF_MAP_TYPE_QUEUE, NULL, 0, 1000000, 8192, NULL);
+	ASSERT_EQ(fd, -E2BIG, "queue_oversize");
+	if (fd >= 0)
+		close(fd);
+
+	fd = bpf_map_create(BPF_MAP_TYPE_QUEUE, NULL, 0, 1, U32_MAX, NULL);
+	ASSERT_EQ(fd, -E2BIG, "queue_u32max");
+	if (fd >= 0)
+		close(fd);
+
+	fd = bpf_map_create(BPF_MAP_TYPE_STACK, NULL, 0, 1000000, 8192, NULL);
+	ASSERT_EQ(fd, -E2BIG, "stack_oversize");
+	if (fd >= 0)
+		close(fd);
+
+	/* A normal-sized map must still be created successfully. */
+	fd = bpf_map_create(BPF_MAP_TYPE_QUEUE, NULL, 0, 64, 100, NULL);
+	ASSERT_GE(fd, 0, "queue_normal");
+	if (fd >= 0)
+		close(fd);
+}
+
 void test_queue_stack_map(void)
 {
 	test_queue_stack_map_by_type(QUEUE);
 	test_queue_stack_map_by_type(STACK);
+	test_queue_stack_map_alloc_check();
 }

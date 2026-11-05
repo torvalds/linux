@@ -69,7 +69,6 @@ The following features are available in this driver:
  - Pulse-Per-Second Output (PPS)
  - MDIO Clause 22 / Clause 45 Interface
  - MAC Loopback
- - ARP Offloading
  - Automatic CRC / PAD Insertion and Checking
  - Checksum Offload for Received and Transmitted Packets
  - Standard or Jumbo Ethernet Packets

@@ -44,7 +44,7 @@ static int xgbe_test_loopback_validate(struct sk_buff *skb,
 	struct iphdr *ih;
 	int eat;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (!skb)
 		goto out;
 

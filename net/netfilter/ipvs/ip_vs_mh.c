@@ -80,7 +80,7 @@ static inline void generate_hash_secret(hsiphash_key_t *hash1,
 static inline bool is_unavailable(struct ip_vs_dest *dest)
 {
 	return atomic_read(&dest->weight) <= 0 ||
-	       dest->flags & IP_VS_DEST_F_OVERLOAD;
+	       ip_vs_dest_is_overloaded(dest);
 }
 
 /* Returns hash value for IPVS MH entry */

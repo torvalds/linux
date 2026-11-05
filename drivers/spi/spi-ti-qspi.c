@@ -454,7 +454,7 @@ static int ti_qspi_dma_xfer(struct ti_qspi *qspi, dma_addr_t dma_dst,
 
 	tx->callback = ti_qspi_dma_callback;
 	tx->callback_param = qspi;
-	cookie = tx->tx_submit(tx);
+	cookie = dmaengine_submit(tx);
 	reinit_completion(&qspi->transfer_complete);
 
 	ret = dma_submit_error(cookie);
@@ -855,7 +855,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	qspi->rx_bb_addr = dma_alloc_coherent(qspi->dev,
 					      QSPI_DMA_BUFFER_SIZE,
 					      &qspi->rx_bb_dma_addr,
-					      GFP_KERNEL | GFP_DMA);
+					      GFP_KERNEL);
 	if (!qspi->rx_bb_addr) {
 		dev_err(qspi->dev,
 			"dma_alloc_coherent failed, using PIO mode\n");

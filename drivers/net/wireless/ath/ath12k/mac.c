@@ -1506,6 +1506,13 @@ static int ath12k_mac_monitor_start(struct ath12k *ar)
 		return ret;
 	}
 
+	/*
+	 * A previous monitor session may have stopped mid-PPDU, leaving
+	 * ppdu_continuation set. Clear it so the first status buffer of
+	 * this session is not merged with stale state from before.
+	 */
+	ar->dp.mon_data.mon_ppdu_info.ppdu_continuation = false;
+
 	ar->monitor_started = true;
 	ar->num_started_vdevs++;
 
@@ -3517,7 +3524,7 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 							   IEEE80211_EHT_MCS_NSS_RX));
 	}
 
-	max_nss = min(max_nss, (uint8_t)eht_nss);
+	max_nss = min(max_nss, (u8)eht_nss);
 
 	arg->peer_nss = min(link_sta->rx_nss, max_nss);
 
@@ -9187,25 +9194,27 @@ static void ath12k_mac_tx_mgmt_free(struct ath12k *ar, int buf_id)
 	ath12k_mgmt_over_wmi_tx_drop(ar, msdu);
 }
 
-int ath12k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx)
+void ath12k_mac_tx_mgmt_pending_free(struct ath12k *ar)
 {
-	struct ath12k *ar = ctx;
+	struct sk_buff *msdu;
+	int buf_id;
 
-	ath12k_mac_tx_mgmt_free(ar, buf_id);
-
-	return 0;
+	idr_for_each_entry(&ar->txmgmt_idr, msdu, buf_id)
+		ath12k_mac_tx_mgmt_free(ar, buf_id);
 }
 
-static int ath12k_mac_vif_txmgmt_idr_remove(int buf_id, void *skb, void *ctx)
+static void ath12k_mac_vif_txmgmt_cleanup(struct ath12k *ar,
+					  struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = ctx;
-	struct ath12k_skb_cb *skb_cb = ATH12K_SKB_CB(skb);
-	struct ath12k *ar = skb_cb->ar;
+	struct ath12k_skb_cb *skb_cb;
+	struct sk_buff *skb;
+	int buf_id;
 
-	if (skb_cb->vif == vif)
-		ath12k_mac_tx_mgmt_free(ar, buf_id);
-
-	return 0;
+	idr_for_each_entry(&ar->txmgmt_idr, skb, buf_id) {
+		skb_cb = ATH12K_SKB_CB(skb);
+		if (skb_cb->vif == vif)
+			ath12k_mac_tx_mgmt_free(ar, buf_id);
+	}
 }
 
 static int ath12k_mac_mgmt_tx_wmi(struct ath12k *ar, struct ath12k_link_vif *arvif,
@@ -9732,6 +9741,7 @@ static int ath12k_mac_config_mon_status_default(struct ath12k *ar, bool enable)
 
 static int ath12k_mac_start(struct ath12k *ar)
 {
+	const struct ath12k_dp_profile_params *dp_params;
 	struct ath12k_hw *ah = ar->ah;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_pdev *pdev = ar->pdev;
@@ -9739,6 +9749,8 @@ static int ath12k_mac_start(struct ath12k *ar)
 
 	lockdep_assert_held(&ah->hw_mutex);
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	dp_params = &ab->profile_param->dp_params;
 
 	ret = ath12k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_PMF_QOS,
 					1, pdev->pdev_id);
@@ -9788,7 +9800,7 @@ static int ath12k_mac_start(struct ath12k *ar)
 	if (ab->hw_params->supports_cong_ctrl_max_msdus) {
 		ret = ath12k_wmi_pdev_set_param(ar,
 						WMI_PDEV_PARAM_SET_CONG_CTRL_MAX_MSDUS,
-						ATH12K_NUM_POOL_TX_DESC(ab),
+						ath12k_dp_num_pool_tx_desc(dp_params),
 						pdev->pdev_id);
 		if (ret) {
 			ath12k_err(ab,
@@ -10967,8 +10979,7 @@ err_vdev_del:
 	ath12k_peer_cleanup(ar, arvif->vdev_id);
 	ath12k_ahvif_put_link_cache(ahvif, arvif->link_id);
 
-	idr_for_each(&ar->txmgmt_idr,
-		     ath12k_mac_vif_txmgmt_idr_remove, vif);
+	ath12k_mac_vif_txmgmt_cleanup(ar, vif);
 
 	ath12k_mac_vif_unref(ath12k_ab_to_dp(ab), vif);
 
@@ -14294,6 +14305,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					   sizeof(ath12k_6ghz_channels), GFP_KERNEL);
 			if (!channels) {
 				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+				ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
 				return -ENOMEM;
 			}
 
@@ -14344,7 +14356,9 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					   GFP_KERNEL);
 			if (!channels) {
 				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+				ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
 				kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
+				ar->mac.sbands[NL80211_BAND_6GHZ].channels = NULL;
 				return -ENOMEM;
 			}
 
@@ -14384,7 +14398,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 					ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
 					kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
-					ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
+					ar->mac.sbands[NL80211_BAND_6GHZ].channels = NULL;
 					kfree(channels);
 					band->channels = NULL;
 					return ret;
@@ -14725,12 +14739,62 @@ static struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
 
 static void ath12k_mac_cleanup_unregister(struct ath12k *ar)
 {
-	idr_for_each(&ar->txmgmt_idr, ath12k_mac_tx_mgmt_pending_free, ar);
+	ath12k_mac_tx_mgmt_pending_free(ar);
 	idr_destroy(&ar->txmgmt_idr);
 
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
+}
+
+static void ath12k_mac_cleanup_mac_address_list(struct ath12k_hw *ah)
+{
+	kfree(ah->hw->wiphy->addresses);
+	ah->hw->wiphy->addresses = NULL;
+	ah->hw->wiphy->n_addresses = 0;
+}
+
+static void ath12k_mac_setup_mac_address_list(struct ath12k_hw *ah,
+					      const u8 *mac_addr)
+{
+	struct mac_address *addresses;
+	struct ath12k *ar;
+	u16 n_addresses;
+	int i;
+
+	/*
+	 * wiphy->addresses is per wiphy, so the generated interface MAC
+	 * pool is advertised for the whole ath12k_hw. The hw_params flag is
+	 * expected to be consistent across all radios in an ath12k_hw, so
+	 * use the first radio as the source.
+	 */
+	ar = ath12k_ah_to_ar(ah, 0);
+	if (!ar->ab->hw_params->advertise_iface_mac_pool)
+		return;
+
+	/*
+	 * Only the upper nibble of the first octet is varied, so at most 16
+	 * addresses can be derived from one base.
+	 */
+	n_addresses = min_t(u16, TARGET_NUM_VDEVS(ar->ab), 16);
+	if (n_addresses <= 1)
+		return;
+
+	addresses = kzalloc_objs(*addresses, n_addresses);
+	if (!addresses)
+		return;
+
+	ether_addr_copy(addresses[0].addr, mac_addr);
+	for (i = 1; i < n_addresses; i++) {
+		ether_addr_copy(addresses[i].addr, mac_addr);
+		/* set Local Administered Address bit */
+		addresses[i].addr[0] |= 0x2;
+
+		addresses[i].addr[0] += i << 4;
+	}
+
+	ah->hw->wiphy->addresses = addresses;
+	ah->hw->wiphy->n_addresses = n_addresses;
 }
 
 static void ath12k_mac_hw_unregister(struct ath12k_hw *ah)
@@ -14752,6 +14816,7 @@ static void ath12k_mac_hw_unregister(struct ath12k_hw *ah)
 		ath12k_mac_cleanup_unregister(ar);
 
 	ath12k_mac_cleanup_iface_combinations(ah);
+	ath12k_mac_cleanup_mac_address_list(ah);
 
 	SET_IEEE80211_DEV(hw, NULL);
 }
@@ -14868,6 +14933,7 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	wiphy->available_antennas_tx = antennas_tx;
 
 	SET_IEEE80211_PERM_ADDR(hw, mac_addr);
+	ath12k_mac_setup_mac_address_list(ah, mac_addr);
 	SET_IEEE80211_DEV(hw, ab->dev);
 
 	ret = ath12k_mac_setup_iface_combinations(ah);
@@ -15043,28 +15109,49 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
 
 	for_each_ar(ah, ar, i) {
+		struct ath12k_base *this_ab = ar->ab;
+
 		/* Apply the regd received during initialization */
 		ret = ath12k_regd_update(ar, true);
 		if (ret) {
-			ath12k_err(ar->ab, "ath12k regd update failed: %d\n", ret);
+			ath12k_err(this_ab, "ath12k regd update failed: %d\n", ret);
 			goto err_unregister_hw;
 		}
 
-		if (ar->ab->hw_params->current_cc_support && ab->new_alpha2[0]) {
+		if (this_ab->hw_params->current_cc_support) {
 			struct wmi_set_current_country_arg current_cc = {};
+			struct ieee80211_regdomain *default_regd;
+			bool same_cc = false;
 
-			memcpy(&current_cc.alpha2, ab->new_alpha2, 2);
-			memcpy(&ar->alpha2, ab->new_alpha2, 2);
+			spin_lock_bh(&this_ab->base_lock);
+			memcpy(&current_cc.alpha2, this_ab->new_alpha2, 2);
+			spin_unlock_bh(&this_ab->base_lock);
+
+			if (!current_cc.alpha2[0])
+				goto fw_stats_init;
+
+			memcpy(&ar->alpha2, current_cc.alpha2, 2);
+
+			spin_lock_bh(&this_ab->base_lock);
+			default_regd = this_ab->default_regd[ar->pdev_idx];
+			if (default_regd)
+				same_cc = !memcmp(default_regd->alpha2,
+						  current_cc.alpha2, 2);
+			spin_unlock_bh(&this_ab->base_lock);
+
+			if (same_cc)
+				goto fw_stats_init;
 
 			reinit_completion(&ar->regd_update_completed);
 
 			ret = ath12k_wmi_send_set_current_country_cmd(ar, &current_cc);
 			if (ret)
-				ath12k_warn(ar->ab,
+				ath12k_warn(this_ab,
 					    "failed set cc code for mac register: %d\n",
 					    ret);
 		}
 
+fw_stats_init:
 		ath12k_fw_stats_init(ar);
 		ath12k_debugfs_register(ar);
 	}
@@ -15088,6 +15175,8 @@ err_cleanup_unregister:
 		ar = ath12k_ah_to_ar(ah, j);
 		ath12k_mac_cleanup_unregister(ar);
 	}
+
+	ath12k_mac_cleanup_mac_address_list(ah);
 
 	SET_IEEE80211_DEV(hw, NULL);
 

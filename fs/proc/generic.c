@@ -117,7 +117,7 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 	return true;
 }
 
-static int proc_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int proc_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -135,7 +135,7 @@ static int proc_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	return 0;
 }
 
-static int proc_getattr(struct mnt_idmap *idmap,
+static int proc_getattr(const struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
@@ -256,9 +256,10 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
+		/* never reused and so never a mountpoint for long */
 		if (de->flags & PROC_ENTRY_FORCE_LOOKUP)
-			return d_splice_alias_ops(inode, dentry,
-						  &proc_net_dentry_ops);
+			return proc_splice_unmountable(inode, dentry,
+						       &proc_net_dentry_ops);
 		return d_splice_alias_ops(inode, dentry,
 					  &proc_misc_dentry_ops);
 	}

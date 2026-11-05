@@ -370,4 +370,6 @@ void dcn60_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_FRL_20G_CAPABLE = 1;
 		enc10->base.features.flags.bits.IS_FRL_24G_CAPABLE = 0;
 	}
+
+	enc10->base.inst = (unsigned int)enc10->base.preferred_engine;
 }

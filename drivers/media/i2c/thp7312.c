@@ -729,6 +729,7 @@ static int thp7312_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int thp7312_set_fmt(struct v4l2_subdev *sd,
+			   const struct v4l2_subdev_client_info *ci,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {

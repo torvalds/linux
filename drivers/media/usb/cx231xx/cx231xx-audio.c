@@ -581,12 +581,19 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	dev_dbg(dev->dev,
 		"probing for cx231xx non standard usbaudio\n");
 
+	/*
+	 * Extension init errors are ignored by the cx231xx core, so fini()
+	 * must be safe even if initialization fails part way through.
+	 */
+	spin_lock_init(&adev->slock);
+	INIT_WORK(&dev->wq_trigger, audio_trigger);
+	atomic_set(&dev->stream_started, 0);
+
 	err = snd_card_new(dev->dev, index[devnr], "Cx231xx Audio",
 			   THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
-	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Cx231xx Audio", 0, 0, 1, &pcm);
 	if (err < 0)
 		goto err_free_card;
@@ -600,8 +607,6 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	strscpy(card->driver, "Cx231xx-Audio", sizeof(card->driver));
 	strscpy(card->shortname, "Cx231xx Audio", sizeof(card->shortname));
 	strscpy(card->longname, "Conexant cx231xx Audio", sizeof(card->longname));
-
-	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -656,8 +661,10 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 
 err_free_pkt_size:
 	kfree(adev->alt_max_pkt_size);
+	adev->alt_max_pkt_size = NULL;
 err_free_card:
 	snd_card_free(card);
+	adev->sndcard = NULL;
 
 	return err;
 }
@@ -673,6 +680,8 @@ static int cx231xx_audio_fini(struct cx231xx *dev)
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
+
+	disable_work_sync(&dev->wq_trigger);
 
 	if (dev->adev.sndcard) {
 		snd_card_free_when_closed(dev->adev.sndcard);

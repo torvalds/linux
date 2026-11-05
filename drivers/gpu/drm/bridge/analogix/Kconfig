@@ -6,6 +6,7 @@ config DRM_ANALOGIX_ANX6345
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
+	select DRM_PANEL
 	select REGMAP_I2C
 	help
 	  ANX6345 is an ultra-low power Full-HD DisplayPort/eDP

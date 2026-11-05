@@ -255,6 +255,9 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 			return;
 	}
 
+	if (hardlockup_panic)
+		console_verbose();
+
 	/*
 	 * NOTE: we call printk_cpu_sync_get_irqsave() after printing
 	 * the lockup message. While it would be nice to serialize
@@ -880,6 +883,10 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		/* Start period for the next softlockup warning. */
 		update_report_ts();
 
+		thresh_count = duration / get_softlockup_thresh();
+		if (softlockup_panic && thresh_count >= softlockup_panic)
+			console_verbose();
+
 		printk_cpu_sync_get_irqsave(flags);
 		pr_emerg("BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
 			smp_processor_id(), duration,
@@ -901,7 +908,6 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
 		sys_info(softlockup_si_mask & ~SYS_INFO_ALL_BT);
-		thresh_count = duration / get_softlockup_thresh();
 
 		if (softlockup_panic && thresh_count >= softlockup_panic)
 			panic("softlockup: hung tasks");

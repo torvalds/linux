@@ -3,7 +3,11 @@
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 
+#ifdef KVM_S390_ARM64
+#include "arm.h"
+#else
 #include "s390.h"
+#endif
 #include "gmap.h"
 #include "dat.h"
 #include "kvm_mmu.h"
@@ -76,7 +80,7 @@ int s390_kvm_mmu_prepare_memory_region(struct kvm *kvm,
 			return -EINVAL;
 	}
 
-	if (kvm->arch.migration_mode) {
+	if (kvm_s390_is_migration_mode(kvm)) {
 		/*
 		 * Turn off migration mode when:
 		 * - userspace creates a new memslot with dirty logging off,

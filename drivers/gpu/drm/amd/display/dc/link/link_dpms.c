@@ -767,14 +767,25 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		if (should_use_dto_dscclk)
 			dccg->funcs->set_dto_dscclk(dccg, dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+		if (!dsc->funcs->dsc_prepare_config(dsc, &dsc_cfg, &dsc_optc_cfg)) {
+			ASSERT(false);
+			return;
+		}
+		dsc->funcs->dsc_set_config(dsc);
 		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 			struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
 
+			ASSERT(odm_dsc);
+			if (!odm_dsc)
+				return;
 			if (should_use_dto_dscclk)
 				dccg->funcs->set_dto_dscclk(dccg, odm_dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-			odm_dsc->funcs->dsc_set_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg);
+			if (!odm_dsc->funcs->dsc_prepare_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg)) {
+				ASSERT(false);
+				return;
+			}
+			odm_dsc->funcs->dsc_set_config(odm_dsc);
 			odm_dsc->funcs->dsc_enable(odm_dsc, odm_pipe->stream_res.opp->inst);
 		}
 		dsc_cfg.dc_dsc_cfg.num_slices_h *= opp_cnt;
@@ -2027,6 +2038,8 @@ static enum dc_status enable_link_hdmi_frl(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.hpo_frl_stream_enc->funcs->hdmi_frl_enable(
 			pipe_ctx->stream_res.hpo_frl_stream_enc,
 			pipe_ctx->stream_res.tg->inst);
+	} else if (link_stat == LINK_RESULT_NO_TIMEOUT) {
+		return status;
 	} else {
 		status = DC_FAIL_HDMI_FRL_LINK_TRAINING;
 		stream->link->frl_link_settings.frl_link_rate = 0;
@@ -2306,8 +2319,13 @@ static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, i
 {
 	ASSERT(stream->sink);
 
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link;
 	int req_bw = stream_bw;
+
+	if (!stream->sink)
+		return false;
+
+	link = stream->sink->link;
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -2355,9 +2373,13 @@ static bool allocate_usb4_bandwidth(struct dc_stream_state *stream)
 	ASSERT(stream->sink);
 
 	bool ret;
+	int bw;
 
-	int bw = dc_bandwidth_in_kbps_from_timing(&stream->timing,
-			dc_link_get_highest_encoding_format(stream->sink->link));
+	if (!stream->sink)
+		return false;
+
+	bw = dc_bandwidth_in_kbps_from_timing(&stream->timing,
+					      dc_link_get_highest_encoding_format(stream->sink->link));
 
 	ret = allocate_usb4_bandwidth_for_stream(stream, bw);
 
@@ -2419,7 +2441,8 @@ enum dc_status link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);
 
-	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation)
+	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation &&
+	    stream->sink)
 		deallocate_usb4_bandwidth(stream);
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)

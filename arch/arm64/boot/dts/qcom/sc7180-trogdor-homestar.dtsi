@@ -184,7 +184,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &sound_multimedia1_codec {
-	sound-dai = <&max98360a>, <&max98360a_1>, <&max98360a_2>, <&max98360a_3> ;
+	sound-dai = <&max98360a>, <&max98360a_1>, <&max98360a_2>, <&max98360a_3>;
 };
 
 &wifi {

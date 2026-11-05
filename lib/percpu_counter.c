@@ -328,6 +328,7 @@ bool __percpu_counter_limited_add(struct percpu_counter *fbc,
 				  s64 limit, s64 amount, s32 batch)
 {
 	s64 count;
+	s64 gcount;
 	s64 unknown;
 	unsigned long flags;
 	bool good = false;
@@ -338,11 +339,16 @@ bool __percpu_counter_limited_add(struct percpu_counter *fbc,
 	local_irq_save(flags);
 	unknown = batch * num_online_cpus();
 	count = __this_cpu_read(*fbc->counters);
+	/*
+	 * Lockless on purpose: gcount may be stale, so this is only an
+	 * approximation, bounded by the per-cpu slack ("unknown").
+	 */
+	gcount = data_race(READ_ONCE(fbc->count));
 
 	/* Skip taking the lock when safe */
 	if (abs(count + amount) <= batch &&
-	    ((amount > 0 && fbc->count + unknown <= limit) ||
-	     (amount < 0 && fbc->count - unknown >= limit))) {
+	    ((amount > 0 && gcount + unknown <= limit) ||
+	     (amount < 0 && gcount - unknown >= limit))) {
 		this_cpu_add(*fbc->counters, amount);
 		local_irq_restore(flags);
 		return true;

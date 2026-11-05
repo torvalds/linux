@@ -1223,7 +1223,7 @@ static void vc5_remove(struct i2c_client *client)
 		clk_unregister_fixed_rate(vc5->pin_xin);
 }
 
-static int __maybe_unused vc5_suspend(struct device *dev)
+static int vc5_suspend(struct device *dev)
 {
 	struct vc5_driver_data *vc5 = dev_get_drvdata(dev);
 
@@ -1233,15 +1233,17 @@ static int __maybe_unused vc5_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused vc5_resume(struct device *dev)
+static int vc5_resume(struct device *dev)
 {
 	struct vc5_driver_data *vc5 = dev_get_drvdata(dev);
 	int ret;
 
 	regcache_cache_only(vc5->regmap, false);
 	ret = regcache_sync(vc5->regmap);
-	if (ret)
+	if (ret) {
+		regcache_cache_only(vc5->regmap, true);
 		dev_err(dev, "Failed to restore register map: %d\n", ret);
+	}
 	return ret;
 }
 
@@ -1335,12 +1337,12 @@ static const struct of_device_id clk_vc5_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, clk_vc5_of_match);
 
-static SIMPLE_DEV_PM_OPS(vc5_pm_ops, vc5_suspend, vc5_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(vc5_pm_ops, vc5_suspend, vc5_resume);
 
 static struct i2c_driver vc5_driver = {
 	.driver = {
 		.name = "vc5",
-		.pm	= &vc5_pm_ops,
+		.pm	= pm_sleep_ptr(&vc5_pm_ops),
 		.of_match_table = clk_vc5_of_match,
 	},
 	.probe		= vc5_probe,

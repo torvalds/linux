@@ -71,7 +71,8 @@ ctnl_timeout_parse_policy(void *timeout,
 	struct nlattr **tb;
 	int ret = 0;
 
-	tb = kzalloc_objs(*tb, l4proto->ctnl_timeout.nlattr_max + 1);
+	tb = kzalloc_objs(*tb, l4proto->ctnl_timeout.nlattr_max + 1,
+			  GFP_KERNEL_ACCOUNT);
 
 	if (!tb)
 		return -ENOMEM;
@@ -150,14 +151,15 @@ static int cttimeout_new_timeout(struct sk_buff *skb,
 		goto err_proto_put;
 	}
 
-	timeout = kzalloc_obj(*timeout);
+	timeout = kzalloc_obj(*timeout, GFP_KERNEL_ACCOUNT);
 	if (timeout == NULL) {
 		ret = -ENOMEM;
 		goto err_proto_put;
 	}
 
 	timeout->timeout = kzalloc(sizeof(*timeout->timeout) +
-				   l4proto->ctnl_timeout.obj_size, GFP_KERNEL);
+				   l4proto->ctnl_timeout.obj_size,
+				   GFP_KERNEL_ACCOUNT);
 	if (!timeout->timeout) {
 		ret = -ENOMEM;
 		goto err;

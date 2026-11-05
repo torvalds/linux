@@ -101,16 +101,21 @@ unlock:
 static int mapping_show(struct seq_file *file, void *priv)
 {
 	struct mlx5_core_dev *dev = file->private;
-	u8 ports[MLX5_MAX_PORTS] = {};
 	struct mlx5_lag *ldev;
 	bool hash = false;
 	bool lag_active;
 	int i, idx = 0;
 	int num_ports;
+	u8 *ports;
 
 	ldev = mlx5_lag_dev(dev);
+	ports = kcalloc(ldev->ports, sizeof(*ports), GFP_KERNEL);
+	if (!ports)
+		return -ENOMEM;
+
 	mutex_lock(&ldev->lock);
-	lag_active = __mlx5_lag_is_active(ldev);
+	lag_active = __mlx5_lag_is_active(ldev) &&
+		ldev->mode != MLX5_LAG_MODE_MPESW;
 	if (lag_active) {
 		if (test_bit(MLX5_LAG_MODE_FLAG_HASH_BASED, &ldev->mode_flags)) {
 			mlx5_infer_tx_enabled(&ldev->tracker, ldev, ports,
@@ -123,8 +128,10 @@ static int mapping_show(struct seq_file *file, void *priv)
 		}
 	}
 	mutex_unlock(&ldev->lock);
-	if (!lag_active)
+	if (!lag_active) {
+		kfree(ports);
 		return -EINVAL;
+	}
 
 	for (i = 0; i < num_ports; i++) {
 		if (hash)
@@ -133,6 +140,7 @@ static int mapping_show(struct seq_file *file, void *priv)
 			seq_printf(file, "%d:%d\n", i + 1, ports[i]);
 	}
 
+	kfree(ports);
 	return 0;
 }
 

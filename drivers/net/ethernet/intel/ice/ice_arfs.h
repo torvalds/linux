@@ -13,7 +13,7 @@ enum ice_arfs_fltr_state {
 };
 
 struct ice_arfs_entry {
-	struct ice_fdir_fltr fltr_info;
+	struct ice_ntuple_fltr fltr_info;
 	struct hlist_node list_entry;
 	u64 time_activated;	/* only valid for UDP flows */
 	u32 flow_id;

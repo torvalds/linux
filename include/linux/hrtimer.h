@@ -12,6 +12,7 @@
 #ifndef _LINUX_HRTIMER_H
 #define _LINUX_HRTIMER_H
 
+#include <linux/cleanup.h>
 #include <linux/hrtimer_rearm.h>
 #include <linux/hrtimer_types.h>
 #include <linux/init.h>
@@ -72,7 +73,7 @@ enum hrtimer_mode {
  */
 struct hrtimer_sleeper {
 	struct hrtimer timer;
-	struct task_struct *task;
+	struct task_struct *__private task;
 };
 
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
@@ -201,6 +202,29 @@ extern void destroy_hrtimer_on_stack(struct hrtimer *timer);
 static inline void destroy_hrtimer_on_stack(struct hrtimer *timer) { }
 #endif
 
+/*
+ * The cleanup class pairs on-stack setup with debug-object teardown. Callers
+ * using it must not call destroy_hrtimer_on_stack() manually.
+ *
+ * This class provides debug-object teardown, not timer cancellation. Callers
+ * must ensure that no hrtimer operation can still access the timer before
+ * leaving the scope. In particular, the timer must no longer be queued and
+ * any running callback must have completed.
+ *
+ * Callers using hrtimer_setup_on_stack() without this class retain
+ * responsibility for destroying the timer before its backing storage leaves
+ * scope.
+ */
+DEFINE_CLASS(hrtimer_on_stack, struct hrtimer *,
+	     destroy_hrtimer_on_stack(_T),
+	     ({
+		hrtimer_setup_on_stack(timer, function, clock_id, mode);
+		timer;
+	     }),
+	     struct hrtimer *timer,
+	     enum hrtimer_restart (*function)(struct hrtimer *),
+	     clockid_t clock_id, enum hrtimer_mode mode)
+
 /* Basic timer operations: */
 extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 				   u64 range_ns, const enum hrtimer_mode mode);
@@ -320,6 +344,14 @@ extern int schedule_hrtimeout_range_clock(ktime_t *expires,
 					  const enum hrtimer_mode mode,
 					  clockid_t clock_id);
 extern int schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode);
+static inline struct task_struct *hrtimer_sleeper_task_get(struct hrtimer_sleeper *sl)
+{
+	return READ_ONCE(ACCESS_PRIVATE(sl, task));
+}
+static inline void hrtimer_sleeper_task_set(struct hrtimer_sleeper *sl, struct task_struct *t)
+{
+	WRITE_ONCE(ACCESS_PRIVATE(sl, task), t);
+}
 
 /* Soft interrupt function to run the hrtimer queues: */
 extern void hrtimer_run_queues(void);

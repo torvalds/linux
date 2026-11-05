@@ -41,7 +41,7 @@ struct gemini_pin_conf {
 /**
  * struct gemini_pmx - state holder for the gemini pin controller
  * @dev: a pointer back to containing device
- * @virtbase: the offset to the controller in virtual memory
+ * @pctl: the pin controller device
  * @map: regmap to access registers
  * @is_3512: whether the SoC/package is the 3512 variant
  * @is_3516: whether the SoC/package is the 3516 variant
@@ -2031,6 +2031,7 @@ static const struct pinctrl_ops gemini_pctrl_ops = {
  * struct gemini_pmx_func - describes Gemini pinmux functions
  * @name: the name of this specific function
  * @groups: corresponding pin groups
+ * @num_groups: the number of pin groups
  */
 struct gemini_pmx_func {
 	const char *name;

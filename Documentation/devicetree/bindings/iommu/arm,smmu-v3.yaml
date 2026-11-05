@@ -83,6 +83,16 @@ properties:
       register access with page 0 offsets. Set for Cavium ThunderX2 silicon that
       doesn't support SMMU page1 register space.
 
+  arm,instdata-override:
+    type: boolean
+    description:
+      Some SoCs like Google Tensor G5 (Laguna) have an SMMU integration
+      silicon erratum where AxPROT[2] signal is always 1, making all
+      transactions appear as instructions.
+
+      This property enables a software workaround to override the
+      instruction/data attribute of incoming traffic to data.
+
 allOf:
   - if:
       not:

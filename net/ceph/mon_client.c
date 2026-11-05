@@ -943,7 +943,7 @@ static void handle_command_ack(struct ceph_mon_client *monc,
 {
 	struct ceph_mon_generic_request *req;
 	void *p = msg->front.iov_base;
-	void *const end = p + msg->front_alloc_len;
+	void *const end = p + msg->front.iov_len;
 	u64 tid = le64_to_cpu(msg->hdr.tid);
 
 	dout("%s msg %p tid %llu\n", __func__, msg, tid);
@@ -1140,6 +1140,9 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	struct ceph_options *opt = monc->client->options;
 	int num_mon = opt->num_mon;
 	int i;
+
+	if (num_mon < 1 || num_mon > CEPH_MAX_MON)
+		return -EINVAL;
 
 	/* build initial monmap */
 	monc->monmap = kzalloc_flex(*monc->monmap, mon_inst, num_mon);

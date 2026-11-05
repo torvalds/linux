@@ -32,9 +32,6 @@
 #define SYNTH_DEFAULT_DEV "ttyS0"
 #define SYNTH_DEFAULT_SER 0
 
-const struct old_serial_port *spk_serial_init(int index);
-void spk_stop_serial_interrupt(void);
-void spk_serial_release(struct spk_synth *synth);
 void spk_ttyio_release(struct spk_synth *synth);
 void spk_ttyio_register_ldisc(void);
 void spk_ttyio_unregister_ldisc(void);
@@ -49,10 +46,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		      const char *buf, size_t count);
 
-int spk_serial_synth_probe(struct spk_synth *synth);
 int spk_ttyio_synth_probe(struct spk_synth *synth);
-const char *spk_serial_synth_immediate(struct spk_synth *synth,
-				       const char *buff);
 const char *spk_ttyio_synth_immediate(struct spk_synth *synth,
 				      const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);

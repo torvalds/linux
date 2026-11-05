@@ -53,6 +53,9 @@ static int xilly_drv_probe(struct platform_device *op)
 
 	irq = platform_get_irq(op, 0);
 
+	if (irq < 0)
+		return irq;
+
 	rc = devm_request_irq(dev, irq, xillybus_isr, 0, xillyname, endpoint);
 
 	if (rc)

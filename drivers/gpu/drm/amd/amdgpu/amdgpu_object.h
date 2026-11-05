@@ -125,6 +125,9 @@ struct amdgpu_bo {
 	 * for memory accounting.
 	 */
 	int8_t				xcp_id;
+
+	/* UALink Handle low 64 bits*/
+	u64				ualink_handle_lo;
 };
 
 struct amdgpu_bo_user {
@@ -169,6 +172,8 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 		return AMDGPU_GEM_DOMAIN_OA;
 	case AMDGPU_PL_DOORBELL:
 		return AMDGPU_GEM_DOMAIN_DOORBELL;
+	case AMDGPU_PL_NPA:
+		return AMDGPU_GEM_DOMAIN_NPA;
 	default:
 		break;
 	}

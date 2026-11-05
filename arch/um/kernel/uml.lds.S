@@ -28,7 +28,12 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
 
   _text = .;
+  __init_begin = .;
   INIT_TEXT_SECTION(0)
+
+  init.data : { INIT_DATA }
+  . = ALIGN(PAGE_SIZE);
+  __init_end = .;
 
   .text      :
   {
@@ -70,14 +75,11 @@ SECTIONS
 
   #include <asm/common.lds.S>
 
-  __init_begin = .;
-  init.data : { INIT_DATA }
-  __init_end = .;
-
   .data    :
   {
     INIT_TASK_DATA(KERNEL_STACK_SIZE)
     DATA_DATA
+    *(.ldata .ldata.[0-9a-zA-Z_]* .ldata..L*)
     *(.gnu.linkonce.d*)
     CONSTRUCTORS
   }
@@ -107,6 +109,7 @@ SECTIONS
   PROVIDE(_bss_start = .);
   SBSS(0)
   BSS(0)
+  .lbss : { *(.lbss .lbss.[0-9a-zA-Z_]* .lbss..L*) }
    __bss_stop = .;
   _end = .;
   PROVIDE (end = .);

@@ -17,7 +17,6 @@ obj-$(CONFIG_SERIAL_DEV_BUS)	+= serdev/
 
 # tty drivers
 obj-$(CONFIG_AMIGA_BUILTIN_SERIAL) += amiserial.o
-obj-$(CONFIG_MOXA_INTELLIO)	+= moxa.o
 obj-$(CONFIG_MOXA_SMARTIO)	+= mxser.o
 obj-$(CONFIG_NOZOMI)		+= nozomi.o
 obj-$(CONFIG_NULL_TTY)	        += ttynull.o

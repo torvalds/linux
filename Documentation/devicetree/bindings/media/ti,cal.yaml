@@ -136,17 +136,17 @@ examples:
         ti,camerrx-control = <&scm_conf 0xE94>;
 
         ports {
-              #address-cells = <1>;
-              #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-              csi2_0: port@0 {
-                    reg = <0>;
-                    csi2_phy0: endpoint {
-                           remote-endpoint = <&csi2_cam0>;
-                           clock-lanes = <0>;
-                           data-lanes = <1 2>;
-                    };
-              };
+            csi2_0: port@0 {
+                reg = <0>;
+                csi2_phy0: endpoint {
+                    remote-endpoint = <&csi2_cam0>;
+                    clock-lanes = <0>;
+                    data-lanes = <1 2>;
+                };
+            };
         };
     };
 
@@ -156,21 +156,21 @@ examples:
         #size-cells = <0>;
 
         camera-sensor@3c {
-               compatible = "ovti,ov5640";
-               reg = <0x3c>;
-               AVDD-supply = <&reg_2p8v>;
-               DOVDD-supply = <&reg_1p8v>;
-               DVDD-supply = <&reg_1p5v>;
-               clocks = <&clk_ov5640_fixed>;
-               clock-names = "xclk";
+            compatible = "ovti,ov5640";
+            reg = <0x3c>;
+            AVDD-supply = <&reg_2p8v>;
+            DOVDD-supply = <&reg_1p8v>;
+            DVDD-supply = <&reg_1p5v>;
+            clocks = <&clk_ov5640_fixed>;
+            clock-names = "xclk";
 
-               port {
-                    csi2_cam0: endpoint {
-                            remote-endpoint = <&csi2_phy0>;
-                            clock-lanes = <0>;
-                            data-lanes = <1 2>;
-                    };
-               };
+            port {
+                csi2_cam0: endpoint {
+                    remote-endpoint = <&csi2_phy0>;
+                    clock-lanes = <0>;
+                    data-lanes = <1 2>;
+                };
+            };
         };
     };
 

@@ -14,9 +14,11 @@
 #include "xe_device.h"
 #include "xe_heci_gsc.h"
 #include "xe_i2c.h"
+#include "xe_log.h"
 #include "xe_mmio.h"
 #include "xe_nvm.h"
 #include "xe_pcode_api.h"
+#include "xe_printk.h"
 #include "xe_vsec.h"
 
 /**
@@ -172,18 +174,32 @@ static void populate_survivability_info(struct xe_device *xe)
 	}
 }
 
-static void log_survivability_info(struct pci_dev *pdev)
+static const char *boot_status_str(u8 boot_status)
 {
-	struct xe_device *xe = pdev_to_xe_device(pdev);
+	switch (boot_status) {
+	case CRITICAL_FAILURE:
+		return "Critical Failure";
+	case NON_CRITICAL_FAILURE:
+		return "Non Critical Failure";
+	default:
+		return "Other";
+	}
+}
+
+static void log_survivability_info(struct xe_device *xe)
+{
 	struct xe_survivability *survivability = &xe->survivability;
 	u32 *info = survivability->info;
 	int id;
 
-	dev_info(&pdev->dev, "Survivability Boot Status : Critical Failure (%d)\n",
-		 survivability->boot_status);
+	xe_log_info(xe, SURVIVABILITY, "Boot Status: %#x (%s)\n",
+		    survivability->boot_status,
+		    boot_status_str(survivability->boot_status));
+
 	for (id = 0; id < MAX_SCRATCH_REG; id++) {
-		if (info[id])
-			dev_info(&pdev->dev, "%s: 0x%x\n", reg_map[id], info[id]);
+		if (!info[id])
+			continue;
+		xe_log_info(xe, SURVIVABILITY, "%s: %#x\n", reg_map[id], info[id]);
 	}
 }
 
@@ -289,41 +305,46 @@ static const struct attribute_group survivability_info_group = {
 
 static int create_survivability_sysfs(struct pci_dev *pdev)
 {
-	struct device *dev = &pdev->dev;
+	/* Survivability info is required if not enabled via configfs */
+	bool needs_info = !xe_configfs_get_survivability_mode(pdev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	ret = device_create_file(dev, &dev_attr_survivability_mode);
-	if (ret) {
-		dev_warn(dev, "Failed to create survivability sysfs files\n");
-		return ret;
-	}
+	if (ret)
+		goto failed;
 
 	ret = devm_add_action_or_reset(xe->drm.dev,
 				       xe_survivability_mode_fini, xe);
 	if (ret)
-		return ret;
+		goto failed;
 
-	/* Survivability info is not required if enabled via configfs */
-	if (!xe_configfs_get_survivability_mode(pdev)) {
+	if (needs_info) {
 		ret = devm_device_add_group(dev, &survivability_info_group);
 		if (ret)
-			return ret;
+			goto failed;
 	}
 
 	return 0;
+
+failed:
+	xe_err(xe, "Failed to create survivability sysfs files: %pe\n", ERR_PTR(ret));
+	/* no sysfs, dump Survivability info to dmesg instead */
+	if (needs_info)
+		log_survivability_info(xe);
+	return ret;
 }
 
 static int enable_boot_survivability_mode(struct pci_dev *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	struct xe_survivability *survivability = &xe->survivability;
-	int ret = 0;
+	int ret;
 
 	ret = create_survivability_sysfs(pdev);
 	if (ret)
-		return ret;
+		goto failed;
 
 	/* Make sure xe_heci_gsc_init() and xe_i2c_probe() are aware of survivability */
 	survivability->mode = true;
@@ -335,19 +356,22 @@ static int enable_boot_survivability_mode(struct pci_dev *pdev)
 	if (survivability->fdo_mode) {
 		ret = xe_nvm_init(xe);
 		if (ret)
-			goto err;
+			goto failed;
 	}
 
 	ret = xe_i2c_probe(xe);
 	if (ret)
-		goto err;
+		goto failed;
 
-	dev_err(dev, "In Survivability Mode\n");
+	if (check_boot_failure(xe))
+		xe_log_err_fatal(pdev, SURVIVABILITY, 0, "Boot Mode enabled!\n");
+	else
+		xe_log_info(pdev, SURVIVABILITY, "Boot Mode enabled!\n");
 
 	return 0;
 
-err:
-	dev_err(dev, "Failed to enable Survivability Mode\n");
+failed:
+	xe_log_err_fatal(pdev, SURVIVABILITY, ret, "Failed to enable Boot Mode!\n");
 	survivability->mode = false;
 	return ret;
 }
@@ -412,21 +436,22 @@ void xe_survivability_mode_runtime_enable(struct xe_device *xe)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
 	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe) || xe->info.platform < XE_BATTLEMAGE) {
-		dev_err(&pdev->dev, "Runtime Survivability Mode not supported\n");
+		xe_log_err(xe, SURVIVABILITY, -EOPNOTSUPP, "Runtime Mode not supported!\n");
 		return;
 	}
 
 	populate_survivability_info(xe);
-
-	if (create_survivability_sysfs(pdev))
-		dev_err(&pdev->dev, "Failed to create survivability sysfs\n");
+	create_survivability_sysfs(pdev);
 
 	survivability->type = XE_SURVIVABILITY_TYPE_RUNTIME;
-	dev_err(&pdev->dev, "Runtime Survivability mode enabled\n");
+	xe_log_err(xe, SURVIVABILITY, 0, "Runtime Mode enabled!\n");
 
 	xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_VENDOR);
 	xe_device_declare_wedged(xe);
-	dev_err(&pdev->dev, "Firmware flash required, Please refer to the userspace documentation for more details!\n");
+
+	xe_log_err(xe, SURVIVABILITY, 0, "Firmware flash required!\n");
+	xe_info(xe, "Please refer to the userspace documentation for more details how to flash the firmware on %s!\n",
+		xe->info.platform_name);
 }
 
 /**
@@ -452,7 +477,7 @@ int xe_survivability_mode_boot_enable(struct xe_device *xe)
 	 * v2 supports survivability mode for critical errors
 	 */
 	if (survivability->version < 2  && survivability->boot_status == CRITICAL_FAILURE) {
-		log_survivability_info(pdev);
+		log_survivability_info(xe);
 		return -ENXIO;
 	}
 

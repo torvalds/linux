@@ -120,13 +120,13 @@ examples:
         clocks = <&rcc DCMIPP_K>;
 
         port {
-             endpoint {
-                   remote-endpoint = <&mipid02_2>;
-                   bus-width = <8>;
-                   hsync-active = <0>;
-                   vsync-active = <0>;
-                   pclk-sample = <0>;
-             };
+            endpoint {
+                remote-endpoint = <&mipid02_2>;
+                bus-width = <8>;
+                hsync-active = <0>;
+                vsync-active = <0>;
+                pclk-sample = <0>;
+            };
         };
     };
 

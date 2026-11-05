@@ -21,12 +21,6 @@ u32 adf_gen4_get_accel_mask(struct adf_hw_device_data *self)
 }
 EXPORT_SYMBOL_GPL(adf_gen4_get_accel_mask);
 
-u32 adf_gen4_get_num_accels(struct adf_hw_device_data *self)
-{
-	return ADF_GEN4_MAX_ACCELERATORS;
-}
-EXPORT_SYMBOL_GPL(adf_gen4_get_num_accels);
-
 u32 adf_gen4_get_num_aes(struct adf_hw_device_data *self)
 {
 	if (!self || !self->ae_mask)

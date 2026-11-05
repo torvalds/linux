@@ -325,7 +325,8 @@ struct dma_router {
  * @lock: protect between config and prepare transfer when driver have not
  *	  implemented callback device_prep_config_sg().
  * @chan_id: channel ID for sysfs
- * @dev: class device for sysfs
+ * @chan_dev: class channel device for sysfs, some device use it for per-channel
+ *            IOMMU mapping.
  * @name: backlink name for sysfs
  * @dbg_client_name: slave name for debugfs in format:
  *	dev_name(requester's dev):channel name, for example: "2b00000.mcasp:tx"
@@ -351,7 +352,14 @@ struct dma_chan {
 
 	/* sysfs */
 	int chan_id;
-	struct dma_chan_dev *dev;
+	union {
+		struct dma_chan_dev *chan_dev;
+		/*
+		 * Use chan_dev; dev will be removed once all users are
+		 * converted.
+		 */
+		struct dma_chan_dev *dev;
+	};
 	const char *name;
 #ifdef CONFIG_DEBUG_FS
 	char *dbg_client_name;
@@ -368,6 +376,26 @@ struct dma_chan {
 
 	void *private;
 };
+
+#define DMA_CHAN_ID_STATIC	BIT(30)
+
+/**
+ * dmaengine_set_static_chan_id - request an exact DMA engine channel ID
+ * @chan: DMA channel
+ * @id: channel ID, unique within the DMA device
+ *
+ * Drivers may call this after initializing @chan and before registering its
+ * DMA device. The dmaengine core reserves @id from the device IDA instead of
+ * assigning the next available ID.
+ */
+static inline void dmaengine_set_static_chan_id(struct dma_chan *chan,
+						unsigned int id)
+{
+	if (WARN_ON_ONCE(id >= DMA_CHAN_ID_STATIC))
+		return;
+
+	chan->chan_id = DMA_CHAN_ID_STATIC | id;
+}
 
 /**
  * struct dma_chan_dev - relate sysfs device node to backing channel device
@@ -532,7 +560,7 @@ struct dma_slave_caps {
 
 static inline const char *dma_chan_name(struct dma_chan *chan)
 {
-	return dev_name(&chan->dev->device);
+	return dev_name(&chan->chan_dev->device);
 }
 
 /**
@@ -981,12 +1009,6 @@ static inline int dmaengine_slave_config(struct dma_chan *chan,
 	return -ENOSYS;
 }
 
-static inline bool is_slave_direction(enum dma_transfer_direction direction)
-{
-	return (direction == DMA_MEM_TO_DEV) || (direction == DMA_DEV_TO_MEM) ||
-	       (direction == DMA_DEV_TO_DEV);
-}
-
 static inline struct dma_async_tx_descriptor *
 dmaengine_prep_config_single(struct dma_chan *chan, dma_addr_t buf, size_t len,
 			     enum dma_transfer_direction dir,
@@ -1224,6 +1246,137 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy(
 						    len, flags);
 }
 
+/**
+ * dmaengine_get_max_xor - get the maximum number of XOR sources for a channel
+ * @chan: DMA channel
+ *
+ * Returns the maximum number of source buffers supported by the XOR engine
+ * behind @chan, or 0 if the channel does not support XOR operations.
+ */
+static inline unsigned int dmaengine_get_max_xor(struct dma_chan *chan)
+{
+	if (!chan || !chan->device)
+		return 0;
+
+	return chan->device->max_xor;
+}
+
+/**
+ * dmaengine_prep_dma_xor - prepare a DMA XOR operation
+ * @chan: the channel to use for this operation
+ * @dst: destination buffer address
+ * @src: array of source buffer addresses
+ * @src_cnt: number of source buffers
+ * @len: length in bytes of each source and destination buffer
+ * @flags: DMA engine flags (e.g. DMA_PREP_INTERRUPT)
+ *
+ * Prepare an XOR parity generation transaction.  The engine computes:
+ *   dst = src[0] XOR src[1] XOR ... XOR src[src_cnt - 1]
+ *
+ * Returns a descriptor on success, or NULL if the channel does not support
+ * this operation or the request could not be queued.
+ */
+static inline struct dma_async_tx_descriptor *
+dmaengine_prep_dma_xor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
+		       unsigned int src_cnt, size_t len, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_xor)
+		return NULL;
+
+	return chan->device->device_prep_dma_xor(chan, dst, src,
+						 src_cnt, len, flags);
+}
+
+/**
+ * dmaengine_prep_dma_xor_val - prepare a DMA XOR zero-sum validation operation
+ * @chan: the channel to use for this operation
+ * @src: array of source buffer addresses
+ * @src_cnt: number of source buffers
+ * @len: length in bytes of each source buffer
+ * @result: output flag set to SUM_CHECK_P_RESULT if the XOR of all sources
+ *          is non-zero (i.e. parity error), cleared otherwise
+ * @flags: DMA engine flags (e.g. DMA_PREP_INTERRUPT)
+ *
+ * Prepare an XOR zero-sum validation transaction.  The engine XORs all
+ * source buffers and checks whether the result is zero.  The outcome is
+ * written to @result on completion.
+ *
+ * Returns a descriptor on success, or NULL if the channel does not support
+ * this operation or the request could not be queued.
+ */
+static inline struct dma_async_tx_descriptor *
+dmaengine_prep_dma_xor_val(struct dma_chan *chan, dma_addr_t *src,
+			   unsigned int src_cnt, size_t len,
+			   enum sum_check_flags *result, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_xor_val)
+		return NULL;
+
+	return chan->device->device_prep_dma_xor_val(chan, src, src_cnt,
+						     len, result, flags);
+}
+
+/**
+ * dmaengine_prep_dma_pq - prepare a DMA PQ (RAID-6 P+Q) operation
+ * @chan: the channel to use for this operation
+ * @dst: array of two destination addresses: dst[0] for P, dst[1] for Q
+ * @src: array of source buffer addresses
+ * @src_cnt: number of source buffers
+ * @scf: array of scaling coefficients, one per source buffer
+ * @len: length in bytes of each source and destination buffer
+ * @flags: DMA engine flags (e.g. DMA_PREP_INTERRUPT)
+ *
+ * Prepare a P+Q parity generation transaction.  The engine computes:
+ *   P = XOR of all source buffers
+ *   Q = Galois field sum of (scf[i] * src[i]) over all sources
+ *
+ * Returns a descriptor on success, or NULL if the channel does not support
+ * this operation or the request could not be queued.
+ */
+static inline struct dma_async_tx_descriptor *
+dmaengine_prep_dma_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
+		      unsigned int src_cnt, const unsigned char *scf,
+		      size_t len, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_pq)
+		return NULL;
+
+	return chan->device->device_prep_dma_pq(chan, dst, src,
+						src_cnt, scf, len, flags);
+}
+
+/**
+ * dmaengine_prep_dma_pq_val - prepare a DMA PQ validation operation
+ * @chan: the channel to use for this operation
+ * @pq: array of two addresses holding existing P and Q parity buffers
+ * @src: array of source buffer addresses
+ * @src_cnt: number of source buffers
+ * @scf: array of scaling coefficients, one per source buffer
+ * @len: length in bytes of each buffer
+ * @pqres: output flags indicating P and/or Q check results (SUM_CHECK_P_VALID,
+ *         SUM_CHECK_Q_VALID)
+ * @flags: DMA engine flags (e.g. DMA_PREP_INTERRUPT)
+ *
+ * Prepare a PQ validation transaction.  The engine recomputes P and Q from the
+ * source buffers and compares them against the existing parity stored at @pq.
+ * The result of each comparison is reported through @pqres.
+ *
+ * Returns a descriptor on success, or NULL if the channel does not support
+ * this operation or the request could not be queued.
+ */
+static inline struct dma_async_tx_descriptor *
+dmaengine_prep_dma_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
+			  unsigned int src_cnt, const unsigned char *scf,
+			  size_t len, enum sum_check_flags *pqres, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_pq_val)
+		return NULL;
+
+	return chan->device->device_prep_dma_pq_val(chan, pq, src,
+						    src_cnt, scf, len,
+						    pqres, flags);
+}
+
 static inline bool dmaengine_is_metadata_mode_supported(struct dma_chan *chan,
 		enum dma_desc_metadata_mode mode)
 {
@@ -1413,6 +1566,130 @@ static inline bool is_dma_fill_aligned(struct dma_device *dev, size_t off1,
 	return dmaengine_check_align(dev->fill_align, off1, off2, len);
 }
 
+/**
+ * dmaengine_get_copy_align - get copy alignment requirement of a DMA channel
+ * @chan: DMA channel
+ *
+ * Return the copy alignment requirement of @chan as a power-of-2 exponent.
+ */
+static inline enum dmaengine_alignment
+dmaengine_get_copy_align(struct dma_chan *chan)
+{
+	return chan->device->copy_align;
+}
+
+/**
+ * dmaengine_get_xor_align - get xor alignment requirement of a DMA channel
+ * @chan: DMA channel
+ *
+ * Return the xor alignment requirement of @chan as a power-of-2 exponent.
+ */
+static inline enum dmaengine_alignment
+dmaengine_get_xor_align(struct dma_chan *chan)
+{
+	return chan->device->xor_align;
+}
+
+/**
+ * dmaengine_get_pq_align - get pq alignment requirement of a DMA channel
+ * @chan: DMA channel
+ *
+ * Return the pq alignment requirement of @chan as a power-of-2 exponent.
+ */
+static inline enum dmaengine_alignment
+dmaengine_get_pq_align(struct dma_chan *chan)
+{
+	return chan->device->pq_align;
+}
+
+/**
+ * dmaengine_get_fill_align - get fill alignment requirement of a DMA channel
+ * @chan: DMA channel
+ *
+ * Return the fill alignment requirement of @chan as a power-of-2 exponent.
+ */
+static inline enum dmaengine_alignment
+dmaengine_get_fill_align(struct dma_chan *chan)
+{
+	return chan->device->fill_align;
+}
+
+/**
+ * dmaengine_get_cap_mask - get capability mask of a DMA channel
+ * @chan: DMA channel
+ *
+ * Return a pointer to the capability mask of the DMA device backing @chan.
+ */
+static inline const dma_cap_mask_t *
+dmaengine_get_cap_mask(struct dma_chan *chan)
+{
+	return &chan->device->cap_mask;
+}
+
+/**
+ * dmaengine_is_copy_aligned - test copy alignment
+ * @chan: DMA channel
+ * @off1: first buffer offset
+ * @off2: second buffer offset
+ * @len: transfer length
+ *
+ * Return true if off1, off2 and len satisfy the copy alignment requirement of
+ * the DMA channel, false otherwise.
+ */
+static inline bool dmaengine_is_copy_aligned(struct dma_chan *chan, size_t off1,
+					     size_t off2, size_t len)
+{
+	return dmaengine_check_align(chan->device->copy_align, off1, off2, len);
+}
+
+/**
+ * dmaengine_is_xor_aligned - test xor alignment
+ * @chan: DMA channel
+ * @off1: first buffer offset
+ * @off2: second buffer offset
+ * @len: transfer length
+ *
+ * Return true if off1, off2 and len satisfy the xor alignment requirement of
+ * the DMA channel, false otherwise.
+ */
+static inline bool dmaengine_is_xor_aligned(struct dma_chan *chan, size_t off1,
+					    size_t off2, size_t len)
+{
+	return dmaengine_check_align(chan->device->xor_align, off1, off2, len);
+}
+
+/**
+ * dmaengine_is_pq_aligned - test pq alignment
+ * @chan: DMA channel
+ * @off1: first buffer offset
+ * @off2: second buffer offset
+ * @len: transfer length
+ *
+ * Return true if off1, off2 and len satisfy the pq alignment requirement of
+ * the DMA channel, false otherwise.
+ */
+static inline bool dmaengine_is_pq_aligned(struct dma_chan *chan, size_t off1,
+					   size_t off2, size_t len)
+{
+	return dmaengine_check_align(chan->device->pq_align, off1, off2, len);
+}
+
+/**
+ * dmaengine_is_fill_aligned - test fill alignment
+ * @chan: DMA channel
+ * @off1: first buffer offset
+ * @off2: second buffer offset
+ * @len: transfer length
+ *
+ * Return true if off1, off2 and len satisfy the fill alignment requirement of
+ * the DMA channel, false otherwise.
+ */
+static inline bool dmaengine_is_fill_aligned(struct dma_chan *chan, size_t off1,
+					     size_t off2, size_t len)
+{
+	return dmaengine_check_align(chan->device->fill_align, off1, off2, len);
+}
+
 static inline void
 dma_set_maxpq(struct dma_device *dma, int maxpq, int has_pq_continue)
 {
@@ -1574,8 +1851,39 @@ __dma_has_cap(enum dma_transaction_type tx_type, dma_cap_mask_t *srcp)
 	return test_bit(tx_type, srcp->bits);
 }
 
+/**
+ * dmaengine_has_cap - test whether a DMA channel supports a transaction type
+ * @chan: DMA channel
+ * @tx_type: transaction type to test
+ *
+ * Return true if @chan supports @tx_type, false otherwise.
+ */
+static inline bool
+dmaengine_has_cap(struct dma_chan *chan, enum dma_transaction_type tx_type)
+{
+	return dma_has_cap(tx_type, chan->device->cap_mask);
+}
+
 #define for_each_dma_cap_mask(cap, mask) \
 	for_each_set_bit(cap, mask.bits, DMA_TX_TYPE_END)
+
+/**
+ * dmaengine_prep_dma_interrupt() - Prepare a DMA interrupt descriptor.
+ * @chan: The channel to be used for this descriptor
+ * @flags: DMA engine flags
+ *
+ * Returns a descriptor for an interrupt transaction, or NULL if the
+ * channel does not support DMA_INTERRUPT.
+ */
+static inline struct dma_async_tx_descriptor *
+dmaengine_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_interrupt ||
+	    !dma_has_cap(DMA_INTERRUPT, chan->device->cap_mask))
+		return NULL;
+
+	return chan->device->device_prep_dma_interrupt(chan, flags);
+}
 
 /**
  * dma_async_issue_pending - flush pending transactions to HW
@@ -1746,16 +2054,33 @@ static inline int dmaengine_desc_free(struct dma_async_tx_descriptor *desc)
 	return desc->desc_free(desc);
 }
 
+/**
+ * dmaengine_desc_set_callback - set the callback, callback_result and
+ *                               parameter on a descriptor
+ * @tx: the descriptor to set the callback on
+ * @cb: the plain completion callback, or NULL
+ * @cb_result: the result-bearing completion callback, or NULL
+ * @cb_param: the parameter to pass to the callback
+ *
+ * Sets the completion callbacks and their shared parameter on a DMA
+ * transaction descriptor. Use this helper instead of assigning the fields
+ * directly to ensure all three related fields are updated consistently.
+ * Only one of @cb and @cb_result should be non-NULL; if both are provided
+ * @cb_result takes precedence in drivers that support it.
+ */
+static inline void
+dmaengine_desc_set_callback(struct dma_async_tx_descriptor *tx,
+			    dma_async_tx_callback cb,
+			    dma_async_tx_callback_result cb_result,
+			    void *cb_param)
+{
+	tx->callback = cb;
+	tx->callback_result = cb_result;
+	tx->callback_param = cb_param;
+}
+
 /* --- DMA device --- */
 
-int dma_async_device_register(struct dma_device *device);
-int dmaenginem_async_device_register(struct dma_device *device);
-void dma_async_device_unregister(struct dma_device *device);
-int dma_async_device_channel_register(struct dma_device *device,
-				      struct dma_chan *chan,
-				      const char *name);
-void dma_async_device_channel_unregister(struct dma_device *device,
-					 struct dma_chan *chan);
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
 #define dma_request_channel(mask, x, y) \
 	__dma_request_channel(&(mask), x, y, NULL)
@@ -1777,29 +2102,36 @@ static inline struct dma_chan
 	return dma_request_channel(mask, fn, fn_param);
 }
 
-static inline char *
-dmaengine_get_direction_text(enum dma_transfer_direction dir)
+static inline struct device *dmaengine_chan_dev(struct dma_chan *chan)
 {
-	switch (dir) {
-	case DMA_DEV_TO_MEM:
-		return "DEV_TO_MEM";
-	case DMA_MEM_TO_DEV:
-		return "MEM_TO_DEV";
-	case DMA_MEM_TO_MEM:
-		return "MEM_TO_MEM";
-	case DMA_DEV_TO_DEV:
-		return "DEV_TO_DEV";
-	default:
-		return "invalid";
-	}
+	return &chan->chan_dev->device;
 }
 
+/*
+ * dmaengine_get_provider_device() - Get DMA engine provider device. Typical
+ *				     use is to find a DMA channel by filter.
+ * @chan: DMA channel
+ *
+ * Return: Pointer to the DMA engine provider device.
+ */
+static inline struct device *dmaengine_get_provider_device(struct dma_chan *chan)
+{
+	return chan->device->dev;
+}
+
+/*
+ * dmaengine_get_dma_device() - Get DMA device used for DMA mapping. Some
+ *				DMA engines provide per-channel iommu mapping.
+ * @chan: DMA channel
+ *
+ * Return: Pointer to the device used for DMA mapping.
+ */
 static inline struct device *dmaengine_get_dma_device(struct dma_chan *chan)
 {
-	if (chan->dev->chan_dma_dev)
-		return &chan->dev->device;
+	if (chan->chan_dev->chan_dma_dev)
+		return dmaengine_chan_dev(chan);
 
-	return chan->device->dev;
+	return dmaengine_get_provider_device(chan);
 }
 
 #endif /* DMAENGINE_H */

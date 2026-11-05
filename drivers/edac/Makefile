@@ -35,7 +35,7 @@ obj-$(CONFIG_EDAC_I7300)		+= i7300_edac.o
 obj-$(CONFIG_EDAC_I7CORE)		+= i7core_edac.o
 obj-$(CONFIG_EDAC_SBRIDGE)		+= sb_edac.o
 obj-$(CONFIG_EDAC_PND2)			+= pnd2_edac.o
-obj-$(CONFIG_EDAC_IGEN6)			+= igen6_edac.o
+obj-$(CONFIG_EDAC_IGEN6)		+= igen6_edac.o
 obj-$(CONFIG_EDAC_E7XXX)		+= e7xxx_edac.o
 obj-$(CONFIG_EDAC_E752X)		+= e752x_edac.o
 obj-$(CONFIG_EDAC_I82875P)		+= i82875p_edac.o
@@ -66,6 +66,8 @@ obj-$(CONFIG_EDAC_I10NM)		+= i10nm_edac.o skx_edac_common.o
 imh_edac-y				:= imh_base.o
 obj-$(CONFIG_EDAC_IMH)			+= imh_edac.o skx_edac_common.o
 
+obj-$(CONFIG_EDAC_INTEL_BFF_RESET)	+= intel-bff.o
+
 obj-$(CONFIG_EDAC_HIGHBANK_MC)		+= highbank_mc_edac.o
 obj-$(CONFIG_EDAC_HIGHBANK_L2)		+= highbank_l2_edac.o
 
@@ -91,3 +93,4 @@ obj-$(CONFIG_EDAC_VERSAL)		+= versal_edac.o
 obj-$(CONFIG_EDAC_LOONGSON)		+= loongson_edac.o
 obj-$(CONFIG_EDAC_VERSALNET)		+= versalnet_edac.o
 obj-$(CONFIG_EDAC_CORTEX_A72)		+= a72_edac.o
+obj-$(CONFIG_EDAC_DUMMY)		+= dummy_edac.o

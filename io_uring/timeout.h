@@ -11,6 +11,8 @@ struct io_timeout_data {
 __cold void io_flush_timeouts(struct io_ring_ctx *ctx);
 struct io_cancel_data;
 int io_timeout_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd);
+__cold unsigned int io_timeouts_armed(struct io_ring_ctx *ctx,
+				      struct io_uring_task *tctx);
 __cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			     bool cancel_all);
 void io_queue_linked_timeout(struct io_kiocb *req);

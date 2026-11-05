@@ -250,11 +250,6 @@ struct ep93xx_edma_data {
 	size_t	num_channels;
 };
 
-static inline struct device *chan2dev(struct ep93xx_dma_chan *edmac)
-{
-	return &edmac->chan.dev->device;
-}
-
 static struct ep93xx_dma_chan *to_ep93xx_dma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct ep93xx_dma_chan, chan);
@@ -415,7 +410,7 @@ static void m2p_hw_shutdown(struct ep93xx_dma_chan *edmac)
 	m2p_set_control(edmac, 0);
 
 	while (m2p_channel_state(edmac) != M2P_STATE_IDLE)
-		dev_warn(chan2dev(edmac), "M2P: Not yet IDLE\n");
+		dev_warn(dmaengine_chan_dev(&edmac->chan), "M2P: Not yet IDLE\n");
 }
 
 static void m2p_fill_desc(struct ep93xx_dma_chan *edmac)
@@ -425,7 +420,7 @@ static void m2p_fill_desc(struct ep93xx_dma_chan *edmac)
 
 	desc = ep93xx_dma_get_active(edmac);
 	if (!desc) {
-		dev_warn(chan2dev(edmac), "M2P: empty descriptor list\n");
+		dev_warn(dmaengine_chan_dev(&edmac->chan), "M2P: empty descriptor list\n");
 		return;
 	}
 
@@ -479,7 +474,7 @@ static int m2p_hw_interrupt(struct ep93xx_dma_chan *edmac)
 		 * Revisit this when there is a mechanism to report back the
 		 * errors.
 		 */
-		dev_err(chan2dev(edmac),
+		dev_err(dmaengine_chan_dev(&edmac->chan),
 			"DMA transfer failed! Details:\n"
 			"\tcookie	: %d\n"
 			"\tsrc_addr	: 0x%08x\n"
@@ -586,7 +581,7 @@ static void m2m_fill_desc(struct ep93xx_dma_chan *edmac)
 
 	desc = ep93xx_dma_get_active(edmac);
 	if (!desc) {
-		dev_warn(chan2dev(edmac), "M2M: empty descriptor list\n");
+		dev_warn(dmaengine_chan_dev(&edmac->chan), "M2M: empty descriptor list\n");
 		return;
 	}
 
@@ -849,7 +844,7 @@ static irqreturn_t ep93xx_dma_interrupt(int irq, void *dev_id)
 
 	desc = ep93xx_dma_get_active(edmac);
 	if (!desc) {
-		dev_warn(chan2dev(edmac),
+		dev_warn(dmaengine_chan_dev(&edmac->chan),
 			 "got interrupt while active list is empty\n");
 		spin_unlock(&edmac->lock);
 		return IRQ_NONE;
@@ -867,7 +862,7 @@ static irqreturn_t ep93xx_dma_interrupt(int irq, void *dev_id)
 		break;
 
 	default:
-		dev_warn(chan2dev(edmac), "unknown interrupt!\n");
+		dev_warn(dmaengine_chan_dev(&edmac->chan), "unknown interrupt!\n");
 		ret = IRQ_NONE;
 		break;
 	}
@@ -967,7 +962,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 
 		desc = kzalloc_obj(*desc);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "not enough descriptors\n");
+			dev_warn(dmaengine_chan_dev(&edmac->chan), "not enough descriptors\n");
 			break;
 		}
 
@@ -1044,7 +1039,7 @@ ep93xx_dma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 	for (offset = 0; offset < len; offset += bytes) {
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
+			dev_warn(dmaengine_chan_dev(&edmac->chan), "couldn't get descriptor\n");
 			goto fail;
 		}
 
@@ -1091,13 +1086,13 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	int i;
 
 	if (!edmac->edma->m2m && dir != ep93xx_dma_chan_direction(chan)) {
-		dev_warn(chan2dev(edmac),
+		dev_warn(dmaengine_chan_dev(&edmac->chan),
 			 "channel was configured with different direction\n");
 		return NULL;
 	}
 
 	if (test_bit(EP93XX_DMA_IS_CYCLIC, &edmac->flags)) {
-		dev_warn(chan2dev(edmac),
+		dev_warn(dmaengine_chan_dev(&edmac->chan),
 			 "channel is already used for cyclic transfers\n");
 		return NULL;
 	}
@@ -1109,14 +1104,14 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		size_t len = sg_dma_len(sg);
 
 		if (len > DMA_MAX_CHAN_BYTES) {
-			dev_warn(chan2dev(edmac), "too big transfer size %zu\n",
+			dev_warn(dmaengine_chan_dev(&edmac->chan), "too big transfer size %zu\n",
 				 len);
 			goto fail;
 		}
 
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
+			dev_warn(dmaengine_chan_dev(&edmac->chan), "couldn't get descriptor\n");
 			goto fail;
 		}
 
@@ -1172,19 +1167,19 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	size_t offset = 0;
 
 	if (!edmac->edma->m2m && dir != ep93xx_dma_chan_direction(chan)) {
-		dev_warn(chan2dev(edmac),
+		dev_warn(dmaengine_chan_dev(&edmac->chan),
 			 "channel was configured with different direction\n");
 		return NULL;
 	}
 
 	if (test_and_set_bit(EP93XX_DMA_IS_CYCLIC, &edmac->flags)) {
-		dev_warn(chan2dev(edmac),
+		dev_warn(dmaengine_chan_dev(&edmac->chan),
 			 "channel is already used for cyclic transfers\n");
 		return NULL;
 	}
 
 	if (period_len > DMA_MAX_CHAN_BYTES) {
-		dev_warn(chan2dev(edmac), "too big period length %zu\n",
+		dev_warn(dmaengine_chan_dev(&edmac->chan), "too big period length %zu\n",
 			 period_len);
 		return NULL;
 	}
@@ -1196,7 +1191,7 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	for (offset = 0; offset < buf_len; offset += period_len) {
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
+			dev_warn(dmaengine_chan_dev(&edmac->chan), "couldn't get descriptor\n");
 			goto fail;
 		}
 

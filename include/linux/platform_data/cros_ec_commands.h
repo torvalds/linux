@@ -1344,6 +1344,26 @@ enum ec_feature_code {
 	 * The EC supports UCSI PPM.
 	 */
 	EC_FEATURE_UCSI_PPM = 54,
+	/*
+	 * The EC supports Strauss keyboard.
+	 */
+	EC_FEATURE_STRAUSS = 55,
+	/*
+	 * The EC supports PoE.
+	 */
+	EC_FEATURE_POE = 56,
+	/*
+	 * The EC supports a hybrid boost charger
+	 */
+	EC_FEATURE_CHARGER_HYBRID_POWER_BOOST = 57,
+	/*
+	 * Support signaling new console logs via host event
+	 */
+	EC_FEATURE_CONSOLE_LOG_EVENT = 58,
+	/*
+	 * The EC supports power monitoring
+	 */
+	EC_FEATURE_PWRMON = 59,
 };
 
 #define EC_FEATURE_MASK_0(event_code) BIT(event_code % 32)
@@ -3516,6 +3536,9 @@ enum ec_mkbp_event {
 	/* Peripheral device charger event */
 	EC_MKBP_EVENT_PCHG = 12,
 
+	/* Power monitor telemetry event */
+	EC_MKBP_EVENT_PWRMON = 13,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -3599,6 +3622,12 @@ union __ec_align_offset1 ec_response_get_next_data_v3 {
 	uint32_t cec_events;
 
 	uint8_t cec_message[16];
+
+	struct __ec_todo_packed {
+		int64_t value;
+		uint32_t samples;
+		uint8_t channel_id;
+	} pwrmon_data;
 };
 BUILD_ASSERT(sizeof(union ec_response_get_next_data_v3) == 18);
 
@@ -6588,6 +6617,49 @@ struct ec_params_charger_control {
 struct ec_params_usb_pd_mux_ack {
 	uint8_t port; /* USB-C port number */
 } __ec_align1;
+
+/**
+ * Power monitoring. Used to read power consumptions on rails
+ */
+#define EC_CMD_PWRMON 0x0608
+
+enum ec_pwrmon_cmd {
+	EC_PWRMON_GET_CHANNEL_COUNT = 0,
+	EC_PWRMON_DUMP_INFO = 1,
+	EC_PWRMON_SET_RATE = 2,
+	EC_PWRMON_GET_RATE = 3,
+	EC_PWRMON_START = 4,
+	EC_PWRMON_STOP = 5,
+	EC_PWRMON_LATCH = 6,
+};
+
+struct ec_params_pwrmon {
+	uint8_t cmd;
+	union {
+		uint16_t set_rate;
+		uint8_t channel_id;
+	} __ec_align2;
+
+	/*
+	 * The following commands have no args:
+	 *
+	 * start, stop, latch
+	 *
+	 */
+} __ec_align4;
+
+struct pwrmon_dump_info {
+	uint8_t channel_id;
+	char channel_name[32];
+} __ec_align4;
+
+struct ec_response_pwrmon {
+	union {
+		uint16_t sample_rate;
+		uint8_t channel_count;
+		struct pwrmon_dump_info dump_info;
+	} __ec_align4;
+} __ec_align4;
 
 /*****************************************************************************/
 /*

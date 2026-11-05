@@ -1157,7 +1157,7 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
-	.reset = drm_atomic_helper_plane_reset,
+	.atomic_create_state = drm_atomic_helper_plane_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.format_mod_supported = rockchip_mod_supported,
@@ -1656,17 +1656,17 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(s);
 }
 
-static void vop_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *vop_crtc_create_state(struct drm_crtc *crtc)
 {
-	struct rockchip_crtc_state *crtc_state = kzalloc_obj(*crtc_state);
+	struct rockchip_crtc_state *crtc_state;
 
-	if (crtc->state)
-		vop_crtc_destroy_state(crtc, crtc->state);
+	crtc_state = kzalloc_obj(*crtc_state);
+	if (!crtc_state)
+		return ERR_PTR(-ENOMEM);
 
-	if (crtc_state)
-		__drm_atomic_helper_crtc_reset(crtc, &crtc_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_state_init(&crtc_state->base, crtc);
+
+	return &crtc_state->base;
 }
 
 #ifdef CONFIG_DRM_ANALOGIX_DP
@@ -1738,7 +1738,7 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = drm_crtc_cleanup,
-	.reset = vop_crtc_reset,
+	.atomic_create_state = vop_crtc_create_state,
 	.atomic_duplicate_state = vop_crtc_duplicate_state,
 	.atomic_destroy_state = vop_crtc_destroy_state,
 	.enable_vblank = vop_crtc_enable_vblank,

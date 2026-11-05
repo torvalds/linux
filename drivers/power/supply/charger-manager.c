@@ -904,7 +904,7 @@ static bool cm_setup_timer(void)
 }
 
 /**
- * charger_extcon_work - enable/diable charger according to the state
+ * charger_extcon_work - enable/disable charger according to the state
  *			of charger cable
  *
  * @work: work_struct of the function charger_extcon_work.

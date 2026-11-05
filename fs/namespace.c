@@ -111,7 +111,7 @@ struct mount_kattr {
 	unsigned int lookup_flags;
 	enum mount_kattr_flags_t kflags;
 	struct user_namespace *mnt_userns;
-	struct mnt_idmap *mnt_idmap;
+	const struct mnt_idmap *mnt_idmap;
 };
 
 /* /sys/fs */
@@ -297,7 +297,11 @@ int mnt_get_count(struct mount *mnt)
 	/* puts first, so a put counted here has its get counted below */
 	for_each_possible_cpu(cpu)
 		puts += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_puts;
-	smp_mb();	/* pairs with the smp_wmb() in mntput_no_expire() */
+	/*
+	 * Pairs with the smp_wmb() in mntput_no_expire() and with the
+	 * smp_mb() in __legitimize_mnt().
+	 */
+	smp_mb();
 	for_each_possible_cpu(cpu)
 		gets += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_gets;
 
@@ -782,7 +786,7 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 		return 0;
 	mnt = real_mount(bastard);
 	mnt_inc_count(mnt);
-	smp_mb();	/* see mntput_no_expire_slowpath() and do_umount() */
+	smp_mb();	/* pairs with the smp_mb() in mnt_get_count() */
 	if (likely(!read_seqretry(&mount_lock, seq)))
 		return 0;
 	lock_mount_hash();
@@ -1419,11 +1423,6 @@ static void noinline mntput_no_expire_slowpath(struct mount *mnt)
 
 	VFS_BUG_ON(mnt->mnt_ns);
 	lock_mount_hash();
-	/*
-	 * make sure that if __legitimize_mnt() has not seen us grab
-	 * mount_lock, we'll see their refcount increment here.
-	 */
-	smp_mb();
 	mnt_dec_count(mnt);
 	count = mnt_get_count(mnt);
 	if (count != 0) {
@@ -2006,7 +2005,6 @@ static int do_umount(struct mount *mnt, int flags)
 		umount_tree(mnt, UMOUNT_PROPAGATE);
 		retval = 0;
 	} else {
-		smp_mb(); // paired with __legitimize_mnt()
 		shrink_submounts(mnt);
 		retval = -EBUSY;
 		if (!propagate_mount_busy(mnt, 2)) {
@@ -2254,6 +2252,11 @@ struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
 			}
 			if (!(flag & CL_COPY_MNT_NS_FILE) &&
 			    is_mnt_ns_file(src_mnt->mnt.mnt_root)) {
+				if (src_mnt->mnt.mnt_flags & MNT_LOCKED) {
+					/* Both a mount namespace file and locked. */
+					dst_mnt = ERR_PTR(-EPERM);
+					goto out;
+				}
 				src_mnt = skip_mnt_tree(src_mnt);
 				continue;
 			}
@@ -3165,7 +3168,8 @@ static struct mnt_namespace *get_detached_copy(const struct path *path, unsigned
 			ns->seq_origin = src_mnt_ns->ns.ns_id;
 	}
 
-	mnt = __do_loopback(path, (flags & AT_RECURSIVE), CL_COPY_MNT_NS_FILE);
+	mnt = __do_loopback(path, (flags & AT_RECURSIVE),
+			    (flags & OPEN_TREE_DROP_MNTNS_MOUNTS) ? 0 : CL_COPY_MNT_NS_FILE);
 	if (IS_ERR(mnt)) {
 		emptied_ns = ns;
 		return ERR_CAST(mnt);
@@ -3317,7 +3321,18 @@ static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned
 
 	if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_RECURSIVE |
 		      AT_SYMLINK_NOFOLLOW | OPEN_TREE_CLONE |
-		      OPEN_TREE_CLOEXEC | OPEN_TREE_NAMESPACE))
+		      OPEN_TREE_CLOEXEC | OPEN_TREE_NAMESPACE |
+		      OPEN_TREE_DROP_MNTNS_MOUNTS))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * Only meaningful when a tree is copied recursively: a non-recursive
+	 * clone has no submounts to drop.  OPEN_TREE_NAMESPACE never copies
+	 * pinned mount namespaces, so there the flag is a no-op.
+	 */
+	if ((flags & OPEN_TREE_DROP_MNTNS_MOUNTS) &&
+	    (!(flags & AT_RECURSIVE) ||
+	     !(flags & (OPEN_TREE_CLONE | OPEN_TREE_NAMESPACE))))
 		return ERR_PTR(-EINVAL);
 
 	if ((flags & (AT_RECURSIVE | OPEN_TREE_CLONE | OPEN_TREE_NAMESPACE)) ==
@@ -3649,8 +3664,9 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * @mnt_to:   mount under which to mount
  * @mp:   mountpoint of @mnt_to
  *
- * - Make sure that the caller can unmount the topmost mount ensuring
- *   that the caller could reveal the underlying mountpoint.
+ * - Make sure that @mnt_from can take over the lock of @mnt_to. A
+ *   mount of a mount namespace file is left out of a copy of the tree
+ *   and can't.
  * - Ensure that nothing has been mounted on top of @mnt_from before we
  *   grabbed @namespace_sem to avoid creating pointless shadow mounts.
  * - Prevent mounting beneath a mount if the propagation relationship
@@ -3665,6 +3681,15 @@ static int can_move_mount_beneath(const struct mount *mnt_from,
 				  struct pinned_mountpoint *mp)
 {
 	struct mount *parent_mnt_to = mnt_to->mnt_parent;
+
+	/*
+	 * @mnt_from takes over the lock of @mnt_to. copy_tree() leaves a
+	 * mount of a mount namespace file out of every copy made without
+	 * CL_COPY_MNT_NS_FILE, together with what is mounted on it, so it
+	 * can't keep anything hidden.
+	 */
+	if (IS_MNT_LOCKED(mnt_to) && is_mnt_ns_file(mnt_from->mnt.mnt_root))
+		return -EINVAL;
 
 	/* Avoid creating shadow mounts during mount propagation. */
 	if (mnt_from->overmount)
@@ -4259,7 +4284,7 @@ int path_mount(const char *dev_name, const struct path *path,
 	if (flags & SB_MANDLOCK)
 		warn_mandlock();
 
-	/* Default to relatime unless overriden */
+	/* Default to relatime unless overridden */
 	if (!(flags & MS_NOATIME))
 		mnt_flags |= MNT_RELATIME;
 
@@ -4337,8 +4362,7 @@ static void dec_mnt_namespaces(struct ucounts *ucounts)
 
 static void free_mnt_ns(struct mnt_namespace *ns)
 {
-	if (!is_anon_ns(ns))
-		ns_common_free(ns);
+	ns_common_free(ns);
 	dec_mnt_namespaces(ns->ucounts);
 	/* the last active reference is gone, no mark can show up anymore */
 	fsnotify_mntns_delete(ns);
@@ -4392,8 +4416,6 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 	struct mount *old;
 	struct mount *new;
 	int copy_flags;
-
-	BUG_ON(!ns);
 
 	if (likely(!(flags & CLONE_NEWNS))) {
 		get_mnt_ns(ns);
@@ -4690,16 +4712,16 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 
 	FD_PREPARE(fdf, (flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0,
 		   dentry_open(&new_path, O_PATH, fc->cred));
-	if (fdf.err) {
+	if (fdf->fd < 0) {
 		dissolve_on_fput(no_free_ptr(new_path.mnt));
-		return fdf.err;
+		return fdf->fd;
 	}
 
 	/*
 	 * Attach to an apparent O_PATH fd with a note that we
 	 * need to unmount it, not just simply put it.
 	 */
-	fd_prepare_file(fdf)->f_mode |= FMODE_NEED_UNMOUNT;
+	fdf->file->f_mode |= FMODE_NEED_UNMOUNT;
 	return fd_publish(fdf);
 }
 
@@ -5045,7 +5067,7 @@ static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct mnt_idmap *old_idmap;
+	const struct mnt_idmap *old_idmap;
 
 	if (!kattr->mnt_idmap)
 		return;
@@ -5088,7 +5110,7 @@ static int do_mount_setattr(const struct path *path, struct mount_kattr *kattr)
 		return -EINVAL;
 
 	if (kattr->mnt_userns) {
-		struct mnt_idmap *mnt_idmap;
+		const struct mnt_idmap *mnt_idmap;
 
 		mnt_idmap = alloc_mnt_idmap(kattr->mnt_userns);
 		if (IS_ERR(mnt_idmap))
@@ -5351,12 +5373,12 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		return -EINVAL;
 
 	FD_PREPARE(fdf, flags, vfs_open_tree(dfd, filename, flags));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	if (uattr) {
 		struct mount_kattr kattr = {};
-		struct file *file = fd_prepare_file(fdf);
+		struct file *file = fdf->file;
 		int ret;
 
 		if (flags & OPEN_TREE_CLONE)
@@ -5399,7 +5421,7 @@ struct kstatmount {
 	struct statmount __user *buf;
 	size_t bufsize;
 	struct vfsmount *mnt;
-	struct mnt_idmap *idmap;
+	const struct mnt_idmap *idmap;
 	u64 mask;
 	struct path root;
 	struct seq_file seq;
@@ -6045,7 +6067,8 @@ static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 	ks->bufsize = bufsize;
 
 	if (ks->mask & STATMOUNT_STRING_REQ) {
-		if (bufsize == sizeof(ks->sm))
+		/* Even the reserved empty string needs room past the fixed part. */
+		if (bufsize <= sizeof(ks->sm))
 			return -EOVERFLOW;
 
 		ks->seq.buf = kvmalloc(seq_size, GFP_KERNEL_ACCOUNT);
@@ -6239,6 +6262,8 @@ static ssize_t do_listmount(struct klistmount *kls, bool reverse)
 	} else {
 		if (reverse)
 			first = mnt_find_id_at_reverse(ns, last_mnt_id - 1);
+		else if (last_mnt_id == U64_MAX)
+			first = NULL; /* nothing comes after the largest id */
 		else
 			first = mnt_find_id_at(ns, last_mnt_id + 1);
 	}
@@ -6469,8 +6494,6 @@ void __init mnt_init(void)
 				mphash_entries, 19,
 				HASH_ZERO,
 				&mp_hash_shift, &mp_hash_mask, 0, 0);
-
-	super_dev_init();
 
 	kernfs_init();
 
@@ -6704,7 +6727,7 @@ static int mntns_install(struct nsset *nsset, struct ns_common *ns)
 	if (is_anon_ns(mnt_ns))
 		return -EINVAL;
 
-	if (fs->users != 1)
+	if (current->fs->users != 1)
 		return -EINVAL;
 
 	get_mnt_ns(mnt_ns);

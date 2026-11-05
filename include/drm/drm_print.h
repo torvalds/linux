@@ -644,6 +644,9 @@ static inline struct device *__drm_to_dev(const struct drm_device *drm)
 #define drm_err_ratelimited(drm, fmt, ...)				\
 	__drm_printk((drm), err, _ratelimited, "*ERROR* " fmt, ##__VA_ARGS__)
 
+#define drm_warn_ratelimited(drm, fmt, ...)				\
+	__drm_printk((drm), warn, _ratelimited, fmt, ##__VA_ARGS__)
+
 
 #define drm_dbg_core(drm, fmt, ...)					\
 	drm_dev_dbg(__drm_to_dev(drm), DRM_UT_CORE, fmt, ##__VA_ARGS__)

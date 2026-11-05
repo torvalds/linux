@@ -40,6 +40,8 @@ properties:
 
   gpio-controller: true
 
+  gpio-ranges: true
+
   ngpios:
     minimum: 1
     maximum: 32

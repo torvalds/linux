@@ -125,7 +125,7 @@ Figure 1: Generic structure of un-flattened device tree
 
 
 Before executing OF unittest, it is required to attach the test data to
-machine's device tree (if present). So, when selftest_data_add() is called,
+machine's device tree (if present). So, when unittest_data_add() is called,
 at first it reads the flattened device tree data linked into the kernel image
 via the following kernel symbols::
 

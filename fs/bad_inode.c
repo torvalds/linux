@@ -27,7 +27,7 @@ static const struct file_operations bad_file_ops =
 	.open		= bad_file_open,
 };
 
-static int bad_inode_create(struct mnt_idmap *idmap,
+static int bad_inode_create(const struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {
@@ -51,14 +51,14 @@ static int bad_inode_unlink(struct inode *dir, struct dentry *dentry)
 	return -EIO;
 }
 
-static int bad_inode_symlink(struct mnt_idmap *idmap,
+static int bad_inode_symlink(const struct mnt_idmap *idmap,
 			     struct inode *dir, struct dentry *dentry,
 			     const char *symname)
 {
 	return -EIO;
 }
 
-static struct dentry *bad_inode_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *bad_inode_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				      struct dentry *dentry, umode_t mode)
 {
 	return ERR_PTR(-EIO);
@@ -69,13 +69,13 @@ static int bad_inode_rmdir (struct inode *dir, struct dentry *dentry)
 	return -EIO;
 }
 
-static int bad_inode_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int bad_inode_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	return -EIO;
 }
 
-static int bad_inode_rename2(struct mnt_idmap *idmap,
+static int bad_inode_rename2(const struct mnt_idmap *idmap,
 			     struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)
@@ -89,20 +89,20 @@ static int bad_inode_readlink(struct dentry *dentry, char __user *buffer,
 	return -EIO;
 }
 
-static int bad_inode_permission(struct mnt_idmap *idmap,
+static int bad_inode_permission(const struct mnt_idmap *idmap,
 				struct inode *inode, int mask)
 {
 	return -EIO;
 }
 
-static int bad_inode_getattr(struct mnt_idmap *idmap,
+static int bad_inode_getattr(const struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
 	return -EIO;
 }
 
-static int bad_inode_setattr(struct mnt_idmap *idmap,
+static int bad_inode_setattr(const struct mnt_idmap *idmap,
 			     struct dentry *direntry, struct iattr *attrs)
 {
 	return -EIO;
@@ -146,14 +146,14 @@ static int bad_inode_atomic_open(struct inode *inode, struct dentry *dentry,
 	return -EIO;
 }
 
-static int bad_inode_tmpfile(struct mnt_idmap *idmap,
+static int bad_inode_tmpfile(const struct mnt_idmap *idmap,
 			     struct inode *inode, struct file *file,
 			     umode_t mode)
 {
 	return -EIO;
 }
 
-static int bad_inode_set_acl(struct mnt_idmap *idmap,
+static int bad_inode_set_acl(const struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct posix_acl *acl,
 			     int type)
 {

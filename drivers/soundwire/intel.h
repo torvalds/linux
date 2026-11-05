@@ -188,10 +188,10 @@ static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 	return -ENOTSUPP;
 }
 
-static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
+static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop, bool wake_enable)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, stop_bus))
-		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop);
+		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop, wake_enable);
 	return -ENOTSUPP;
 }
 
@@ -261,7 +261,7 @@ int intel_start_bus(struct sdw_intel *sdw);
 int intel_start_bus_after_reset(struct sdw_intel *sdw);
 void intel_check_clock_stop(struct sdw_intel *sdw);
 int intel_start_bus_after_clock_stop(struct sdw_intel *sdw);
-int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop);
+int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop, bool wake_enable);
 
 /* common bank switch routines */
 int intel_pre_bank_switch(struct sdw_intel *sdw);

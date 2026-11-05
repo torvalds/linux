@@ -29,8 +29,7 @@ enum dpll_mode {
 /**
  * enum dpll_lock_status - provides information of dpll device lock status,
  *   valid values for DPLL_A_LOCK_STATUS attribute
- * @DPLL_LOCK_STATUS_UNLOCKED: dpll was not yet locked to any valid input (or
- *   forced by setting DPLL_A_MODE to DPLL_MODE_DETACHED)
+ * @DPLL_LOCK_STATUS_UNLOCKED: dpll was not yet locked to any valid input
  * @DPLL_LOCK_STATUS_LOCKED: dpll is locked to a valid signal, but no holdover
  *   available
  * @DPLL_LOCK_STATUS_LOCKED_HO_ACQ: dpll is locked and holdover acquired

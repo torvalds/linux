@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2026 Meta Platforms, Inc. and affiliates. */
 /* Converted from tools/testing/selftests/bpf/verifier/helper_access_var_len.c */
 
 #include <linux/bpf.h>
@@ -621,7 +622,7 @@ l0_%=:	exit;						\
 
 SEC("tracepoint")
 __description("helper access to variable memory: size = 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
-__failure __msg("R1 type=scalar expected=fp")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void ptr_to_mem_or_null_8(void)
 {
 	asm volatile ("					\
@@ -637,7 +638,7 @@ __naked void ptr_to_mem_or_null_8(void)
 
 SEC("tracepoint")
 __description("helper access to variable memory: size > 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
-__failure __msg("R1 type=scalar expected=fp")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void ptr_to_mem_or_null_9(void)
 {
 	asm volatile ("					\
@@ -820,6 +821,337 @@ __naked void bytes_no_leak_init_memory(void)
 "	:
 	: __imm(bpf_probe_read_kernel)
 	: __clobber_all);
+}
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__uint(map_flags, BPF_F_WRONLY_PROG);
+	__type(key, __u32);
+	__type(value, struct bpf_fib_lookup);
+} map_fib_wo SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct bpf_fib_lookup);
+} map_fib_rw SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__uint(map_flags, BPF_F_RDONLY_PROG);
+	__type(key, __u32);
+	__type(value, struct bpf_fib_lookup);
+} map_fib_ro SEC(".maps");
+
+SEC("tc")
+__failure __msg("read from map forbidden")
+int writeonly_sized_input(struct __sk_buff *ctx)
+{
+	struct bpf_fib_lookup *params;
+	__u32 key = 0;
+
+	params = bpf_map_lookup_elem(&map_fib_wo, &key);
+	if (params)
+		bpf_fib_lookup(ctx, params, sizeof(*params), 0);
+	return 0;
+}
+
+SEC("tc")
+__success
+int readwrite_sized_input(struct __sk_buff *ctx)
+{
+	struct bpf_fib_lookup *params;
+	__u32 key = 0;
+
+	params = bpf_map_lookup_elem(&map_fib_rw, &key);
+	if (params)
+		bpf_fib_lookup(ctx, params, sizeof(*params), 0);
+	return 0;
+}
+
+SEC("tc")
+__failure __msg("write into map forbidden")
+int readonly_sized_output(struct __sk_buff *ctx)
+{
+	struct bpf_fib_lookup *params;
+	__u32 key = 0;
+
+	params = bpf_map_lookup_elem(&map_fib_ro, &key);
+	if (params)
+		bpf_fib_lookup(ctx, params, sizeof(*params), 0);
+	return 0;
+}
+
+SEC("xdp")
+__failure __msg("read from map forbidden")
+int xdp_writeonly_sized_input(struct xdp_md *ctx)
+{
+	struct bpf_fib_lookup *params;
+	__u32 key = 0;
+
+	params = bpf_map_lookup_elem(&map_fib_wo, &key);
+	if (params)
+		bpf_fib_lookup(ctx, params, sizeof(*params), 0);
+	return XDP_PASS;
+}
+
+SEC("sockops")
+__failure __msg("read from map forbidden")
+int writeonly_header_option(struct bpf_sock_ops *ctx)
+{
+	struct bpf_fib_lookup *buf;
+	__u32 key = 0;
+
+	buf = bpf_map_lookup_elem(&map_fib_wo, &key);
+	if (buf)
+		bpf_load_hdr_opt(ctx, buf, sizeof(*buf), 0);
+	return 0;
+}
+
+SEC("sockops")
+__success
+int readwrite_header_option(struct bpf_sock_ops *ctx)
+{
+	struct bpf_fib_lookup *buf;
+	__u32 key = 0;
+
+	buf = bpf_map_lookup_elem(&map_fib_rw, &key);
+	if (buf)
+		bpf_load_hdr_opt(ctx, buf, sizeof(*buf), 0);
+	return 0;
+}
+
+SEC("tc")
+__success
+int snprintf_writeonly_output(struct __sk_buff *ctx)
+{
+	void *buf;
+	__u32 key = 0;
+
+	buf = bpf_map_lookup_elem(&map_fib_wo, &key);
+	if (buf)
+		bpf_snprintf(buf, 16, "ok", NULL, 0);
+	return 0;
+}
+
+SEC("tc")
+__failure __msg("write into map forbidden")
+int snprintf_readonly_output(struct __sk_buff *ctx)
+{
+	void *buf;
+	__u32 key = 0;
+
+	buf = bpf_map_lookup_elem(&map_fib_ro, &key);
+	if (buf)
+		bpf_snprintf(buf, 16, "ok", NULL, 0);
+	return 0;
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+int sysctl_writeonly_output(struct bpf_sysctl *ctx)
+{
+	void *buf;
+	__u32 key = 0;
+
+	buf = bpf_map_lookup_elem(&map_fib_wo, &key);
+	if (buf)
+		bpf_sysctl_get_name(ctx, buf, 16, 0);
+	return 0;
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void sysctl_initialized_stack(void)
+{
+	asm volatile (
+		"*(u64 *)(r10 - 16) = 0;"
+		"*(u64 *)(r10 - 8) = 0;"
+		"r2 = r10;"
+		"r2 += -16;"
+		"r3 = 16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u8 *)(r10 - 1);"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void sysctl_uninitialized_stack(void)
+{
+	asm volatile (
+		"r2 = r10;"
+		"r2 += -16;"
+		"r3 = 16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = 0;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__flag(BPF_F_TEST_STATE_FREQ)
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void sysctl_partial_initialized_bytes(void)
+{
+	asm volatile (
+		"*(u32 *)(r10 - 16) = 0;"
+		"*(u8 *)(r10 - 1) = 1;"
+		"goto +0;"
+		"r2 = r10;"
+		"r2 += -16;"
+		"r3 = 16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u32 *)(r10 - 16);"
+		"r1 = *(u8 *)(r10 - 1);"
+		"r0 += r1;"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__failure_unpriv __msg_unpriv("invalid read from stack off -1+0 size 1")
+__naked void sysctl_partial_invalid_bytes(void)
+{
+	asm volatile (
+		"*(u32 *)(r10 - 16) = 0;"
+		"r2 = r10;"
+		"r2 += -16;"
+		"r3 = 16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u8 *)(r10 - 1);"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__flag(BPF_F_TEST_STATE_FREQ)
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void sysctl_partial_variable_size(void)
+{
+	asm volatile (
+		"r3 = *(u32 *)(r1 + 0);"
+		"r3 &= 15;"
+		"r3 += 1;"
+		"*(u8 *)(r10 - 1) = 1;"
+		"goto +0;"
+		"r2 = r10;"
+		"r2 += -16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u8 *)(r10 - 1);"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__failure_unpriv __msg_unpriv("invalid read from stack off -1+0 size 1")
+__naked void sysctl_partial_variable_invalid(void)
+{
+	asm volatile (
+		"r3 = *(u32 *)(r1 + 0);"
+		"r3 &= 15;"
+		"r3 += 1;"
+		"r2 = r10;"
+		"r2 += -16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u8 *)(r10 - 1);"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__flag(BPF_F_TEST_STATE_FREQ)
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__failure_unpriv __msg_unpriv("invalid read from stack R2")
+__naked void sysctl_partial_spilled_pointer(void)
+{
+	asm volatile (
+		"*(u64 *)(r10 - 8) = r1;"
+		"goto +0;"
+		"r2 = r10;"
+		"r2 += -8;"
+		"r3 = 8;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = 0;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("cgroup/sysctl")
+__success
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__failure_unpriv __msg_unpriv("invalid read from stack R2")
+int sysctl_partial_dynptr(struct bpf_sysctl *ctx)
+{
+	struct bpf_dynptr ptr;
+	long long key = 0, *data;
+
+	data = bpf_map_lookup_elem(&map_hash_8b, &key);
+	if (!data)
+		return 0;
+	bpf_dynptr_from_mem(data, sizeof(*data), 0, &ptr);
+	bpf_sysctl_get_name(ctx, (char *)&ptr, sizeof(ptr), 0);
+	return 0;
+}
+
+SEC("cgroup/sysctl")
+__success
+__naked void sysctl_partial_variable_offset(void)
+{
+	asm volatile (
+		"r2 = *(u32 *)(r1 + 0);"
+		"r2 &= 8;"
+		"r2 += r10;"
+		"r2 += -24;"
+		"r3 = 16;"
+		"r4 = 0;"
+		"call %[bpf_sysctl_get_name];"
+		"r0 = *(u8 *)(r10 - 16);"
+		"r0 &= 1;"
+		"exit;"
+		: : __imm(bpf_sysctl_get_name) : __clobber_all);
+}
+
+SEC("tc")
+__success __retval(42)
+int snprintf_partial_output_runtime(struct __sk_buff *ctx)
+{
+	char buf[16];
+
+	buf[15] = 42;
+	bpf_snprintf(buf, sizeof(buf), "ok", NULL, 0);
+	return buf[15];
 }
 
 char _license[] SEC("license") = "GPL";

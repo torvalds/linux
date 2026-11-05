@@ -1991,8 +1991,8 @@ static int qede_flow_spec_to_rule(struct qede_dev *edev,
 				  struct ethtool_rx_flow_spec *fs)
 {
 	struct ethtool_rx_flow_spec_input input = {};
+	struct netlink_ext_ack extack = {};
 	struct ethtool_rx_flow_rule *flow;
-	struct netlink_ext_ack extack;
 	__be16 proto;
 	int err;
 

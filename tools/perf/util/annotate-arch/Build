@@ -1,3 +1,4 @@
+perf-util-y += annotate-alpha.o
 perf-util-y += annotate-arc.o
 perf-util-y += annotate-arm.o
 perf-util-y += annotate-arm64.o

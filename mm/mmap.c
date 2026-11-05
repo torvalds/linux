@@ -547,7 +547,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 		}
 		case MAP_PRIVATE:
 			/*
-			 * Set pgoff according to addr for anon_vma.
+			 * Set pgoff according to addr for the anon rmap.
 			 */
 			pgoff = addr >> PAGE_SHIFT;
 			break;
@@ -1774,8 +1774,8 @@ __latent_entropy int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		if (vma_test(tmp, VMA_WIPEONFORK_BIT)) {
 			/*
 			 * VMA_WIPEONFORK_BIT gets a clean slate in the child.
-			 * Don't prepare anon_vma until fault since we don't
-			 * copy page for current vma.
+			 * Don't prepare the anon rmap until fault since we
+			 * don't copy pages for the current vma.
 			 */
 			tmp->anon_vma = NULL;
 		} else if (anon_vma_fork(tmp, mpnt))
@@ -1786,7 +1786,7 @@ __latent_entropy int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		/*
 		 * Copy/update hugetlb private vma information.
 		 */
-		if (is_vm_hugetlb_page(tmp))
+		if (vma_is_hugetlb(tmp))
 			hugetlb_dup_vma_private(tmp);
 
 		/*

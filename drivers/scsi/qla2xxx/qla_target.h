@@ -1178,7 +1178,4 @@ extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
 extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
-void qlt_send_resp_ctio(struct qla_qpair *, struct qla_tgt_cmd *, uint8_t,
-    uint8_t, uint8_t, uint8_t);
-
 #endif /* __QLA_TARGET_H */

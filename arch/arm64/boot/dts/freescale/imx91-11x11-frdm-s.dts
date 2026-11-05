@@ -672,8 +672,6 @@
 };
 
 &mqs1 {
-	clocks = <&clk IMX93_CLK_MQS1_GATE>;
-	clock-names = "mclk";
 	pinctrl-0 = <&pinctrl_mqs1>;
 	pinctrl-names = "default";
 	status = "okay";

@@ -199,6 +199,9 @@ struct amd_pmf_info {
 	/* BIOS parameters */
 	__u32 bios_input[AMD_PMF_BIOS_PARAMS_MAX];
 	__u32 bios_output[AMD_PMF_BIOS_PARAMS_MAX];
+
+	/* align to 64 bit boundary */
+	__u32 __pad;
 };
 
 #endif /* _UAPI_LINUX_AMD_PMF_H */

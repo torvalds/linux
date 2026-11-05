@@ -1044,7 +1044,7 @@ static void ifi_canfd_plat_remove(struct platform_device *pdev)
 
 static const struct of_device_id ifi_canfd_of_table[] = {
 	{ .compatible = "ifi,canfd-1.0", .data = NULL },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ifi_canfd_of_table);
 

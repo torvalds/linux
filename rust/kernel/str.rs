@@ -411,7 +411,7 @@ impl AsRef<BStr> for CStr {
 /// const BAD: &CStr = c_str!("literal");
 ///
 /// // `c_str!` is still needed for static non-literal C strings.
-/// const GOOD: &CStr = c_str!(concat!(file!(), ":", line!(), ": My CStr!"));
+/// const GOOD: &CStr = c_str!(concat!(file!(), ":", ::core::line!(), ": My CStr!"));
 /// ```
 #[macro_export]
 macro_rules! c_str {

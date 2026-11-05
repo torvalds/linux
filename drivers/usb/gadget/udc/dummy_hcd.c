@@ -51,8 +51,6 @@
 #define POWER_BUDGET	500	/* in mA; use 8 for low-power port testing */
 #define POWER_BUDGET_3	900	/* in mA */
 
-#define DUMMY_TIMER_INT_NSECS	125000 /* 1 microframe */
-
 static const char	driver_name[] = "dummy_hcd";
 static const char	driver_desc[] = "USB Host+Gadget Emulator";
 
@@ -66,6 +64,31 @@ struct dummy_hcd_module_parameters {
 	bool is_super_speed;
 	bool is_high_speed;
 	unsigned int num;
+	unsigned int tick_us;
+};
+
+/*
+ * Length in microseconds of an emulated microframe.  The default (125,
+ * one high-speed microframe) preserves the historical timer rate; larger
+ * values slow the emulated controller down and reduce its interrupt-rate
+ * pressure on the host platform.  Values below 125 are rejected.
+ */
+static int tick_us_set(const char *val,
+		const struct kernel_param *kp)
+{
+	unsigned int v;
+	int ret = kstrtouint(val, 0, &v);
+
+	if (ret < 0 || v < 125) {
+		pr_err("dummy_hcd: tick_us must be >= 125\n");
+		return -EINVAL;
+	}
+	return param_set_uint(val, kp);
+}
+
+static const struct kernel_param_ops tick_us_ops = {
+	.set = tick_us_set,
+	.get = param_get_uint,
 };
 
 static struct dummy_hcd_module_parameters mod_data = {
@@ -79,6 +102,9 @@ module_param_named(is_high_speed, mod_data.is_high_speed, bool, S_IRUGO);
 MODULE_PARM_DESC(is_high_speed, "true to simulate HighSpeed connection");
 module_param_named(num, mod_data.num, uint, S_IRUGO);
 MODULE_PARM_DESC(num, "number of emulated controllers");
+module_param_cb(tick_us, &tick_us_ops, &mod_data.tick_us, 0444);
+MODULE_PARM_DESC(tick_us,
+		"Length in microseconds of an emulated (micro)frame (default 125 for high/super-speed emulation, 1000 for full-speed); larger values reduce the interrupt-rate pressure on the host platform");
 /*-------------------------------------------------------------------------*/
 
 /* gadget side driver data structures */
@@ -244,6 +270,7 @@ struct dummy_hcd {
 	struct dummy			*dum;
 	enum dummy_rh_state		rh_state;
 	struct hrtimer			timer;
+	ktime_t				timer_interval;	/* emulated microframe length */
 	u32				port_status;
 	u32				old_status;
 	unsigned long			re_timeout;
@@ -918,7 +945,7 @@ static int dummy_set_selfpowered(struct usb_gadget *_gadget, int value)
 static void dummy_udc_update_ep0(struct dummy *dum)
 {
 	if (dum->gadget.speed == USB_SPEED_SUPER)
-		dum->ep[0].ep.maxpacket = 9;
+		dum->ep[0].ep.maxpacket = 512;
 	else
 		dum->ep[0].ep.maxpacket = 64;
 }
@@ -1184,6 +1211,7 @@ static struct platform_driver dummy_udc_driver = {
 	.resume		= dummy_udc_resume,
 	.driver		= {
 		.name	= gadget_name,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -1333,7 +1361,7 @@ static int dummy_urb_enqueue(
 	/* kick the scheduler, it'll do the rest */
 	if (!dum_hcd->timer_pending) {
 		dum_hcd->timer_pending = 1;
-		hrtimer_start(&dum_hcd->timer, ns_to_ktime(DUMMY_TIMER_INT_NSECS),
+		hrtimer_start(&dum_hcd->timer, dum_hcd->timer_interval,
 				HRTIMER_MODE_REL_SOFT);
 	}
 
@@ -2033,7 +2061,7 @@ return_urb:
 			dum_hcd->rh_state == DUMMY_RH_RUNNING) {
 		/* want a 1 msec delay here */
 		dum_hcd->timer_pending = 1;
-		hrtimer_start(&dum_hcd->timer, ns_to_ktime(DUMMY_TIMER_INT_NSECS),
+		hrtimer_start(&dum_hcd->timer, dum_hcd->timer_interval,
 				HRTIMER_MODE_REL_SOFT);
 	}
 
@@ -2513,6 +2541,7 @@ static DEVICE_ATTR_RO(urbs);
 static int dummy_start_ss(struct dummy_hcd *dum_hcd)
 {
 	hrtimer_setup(&dum_hcd->timer, dummy_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
+	dum_hcd->timer_interval = ns_to_ktime((u64)mod_data.tick_us * NSEC_PER_USEC);
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
 	dum_hcd->stream_en_ep = 0;
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
@@ -2542,6 +2571,7 @@ static int dummy_start(struct usb_hcd *hcd)
 
 	spin_lock_init(&dum_hcd->dum->lock);
 	hrtimer_setup(&dum_hcd->timer, dummy_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
+	dum_hcd->timer_interval = ns_to_ktime((u64)mod_data.tick_us * NSEC_PER_USEC);
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
 
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
@@ -2596,6 +2626,15 @@ static int dummy_setup(struct usb_hcd *hcd)
 		dum->ss_hcd->dum = dum;
 		hcd->speed = HCD_USB3;
 		hcd->self.root_hub->speed = USB_SPEED_SUPER;
+
+		/*
+		 * xHCI-class SuperSpeed controllers have no maxpacket
+		 * alignment requirement for non-final SG segments.  Only
+		 * relax the constraint on the SS bus; the HS bus keeps
+		 * emulating the alignment requirement of EHCI-class
+		 * controllers.
+		 */
+		hcd->self.no_sg_constraint = 1;
 	}
 	return 0;
 }
@@ -2806,6 +2845,7 @@ static struct platform_driver dummy_hcd_driver = {
 	.resume		= dummy_hcd_resume,
 	.driver		= {
 		.name	= driver_name,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -2831,6 +2871,17 @@ static int __init dummy_hcd_init(void)
 				MAX_NUM_UDC);
 		return -EINVAL;
 	}
+
+	/*
+	 * The emulated microframe length defaults to one high-speed
+	 * microframe (125 us).  When neither is_high_speed nor
+	 * is_super_speed is set the emulation is full-speed, where the
+	 * natural scheduling unit is the 1-ms frame, so default to
+	 * 1000 us instead.
+	 */
+	if (!mod_data.tick_us)
+		mod_data.tick_us = (mod_data.is_super_speed ||
+				    mod_data.is_high_speed) ? 125 : 1000;
 
 	for (i = 0; i < mod_data.num; i++) {
 		the_hcd_pdev[i] = platform_device_alloc(driver_name, i);

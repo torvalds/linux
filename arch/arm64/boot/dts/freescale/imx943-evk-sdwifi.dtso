@@ -6,10 +6,35 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	reg_usdhc3_vmmc: regulator-usdhc3 {
+		compatible = "regulator-fixed";
+		regulator-name = "WLAN_EN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_m2_pwr>;
+		gpio = <&pcal6416_i2c3_u46 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&lpuart6 {
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+	};
+};
+
+&m2_connector {
+	status = "disabled";
+};
+
 &pcie0 {
 	status = "disabled";
 };
 
 &usdhc3 {
+	vmmc-supply = <&reg_usdhc3_vmmc>;
 	status = "okay";
 };

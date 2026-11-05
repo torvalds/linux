@@ -213,7 +213,7 @@ devm_reset_controller_register().
    :internal:
 
 .. kernel-doc:: drivers/reset/core.c
-   :functions: of_reset_simple_xlate
+   :functions: fwnode_reset_simple_xlate
                reset_controller_register
                reset_controller_unregister
                devm_reset_controller_register

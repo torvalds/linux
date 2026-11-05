@@ -475,6 +475,7 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		int priority, int wait, int reply, fib_callback callback,
 		void *callback_data)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct aac_dev * dev = fibptr->dev;
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
@@ -698,6 +699,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 
 int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		void *callback_data)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct aac_dev *dev = fibptr->dev;
 	int wait;
@@ -1466,6 +1468,7 @@ static void aac_schedule_bus_scan(struct aac_dev *aac)
 }
 
 static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
+	__context_unsafe(/*conditional locking*/)
 {
 	int index, quirks;
 	int retval;
@@ -1487,7 +1490,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 */
 	aac_adapter_disable_int(aac);
 	if (aac->thread && aac->thread->pid != current->pid) {
-		spin_unlock_irq(host->host_lock);
+		spin_unlock_irq(&host->host_lock);
 		kthread_stop(aac->thread);
 		aac->thread = NULL;
 		jafo = 1;
@@ -1612,7 +1615,7 @@ out:
 	}
 
 	if (jafo) {
-		spin_lock_irq(host->host_lock);
+		spin_lock_irq(&host->host_lock);
 	}
 	return retval;
 }
@@ -1644,11 +1647,11 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	/* Quiesce build, flush cache, write through mode */
 	if (forced < 2)
 		aac_send_shutdown(aac);
-	spin_lock_irqsave(host->host_lock, flagv);
+	spin_lock_irqsave(&host->host_lock, flagv);
 	bled = forced ? forced :
 			(aac_check_reset != 0 && aac_check_reset != 1);
 	retval = _aac_reset_adapter(aac, bled, reset_type);
-	spin_unlock_irqrestore(host->host_lock, flagv);
+	spin_unlock_irqrestore(&host->host_lock, flagv);
 
 	unblock_retval = scsi_host_unblock(host, SDEV_RUNNING);
 	if (!retval)

@@ -622,6 +622,9 @@
 .macro SHA1_VECTOR_ASM  name
 	SYM_FUNC_START(\name)
 
+	push	%rbp
+	mov	%rsp, %rbp
+
 	push	%rbx
 	push	%r12
 	push	%r13
@@ -631,8 +634,6 @@
 	RESERVE_STACK  = (W_SIZE*4 + 8+24)
 
 	/* Align stack */
-	push	%rbp
-	mov	%rsp, %rbp
 	and	$~(0x20-1), %rsp
 	sub	$RESERVE_STACK, %rsp
 
@@ -651,14 +652,13 @@
 
 	avx2_zeroupper
 
-	mov	%rbp, %rsp
-	pop	%rbp
-
+	lea	-40(%rbp), %rsp
 	pop	%r15
 	pop	%r14
 	pop	%r13
 	pop	%r12
 	pop	%rbx
+	pop	%rbp
 
 	RET
 

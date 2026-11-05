@@ -305,11 +305,11 @@ static int __init intel_init_hw_struct(struct intel_rng_hw *intel_rng_hw,
 	if ((intel_rng_hw->bios_cntl_val &
 	     (BIOS_CNTL_LOCK_ENABLE_MASK|BIOS_CNTL_WRITE_ENABLE_MASK))
 	    == BIOS_CNTL_LOCK_ENABLE_MASK) {
-		static __initdata /*const*/ char warning[] =
-PFX "Firmware space is locked read-only. If you can't or\n"
-PFX "don't want to disable this in firmware setup, and if\n"
-PFX "you are certain that your system has a functional\n"
-PFX "RNG, try using the 'no_fwh_detect' option.\n";
+		static const char warning[] __initconst =
+			PFX "Firmware space is locked read-only. If you can't or\n"
+			PFX "don't want to disable this in firmware setup, and if\n"
+			PFX "you are certain that your system has a functional\n"
+			PFX "RNG, try using the 'no_fwh_detect' option.\n";
 
 		if (no_fwh_detect)
 			return -ENODEV;
@@ -318,8 +318,8 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 	}
 
 	intel_rng_hw->mem = ioremap(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
-	if (intel_rng_hw->mem == NULL)
-		return -EBUSY;
+	if (!intel_rng_hw->mem)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -327,7 +327,7 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 
 static int __init intel_rng_mod_init(void)
 {
-	int err = -ENODEV;
+	int err;
 	int i;
 	struct pci_dev *dev = NULL;
 	void __iomem *mem;
@@ -339,7 +339,7 @@ static int __init intel_rng_mod_init(void)
 				     NULL);
 
 	if (!dev)
-		goto out; /* Device not found. */
+		return -ENODEV;
 
 	if (no_fwh_detect < 0) {
 		pci_dev_put(dev);
@@ -349,7 +349,7 @@ static int __init intel_rng_mod_init(void)
 	intel_rng_hw = kmalloc_obj(*intel_rng_hw);
 	if (!intel_rng_hw) {
 		pci_dev_put(dev);
-		goto out;
+		return -ENOMEM;
 	}
 
 	err = intel_init_hw_struct(intel_rng_hw, dev);
@@ -358,7 +358,7 @@ static int __init intel_rng_mod_init(void)
 		kfree(intel_rng_hw);
 		if (err == -ENODEV)
 			goto fwh_done;
-		goto out;
+		return err;
 	}
 
 	/*
@@ -374,21 +374,19 @@ static int __init intel_rng_mod_init(void)
 	iounmap(intel_rng_hw->mem);
 	kfree(intel_rng_hw);
 	if (err)
-		goto out;
+		return err;
 
 fwh_done:
-	err = -ENOMEM;
 	mem = ioremap(INTEL_RNG_ADDR, INTEL_RNG_ADDR_LEN);
 	if (!mem)
-		goto out;
+		return -ENOMEM;
 	intel_rng.priv = (unsigned long)mem;
 
 	/* Check for Random Number Generator */
-	err = -ENODEV;
 	hw_status = hwstatus_get(mem);
 	if ((hw_status & INTEL_RNG_PRESENT) == 0) {
 		iounmap(mem);
-		goto out;
+		return -ENODEV;
 	}
 
 	pr_info("Intel 82802 RNG detected\n");
@@ -397,10 +395,10 @@ fwh_done:
 		pr_err(PFX "RNG registering failed (%d)\n",
 		       err);
 		iounmap(mem);
+		return err;
 	}
-out:
-	return err;
 
+	return 0;
 }
 
 static void __exit intel_rng_mod_exit(void)

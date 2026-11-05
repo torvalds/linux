@@ -708,6 +708,7 @@ static int cvmx_usb_initialize(struct device *dev,
 	int channel;
 	int divisor;
 	int retries = 0;
+	int status;
 	union cvmx_usbcx_hcfg usbcx_hcfg;
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbcx_gintsts usbc_gintsts;
@@ -872,7 +873,8 @@ retry:
 	if (usbcx_gahbcfg.u32 == 0xffffffff || usbcx_gahbcfg.u32 == 0) {
 		dev_err(dev, "USB core is not responding (GHWCFG3=0x%08x)\n",
 			usbcx_gahbcfg.u32);
-		return -ENODEV;
+		status = -ENODEV;
+		goto err_shutdown;
 	}
 
 	usbcx_gahbcfg.u32 = 0;
@@ -961,14 +963,27 @@ retry:
 	dev_dbg(dev, "gintsts after reset: 0x%x\n", (int)usbc_gintsts.u32);
 	if (!usbc_gintsts.s.disconnint && !usbc_gintsts.s.prtint)
 		return 0;
-	if (retries++ >= 5)
-		return -EAGAIN;
+	if (retries++ >= 5) {
+		status = -EAGAIN;
+		goto err_shutdown;
+	}
 	dev_info(dev, "controller reset failed (gintsts=0x%x) - retrying\n",
 		 (int)usbc_gintsts.u32);
 	msleep(50);
 	cvmx_usb_shutdown(usb);
 	msleep(50);
 	goto retry;
+
+err_shutdown:
+	/*
+	 * Steps 2b-2e above selected the reference clock, enabled
+	 * USBN_CLK_CTL and took the PHY out of reset, and the caller only
+	 * frees the HCD, so hand the block back before giving up. The pipe
+	 * lists cvmx_usb_shutdown() checks are initialised by the caller
+	 * before it gets here, so it cannot refuse with -EBUSY.
+	 */
+	cvmx_usb_shutdown(usb);
+	return status;
 }
 
 /**
@@ -1923,6 +1938,7 @@ static void cvmx_usb_schedule(struct octeon_hcd *usb, int is_sof)
 	struct cvmx_usb_pipe *pipe;
 	int need_sof;
 	u64 min_due;
+	bool due_now;
 	enum cvmx_usb_transfer ttype;
 
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
@@ -1964,15 +1980,32 @@ done:
 	 */
 	need_sof = 0;
 	min_due = ~0ull;
+	due_now = false;
 	for (ttype = CVMX_USB_TRANSFER_CONTROL;
 	     ttype <= CVMX_USB_TRANSFER_INTERRUPT; ttype++) {
 		list_for_each_entry(pipe, &usb->active_pipes[ttype], node) {
+			/*
+			 * Do not sleep past a pipe that is only retried from a
+			 * SOF: a periodic one that is due but was not started
+			 * (no idle channel, closed split window, another pipe's
+			 * split active), or any pipe waiting for the frame its
+			 * split complete may go out in. Other control and bulk
+			 * pipes are left out: their next_tx_frame is not updated
+			 * on completion, so they always look due.
+			 */
+			if (pipe->split_sc_frame != -1 ||
+			    (pipe->next_tx_frame <= usb->frame_number &&
+			     (ttype == CVMX_USB_TRANSFER_ISOCHRONOUS ||
+			      ttype == CVMX_USB_TRANSFER_INTERRUPT)))
+				due_now = true;
 			if (pipe->next_tx_frame > usb->frame_number &&
 			    pipe->next_tx_frame < min_due)
 				min_due = pipe->next_tx_frame;
 		}
 	}
-	if (min_due != ~0ull) {
+	if (due_now) {
+		need_sof = 1;
+	} else if (min_due != ~0ull) {
 		u64 delta = min_due - usb->frame_number;
 
 		/*

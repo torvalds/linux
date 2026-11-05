@@ -57,6 +57,7 @@ BEGIN {
 	printversion("pahole", version("pahole --version"))
 	printversion("Pcmcia-cs", version("cardmgr -V"))
 	printversion("pcmciautils", version("pccardctl -V"))
+	printversion("pigz", version("pigz --version"))
 	printversion("PPP", version("pppd --version"))
 	printversion("procps", version("ps --version"))
 	printversion("Python", version("python3 -V"))

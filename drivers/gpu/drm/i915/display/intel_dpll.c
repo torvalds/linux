@@ -22,7 +22,6 @@
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
 #include "intel_pps.h"
-#include "intel_snps_phy.h"
 #include "vlv_dpio_phy_regs.h"
 #include "vlv_sideband.h"
 
@@ -1194,24 +1193,6 @@ static int hsw_crtc_get_dpll(struct intel_atomic_state *state,
 	return intel_dpll_reserve(state, crtc, encoder);
 }
 
-static int dg2_crtc_compute_clock(struct intel_atomic_state *state,
-				  struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_encoder *encoder =
-		intel_get_crtc_new_encoder(state, crtc_state);
-	int ret;
-
-	ret = intel_mpllb_calc_state(crtc_state, encoder);
-	if (ret)
-		return ret;
-
-	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
-
-	return 0;
-}
-
 static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -1682,7 +1663,8 @@ static const struct intel_dpll_global_funcs mtl_dpll_funcs = {
 };
 
 static const struct intel_dpll_global_funcs dg2_dpll_funcs = {
-	.crtc_compute_clock = dg2_crtc_compute_clock,
+	.crtc_compute_clock = hsw_crtc_compute_clock,
+	.crtc_get_dpll = hsw_crtc_get_dpll,
 };
 
 static const struct intel_dpll_global_funcs hsw_dpll_funcs = {

@@ -194,7 +194,6 @@
 &gpio2 {
 	pinctrl-0 = <&pins_gpio2>;
 	pinctrl-names = "default";
-	status = "okay";
 };
 
 &i2c2 {

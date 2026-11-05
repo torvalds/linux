@@ -260,7 +260,7 @@ xfs_rmap_check_irec(
 
 	/* Check for a valid fork offset, if applicable. */
 	if (is_inode && !is_bmbt &&
-	    !xfs_verify_fileext(mp, irec->rm_offset, irec->rm_blockcount))
+	    !xfs_verify_fileext(irec->rm_offset, irec->rm_blockcount))
 		return __this_address;
 
 	return NULL;
@@ -310,7 +310,7 @@ xfs_rtrmap_check_inode_irec(
 		return __this_address;
 	if (!xfs_verify_rgbext(rtg, irec->rm_startblock, irec->rm_blockcount))
 		return __this_address;
-	if (!xfs_verify_fileext(mp, irec->rm_offset, irec->rm_blockcount))
+	if (!xfs_verify_fileext(irec->rm_offset, irec->rm_blockcount))
 		return __this_address;
 	return NULL;
 }
@@ -904,7 +904,6 @@ xfs_rmap_hook_enable(void)
 /* Call downstream hooks for a reverse mapping update. */
 static inline void
 xfs_rmap_update_hook(
-	struct xfs_trans		*tp,
 	struct xfs_group		*xg,
 	enum xfs_rmap_intent_type	op,
 	xfs_agblock_t			startblock,
@@ -952,7 +951,7 @@ xfs_rmap_hook_setup(
 	xfs_hook_setup(&hook->rmap_hook, mod_fn);
 }
 #else
-# define xfs_rmap_update_hook(t, p, o, s, b, u, oi)	do { } while (0)
+# define xfs_rmap_update_hook(p, o, s, b, u, oi)	do { } while (0)
 #endif /* CONFIG_XFS_LIVE_HOOKS */
 
 /*
@@ -975,7 +974,7 @@ xfs_rmap_free(
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
-	xfs_rmap_update_hook(tp, pag_group(pag), XFS_RMAP_UNMAP, bno, len,
+	xfs_rmap_update_hook(pag_group(pag), XFS_RMAP_UNMAP, bno, len,
 			false, oinfo);
 	error = xfs_rmap_unmap(cur, bno, len, false, oinfo);
 
@@ -1220,7 +1219,7 @@ xfs_rmap_alloc(
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
-	xfs_rmap_update_hook(tp, pag_group(pag), XFS_RMAP_MAP, bno, len, false,
+	xfs_rmap_update_hook(pag_group(pag), XFS_RMAP_MAP, bno, len, false,
 			oinfo);
 	error = xfs_rmap_map(cur, bno, len, false, oinfo);
 
@@ -2721,7 +2720,7 @@ xfs_rmap_finish_one(
 	if (error)
 		return error;
 
-	xfs_rmap_update_hook(tp, ri->ri_group, ri->ri_type, bno,
+	xfs_rmap_update_hook(ri->ri_group, ri->ri_type, bno,
 			ri->ri_bmap.br_blockcount, unwritten, &oinfo);
 	return 0;
 }

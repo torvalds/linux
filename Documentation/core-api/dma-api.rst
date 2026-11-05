@@ -154,7 +154,7 @@ others should not be larger than the returned value.
 ::
 
 	size_t
-	dma_opt_mapping_size(struct device *dev);
+	dma_max_opt_mapping_size(struct device *dev);
 
 Returns the maximum optimal size of a mapping for the device.
 

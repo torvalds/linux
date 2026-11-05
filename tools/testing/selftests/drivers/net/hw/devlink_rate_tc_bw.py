@@ -63,7 +63,7 @@ from lib.py import ksft_pr, ksft_run, ksft_exit
 from lib.py import KsftSkipEx, KsftFailEx, KsftXfailEx
 from lib.py import NetDrvEpEnv, DevlinkFamily
 from lib.py import NlError
-from lib.py import cmd, defer, ethtool, ip
+from lib.py import cmd, ctl_file_write, defer, ethtool, ip
 from lib.py import Iperf3Runner
 
 
@@ -113,8 +113,7 @@ def setup_vf(cfg, set_tc_mapping=True):
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable switchdev mode on {cfg.pci}") from exc
     try:
-        cmd(f"echo 1 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
-        defer(cmd, f"echo 0 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
+        ctl_file_write(f"/sys/class/net/{cfg.ifname}/device/sriov_numvfs", 1)
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable SR-IOV on {cfg.ifname}") from exc
 

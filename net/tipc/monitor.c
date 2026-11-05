@@ -834,7 +834,8 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 	void *hdr;
 	int ret;
 
-	ret = tipc_bearer_get_name(net, bearer_name, bearer_id);
+	ret = tipc_bearer_get_name(net, bearer_name, sizeof(bearer_name),
+				   bearer_id);
 	if (ret || !mon)
 		return 0;
 

@@ -19,7 +19,6 @@ TEST_RESULT=0
 # include working environment
 . "$DIR_PATH/../common/init.sh"
 
-# shellcheck source=lib/probe_vfs_getname.sh
 . "$DIR_PATH/../lib/probe_vfs_getname.sh"
 
 TEST_PROBE=${TEST_PROBE:-"inode_permission"}

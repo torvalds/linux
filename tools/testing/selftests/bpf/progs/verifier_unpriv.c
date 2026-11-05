@@ -1035,4 +1035,41 @@ __naked void stack_write_nospec_slot_index(void)
 "	::: __clobber_all);
 }
 
+__noinline int nospec_global_func(int x)
+{
+	return x + 1;
+}
+
+__used __naked static void nospec_call_subprog(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0xff;					\
+	r1 = 0;						\
+	if r0 < 0x100 goto l0_%=;			\
+	/* executed only speculatively */		\
+	r1 = r10;					\
+l0_%=:	call nospec_global_func;			\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/* nospec_global_func is placed in front of nospec_call_subprog */
+SEC("socket")
+__description("unpriv: nospec in front of a call")
+__success __success_unpriv
+__caps_unpriv(CAP_BPF)
+__retval(1)
+__naked void nospec_backward_call(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	call nospec_global_func;			\
+	call nospec_call_subprog;			\
+	exit;						\
+"	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

@@ -63,6 +63,6 @@ examples:
                     regulator-max-microvolt = <1800000>;
                 };
             };
-       };
-     };
+        };
+    };
 ...

@@ -162,7 +162,13 @@ struct context {
 struct at_context {
 	struct context context;
 	struct work_struct work;
-	bool flushing;
+};
+
+// The local-to-local transaction is handled by the work item in the following structure.
+struct at_local {
+	struct list_head list;
+	spinlock_t lock;
+	struct work_struct work;
 };
 
 struct iso_context {
@@ -216,6 +222,9 @@ struct fw_ohci {
 	struct ar_context ar_response_ctx;
 	struct at_context at_request_ctx;
 	struct at_context at_response_ctx;
+
+	struct at_local at_request_local;
+	struct at_local at_response_local;
 
 	u32 it_context_support;
 	u32 it_context_mask;     /* unoccupied IT contexts */
@@ -1338,9 +1347,7 @@ static void at_context_flush(struct at_context *ctx)
 
 	disable_work_sync(&ctx->work);
 
-	WRITE_ONCE(ctx->flushing, true);
 	ohci_at_context_work(&ctx->work);
-	WRITE_ONCE(ctx->flushing, false);
 
 	enable_work(&ctx->work);
 }
@@ -1362,8 +1369,10 @@ static int handle_at_packet(struct context *context,
 	struct driver_data *driver_data;
 	struct fw_packet *packet;
 	int evt;
+	// Check whether this is called from at_context_flush().
+	bool in_flushing = current_work() != &ctx->work;
 
-	if (last->transfer_status == 0 && !READ_ONCE(ctx->flushing))
+	if (last->transfer_status == 0 && !in_flushing)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
@@ -1395,7 +1404,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_missing_ack:
-		if (READ_ONCE(ctx->flushing))
+		if (in_flushing)
 			packet->ack = RCODE_GENERATION;
 		else {
 			/*
@@ -1417,7 +1426,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_no_status:
-		if (READ_ONCE(ctx->flushing)) {
+		if (in_flushing) {
 			packet->ack = RCODE_GENERATION;
 			break;
 		}
@@ -1456,11 +1465,11 @@ static int handle_at_packet(struct context *context,
 
 static u32 get_cycle_time(struct fw_ohci *ohci);
 
-static void handle_local_rom(struct fw_ohci *ohci,
-			     struct fw_packet *packet, u32 csr)
+static void handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr,
+			     struct fw_packet *response)
 {
-	struct fw_packet response;
-	int tcode, length, i;
+	int tcode, rcode, length, i;
+	void *payload = NULL;
 
 	tcode = async_header_get_tcode(packet->header);
 	if (tcode_is_block_packet(tcode))
@@ -1470,25 +1479,22 @@ static void handle_local_rom(struct fw_ohci *ohci,
 
 	i = csr - CSR_CONFIG_ROM;
 	if (i + length > CONFIG_ROM_SIZE) {
-		fw_fill_response(&response, packet->header,
-				 RCODE_ADDRESS_ERROR, NULL, 0);
+		rcode = RCODE_ADDRESS_ERROR;
+		length = 0;
 	} else if (!tcode_is_read_request(tcode)) {
-		fw_fill_response(&response, packet->header,
-				 RCODE_TYPE_ERROR, NULL, 0);
+		rcode = RCODE_TYPE_ERROR;
+		length = 0;
 	} else {
-		fw_fill_response(&response, packet->header, RCODE_COMPLETE,
-				 (void *) ohci->config_rom + i, length);
+		rcode = RCODE_COMPLETE;
+		payload = (u8 *)ohci->config_rom + i;
 	}
 
-	// Timestamping on behalf of the hardware.
-	response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-	fw_core_handle_response(&ohci->card, &response);
+	fw_fill_response(response, packet->header, rcode, payload, length);
 }
 
-static void handle_local_lock(struct fw_ohci *ohci,
-			      struct fw_packet *packet, u32 csr)
+static void handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr,
+			      struct fw_packet *response)
 {
-	struct fw_packet response;
 	int tcode, length, ext_tcode, sel, try;
 	__be32 *payload, lock_old;
 	u32 lock_arg, lock_data;
@@ -1506,9 +1512,8 @@ static void handle_local_lock(struct fw_ohci *ohci,
 		lock_arg = 0;
 		lock_data = 0;
 	} else {
-		fw_fill_response(&response, packet->header,
-				 RCODE_TYPE_ERROR, NULL, 0);
-		goto out;
+		fw_fill_response(response, packet->header, RCODE_TYPE_ERROR, NULL, 0);
+		return;
 	}
 
 	sel = (csr - CSR_BUS_MANAGER_ID) / 4;
@@ -1520,86 +1525,163 @@ static void handle_local_lock(struct fw_ohci *ohci,
 		if (reg_read(ohci, OHCI1394_CSRControl) & 0x80000000) {
 			lock_old = cpu_to_be32(reg_read(ohci,
 							OHCI1394_CSRData));
-			fw_fill_response(&response, packet->header,
-					 RCODE_COMPLETE,
-					 &lock_old, sizeof(lock_old));
-			goto out;
+			fw_fill_response(response, packet->header, RCODE_COMPLETE, &lock_old,
+					 sizeof(lock_old));
+			return;
 		}
 
 	ohci_err(ohci, "swap not done (CSR lock timeout)\n");
-	fw_fill_response(&response, packet->header, RCODE_BUSY, NULL, 0);
-
- out:
-	// Timestamping on behalf of the hardware.
-	response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-	fw_core_handle_response(&ohci->card, &response);
+	fw_fill_response(response, packet->header, RCODE_BUSY, NULL, 0);
 }
 
-static void handle_local_request(struct at_context *ctx, struct fw_packet *packet)
+static bool in_config_rom_csr_registers(u64 offset)
 {
-	struct fw_ohci *ohci = ctx->context.ohci;
-	u64 offset, csr;
+	return in_range(offset, CSR_CONFIG_ROM, CONFIG_ROM_SIZE);
+}
 
-	if (ctx == &ohci->at_request_ctx) {
-		packet->ack = ACK_PENDING;
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+// 5.5.1 Bus Management CSR Registers.
+static bool in_bus_management_csr_registers(u64 offset)
+{
+	// 0x22c = CSR_MAINT_CONTROL following to CSR_CHANNELS_AVAILABLE_LO.
+	return in_range(offset, CSR_BUS_MANAGER_ID, 0x22c - CSR_BUS_MANAGER_ID);
+}
 
-	offset = async_header_get_offset(packet->header);
-	csr = offset - CSR_REGISTER_BASE;
+static void handle_at_request_local_packet(struct fw_ohci *ohci, struct fw_packet *packet)
+{
+	// Emulate split transaction.
+	packet->ack = ACK_PENDING;
+	packet->callback(packet, &ohci->card, packet->ack);
 
-	/* Handle config rom reads. */
-	if (csr >= CSR_CONFIG_ROM && csr < CSR_CONFIG_ROM_END)
-		handle_local_rom(ohci, packet, csr);
-	else switch (csr) {
-	case CSR_BUS_MANAGER_ID:
-	case CSR_BANDWIDTH_AVAILABLE:
-	case CSR_CHANNELS_AVAILABLE_HI:
-	case CSR_CHANNELS_AVAILABLE_LO:
-		handle_local_lock(ohci, packet, csr);
-		break;
-	default:
-		if (ctx == &ohci->at_request_ctx)
-			fw_core_handle_request(&ohci->card, packet);
+	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
+
+	if (in_config_rom_csr_registers(csr_offset) || in_bus_management_csr_registers(csr_offset)) {
+		struct fw_packet response;
+
+		memset(&response, 0, sizeof(response));
+
+		if (in_bus_management_csr_registers(csr_offset))
+			handle_local_lock(ohci, packet, csr_offset, &response);
 		else
-			fw_core_handle_response(&ohci->card, packet);
-		break;
+			handle_local_rom(ohci, packet, csr_offset, &response);
+
+		// Timestamping on behalf of the hardware.
+		response.timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+
+		// Finish the transaction immediately.
+		fw_core_handle_response(&ohci->card, &response);
+	} else {
+		fw_core_handle_request(&ohci->card, packet);
+	}
+}
+
+static void handle_at_response_local_packet(struct fw_ohci *ohci, struct fw_packet *packet)
+{
+	u64 csr_offset = async_header_get_offset(packet->header) - CSR_REGISTER_BASE;
+
+	// The transaction is already finished by handle_local_at_request_packet().
+	if (WARN_ON(in_config_rom_csr_registers(csr_offset)) ||
+	    WARN_ON(in_bus_management_csr_registers(csr_offset)))
+		return;
+
+	fw_core_handle_response(&ohci->card, packet);
+
+	packet->ack = ACK_COMPLETE;
+	packet->callback(packet, &ohci->card, packet->ack);
+}
+
+static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci,
+			void (*handle_at_local_packet)(struct fw_ohci *, struct fw_packet *))
+{
+	struct fw_packet *packet;
+
+	spin_lock(&local->lock);
+
+	while ((packet = list_first_entry_or_null(&local->list, typeof(*packet), link_for_local))) {
+		list_del_init(&packet->link_for_local);
+		spin_unlock(&local->lock);
+
+		if (unlikely(packet->ack != 0)) {
+			// This case is active when the call of at_context_queue_packet() returns
+			// error in at_context_transmit().
+			packet->callback(packet, &ohci->card, packet->ack);
+		} else {
+			handle_at_local_packet(ohci, packet);
+		}
+
+		spin_lock(&local->lock);
 	}
 
-	if (ctx == &ohci->at_response_ctx) {
-		packet->ack = ACK_COMPLETE;
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+	spin_unlock(&local->lock);
+}
+
+static void at_request_local_work(struct work_struct *work)
+{
+	struct at_local *local = from_work(local, work, work);
+	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_request_local);
+
+	handle_at_local_packets(local, ohci, handle_at_request_local_packet);
+}
+
+static void at_response_local_work(struct work_struct *work)
+{
+	struct at_local *local = from_work(local, work, work);
+	struct fw_ohci *ohci = container_of(local, struct fw_ohci, at_response_local);
+
+	handle_at_local_packets(local, ohci, handle_at_response_local_packet);
+}
+
+static void at_local_init(struct at_local *local, work_func_t func)
+{
+	spin_lock_init(&local->lock);
+	INIT_LIST_HEAD(&local->list);
+	INIT_WORK(&local->work, func);
+}
+
+static bool destination_is_local(const struct fw_packet *packet, const struct fw_ohci *ohci)
+__must_hold(&ohci->lock)
+{
+	lockdep_assert_held(&ohci->lock);
+
+	return (async_header_get_destination(packet->header) == ohci->node_id &&
+		ohci->generation == packet->generation);
+}
+
+static void queue_work_for_at_local_packet(struct at_context *ctx, struct fw_packet *packet,
+					   struct fw_ohci *ohci)
+{
+	struct at_local *local;
+
+	if (ctx == &ohci->at_request_ctx)
+		local = &ohci->at_request_local;
+	else
+		local = &ohci->at_response_local;
+
+	// Timestamping on behalf of the hardware.
+	packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+
+	scoped_guard(spinlock_irqsave, &local->lock)
+		list_add_tail(&packet->link_for_local, &local->list);
+	queue_work(ohci->card.async_wq, &local->work);
 }
 
 static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->context.ohci;
-	unsigned long flags;
-	int ret;
+	bool use_work = true;
 
-	spin_lock_irqsave(&ohci->lock, flags);
+	// These members are used to cancel the packet.
+	packet->driver_data = NULL;
+	INIT_LIST_HEAD(&packet->link_for_local);
 
-	if (async_header_get_destination(packet->header) == ohci->node_id &&
-	    ohci->generation == packet->generation) {
-		spin_unlock_irqrestore(&ohci->lock, flags);
-
-		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-
-		handle_local_request(ctx, packet);
-		return;
+	scoped_guard(spinlock_irqsave, &ohci->lock) {
+		if (!destination_is_local(packet, ohci)) {
+			if (!at_context_queue_packet(ctx, packet))
+				use_work = false;
+		}
 	}
 
-	ret = at_context_queue_packet(ctx, packet);
-	spin_unlock_irqrestore(&ohci->lock, flags);
-
-	if (ret < 0) {
-		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
-
-		packet->callback(packet, &ohci->card, packet->ack);
-	}
+	if (use_work)
+		queue_work_for_at_local_packet(ctx, packet, ohci);
 }
 
 static void detect_dead_context(struct fw_ohci *ohci,
@@ -2456,6 +2538,9 @@ static void ohci_disable(struct fw_card *card)
 	flush_work(&ohci->at_request_ctx.work);
 	flush_work(&ohci->at_response_ctx.work);
 
+	flush_work(&ohci->at_request_local.work);
+	flush_work(&ohci->at_response_local.work);
+
 	for (i = 0; i < ohci->n_ir; ++i) {
 		if (!(ohci->ir_context_mask & BIT(i)))
 			flush_work(&ohci->ir_context_list[i].base.work);
@@ -2467,6 +2552,9 @@ static void ohci_disable(struct fw_card *card)
 
 	at_context_flush(&ohci->at_request_ctx);
 	at_context_flush(&ohci->at_response_ctx);
+
+	at_request_local_work(&ohci->at_request_local.work);
+	at_response_local_work(&ohci->at_response_local.work);
 }
 
 static int ohci_set_config_rom(struct fw_card *card,
@@ -2568,31 +2656,56 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct at_context *ctx = &ohci->at_request_ctx;
-	struct driver_data *driver_data = packet->driver_data;
+	struct at_local *local = &ohci->at_request_local;
 	int ret = -ENOENT;
+
+	// handle_at_request_local_packet() can reach here by calling fw_core_handle_response().
+	if (current_work() != &local->work)
+		disable_work_sync(&local->work);
 
 	// Avoid dead lock due to programming mistake.
 	if (WARN_ON_ONCE(current_work() == &ctx->work))
 		return 0;
 	disable_work_sync(&ctx->work);
 
-	if (packet->ack != 0)
-		goto out;
+	bool use_local_work = false;
 
-	if (packet->payload_mapped)
-		dma_unmap_single(ohci->card.device, packet->payload_bus,
-				 packet->payload_length, DMA_TO_DEVICE);
+	if (!packet->ack) {
+		// NOTE: This function relies on this value, thus it is not thread-safe.
+		struct driver_data *driver_data = packet->driver_data;
 
-	driver_data->packet = NULL;
-	packet->ack = RCODE_CANCELLED;
+		if (driver_data) {
+			if (packet->payload_mapped) {
+				dma_unmap_single(ohci->card.device, packet->payload_bus,
+						 packet->payload_length, DMA_TO_DEVICE);
+			}
 
-	// Timestamping on behalf of the hardware.
-	packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+			// Invalidate the packet queued in AT request context.
+			driver_data->packet = NULL;
 
-	packet->callback(packet, &ohci->card, packet->ack);
-	ret = 0;
- out:
-	enable_work(&ctx->work);
+			scoped_guard(spinlock_irqsave, &local->lock)
+				list_add_tail(&packet->link_for_local, &local->list);
+			use_local_work = true;
+		} else {
+			scoped_guard(spinlock_irqsave, &local->lock) {
+				if (!list_empty(&packet->link_for_local))
+					use_local_work = true;
+			}
+		}
+	}
+
+	enable_and_queue_work(card->async_wq, &ctx->work);
+
+	if (use_local_work) {
+		// Timestamping on behalf of the hardware.
+		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
+		packet->ack = RCODE_CANCELLED;
+
+		ret = 0;
+	}
+
+	if (current_work() != &local->work)
+		enable_and_queue_work(card->async_wq, &local->work);
 
 	return ret;
 }
@@ -3666,6 +3779,9 @@ static int pci_probe(struct pci_dev *dev,
 		return err;
 	INIT_WORK(&ohci->at_response_ctx.work, ohci_at_context_work);
 
+	at_local_init(&ohci->at_request_local, at_request_local_work);
+	at_local_init(&ohci->at_response_local, at_response_local_work);
+
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
 	ohci->ir_context_support = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
@@ -3761,7 +3877,7 @@ static void pci_remove(struct pci_dev *dev)
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
 
-static int __maybe_unused pci_suspend(struct device *dev)
+static int pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
@@ -3773,7 +3889,7 @@ static int __maybe_unused pci_suspend(struct device *dev)
 }
 
 
-static int __maybe_unused pci_resume(struct device *dev)
+static int pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
@@ -3804,14 +3920,14 @@ static const struct pci_device_id pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, pci_table);
 
-static SIMPLE_DEV_PM_OPS(pci_pm_ops, pci_suspend, pci_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pci_pm_ops, pci_suspend, pci_resume);
 
 static struct pci_driver fw_ohci_pci_driver = {
 	.name		= ohci_driver_name,
 	.id_table	= pci_table,
 	.probe		= pci_probe,
 	.remove		= pci_remove,
-	.driver.pm	= &pci_pm_ops,
+	.driver.pm	= pm_sleep_ptr(&pci_pm_ops),
 };
 
 static int __init fw_ohci_init(void)

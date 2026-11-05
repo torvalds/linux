@@ -102,12 +102,12 @@ examples:
         clock-output-names = "isc-mck";
 
         port {
-                isc_0: endpoint {
-                       remote-endpoint = <&ov7740_0>;
-                       hsync-active = <1>;
-                       vsync-active = <0>;
-                       pclk-sample = <1>;
-                       bus-width = <8>;
-                };
+            isc_0: endpoint {
+                remote-endpoint = <&ov7740_0>;
+                hsync-active = <1>;
+                vsync-active = <0>;
+                pclk-sample = <1>;
+                bus-width = <8>;
+            };
         };
     };

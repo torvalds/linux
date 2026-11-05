@@ -19,11 +19,11 @@ asmlinkage void chacha_zvkb(struct chacha_state *state, const u8 *in, u8 *out,
 #define hchacha_block_arch hchacha_block_generic /* not implemented yet */
 
 static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
-			      const u8 *src, unsigned int bytes, int nrounds)
+			      const u8 *src, size_t bytes, int nrounds)
 {
 	u8 block_buffer[CHACHA_BLOCK_SIZE];
-	unsigned int full_blocks = bytes / CHACHA_BLOCK_SIZE;
-	unsigned int tail_bytes = bytes % CHACHA_BLOCK_SIZE;
+	size_t full_blocks = bytes / CHACHA_BLOCK_SIZE;
+	size_t tail_bytes = bytes % CHACHA_BLOCK_SIZE;
 
 	if (!static_branch_likely(&use_zvkb) || !crypto_simd_usable())
 		return chacha_crypt_generic(state, dst, src, bytes, nrounds);

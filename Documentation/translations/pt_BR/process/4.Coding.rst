@@ -197,8 +197,8 @@ a ferramenta certa para o trabalho. Códigos que mostrem falta de atenção à
 concorrência terão um caminho difícil para entrar no mainline.
 
 
-Regressions
-***********
+Regressões
+**********
 
 Um perigo final que vale a pena mencionar é este: pode ser tentador fazer uma
 alteração (que pode trazer grandes melhorias) que faça algo quebrar para os
@@ -258,7 +258,7 @@ Note que nem todos os avisos do compilador ficam ativados por padrão. Compile o
 kernel com "make KCFLAGS=-W" para obter o conjunto completo.
 
 O kernel fornece várias opções de configuração que ativam recursos de
-depuração; a maioria delas é encontrada no submanu "kernel hacking". Várias
+depuração; a maioria delas é encontrada no submenu "kernel hacking". Várias
 dessas opções devem ser ativadas para qualquer kernel usado para fins de
 desenvolvimento ou teste. Em particular, você deve ativar:
 

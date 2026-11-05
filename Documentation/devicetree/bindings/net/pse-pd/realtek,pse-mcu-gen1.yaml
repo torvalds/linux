@@ -54,6 +54,12 @@ properties:
               - zyxel,gs1920-24hp-v2-pse
           - const: realtek,pse-mcu-gen1-smbus
 
+      # I2C, raw framing
+      - items:
+          - enum:
+              - ubnt,usw-lite-16-poe-pse
+          - const: realtek,pse-mcu-gen1-i2c
+
       # UART
       - items:
           - enum:
@@ -100,6 +106,7 @@ allOf:
           contains:
             enum:
               - realtek,pse-mcu-gen1-smbus
+              - realtek,pse-mcu-gen1-i2c
               - realtek,pse-mcu-gen2-smbus
               - realtek,pse-mcu-gen2-i2c
     then:

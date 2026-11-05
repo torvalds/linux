@@ -475,9 +475,9 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	 * have the same nominal mm, but if we're a kernel thread, lazy
 	 * mm dropping could change our pgd.
 	 *
-	 * Out of an abundance of caution, this uses __get_user() to fault
-	 * in the target address just in case there's some obscure case
-	 * in which the target address isn't readable.
+	 * Out of an abundance of caution, this uses copy_from_kernel_nofault()
+	 * to fault in the target address just in case there's some obscure
+	 * case in which the target address isn't readable.
 	 */
 
 	preempt_disable();

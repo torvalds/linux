@@ -116,6 +116,9 @@ struct ns_common {
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
+#ifdef CONFIG_SECURITY
+	void *ns_security;
+#endif
 	struct ns_tree;
 	struct rcu_head ns_rcu;
 };

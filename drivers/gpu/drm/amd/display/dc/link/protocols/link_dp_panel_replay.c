@@ -82,7 +82,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	struct dc *dc;
 	struct dmub_replay *replay;
 	int i;
-	unsigned int panel_inst;
+	unsigned int pr_panel_inst;
 	struct replay_context replay_context = { 0 };
 	unsigned int lineTimeInNs = 0;
 
@@ -117,7 +117,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	if (!replay)
 		return false;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	replay_context.aux_inst = (enum channel_id) link_get_ddc_aux_inst(link);
@@ -202,7 +202,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 }
 
 
-bool dp_pr_get_panel_inst(const struct dc *dc,
+bool dp_pr_get_pr_panel_inst(const struct dc *dc,
 		const struct dc_link *link,
 		unsigned int *inst_out)
 {
@@ -246,10 +246,10 @@ bool dp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream)
 bool dp_pr_enable(struct dc_link *link, bool enable)
 {
 	struct dc *dc = link->ctx->dc;
-	unsigned int panel_inst = 0;
+	unsigned int pr_panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	if (link->replay_settings.replay_allow_active == enable)
@@ -264,7 +264,7 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 	cmd.pr_enable.header.type = DMUB_CMD__PR;
 	cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
 	cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
-	cmd.pr_enable.data.panel_inst = (uint8_t)panel_inst;
+	cmd.pr_enable.data.panel_inst = (uint8_t)pr_panel_inst;
 	cmd.pr_enable.data.enable = enable ? 1 : 0;
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
@@ -276,11 +276,11 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_context)
 {
 	struct dc *dc = link->ctx->dc;
-	unsigned int panel_inst = 0;
+	unsigned int pr_panel_inst = 0;
 	union dmub_rb_cmd cmd;
 	struct pipe_ctx *pipe_ctx = NULL;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	for (unsigned int i = 0; i < MAX_PIPES; i++) {
@@ -301,7 +301,7 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 	cmd.pr_copy_settings.header.type = DMUB_CMD__PR;
 	cmd.pr_copy_settings.header.sub_type = DMUB_CMD__PR_COPY_SETTINGS;
 	cmd.pr_copy_settings.header.payload_bytes = sizeof(struct dmub_cmd_pr_copy_settings_data);
-	cmd.pr_copy_settings.data.panel_inst = (uint8_t)panel_inst;
+	cmd.pr_copy_settings.data.panel_inst = (uint8_t)pr_panel_inst;
 	// HW inst
 	cmd.pr_copy_settings.data.aux_inst = replay_context->aux_inst;
 	cmd.pr_copy_settings.data.digbe_inst = replay_context->digbe_inst;
@@ -359,10 +359,10 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data)
 {
 	struct dc *dc = link->ctx->dc;
-	unsigned int panel_inst = 0;
+	unsigned int pr_panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -371,7 +371,7 @@ bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_da
 	cmd.pr_update_state.header.type = DMUB_CMD__PR;
 	cmd.pr_update_state.header.sub_type = DMUB_CMD__PR_UPDATE_STATE;
 	cmd.pr_update_state.header.payload_bytes = sizeof(struct dmub_cmd_pr_update_state_data);
-	cmd.pr_update_state.data.panel_inst = (uint8_t)panel_inst;
+	cmd.pr_update_state.data.panel_inst = (uint8_t)pr_panel_inst;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
@@ -380,10 +380,10 @@ bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_da
 bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data)
 {
 	struct dc *dc = link->ctx->dc;
-	unsigned int panel_inst = 0;
+	unsigned int pr_panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -392,7 +392,7 @@ bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_
 	cmd.pr_general_cmd.header.type = DMUB_CMD__PR;
 	cmd.pr_general_cmd.header.sub_type = DMUB_CMD__PR_GENERAL_CMD;
 	cmd.pr_general_cmd.header.payload_bytes = sizeof(struct dmub_cmd_pr_general_cmd_data);
-	cmd.pr_general_cmd.data.panel_inst = (uint8_t)panel_inst;
+	cmd.pr_general_cmd.data.panel_inst = (uint8_t)pr_panel_inst;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
@@ -401,16 +401,16 @@ bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_
 bool dp_pr_get_state(const struct dc_link *link, uint64_t *state)
 {
 	const struct dc *dc = link->ctx->dc;
-	unsigned int panel_inst = 0;
+	unsigned int pr_panel_inst = 0;
 	uint32_t retry_count = 0;
 	uint32_t replay_state = PR_STATE_INVALID;
 
-	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_pr_panel_inst(dc, link, &pr_panel_inst))
 		return false;
 
 	do {
 		// Send gpint command and wait for ack
-		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, (uint16_t)panel_inst,
+		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, (uint16_t)pr_panel_inst,
 					       &replay_state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 			// Return invalid state when GPINT times out
 			replay_state = PR_STATE_INVALID;

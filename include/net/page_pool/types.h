@@ -22,9 +22,9 @@
 					*/
 #define PP_FLAG_SYSTEM_POOL	BIT(2) /* Global system page_pool */
 
-/* Allow unreadable (net_iov backed) netmem in this page_pool. Drivers setting
- * this must be able to support unreadable netmem, where netmem_address() would
- * return NULL. This flag should not be set for header page_pools.
+/* Allow unreadable netmem in this page_pool. Drivers setting this must be able
+ * to support unreadable netmem, where netmem_address() returns NULL. This flag
+ * should not be set for header page_pools.
  *
  * If the driver sets PP_FLAG_ALLOW_UNREADABLE_NETMEM, it should also set
  * page_pool_params.slow.queue_idx.

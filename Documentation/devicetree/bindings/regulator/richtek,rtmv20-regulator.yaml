@@ -151,9 +151,9 @@ examples:
         richtek,vsync-polarity-high;
 
         lsw {
-                regulator-name = "rtmv20,lsw";
-                regulator-min-microamp = <0>;
-                regulator-max-microamp = <6000000>;
+          regulator-name = "rtmv20,lsw";
+          regulator-min-microamp = <0>;
+          regulator-max-microamp = <6000000>;
         };
       };
     };

@@ -6,41 +6,88 @@
  * This is the main hub from which the sub-commands (perf stat,
  * perf top, perf record, perf report, etc.) are started.
  */
-#include "builtin.h"
-#include "perf.h"
 
-#include "util/build-id.h"
-#include "util/cache.h"
-#include "util/env.h"
-#include <internal/lib.h> // page_size
-#include <subcmd/exec-cmd.h>
-#include "util/config.h"
-#include <subcmd/run-command.h>
-#include "util/parse-events.h"
-#include <subcmd/parse-options.h>
-#include <subcmd/help.h>
-#include "util/debug.h"
-#include "util/event.h"
-#include "util/util.h" // usage()
-#include "ui/ui.h"
-#include "perf-sys.h"
-#include <api/fs/fs.h>
-#include <api/fs/tracing_path.h>
-#include <perf/core.h>
+#include <linux/compiler.h>
 #include <errno.h>
-#include <pthread.h>
-#include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <linux/kernel.h>
+
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <sys/stat.h>
+
+#include <api/fs/tracing_path.h>
+#include <perf/core.h>
+#include <subcmd/exec-cmd.h>
+#include <subcmd/help.h>
+#include <subcmd/pager.h>
+#include <subcmd/parse-options.h>
+#include <subcmd/run-command.h>
+
+#include "builtin.h"
+#include "ui/ui.h"
+#include "util/build-id.h"
+#include "util/config.h"
+#include "util/debug.h"
+#ifdef HAVE_LIBTRACEEVENT
+#include "util/trace-event.h"
+#endif
+
+const char perf_usage_string[] =
+	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
+
+const char perf_more_info_string[] =
+	"See 'perf help COMMAND' for more information on a specific command.";
+
+static void __noreturn usage(const char *err)
+{
+	fprintf(stderr, "\n Usage: %s\n", err);
+	exit(129);
+}
+
+#define CMD_EXEC_PATH "--exec-path"
+#define CMD_DEBUGFS_DIR "--debugfs-dir="
+
+#define EXEC_PATH_ENVIRONMENT "PERF_EXEC_PATH"
+#define PERF_PAGER_ENVIRONMENT "PERF_PAGER"
 
 static int use_pager = -1;
 static FILE *debug_fp = NULL;
+
+
+#ifndef HAVE_LIBTRACEEVENT
+#define DECLARE_LIBTRACEEVENT_STUB(_cmd) \
+	int cmd_##_cmd(int argc __always_unused, const char **argv __always_unused) \
+	{ \
+		fprintf(stderr, \
+			"'" #_cmd "' command not available: missing libtraceevent " \
+			"devel package at build time.\n"); \
+		return -1; \
+	}
+
+DECLARE_LIBTRACEEVENT_STUB(timechart)
+DECLARE_LIBTRACEEVENT_STUB(sched)
+DECLARE_LIBTRACEEVENT_STUB(kmem)
+DECLARE_LIBTRACEEVENT_STUB(lock)
+DECLARE_LIBTRACEEVENT_STUB(trace)
+DECLARE_LIBTRACEEVENT_STUB(kwork)
+#endif
+
+#ifndef HAVE_LIBELF_SUPPORT
+#define DECLARE_LIBELF_SUPPORT_STUB(_cmd) \
+	int cmd_##_cmd(int argc __always_unused, const char **argv __always_unused) \
+	{ \
+		fprintf(stderr, \
+			"'" #_cmd "' command not available: missing libelf " \
+			"devel package at build time.\n"); \
+		return -1; \
+	}
+
+DECLARE_LIBELF_SUPPORT_STUB(probe)
+#endif
 
 struct cmd_struct {
 	const char *cmd;
@@ -65,36 +112,24 @@ static const struct cmd_struct commands[] = {
 	{ "report",	cmd_report,	0 },
 	{ "bench",	cmd_bench,	0 },
 	{ "stat",	cmd_stat,	0 },
-#ifdef HAVE_LIBTRACEEVENT
 	{ "timechart",	cmd_timechart,	0 },
-#endif
 	{ "top",	cmd_top,	0 },
 	{ "annotate",	cmd_annotate,	0 },
 	{ "version",	cmd_version,	0 },
 	{ "script",	cmd_script,	0 },
-#ifdef HAVE_LIBTRACEEVENT
 	{ "sched",	cmd_sched,	0 },
-#endif
-#ifdef HAVE_LIBELF_SUPPORT
 	{ "probe",	cmd_probe,	0 },
-#endif
-#ifdef HAVE_LIBTRACEEVENT
 	{ "kmem",	cmd_kmem,	0 },
 	{ "lock",	cmd_lock,	0 },
-#endif
 	{ "kvm",	cmd_kvm,	0 },
 	{ "test",	cmd_test,	0 },
-#if defined(HAVE_LIBTRACEEVENT)
 	{ "trace",	cmd_trace,	0 },
-#endif
 	{ "inject",	cmd_inject,	0 },
 	{ "mem",	cmd_mem,	0 },
 	{ "data",	cmd_data,	0 },
 	{ "ftrace",	cmd_ftrace,	0 },
 	{ "daemon",	cmd_daemon,	0 },
-#ifdef HAVE_LIBTRACEEVENT
 	{ "kwork",	cmd_kwork,	0 },
-#endif
 };
 
 struct pager_config {
@@ -347,6 +382,9 @@ static int run_builtin(const struct cmd_struct *p, int argc, const char **argv)
 
 	status = p->fn(argc, argv);
 	perf_config__exit();
+#ifdef HAVE_LIBTRACEEVENT
+	trace_event__exit();
+#endif
 	exit_browser(status);
 
 	if (status)
@@ -503,15 +541,9 @@ int main(int argc, const char **argv)
 		argv[0] = cmd;
 	}
 	if (strstarts(cmd, "trace")) {
-#ifndef HAVE_LIBTRACEEVENT
-		fprintf(stderr,
-			"trace command not available: missing libtraceevent devel package at build time.\n");
-		goto out;
-#else
 		setup_path();
 		argv[0] = "trace";
 		return cmd_trace(argc, argv);
-#endif
 	}
 	/* Look for flags.. */
 	argv++;

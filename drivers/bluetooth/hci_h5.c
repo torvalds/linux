@@ -543,12 +543,8 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 	const u8 delim = SLIP_DELIMITER, esc = SLIP_ESC;
 	const u8 *byte = &c;
 
-	if (!test_bit(H5_RX_ESC, &h5->flags) && c == SLIP_ESC) {
-		set_bit(H5_RX_ESC, &h5->flags);
-		return;
-	}
-
-	if (test_and_clear_bit(H5_RX_ESC, &h5->flags)) {
+	if (test_bit(H5_RX_ESC, &h5->flags)) {
+		clear_bit(H5_RX_ESC, &h5->flags);
 		switch (c) {
 		case SLIP_ESC_DELIM:
 			byte = &delim;
@@ -561,6 +557,9 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 			h5_reset_rx(h5);
 			return;
 		}
+	} else if (c == SLIP_ESC) {
+		set_bit(H5_RX_ESC, &h5->flags);
+		return;
 	}
 
 	skb_put_data(h5->rx_skb, byte, 1);

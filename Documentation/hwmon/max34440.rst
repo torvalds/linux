@@ -27,6 +27,14 @@ Supported chips:
 
     Datasheet: -
 
+  * ADI ADPM12300
+
+    Prefixes: 'adpm12300'
+
+    Addresses scanned: -
+
+    Datasheet: -
+
   * Maxim MAX34440
 
     Prefixes: 'max34440'
@@ -105,11 +113,11 @@ This driver supports multiple devices: hardware monitoring for Maxim MAX34440
 PMBus 6-Channel Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply
 Manager and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data
 Logger; PMBus Voltage Monitor and Sequencers for MAX34451, MAX34452, MAX34460,
-and MAX34461; PMBus DC/DC Power Module ADPM12160, ADPM12200, and ADPM12250. The
-MAX34451 and MAX34452 support monitoring voltage or current of 16 channels based
-on GIN pins. The MAX34460 supports 12 voltage channels, and the MAX34461 supports
-16 voltage channels. The ADPM12160, ADPM12200, and ADPM12250 also monitor both
-input and output of voltage and current.
+and MAX34461; PMBus DC/DC Power Module ADPM12160, ADPM12200, ADPM12250 and
+ADPM12300. The MAX34451 and MAX34452 support monitoring voltage or current of 16
+channels based on GIN pins. The MAX34460 supports 12 voltage channels, and the
+MAX34461 supports 16 voltage channels. The ADPM12160, ADPM12200, ADPM12250 and
+ADPM12300 also monitor both input and output of voltage and current.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
@@ -167,8 +175,8 @@ in[1-6]_reset_history	Write any value to reset history.
 .. note::
 
     - MAX34446 only supports in[1-4].
-    - ADPM12160, ADPM12200, and ADPM12250 only supports in[1-2]. Label is "vin1"
-      and "vout1" respectively.
+    - ADPM12160, ADPM12200, ADPM12250, and ADPM12300 only supports in[1-2].
+      Label is "vin1" and "vout1" respectively.
 
 Curr
 ~~~~
@@ -190,9 +198,9 @@ curr[1-6]_reset_history	Write any value to reset history.
 
     - in6 and curr6 attributes only exist for MAX34440.
     - MAX34446 only supports curr[1-4].
-    - For ADPM12160, ADPM12200, and ADPM12250, curr[1] is "iin1"
+    - For ADPM12160, ADPM12200, ADPM12250, and ADPM12300, curr[1] is "iin1"
     - For ADPM12160, and ADPM12200 curr[2-6] are "iout[1-5]".
-    - For ADPM12250, curr[2-4] are "iout[1-3]".
+    - For ADPM12250, and ADPM12300 curr[2-4] are "iout[1-3]".
 
 Power
 ~~~~~
@@ -228,7 +236,7 @@ temp[1-8]_reset_history	Write any value to reset history.
 .. note::
    - temp7 and temp8 attributes only exist for MAX34440.
    - MAX34446 only supports temp[1-3].
-   - ADPM12160, ADPM12200, and ADPM12250 only supports temp[1].
+   - ADPM12160, ADPM12200, ADPM12250, and ADPM12300 only supports temp[1].
 
 
 .. note::

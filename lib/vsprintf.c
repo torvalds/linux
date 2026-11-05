@@ -25,6 +25,7 @@
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/ctype.h>
 #include <linux/hex.h>
 #include <linux/kernel.h>
@@ -54,12 +55,13 @@
 #include <asm/byteorder.h>	/* cpu_to_le16 */
 #include <linux/unaligned.h>
 
-#include <linux/string_helpers.h>
+#include <kunit/visibility.h>
+
 #include "kstrtox.h"
 
 /* Disable pointer hashing if requested */
 bool no_hash_pointers __ro_after_init;
-EXPORT_SYMBOL_FOR_MODULES(no_hash_pointers, "printf_kunit");
+EXPORT_SYMBOL_IF_KUNIT(no_hash_pointers);
 
 /*
  * Hashed pointers policy selected by "hash_pointers=..." boot param
@@ -762,9 +764,8 @@ static int fill_ptr_key(struct notifier_block *nb, unsigned long action, void *d
 {
 	get_random_bytes(&ptr_key, sizeof(ptr_key));
 
-	/* Pairs with smp_rmb() before reading ptr_key. */
-	smp_wmb();
-	WRITE_ONCE(filled_random_ptr_key, true);
+	/* Pairs with smp_load_acquire() before reading ptr_key. */
+	smp_store_release(&filled_random_ptr_key, true);
 	return NOTIFY_DONE;
 }
 
@@ -781,11 +782,9 @@ static inline int __ptr_to_hashval(const void *ptr, unsigned long *hashval_out)
 {
 	unsigned long hashval;
 
-	if (!READ_ONCE(filled_random_ptr_key))
+	/* Pairs with smp_store_release() after writing ptr_key. */
+	if (!smp_load_acquire(&filled_random_ptr_key))
 		return -EBUSY;
-
-	/* Pairs with smp_wmb() after writing ptr_key. */
-	smp_rmb();
 
 #ifdef CONFIG_64BIT
 	hashval = (unsigned long)siphash_1u64((u64)ptr, &ptr_key);
@@ -850,7 +849,7 @@ static char *default_pointer(char *buf, char *end, const void *ptr,
 }
 
 int kptr_restrict __read_mostly;
-EXPORT_SYMBOL_FOR_MODULES(kptr_restrict, "printf_kunit");
+EXPORT_SYMBOL_IF_KUNIT(kptr_restrict);
 
 static noinline_for_stack
 char *restricted_pointer(char *buf, char *end, const void *ptr,

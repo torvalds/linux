@@ -117,7 +117,7 @@ struct quirk_entry {
 	 * Wlan/Bluetooth/3G, those netbook will load the SCM (windows app) to
 	 * disable the original Wlan/Bluetooth control by BIOS when user press
 	 * fn key, then control Wlan/Bluetooth/3G by SCM (software control by
-	 * OS). Without SCM, user cann't on/off 3G module on those 3G netbook.
+	 * OS). Without SCM, user can't on/off 3G module on those 3G netbook.
 	 * On Linux, msi-laptop driver will do the same thing to disable the
 	 * original BIOS control, then might need use HAL or other userland
 	 * application to do the software control that simulate with SCM.

@@ -796,7 +796,6 @@ static const struct amd_ip_funcs vce_v1_0_ip_funcs = {
 	.hw_fini = vce_v1_0_hw_fini,
 	.suspend = vce_v1_0_suspend,
 	.resume = vce_v1_0_resume,
-	.is_idle = vce_v1_0_is_idle,
 	.wait_for_idle = vce_v1_0_wait_for_idle,
 	.set_clockgating_state = vce_v1_0_set_clockgating_state,
 	.set_powergating_state = vce_v1_0_set_powergating_state,

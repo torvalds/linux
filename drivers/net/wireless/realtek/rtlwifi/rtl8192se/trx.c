@@ -276,7 +276,7 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	/* hw will set stats->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame,
-	 * hw will not decrypt robust managment frame
+	 * hw will not decrypt robust management frame
 	 * for IEEE80211w but still set stats->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -466,7 +466,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		/* Alwasy enable all rate fallback range */
 		set_tx_desc_data_rate_fb_limit(pdesc, 0x1F);
 
-		/* Fix: I don't kown why hw use 6.5M to tx when set it */
+		/* Fix: I don't known why hw use 6.5M to tx when set it */
 		set_tx_desc_user_rate(pdesc,
 				      ptcb_desc->use_driver_rate ? 1 : 0);
 

@@ -324,7 +324,7 @@ impl ProcessInner {
         if let Some(death) = ListArc::try_from_arc_or_drop(death) {
             self.delivered_deaths.push_back(death);
         } else {
-            pr_warn!("Notification added to `delivered_deaths` twice.");
+            pr_warn_ratelimited!("Notification added to `delivered_deaths` twice.\n");
         }
     }
 
@@ -548,7 +548,7 @@ impl Process {
     }
 
     #[inline(never)]
-    pub(crate) fn debug_print_stats(&self, m: &SeqFile, ctx: &Context) -> Result<()> {
+    pub(crate) fn debug_print_stats(&self, m: &SeqFile, ctx: &Context) -> Result {
         seq_print!(m, "proc {}\n", self.pid_in_current_ns());
         seq_print!(m, "context {}\n", &*ctx.name);
 
@@ -596,7 +596,7 @@ impl Process {
     }
 
     #[inline(never)]
-    pub(crate) fn debug_print(&self, m: &SeqFile, ctx: &Context, print_all: bool) -> Result<()> {
+    pub(crate) fn debug_print(&self, m: &SeqFile, ctx: &Context, print_all: bool) -> Result {
         seq_print!(m, "proc {}\n", self.pid_in_current_ns());
         seq_print!(m, "context {}\n", &*ctx.name);
 
@@ -686,8 +686,16 @@ impl Process {
     pub(crate) fn get_work_or_register<'a>(
         &'a self,
         thread: &'a Arc<Thread>,
+        thread_has_deferred_work: bool,
     ) -> GetWorkOrRegister<'a> {
         let mut inner = self.inner.lock();
+
+        if thread_has_deferred_work && !inner.work.is_empty() {
+            if let Some(work) = thread.pop_work_even_if_deferred() {
+                return GetWorkOrRegister::Work(work);
+            }
+        }
+
         // Try to get work from the process queue.
         if let Some(work) = inner.work.pop_front() {
             return GetWorkOrRegister::Work(work);
@@ -701,7 +709,7 @@ impl Process {
         let id = {
             let current = kernel::current!();
             if self.task != current.group_leader() {
-                pr_err!("get_current_thread was called from the wrong process.");
+                pr_err_ratelimited!("get_current_thread was called from the wrong process.\n");
                 return Err(EINVAL);
             }
             current.pid()
@@ -725,7 +733,7 @@ impl Process {
                 Ok(ta)
             }
             rbtree::Entry::Occupied(_entry) => {
-                pr_err!("Cannot create two threads with the same id.");
+                pr_err_ratelimited!("Cannot create two threads with the same id.\n");
                 Err(EINVAL)
             }
         }
@@ -861,7 +869,9 @@ impl Process {
                 match refs.by_handle.entry(res.as_u32()) {
                     rbtree::Entry::Vacant(entry) => break (res, entry),
                     rbtree::Entry::Occupied(_) => {
-                        pr_err!("Detected mismatch between handle_is_present and by_handle");
+                        pr_err_ratelimited!(
+                            "Detected mismatch between handle_is_present and by_handle\n"
+                        );
                         res.acquire();
                         kernel::warn_on!(true);
                         return Err(EINVAL);
@@ -892,11 +902,8 @@ impl Process {
 
         let (info_proc, info_node) = {
             let info_init = NodeRefInfo::new(node_ref, handle, self.into());
-            match info.pin_init_with(info_init) {
-                Ok(info) => ListArc::pair_from_pin_unique(info),
-                // error is infallible
-                Err(err) => match err {},
-            }
+            let Ok(info) = info.pin_init_with(info_init);
+            ListArc::pair_from_pin_unique(info)
         };
 
         // Ensure the process is still alive while we insert a new reference.
@@ -1066,7 +1073,10 @@ impl Process {
 
         let (new_alloc, addr) = loop {
             let mut inner = self.inner.lock();
-            let mapping = inner.mapping.as_mut().ok_or_else(BinderError::new_dead)?;
+            let mapping = inner
+                .mapping
+                .as_mut()
+                .ok_or_else(|| BinderError::new_dead())?;
             let alloc_request = match mapping.alloc.reserve_new(reserve_new_args)? {
                 ReserveNew::Success(new_alloc) => break (new_alloc, mapping.address),
                 ReserveNew::NeedAlloc(request) => request,
@@ -1101,7 +1111,7 @@ impl Process {
         ) {
             Ok(()) => {}
             Err(err) => {
-                pr_warn!("use_range failure {:?}", err);
+                pr_warn_ratelimited!("use_range failure {:?}\n", err);
                 return Err(err.into());
             }
         }
@@ -1132,7 +1142,7 @@ impl Process {
             let freed_range = match mapping.alloc.reservation_abort(offset) {
                 Ok(freed_range) => freed_range,
                 Err(_) => {
-                    pr_warn!(
+                    pr_warn_ratelimited!(
                         "Pointer {:x} failed to free, base = {:x}\n",
                         ptr,
                         mapping.address
@@ -1154,7 +1164,7 @@ impl Process {
         let mut inner = self.inner.lock();
         if let Some(ref mut mapping) = &mut inner.mapping {
             if mapping.alloc.reservation_commit(offset, &mut data).is_err() {
-                pr_warn!("Offset {} failed to be marked freeable\n", offset);
+                pr_warn_ratelimited!("Offset {} failed to be marked freeable\n", offset);
             }
         }
     }
@@ -1206,13 +1216,12 @@ impl Process {
         let ptr = reader.read::<BinderNodeDebugInfo>()?.ptr;
         let mut out = BinderNodeDebugInfo::default();
 
-        {
+        if let Some(start_ptr) = ptr.checked_add(1) {
             let inner = self.inner.lock();
-            for (node_ptr, node) in &inner.nodes {
-                if *node_ptr > ptr {
-                    node.populate_debug_info(&mut out, &inner);
-                    break;
-                }
+            // cursor_lower_bound retrieves the "key" passed or the next existing larger key
+            if let Some(cursor) = inner.nodes.cursor_lower_bound(&start_ptr) {
+                let (_, node) = cursor.current();
+                node.populate_debug_info(&mut out, &inner);
             }
         }
 
@@ -1294,14 +1303,8 @@ impl Process {
             return Ok(());
         }
 
-        let death = {
-            let death_init = NodeDeath::new(info.node_ref().node.clone(), self.clone(), cookie);
-            match death.pin_init_with(death_init) {
-                Ok(death) => death,
-                // error is infallible
-                Err(err) => match err {},
-            }
-        };
+        let death_init = NodeDeath::new(info.node_ref().node.clone(), self.clone(), cookie);
+        let Ok(death) = death.pin_init_with(death_init);
 
         // Register the death notification.
         {
@@ -1516,7 +1519,7 @@ impl Process {
         let wake = {
             let mut inner = self.inner.lock();
             if inner.outstanding_txns == 0 {
-                pr_err!("outstanding_txns underflow");
+                pr_err_ratelimited!("outstanding_txns underflow\n");
                 return;
             }
             inner.outstanding_txns -= 1;
@@ -1728,7 +1731,7 @@ impl Process {
         if should_schedule {
             // Ignore failures to schedule to the workqueue. Those just mean that we're already
             // scheduled for execution.
-            let _ = workqueue::system().enqueue(this);
+            let _ = workqueue::system_percpu().enqueue(this);
         }
 
         drop(binderfs_file);
@@ -1745,7 +1748,7 @@ impl Process {
         if should_schedule {
             // Ignore failures to schedule to the workqueue. Those just mean that we're already
             // scheduled for execution.
-            let _ = workqueue::system().enqueue(Arc::from(this));
+            let _ = workqueue::system_percpu().enqueue(Arc::from(this));
         }
         Ok(())
     }
@@ -1836,7 +1839,7 @@ impl<'a> Registration<'a> {
             // It is an error to hit this branch, and it should not be reachable. We try to do
             // something reasonable when the failure path happens. Most likely, the thread in
             // question will sleep forever.
-            pr_err!("Same thread registered with `ready_threads` twice.");
+            pr_err_ratelimited!("Same thread registered with `ready_threads` twice.\n");
         }
         Self { thread }
     }
@@ -1861,7 +1864,7 @@ impl Drop for WithNodes<'_> {
     fn drop(&mut self) {
         core::mem::swap(&mut self.nodes, &mut self.inner.nodes);
         if self.nodes.iter().next().is_some() {
-            pr_err!("nodes array was modified while using lock_with_nodes\n");
+            pr_err_ratelimited!("nodes array was modified while using lock_with_nodes\n");
         }
     }
 }

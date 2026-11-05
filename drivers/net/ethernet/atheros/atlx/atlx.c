@@ -182,6 +182,7 @@ static void atlx_clear_phy_int(struct atlx_adapter *adapter)
 /**
  * atlx_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: transmit queue index
  */
 static void atlx_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {

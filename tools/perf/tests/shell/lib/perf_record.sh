@@ -30,7 +30,7 @@ perf_record_with_retry() {
   fi
 
   for duration in 0.01 0.1 0.3 1.0 2.0; do
-    rm -f "${perfdata}".old
+    rm -rf "${perfdata}".old
     ${cmd_prefix} "$@" -o "${perfdata}" ${testprog_base} ${duration} > "$logfile" 2>&1
     local record_exit=$?
 

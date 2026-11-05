@@ -299,6 +299,9 @@
 			vgen1_reg: vgen1 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 
 			vgen2_reg: vgen2 {
@@ -328,6 +331,9 @@
 			vgen6_reg: vgen6 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 		};
 	};

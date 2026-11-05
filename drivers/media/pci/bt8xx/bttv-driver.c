@@ -3504,7 +3504,7 @@ static void bttv_remove(struct pci_dev *pci_dev)
 	return;
 }
 
-static int __maybe_unused bttv_suspend(struct device *dev)
+static int bttv_suspend(struct device *dev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct bttv *btv = to_bttv(v4l2_dev);
@@ -3535,7 +3535,7 @@ static int __maybe_unused bttv_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused bttv_resume(struct device *dev)
+static int bttv_resume(struct device *dev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct bttv *btv = to_bttv(v4l2_dev);
@@ -3573,7 +3573,7 @@ static const struct pci_device_id bttv_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, bttv_pci_tbl);
 
-static SIMPLE_DEV_PM_OPS(bttv_pm_ops,
+static DEFINE_SIMPLE_DEV_PM_OPS(bttv_pm_ops,
 			 bttv_suspend,
 			 bttv_resume);
 
@@ -3582,7 +3582,7 @@ static struct pci_driver bttv_pci_driver = {
 	.id_table  = bttv_pci_tbl,
 	.probe     = bttv_probe,
 	.remove    = bttv_remove,
-	.driver.pm = &bttv_pm_ops,
+	.driver.pm = pm_sleep_ptr(&bttv_pm_ops),
 };
 
 static int __init bttv_init_module(void)

@@ -150,21 +150,6 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(struct freelist
 #endif
 
 /**
- * slab_folio - The folio allocated for a slab
- * @s: The slab.
- *
- * Slabs are allocated as folios that contain the individual objects and are
- * using some fields in the first struct page of the folio - those fields are
- * now accessed by struct slab. It is occasionally necessary to convert back to
- * a folio in order to communicate with the rest of the mm.  Please use this
- * helper function instead of casting yourself, as the implementation may change
- * in the future.
- */
-#define slab_folio(s)		(_Generic((s),				\
-	const struct slab *:	(const struct folio *)s,		\
-	struct slab *:		(struct folio *)s))
-
-/**
  * page_slab - Converts from struct page to its slab.
  * @page: A page which may or may not belong to a slab.
  *
@@ -184,15 +169,16 @@ static inline struct slab *page_slab(const struct page *page)
  * slab_page - The first struct page allocated for a slab
  * @s: The slab.
  *
- * A convenience wrapper for converting slab to the first struct page of the
- * underlying folio, to communicate with code not yet converted to folio or
- * struct slab.
+ * A convenience wrapper for returning the first page allocated to this slab.
+ * This is for the benefit of code not yet converted to struct slab.
  */
-#define slab_page(s) folio_page(slab_folio(s), 0)
+#define slab_page(s) 		(_Generic((s),				\
+	const struct slab *:	(const struct page *)s,			\
+	struct slab *:		(struct page *)s))
 
 static inline void *slab_address(const struct slab *slab)
 {
-	return folio_address(slab_folio(slab));
+	return page_address(slab_page(slab));
 }
 
 static inline int slab_nid(const struct slab *slab)
@@ -212,7 +198,7 @@ static inline struct slab *virt_to_slab(const void *addr)
 
 static inline int slab_order(const struct slab *slab)
 {
-	return folio_order(slab_folio(slab));
+	return compound_order(slab_page(slab));
 }
 
 static inline size_t slab_size(const struct slab *slab)

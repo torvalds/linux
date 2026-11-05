@@ -40,6 +40,11 @@ properties:
       Event.
     maxItems: 1
 
+  reset-gpios:
+    description:
+      GPIO connected to the active-low RESET_N pin of the MAC-PHY.
+    maxItems: 1
+
   spi-max-frequency:
     minimum: 15000000
     maximum: 25000000

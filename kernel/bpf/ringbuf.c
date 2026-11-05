@@ -722,7 +722,7 @@ BPF_CALL_2(bpf_ringbuf_submit_dynptr, struct bpf_dynptr_kern *, ptr, u64, flags)
 const struct bpf_func_proto bpf_ringbuf_submit_dynptr_proto = {
 	.func		= bpf_ringbuf_submit_dynptr,
 	.ret_type	= RET_VOID,
-	.arg1_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_RINGBUF | OBJ_RELEASE,
+	.arg1_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_RINGBUF | OBJ_RELEASE | MEM_WRITE,
 	.arg2_type	= ARG_ANYTHING,
 };
 
@@ -741,7 +741,7 @@ BPF_CALL_2(bpf_ringbuf_discard_dynptr, struct bpf_dynptr_kern *, ptr, u64, flags
 const struct bpf_func_proto bpf_ringbuf_discard_dynptr_proto = {
 	.func		= bpf_ringbuf_discard_dynptr,
 	.ret_type	= RET_VOID,
-	.arg1_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_RINGBUF | OBJ_RELEASE,
+	.arg1_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_RINGBUF | OBJ_RELEASE | MEM_WRITE,
 	.arg2_type	= ARG_ANYTHING,
 };
 

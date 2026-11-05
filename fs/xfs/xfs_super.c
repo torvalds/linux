@@ -1889,7 +1889,7 @@ xfs_fs_fill_super(
 	 * Avoid integer overflow by comparing the maximum bmbt offset to the
 	 * maximum pagecache offset in units of fs blocks.
 	 */
-	if (!xfs_verify_fileoff(mp, XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE))) {
+	if (!xfs_verify_fileoff(XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE))) {
 		xfs_warn(mp,
 "MAX_LFS_FILESIZE block offset (%llu) exceeds extent map maximum (%llu)!",
 			 XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE),
@@ -2317,6 +2317,7 @@ xfs_init_fs_context(
 	mp->m_logbufs = -1;
 	mp->m_logbsize = -1;
 	mp->m_allocsize_log = 16; /* 64k */
+	mp->m_read_bounce = XFS_READ_BOUNCE_LAZY;
 
 	xfs_hooks_init(&mp->m_dir_update_hooks);
 

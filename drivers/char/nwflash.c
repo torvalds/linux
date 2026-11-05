@@ -422,7 +422,7 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 	for (offset = 0; offset < count; offset++, pWritePtr++) {
 		uAddress = (unsigned int) pWritePtr;
 		uAddress &= 0xFFFFFFFC;
-		if (__get_user(c2, buf + offset))
+		if (get_user(c2, buf + offset))
 			return -EFAULT;
 
 	  WriteRetry:
@@ -533,7 +533,7 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 
 	for (offset = 0; offset < count; offset++) {
 		char c, c1;
-		if (__get_user(c, buf))
+		if (get_user(c, buf))
 			return -EFAULT;
 		buf++;
 		if ((c1 = *pWritePtr++) != c) {

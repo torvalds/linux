@@ -1090,7 +1090,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 	rtl88e_phy_mac_config(hw);
 	/* because last function modify RCR, so we update
 	 * rcr var here, or TP will unstable for receive_config
-	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
+	 * is wrong, RX RCR_ACRC32 will cause TP unstable & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	 */
 	rtlpci->receive_config &= ~(RCR_ACRC32 | RCR_AICV);
@@ -1970,7 +1970,6 @@ static void rtl88ee_update_hal_rate_table(struct ieee80211_hw *hw,
 	u32 ratr_value;
 	u8 ratr_index = 0;
 	u8 b_nmode = mac->ht_enable;
-	/*u8 mimo_ps = IEEE80211_SMPS_OFF;*/
 	u16 shortgi_rate;
 	u32 tmp_ratr_value;
 	u8 curtxbw_40mhz = mac->bw_40;
@@ -2070,7 +2069,6 @@ static void rtl88ee_update_hal_rate_mask(struct ieee80211_hw *hw,
 	bool b_shortgi = false;
 	u8 rate_mask[5];
 	u8 macid = 0;
-	/*u8 mimo_ps = IEEE80211_SMPS_OFF;*/
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
 	wirelessmode = sta_entry->wireless_mode;

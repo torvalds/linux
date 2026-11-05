@@ -1,0 +1,532 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/nvidia,tegra20-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra PCIe controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra20-pcie
+          - nvidia,tegra30-pcie
+          - nvidia,tegra124-pcie
+          - nvidia,tegra210-pcie
+          - nvidia,tegra186-pcie
+
+      - items:
+          - const: nvidia,tegra132-pcie
+          - const: nvidia,tegra124-pcie
+
+  reg:
+    items:
+      - description: PADS registers
+      - description: AFI registers
+      - description: configuration space region
+
+  reg-names:
+    items:
+      - const: pads
+      - const: afi
+      - const: cs
+
+  interrupts:
+    items:
+      - description: PCIe controller interrupt
+      - description: MSI controller interrupt
+
+  interrupt-names:
+    items:
+      - const: intr
+      - const: msi
+
+  clocks:
+    items:
+      - description: PCI controller clock
+      - description: AFI interface clock
+      - description: reference PLL clock
+      - description: CML clock
+    minItems: 3
+
+  clock-names:
+    items:
+      - const: pex
+      - const: afi
+      - const: pll_e
+      - const: cml
+    minItems: 3
+
+  resets:
+    items:
+      - description: AFI interface reset
+      - description: PCI controller reset
+      - description: PCI bus reset
+
+  reset-names:
+    items:
+      - const: pex
+      - const: afi
+      - const: pcie_x
+
+  interconnects:
+    items:
+      - description: AFI memory read client
+      - description: AFI memory write client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  iommus:
+    maxItems: 1
+
+  operating-points-v2:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  power-domains:
+    items:
+      - description: phandle to the core power domain
+
+  pinctrl-names:
+    items:
+        # active state, puts PCIe I/O out of deep power down state
+      - const: default
+        # puts PCIe I/O into deep power down state
+      - const: idle
+
+patternProperties:
+  "^pci@1?[0-9a-f](,[0-7])?$":
+    description: Root ports are defined as subnodes of the PCIe controller
+      node.
+
+      Note that devices on the PCI bus are dynamically discovered using PCI's
+      bus enumeration and therefore don't need corresponding device nodes in
+      DT. However if a device on the PCI bus provides a non-probeable bus such
+      as I2C or SPI, device nodes need to be added in order to allow the bus'
+      children to be instantiated at the proper location in the operating
+      system's device tree (as illustrated by the optional nodes in the
+      examples below).
+
+    $ref: /schemas/pci/pci-pci-bridge.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      nvidia,num-lanes:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+          Number of lanes to use for this port. Valid combinations
+          are:
+
+          - Root port 0 uses 4 lanes, root port 1 is unused.
+          - Both root ports use 2 lanes.
+        enum: [ 0, 1, 2, 4 ]
+
+      phys:
+        description: Must contain an phandle to a PHY for each entry in
+          phy-names.
+        minItems: 1
+        maxItems: 4
+
+      phy-names:
+        description: Must include an entry for each active lane. Note that the
+          number of entries does not have to (though usually will) be equal to
+          the specified number of lanes in the nvidia,num-lanes property.
+          Entries are of the form "pcie-N", where N ranges from 0 to the value
+          specified in nvidia,num-lanes.
+        items:
+          enum:
+            - pcie-0
+            - pcie-1
+            - pcie-2
+            - pcie-3
+        minItems: 1
+        maxItems: 4
+
+required:
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/pinctrl/pinctrl-consumer.yaml#
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+  - $ref: pci-iommu.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra20-pcie
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+
+        clock-names:
+          maxItems: 3
+
+        avdd-pex-supply:
+          description: Power supply for analog PCIe logic. Must supply 1.05 V.
+
+        vdd-pex-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+
+        avdd-pex-pll-supply:
+          description: Power supply for dedicated (internal) PCIe PLL. Must
+            supply 1.05 V.
+
+        avdd-plle-supply:
+          description: Power supply for PLLE, which is shared with SATA. Must
+            supply 1.05 V.
+
+        vddio-pex-clk-supply:
+          description: Power supply for PCIe clock. Must supply 3.3 V.
+
+      required:
+        - avdd-pex-supply
+        - vdd-pex-supply
+        - avdd-pex-pll-supply
+        - avdd-plle-supply
+        - vddio-pex-clk-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra30-pcie
+    then:
+      properties:
+        avdd-pex-pll-supply:
+          description: Power supply for dedicated (internal) PCIe PLL. Must
+            supply 1.05 V.
+
+        avdd-plle-supply:
+          description: Power supply for PLLE, which is shared with SATA. Must
+            supply 1.05 V.
+
+        vddio-pex-ctl-supply:
+          description: Power supply for PCIe control I/O partition. Must
+            supply 1.8 V.
+
+        hvdd-pex-supply:
+          description: High-voltage supply for PCIe I/O and PCIe output
+            clocks. Must supply 3.3 V.
+
+        avdd-pexa-supply:
+          description: Power supply for analog PCIe logic. Must supply 1.05 V.
+            Required if lanes 0 through 3 are used.
+
+        vdd-pexa-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+            Required if lanes 0 through 3 are used.
+
+        avdd-pexb-supply:
+          description: Power supply for analog PCIe logic. Must supply 1.05 V.
+            Required if lanes 4 and 5 are used.
+
+        vdd-pexb-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+            Required if lanes 4 and 5 are used.
+
+      required:
+        - avdd-pex-pll-supply
+        - avdd-plle-supply
+        - vddio-pex-ctl-supply
+        - hvdd-pex-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra124-pcie
+    then:
+      properties:
+        phys:
+          minItems: 1
+          maxItems: 1
+          deprecated: true
+
+        phy-names:
+          items:
+            - const: pcie
+          deprecated: true
+
+        avddio-pex-supply:
+          description: Power supply for analog PCIe logic. Must supply 1.05 V.
+
+        dvddio-pex-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+
+        hvdd-pex-supply:
+          description: High-voltage supply for PCIe I/O and PCIe output
+            clocks. Must supply 3.3 V.
+
+        vddio-pex-ctl-supply:
+          description: Power supply for PCIe control I/O partition. Must
+            supply 2.8-3.3 V.
+
+        avdd-pex-pll-supply:
+          deprecated: true
+
+        hvdd-pex-pll-e-supply:
+          deprecated: true
+
+        avdd-pll-erefe-supply:
+          deprecated: true
+
+      required:
+        - avddio-pex-supply
+        - dvddio-pex-supply
+        - hvdd-pex-supply
+        - vddio-pex-ctl-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-pcie
+    then:
+      properties:
+        hvddio-pex-supply:
+          description: High-voltage supply for PCIe I/O and PCIe output
+            clocks. Must supply 1.8 V.
+
+        dvddio-pex-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+
+        vddio-pex-ctl-supply:
+          description: Power supply for PCIe control I/O partition. Must
+            supply 1.8 V.
+
+        avdd-pll-uerefe-supply:
+          deprecated: true
+
+        dvdd-pex-pll-supply:
+          deprecated: true
+
+        hvdd-pex-pll-e-supply:
+          deprecated: true
+
+      required:
+        - hvddio-pex-supply
+        - dvddio-pex-supply
+        - vddio-pex-ctl-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra186-pcie
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+
+        clock-names:
+          maxItems: 3
+
+        power-domains:
+          description: To ungate power partition by BPMP powergate driver.
+            Must contain BPMP phandle and PCIe power partition ID.
+
+        dvdd-pex-supply:
+          description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+
+        hvdd-pex-pll-supply:
+          description: High-voltage supply for PLLE (shared with USB3). Must
+            supply 1.8 V.
+
+        hvdd-pex-supply:
+          description: High-voltage supply for PCIe I/O and PCIe output
+            clocks. Must supply 1.8 V.
+
+        vddio-pexctl-aud-supply:
+          description: Power supply for PCIe side band signals. Must supply
+            1.8 V.
+
+      required:
+        - dvdd-pex-supply
+        - hvdd-pex-pll-supply
+        - hvdd-pex-supply
+        - vddio-pexctl-aud-supply
+
+examples:
+  # Tegra20
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pcie@80003000 {
+        compatible = "nvidia,tegra20-pcie";
+        device_type = "pci";
+        reg = <0x80003000 0x00000800>, /* PADS registers */
+              <0x80003800 0x00000200>, /* AFI registers */
+              <0x90000000 0x10000000>; /* configuration space */
+        reg-names = "pads", "afi", "cs";
+        interrupts = <0 98 0x04>, /* controller interrupt */
+                     <0 99 0x04>; /* MSI interrupt */
+        interrupt-names = "intr", "msi";
+
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0>;
+        interrupt-map = <0 0 0 0 &intc GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+
+        bus-range = <0x00 0xff>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+
+        ranges = <0x02000000 0 0x80000000 0x80000000 0 0x00001000>, /* port 0 registers */
+                 <0x02000000 0 0x80001000 0x80001000 0 0x00001000>, /* port 1 registers */
+                 <0x01000000 0 0          0x82000000 0 0x00010000>, /* downstream I/O */
+                 <0x02000000 0 0xa0000000 0xa0000000 0 0x10000000>, /* non-prefetchable memory */
+                 <0x42000000 0 0xb0000000 0xb0000000 0 0x10000000>; /* prefetchable memory */
+
+        clocks = <&tegra_car 70>, <&tegra_car 72>, <&tegra_car 118>;
+        clock-names = "pex", "afi", "pll_e";
+        resets = <&tegra_car 70>, <&tegra_car 72>, <&tegra_car 74>;
+        reset-names = "pex", "afi", "pcie_x";
+
+        avdd-pex-supply = <&pci_vdd_reg>;
+        vdd-pex-supply = <&pci_vdd_reg>;
+        avdd-pex-pll-supply = <&pci_vdd_reg>;
+        avdd-plle-supply = <&pci_vdd_reg>;
+        vddio-pex-clk-supply = <&pci_clk_reg>;
+
+        /* root port 00:01.0 */
+        pci@1,0 {
+            device_type = "pci";
+            assigned-addresses = <0x82000800 0 0x80000000 0 0x1000>;
+            reg = <0x000800 0 0 0 0>;
+            bus-range = <0x00 0xff>;
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+
+            ranges;
+
+            nvidia,num-lanes = <2>;
+
+            /* bridge 01:00.0 (optional) */
+            pci@0,0 {
+                reg = <0x010000 0 0 0 0>;
+                bus-range = <0x00 0xff>;
+
+                #address-cells = <3>;
+                #size-cells = <2>;
+                ranges;
+
+                device_type = "pci";
+
+                /* endpoint 02:00.0 */
+                ethernet@0,0 {
+                    reg = <0x020000 0 0 0 0>;
+                };
+            };
+        };
+
+        pci@2,0 {
+            device_type = "pci";
+            assigned-addresses = <0x82001000 0 0x80001000 0 0x1000>;
+            reg = <0x001000 0 0 0 0>;
+            bus-range = <0x00 0xff>;
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+
+            ranges;
+
+            nvidia,num-lanes = <2>;
+        };
+    };
+
+  # Tegra210
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pcie@1003000 {
+        compatible = "nvidia,tegra210-pcie";
+        device_type = "pci";
+        reg = <0x01003000 0x00000800>, /* PADS registers */
+              <0x01003800 0x00000800>, /* AFI registers */
+              <0x02000000 0x10000000>; /* configuration space */
+        reg-names = "pads", "afi", "cs";
+        interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+                     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+        interrupt-names = "intr", "msi";
+
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+
+        bus-range = <0x00 0xff>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+
+        ranges = <0x02000000 0 0x01000000 0x01000000 0 0x00001000>, /* port 0 configuration space */
+                 <0x02000000 0 0x01001000 0x01001000 0 0x00001000>, /* port 1 configuration space */
+                 <0x01000000 0 0x0        0x12000000 0 0x00010000>, /* downstream I/O (64 KiB) */
+                 <0x02000000 0 0x13000000 0x13000000 0 0x0d000000>, /* non-prefetchable memory (208 MiB) */
+                 <0x42000000 0 0x20000000 0x20000000 0 0x20000000>; /* prefetchable memory (512 MiB) */
+
+        clocks = <&tegra_car TEGRA210_CLK_PCIE>,
+                 <&tegra_car TEGRA210_CLK_AFI>,
+                 <&tegra_car TEGRA210_CLK_PLL_E>,
+                 <&tegra_car TEGRA210_CLK_CML0>;
+        clock-names = "pex", "afi", "pll_e", "cml";
+        resets = <&tegra_car 70>,
+                 <&tegra_car 72>,
+                 <&tegra_car 74>;
+        reset-names = "pex", "afi", "pcie_x";
+
+        avdd-pll-uerefe-supply = <&avdd_1v05_pll>;
+        hvddio-pex-supply = <&vdd_1v8>;
+        dvddio-pex-supply = <&vdd_pex_1v05>;
+        dvdd-pex-pll-supply = <&vdd_pex_1v05>;
+        hvdd-pex-pll-e-supply = <&vdd_1v8>;
+        vddio-pex-ctl-supply = <&vdd_1v8>;
+
+        pci@1,0 {
+            device_type = "pci";
+            assigned-addresses = <0x82000800 0 0x01000000 0 0x1000>;
+            reg = <0x000800 0 0 0 0>;
+            bus-range = <0x00 0xff>;
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+            ranges;
+
+            nvidia,num-lanes = <4>;
+
+            phys = <&phy_pcie0>, <&phy_pcie1>, <&phy_pcie2>, <&phy_pcie3>;
+            phy-names = "pcie-0", "pcie-1", "pcie-2", "pcie-3";
+        };
+
+        pci@2,0 {
+            device_type = "pci";
+            assigned-addresses = <0x82001000 0 0x01001000 0 0x1000>;
+            reg = <0x001000 0 0 0 0>;
+            bus-range = <0x00 0xff>;
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+            ranges;
+
+            nvidia,num-lanes = <1>;
+
+            phys = <&phy_pcie4>;
+            phy-names = "pcie-0";
+        };
+    };

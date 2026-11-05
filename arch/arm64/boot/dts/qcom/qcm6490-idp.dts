@@ -619,6 +619,12 @@
 	firmware-name = "qcom/qcm6490/a660_zap.mbn";
 };
 
+&ipa {
+	firmware-name = "qcom/qcm6490/ipa_fws.mbn";
+
+	status = "okay";
+};
+
 &lpass_rx_macro {
 	status = "okay";
 };

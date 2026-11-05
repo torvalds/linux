@@ -592,8 +592,6 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	else
 		d->gadget.max_speed = USB_SPEED_HIGH;
 	d->gadget.speed = USB_SPEED_UNKNOWN;
-	d->gadget.dev.of_node = vhub->pdev->dev.of_node;
-	dev_set_of_node_reused(&d->gadget.dev);
 
 	rc = usb_add_gadget_udc(d->port_dev, &d->gadget);
 	if (rc != 0)

@@ -71,6 +71,8 @@ struct brcm_usb_phy_data {
 	int			wake_irq;
 	struct brcm_usb_phy	phys[BRCM_USB_PHY_ID_MAX];
 	struct notifier_block	pm_notifier;
+	bool			pm_notifier_registered;
+	bool			sysfs_group_created;
 	bool			pm_active;
 };
 
@@ -545,7 +547,11 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 		return err;
 
 	priv->pm_notifier.notifier_call = brcm_pm_notifier;
-	register_pm_notifier(&priv->pm_notifier);
+	err = register_pm_notifier(&priv->pm_notifier);
+	if (err)
+		dev_warn(dev, "Error registering PM notifier\n");
+	else
+		priv->pm_notifier_registered = true;
 
 	mutex_init(&priv->mutex);
 
@@ -561,6 +567,8 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	err = sysfs_create_group(&dev->kobj, &brcm_usb_phy_group);
 	if (err)
 		dev_warn(dev, "Error creating sysfs attributes\n");
+	else
+		priv->sysfs_group_created = true;
 
 	/* Get piarbctl syscon if it exists */
 	rmap = syscon_regmap_lookup_by_phandle(dev->of_node,
@@ -581,16 +589,29 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	clk_disable_unprepare(priv->usb_30_clk);
 
 	phy_provider = devm_of_phy_provider_register(dev, brcm_usb_phy_xlate);
+	err = PTR_ERR_OR_ZERO(phy_provider);
+	if (err)
+		goto err_remove_debug;
 
-	return PTR_ERR_OR_ZERO(phy_provider);
+	return 0;
+
+err_remove_debug:
+	if (priv->sysfs_group_created)
+		sysfs_remove_group(&dev->kobj, &brcm_usb_phy_group);
+	if (priv->pm_notifier_registered)
+		unregister_pm_notifier(&priv->pm_notifier);
+
+	return err;
 }
 
 static void brcm_usb_phy_remove(struct platform_device *pdev)
 {
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(&pdev->dev);
 
-	sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
-	unregister_pm_notifier(&priv->pm_notifier);
+	if (priv->sysfs_group_created)
+		sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
+	if (priv->pm_notifier_registered)
+		unregister_pm_notifier(&priv->pm_notifier);
 }
 
 #ifdef CONFIG_PM_SLEEP

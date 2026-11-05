@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # common
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
-iwlwifi-objs		+= iwl-io.o
 iwlwifi-objs		+= iwl-drv.o
 iwlwifi-objs		+= iwl-debug.o
 iwlwifi-objs		+= iwl-nvm-utils.o
@@ -9,9 +8,9 @@ iwlwifi-objs		+= iwl-utils.o
 iwlwifi-objs		+= iwl-phy-db.o iwl-nvm-parse.o
 
 # Bus
-iwlwifi-objs		+= pcie/ctxt-info.o pcie/ctxt-info-v2.o pcie/drv.o pcie/utils.o
-iwlwifi-objs		+= pcie/gen1_2/rx.o pcie/gen1_2/tx.o pcie/gen1_2/trans.o
-iwlwifi-objs		+= pcie/gen1_2/trans-gen2.o pcie/gen1_2/tx-gen2.o
+iwlwifi-objs		+= pcie/drv.o pcie/rx.o pcie/tx.o pcie/trans.o
+iwlwifi-objs		+= pcie/ctxt-info.o pcie/ctxt-info-v2.o pcie/trans-gen2.o pcie/tx-gen2.o
+iwlwifi-objs		+= pcie/utils.o
 
 CFLAGS_pcie/drv.o += -Wno-override-init
 

@@ -19,6 +19,9 @@
 
 #include "tb.h"
 
+/* How long a hop is given to drain when a path is deactivated */
+#define TB_PORT_PENDING_TIMEOUT		500 /* ms */
+
 /* Switch NVM support */
 
 struct nvm_auth_status {
@@ -712,6 +715,7 @@ static int tb_init_port(struct tb_port *port)
 	int cap;
 
 	INIT_LIST_HEAD(&port->list);
+	port->pp_timeout_msec = TB_PORT_PENDING_TIMEOUT;
 
 	/* Control adapter does not have configuration space */
 	if (!port->port)

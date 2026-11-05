@@ -374,9 +374,10 @@ developers in order to get the feature implemented in a timely manner.
 Please refer to the git log (``arch/*/net/``) to locate the necessary
 people for helping out.
 
-Also always make sure to add BPF test cases (e.g. test_bpf.c and
-test_verifier.c) for new instructions, so that they can receive
-broad test coverage and help run-time testing the various BPF JITs.
+Also always make sure to add BPF test cases (e.g. the jit_insns test
+in test_progs and test_verifier.c) for new instructions, so that they
+can receive broad test coverage and help run-time testing the various
+BPF JITs.
 
 In case of new BPF instructions, once the changes have been accepted
 into the Linux kernel, please implement support into LLVM's BPF back
@@ -514,10 +515,11 @@ A: If you run a kernel ``xyz``, then always run the BPF kernel selftests
 from that kernel ``xyz`` as well. Do not expect that the BPF selftest
 from the latest mainline tree will pass all the time.
 
-In particular, test_bpf.c and test_verifier.c have a large number of
-test cases and are constantly updated with new BPF test sequences, or
-existing ones are adapted to verifier changes e.g. due to verifier
-becoming smarter and being able to better track certain things.
+In particular, test_verifier.c and the instruction tests in test_progs
+have a large number of test cases and are constantly updated with new
+BPF test sequences, or existing ones are adapted to verifier changes
+e.g. due to verifier becoming smarter and being able to better track
+certain things.
 
 LLVM
 ====

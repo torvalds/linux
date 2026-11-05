@@ -1488,10 +1488,8 @@ static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_o
 		goto out;
 	}
 
-	if (cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT)
-		set_bit(QLC_BC_VF_STATE, &vf->state);
-	else
-		clear_bit(QLC_BC_VF_STATE, &vf->state);
+	assign_bit(QLC_BC_VF_STATE, &vf->state,
+		   cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT);
 
 out:
 	qlcnic_free_mbx_args(&cmd);

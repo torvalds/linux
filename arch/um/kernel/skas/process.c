@@ -9,8 +9,6 @@
 #include <linux/sched/task.h>
 #include <linux/smp-internal.h>
 
-#include <asm/tlbflush.h>
-
 #include <as-layout.h>
 #include <kern.h>
 #include <os.h>
@@ -29,7 +27,7 @@ static int __init start_kernel_proc(void *unused)
 
 char cpu_irqstacks[NR_CPUS][THREAD_SIZE] __aligned(THREAD_SIZE);
 
-int __init start_uml(void)
+void __init start_uml(void)
 {
 	stack_protections((unsigned long) &cpu_irqstacks[0]);
 	set_sigstack(cpu_irqstacks[0], THREAD_SIZE);
@@ -38,32 +36,8 @@ int __init start_uml(void)
 
 	init_task.thread.request.thread.proc = start_kernel_proc;
 	init_task.thread.request.thread.arg = NULL;
-	return start_idle_thread(task_stack_page(&init_task),
-				 &init_task.thread.switch_buf);
-}
-
-unsigned long current_stub_stack(void)
-{
-	if (current->mm == NULL)
-		return 0;
-
-	return current->mm->context.id.stack;
-}
-
-struct mm_id *current_mm_id(void)
-{
-	if (current->mm == NULL)
-		return NULL;
-
-	return &current->mm->context.id;
-}
-
-void current_mm_sync(void)
-{
-	if (current->mm == NULL)
-		return;
-
-	um_tlb_sync(current->mm);
+	start_idle_thread(task_stack_page(&init_task),
+			  &init_task.thread.switch_buf);
 }
 
 static DEFINE_SPINLOCK(initial_jmpbuf_spinlock);

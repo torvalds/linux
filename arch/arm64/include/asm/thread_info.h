@@ -29,13 +29,8 @@ struct thread_info {
 	union {
 		u64		preempt_count;	/* 0 => preemptible, <0 => bug */
 		struct {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-			u32	need_resched;
-			u32	count;
-#else
 			u32	count;
 			u32	need_resched;
-#endif
 		} preempt;
 	};
 #ifdef CONFIG_SHADOW_CALL_STACK
@@ -46,6 +41,7 @@ struct thread_info {
 	u64			mpam_partid_pmg;
 #endif
 	u32			cpu;
+	u16			pcpu_gprs;
 };
 
 #define thread_saved_pc(tsk)	\

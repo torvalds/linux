@@ -34,10 +34,19 @@ config DRM_AMD_DC_SI
 	bool "AMD DC support for Southern Islands ASICs"
 	depends on DRM_AMDGPU_SI
 	depends on DRM_AMD_DC
+	depends on DRM_AMD_DC_DCE
 	help
 	  Choose this option to enable new AMD DC support for SI asics
 	  by default. This includes Tahiti, Pitcairn, Cape Verde, Oland.
 	  Hainan is not supported by AMD DC and it has no physical DCE6.
+
+config DRM_AMD_DC_DCE
+	bool "AMD DC support for legacy DCE ASICs"
+	default y
+	depends on DRM_AMD_DC
+	help
+	  Enable support for the legacy DCE (DCE 8/10/11/12) display engines.
+	  Enabled by default so DC keeps support for these older ASICs.
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
@@ -58,7 +67,8 @@ config DRM_AMD_SECURE_DISPLAY
 
 config DRM_AMD_DC_KUNIT_TEST
 	tristate "KUnit tests for the AMD DC display driver" if !KUNIT_ALL_TESTS
-	depends on DRM_AMD_DC && KUNIT && DEBUG_FS && DRM_KUNIT_TEST_HELPERS
+	depends on DRM_AMD_DC && KUNIT && DEBUG_FS
+	select DRM_KUNIT_TEST_HELPERS
 	default KUNIT_ALL_TESTS
 	help
 	  This option enables KUnit tests for the AMD Display Core driver.

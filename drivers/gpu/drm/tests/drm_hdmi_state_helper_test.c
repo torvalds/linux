@@ -275,7 +275,7 @@ __connector_hdmi_init(struct kunit *test,
 	conn = &priv->connector;
 	conn->ycbcr_420_allowed = !!(formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420));
 
-	ret = drmm_connector_hdmi_init(drm, conn,
+	ret = drmm_connector_hdmi_ini2(drm, conn,
 				       "Vendor", "Product",
 				       &dummy_connector_funcs,
 				       hdmi_funcs,
@@ -2929,15 +2929,6 @@ retry_crtc_state:
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
 
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_crtc_state;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
-
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
 		drm_atomic_commit_clear(state);
@@ -3033,15 +3024,6 @@ retry_crtc_state:
 	crtc_state->mode_changed = true;
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
-
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_crtc_state;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
@@ -3152,15 +3134,6 @@ retry_conn_state:
 	crtc_state->mode_changed = true;
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
-
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_conn_state;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
@@ -3276,15 +3249,6 @@ retry_conn_state:
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
 
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_conn_state;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
-
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
 		drm_atomic_commit_clear(state);
@@ -3387,15 +3351,6 @@ retry_crtc_state:
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
 
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_crtc_state;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
-
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
 		drm_atomic_commit_clear(state);
@@ -3437,15 +3392,6 @@ retry_crtc_state_2:
 	crtc_state->mode_changed = true;
 
 	old_hdmi_update_failures = priv->hdmi_update_failures;
-
-	ret = drm_atomic_check_only(state);
-	if (ret == -EDEADLK) {
-		drm_atomic_commit_clear(state);
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry_crtc_state_2;
-	}
-	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {

@@ -150,7 +150,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	format.format.width = cx->cxhdl.width = w;
 	format.format.height = cx->cxhdl.height = h;
 	format.format.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
+	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, NULL, &format);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
 

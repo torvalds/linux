@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define NIWD_CONTROL	0x01
@@ -46,13 +47,13 @@ static unsigned int timeout;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. (default="
-		 __MODULE_STRING(NIWD_DEFAULT_TIMEOUT) ")");
+		 __stringify(NIWD_DEFAULT_TIMEOUT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, S_IRUGO);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static void ni903x_start(struct ni903x_wdt *wdt)
 {

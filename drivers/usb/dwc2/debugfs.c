@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include "core.h"
@@ -787,8 +788,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	/* Add gadget debugfs nodes */
 	dwc2_hsotg_create_debug(hsotg);
 
-	hsotg->regset = devm_kzalloc(hsotg->dev, sizeof(*hsotg->regset),
-								GFP_KERNEL);
+	hsotg->regset = kzalloc_obj(*hsotg->regset, GFP_KERNEL);
 	if (!hsotg->regset) {
 		ret = -ENOMEM;
 		goto err;
@@ -810,4 +810,6 @@ void dwc2_debugfs_exit(struct dwc2_hsotg *hsotg)
 {
 	debugfs_remove_recursive(hsotg->debug_root);
 	hsotg->debug_root = NULL;
+	kfree(hsotg->regset);
+	hsotg->regset = NULL;
 }

@@ -62,12 +62,16 @@ static int get_member_overhead(struct annotated_data_type *adt,
 
 		k = 0;
 		for_each_group_evsel(evsel, leader) {
+			struct type_hist_entry *hist;
+
 			if (symbol_conf.skip_empty &&
 			    evsel__hists(evsel)->stats.nr_samples == 0)
 				continue;
 
-			h = adt->histograms[evsel->core.idx];
-			update_hist_entry(&entry->hists[k++], &h->addr[offset]);
+			h = &adt->histograms[evsel->core.idx];
+			if (hashmap__find(&h->samples, offset, &hist))
+				update_hist_entry(&entry->hists[k], hist);
+			k++;
 		}
 	}
 	return 0;
@@ -370,7 +374,7 @@ static void browser__write_overhead(struct ui_browser *uib,
 	u64 period = hist->period;
 	double percent = total->period ? (100.0 * period / total->period) : 0;
 	bool current = ui_browser__is_current_entry(uib, row);
-	int nr_samples = 0;
+	int nr_samples = hist->nr_samples;
 
 	ui_browser__set_percent_color(uib, percent, current);
 
@@ -416,7 +420,7 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 
 	/* print the number */
 	for_each_group_evsel(evsel, leader) {
-		struct type_hist *h = adt->histograms[evsel->core.idx];
+		struct type_hist *h = &adt->histograms[evsel->core.idx];
 
 		if (symbol_conf.skip_empty &&
 		    evsel__hists(evsel)->stats.nr_samples == 0)

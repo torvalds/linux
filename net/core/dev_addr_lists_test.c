@@ -291,7 +291,7 @@ static void dev_addr_test_snapshot_sync(struct kunit *test)
 	netif_addr_unlock_bh(netdev);
 
 	/* Real entry should now reflect the sync: sync_cnt=1, refcount=2 */
-	KUNIT_EXPECT_EQ(test, 1, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 1, netdev_uc_count(netdev));
 	ha = list_first_entry(&netdev->uc.list, struct netdev_hw_addr, list);
 	KUNIT_EXPECT_MEMEQ(test, ha->addr, addr, ETH_ALEN);
 	KUNIT_EXPECT_EQ(test, 1, ha->sync_cnt);
@@ -303,7 +303,7 @@ static void dev_addr_test_snapshot_sync(struct kunit *test)
 			   dev_addr_test_unsync);
 	KUNIT_EXPECT_EQ(test, 0, datp->addr_synced);
 	KUNIT_EXPECT_EQ(test, 0, datp->addr_unsynced);
-	KUNIT_EXPECT_EQ(test, 1, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 1, netdev_uc_count(netdev));
 
 	__hw_addr_flush(&cache);
 	rtnl_unlock();
@@ -351,7 +351,7 @@ static void dev_addr_test_snapshot_remove_during_sync(struct kunit *test)
 	/* Concurrent removal: user deletes ADDR_A while driver was working */
 	memset(addr, ADDR_A, sizeof(addr));
 	KUNIT_EXPECT_EQ(test, 0, dev_uc_del(netdev, addr));
-	KUNIT_EXPECT_EQ(test, 0, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 0, netdev_uc_count(netdev));
 
 	/* Reconcile: ADDR_A gone from real list but driver synced it,
 	 * so it gets re-inserted as stale (sync_cnt=1, refcount=1).
@@ -361,7 +361,7 @@ static void dev_addr_test_snapshot_remove_during_sync(struct kunit *test)
 				 &cache);
 	netif_addr_unlock_bh(netdev);
 
-	KUNIT_EXPECT_EQ(test, 1, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 1, netdev_uc_count(netdev));
 	ha = list_first_entry(&netdev->uc.list, struct netdev_hw_addr, list);
 	KUNIT_EXPECT_MEMEQ(test, ha->addr, addr, ETH_ALEN);
 	KUNIT_EXPECT_EQ(test, 1, ha->sync_cnt);
@@ -373,7 +373,7 @@ static void dev_addr_test_snapshot_remove_during_sync(struct kunit *test)
 			   dev_addr_test_unsync);
 	KUNIT_EXPECT_EQ(test, 0, datp->addr_synced);
 	KUNIT_EXPECT_EQ(test, 1 << ADDR_A, datp->addr_unsynced);
-	KUNIT_EXPECT_EQ(test, 0, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 0, netdev_uc_count(netdev));
 
 	__hw_addr_flush(&cache);
 	rtnl_unlock();
@@ -433,7 +433,7 @@ static void dev_addr_test_snapshot_readd_during_unsync(struct kunit *test)
 	 * stale entry and bumps refcount from 1 -> 2.  sync_cnt stays 1.
 	 */
 	KUNIT_EXPECT_EQ(test, 0, dev_uc_add(netdev, addr));
-	KUNIT_EXPECT_EQ(test, 1, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 1, netdev_uc_count(netdev));
 
 	/* Reconcile: ref sync_cnt=1 matches real sync_cnt=1, delta=-1
 	 * applied. Result: sync_cnt=0, refcount=1 (fresh).
@@ -444,7 +444,7 @@ static void dev_addr_test_snapshot_readd_during_unsync(struct kunit *test)
 	netif_addr_unlock_bh(netdev);
 
 	/* Entry survives as fresh: needs re-sync to HW */
-	KUNIT_EXPECT_EQ(test, 1, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 1, netdev_uc_count(netdev));
 	ha = list_first_entry(&netdev->uc.list, struct netdev_hw_addr, list);
 	KUNIT_EXPECT_MEMEQ(test, ha->addr, addr, ETH_ALEN);
 	KUNIT_EXPECT_EQ(test, 0, ha->sync_cnt);
@@ -528,7 +528,7 @@ static void dev_addr_test_snapshot_add_and_remove(struct kunit *test)
 	 * ADDR_B: refcount went from 2->1 via dev_uc_del (still present, stale)
 	 * ADDR_C: sync propagated (sync_cnt=1, refcount=2)
 	 */
-	KUNIT_EXPECT_EQ(test, 3, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 3, netdev_uc_count(netdev));
 	netdev_hw_addr_list_for_each(ha, &netdev->uc) {
 		u8 id = ha->addr[0];
 
@@ -553,7 +553,7 @@ static void dev_addr_test_snapshot_add_and_remove(struct kunit *test)
 			   dev_addr_test_unsync);
 	KUNIT_EXPECT_EQ(test, 0, datp->addr_synced);
 	KUNIT_EXPECT_EQ(test, 1 << ADDR_B, datp->addr_unsynced);
-	KUNIT_EXPECT_EQ(test, 2, netdev->uc.count);
+	KUNIT_EXPECT_EQ(test, 2, netdev_uc_count(netdev));
 
 	__hw_addr_flush(&cache);
 	rtnl_unlock();

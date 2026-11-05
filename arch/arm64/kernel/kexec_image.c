@@ -25,10 +25,10 @@ static int image_probe(const char *kernel_buf, unsigned long kernel_len)
 		(const struct arm64_image_header *)(kernel_buf);
 
 	if (!h || (kernel_len < sizeof(*h)))
-		return -EINVAL;
+		return -ENOEXEC;
 
 	if (memcmp(&h->magic, ARM64_IMAGE_MAGIC, sizeof(h->magic)))
-		return -EINVAL;
+		return -ENOEXEC;
 
 	return 0;
 }
@@ -40,7 +40,7 @@ static void *image_load(struct kimage *image,
 {
 	struct arm64_image_header *h;
 	u64 flags, value;
-	bool be_image, be_kernel;
+	bool be_image;
 	struct kexec_buf kbuf = {};
 	unsigned long text_offset, kernel_segment_number;
 	struct kexec_segment *kernel_segment;
@@ -58,8 +58,7 @@ static void *image_load(struct kimage *image,
 	/* Check cpu features */
 	flags = le64_to_cpu(h->flags);
 	be_image = arm64_image_flag_field(flags, ARM64_IMAGE_FLAG_BE);
-	be_kernel = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
-	if ((be_image != be_kernel) && !system_supports_mixed_endian())
+	if (be_image && !system_supports_mixed_endian())
 		return ERR_PTR(-EINVAL);
 
 	value = arm64_image_flag_field(flags, ARM64_IMAGE_FLAG_PAGE_SIZE);

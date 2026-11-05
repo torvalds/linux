@@ -348,7 +348,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	 */
 	if (boot_cpu_data.cpu_type > pcxt && !pdc_add_valid(port+4)) {
 
-		/* Initialize bidirectional-mode (0x10) & data-tranfer-mode #1 (0x20) */
+		/* Initialize bidirectional-mode (0x10) & data-transfer-mode #1 (0x20) */
 		pr_info("%s: initialize bidirectional-mode\n", __func__);
 		parport_writeb ( (0x10 + 0x20), port + 4);
 

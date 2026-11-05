@@ -137,7 +137,7 @@ struct adc5_sdam_data {
  */
 struct adc5_device_data {
 	struct regmap *regmap;
-	struct adc5_sdam_data *base;
+	struct adc5_sdam_data *base __counted_by_ptr(num_sdams);
 	int num_sdams;
 };
 

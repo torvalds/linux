@@ -223,7 +223,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 	if (dev->is_pciehp &&
 	    (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
 	     pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM) &&
-	    (pcie_ports_native || host->native_pcie_hotplug)) {
+	    host->native_pcie_hotplug) {
 		services |= PCIE_PORT_SERVICE_HP;
 
 		/*
@@ -240,14 +240,14 @@ static int get_port_device_capability(struct pci_dev *dev)
 	if ((pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
              pci_pcie_type(dev) == PCI_EXP_TYPE_RC_EC) &&
 	    dev->aer_cap && pci_aer_available() &&
-	    (pcie_ports_native || host->native_aer))
+	    host->native_aer)
 		services |= PCIE_PORT_SERVICE_AER;
 #endif
 
 	/* Root Ports and Root Complex Event Collectors may generate PMEs */
 	if ((pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
 	     pci_pcie_type(dev) == PCI_EXP_TYPE_RC_EC) &&
-	    (pcie_ports_native || host->native_pme)) {
+	    host->native_pme) {
 		services |= PCIE_PORT_SERVICE_PME;
 
 		/*

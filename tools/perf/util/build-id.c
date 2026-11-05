@@ -586,9 +586,9 @@ static char *build_id_cache__find_debug(const char *sbuild_id,
 	const char *dirname = "/usr/lib/debug/.build-id/";
 	char *realname = NULL;
 	char dirbuf[PATH_MAX];
+	char pathbuf[PATH_MAX];
 	char *debugfile;
 	struct nscookie nsc;
-	size_t len = 0;
 
 	debugfile = calloc(1, PATH_MAX);
 	if (!debugfile)
@@ -599,9 +599,13 @@ static char *build_id_cache__find_debug(const char *sbuild_id,
 		dirname = dirbuf;
 	}
 
-	len = __symbol__join_symfs(debugfile, PATH_MAX, dirname);
-	snprintf(debugfile + len, PATH_MAX - len, "%.2s/%s.debug", sbuild_id,
-		 sbuild_id + 2);
+	/* See the build id note in dso__read_binary_type_filename(). */
+	if (symbol_conf.symfs_layout_flat)
+		scnprintf(pathbuf, PATH_MAX, "/%s.debug", sbuild_id);
+	else
+		scnprintf(pathbuf, PATH_MAX, "%s%.2s/%s.debug", dirname,
+			  sbuild_id, sbuild_id + 2);
+	__symbol__join_symfs(debugfile, PATH_MAX, pathbuf);
 
 	nsinfo__mountns_enter(nsi, &nsc);
 	realname = realpath(debugfile, NULL);

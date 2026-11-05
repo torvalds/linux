@@ -1740,10 +1740,8 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 		return 0;
 
 	if (cr) {
-		if (msc->v24_sig & RFCOMM_V24_FC && !d->cfc)
-			set_bit(RFCOMM_TX_THROTTLED, &d->flags);
-		else
-			clear_bit(RFCOMM_TX_THROTTLED, &d->flags);
+		assign_bit(RFCOMM_TX_THROTTLED, &d->flags,
+			   msc->v24_sig & RFCOMM_V24_FC && !d->cfc);
 
 		rfcomm_dlc_lock(d);
 

@@ -122,8 +122,6 @@ enum b43legacy_dmatype {
 struct b43legacy_dmaring {
 	/* Kernel virtual base address of the ring memory. */
 	void *descbase;
-	/* Meta data about all descriptors. */
-	struct b43legacy_dmadesc_meta *meta;
 	/* Cache of TX headers for each slot.
 	 * This is to avoid an allocation on each TX.
 	 * This is NULL for an RX ring.
@@ -161,6 +159,8 @@ struct b43legacy_dmaring {
 	/* Last time we injected a ring overflow. */
 	unsigned long last_injected_overflow;
 #endif /* CONFIG_B43LEGACY_DEBUG*/
+	/* Meta data about all descriptors. */
+	struct b43legacy_dmadesc_meta meta[] __counted_by(nr_slots);
 };
 
 

@@ -16,11 +16,11 @@ struct drm_mode_fb_cmd2;
 struct drm_plane_state;
 struct drm_scanout_buffer;
 struct fb_info;
-struct i915_gtt_view;
 struct i915_vma;
 struct intel_dpt;
 struct intel_dsb_buffer;
 struct intel_frontbuffer;
+struct intel_gtt_view;
 struct intel_hdcp_gsc_context;
 struct intel_initial_plane_config;
 struct intel_panic;
@@ -31,7 +31,7 @@ struct seq_file;
 struct vm_area_struct;
 
 struct intel_fb_pin_params {
-	const struct i915_gtt_view *view;
+	const struct intel_gtt_view *view;
 	unsigned int alignment;
 	unsigned int phys_alignment;
 	unsigned int vtd_guard;
@@ -101,9 +101,9 @@ struct intel_display_fb_pin_interface {
 			  struct i915_vma *ggtt_vma);
 	struct i915_vma *(*reuse_vma)(struct i915_vma *old_ggtt_vma,
 				      struct drm_gem_object *old_obj,
-				      const struct i915_gtt_view *old_view,
+				      const struct intel_gtt_view *old_view,
 				      struct drm_gem_object *new_obj,
-				      const struct i915_gtt_view *new_view,
+				      const struct intel_gtt_view *new_view,
 				      u32 *out_offset);
 	void (*get_map)(struct i915_vma *vma, struct iosys_map *map);
 };
@@ -179,7 +179,7 @@ struct intel_display_pc8_interface {
 };
 
 struct intel_display_pcode_interface {
-	int (*read)(struct drm_device *drm, u32 mbox, u32 *val, u32 *val1);
+	int (*read)(struct drm_device *drm, u32 mbox, u32 *val0, u32 *val1);
 	int (*write)(struct drm_device *drm, u32 mbox, u32 val, int timeout_ms);
 	int (*request)(struct drm_device *drm, u32 mbox, u32 request,
 		       u32 reply_mask, u32 reply, int timeout_base_ms);
@@ -196,6 +196,7 @@ struct intel_display_rpm_interface {
 	void (*put_unchecked)(const struct drm_device *drm);
 
 	bool (*suspended)(const struct drm_device *drm);
+	bool (*pme_enabled)(const struct drm_device *drm); /* Optional */
 	void (*assert_held)(const struct drm_device *drm);
 	void (*assert_block)(const struct drm_device *drm);
 	void (*assert_unblock)(const struct drm_device *drm);
@@ -228,6 +229,10 @@ struct intel_display_vlv_iosf_interface {
 	void (*put)(struct drm_device *drm, unsigned long unit_mask);
 	u32 (*read)(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr);
 	int (*write)(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr, u32 val);
+};
+
+struct intel_display_wa_interface {
+	bool (*wa_16023588340)(struct drm_device *drm);
 };
 
 /**
@@ -291,6 +296,12 @@ struct intel_display_parent_interface {
 	/** @vlv_iosf: VLV IOSF sideband. Optional. */
 	const struct intel_display_vlv_iosf_interface *vlv_iosf;
 
+	/**
+	 * @wa: Display workarounds query. Use only for workarounds that require
+	 * information only available to the parent driver. Optional.
+	 */
+	const struct intel_display_wa_interface *wa;
+
 	/* Generic independent functions */
 	struct {
 		/** @fence_priority_display: Set display priority. Optional. */
@@ -301,6 +312,9 @@ struct intel_display_parent_interface {
 
 		/** @has_fenced_regions: Support legacy fencing? Optional. */
 		bool (*has_fenced_regions)(struct drm_device *drm);
+
+		/** @transient_data_flush: Transient data flush. Optional. */
+		void (*transient_data_flush)(struct drm_device *drm);
 
 		/** @vgpu_active: Is vGPU active? Optional. */
 		bool (*vgpu_active)(struct drm_device *drm);

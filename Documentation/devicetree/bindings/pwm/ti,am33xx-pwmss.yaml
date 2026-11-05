@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/ti,am33xx-pwmss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments SoC PWM Subsystem
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: ti,am33xx-pwmss
+      - items:
+          - enum:
+              - ti,am4372-pwmss
+              - ti,dra746-pwmss
+          - const: ti,am33xx-pwmss
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  "^(ecap|eqep|pwm|counter)@[0-9a-f]+$":
+    type: object
+    description: Child nodes for ECAP, EQEP (counter), and EHRPWM
+    required:
+      - compatible
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    pwm@48300000 {
+        compatible = "ti,am33xx-pwmss";
+        reg = <0x48300000 0x10>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x48300100 0x48300100 0x80>,   /* ECAP */
+                 <0x48300180 0x48300180 0x80>,   /* EQEP */
+                 <0x48300200 0x48300200 0x80>;   /* EHRPWM */
+
+        pwm@48300100 {
+            compatible = "ti,am3352-ecap";
+            #pwm-cells = <3>;
+            reg = <0x48300100 0x80>;
+            clocks = <&l4ls_gclk>;
+            clock-names = "fck";
+        };
+
+        counter@48300180 {
+            compatible = "ti,am3352-eqep";
+            reg = <0x48300180 0x80>;
+            clocks = <&l4ls_gclk>;
+            interrupts = <79>;
+        };
+
+        pwm@48300200 {
+            compatible = "ti,am3352-ehrpwm";
+            #pwm-cells = <3>;
+            reg = <0x48300200 0x80>;
+            clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
+            clock-names = "tbclk", "fck";
+        };
+    };

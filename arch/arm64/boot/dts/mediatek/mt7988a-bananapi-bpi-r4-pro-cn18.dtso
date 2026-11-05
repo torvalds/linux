@@ -16,5 +16,6 @@
 };
 
 &{/soc/pinctrl@1001f000/pcie-3-hog} {
+	line-name = "pcie3-cn18-hog";
 	output-low;
 };

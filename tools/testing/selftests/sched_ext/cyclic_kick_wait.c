@@ -152,7 +152,7 @@ static enum scx_test_status run(void *ctx)
 
 	sleep(5);
 
-	if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_NONE)) {
+	if (UEI_EXITED(skel, uei)) {
 		SCX_ERR("Scheduler exited unexpectedly (kind=%llu code=%lld)",
 			(unsigned long long)skel->data->uei.kind,
 			(long long)skel->data->uei.exit_code);

@@ -558,6 +558,7 @@ static void kill_rules(struct audit_context *context, struct audit_tree *tree)
 			list_del(&entry->rule.list);
 			if (entry->rule.exe)
 				need_sync = true;
+			audit_rule_unaccount(rule);
 		} else {
 			list_del_init(&rule->rlist);
 		}

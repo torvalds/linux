@@ -363,7 +363,8 @@ config MOTORCOMM_PHY
 	tristate "Motorcomm PHYs"
 	help
 	  Enables support for Motorcomm network PHYs.
-	  Currently supports YT85xx Gigabit Ethernet PHYs.
+	  Currently supports YT85xx Gigabit Ethernet PHYs, YT861x PHYs
+	  integrated in YT921x switches, and YT8821 2.5Gbps PHYs.
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
@@ -483,6 +484,17 @@ config VITESSE_PHY
 	tristate "Vitesse PHYs"
 	help
 	  Currently supports the vsc8244
+
+config XPOWERS_ACX00_PHY
+	tristate "X-Powers AC200/AC300 Ethernet PHY"
+	depends on COMMON_CLK && NVMEM && OF_MDIO && REGULATOR
+	depends on I2C || !I2C
+	select PHY_PACKAGE
+	help
+	  Enable the Fast Ethernet PHY driver shared by the X-Powers AC200
+	  and AC300 companion ICs. The driver configures their common MDIO PHY
+	  registers and the package-specific AC200 I2C or AC300 MDIO control
+	  registers.
 
 config XILINX_GMII2RGMII
 	tristate "Xilinx GMII2RGMII converter driver"

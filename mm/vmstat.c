@@ -1837,6 +1837,11 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		struct per_cpu_zonestat __maybe_unused *pzstats;
 
 		pcp = per_cpu_ptr(zone->per_cpu_pageset, i);
+		/*
+		 * Access to the per-cpu pageset fields is lockless as they
+		 * are used only for printing purposes. Use data_race to
+		 * avoid KCSAN warning.
+		 */
 		seq_printf(m,
 			   "\n    cpu: %i"
 			   "\n              count:    %i"
@@ -1845,15 +1850,15 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 			   "\n              high_min: %i"
 			   "\n              high_max: %i",
 			   i,
-			   pcp->count,
-			   pcp->high,
-			   pcp->batch,
-			   pcp->high_min,
-			   pcp->high_max);
+			   data_race(pcp->count),
+			   data_race(pcp->high),
+			   data_race(pcp->batch),
+			   data_race(pcp->high_min),
+			   data_race(pcp->high_max));
 #ifdef CONFIG_SMP
 		pzstats = per_cpu_ptr(zone->per_cpu_zonestats, i);
 		seq_printf(m, "\n  vm stats threshold: %d",
-				pzstats->stat_threshold);
+				data_race(pzstats->stat_threshold));
 #endif
 	}
 	seq_printf(m,

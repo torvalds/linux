@@ -36,17 +36,11 @@ static u32 mrrm_mem_entry_num;
 
 static int get_node_num(struct mrrm_mem_range_entry *e)
 {
-	unsigned int nid;
+	struct zone *zone;
 
-	for_each_online_node(nid) {
-		for (int z = 0; z < MAX_NR_ZONES; z++) {
-			struct zone *zone = NODE_DATA(nid)->node_zones + z;
-
-			if (!populated_zone(zone))
-				continue;
-			if (zone_intersects(zone, PHYS_PFN(e->base), PHYS_PFN(e->length)))
-				return zone_to_nid(zone);
-		}
+	for_each_populated_zone(zone) {
+		if (zone_intersects(zone, PHYS_PFN(e->base), PHYS_PFN(e->length)))
+			return zone_to_nid(zone);
 	}
 
 	return -ENOENT;

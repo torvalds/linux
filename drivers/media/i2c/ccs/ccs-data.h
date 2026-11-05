@@ -160,7 +160,7 @@ struct ccs_pdaf_pix_loc_pixel_desc_group {
  * @main_offset_y: Start Y coordinate of PDAF pixel blocks
  * @global_pdaf_type: PDAF pattern type
  * @block_width: Width of a block in pixels
- * @block_height: Heigth of a block in pixels
+ * @block_height: Height of a block in pixels
  * @num_block_desc_groups: Number of block descriptor groups
  * @block_desc_groups: Block descriptor groups
  * @num_pixel_desc_grups: Number of pixel descriptor groups
@@ -197,7 +197,7 @@ struct ccs_pdaf_pix_loc {
  * @module_rules: Rules for the module
  * @sensor_pdaf: PDAF data for the sensor
  * @module_pdaf: PDAF data for the module
- * @license_length: Lenght of the license data
+ * @license_length: Length of the license data
  * @license: License data
  * @end: Whether or not there's an end block
  * @backing: Raw data, pointed to from elsewhere so keep it around

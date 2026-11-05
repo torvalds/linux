@@ -358,6 +358,12 @@ struct sk_buff;
  */
 #define GSO_BY_FRAGS	0xFFFF
 
+/* All frags in an skb must either all be struct page-backed or all belong to
+ * the same memory provider instance (e.g. the same devmem binding or io_uring
+ * area). Mixing page and memory-provider frags, or mixing frags from different
+ * memory providers within a single skb (including via coalescing), is not
+ * allowed.
+ */
 typedef struct skb_frag {
 	netmem_ref netmem;
 	unsigned int len;
@@ -633,9 +639,9 @@ struct skb_shared_info {
  *
  * Transport layers send out clones of payload skbs they hold for
  * retransmissions. To allow lower layers of the stack to prepend their headers
- * we split &skb_shared_info.dataref into two halves.
- * The lower 16 bits count the overall number of references.
- * The higher 16 bits indicate how many of the references are payload-only.
+ * we split &skb_shared_info.dataref into two parts.
+ * The lower 30 bits count the overall number of references.
+ * Bit 30 indicates whether one of the references is payload-only.
  * skb_header_cloned() checks if skb is allowed to add / write the headers.
  *
  * The creator of the skb (e.g. TCP) marks its skb as &sk_buff.nohdr
@@ -655,7 +661,7 @@ struct skb_shared_info {
  * Having multiple payload-only skbs with different lengths of hdr_len is not
  * possible. The payload-only skbs should never leave their owner.
  */
-#define SKB_DATAREF_SHIFT 16
+#define SKB_DATAREF_SHIFT 30
 #define SKB_DATAREF_MASK ((1 << SKB_DATAREF_SHIFT) - 1)
 
 
@@ -1036,8 +1042,6 @@ struct sk_buff {
 	__u16			tc_index;	/* traffic control index */
 #endif
 
-	u16			alloc_cpu;
-
 	union {
 		__wsum		csum;
 		struct {
@@ -1087,6 +1091,8 @@ struct sk_buff {
 	struct kcov_common_handle_id kcov_handle;
 
 	); /* end headers group */
+
+	u16			alloc_cpu;
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
@@ -2125,14 +2131,14 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 }
 
 /*
- *	Copy shared buffers into a new sk_buff. We effectively do COW on
+ *	Copy cloned buffers into a new sk_buff. We effectively do COW on
  *	packets to handle cases where we have a local reader and forward
  *	and a couple of other messy ones. The normal one is tcpdumping
  *	a packet that's being forwarded.
  */
 
 /**
- *	skb_unshare - make a copy of a shared buffer
+ *	skb_unclone_full - make a private copy of a cloned buffer
  *	@skb: buffer to check
  *	@pri: priority for memory allocation
  *
@@ -2142,10 +2148,13 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
  *	the original buffer is returned. When called with a spinlock held or
  *	from interrupt state @pri must be %GFP_ATOMIC
  *
+ *	Unlike skb_unclone(), the paged data is copied as well. A buffer with
+ *	skb->users > 1 that is not a clone is returned as is, use
+ *	skb_share_check() for that case.
+ *
  *	%NULL is returned on a memory allocation failure.
  */
-static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
-					  gfp_t pri)
+static inline struct sk_buff *skb_unclone_full(struct sk_buff *skb, gfp_t pri)
 {
 	might_sleep_if(gfpflags_allow_blocking(pri));
 	if (skb_cloned(skb)) {
@@ -3816,9 +3825,12 @@ static inline dma_addr_t __skb_frag_dma_map(struct device *dev,
 					    size_t offset, size_t size,
 					    enum dma_data_direction dir)
 {
+	dma_addr_t addr;
+
 	if (skb_frag_is_net_iov(frag)) {
-		return netmem_to_net_iov(frag->netmem)->desc.dma_addr +
-		       offset + frag->offset;
+		addr = netmem_dma_addr_decode(
+			netmem_get_dma_addr(frag->netmem));
+		return addr + offset + frag->offset;
 	}
 	return dma_map_page(dev, skb_frag_page(frag),
 			    skb_frag_off(frag) + offset, size, dir);

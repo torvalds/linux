@@ -117,7 +117,7 @@ members are defined:
 		const struct fs_parameter_spec *parameters;
 		void (*kill_sb) (struct super_block *);
 		struct module *owner;
-		struct file_system_type * next;
+		struct hlist_node list;
 		struct hlist_head fs_supers;
 
 		struct lock_class_key s_lock_key;
@@ -415,33 +415,33 @@ As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct inode_operations {
-		int (*create) (struct mnt_idmap *, struct inode *,struct dentry *, umode_t);
+		int (*create) (const struct mnt_idmap *, struct inode *,struct dentry *, umode_t);
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
-		struct dentry *(*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
+		int (*symlink) (const struct mnt_idmap *, struct inode *,struct dentry *,const char *);
+		struct dentry *(*mkdir) (const struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
+		int (*mknod) (const struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
+		int (*rename) (const struct mnt_idmap *, struct inode *, struct dentry *,
 			       struct inode *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
-		int (*permission) (struct mnt_idmap *, struct inode *, int);
+		int (*permission) (const struct mnt_idmap *, struct inode *, int);
 		struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
-		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
-		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
+		int (*setattr) (const struct mnt_idmap *, struct dentry *, struct iattr *);
+		int (*getattr) (const struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *inode, enum fs_update_time type,
 				    int flags);
 		void (*sync_lazytime)(struct inode *inode);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct mnt_idmap *, struct inode *, struct file *, umode_t);
-		struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
-	        int (*set_acl)(struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
-		int (*fileattr_set)(struct mnt_idmap *idmap,
+		int (*tmpfile) (const struct mnt_idmap *, struct inode *, struct file *, umode_t);
+		struct posix_acl * (*get_acl)(const struct mnt_idmap *, struct dentry *, int);
+	        int (*set_acl)(const struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
+		int (*fileattr_set)(const struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct file_kattr *fa);
 		int (*fileattr_get)(struct dentry *dentry, struct file_kattr *fa);
 	        struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
@@ -507,8 +507,8 @@ otherwise noted.
 	dentry before the first mkdir returns.
 
 	If there is any chance this could happen, then the new inode
-	should be d_drop()ed and attached with d_splice_alias().  The
-	returned dentry (if any) should be returned by ->mkdir().
+	should be attached with d_splice_alias().  The returned
+	dentry (if any) should be returned by ->mkdir().
 
 ``rmdir``
 	called by the rmdir(2) system call.  Only required if you want
@@ -649,8 +649,8 @@ Writeback.
 
 The first can be used independently to the others.  The VM can try to
 release clean pages in order to reuse them.  To do this it can call
-->release_folio on clean folios with the private
-flag set.  Clean pages without PagePrivate and with no external references
+->release_folio on clean folios with folio->private set. Clean pages
+without folio->private set and with no external references
 will be released without notice being given to the address_space.
 
 To achieve this functionality, pages need to be placed on an LRU with
@@ -674,7 +674,7 @@ filemap_fdatawait_range, to wait for all writeback to complete.
 
 An address_space handler may attach extra information to a page,
 typically using the 'private' field in the 'struct page'.  If such
-information is attached, the PG_Private flag should be set.  This will
+information is attached, non-NULL 'private' field will
 cause various VM routines to make extra calls into the address_space
 handler to deal with that data.
 

@@ -217,8 +217,10 @@ void v3d_perfmon_get(struct v3d_perfmon *perfmon)
 
 void v3d_perfmon_put(struct v3d_perfmon *perfmon)
 {
-	if (perfmon && refcount_dec_and_test(&perfmon->refcnt))
+	if (perfmon && refcount_dec_and_test(&perfmon->refcnt)) {
+		atomic_dec(&perfmon->v3d->perfmon_state.nperfmons);
 		kfree(perfmon);
+	}
 }
 
 static void v3d_perfmon_hw_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
@@ -305,8 +307,9 @@ static void v3d_perfmon_capture_locked(struct v3d_dev *v3d,
 	v3d_pm_runtime_put(v3d);
 }
 
-void v3d_perfmon_stop_locked(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
-			     bool capture)
+static void
+v3d_perfmon_stop_locked(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
+			bool capture)
 {
 	lockdep_assert_held(&v3d->perfmon_state.lock);
 
@@ -434,13 +437,15 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 		perfmon->counters[i] = req->counters[i];
 
 	perfmon->ncounters = req->ncounters;
+	perfmon->v3d = v3d;
 
 	refcount_set(&perfmon->refcnt, 1);
+	atomic_inc(&v3d->perfmon_state.nperfmons);
 
 	ret = xa_alloc(&v3d_priv->perfmons, &id, perfmon, xa_limit_32b,
 		       GFP_KERNEL);
 	if (ret < 0) {
-		kfree(perfmon);
+		v3d_perfmon_put(perfmon);
 		return ret;
 	}
 

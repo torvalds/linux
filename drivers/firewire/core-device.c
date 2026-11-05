@@ -261,14 +261,14 @@ EXPORT_SYMBOL(fw_bus_type);
 
 int fw_device_enable_phys_dma(struct fw_device *device)
 {
-	int generation = device->generation;
+	struct fw_card *card = device->card;
 
 	/* device->node_id, accessed below, must not be older than generation */
+	int generation = device->generation;
 	smp_rmb();
+	int node_id = device->node_id;
 
-	return device->card->driver->enable_phys_dma(device->card,
-						     device->node_id,
-						     generation);
+	return smp_load_acquire(&card->driver)->enable_phys_dma(device->card, node_id, generation);
 }
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
 
@@ -1441,4 +1441,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 
 #ifdef CONFIG_FIREWIRE_KUNIT_DEVICE_ATTRIBUTE_TEST
 #include "device-attribute-test.c"
+#endif
+
+#ifdef CONFIG_FIREWIRE_KUNIT_CONFIG_ROM_PARSER_AND_GENERATOR_TEST
+#include "config-rom-parser-test.c"
 #endif

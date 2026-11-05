@@ -943,7 +943,7 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe,
 	case BNX2FC_SEQ_CLEANUP:
 		BNX2FC_IO_DBG(io_req, "cq_compl(0x%x) - seq cleanup resp\n",
 			      io_req->xid);
-		bnx2fc_process_seq_cleanup_compl(io_req, task, rx_state);
+		bnx2fc_process_seq_cleanup_compl(tgt, io_req, task, rx_state);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		break;
 

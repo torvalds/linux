@@ -1,0 +1,1 @@
+reserve_mem=12M:32M:trace trace_instance=boot_map@trace trace_instance=backup=boot_map

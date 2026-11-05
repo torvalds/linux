@@ -111,6 +111,12 @@ static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 		if (!!sinfo->authattrs != want)
 			goto inconsistent;
 
+#ifdef CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA
+		if (sinfo->authattrs &&
+		    strncmp(sinfo->sig->pkey_algo, "mldsa", 5) != 0)
+			msg->authattrs_rej_waivable = false;
+#endif
+
 		if (!sinfo->authattrs &&
 		    sinfo->sig->algo_takes_data)
 			sinfo->sig->hash_algo = "none";

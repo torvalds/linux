@@ -45,7 +45,22 @@ struct fbnic_fw_ver {
 	char commit[FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE];
 };
 
+/* Bits in fbnic_fw_cap.state. The firmware mailbox publishes the BMC state
+ * and the service task consumes it, so they are updated with atomic bitops.
+ */
+enum {
+	FBNIC_FW_CAP_F_BMC_PRESENT,
+	FBNIC_FW_CAP_F_BMC_ALL_MULTI,
+	FBNIC_FW_CAP_F_BMC_TCAM_REINIT,
+	FBNIC_FW_CAP_F_BMC_MACDA_SYNC,
+};
+
+#define FBNIC_FW_CAP_BMC_PENDING	\
+	(BIT(FBNIC_FW_CAP_F_BMC_TCAM_REINIT) |	\
+	 BIT(FBNIC_FW_CAP_F_BMC_MACDA_SYNC))
+
 struct fbnic_fw_cap {
+	unsigned long state;
 	struct {
 		struct fbnic_fw_ver mgmt, bootloader;
 	} running;
@@ -54,10 +69,6 @@ struct fbnic_fw_cap {
 	} stored;
 	u8	active_slot;
 	u8	bmc_mac_addr[4][ETH_ALEN];
-	u8	bmc_present		: 1;
-	u8	need_bmc_tcam_reinit	: 1;
-	u8	need_bmc_macda_sync	: 1;
-	u8	all_multi		: 1;
 	u8	link_speed;
 	u8	link_fec;
 	u32	anti_rollback_version;

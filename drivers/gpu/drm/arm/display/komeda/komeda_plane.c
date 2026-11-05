@@ -132,19 +132,17 @@ static void komeda_plane_destroy(struct drm_plane *plane)
 	kfree(to_kplane(plane));
 }
 
-static void komeda_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *komeda_plane_create_state(struct drm_plane *plane)
 {
 	struct komeda_plane_state *state;
 
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-
-	kfree(plane->state);
-	plane->state = NULL;
-
 	state = kzalloc_obj(*state);
-	if (state)
-		__drm_atomic_helper_plane_reset(plane, &state->base);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_plane_state_init(&state->base, plane);
+
+	return &state->base;
 }
 
 static struct drm_plane_state *
@@ -188,7 +186,7 @@ static const struct drm_plane_funcs komeda_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= komeda_plane_destroy,
-	.reset			= komeda_plane_reset,
+	.atomic_create_state = komeda_plane_create_state,
 	.atomic_duplicate_state	= komeda_plane_atomic_duplicate_state,
 	.atomic_destroy_state	= komeda_plane_atomic_destroy_state,
 	.format_mod_supported	= komeda_plane_format_mod_supported,

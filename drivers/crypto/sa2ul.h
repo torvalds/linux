@@ -307,12 +307,9 @@ struct sa_tfm_ctx {
 	struct sa_crypto_data *dev_data;
 	struct sa_ctx_info enc;
 	struct sa_ctx_info dec;
-	struct sa_ctx_info auth;
 	int keylen;
 	int iv_idx;
 	u32 key[AES_KEYSIZE_256 / sizeof(u32)];
-	u8 authkey[SHA512_BLOCK_SIZE];
-	struct crypto_shash	*shash;
 	/* for fallback */
 	union {
 		struct crypto_skcipher		*skcipher;

@@ -854,69 +854,6 @@ static void __init alloc_init_p4d(pgd_t *pgd, unsigned long addr,
 	} while (p4d++, addr = next, addr != end);
 }
 
-#ifndef CONFIG_ARM_LPAE
-static void __init create_36bit_mapping(struct mm_struct *mm,
-					struct map_desc *md,
-					const struct mem_type *type,
-					bool ng)
-{
-	unsigned long addr, length, end;
-	phys_addr_t phys;
-	pgd_t *pgd;
-
-	addr = md->virtual;
-	phys = __pfn_to_phys(md->pfn);
-	length = PAGE_ALIGN(md->length);
-
-	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
-		pr_err("MM: CPU does not support supersection mapping for 0x%08llx at 0x%08lx\n",
-		       (long long)__pfn_to_phys((u64)md->pfn), addr);
-		return;
-	}
-
-	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
-	 *	Since domain assignments can in fact be arbitrary, the
-	 *	'domain == 0' check below is required to insure that ARMv6
-	 *	supersections are only allocated for domain 0 regardless
-	 *	of the actual domain assignments in use.
-	 */
-	if (type->domain) {
-		pr_err("MM: invalid domain in supersection mapping for 0x%08llx at 0x%08lx\n",
-		       (long long)__pfn_to_phys((u64)md->pfn), addr);
-		return;
-	}
-
-	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
-		pr_err("MM: cannot create mapping for 0x%08llx at 0x%08lx invalid alignment\n",
-		       (long long)__pfn_to_phys((u64)md->pfn), addr);
-		return;
-	}
-
-	/*
-	 * Shift bits [35:32] of address into bits [23:20] of PMD
-	 * (See ARMv6 spec).
-	 */
-	phys |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
-
-	pgd = pgd_offset(mm, addr);
-	end = addr + length;
-	do {
-		p4d_t *p4d = p4d_offset(pgd, addr);
-		pud_t *pud = pud_offset(p4d, addr);
-		pmd_t *pmd = pmd_offset(pud, addr);
-		int i;
-
-		for (i = 0; i < 16; i++)
-			*pmd++ = __pmd(phys | type->prot_sect | PMD_SECT_SUPER |
-				       (ng ? PMD_SECT_nG : 0));
-
-		addr += SUPERSECTION_SIZE;
-		phys += SUPERSECTION_SIZE;
-		pgd += SUPERSECTION_SIZE >> PGDIR_SHIFT;
-	} while (addr != end);
-}
-#endif	/* !CONFIG_ARM_LPAE */
-
 static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 				    void *(*alloc)(unsigned long sz),
 				    bool ng)
@@ -927,16 +864,6 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 	pgd_t *pgd;
 
 	type = &mem_types[md->type];
-
-#ifndef CONFIG_ARM_LPAE
-	/*
-	 * Catch 36-bit addresses
-	 */
-	if (md->pfn >= 0x100000) {
-		create_36bit_mapping(mm, md, type, ng);
-		return;
-	}
-#endif
 
 	addr = md->virtual & PAGE_MASK;
 	phys = __pfn_to_phys(md->pfn);
@@ -964,8 +891,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
  * Create the page directory entries and any necessary
  * page tables for the mapping specified by `md'.  We
  * are able to cope here with varying sizes and address
- * offsets, and we take full advantage of sections and
- * supersections.
+ * offsets, and we take full advantage of sections.
  */
 static void __init create_mapping(struct map_desc *md)
 {

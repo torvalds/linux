@@ -64,5 +64,5 @@ examples:
                 vfront-porch = <0>;
                 vsync-len = <0>;
             };
-          };
-     };
+        };
+    };

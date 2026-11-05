@@ -36,7 +36,7 @@
 
 		port {
 			hdmi_con_out: endpoint {
-			remote-endpoint = <&adv7535_out>;
+				remote-endpoint = <&adv7535_out>;
 			};
 		};
 	};

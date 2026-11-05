@@ -180,7 +180,7 @@ err_out:
 }
 
 SEC("?tc")
-__failure __msg("bpf_rbtree_remove can only take non-owning or refcounted bpf_rb_node pointer")
+__failure __msg("R2 type=scalar expected=ptr_, rcu_ptr_, ptr_, rcu_ptr_")
 long rbtree_api_add_release_unlock_escape(void *ctx)
 {
 	struct node_data *n;
@@ -204,7 +204,7 @@ long rbtree_api_add_release_unlock_escape(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("bpf_rbtree_remove can only take non-owning or refcounted bpf_rb_node pointer")
+__failure __msg("R2 type=scalar expected=ptr_, rcu_ptr_, ptr_, rcu_ptr_")
 long rbtree_api_first_release_unlock_escape(void *ctx)
 {
 	struct bpf_rb_node *res;

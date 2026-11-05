@@ -133,6 +133,81 @@ static void aes_decrypt_arch(const struct aes_key *key,
 	}
 }
 
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_XTS)
+void aes_sparc64_xts_encrypt_128(const u64 *key, const u64 *input, u64 *output,
+				 size_t len, u64 tweak[2]);
+void aes_sparc64_xts_encrypt_256(const u64 *key, const u64 *input, u64 *output,
+				 size_t len, u64 tweak[2]);
+void aes_sparc64_xts_decrypt_128(const u64 *key_end, const u64 *input,
+				 u64 *output, size_t len, u64 tweak[2]);
+void aes_sparc64_xts_decrypt_256(const u64 *key_end, const u64 *input,
+				 u64 *output, size_t len, u64 tweak[2]);
+
+/* len is always a positive multiple of AES_BLOCK_SIZE here. */
+static __always_inline bool
+aes_xts_crypt_sparc64(u8 *dst, const u8 *src, size_t len,
+		      u8 tweak[AES_BLOCK_SIZE],
+		      const struct aes_xts_key *key, bool cont, bool enc)
+{
+	const struct aes_key *k = &key->main_key;
+	const u64 *rk = k->k.sparc_rndkeys;
+	const u64 *rk_end = rk + 2 * (k->nrounds + 1);
+	const u64 *in = (const u64 *)src;
+	u64 *out = (u64 *)dst;
+	u64 t[2];
+
+	/* The assembly code has no AES-192 and needs 8-byte aligned data. */
+	if (!static_branch_likely(&have_aes_opcodes) ||
+	    k->len == AES_KEYSIZE_192 ||
+	    !IS_ALIGNED((uintptr_t)dst | (uintptr_t)src, 8))
+		return false;
+
+	if (cont)
+		memcpy(t, tweak, sizeof(t));
+	else
+		aes_encrypt_arch(&key->tweak_key, (u8 *)t, tweak);
+
+	if (k->len == AES_KEYSIZE_128) {
+		if (enc) {
+			aes_sparc64_load_encrypt_keys_128(rk);
+			aes_sparc64_xts_encrypt_128(rk, in, out, len, t);
+		} else {
+			aes_sparc64_load_decrypt_keys_128(rk);
+			aes_sparc64_xts_decrypt_128(rk_end, in, out, len, t);
+		}
+	} else {
+		if (enc) {
+			aes_sparc64_load_encrypt_keys_256(rk);
+			aes_sparc64_xts_encrypt_256(rk, in, out, len, t);
+		} else {
+			aes_sparc64_load_decrypt_keys_256(rk);
+			aes_sparc64_xts_decrypt_256(rk_end, in, out, len, t);
+		}
+	}
+	fprs_write(0);
+
+	memcpy(tweak, t, sizeof(t));
+	memzero_explicit(t, sizeof(t));
+	return true;
+}
+
+#define aes_xts_encrypt_arch aes_xts_encrypt_arch
+static bool aes_xts_encrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return aes_xts_crypt_sparc64(dst, src, len, tweak, key, cont, true);
+}
+
+#define aes_xts_decrypt_arch aes_xts_decrypt_arch
+static bool aes_xts_decrypt_arch(u8 *dst, const u8 *src, size_t len,
+				 u8 tweak[AES_BLOCK_SIZE],
+				 const struct aes_xts_key *key, bool cont)
+{
+	return aes_xts_crypt_sparc64(dst, src, len, tweak, key, cont, false);
+}
+#endif /* CONFIG_CRYPTO_LIB_AES_XTS */
+
 #define aes_mod_init_arch aes_mod_init_arch
 static void aes_mod_init_arch(void)
 {

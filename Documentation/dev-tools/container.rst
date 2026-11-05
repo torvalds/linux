@@ -11,7 +11,7 @@ various platforms, for example when a test bot has reported an issue which
 requires a specific version of a compiler or an external test suite.  While
 this can already be done by users who are familiar with containers, having a
 dedicated tool in the kernel tree lowers the barrier to entry by solving common
-problems once and for all (e.g. user id management).  It also makes it easier
+problems once and for all (e.g. user ID management).  It also makes it easier
 to share an exact command line leading to a particular result.  The main use
 case is likely to be kernel builds but virtually anything can be run: KUnit,
 checkpatch etc. provided a suitable image is available.
@@ -26,17 +26,27 @@ Command line syntax::
 
 Available options:
 
+``-c, --config-file CONFIG_FILE``
+
+    Path to the config file.  If not specified, the default is to look for
+    ``.container.toml`` in the current working directory.
+
 ``-e, --env-file ENV_FILE``
 
     Path to an environment file to load in the container.
 
 ``-g, --gid GID``
 
-    Group id to use inside the container.
+    Group ID to use inside the container.
 
 ``-i, --image IMAGE``
 
     Container image name (required).
+
+``-p, --config-profile CONFIG_PROFILE``
+
+    Profile section to use in the config file.  This will override any values
+    defined in the ``DEFAULT`` section.
 
 ``-r, --runtime RUNTIME``
 
@@ -51,10 +61,10 @@ Available options:
 
 ``-u, --uid UID``
 
-    User id to use inside the container.
+    User ID to use inside the container.
 
-    If the ``-g`` option is not specified, the user id will also be used for
-    the group id.
+    If the ``-g`` option is not specified and no group ID is defined in the
+    configuration file, the user ID will also be set as the group ID.
 
 ``-v, --verbose``
 
@@ -71,7 +81,7 @@ Usage
 It's entirely up to the user to choose which image to use and the ``CMD``
 arguments are passed directly as an arbitrary command line to run in the
 container.  The tool will take care of mounting the source tree as the current
-working directory and adjust the user and group id as needed.
+working directory and adjust the user and group ID as needed.
 
 The container image which would typically include a compiler toolchain is
 provided by the user and selected via the ``-i`` option.  The container runtime
@@ -86,9 +96,13 @@ container with SIGINT (Ctrl-C).  To run commands interactively with a TTY, the
 shell directly rather than the parent ``container`` process.  To exit an
 interactive shell, use Ctrl-D or ``exit``.
 
+A :ref:`configuration file<config_file>` may be used to facilitate running
+containers for various use cases.  It also removes the burden of repeatedly
+providing the same options on the command line.
+
 .. note::
 
-   The only host requirement aside from a container runtime is Python 3.10 or
+   The only host requirement aside from a container runtime is Python 3.11 or
    later.
 
 .. note::
@@ -131,25 +145,30 @@ User IDs
 
 This is an area where the behaviour will vary slightly depending on the
 container runtime.  The goal is to run commands as the user invoking the tool.
-With Podman, a namespace is created to map the current user id to a different
+With Podman, a namespace is created to map the current user ID to a different
 one in the container (1000 by default).  With Docker, while this is also
 possible with recent versions it requires a special feature to be enabled in
 the daemon so it's not used here for simplicity.  Instead, the container is run
-with the current user id directly.  In both cases, this will provide the same
+with the current user ID directly.  In both cases, this will provide the same
 file permissions for the kernel source tree mounted as a volume.  The only
-difference is that when using Docker without a namespace, the user id may not
+difference is that when using Docker without a namespace, the user ID may not
 be the same as the default one set in the image.
 
-Say, we're using an image which sets up a default user with id 1000 and the
-current user calling the ``container`` tool has id 1234.  The kernel source
+Say, we're using an image which sets up a default user with ID 1000 and the
+current user calling the ``container`` tool has ID 1234.  The kernel source
 tree was checked out by this same user so the files belong to user 1234.  With
-Podman, the container will be running as user id 1000 with a mapping to id 1234
-so that the files from the mounted volume appear to belong to id 1000 inside
+Podman, the container will be running as user ID 1000 with a mapping to ID 1234
+so that the files from the mounted volume appear to belong to ID 1000 inside
 the container.  With Docker and no namespace, the container will be running
-with user id 1234 which can access the files in the volume but not in the user
+with user ID 1234 which can access the files in the volume but not in the user
 1000 home directory.  This shouldn't be an issue when running commands only in
 the kernel tree but it is worth highlighting here as it might matter for
 special corner cases.
+
+Group IDs (GID) follow the same logic as user IDs (UID).  When specifying a UID
+via the ``--uid`` option or in the configuration file, the GID takes the same
+value as the UID by default.  A specific GID can be set via ``--gid`` or the
+configuration file.
 
 .. note::
 
@@ -225,3 +244,72 @@ To build the HTML documentation, which requires the ``kdocs`` image built with
 ``make PREFIX=kernel.org/ extra`` as it's not a compiler toolchain::
 
   scripts/container -i kernel.org/kdocs make htmldocs
+
+.. _config_file:
+
+Configuration File
+==================
+
+By default, the tool will look for a configuration file named
+``.container.toml`` in the current working directory.  If not found, it will be
+silently ignored as it's not required.  Alternatively, any other path can be
+specified with the ``-c`` option in which case the file needs to be present or
+an error will be raised.
+
+Its data follows the standard TOML format and is made up of different sections
+with ``DEFAULT`` as the default one.  Other sections may be used to define
+alternative profiles under arbitrary names which can be selected by the ``-p``
+option.  Command line options take precedence over configuration values, and
+profile sections take precedence over the default one.
+
+Supported options in each section are:
+
+``env_file``
+
+    Path to an environment file to load in the container, equivalent to the
+    ``-e`` command line option.
+
+``image``
+
+    Name of the container image to use, equivalent to the ``-i`` command line
+    option.
+
+``runtime``
+
+    Name of the container runtime, equivalent to the ``-r`` command line option.
+
+``uid`` / ``gid`` (integers)
+
+    User and group ID numbers to use inside the container, equivalents to the
+    ``-u`` and ``-g`` command line options respectively.
+
+
+Here's a sample configuration with an extra ``clang`` profile::
+
+  [DEFAULT]
+  runtime = "podman"
+  image = "tuxmake/korg-gcc"
+
+  [clang]
+  image = "tuxmake/korg-clang"
+  env_file = ".clang.env"
+
+It mentions a ``.clang.env`` file which simply contains this flag::
+
+  LLVM=1
+
+Let's take a look again at this example mentioned earlier::
+
+  scripts/container -i docker.io/tuxmake/korg-clang -- make LLVM=1 defconfig
+
+Using the configuration file, it can now be simplified into this::
+
+  scripts/container -p clang -- make defconfig
+
+Then to override the default user, the ``-u`` option can still be used::
+
+  scripts/container -p clang -u0 -- make defconfig
+
+This also illustrates how values take precedence over each other: the runtime
+is loaded from the ``DEFAULT`` section, the image from the ``clang`` section
+and the user ID from the command line ``-u`` option.

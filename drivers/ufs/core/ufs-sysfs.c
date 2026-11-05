@@ -150,12 +150,12 @@ static inline ssize_t ufs_sysfs_pm_lvl_store(struct device *dev,
 	     !(dev_info->wspecversion >= 0x310)))
 		return -EINVAL;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	if (rpm)
 		hba->rpm_lvl = value;
 	else
 		hba->spm_lvl = value;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 	return count;
 }
 
@@ -787,7 +787,7 @@ static ssize_t monitor_enable_store(struct device *dev,
 		return -EINVAL;
 
 	value = !!value;
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	if (value == hba->monitor.enabled)
 		goto out_unlock;
 
@@ -799,7 +799,7 @@ static ssize_t monitor_enable_store(struct device *dev,
 	}
 
 out_unlock:
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 	return count;
 }
 
@@ -821,11 +821,11 @@ static ssize_t monitor_chunk_size_store(struct device *dev,
 	if (kstrtoul(buf, 0, &value))
 		return -EINVAL;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	/* Only allow chunk size change when monitor is disabled */
 	if (!hba->monitor.enabled)
 		hba->monitor.chunk_size = value;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 	return count;
 }
 

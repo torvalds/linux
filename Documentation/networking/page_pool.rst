@@ -83,7 +83,7 @@ that NAPI context, the page pool may safely access consumer-side resources
 		 page_pool_get_dma_addr page_pool_get_dma_dir
 
 .. kernel-doc:: net/core/page_pool.c
-   :identifiers: page_pool_put_page_bulk
+   :identifiers: page_pool_put_netmem_bulk
 
 DMA sync
 --------

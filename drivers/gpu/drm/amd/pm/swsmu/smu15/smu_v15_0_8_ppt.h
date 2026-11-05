@@ -32,6 +32,9 @@
 #define SMU_15_0_8_MAX_AID 2
 #define SMU_15_0_8_MAX_MID 2
 #define SMU_15_0_8_MAX_HBM_STACKS 12
+#define SMU_15_0_8_CAP_NPM			1
+#define SMU_15_0_8_CAP_NODE_UNLOAD		2
+#define SMU_15_0_8_NODE_UNLOAD_MIN_FW_VERSION	0x027d0c00u /* 2.125.12.0 */
 extern void smu_v15_0_8_set_ppt_funcs(struct smu_context *smu);
 
 typedef struct {
@@ -61,6 +64,7 @@ typedef struct {
 	uint32_t PPT1Max;
 	uint32_t PPT1Min;
 	uint32_t PPT1Default;
+	uint32_t MaxNodePowerLimit;
 	bool init;
 } PPTable_t;
 

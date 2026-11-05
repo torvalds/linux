@@ -85,10 +85,12 @@ struct futex_unlock_cs_ranges { };
  * struct futex_mm_data - Futex related per MM data
  * @phash:	Futex private hash related data
  * @unlock:	Futex unlock VDSO critical sections
+ * @unique_id:	Unique ID of the MM, for FUT_OFF_MMSHARED futexes
  */
 struct futex_mm_data {
 	struct futex_mm_phash		phash;
 	struct futex_unlock_cs_ranges	unlock;
+	atomic64_t			unique_id;
 };
 #else  /* CONFIG_FUTEX */
 struct futex_sched_data { };

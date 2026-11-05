@@ -542,6 +542,8 @@ static int pci1xxxx_spi_transfer_with_dma(struct spi_controller *spi_ctlr,
 	struct pci1xxxx_spi_internal *p = spi_controller_get_devdata(spi_ctlr);
 	struct pci1xxxx_spi *par = p->parent;
 	dma_addr_t tx_dma_addr = 0;
+	unsigned long flags;
+	bool engines_stopped;
 	int ret = 0;
 	u32 regval;
 
@@ -618,12 +620,72 @@ static int pci1xxxx_spi_transfer_with_dma(struct spi_controller *spi_ctlr,
 			p->dma_aborted_wr = false;
 			ret = -ECANCELED;
 		}
+
+		/*
+		 * A timed out transfer leaves the DMA engines running and
+		 * the done/abort interrupt status armed with p->xfer,
+		 * p->tx_sgl and p->rx_sgl still registered.  Stop the
+		 * engines, drain the pending status and synchronize the
+		 * IRQs before dropping the transfer state, otherwise a
+		 * late interrupt makes the ISRs reprogram the engines
+		 * from or signal completion through memory which the SPI
+		 * core is about to unmap or free.
+		 */
+		writel(SPI_DMA_ENGINE_DIS,
+		       par->dma_offset_bar + SPI_DMA_GLOBAL_WR_ENGINE_EN);
+		writel(SPI_DMA_ENGINE_DIS,
+		       par->dma_offset_bar + SPI_DMA_GLOBAL_RD_ENGINE_EN);
+		engines_stopped =
+			!(readl_poll_timeout(par->dma_offset_bar +
+					     SPI_DMA_GLOBAL_WR_ENGINE_EN,
+					     regval, regval == 0x0, 0,
+					     USEC_PER_MSEC) ||
+			  readl_poll_timeout(par->dma_offset_bar +
+					     SPI_DMA_GLOBAL_RD_ENGINE_EN,
+					     regval, regval == 0x0, 0,
+					     USEC_PER_MSEC));
+		if (!engines_stopped)
+			dev_warn(&par->dev->dev,
+				 "SPI DMA engines failed to stop\n");
+
+		spin_lock_irqsave(&par->dma_wr_reg_lock, flags);
+		writel((SPI_DMA_DONE_INT_MASK(p->hw_inst) |
+			SPI_DMA_ABORT_INT_MASK(p->hw_inst)),
+		       par->dma_offset_bar + SPI_DMA_INTR_WR_CLR);
+		spin_unlock_irqrestore(&par->dma_wr_reg_lock, flags);
+		spin_lock_irqsave(&par->dma_rd_reg_lock, flags);
+		writel((SPI_DMA_DONE_INT_MASK(p->hw_inst) |
+			SPI_DMA_ABORT_INT_MASK(p->hw_inst)),
+		       par->dma_offset_bar + SPI_DMA_INTR_RD_CLR);
+		spin_unlock_irqrestore(&par->dma_rd_reg_lock, flags);
+
+		p->spi_xfer_in_progress = false;
+		synchronize_irq(p->irq[1]);
+		synchronize_irq(p->irq[2]);
+
+		/*
+		 * Turn the engines back on only once both are confirmed
+		 * to have stopped: re-enabling an engine that failed to
+		 * stop would cancel the pending stop request and let it
+		 * run into buffers the SPI core is about to unmap or
+		 * free.  An engine that failed to stop is left disabled,
+		 * as the abort paths already do.
+		 */
+		if (engines_stopped) {
+			writel(SPI_DMA_ENGINE_EN,
+			       par->dma_offset_bar + SPI_DMA_GLOBAL_WR_ENGINE_EN);
+			writel(SPI_DMA_ENGINE_EN,
+			       par->dma_offset_bar + SPI_DMA_GLOBAL_RD_ENGINE_EN);
+		}
 		goto error;
 	}
 	ret = 0;
 
 error:
 	p->spi_xfer_in_progress = false;
+	p->xfer = NULL;
+	p->tx_sgl = NULL;
+	p->rx_sgl = NULL;
 
 	return ret;
 }
@@ -695,6 +757,9 @@ static irqreturn_t pci1xxxx_spi_isr_dma_rd(int irq, void *dev)
 	unsigned long flags;
 	u32 regval;
 
+	if (!p->spi_xfer_in_progress)
+		return IRQ_NONE;
+
 	/* Clear the DMA RD INT and start spi xfer*/
 	regval = readl(p->parent->dma_offset_bar + SPI_DMA_INTR_RD_STS);
 	if (regval) {
@@ -722,6 +787,9 @@ static irqreturn_t pci1xxxx_spi_isr_dma_wr(int irq, void *dev)
 	irqreturn_t spi_int_fired = IRQ_NONE;
 	unsigned long flags;
 	u32 regval;
+
+	if (!p->spi_xfer_in_progress)
+		return IRQ_NONE;
 
 	/* Clear the DMA WR INT */
 	regval = readl(p->parent->dma_offset_bar + SPI_DMA_INTR_WR_STS);
@@ -754,6 +822,9 @@ static irqreturn_t pci1xxxx_spi_isr_dma(int irq, void *dev)
 	struct pci1xxxx_spi_internal *p = dev;
 	irqreturn_t spi_int_fired = IRQ_NONE;
 	u32 regval;
+
+	if (!p->spi_xfer_in_progress)
+		return IRQ_NONE;
 
 	/* Clear the SPI GO_BIT Interrupt */
 	regval = readl(p->parent->reg_base + SPI_MST_EVENT_REG_OFFSET(p->hw_inst));

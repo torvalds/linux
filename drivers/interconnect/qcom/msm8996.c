@@ -501,6 +501,7 @@ static struct qcom_icc_node mas_venus = {
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
 	.qos.qos_port = 3,
+	.qos.aux_qos_port = 4,
 	.num_links = ARRAY_SIZE(mas_mnoc_bimc_common_links),
 	.links = mas_mnoc_bimc_common_links
 };

@@ -3,7 +3,7 @@
  * Interface for functions that need to be run in internal SRAM
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 				u32 base_cs, u32 force_unlock);
@@ -48,7 +48,7 @@ extern void omap_push_sram_idle(void);
 static inline void omap_push_sram_idle(void) {}
 #endif /* CONFIG_PM */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * OMAP2+: define the SRAM PA addresses.

@@ -243,7 +243,7 @@ xfs_acl_set_mode(
 }
 
 int
-xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+xfs_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 	    struct posix_acl *acl, int type)
 {
 	umode_t mode;

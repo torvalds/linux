@@ -173,6 +173,7 @@ def main() -> None:
     perf = Extension(
         'perf',
         sources=[os.path.join(src_perf, 'util/python.c')],
+        depends=shlex.split(os.getenv('PYTHON_EXT_DEPS', '')),
         include_dirs=['util/include'],
         extra_compile_args=cflags,
     )

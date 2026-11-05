@@ -60,7 +60,7 @@ static inline void free_ea_wmap(struct inode *inode)
  * RETURN:	Errors from subroutines
  *
  */
-static int jfs_create(struct mnt_idmap *idmap, struct inode *dip,
+static int jfs_create(const struct mnt_idmap *idmap, struct inode *dip,
 		      struct dentry *dentry, umode_t mode)
 {
 	int rc = 0;
@@ -193,7 +193,7 @@ static int jfs_create(struct mnt_idmap *idmap, struct inode *dip,
  * note:
  * EACCES: user needs search+write permission on the parent directory
  */
-static struct dentry *jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
+static struct dentry *jfs_mkdir(const struct mnt_idmap *idmap, struct inode *dip,
 				struct dentry *dentry, umode_t mode)
 {
 	int rc = 0;
@@ -876,7 +876,7 @@ static int jfs_link(struct dentry *old_dentry,
  * an intermediate result whose length exceeds PATH_MAX [XPG4.2]
 */
 
-static int jfs_symlink(struct mnt_idmap *idmap, struct inode *dip,
+static int jfs_symlink(const struct mnt_idmap *idmap, struct inode *dip,
 		       struct dentry *dentry, const char *name)
 {
 	int rc;
@@ -1066,7 +1066,7 @@ static int jfs_symlink(struct mnt_idmap *idmap, struct inode *dip,
  *
  * FUNCTION:	rename a file or directory
  */
-static int jfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int jfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {
@@ -1355,7 +1355,7 @@ static int jfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
  *
  * FUNCTION:	Create a special file (device)
  */
-static int jfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int jfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct jfs_inode_info *jfs_ip;

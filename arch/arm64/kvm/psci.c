@@ -63,7 +63,12 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 		return PSCI_RET_INVALID_PARAMS;
 
 	spin_lock(&vcpu->arch.mp_state_lock);
-	if (!kvm_arm_vcpu_stopped(vcpu)) {
+	/*
+	 * A protected vCPU is off once the host has acted on EL2's CPU_OFF.
+	 * STOPPED before that is the VMM's pause.
+	 */
+	if (!kvm_arm_vcpu_stopped(vcpu) ||
+	    (vcpu_is_protected(vcpu) && !kvm_pkvm_vcpu_is_powered_off(vcpu))) {
 		if (kvm_psci_version(source_vcpu) != KVM_ARM_PSCI_0_1)
 			ret = PSCI_RET_ALREADY_ON;
 		else
@@ -161,7 +166,9 @@ static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type, u64 flags)
 	 */
 	kvm_for_each_vcpu(i, tmp, vcpu->kvm) {
 		spin_lock(&tmp->arch.mp_state_lock);
-		WRITE_ONCE(tmp->arch.mp_state.mp_state, KVM_MP_STATE_STOPPED);
+		/* Keep EL2's off record for the guest's next CPU_ON. */
+		if (!kvm_pkvm_vcpu_is_powered_off(tmp))
+			WRITE_ONCE(tmp->arch.mp_state.mp_state, KVM_MP_STATE_STOPPED);
 		spin_unlock(&tmp->arch.mp_state_lock);
 	}
 	kvm_make_all_cpus_request(vcpu->kvm, KVM_REQ_SLEEP);

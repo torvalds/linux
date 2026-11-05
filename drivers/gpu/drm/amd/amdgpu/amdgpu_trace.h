@@ -37,6 +37,8 @@
 #define AMDGPU_JOB_GET_TIMELINE_NAME(job) \
 	 job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished)
 
+struct amdgpu_vm_update_params;
+
 TRACE_EVENT(amdgpu_device_rreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
 	    TP_ARGS(did, reg, value),
@@ -325,9 +327,8 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 	    TP_PROTO(struct amdgpu_vm_update_params *p,
 		     uint64_t start, uint64_t end,
 		     unsigned int nptes, uint64_t dst,
-		     uint64_t incr, uint64_t flags,
-		     pid_t pid, uint64_t vm_ctx),
-	TP_ARGS(p, start, end, nptes, dst, incr, flags, pid, vm_ctx),
+		     uint64_t incr, uint64_t flags),
+	TP_ARGS(p, start, end, nptes, dst, incr, flags),
 	TP_STRUCT__entry(
 			 __field(u64, start)
 			 __field(u64, end)
@@ -347,8 +348,9 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 			__entry->flags = flags;
 			__entry->incr = incr;
 			__entry->nptes = nptes;
-			__entry->pid = pid;
-			__entry->vm_ctx = vm_ctx;
+			__entry->pid = p->vm->task_info ?
+				p->vm->task_info->tgid : 0;
+			__entry->vm_ctx = p->vm->immediate.fence_context;
 			for (i = 0; i < nptes; ++i) {
 				u64 addr = p->pages_addr ? amdgpu_vm_map_gart(
 					p->pages_addr, dst) : dst;
@@ -726,6 +728,39 @@ TRACE_EVENT(amdgpu_userq_state_changed,
 			   ),
 	    TP_printk("client_id=%llu, type=%u, doorbell=%llu, to=%d",
 		      __entry->client_id, __entry->queue_type, __entry->doorbell_index, __entry->to)
+);
+
+TRACE_EVENT(amdgpu_register_pid,
+	    TP_PROTO(uint32_t pid, int major, int minor),
+	    TP_ARGS(pid, major, minor),
+	    TP_STRUCT__entry(
+			__field(u32, pid)
+			__field(int, major)
+			__field(int, minor)
+	    ),
+	    TP_fast_assign(
+			__entry->pid = pid;
+			__entry->major = major;
+			__entry->minor = minor;
+	    ),
+	    TP_printk("amdgpu register pid %d render %d:%d",
+		      __entry->pid, __entry->major, __entry->minor)
+);
+TRACE_EVENT(amdgpu_deregister_pid,
+	    TP_PROTO(uint32_t pid, int major, int minor),
+	    TP_ARGS(pid, major, minor),
+	    TP_STRUCT__entry(
+			__field(u32, pid)
+			__field(int, major)
+			__field(int, minor)
+	    ),
+	    TP_fast_assign(
+			__entry->pid = pid;
+			__entry->major = major;
+			__entry->minor = minor;
+	    ),
+	    TP_printk("amdgpu deregister pid %d render %d:%d",
+		      __entry->pid, __entry->major, __entry->minor)
 );
 
 #undef AMDGPU_JOB_GET_TIMELINE_NAME

@@ -503,6 +503,7 @@ void dcn10_mpc_construct(struct dcn10_mpc *mpc10,
 	int i;
 
 	mpc10->base.ctx = ctx;
+	mpc10->base.inst = 0;
 
 	mpc10->base.funcs = &dcn10_mpc_funcs;
 

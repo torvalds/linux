@@ -27,12 +27,19 @@
 #include <asm/isc.h>
 #include <asm/guarded_storage.h>
 
+#define kvm_file_to_kvm_arch s390
+
 #define KVM_HAVE_MMU_RWLOCK
 #define KVM_MAX_VCPUS 255
 
 #define KVM_INTERNAL_MEM_SLOTS 1
 
+#define __KVM_HAVE_INVALID_WAKEUPS
+#define __KVM_HAVE_NO_POLL
+
 #define KVM_S390_MANAGES_S390_GUEST 1
+
+#define __KVM_NO_MMIO
 
 /*
  * These seem to be used for allocating ->chip in the routing table, which we
@@ -720,7 +727,7 @@ static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 void kvm_arch_free_vm(struct kvm *kvm);
 
 struct zpci_kvm_hook {
-	int (*kvm_register)(void *opaque, struct kvm *kvm);
+	int (*kvm_register)(void *opaque, struct file *kvm_file);
 	void (*kvm_unregister)(void *opaque);
 };
 

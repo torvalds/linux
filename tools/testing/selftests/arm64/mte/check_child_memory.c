@@ -41,7 +41,7 @@ static int check_child_tag_inheritance(char *ptr, int size, int mode)
 	} else if (child == 0) {
 		mte_initialize_current_context(mode, (uintptr_t)ptr, size);
 		/* Do copy on write */
-		memset(ptr, '1', size);
+		memset_safe(ptr, '1', size);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == true) {
 			fault = 1;
@@ -56,14 +56,14 @@ static int check_child_tag_inheritance(char *ptr, int size, int mode)
 			}
 		}
 		mte_initialize_current_context(mode, (uintptr_t)ptr, -UNDERFLOW);
-		memset(ptr - UNDERFLOW, '2', UNDERFLOW);
+		memset_safe(ptr - UNDERFLOW, '2', UNDERFLOW);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == false) {
 			fault = 1;
 			goto check_child_tag_inheritance_err;
 		}
 		mte_initialize_current_context(mode, (uintptr_t)ptr, size + OVERFLOW);
-		memset(ptr + size, '3', OVERFLOW);
+		memset_safe(ptr + size, '3', OVERFLOW);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == false) {
 			fault = 1;

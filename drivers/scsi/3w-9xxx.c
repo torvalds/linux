@@ -160,7 +160,7 @@ static ssize_t twa_show_stats(struct device *dev,
 	unsigned long flags = 0;
 	ssize_t len;
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 	len = sysfs_emit(buf, "3w-9xxx Driver version: %s\n"
 			 "Current commands posted:   %4d\n"
 			 "Max commands posted:       %4d\n"
@@ -183,7 +183,7 @@ static ssize_t twa_show_stats(struct device *dev,
 			 tw_dev->max_sector_count,
 			 tw_dev->num_resets,
 			 tw_dev->aen_count);
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 	return len;
 } /* End twa_show_stats() */
 
@@ -694,7 +694,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	/* See which ioctl we are doing */
 	switch (cmd) {
 	case TW_IOCTL_FIRMWARE_PASS_THROUGH:
-		spin_lock_irqsave(tw_dev->host->host_lock, flags);
+		spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 		twa_get_request_id(tw_dev, &request_id);
 
 		/* Flag internal command */
@@ -712,7 +712,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		/* Now post the command packet to the controller */
 		twa_post_command_packet(tw_dev, request_id, 1);
-		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+		spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 		timeout = TW_IOCTL_CHRDEV_TIMEOUT*HZ;
 
@@ -734,11 +734,11 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		memcpy(&(tw_ioctl->firmware_command), tw_dev->command_packet_virt[request_id], sizeof(TW_Command_Full));
 
 		/* Now complete the io */
-		spin_lock_irqsave(tw_dev->host->host_lock, flags);
+		spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 		tw_dev->posted_request_count--;
 		tw_dev->state[request_id] = TW_S_COMPLETED;
 		twa_free_request_id(tw_dev, request_id);
-		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+		spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 		break;
 	case TW_IOCTL_GET_COMPATIBILITY_INFO:
 		tw_ioctl->driver_command.status = 0;
@@ -1223,7 +1223,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 	int handled = 0;
 
 	/* Get the per adapter lock */
-	spin_lock(tw_dev->host->host_lock);
+	spin_lock(&tw_dev->host->host_lock);
 
 	/* Read the registers */
 	status_reg_value = readl(TW_STATUS_REG_ADDR(tw_dev));
@@ -1372,7 +1372,7 @@ static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 	}
 
 twa_interrupt_bail:
-	spin_unlock(tw_dev->host->host_lock);
+	spin_unlock(&tw_dev->host->host_lock);
 	return IRQ_RETVAL(handled);
 } /* End twa_interrupt() */
 
@@ -1585,7 +1585,7 @@ static int twa_reset_device_extension(TW_Device_Extension *tw_dev)
 	set_bit(TW_IN_RESET, &tw_dev->flags);
 	TW_DISABLE_INTERRUPTS(tw_dev);
 	TW_MASK_COMMAND_INTERRUPT(tw_dev);
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 
 	/* Abort all requests that are in progress */
 	for (i = 0; i < TW_Q_LENGTH; i++) {
@@ -1616,7 +1616,7 @@ static int twa_reset_device_extension(TW_Device_Extension *tw_dev)
 	tw_dev->pending_tail = TW_Q_START;
 	tw_dev->reset_print = 0;
 
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 	if (twa_reset_sequence(tw_dev, 1))
 		goto out;

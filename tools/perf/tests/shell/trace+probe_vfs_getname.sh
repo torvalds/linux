@@ -10,13 +10,17 @@
 # SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
-# shellcheck source=lib/probe.sh
+# Exclusive as, without BPF, any perf trace opens all probe:vfs_getname* events
+# and so would pin this test's probe.
+
 . "$(dirname $0)"/lib/probe.sh
 
 skip_if_no_perf_probe || exit 2
 skip_if_no_perf_trace || exit 2
 [ "$(id -u)" = 0 ] || exit 2
 
+# shellcheck disable=SC2034 # consumed by lib/probe_vfs_getname.sh
+vfs_getname="vfs_getname_$$"
 . "$(dirname $0)"/lib/probe_vfs_getname.sh
 
 trace_open_vfs_getname() {

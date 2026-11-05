@@ -209,31 +209,63 @@ struct hv_ring_buffer_info {
 };
 
 
+/*
+ * The indices live in memory shared with the untrusted host, so check a
+ * snapshot of them before using it as an offset or to compute a byte count.
+ */
+static inline bool
+hv_ringbuffer_indices_invalid(const struct hv_ring_buffer_info *rbi,
+			      u32 read_loc, u32 write_loc)
+{
+	return read_loc >= rbi->ring_datasize ||
+	       write_loc >= rbi->ring_datasize;
+}
+
+/*
+ * Byte counts for a caller-supplied snapshot of the indices, so that the
+ * counts and the indices the caller goes on to use describe one state of the
+ * ring.
+ */
+static inline u32
+hv_ringbuffer_avail_write(const struct hv_ring_buffer_info *rbi,
+			  u32 read_loc, u32 write_loc)
+{
+	u32 dsize = rbi->ring_datasize;
+
+	return write_loc >= read_loc ? dsize - (write_loc - read_loc) :
+		read_loc - write_loc;
+}
+
+static inline u32
+hv_ringbuffer_avail_read(const struct hv_ring_buffer_info *rbi,
+			 u32 read_loc, u32 write_loc)
+{
+	return rbi->ring_datasize -
+		hv_ringbuffer_avail_write(rbi, read_loc, write_loc);
+}
+
 static inline u32 hv_get_bytes_to_read(const struct hv_ring_buffer_info *rbi)
 {
-	u32 read_loc, write_loc, dsize, read;
+	u32 read_loc, write_loc;
 
-	dsize = rbi->ring_datasize;
-	read_loc = rbi->ring_buffer->read_index;
+	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
 	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, read_loc, write_loc)))
+		return 0;
 
-	read = write_loc >= read_loc ? (write_loc - read_loc) :
-		(dsize - read_loc) + write_loc;
-
-	return read;
+	return hv_ringbuffer_avail_read(rbi, read_loc, write_loc);
 }
 
 static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 {
-	u32 read_loc, write_loc, dsize, write;
+	u32 read_loc, write_loc;
 
-	dsize = rbi->ring_datasize;
 	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
-	write_loc = rbi->ring_buffer->write_index;
+	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, read_loc, write_loc)))
+		return 0;
 
-	write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	return write;
+	return hv_ringbuffer_avail_write(rbi, read_loc, write_loc);
 }
 
 static inline u32 hv_get_avail_to_write_percent(
@@ -1298,6 +1330,14 @@ struct hv_device {
 
 #define device_to_hv_device(d)	container_of_const(d, struct hv_device, device)
 #define drv_to_hv_drv(d)	container_of_const(d, struct hv_driver, driver)
+
+static inline u32 hv_build_logical_dev_id_prefix(struct hv_device *hdev)
+{
+	return ((u32)hdev->dev_instance.b[5] << 24) |
+	       ((u32)hdev->dev_instance.b[4] << 16) |
+	       ((u32)hdev->dev_instance.b[7] << 8) |
+	       (hdev->dev_instance.b[6] & 0xf8u);
+}
 
 static inline void hv_set_drvdata(struct hv_device *dev, void *data)
 {

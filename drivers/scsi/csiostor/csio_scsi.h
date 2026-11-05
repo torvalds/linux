@@ -338,10 +338,9 @@ csio_scsi_close(struct csio_ioreq *ioreq)
 	return ioreq->drv_status;
 }
 
-void csio_scsi_cleanup_io_q(struct csio_scsim *, struct list_head *);
-int csio_scsim_cleanup_io(struct csio_scsim *, bool abort);
-int csio_scsim_cleanup_io_lnode(struct csio_scsim *,
-					  struct csio_lnode *);
+void csio_scsi_cleanup_io_q(struct csio_hw *, struct list_head *);
+int csio_scsim_cleanup_io(struct csio_hw *, bool abort);
+int csio_scsim_cleanup_io_lnode(struct csio_hw *, struct csio_lnode *);
 struct csio_ioreq *csio_scsi_cmpl_handler(struct csio_hw *, void *, uint32_t,
 					  struct csio_fl_dma_buf *,
 					  void *, uint8_t **);

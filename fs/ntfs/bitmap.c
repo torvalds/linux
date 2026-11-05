@@ -12,6 +12,59 @@
 #include "bitmap.h"
 #include "ntfs.h"
 
+/*
+ * Check a $BadClus run against $Bitmap and optionally reserve its free bits.
+ * This is only used during mount, before the free-space scan starts. The
+ * scan will account for the repaired bits, so do not use the regular bitmap
+ * setters, which wait for that scan and assume every bit changes state.
+ * @free_bits counts only bits that were free, including on read-only mounts.
+ */
+int ntfs_bitmap_check_used(struct ntfs_volume *vol, s64 start, s64 count,
+		bool repair, s64 *free_bits)
+{
+	struct address_space *mapping = vol->lcnbmp_ino->i_mapping;
+	const unsigned int bits_per_page = PAGE_SIZE * BITS_PER_BYTE;
+	struct folio *folio;
+	u8 *bitmap;
+	unsigned int bit, end, bits;
+	s64 nr_free;
+
+	if (start < 0 || count <= 0 || start >= vol->nr_clusters ||
+	    count > vol->nr_clusters - start || NVolFreeClusterKnown(vol))
+		return -EINVAL;
+	if (repair && sb_rdonly(vol->sb))
+		return -EROFS;
+
+	while (count) {
+		folio = read_mapping_folio(mapping,
+					   start >> (PAGE_SHIFT + 3), NULL);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
+
+		folio_lock(folio);
+		bitmap = kmap_local_folio(folio, 0);
+		bit = start & (bits_per_page - 1);
+		bits = min_t(s64, count, bits_per_page - bit);
+		end = bit + bits;
+		nr_free = 0;
+		for (bit = find_next_zero_bit_le(bitmap, end, bit); bit < end;
+		     bit = find_next_zero_bit_le(bitmap, end, bit + 1)) {
+			nr_free++;
+			if (repair)
+				__set_bit_le(bit, bitmap);
+		}
+		kunmap_local(bitmap);
+		if (repair && nr_free)
+			folio_mark_dirty(folio);
+		folio_unlock(folio);
+		folio_put(folio);
+		*free_bits += nr_free;
+		start += bits;
+		count -= bits;
+	}
+	return 0;
+}
+
 int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 {
 	size_t buf_clusters;
@@ -20,7 +73,7 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 	struct folio *folio;
 	unsigned long *bitmap;
 	char *kaddr;
-	u64 end, trimmed = 0, start_buf, end_buf, end_cluster;
+	u64 end, trimmed = 0, start_buf, end_buf, end_cluster, page_cluster;
 	u64 start_cluster = ntfs_bytes_to_cluster(vol, range->start);
 	u32 dq = bdev_discard_granularity(vol->sb->s_bdev);
 	int ret = 0;
@@ -45,8 +98,8 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 		return -ENOMEM;
 
 	buf_clusters = PAGE_SIZE * 8;
-	start_index = start_cluster >> 15;
-	end_index = (end_cluster + buf_clusters - 1) >> 15;
+	start_index = start_cluster / buf_clusters;
+	end_index = DIV_ROUND_UP_ULL(end_cluster, buf_clusters);
 
 	for (index = start_index; index < end_index; index++) {
 		folio = ntfs_get_locked_folio(vol->lcnbmp_ino->i_mapping,
@@ -59,19 +112,20 @@ int ntfs_trim_fs(struct ntfs_volume *vol, struct fstrim_range *range)
 		kaddr = kmap_local_folio(folio, 0);
 		bitmap = (unsigned long *)kaddr;
 
-		start_buf = max_t(u64, index * buf_clusters, start_cluster);
-		end_buf = min_t(u64, (index + 1) * buf_clusters, end_cluster);
+		page_cluster = (u64)index * buf_clusters;
+		start_buf = max_t(u64, page_cluster, start_cluster);
+		end_buf = min_t(u64, page_cluster + buf_clusters, end_cluster);
 
 		end = start_buf;
 		while (end < end_buf) {
 			u64 aligned_start, aligned_end, aligned_count;
-			u64 start = find_next_zero_bit(bitmap, end_buf - start_buf,
-					end - start_buf) + start_buf;
+			u64 start = find_next_zero_bit(bitmap, end_buf - page_cluster,
+					end - page_cluster) + page_cluster;
 			if (start >= end_buf)
 				break;
 
-			end = find_next_bit(bitmap, end_buf - start_buf,
-					start - start_buf) + start_buf;
+			end = find_next_bit(bitmap, end_buf - page_cluster,
+					start - page_cluster) + page_cluster;
 
 			aligned_start = ALIGN(ntfs_cluster_to_bytes(vol, start), dq);
 			aligned_end = ALIGN_DOWN(ntfs_cluster_to_bytes(vol, end), dq);

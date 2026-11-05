@@ -490,7 +490,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state,
 				       &hha_pmu->node);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
@@ -503,7 +503,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(hha_pmu->dev, "HHA PMU register failed!\n");
 		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE, &hha_pmu->node);
+			hisi_uncore_pmu_cpuhp_state, &hha_pmu->node);
 	}
 
 	return ret;
@@ -514,7 +514,7 @@ static void hisi_hha_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *hha_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&hha_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state,
 					    &hha_pmu->node);
 }
 
@@ -528,33 +528,7 @@ static struct platform_driver hisi_hha_pmu_driver = {
 	.remove = hisi_hha_pmu_remove,
 };
 
-static int __init hisi_hha_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-				      "AP_PERF_ARM_HISI_HHA_ONLINE",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret) {
-		pr_err("HHA PMU: Error setup hotplug, ret = %d;\n", ret);
-		return ret;
-	}
-
-	ret = platform_driver_register(&hisi_hha_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE);
-
-	return ret;
-}
-module_init(hisi_hha_pmu_module_init);
-
-static void __exit hisi_hha_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_hha_pmu_driver);
-	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE);
-}
-module_exit(hisi_hha_pmu_module_exit);
+module_platform_driver(hisi_hha_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC HHA uncore PMU driver");

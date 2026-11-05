@@ -4,17 +4,30 @@
 $id: http://devicetree.org/schemas/regulator/mps,mp886x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Monolithic Power Systems MP8867/MP8869 voltage regulator
+title: Monolithic Power Systems MP8864/MP8867/MP8869 voltage regulator
 
 maintainers:
   - Jisheng Zhang <jszhang@kernel.org>
 
 allOf:
   - $ref: regulator.yaml#
+  - if:
+      properties:
+        compatible:
+          const: mps,mp8864
+    then:
+      properties:
+        mps,switch-frequency-hz:
+          enum: [600000, 850000, 1100000, 1600000]
+    else:
+      properties:
+        mps,switch-frequency-hz:
+          enum: [500000, 750000, 1000000, 1250000, 1500000]
 
 properties:
   compatible:
     enum:
+      - mps,mp8864
       - mps,mp8867
       - mps,mp8869
 
@@ -33,7 +46,6 @@ properties:
 
   mps,switch-frequency-hz:
     description: The valid switch frequency in Hertz.
-    enum: [500000, 750000, 1000000, 1250000, 1500000]
 
 required:
   - compatible
@@ -50,13 +62,13 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         regulator@62 {
-          compatible = "mps,mp8869";
-          regulator-name = "vcpu";
-          regulator-min-microvolt = <800000>;
-          regulator-max-microvolt = <1150000>;
-          enable-gpios = <&porta 1 GPIO_ACTIVE_LOW>;
-          mps,fb-voltage-divider = <80 240>;
-          reg = <0x62>;
+            compatible = "mps,mp8869";
+            regulator-name = "vcpu";
+            regulator-min-microvolt = <800000>;
+            regulator-max-microvolt = <1150000>;
+            enable-gpios = <&porta 1 GPIO_ACTIVE_LOW>;
+            mps,fb-voltage-divider = <80 240>;
+            reg = <0x62>;
         };
     };
 

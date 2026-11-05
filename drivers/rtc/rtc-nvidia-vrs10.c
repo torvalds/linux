@@ -358,11 +358,8 @@ static irqreturn_t nvvrs_rtc_irq_handler(int irq, void *data)
 	if (ret < 0)
 		return IRQ_NONE;
 
-	if (ret & NVVRS_INT_SRC1_RTC_MASK) {
-		rtc_lock(info->rtc);
+	if (ret & NVVRS_INT_SRC1_RTC_MASK)
 		rtc_update_irq(info->rtc, 1, RTC_IRQF | RTC_AF);
-		rtc_unlock(info->rtc);
-	}
 
 	/* Clear all interrupts */
 	if (nvvrs_pseq_irq_clear(info) < 0)

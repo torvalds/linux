@@ -42,6 +42,12 @@
 
 extern uint64_t amdgpu_amdkfd_total_mem_size;
 
+/*
+ * Align VRAM availability to 2MB to avoid fragmentation caused by 4K
+ * allocations in the tail 2MB BO chunk.
+ */
+#define VRAM_AVAILABLITY_ALIGN (1 << 21)
+
 enum TLB_FLUSH_TYPE {
 	TLB_FLUSH_LEGACY = 0,
 	TLB_FLUSH_LIGHTWEIGHT,
@@ -106,6 +112,7 @@ struct amdgpu_kfd_dev {
 	struct kfd_dev *dev;
 	int64_t vram_used[MAX_XCP];
 	uint64_t vram_used_aligned[MAX_XCP];
+	atomic64_t vram_pinned[MAX_XCP];
 	bool init_complete;
 	struct work_struct reset_work;
 
@@ -170,8 +177,7 @@ void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev);
-int amdgpu_amdkfd_check_and_lock_kfd(struct amdgpu_device *adev);
-void amdgpu_amdkfd_unlock_kfd(struct amdgpu_device *adev);
+int amdgpu_amdkfd_prepare_partition_switch(struct amdgpu_device *adev);
 int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 				enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
@@ -390,6 +396,8 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
  * Allows KFD to release its resources associated with the GEM object.
  */
 void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo);
+void amdgpu_amdkfd_account_vram_pin(struct amdgpu_bo *bo, int xcp_id);
+void amdgpu_amdkfd_account_vram_unpin(struct amdgpu_bo *bo, int xcp_id);
 void amdgpu_amdkfd_reserve_system_mem(uint64_t size);
 #else
 static inline
@@ -405,6 +413,16 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 
 static inline
 void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
+{
+}
+
+static inline
+void amdgpu_amdkfd_account_vram_pin(struct amdgpu_bo *bo, int xcp_id)
+{
+}
+
+static inline
+void amdgpu_amdkfd_account_vram_unpin(struct amdgpu_bo *bo, int xcp_id)
 {
 }
 #endif
@@ -431,6 +449,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf);
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
+void kgd2kfd_device_fini(struct kfd_dev *kfd);
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool suspend_proc);
 int kgd2kfd_resume(struct kfd_dev *kfd, bool resume_proc);
 void kgd2kfd_suspend_process(struct kfd_dev *kfd);
@@ -482,6 +501,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 }
 
 static inline void kgd2kfd_device_exit(struct kfd_dev *kfd)
+{
+}
+
+static inline void kgd2kfd_device_fini(struct kfd_dev *kfd)
 {
 }
 

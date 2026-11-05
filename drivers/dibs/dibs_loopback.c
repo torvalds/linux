@@ -238,6 +238,7 @@ static int dibs_lo_move_data(struct dibs_dev *dibs, u64 dmb_tok,
 {
 	struct dibs_lo_dmb_node *rmb_node = NULL, *tmp_node;
 	struct dibs_lo_dev *ldev;
+	unsigned long flags;
 	u16 s_mask;
 	u8 client_id;
 	u32 sba_idx;
@@ -267,12 +268,12 @@ static int dibs_lo_move_data(struct dibs_dev *dibs, u64 dmb_tok,
 	if (!sf)
 		return 0;
 
-	spin_lock(&dibs->lock);
+	spin_lock_irqsave(&dibs->lock, flags);
 	client_id = dibs->dmb_clientid_arr[sba_idx];
 	s_mask = ror16(0x1000, idx);
 	if (likely(client_id != NO_DIBS_CLIENT && dibs->subs[client_id]))
 		dibs->subs[client_id]->ops->handle_irq(dibs, sba_idx, s_mask);
-	spin_unlock(&dibs->lock);
+	spin_unlock_irqrestore(&dibs->lock, flags);
 
 	return 0;
 }

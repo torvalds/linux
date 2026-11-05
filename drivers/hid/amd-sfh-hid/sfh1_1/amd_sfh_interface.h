@@ -130,6 +130,7 @@ struct sfh_accel_data {
 	struct sfh_common_data commondata;
 	struct sfh_float32 acceldata;
 	u32 accelstatus;
+	u32 c2p3_data;
 };
 
 struct sfh_gyro_data {
@@ -163,6 +164,12 @@ struct hpd_status {
 		} shpd;
 		u32 val;
 	};
+};
+
+struct sfh_hpd_data {
+	struct sfh_common_data commondata;
+	u32 reserved;
+	struct hpd_status status;
 };
 
 struct sfh_op_mode {

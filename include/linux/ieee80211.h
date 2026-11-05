@@ -1828,6 +1828,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
 	WLAN_EID_EXT_KNOWN_STA_IDENTIFCATION = 136,
 	WLAN_EID_EXT_NON_AP_STA_REG_CON = 137,
+	WLAN_EID_EXT_CIP_CAPA = 150,
 	WLAN_EID_EXT_UHR_OPER = 151,
 	WLAN_EID_EXT_UHR_CAPA = 152,
 	WLAN_EID_EXT_MACP = 153,
@@ -2421,8 +2422,7 @@ static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
 
 	/* action frame - additionally check for non-bufferable FTM */
 
-	if (mgmt->u.action.category != WLAN_CATEGORY_PUBLIC &&
-	    mgmt->u.action.category != WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION)
+	if (mgmt->u.action.category != WLAN_CATEGORY_PUBLIC)
 		return true;
 
 	if (mgmt->u.action.action_code == WLAN_PUB_ACTION_FTM_REQUEST ||
@@ -2730,6 +2730,10 @@ struct element {
 	u8 data[];
 } __packed;
 
+/* trigger enum comparison warnings if applicable (constant id) */
+#define element_iteration_typecheck(type, id)				\
+	(((type)0 == (id)) || true)
+
 /* element iteration helpers */
 #define for_each_element(_elem, _data, _datalen)			\
 	for (_elem = (const struct element *)(_data);			\
@@ -2741,11 +2745,15 @@ struct element {
 
 #define for_each_element_id(element, _id, data, datalen)		\
 	for_each_element(element, data, datalen)			\
-		if (element->id == (_id))
+		if (element_iteration_typecheck(enum ieee80211_eid,	\
+						_id) &&			\
+		    element->id == (_id))
 
 #define for_each_element_extid(element, extid, _data, _datalen)		\
 	for_each_element(element, _data, _datalen)			\
-		if (element->id == WLAN_EID_EXTENSION &&		\
+		if (element_iteration_typecheck(enum ieee80211_eid_ext,	\
+						extid) &&		\
+		    element->id == WLAN_EID_EXTENSION &&		\
 		    element->datalen > 0 &&				\
 		    element->data[0] == (extid))
 
@@ -2753,10 +2761,11 @@ struct element {
 	for_each_element(sub, (element)->data, (element)->datalen)
 
 #define for_each_subelement_id(sub, id, element)			\
-	for_each_element_id(sub, id, (element)->data, (element)->datalen)
+	for_each_element_id(sub, (u8)id, (element)->data, (element)->datalen)
 
 #define for_each_subelement_extid(sub, extid, element)			\
-	for_each_element_extid(sub, extid, (element)->data, (element)->datalen)
+	for_each_element_extid(sub, (u8)extid, (element)->data,		\
+			       (element)->datalen)
 
 /**
  * for_each_element_completed - determine if element parsing consumed all data
@@ -2899,5 +2908,26 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 	return s1g ? ieee80211_s1g_check_tim(tim, tim_len, aid) :
 		     __ieee80211_check_tim(tim, tim_len, aid);
 }
+
+/**
+ * enum ieee80211_cip_cap_fields - CIP Capabilities element fields
+ * @IEEE80211_CIP_CAP_MIC_PADDING: The MIC padding subfield in the CIP
+ *	capabilities
+ * @IEEE80211_CIP_CAP_PROTECTED_CTRL_FRAME_ONLY: The MIC Padding For Protected
+ *	Control Frames Only bit in CIP capabilities
+ */
+enum ieee80211_cip_cap_fields {
+	IEEE80211_CIP_CAP_MIC_PADDING			= 0x0F,
+	IEEE80211_CIP_CAP_PROTECTED_CTRL_FRAME_ONLY	= 0x10,
+};
+
+/**
+ * struct ieee80211_cip_cap - CIP Capabilities element
+ *
+ * @v: The value of the Control Integrity Protocol Capability element
+ */
+struct ieee80211_cip_cap {
+	u8 v;
+} __packed;
 
 #endif /* LINUX_IEEE80211_H */

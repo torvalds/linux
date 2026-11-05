@@ -166,7 +166,7 @@ err_release_region:
  * errno -EINTR: user abort the command.
  * errno -ETIME: user spefified timeout value has been expired.
  * errno -EBUSY: the response of the request does not return in
- *               resonable time (LIO_SC_MAX_TMO_MS).
+ *               reasonable time (LIO_SC_MAX_TMO_MS).
  *               the sc wll be move to zombie response list by
  *               lio_process_ordered_list()
  *

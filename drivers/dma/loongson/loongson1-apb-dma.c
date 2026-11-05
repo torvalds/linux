@@ -89,11 +89,6 @@ static irqreturn_t ls1x_dma_irq_handler(int irq, void *data);
 #define to_ls1x_dma_desc(d)		\
 	container_of(d, struct ls1x_dma_desc, vd)
 
-static inline struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
-
 static inline int ls1x_dma_query(struct ls1x_dma_chan *chan,
 				 dma_addr_t *lli_phys)
 {
@@ -107,7 +102,7 @@ static inline int ls1x_dma_query(struct ls1x_dma_chan *chan,
 	ret = readl_poll_timeout_atomic(chan->reg_base + LS1X_DMA_CTRL, val,
 					!(val & LS1X_DMA_ASK_VALID), 0, 3000);
 	if (ret)
-		dev_err(chan2dev(dchan), "failed to query DMA\n");
+		dev_err(dmaengine_chan_dev(dchan), "failed to query DMA\n");
 
 	return ret;
 }
@@ -116,7 +111,7 @@ static inline int ls1x_dma_start(struct ls1x_dma_chan *chan,
 				 dma_addr_t *lli_phys)
 {
 	struct dma_chan *dchan = &chan->vc.chan;
-	struct device *dev = chan2dev(dchan);
+	struct device *dev = dmaengine_chan_dev(dchan);
 	int val, ret;
 
 	val = *lli_phys & LS1X_DMA_LLI_ADDR_MASK;
@@ -143,7 +138,7 @@ static inline void ls1x_dma_stop(struct ls1x_dma_chan *chan)
 static void ls1x_dma_free_chan_resources(struct dma_chan *dchan)
 {
 	struct ls1x_dma_chan *chan = to_ls1x_dma_chan(dchan);
-	struct device *dev = chan2dev(dchan);
+	struct device *dev = dmaengine_chan_dev(dchan);
 
 	dma_free_coherent(dev, sizeof(struct ls1x_dma_lli),
 			  chan->curr_lli, chan->curr_lli->phys);
@@ -156,7 +151,7 @@ static void ls1x_dma_free_chan_resources(struct dma_chan *dchan)
 static int ls1x_dma_alloc_chan_resources(struct dma_chan *dchan)
 {
 	struct ls1x_dma_chan *chan = to_ls1x_dma_chan(dchan);
-	struct device *dev = chan2dev(dchan);
+	struct device *dev = dmaengine_chan_dev(dchan);
 	dma_addr_t phys;
 	int ret;
 
@@ -219,7 +214,7 @@ static int ls1x_dma_prep_lli(struct dma_chan *dchan, struct ls1x_dma_desc *desc,
 {
 	struct ls1x_dma_chan *chan = to_ls1x_dma_chan(dchan);
 	struct ls1x_dma_lli *lli, *prev = NULL, *first = NULL;
-	struct device *dev = chan2dev(dchan);
+	struct device *dev = dmaengine_chan_dev(dchan);
 	struct list_head *pos = NULL;
 	struct scatterlist *sg;
 	unsigned int dev_addr, cmd, i;
@@ -299,7 +294,7 @@ ls1x_dma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 {
 	struct ls1x_dma_desc *desc;
 
-	dev_dbg(chan2dev(dchan), "sg_len=%u flags=0x%lx dir=%s\n",
+	dev_dbg(dmaengine_chan_dev(dchan), "sg_len=%u flags=0x%lx dir=%s\n",
 		sg_len, flags, dmaengine_get_direction_text(dir));
 
 	desc = ls1x_dma_alloc_desc();
@@ -325,7 +320,7 @@ ls1x_dma_prep_dma_cyclic(struct dma_chan *dchan, dma_addr_t buf_addr,
 	unsigned int i;
 	int ret;
 
-	dev_dbg(chan2dev(dchan),
+	dev_dbg(dmaengine_chan_dev(dchan),
 		"buf_len=%zu period_len=%zu flags=0x%lx dir=%s\n",
 		buf_len, period_len, flags, dmaengine_get_direction_text(dir));
 
@@ -450,7 +445,7 @@ static enum dma_status ls1x_dma_tx_status(struct dma_chan *dchan,
 				if (lli->hw[LS1X_DMADESC_NEXT] == next_phys)
 					break;
 
-			dev_dbg(chan2dev(dchan), "current lli_phys=%pad",
+			dev_dbg(dmaengine_chan_dev(dchan), "current lli_phys=%pad",
 				&lli->phys);
 
 			/* count the residues */
@@ -489,7 +484,7 @@ static irqreturn_t ls1x_dma_irq_handler(int irq, void *data)
 {
 	struct ls1x_dma_chan *chan = data;
 	struct dma_chan *dchan = &chan->vc.chan;
-	struct device *dev = chan2dev(dchan);
+	struct device *dev = dmaengine_chan_dev(dchan);
 	struct virt_dma_desc *vd;
 
 	scoped_guard(spinlock, &chan->vc.lock) {

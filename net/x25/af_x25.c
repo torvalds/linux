@@ -439,10 +439,7 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 	if (copy_from_sockptr(&opt, optval, sizeof(int)))
 		goto out;
 
-	if (opt)
-		set_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
-	else
-		clear_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
+	assign_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags, opt);
 	rc = 0;
 out:
 	return rc;

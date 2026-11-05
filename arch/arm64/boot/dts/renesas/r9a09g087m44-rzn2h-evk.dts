@@ -120,7 +120,7 @@
 		compatible = "gpio-leds";
 
 		led-3 {
-			/* DSW18-7: ON, DSW18-8: OFF */
+			/* DSW18[7]: ON, DSW18[8]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(31, 6) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -128,7 +128,7 @@
 		};
 
 		led-4 {
-			/* DSW18-9: ON, DSW18-10: OFF */
+			/* DSW18[9]: ON, DSW18[10]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_DEBUG;
@@ -136,7 +136,7 @@
 		};
 
 		led-5 {
-			/* DSW18-1: ON, DSW18-2: OFF */
+			/* DSW18[1]: ON, DSW18[2]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -144,7 +144,7 @@
 		};
 
 		led-6 {
-			/* DSW18-3: ON, DSW18-4: OFF */
+			/* DSW18[3]: ON, DSW18[4]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -153,8 +153,8 @@
 
 		led-7 {
 			/*
-			 * DSW18-5: ON, DSW18-6: OFF
-			 * DSW19-3: OFF, DSW19-4: ON
+			 * DSW18[5]: ON, DSW18[6]: OFF
+			 * DSW19[3]: OFF, DSW19[4]: ON
 			 */
 			gpios = <&pinctrl RZT2H_GPIO(14, 3) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
@@ -162,36 +162,40 @@
 			function-enumerator = <8>;
 		};
 
-#if LED8
 		led-8 {
+#if LED8
 			/*
 			 * USER_LED0
-			 * DSW15-8: OFF, DSW15-9: OFF, DSW15-10: ON
+			 * DSW15[8]: OFF, DSW15[9]: OFF, DSW15[10]: ON
 			 */
 			gpios = <&pinctrl RZT2H_GPIO(14, 6) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
 			function-enumerator = <0>;
-		};
+#else
+			status = "disabled";
 #endif
+		};
 
-#if LED9
 		led-9 {
+#if LED9
 			/*
 			 * USER_LED1
-			 * DSW15-5: OFF, DSW15-6: ON
+			 * DSW15[5]: OFF, DSW15[6]: ON
 			 */
 			gpios = <&pinctrl RZT2H_GPIO(14, 7) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
 			function-enumerator = <1>;
-		};
+#else
+			status = "disabled";
 #endif
+		};
 
 		led-10 {
 			/*
 			 * USER_LED2
-			 * DSW17-3: OFF, DSW17-4: ON
+			 * DSW17[3]: OFF, DSW17[4]: ON
 			 */
 			gpios = <&pinctrl RZT2H_GPIO(2, 7) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_YELLOW>;
@@ -202,7 +206,7 @@
 		led-11 {
 			/*
 			 * USER_LED3
-			 * DSW17-1: OFF, DSW17-2: ON
+			 * DSW17[1]: OFF, DSW17[2]: ON
 			 */
 			gpios = <&pinctrl RZT2H_GPIO(3, 0) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_RED>;

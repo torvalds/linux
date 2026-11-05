@@ -40,6 +40,7 @@
 
 #include "nfsfh.h"
 #include "nfsd.h"
+#include "nfserr.h"
 #include "acl.h"
 #include "vfs.h"
 

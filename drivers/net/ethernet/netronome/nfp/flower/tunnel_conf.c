@@ -235,7 +235,7 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		if (!netdev)
 			continue;
 
-		n = neigh_lookup(&arp_tbl, &ipv4_addr, netdev);
+		n = ipv4_neigh_lookup(netdev, &ipv4_addr);
 		if (!n)
 			continue;
 
@@ -277,7 +277,7 @@ void nfp_tunnel_keep_alive_v6(struct nfp_app *app, struct sk_buff *skb)
 		if (!netdev)
 			continue;
 
-		n = neigh_lookup(&nd_tbl, ipv6_add, netdev);
+		n = ipv6_neigh_lookup(netdev, ipv6_add);
 		if (!n)
 			continue;
 
@@ -729,12 +729,6 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	default:
 		return NOTIFY_DONE;
 	}
-#if IS_ENABLED(CONFIG_IPV6)
-	if (n->tbl != &nd_tbl && n->tbl != &arp_tbl)
-#else
-	if (n->tbl != &arp_tbl)
-#endif
-		return NOTIFY_DONE;
 
 	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
@@ -742,7 +736,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	if (!update_work)
 		return NOTIFY_DONE;
 
-	queue_work(system_highpri_wq, &update_work->work);
+	queue_work(app_priv->tun.neigh_wq, &update_work->work);
 
 	return NOTIFY_DONE;
 }
@@ -1515,6 +1509,13 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	if (err)
 		return err;
 
+	priv->tun.neigh_wq = alloc_workqueue("nfp-flower-neigh",
+					     WQ_HIGHPRI | WQ_PERCPU, 0);
+	if (!priv->tun.neigh_wq) {
+		err = -ENOMEM;
+		goto err_free_macs;
+	}
+
 	ida_init(&priv->tun.mac_off_ids);
 
 	/* Initialise priv data for IPv4/v6 offloading. */
@@ -1527,13 +1528,17 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	priv->tun.neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
 
 	err = register_netevent_notifier(&priv->tun.neigh_nb);
-	if (err) {
-		rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
-					    nfp_check_rhashtable_empty, NULL);
-		return err;
-	}
+	if (err)
+		goto err_destroy_neigh_wq;
 
 	return 0;
+
+err_destroy_neigh_wq:
+	destroy_workqueue(priv->tun.neigh_wq);
+err_free_macs:
+	rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
+				    nfp_check_rhashtable_empty, NULL);
+	return err;
 }
 
 void nfp_tunnel_config_stop(struct nfp_app *app)
@@ -1543,6 +1548,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct list_head *ptr, *storage;
 
 	unregister_netevent_notifier(&priv->tun.neigh_nb);
+	destroy_workqueue(priv->tun.neigh_wq);
 
 	ida_destroy(&priv->tun.mac_off_ids);
 

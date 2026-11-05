@@ -156,7 +156,7 @@
 
 	hdmi-bridge@48 {
 		compatible = "lontium,lt8912b";
-		reg = <0x48> ;
+		reg = <0x48>;
 		reset-gpios = <&pinctrl RZG2L_GPIO(42, 2) GPIO_ACTIVE_LOW>;
 
 		ports {

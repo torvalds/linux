@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/ultrarisc,dp1000-gmac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UltraRISC DP1000 DWMAC Ethernet controller
+
+maintainers:
+  - Jia Wang <wangjia@ultrarisc.com>
+
+description:
+  The DP1000 integrates a Synopsys DesignWare GMAC controller from the
+  5.20 series. The SoC integration adds fixed RGMII TX and RX clock delays
+  which cannot be disabled. Consequently, a functional RGMII link requires
+  a PCB without TX or RX clock delays, represented by "rgmii-id".
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: ultrarisc,dp1000-gmac
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - const: ultrarisc,dp1000-gmac
+      - const: snps,dwmac-5.20
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: stmmaceth
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    const: macirq
+
+  phy-mode:
+    const: rgmii-id
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - phy-mode
+
+allOf:
+  - $ref: snps,dwmac.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@38000000 {
+        compatible = "ultrarisc,dp1000-gmac", "snps,dwmac-5.20";
+        reg = <0x38000000 0x1000000>;
+        clocks = <&clk 0>;
+        clock-names = "stmmaceth";
+        interrupts = <84>;
+        interrupt-names = "macirq";
+        phy-mode = "rgmii-id";
+    };

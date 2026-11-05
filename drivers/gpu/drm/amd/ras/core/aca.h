@@ -26,10 +26,8 @@
 #define __ACA_H__
 #include "ras.h"
 
-#define MAX_SOCKET_NUM_PER_HIVE 8
-#define MAX_AID_NUM_PER_SOCKET 4
-#define MAX_XCD_NUM_PER_AID 2
-#define MAX_ACA_RAS_BLOCK  20
+#define MAX_AID_NUM_PER_SOCKET 16
+#define MAX_XCD_NUM_PER_AID 4
 
 #define ACA_ERROR__UE_MASK			(0x1 << RAS_ERR_TYPE__UE)
 #define ACA_ERROR__CE_MASK			(0x1 << RAS_ERR_TYPE__CE)
@@ -53,7 +51,11 @@ struct ras_core_context;
 struct aca_block;
 
 struct aca_bank_reg {
+	uint64_t timestamp;
+	u32 bank_type;
 	u32 ecc_type;
+	u32 apic_id;
+	u32 bank;
 	u64 seq_no;
 	u64 regs[ACA_REG_MAX_COUNT];
 };
@@ -64,6 +66,14 @@ enum aca_ecc_hwip {
 	ACA_ECC_HWIP__UMC,
 	ACA_ECC_HWIP__SMU,
 	ACA_ECC_HWIP__PCS_XGMI,
+	ACA_ECC_HWIP__GFX,
+	ACA_ECC_HWIP__SDMA,
+	ACA_ECC_HWIP__MMHUB,
+	ACA_ECC_HWIP__MPIFOE,
+	ACA_ECC_HWIP__PCIE_PL,
+	ACA_ECC_HWIP__DACC_BE,
+	ACA_ECC_HWIP__UCIE_PCS,
+	ACA_ECC_HWIP__LSDMA,
 	ACA_ECC_HWIP_COUNT,
 };
 
@@ -73,12 +83,14 @@ struct aca_ecc_info {
 	int xcd_id;
 	int hwid;
 	int mcatype;
+	bool xcd_valid;
 	uint64_t status;
 	uint64_t ipid;
 	uint64_t addr;
 };
 
 struct aca_bank_ecc {
+	u32 block_id;
 	struct aca_ecc_info bank_info;
 	u32 ce_count;
 	u32 ue_count;
@@ -99,13 +111,11 @@ struct aca_xcd_ecc {
 };
 
 struct aca_aid_ecc {
-	union {
-		struct aca_xcd {
-			struct aca_xcd_ecc xcd[MAX_XCD_NUM_PER_AID];
-			u32 xcd_num;
-		} xcd;
-		struct aca_ecc_count ecc_err;
-	};
+	struct aca_xcd {
+		struct aca_xcd_ecc xcd[MAX_XCD_NUM_PER_AID];
+		u32 xcd_num;
+	} xcd;
+	struct aca_ecc_count ecc_err;
 };
 
 struct aca_socket_ecc {
@@ -114,8 +124,7 @@ struct aca_socket_ecc {
 };
 
 struct aca_block_ecc {
-	struct aca_socket_ecc socket[MAX_SOCKET_NUM_PER_HIVE];
-	u32 socket_num_per_hive;
+	struct aca_socket_ecc socket;
 };
 
 struct aca_bank_hw_ops {
@@ -140,6 +149,8 @@ struct aca_block {
 struct ras_aca_ip_func {
 	uint32_t block_num;
 	const struct aca_block_info **block_info;
+	u64 (*aca_parse_ras_caps)(struct ras_core_context *ras_core);
+	int (*fill_rma_bank)(struct ras_core_context *ras_core, struct aca_bank_reg *bank);
 };
 
 struct ras_aca {
@@ -147,7 +158,7 @@ struct ras_aca {
 	const struct ras_aca_ip_func *ip_func;
 	struct mutex  aca_lock;
 	struct mutex  bank_op_lock;
-	struct aca_block aca_blk[MAX_ACA_RAS_BLOCK];
+	struct aca_block *aca_blk;
 	uint32_t ue_updated_mark;
 };
 
@@ -161,4 +172,9 @@ int ras_aca_clear_all_blocks_ecc_count(struct ras_core_context *ras_core);
 int ras_aca_update_ecc(struct ras_core_context *ras_core, u32 ecc_type, void *data);
 void ras_aca_mark_fatal_flag(struct ras_core_context *ras_core);
 void ras_aca_clear_fatal_flag(struct ras_core_context *ras_core);
+int ras_aca_parse_bank(struct ras_core_context *ras_core,
+				struct aca_bank_reg *bank,
+				struct aca_bank_ecc *ecc);
+u64 ras_aca_get_parser_caps(struct ras_core_context *ras_core);
+int ras_aca_fill_rma_bank(struct ras_core_context *ras_core, struct aca_bank_reg *bank);
 #endif

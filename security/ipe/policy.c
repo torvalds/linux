@@ -52,7 +52,7 @@ void ipe_free_policy(struct ipe_policy *p)
 	ipe_del_policyfs_node(p);
 	ipe_free_parsed_policy(p->parsed);
 	/*
-	 * p->text is allocated only when p->pkcs7 is not NULL
+	 * p->text is allocated only when p->pkcs7 is NULL
 	 * otherwise it points to the plaintext data inside the pkcs7
 	 */
 	if (!p->pkcs7)

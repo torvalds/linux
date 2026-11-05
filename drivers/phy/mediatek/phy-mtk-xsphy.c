@@ -62,6 +62,14 @@
 #define P2A6_RG_BC11_SW_EN	BIT(23)
 #define P2A6_RG_OTG_VBUSCMP_EN	BIT(20)
 
+#define XSP_U2PHYDTM0		((SSUSB_SIFSLV_U2PHY_COM) + 0x068)
+#define P2D_FORCE_DATAIN	BIT(23)
+#define P2D_FORCE_DM_PULLDOWN	BIT(21)
+#define P2D_FORCE_DP_PULLDOWN	BIT(20)
+#define P2D_FORCE_XCVRSEL	BIT(19)
+#define P2D_FORCE_SUSPENDM	BIT(18)
+#define P2D_FORCE_TERMSEL	BIT(17)
+
 #define XSP_U2PHYDTM1		((SSUSB_SIFSLV_U2PHY_COM) + 0x06C)
 #define P2D_FORCE_IDDIG		BIT(9)
 #define P2D_RG_VBUSVALID	BIT(5)
@@ -94,6 +102,7 @@ struct xsphy_instance {
 	struct phy *phy;
 	void __iomem *port_base;
 	struct clk *ref_clk;	/* reference clock of anolog phy */
+	struct phy *repeater;
 	u32 index;
 	u32 type;
 	struct regmap *type_sw;
@@ -180,6 +189,11 @@ static void u2_phy_instance_init(struct mtk_xsphy *xsphy,
 				 struct xsphy_instance *inst)
 {
 	void __iomem *pbase = inst->port_base;
+
+	mtk_phy_clear_bits(pbase + XSP_U2PHYDTM0,
+			   P2D_FORCE_DATAIN | P2D_FORCE_DM_PULLDOWN |
+			   P2D_FORCE_DP_PULLDOWN | P2D_FORCE_XCVRSEL |
+			   P2D_FORCE_SUSPENDM | P2D_FORCE_TERMSEL);
 
 	/* DP/DM BC1.1 path Disable */
 	mtk_phy_clear_bits(pbase + XSP_USBPHYACR6, P2A6_RG_BC11_SW_EN);
@@ -391,6 +405,11 @@ static int mtk_phy_init(struct phy *phy)
 
 	switch (inst->type) {
 	case PHY_TYPE_USB2:
+		ret = phy_init(inst->repeater);
+		if (ret) {
+			clk_disable_unprepare(inst->ref_clk);
+			return ret;
+		}
 		u2_phy_instance_init(xsphy, inst);
 		u2_phy_props_set(xsphy, inst);
 		break;
@@ -438,7 +457,11 @@ static int mtk_phy_exit(struct phy *phy)
 {
 	struct xsphy_instance *inst = phy_get_drvdata(phy);
 
+	if (inst->type == PHY_TYPE_USB2)
+		phy_exit(inst->repeater);
+
 	clk_disable_unprepare(inst->ref_clk);
+
 	return 0;
 }
 
@@ -446,9 +469,16 @@ static int mtk_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct xsphy_instance *inst = phy_get_drvdata(phy);
 	struct mtk_xsphy *xsphy = dev_get_drvdata(phy->dev.parent);
+	int ret;
 
-	if (inst->type == PHY_TYPE_USB2)
-		u2_phy_instance_set_mode(xsphy, inst, mode);
+	if (inst->type != PHY_TYPE_USB2)
+		return 0;
+
+	ret = phy_set_mode_ext(inst->repeater, mode, submode);
+	if (ret)
+		return ret;
+
+	u2_phy_instance_set_mode(xsphy, inst, mode);
 
 	return 0;
 }
@@ -590,6 +620,11 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 		retval = phy_type_syscon_get(inst, child_np);
 		if (retval)
 			return retval;
+
+		inst->repeater = devm_of_phy_optional_get(dev, child_np, NULL);
+		if (IS_ERR(inst->repeater))
+			return dev_err_probe(dev, PTR_ERR(inst->repeater),
+					 "failed to get repeater\n");
 	}
 
 	provider = devm_of_phy_provider_register(dev, mtk_phy_xlate);

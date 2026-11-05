@@ -76,6 +76,7 @@ static void dccg60_set_dto_dscclk(struct dccg *dccg, uint32_t inst,
 
 	switch (inst) {
 	case 0:
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK0_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK0_DTO_PARAM, DSCCLK0_DTO_PHASE, 1,
 				DSCCLK0_DTO_MODULO, 1);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK0_EN, 1);
@@ -92,6 +93,7 @@ static void dccg60_set_dto_dscclk(struct dccg *dccg, uint32_t inst,
 
 		break;
 	case 1:
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK1_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK1_DTO_PARAM, DSCCLK1_DTO_PHASE, 1,
 				DSCCLK1_DTO_MODULO, 1);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK1_EN, 1);
@@ -103,6 +105,7 @@ static void dccg60_set_dto_dscclk(struct dccg *dccg, uint32_t inst,
 
 		break;
 	case 2:
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK2_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK2_DTO_PARAM, DSCCLK2_DTO_PHASE, 1,
 				DSCCLK2_DTO_MODULO, 1);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK2_EN, 1);
@@ -114,6 +117,7 @@ static void dccg60_set_dto_dscclk(struct dccg *dccg, uint32_t inst,
 
 		break;
 	case 3:
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK3_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK3_DTO_PARAM, DSCCLK3_DTO_PHASE, 1,
 				DSCCLK3_DTO_MODULO, 1);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK3_EN, 1);
@@ -179,6 +183,7 @@ struct dccg *dccg60_create(
 	base->ctx = ctx;
 	base->funcs = &dccg60_funcs;
 
+	base->inst = 0;
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
 	dccg_dcn->dccg_mask = dccg_mask;

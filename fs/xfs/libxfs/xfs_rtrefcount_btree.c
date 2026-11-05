@@ -20,6 +20,7 @@
 #include "xfs_btree_staging.h"
 #include "xfs_rtrefcount_btree.h"
 #include "xfs_refcount.h"
+#include "xfs_refcount_btree.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
 #include "xfs_error.h"
@@ -114,73 +115,11 @@ xfs_rtrefcountbt_get_dmaxrecs(
 }
 
 STATIC void
-xfs_rtrefcountbt_init_key_from_rec(
-	union xfs_btree_key		*key,
-	const union xfs_btree_rec	*rec)
-{
-	key->refc.rc_startblock = rec->refc.rc_startblock;
-}
-
-STATIC void
-xfs_rtrefcountbt_init_high_key_from_rec(
-	union xfs_btree_key		*key,
-	const union xfs_btree_rec	*rec)
-{
-	__u32				x;
-
-	x = be32_to_cpu(rec->refc.rc_startblock);
-	x += be32_to_cpu(rec->refc.rc_blockcount) - 1;
-	key->refc.rc_startblock = cpu_to_be32(x);
-}
-
-STATIC void
-xfs_rtrefcountbt_init_rec_from_cur(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*rec)
-{
-	const struct xfs_refcount_irec *irec = &cur->bc_rec.rc;
-	uint32_t		start;
-
-	start = xfs_refcount_encode_startblock(irec->rc_startblock,
-			irec->rc_domain);
-	rec->refc.rc_startblock = cpu_to_be32(start);
-	rec->refc.rc_blockcount = cpu_to_be32(cur->bc_rec.rc.rc_blockcount);
-	rec->refc.rc_refcount = cpu_to_be32(cur->bc_rec.rc.rc_refcount);
-}
-
-STATIC void
 xfs_rtrefcountbt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
 	ptr->l = 0;
-}
-
-STATIC int
-xfs_rtrefcountbt_cmp_key_with_cur(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*key)
-{
-	const struct xfs_refcount_key	*kp = &key->refc;
-	const struct xfs_refcount_irec	*irec = &cur->bc_rec.rc;
-	uint32_t			start;
-
-	start = xfs_refcount_encode_startblock(irec->rc_startblock,
-			irec->rc_domain);
-	return cmp_int(be32_to_cpu(kp->rc_startblock), start);
-}
-
-STATIC int
-xfs_rtrefcountbt_cmp_two_keys(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2,
-	const union xfs_btree_key	*mask)
-{
-	ASSERT(!mask || mask->refc.rc_startblock);
-
-	return cmp_int(be32_to_cpu(k1->refc.rc_startblock),
-		       be32_to_cpu(k2->refc.rc_startblock));
 }
 
 static xfs_failaddr_t
@@ -249,40 +188,6 @@ const struct xfs_buf_ops xfs_rtrefcountbt_buf_ops = {
 	.verify_struct		= xfs_rtrefcountbt_verify,
 };
 
-STATIC int
-xfs_rtrefcountbt_keys_inorder(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
-{
-	return be32_to_cpu(k1->refc.rc_startblock) <
-	       be32_to_cpu(k2->refc.rc_startblock);
-}
-
-STATIC int
-xfs_rtrefcountbt_recs_inorder(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_rec	*r1,
-	const union xfs_btree_rec	*r2)
-{
-	return  be32_to_cpu(r1->refc.rc_startblock) +
-		be32_to_cpu(r1->refc.rc_blockcount) <=
-		be32_to_cpu(r2->refc.rc_startblock);
-}
-
-STATIC enum xbtree_key_contig
-xfs_rtrefcountbt_keys_contiguous(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*key1,
-	const union xfs_btree_key	*key2,
-	const union xfs_btree_key	*mask)
-{
-	ASSERT(!mask || mask->refc.rc_startblock);
-
-	return xbtree_key_contig(be32_to_cpu(key1->refc.rc_startblock),
-				 be32_to_cpu(key2->refc.rc_startblock));
-}
-
 static inline void
 xfs_rtrefcountbt_move_ptrs(
 	struct xfs_mount	*mp,
@@ -311,7 +216,7 @@ xfs_rtrefcountbt_broot_realloc(
 	unsigned int		old_size = ifp->if_broot_bytes;
 	const unsigned int	level = cur->bc_nlevels - 1;
 
-	new_size = xfs_rtrefcount_broot_space_calc(mp, level, new_numrecs);
+	new_size = xfs_rtrefcount_broot_space_calc(level, new_numrecs);
 
 	/* Handle the nop case quietly. */
 	if (new_size == old_size)
@@ -383,16 +288,16 @@ const struct xfs_btree_ops xfs_rtrefcountbt_ops = {
 	.get_minrecs		= xfs_rtrefcountbt_get_minrecs,
 	.get_maxrecs		= xfs_rtrefcountbt_get_maxrecs,
 	.get_dmaxrecs		= xfs_rtrefcountbt_get_dmaxrecs,
-	.init_key_from_rec	= xfs_rtrefcountbt_init_key_from_rec,
-	.init_high_key_from_rec	= xfs_rtrefcountbt_init_high_key_from_rec,
-	.init_rec_from_cur	= xfs_rtrefcountbt_init_rec_from_cur,
+	.init_key_from_rec	= xfs_refcountbt_init_key_from_rec,
+	.init_high_key_from_rec	= xfs_refcountbt_init_high_key_from_rec,
+	.init_rec_from_cur	= xfs_refcountbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_rtrefcountbt_init_ptr_from_cur,
-	.cmp_key_with_cur	= xfs_rtrefcountbt_cmp_key_with_cur,
+	.cmp_key_with_cur	= xfs_refcountbt_cmp_key_with_cur,
 	.buf_ops		= &xfs_rtrefcountbt_buf_ops,
-	.cmp_two_keys		= xfs_rtrefcountbt_cmp_two_keys,
-	.keys_inorder		= xfs_rtrefcountbt_keys_inorder,
-	.recs_inorder		= xfs_rtrefcountbt_recs_inorder,
-	.keys_contiguous	= xfs_rtrefcountbt_keys_contiguous,
+	.cmp_two_keys		= xfs_refcountbt_cmp_two_keys,
+	.keys_inorder		= xfs_refcountbt_keys_inorder,
+	.recs_inorder		= xfs_refcountbt_recs_inorder,
+	.keys_contiguous	= xfs_refcountbt_keys_contiguous,
 	.broot_realloc		= xfs_rtrefcountbt_broot_realloc,
 };
 
@@ -602,7 +507,7 @@ xfs_rtrefcountbt_from_disk(
 	unsigned int			maxrecs;
 	unsigned int			rblocklen;
 
-	rblocklen = xfs_rtrefcount_broot_space(mp, dblock);
+	rblocklen = xfs_rtrefcount_broot_space(dblock);
 
 	xfs_btree_init_block(mp, rblock, &xfs_rtrefcountbt_ops, 0, 0,
 			I_INO(ip));
@@ -661,7 +566,7 @@ xfs_iformat_rtrefcount(
 	}
 
 	broot = xfs_broot_alloc(xfs_ifork_ptr(ip, XFS_DATA_FORK),
-			xfs_rtrefcount_broot_space_calc(mp, level, numrecs));
+			xfs_rtrefcount_broot_space_calc(level, numrecs));
 	if (broot)
 		xfs_rtrefcountbt_from_disk(ip, dfp, dsize, broot);
 	return 0;
@@ -751,7 +656,7 @@ xfs_rtrefcountbt_create(
 
 	/* Initialize the empty incore btree root. */
 	broot = xfs_broot_realloc(ifp,
-			xfs_rtrefcount_broot_space_calc(mp, 0, 0));
+			xfs_rtrefcount_broot_space_calc(0, 0));
 	if (broot)
 		xfs_btree_init_block(mp, broot, &xfs_rtrefcountbt_ops, 0, 0,
 				I_INO(ip));

@@ -14,6 +14,7 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 
+#include "aie.h"
 #include "amdxdna_cbuf.h"
 #include "amdxdna_ctx.h"
 #include "amdxdna_debugfs.h"
@@ -151,6 +152,8 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 	filp->driver_priv = client;
 	client->filp = filp;
 
+	spin_lock_init(&client->io_stats.lock);
+
 	XDNA_DBG(xdna, "pid %d opened", client->pid);
 	return 0;
 
@@ -286,6 +289,9 @@ static void amdxdna_show_fdinfo(struct drm_printer *p, struct drm_file *filp)
 	struct amdxdna_client *client = filp->driver_priv;
 	size_t heap_usage, external_usage, internal_usage;
 	char *drv_name = filp->minor->dev->driver->name;
+
+	drm_printf(p, "drm-engine-npu:\t%llu ns\n",
+		   amdxdna_io_stats_busy_time_ns(client));
 
 	mutex_lock(&client->mm_lock);
 

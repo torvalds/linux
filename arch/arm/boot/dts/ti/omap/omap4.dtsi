@@ -590,7 +590,7 @@
 					#size-cells = <1>;
 					ranges = <0 0x2000 0x1000>;
 
-					rfbi: encoder@0  {
+					rfbi: encoder@0 {
 						reg = <0 0x1000>;
 						status = "disabled";
 						clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 8>, <&l3_div_ck>;
@@ -679,7 +679,7 @@
 						interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 						status = "disabled";
 						clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 8>,
-						         <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
+							 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
 						clock-names = "fck", "sys_clk";
 
 						#address-cells = <1>;
@@ -716,7 +716,7 @@
 						interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 						status = "disabled";
 						clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 9>,
-						         <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
+							 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
 						clock-names = "fck", "sys_clk";
 						dmas = <&sdma 76>;
 						dma-names = "audio_tx";

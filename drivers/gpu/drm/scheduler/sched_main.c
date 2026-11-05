@@ -77,7 +77,6 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_syncobj.h>
 #include <drm/gpu_scheduler.h>
-#include <drm/spsc_queue.h>
 
 #include "sched_internal.h"
 
@@ -612,7 +611,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 
 	job->entity = entity;
 	job->credits = credits;
-	job->s_fence = drm_sched_fence_alloc(entity, owner, drm_client_id);
+	job->s_fence = drm_sched_fence_alloc(owner, drm_client_id);
 	if (!job->s_fence)
 		return -ENOMEM;
 
@@ -1203,15 +1202,17 @@ static void drm_sched_cancel_remaining_jobs(struct drm_gpu_scheduler *sched)
  * is implemented, all jobs will be canceled through it and afterwards cleaned
  * up through &struct drm_sched_backend_ops.free_job. If cancel_job is not
  * implemented, memory could leak.
+ *
+ * The user must wait one RCU grace period between signaling the last hardware-
+ * fence and calling this function because the timeline name returned by
+ * scheduler fences must stay valid until all readers have exited their RCU read
+ * side critical section.
  */
 void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
 	int i;
 
 	drm_sched_wqueue_stop(sched);
-
-	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++)
-		kfree(sched->sched_rq[i]);
 
 	/* Wakeup everyone stuck in drm_sched_entity_flush for this scheduler */
 	wake_up_all(&sched->job_scheduled);
@@ -1226,6 +1227,9 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 	if (sched->own_submit_wq)
 		destroy_workqueue(sched->submit_wq);
 	sched->ready = false;
+
+	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++)
+		kfree(sched->sched_rq[i]);
 	kfree(sched->sched_rq);
 	sched->sched_rq = NULL;
 

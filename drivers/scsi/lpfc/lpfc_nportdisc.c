@@ -220,12 +220,18 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  */
 void
 lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+	__context_unsafe(/*conditional locking*/)
 {
 	LIST_HEAD(abort_list);
 	LIST_HEAD(drv_cmpl_list);
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
 	int retval = 0;
+
+	/* Exit early to prevent race with queue teardown. */
+	if (unlikely(phba->sli_rev == LPFC_SLI_REV4 &&
+		     !test_bit(HBA_SETUP, &phba->hba_flag)))
+		return;
 
 	pring = lpfc_phba_elsring(phba);
 
@@ -250,8 +256,9 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	spin_lock_irq(&phba->hbalock);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
+
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
-	/* Add to abort_list on on NDLP match. */
+		/* Add to abort_list on NDLP match. */
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp))
 			list_add_tail(&iocb->dlist, &abort_list);
 	}
@@ -266,7 +273,13 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		retval = lpfc_sli_issue_abort_iotag(phba, pring, iocb, NULL);
 		spin_unlock_irq(&phba->hbalock);
 
-		if (retval && test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
+		/* An abort that fails here is just cancelled when the driver is
+		 * going offline.  However, if the abort failure is because the
+		 * IOCB is already getting aborted, don't cancel.  Just let it
+		 * complete.
+		 */
+		if (test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
+		    retval && retval != IOCB_ABORTING) {
 			list_del_init(&iocb->list);
 			list_add_tail(&iocb->list, &drv_cmpl_list);
 		}
@@ -2866,6 +2879,20 @@ lpfc_device_rm_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		set_bit(NLP_NODEV_REMOVE, &ndlp->nlp_flag);
 		return ndlp->nlp_state;
 	}
+
+	/* It is an error to drop a node while either of its transport
+	 * registrations have not completed.
+	 */
+	if (ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)) {
+		lpfc_printf_vlog(vport, KERN_WARNING,
+				 LOG_ELS | LOG_NODE | LOG_DISCOVERY,
+				 "3423 Not dropping ndlp x%px, DID x%x xflags x%x "
+				 "with dev_loss pending. ref_cnt %d\n",
+				 ndlp, ndlp->nlp_DID, ndlp->fc4_xpt_flags,
+				 kref_read(&ndlp->kref));
+		return ndlp->nlp_state;
+	}
+
 	lpfc_drop_node(vport, ndlp);
 	return NLP_STE_FREED_NODE;
 }

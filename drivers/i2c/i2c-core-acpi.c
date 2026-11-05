@@ -352,8 +352,8 @@ static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
 	 * at 400KHz (as can be expected of any recent i2c hw) so we force
 	 * the speed of the bus to 400 KHz if a Silead device is present.
 	 */
-	{ "MSSL1680", 0 },
-	{}
+	{ .id = "MSSL1680" },
+	{ }
 };
 
 static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
@@ -371,11 +371,13 @@ static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
 	 * the device works without issues on Windows at what is expected to be
 	 * a 400KHz frequency. The root cause of the issue is not known.
 	 */
-	{ "DLL0945", 0 },
-	{ "ELAN0678", 0 },
-	{ "ELAN06FA", 0 },
-	{ "ELAN1300", 0 },
-	{}
+	{ .id = "ASUE140D" },
+	{ .id = "DELL0A86" },
+	{ .id = "DLL0945" },
+	{ .id = "ELAN0678" },
+	{ .id = "ELAN06FA" },
+	{ .id = "ELAN1300" },
+	{ }
 };
 
 static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
@@ -547,6 +549,7 @@ struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
 {
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
+	struct i2c_client *client;
 	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
@@ -574,7 +577,10 @@ struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
 	if (!adapter)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	return i2c_new_client_device(adapter, info);
+	client = i2c_new_client_device(adapter, info);
+	put_device(&adapter->dev);
+
+	return client;
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_new_device_by_fwnode);
 
@@ -607,7 +613,7 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 	msgs[0].buf = &cmd;
 
 	msgs[1].addr = client->addr;
-	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].flags = client->flags | I2C_M_RD | I2C_M_DMA_SAFE;
 	msgs[1].len = data_len;
 	msgs[1].buf = buffer;
 
@@ -648,7 +654,7 @@ static int acpi_gsb_i2c_write_bytes(struct i2c_client *client,
 	memcpy(buffer + 1, data, data_len);
 
 	msgs[0].addr = client->addr;
-	msgs[0].flags = client->flags;
+	msgs[0].flags = client->flags | I2C_M_DMA_SAFE;
 	msgs[0].len = data_len + 1;
 	msgs[0].buf = buffer;
 

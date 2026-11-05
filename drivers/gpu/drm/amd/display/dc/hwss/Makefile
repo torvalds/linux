@@ -36,11 +36,13 @@ endif
 
 ###############################################################################
 
+ifdef CONFIG_DRM_AMD_DC_DCE
 HWSS_DCE80 = dce80_hwseq.o
 
 AMD_DAL_HWSS_DCE80 = $(addprefix $(AMDDALPATH)/dc/hwss/dce80/,$(HWSS_DCE80))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCE80)
+endif
 
 ###############################################################################
 
@@ -52,11 +54,13 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCE)
 
 ###############################################################################
 
+ifdef CONFIG_DRM_AMD_DC_DCE
 HWSS_DCE100 = dce100_hwseq.o
 
 AMD_DAL_HWSS_DCE100 = $(addprefix $(AMDDALPATH)/dc/hwss/dce100/,$(HWSS_DCE100))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCE100)
+endif
 
 ###############################################################################
 
@@ -68,6 +72,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCE110)
 
 ###############################################################################
 
+ifdef CONFIG_DRM_AMD_DC_DCE
 HWSS_DCE112 = dce112_hwseq.o
 
 AMD_DAL_HWSS_DCE112 = $(addprefix $(AMDDALPATH)/dc/hwss/dce112/,$(HWSS_DCE112))
@@ -81,6 +86,7 @@ HWSS_DCE120 = dce120_hwseq.o
 AMD_DAL_HWSS_DCE120 = $(addprefix $(AMDDALPATH)/dc/hwss/dce120/,$(HWSS_DCE120))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCE120)
+endif
 
 ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################

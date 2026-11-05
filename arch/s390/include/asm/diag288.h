@@ -28,10 +28,10 @@ static inline int __diag288(unsigned int func, unsigned int timeout,
 	int rc = -EINVAL;
 
 	asm volatile(
-		"	diag	%[r1],%[r3],0x288\n"
-		"0:	lhi	%[rc],0\n"
+		"0:	diag	%[r1],%[r3],0x288\n"
+		"	lhi	%[rc],0\n"
 		"1:"
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [rc] "+d" (rc)
 		: [r1] "d" (r1.pair), [r3] "d" (r3.pair)
 		: "cc", "memory");

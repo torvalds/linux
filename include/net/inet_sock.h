@@ -207,7 +207,7 @@ struct rtable;
  * @inet_saddr - Sending source
  * @uc_ttl - Unicast TTL
  * @inet_sport - Source port
- * @inet_id - ID counter for DF pkts
+ * @inet_id - ID counter for non atomic pkts
  * @tos - TOS
  * @mc_ttl - Multicasting TTL
  * @uc_index - Unicast outgoing device index

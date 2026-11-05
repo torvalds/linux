@@ -204,7 +204,8 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
 __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx);
 void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 
-struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
+bool io_wq_put_work(struct io_wq_work *work, struct io_wq_work **linked);
+void io_wq_free_work(struct io_wq_work *work);
 void io_wq_submit_work(struct io_wq_work *work);
 
 void io_free_req(struct io_kiocb *req);
@@ -318,35 +319,22 @@ static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
 	return true;
 }
 
-static inline void req_set_fail(struct io_kiocb *req)
+static inline ssize_t io_fixup_restart_res(ssize_t ret)
 {
-	req->flags |= REQ_F_FAIL;
-	if (req->flags & REQ_F_CQE_SKIP) {
-		req->flags &= ~REQ_F_CQE_SKIP;
-		req->flags |= REQ_F_SKIP_LINK_CQES;
+	switch (ret) {
+	case -ERESTARTSYS:
+	case -ERESTARTNOINTR:
+	case -ERESTARTNOHAND:
+	case -ERESTART_RESTARTBLOCK:
+		/*
+		 * We can't just restart the syscall, since previously
+		 * submitted sqes may already be in progress. Just fail
+		 * this IO with EINTR.
+		 */
+		return -EINTR;
+	default:
+		return ret;
 	}
-}
-
-static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
-{
-	req->cqe.res = res;
-	req->cqe.flags = cflags;
-}
-
-static inline u32 ctx_cqe32_flags(struct io_ring_ctx *ctx)
-{
-	if (ctx->flags & IORING_SETUP_CQE_MIXED)
-		return IORING_CQE_F_32;
-	return 0;
-}
-
-static inline void io_req_set_res32(struct io_kiocb *req, s32 res, u32 cflags,
-				    __u64 extra1, __u64 extra2)
-{
-	req->cqe.res = res;
-	req->cqe.flags = cflags | ctx_cqe32_flags(req->ctx);
-	req->big_cqe.extra1 = extra1;
-	req->big_cqe.extra2 = extra2;
 }
 
 static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
@@ -409,6 +397,29 @@ static inline void io_ring_submit_lock(struct io_ring_ctx *ctx,
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED))
 		mutex_lock(&ctx->uring_lock);
 	lockdep_assert_held(&ctx->uring_lock);
+}
+
+/*
+ * For a handler that is run by io-wq and parks the request on a list where
+ * cancellations find it, rather than completing it. Whoever tried to cancel
+ * the request before that found it running. It has flagged the work item,
+ * has searched the list in vain, and won't come back. To be called with
+ * the lock the search takes held: if the search came first, the flag is
+ * visible. For most lists that is ->uring_lock, timeouts use ->timeout_lock.
+ */
+static inline bool __io_wq_cancel_seen(struct io_kiocb *req,
+				       unsigned int issue_flags)
+{
+	return (issue_flags & IO_URING_F_IOWQ) &&
+	       (atomic_read(&req->work.flags) & IO_WQ_WORK_CANCEL);
+}
+
+static inline bool io_wq_cancel_seen(struct io_kiocb *req,
+				     unsigned int issue_flags)
+{
+	lockdep_assert_held(&req->ctx->uring_lock);
+
+	return __io_wq_cancel_seen(req, issue_flags);
 }
 
 static inline void io_commit_cqring(struct io_ring_ctx *ctx)

@@ -55,7 +55,7 @@ unsigned long minix_count_free_inodes(struct super_block *sb);
 int minix_new_block(struct inode *inode);
 void minix_free_block(struct inode *inode, unsigned long block);
 unsigned long minix_count_free_blocks(struct super_block *sb);
-int minix_getattr(struct mnt_idmap *, const struct path *,
+int minix_getattr(const struct mnt_idmap *, const struct path *,
 		struct kstat *, u32, unsigned int);
 int minix_prepare_chunk(struct folio *folio, loff_t pos, unsigned len);
 struct mapping_metadata_bhs *minix_get_metadata_bhs(struct inode *inode);

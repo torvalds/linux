@@ -333,7 +333,7 @@ static void send_hsr_supervision_frame(struct hsr_port *port,
 		hsr->sup_sequence_nr++;
 	} else {
 		hsr_stag->sequence_nr = htons(hsr->sequence_nr);
-		hsr->sequence_nr++;
+		WRITE_ONCE(hsr->sequence_nr, hsr->sequence_nr + 1);
 	}
 
 	hsr_stag->tlv.HSR_TLV_type = type;

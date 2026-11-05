@@ -33,9 +33,7 @@ struct build_id;
 struct perf_env;
 
 /*
- * Ignore kernel mapping symbols, matching kernel is_mapping_symbol() logic.
- * This checks for '$' prefix (used by ARM, AArch64, RISC-V) and
- * x86 local symbol prefixes (.L* and L0*).
+ * Ignore local labels and mapping symbols, matching kernel is_ignored_kernel_symbol() logic.
  * Only use this for kernel symbols (kallsyms, ksymbol events, kernel ELF DSOs).
  */
 static inline bool is_ignored_kernel_symbol(const char *str)

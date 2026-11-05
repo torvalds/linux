@@ -30,7 +30,7 @@ static inline int ili9320_write_spi(struct ili9320 *ili,
 	unsigned char *addr = spi->buffer_addr;
 	unsigned char *data = spi->buffer_data;
 
-	/* spi message consits of:
+	/* spi message consists of:
 	 * first byte: ID and operation
 	 */
 

@@ -674,7 +674,7 @@
 		power-source = <3300>;
 	};
 
-	sdhi0_pins_uhs: sd0_uhs {
+	sdhi0_pins_uhs: sd0-uhs {
 		groups = "sdhi0_data4", "sdhi0_ctrl";
 		function = "sdhi0";
 		power-source = <1800>;
@@ -686,7 +686,7 @@
 		power-source = <3300>;
 	};
 
-	sdhi1_pins_uhs: sd1_uhs {
+	sdhi1_pins_uhs: sd1-uhs {
 		groups = "sdhi1_data4", "sdhi1_ctrl";
 		function = "sdhi1";
 		power-source = <1800>;
@@ -698,7 +698,7 @@
 		power-source = <1800>;
 	};
 
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		groups = "audio_clk_a", "audio_clk_b_a", "audio_clk_c_a",
 			 "audio_clkout_a", "audio_clkout1_a";
 		function = "audio_clk";

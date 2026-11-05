@@ -12,15 +12,6 @@ struct intel_display;
 
 void intel_display_wa_apply(struct intel_display *display);
 
-#ifdef I915
-static inline bool intel_display_needs_wa_16023588340(struct intel_display *display)
-{
-	return false;
-}
-#else
-bool intel_display_needs_wa_16023588340(struct intel_display *display);
-#endif
-
 /*
  * This enum lists display workarounds; each entry here must have a
  * corresponding case in __intel_display_wa().  Keep both sorted by lineage

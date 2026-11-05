@@ -9,15 +9,18 @@
  * AB8500 peripheral regulators
  *
  * AB8500 supports the following regulators:
- *   VAUX1/2/3, VINTCORE, VTVOUT, VUSB, VAUDIO, VAMIC1/2, VDMIC, VANA
+ *   VSMPS1/2/3, VARM, VAPE, VMOD, VAUX1/2/3, VINTCORE, VTVOUT,
+ *   VUSB, VAUDIO, VAMIC1/2, VDMIC, VANA
  *
  * AB8505 supports the following regulators:
- *   VAUX1/2/3/4/5/6, VINTCORE, VADC, VUSB, VAUDIO, VAMIC1/2, VDMIC, VANA
+ *   VSMPSA/B/C/M, VSAFE, VARM, VAUX1/2/3/4/5/6, VINTCORE,
+ *   VADC, VUSB, VAUDIO, VAMIC1/2, VDMIC, VANA
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
@@ -39,6 +42,12 @@ enum ab8500_regulator_id {
 	AB8500_LDO_ANAMIC2,
 	AB8500_LDO_DMIC,
 	AB8500_LDO_ANA,
+	AB8500_BUCK_SMPS1,
+	AB8500_BUCK_SMPS2,
+	AB8500_BUCK_SMPS3,
+	AB8500_BUCK_ARM,
+	AB8500_BUCK_APE,
+	AB8500_BUCK_MOD,
 	AB8500_NUM_REGULATORS,
 };
 
@@ -57,6 +66,12 @@ enum ab8505_regulator_id {
 	AB8505_LDO_ANAMIC2,
 	AB8505_LDO_AUX8,
 	AB8505_LDO_ANA,
+	AB8505_BUCK_SMPSA,
+	AB8505_BUCK_SMPSB,
+	AB8505_BUCK_SAFE,
+	AB8505_BUCK_ARM,
+	AB8505_BUCK_SMPSC,
+	AB8505_BUCK_SMPSM,
 	AB8505_NUM_REGULATORS,
 };
 
@@ -162,6 +177,7 @@ struct ab8500_shared_mode {
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
  * @update_mask: mask to enable/disable and set mode of regulator
+ * @enable_mask: optional mask for an enable bit separate from the mode bit
  * @update_val: bits holding the regulator current mode
  * @update_val_idle: bits to enable the regulator in idle (low power) mode
  * @update_val_normal: bits to enable the regulator in normal (high power) mode
@@ -171,8 +187,17 @@ struct ab8500_shared_mode {
  * @mode_val_idle: mode setting for low power
  * @mode_val_normal: mode setting for normal power
  * @voltage_bank: bank to control regulator voltage
- * @voltage_reg: register to control regulator voltage
+ * @voltage_reg: first register containing a selectable regulator voltage
  * @voltage_mask: mask to control regulator voltage
+ * @expand_register: additional register used to select an extra voltage
+ * @voltage_ctrl_bank: bank containing the voltage selector control
+ * @voltage_ctrl_reg: register containing the voltage selector control
+ * @voltage_ctrl_mask: mask selecting one of the first voltage registers
+ * @voltage_ext_ctrl_bank: bank containing the extended selector control
+ * @voltage_ext_ctrl_reg: register containing the extended selector control
+ * @voltage_ext_ctrl_mask: mask selecting one of the extended voltage registers
+ * @voltage_ext_reg: first extended voltage register
+ * @voltage_ext_regs: number of extended voltage registers
  */
 struct ab8500_regulator_info {
 	struct device		*dev;
@@ -182,6 +207,7 @@ struct ab8500_regulator_info {
 	u8 update_bank;
 	u8 update_reg;
 	u8 update_mask;
+	u8 enable_mask;
 	u8 update_val;
 	u8 update_val_idle;
 	u8 update_val_normal;
@@ -193,6 +219,20 @@ struct ab8500_regulator_info {
 	u8 voltage_bank;
 	u8 voltage_reg;
 	u8 voltage_mask;
+	struct {
+		u8 voltage_limit;
+		u8 voltage_bank;
+		u8 voltage_reg;
+		u8 voltage_mask;
+	} expand_register;
+	u8 voltage_ctrl_bank;
+	u8 voltage_ctrl_reg;
+	u8 voltage_ctrl_mask;
+	u8 voltage_ext_ctrl_bank;
+	u8 voltage_ext_ctrl_reg;
+	u8 voltage_ext_ctrl_mask;
+	u8 voltage_ext_reg;
+	u8 voltage_ext_regs;
 };
 
 /* voltage tables for the vauxn/vintcore supplies */
@@ -226,6 +266,18 @@ static const unsigned int ldo_vaux3_voltages[] = {
 	2910000,
 };
 
+static const unsigned int ldo_vaux3_ab8505_voltages[] = {
+	1200000,
+	1500000,
+	1800000,
+	2100000,
+	2500000,
+	2750000,
+	2790000,
+	2910000,
+	3050000,
+};
+
 static const unsigned int ldo_vaux56_voltages[] = {
 	1800000,
 	1050000,
@@ -237,14 +289,13 @@ static const unsigned int ldo_vaux56_voltages[] = {
 	2790000,
 };
 
-static const unsigned int ldo_vintcore_voltages[] = {
-	1200000,
-	1225000,
-	1250000,
-	1275000,
-	1300000,
-	1325000,
-	1350000,
+static const struct linear_range ldo_vintcore_ranges[] = {
+	REGULATOR_LINEAR_RANGE(1200000, 0, 6, 25000),
+};
+
+static const struct linear_range ldo_vintcore_ab8505_ranges[] = {
+	REGULATOR_LINEAR_RANGE(1200000, 0, 6, 25000),
+	REGULATOR_LINEAR_RANGE(1350000, 7, 7, 0),
 };
 
 static const unsigned int fixed_1200000_voltage[] = {
@@ -264,25 +315,54 @@ static const unsigned int fixed_2050000_voltage[] = {
 };
 
 static const unsigned int ldo_vana_voltages[] = {
+	1200000,
 	1050000,
 	1075000,
 	1100000,
 	1125000,
 	1150000,
 	1175000,
-	1200000,
 	1225000,
 };
 
-static const unsigned int ldo_vaudio_voltages[] = {
-	2000000,
-	2100000,
-	2200000,
-	2300000,
-	2400000,
-	2500000,
-	2600000,
-	2600000,	/* Duplicated in Vaudio and IsoUicc Control register. */
+static const struct linear_range ldo_vaudio_ranges[] = {
+	REGULATOR_LINEAR_RANGE(2000000, 0, 6, 100000),
+	/* Duplicated in Vaudio and IsoUicc Control register. */
+	REGULATOR_LINEAR_RANGE(2600000, 7, 7, 0),
+};
+
+/*
+ * AB8505 buck ranges except VARM are selected by OTP.  The supported
+ * platforms use the AB8500-compatible profiles for VSMPSA/B and the low
+ * profiles for VSAFE, VSMPSC and VSMPSM.
+ */
+static const struct linear_range buck_low_voltages[] = {
+	REGULATOR_LINEAR_RANGE(700000, 0, 53, 12500),
+	REGULATOR_LINEAR_RANGE(1362500, 54, 63, 0),
+};
+
+/* VSMPS3 and VSAFE have a 7-bit selector, but the same low range. */
+static const struct linear_range buck_low_7bit_voltages[] = {
+	REGULATOR_LINEAR_RANGE(700000, 0, 53, 12500),
+	REGULATOR_LINEAR_RANGE(1362500, 54, 127, 0),
+};
+
+/* AB8505 VARM uses a separate 0.6 V to 1.39375 V selector range. */
+static const struct linear_range ab8505_buck_arm_voltages[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0, 127, 6250),
+};
+
+/* VSMPS1 and the VSMPSA AB8500-compatible profile clamp to this range. */
+static const struct linear_range buck_smps1_voltages[] = {
+	REGULATOR_LINEAR_RANGE(1100000, 0, 32, 0),
+	REGULATOR_LINEAR_RANGE(1112500, 33, 48, 12500),
+	REGULATOR_LINEAR_RANGE(1300000, 49, 63, 0),
+};
+
+/* VSMPS2 and the VSMPSB AB8500-compatible profile clamp to this range. */
+static const struct linear_range buck_smps2_voltages[] = {
+	REGULATOR_LINEAR_RANGE(1800000, 0, 57, 0),
+	REGULATOR_LINEAR_RANGE(1812500, 58, 63, 12500),
 };
 
 static DEFINE_MUTEX(shared_mode_mutex);
@@ -343,7 +423,7 @@ static int ab8500_regulator_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
+static int ab8500_regulator_get_enable_value(struct regulator_dev *rdev)
 {
 	int ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
@@ -368,10 +448,65 @@ static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
 		info->desc.name, info->update_bank, info->update_reg,
 		info->update_mask, regval);
 
-	if (regval & info->update_mask)
-		return 1;
+	return regval & info->update_mask;
+}
+
+static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 enable_mask;
+	int ret;
+
+	ret = ab8500_regulator_get_enable_value(rdev);
+	if (ret < 0)
+		return ret;
+
+	enable_mask = info->enable_mask ? info->enable_mask : info->update_mask;
+
+	return !!(ret & enable_mask);
+}
+
+static int ab8500_buck_enable(struct regulator_dev *rdev)
+{
+	int ret;
+
+	/* Keep an OTP-selected hardware or low-power mode intact. */
+	ret = ab8500_regulator_is_enabled(rdev);
+	if (ret)
+		return ret < 0 ? ret : 0;
+
+	return ab8500_regulator_enable(rdev);
+}
+
+static int ab8500_buck_init(struct regulator_dev *rdev,
+			    struct regulator_config *config)
+{
+	struct ab8500_regulator_info *info = config->driver_data;
+	int ret;
+
+	ret = ab8500_regulator_get_enable_value(rdev);
+	if (ret <= 0)
+		return ret;
+
+	/* Report forced LP accurately; HP and hardware control are normal mode. */
+	if (ret == info->update_val_idle)
+		info->update_val = info->update_val_idle;
 	else
-		return 0;
+		info->update_val = info->update_val_normal;
+
+	/*
+	 * The SMPS enable state is selected by OTP.  An enabled rail may
+	 * supply discrete board components which are not represented as
+	 * regulator consumers, so keep it out of the unused-regulator sweep.
+	 */
+	rdev->constraints->boot_on = true;
+	rdev->constraints->always_on = true;
+	rdev->constraints->valid_ops_mask &= ~REGULATOR_CHANGE_STATUS;
+
+	dev_dbg(config->dev, "%s: preserving OTP-enabled state\n",
+		info->desc.name);
+
+	return 0;
 }
 
 static unsigned int ab8500_regulator_get_optimum_mode(
@@ -398,7 +533,7 @@ static unsigned int ab8500_regulator_get_optimum_mode(
 static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 				     unsigned int mode)
 {
-	int ret = 0;
+	int enabled, ret = 0;
 	u8 bank, reg, mask, val;
 	bool lp_mode_req = false;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
@@ -407,6 +542,8 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
 		return -EINVAL;
 	}
+
+	guard(mutex)(&shared_mode_mutex);
 
 	if (info->mode_mask) {
 		bank = info->mode_bank;
@@ -417,9 +554,6 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 		reg = info->update_reg;
 		mask = info->update_mask;
 	}
-
-	if (info->shared_mode)
-		mutex_lock(&shared_mode_mutex);
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
@@ -439,7 +573,7 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 			if (!shared_regulator->shared_mode->lp_mode_req) {
 				/* Other regulator prevent LP mode */
 				info->shared_mode->lp_mode_req = true;
-				goto out_unlock;
+				return 0;
 			}
 
 			lp_mode_req = true;
@@ -451,17 +585,24 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 			val = info->update_val_idle;
 		break;
 	default:
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
-	if (info->mode_mask || ab8500_regulator_is_enabled(rdev)) {
+	if (info->mode_mask) {
+		enabled = 1;
+	} else {
+		enabled = ab8500_regulator_is_enabled(rdev);
+		if (enabled < 0)
+			return enabled;
+	}
+
+	if (enabled) {
 		ret = abx500_mask_and_set_register_interruptible(info->dev,
 			bank, reg, mask, val);
 		if (ret < 0) {
 			dev_err(rdev_get_dev(rdev),
 				"couldn't set regulator mode\n");
-			goto out_unlock;
+			return ret;
 		}
 
 		dev_vdbg(rdev_get_dev(rdev),
@@ -476,10 +617,6 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 
 	if (info->shared_mode)
 		info->shared_mode->lp_mode_req = lp_mode_req;
-
-out_unlock:
-	if (info->shared_mode)
-		mutex_unlock(&shared_mode_mutex);
 
 	return ret;
 }
@@ -530,11 +667,67 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 	return ret;
 }
 
+static int ab8500_regulator_get_voltage_reg(struct regulator_dev *rdev,
+					    u8 *voltage_reg)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 regval;
+	unsigned int selector;
+	int ret;
+
+	if (info->voltage_ext_ctrl_mask) {
+		ret = abx500_get_register_interruptible(info->dev,
+							info->voltage_ext_ctrl_bank,
+							info->voltage_ext_ctrl_reg, &regval);
+		if (ret < 0)
+			return ret;
+
+		selector = (regval & info->voltage_ext_ctrl_mask) >>
+			(ffs(info->voltage_ext_ctrl_mask) - 1);
+		if (selector) {
+			selector = min_t(unsigned int, selector,
+					 info->voltage_ext_regs);
+			*voltage_reg = info->voltage_ext_reg + selector - 1;
+			return 0;
+		}
+	}
+
+	if (!info->voltage_ctrl_mask) {
+		*voltage_reg = info->voltage_reg;
+		return 0;
+	}
+
+	ret = abx500_get_register_interruptible(info->dev,
+						info->voltage_ctrl_bank,
+						info->voltage_ctrl_reg, &regval);
+	if (ret < 0)
+		return ret;
+
+	/* The three hardware selector layouts all use consecutive registers. */
+	switch (info->voltage_ctrl_mask) {
+	case 0x0c:
+		selector = min((unsigned int)((regval & 0x0c) >> 2), 2U);
+		break;
+	case 0x24:
+		selector = regval & BIT(5) ? 2 : !!(regval & BIT(2));
+		break;
+	case 0x04:
+		selector = !!(regval & BIT(2));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*voltage_reg = info->voltage_reg + selector;
+
+	return 0;
+}
+
 static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	int ret, voltage_shift;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	u8 regval;
+	u8 regval, voltage_reg;
 
 	if (info == NULL) {
 		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
@@ -543,8 +736,15 @@ static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 
 	voltage_shift = ffs(info->voltage_mask) - 1;
 
+	ret = ab8500_regulator_get_voltage_reg(rdev, &voltage_reg);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev),
+			"couldn't read voltage selector control\n");
+		return ret;
+	}
+
 	ret = abx500_get_register_interruptible(info->dev,
-			info->voltage_bank, info->voltage_reg, &regval);
+			info->voltage_bank, voltage_reg, &regval);
 	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't read voltage reg for regulator\n");
@@ -555,7 +755,7 @@ static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 		"%s-get_voltage (bank, reg, mask, shift, value): "
 		"0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
 		info->desc.name, info->voltage_bank,
-		info->voltage_reg, info->voltage_mask,
+		voltage_reg, info->voltage_mask,
 		voltage_shift, regval);
 
 	return (regval & info->voltage_mask) >> voltage_shift;
@@ -566,7 +766,7 @@ static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
 {
 	int ret, voltage_shift;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	u8 regval;
+	u8 regval, voltage_reg;
 
 	if (info == NULL) {
 		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
@@ -575,10 +775,17 @@ static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
 
 	voltage_shift = ffs(info->voltage_mask) - 1;
 
+	ret = ab8500_regulator_get_voltage_reg(rdev, &voltage_reg);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev),
+			"couldn't read voltage selector control\n");
+		return ret;
+	}
+
 	/* set the registers for the request */
 	regval = (u8)selector << voltage_shift;
 	ret = abx500_mask_and_set_register_interruptible(info->dev,
-			info->voltage_bank, info->voltage_reg,
+			info->voltage_bank, voltage_reg,
 			info->voltage_mask, regval);
 	if (ret < 0)
 		dev_err(rdev_get_dev(rdev),
@@ -587,8 +794,66 @@ static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	dev_vdbg(rdev_get_dev(rdev),
 		"%s-set_voltage (bank, reg, mask, value): 0x%x, 0x%x, 0x%x,"
 		" 0x%x\n",
-		info->desc.name, info->voltage_bank, info->voltage_reg,
+		info->desc.name, info->voltage_bank, voltage_reg,
 		info->voltage_mask, regval);
+
+	return ret;
+}
+
+static int ab8500_regulator_get_voltage_sel_expand(struct regulator_dev *rdev)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 regval;
+	int ret;
+
+	if (!info)
+		return -EINVAL;
+
+	ret = abx500_get_register_interruptible(info->dev,
+			info->expand_register.voltage_bank,
+			info->expand_register.voltage_reg, &regval);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev),
+			"couldn't read voltage expand reg for regulator\n");
+		return ret;
+	}
+
+	if (regval & info->expand_register.voltage_mask)
+		return info->expand_register.voltage_limit;
+
+	return ab8500_regulator_get_voltage_sel(rdev);
+}
+
+static int ab8500_regulator_set_voltage_sel_expand(struct regulator_dev *rdev,
+						   unsigned int selector)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 regval;
+	int ret;
+
+	if (!info)
+		return -EINVAL;
+
+	if (selector > info->expand_register.voltage_limit)
+		return -EINVAL;
+
+	if (selector < info->expand_register.voltage_limit) {
+		ret = ab8500_regulator_set_voltage_sel(rdev, selector);
+		if (ret < 0)
+			return ret;
+
+		regval = 0;
+	} else {
+		regval = info->expand_register.voltage_mask;
+	}
+
+	ret = abx500_mask_and_set_register_interruptible(info->dev,
+			info->expand_register.voltage_bank,
+			info->expand_register.voltage_reg,
+			info->expand_register.voltage_mask, regval);
+	if (ret < 0)
+		dev_err(rdev_get_dev(rdev),
+			"couldn't set voltage expand reg for regulator\n");
 
 	return ret;
 }
@@ -605,13 +870,59 @@ static const struct regulator_ops ab8500_regulator_volt_mode_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 };
 
-static const struct regulator_ops ab8500_regulator_volt_ops = {
+static const struct regulator_ops ab8500_regulator_volt_mode_expand_ops = {
+	.enable			= ab8500_regulator_enable,
+	.disable		= ab8500_regulator_disable,
+	.is_enabled		= ab8500_regulator_is_enabled,
+	.get_optimum_mode	= ab8500_regulator_get_optimum_mode,
+	.set_mode		= ab8500_regulator_set_mode,
+	.get_mode		= ab8500_regulator_get_mode,
+	.get_voltage_sel	= ab8500_regulator_get_voltage_sel_expand,
+	.set_voltage_sel	= ab8500_regulator_set_voltage_sel_expand,
+	.list_voltage		= regulator_list_voltage_table,
+};
+
+static const struct regulator_ops ab8500_regulator_linear_range_volt_mode_ops = {
+	.enable			= ab8500_regulator_enable,
+	.disable		= ab8500_regulator_disable,
+	.is_enabled		= ab8500_regulator_is_enabled,
+	.get_optimum_mode	= ab8500_regulator_get_optimum_mode,
+	.set_mode		= ab8500_regulator_set_mode,
+	.get_mode		= ab8500_regulator_get_mode,
+	.get_voltage_sel	= ab8500_regulator_get_voltage_sel,
+	.set_voltage_sel	= ab8500_regulator_set_voltage_sel,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+};
+
+static const struct regulator_ops ab8500_regulator_linear_range_volt_ops = {
 	.enable		= ab8500_regulator_enable,
 	.disable	= ab8500_regulator_disable,
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
 	.set_voltage_sel = ab8500_regulator_set_voltage_sel,
-	.list_voltage	= regulator_list_voltage_table,
+	.list_voltage	= regulator_list_voltage_linear_range,
+	.map_voltage	= regulator_map_voltage_linear_range,
+};
+
+static const struct regulator_ops ab8500_buck_ops = {
+	.enable			= ab8500_buck_enable,
+	.disable		= ab8500_regulator_disable,
+	.is_enabled		= ab8500_regulator_is_enabled,
+	.get_optimum_mode	= ab8500_regulator_get_optimum_mode,
+	.set_mode		= ab8500_regulator_set_mode,
+	.get_mode		= ab8500_regulator_get_mode,
+	.get_voltage_sel	= ab8500_regulator_get_voltage_sel,
+	.set_voltage_sel	= ab8500_regulator_set_voltage_sel,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+};
+
+static const struct regulator_ops ab8500_buck_voltage_ops = {
+	.get_voltage_sel	= ab8500_regulator_get_voltage_sel,
+	.set_voltage_sel	= ab8500_regulator_set_voltage_sel,
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
 static const struct regulator_ops ab8500_regulator_mode_ops = {
@@ -721,18 +1032,20 @@ static struct ab8500_regulator_info
 	[AB8500_LDO_INTCORE] = {
 		.desc = {
 			.name		= "LDO-INTCORE",
-			.ops		= &ab8500_regulator_volt_mode_ops,
+			.ops		= &ab8500_regulator_linear_range_volt_mode_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8500_LDO_INTCORE,
 			.owner		= THIS_MODULE,
-			.n_voltages	= ARRAY_SIZE(ldo_vintcore_voltages),
-			.volt_table	= ldo_vintcore_voltages,
+			.n_voltages	= 7,
+			.linear_ranges	= ldo_vintcore_ranges,
+			.n_linear_ranges = ARRAY_SIZE(ldo_vintcore_ranges),
 			.enable_time	= 750,
 		},
 		.load_lp_uA		= 5000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x44,
+		.enable_mask		= 0x04,
 		.update_val		= 0x44,
 		.update_val_idle	= 0x44,
 		.update_val_normal	= 0x04,
@@ -761,6 +1074,7 @@ static struct ab8500_regulator_info
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x82,
+		.enable_mask		= 0x02,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
 		.update_val_normal	= 0x02,
@@ -852,6 +1166,140 @@ static struct ab8500_regulator_info
 		.update_val_idle	= 0x0c,
 		.update_val_normal	= 0x04,
 	},
+
+	/* Buck converters */
+	[AB8500_BUCK_SMPS1] = {
+		.desc = {
+			.name		= "BUCK-SMPS1",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_SMPS1,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_smps1_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_smps1_voltages),
+		},
+		.load_lp_uA		= 20000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x03,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x13,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x03,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8500_BUCK_SMPS2] = {
+		.desc = {
+			.name		= "BUCK-SMPS2",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_SMPS2,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_smps2_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_smps2_voltages),
+		},
+		.load_lp_uA		= 20000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x04,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x17,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x04,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8500_BUCK_SMPS3] = {
+		.desc = {
+			.name		= "BUCK-SMPS3",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_SMPS3,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 128,
+			.linear_ranges	= buck_low_7bit_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_7bit_voltages),
+		},
+		.load_lp_uA		= 50000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x05,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x1b,
+		.voltage_mask		= 0x7f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x05,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8500_BUCK_ARM] = {
+		.desc = {
+			.name		= "BUCK-ARM",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_ARM,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_low_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x0b,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x00,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8500_BUCK_APE] = {
+		.desc = {
+			.name		= "BUCK-APE",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_APE,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_low_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x0e,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x02,
+		.voltage_ctrl_mask	= 0x24,
+	},
+	[AB8500_BUCK_MOD] = {
+		.desc = {
+			.name		= "BUCK-MOD",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8500_BUCK_MOD,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_low_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x41,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x40,
+		.voltage_ctrl_mask	= 0x04,
+	},
 };
 
 /* AB8505 regulator information */
@@ -908,12 +1356,12 @@ static struct ab8500_regulator_info
 	[AB8505_LDO_AUX3] = {
 		.desc = {
 			.name		= "LDO-AUX3",
-			.ops		= &ab8500_regulator_volt_mode_ops,
+			.ops		= &ab8500_regulator_volt_mode_expand_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8505_LDO_AUX3,
 			.owner		= THIS_MODULE,
-			.n_voltages	= ARRAY_SIZE(ldo_vaux3_voltages),
-			.volt_table	= ldo_vaux3_voltages,
+			.n_voltages	= ARRAY_SIZE(ldo_vaux3_ab8505_voltages),
+			.volt_table	= ldo_vaux3_ab8505_voltages,
 		},
 		.load_lp_uA		= 5000,
 		.update_bank		= 0x04,
@@ -925,6 +1373,12 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
+		.expand_register = {
+			.voltage_limit	= 8,
+			.voltage_bank	= 0x04,
+			.voltage_reg	= 0x01,
+			.voltage_mask	= 0x10,
+		},
 	},
 	[AB8505_LDO_AUX4] = {
 		.desc = {
@@ -964,6 +1418,7 @@ static struct ab8500_regulator_info
 		.update_bank		= 0x01,
 		.update_reg		= 0x55,
 		.update_mask		= 0x18,
+		.enable_mask		= 0x10,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
 		.update_val_normal	= 0x10,
@@ -986,6 +1441,7 @@ static struct ab8500_regulator_info
 		.update_bank		= 0x01,
 		.update_reg		= 0x56,
 		.update_mask		= 0x18,
+		.enable_mask		= 0x10,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
 		.update_val_normal	= 0x10,
@@ -996,17 +1452,19 @@ static struct ab8500_regulator_info
 	[AB8505_LDO_INTCORE] = {
 		.desc = {
 			.name		= "LDO-INTCORE",
-			.ops		= &ab8500_regulator_volt_mode_ops,
+			.ops		= &ab8500_regulator_linear_range_volt_mode_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8505_LDO_INTCORE,
 			.owner		= THIS_MODULE,
-			.n_voltages	= ARRAY_SIZE(ldo_vintcore_voltages),
-			.volt_table	= ldo_vintcore_voltages,
+			.n_voltages	= 8,
+			.linear_ranges	= ldo_vintcore_ab8505_ranges,
+			.n_linear_ranges = ARRAY_SIZE(ldo_vintcore_ab8505_ranges),
 		},
 		.load_lp_uA		= 5000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x44,
+		.enable_mask		= 0x04,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x44,
 		.update_val_normal	= 0x04,
@@ -1035,6 +1493,7 @@ static struct ab8500_regulator_info
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x82,
+		.enable_mask		= 0x02,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
 		.update_val_normal	= 0x02,
@@ -1042,12 +1501,13 @@ static struct ab8500_regulator_info
 	[AB8505_LDO_AUDIO] = {
 		.desc = {
 			.name		= "LDO-AUDIO",
-			.ops		= &ab8500_regulator_volt_ops,
+			.ops		= &ab8500_regulator_linear_range_volt_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8505_LDO_AUDIO,
 			.owner		= THIS_MODULE,
-			.n_voltages	= ARRAY_SIZE(ldo_vaudio_voltages),
-			.volt_table	= ldo_vaudio_voltages,
+			.n_voltages	= 8,
+			.linear_ranges	= ldo_vaudio_ranges,
+			.n_linear_ranges = ARRAY_SIZE(ldo_vaudio_ranges),
 		},
 		.update_bank		= 0x03,
 		.update_reg		= 0x83,
@@ -1137,6 +1597,155 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x29,
 		.voltage_mask		= 0x7,
+	},
+
+	/* Buck converters */
+	[AB8505_BUCK_SMPSA] = {
+		.desc = {
+			.name		= "BUCK-SMPSA",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_SMPSA,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_smps1_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_smps1_voltages),
+		},
+		.load_lp_uA		= 20000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x03,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x13,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x03,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8505_BUCK_SMPSB] = {
+		.desc = {
+			.name		= "BUCK-SMPSB",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_SMPSB,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_smps2_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_smps2_voltages),
+		},
+		.load_lp_uA		= 20000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x04,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x17,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x04,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8505_BUCK_SAFE] = {
+		.desc = {
+			.name		= "BUCK-SAFE",
+			.ops		= &ab8500_buck_ops,
+			.init_cb	= ab8500_buck_init,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_SAFE,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 128,
+			.linear_ranges	= buck_low_7bit_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_7bit_voltages),
+		},
+		.load_lp_uA		= 50000,
+		.update_bank		= 0x04,
+		.update_reg		= 0x05,
+		.update_mask		= 0x03,
+		.update_val		= 0x01,
+		.update_val_idle	= 0x03,
+		.update_val_normal	= 0x01,
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x1b,
+		.voltage_mask		= 0x7f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x05,
+		.voltage_ctrl_mask	= 0x0c,
+	},
+	[AB8505_BUCK_ARM] = {
+		.desc = {
+			.name		= "BUCK-ARM",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_ARM,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 128,
+			.linear_ranges	= ab8505_buck_arm_voltages,
+			.n_linear_ranges = ARRAY_SIZE(ab8505_buck_arm_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x0b,
+		.voltage_mask		= 0x7f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x00,
+		.voltage_ctrl_mask	= 0x0c,
+		.voltage_ext_ctrl_bank = 0x04,
+		.voltage_ext_ctrl_reg	= 0x28,
+		.voltage_ext_ctrl_mask = 0x07,
+		.voltage_ext_reg	= 0x24,
+		.voltage_ext_regs	= 4,
+	},
+	[AB8505_BUCK_SMPSC] = {
+		.desc = {
+			.name		= "BUCK-SMPSC",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_SMPSC,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_low_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x0e,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x02,
+		.voltage_ctrl_mask	= 0x24,
+		.voltage_ext_ctrl_bank = 0x04,
+		.voltage_ext_ctrl_reg	= 0x2a,
+		.voltage_ext_ctrl_mask = 0x03,
+		.voltage_ext_reg	= 0x2b,
+		.voltage_ext_regs	= 2,
+	},
+	[AB8505_BUCK_SMPSM] = {
+		.desc = {
+			.name		= "BUCK-SMPSM",
+			.ops		= &ab8500_buck_voltage_ops,
+			.type		= REGULATOR_VOLTAGE,
+			.id		= AB8505_BUCK_SMPSM,
+			.owner		= THIS_MODULE,
+			.n_voltages	= 64,
+			.linear_ranges	= buck_low_voltages,
+			.n_linear_ranges = ARRAY_SIZE(buck_low_voltages),
+		},
+		.voltage_bank		= 0x04,
+		.voltage_reg		= 0x41,
+		.voltage_mask		= 0x3f,
+		.voltage_ctrl_bank	= 0x04,
+		.voltage_ctrl_reg	= 0x40,
+		.voltage_ctrl_mask	= 0x04,
+		.voltage_ext_ctrl_bank = 0x04,
+		.voltage_ext_ctrl_reg	= 0x47,
+		.voltage_ext_ctrl_mask = 0x03,
+		.voltage_ext_reg	= 0x45,
+		.voltage_ext_regs	= 2,
 	},
 };
 
@@ -1613,6 +2222,12 @@ static struct of_regulator_match ab8500_regulator_match[] = {
 	{ .name	= "ab8500_ldo_anamic2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
 	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8500_LDO_DMIC, },
 	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8500_LDO_ANA, },
+	{ .name = "ab8500_buck_smps1",  .driver_data = (void *)AB8500_BUCK_SMPS1, },
+	{ .name = "ab8500_buck_smps2",  .driver_data = (void *)AB8500_BUCK_SMPS2, },
+	{ .name = "ab8500_buck_smps3",  .driver_data = (void *)AB8500_BUCK_SMPS3, },
+	{ .name = "ab8500_buck_arm",    .driver_data = (void *)AB8500_BUCK_ARM, },
+	{ .name = "ab8500_buck_ape",    .driver_data = (void *)AB8500_BUCK_APE, },
+	{ .name = "ab8500_buck_mod",    .driver_data = (void *)AB8500_BUCK_MOD, },
 };
 
 static struct of_regulator_match ab8505_regulator_match[] = {
@@ -1629,6 +2244,12 @@ static struct of_regulator_match ab8505_regulator_match[] = {
 	{ .name	= "ab8500_ldo_anamic2", .driver_data = (void *) AB8505_LDO_ANAMIC2, },
 	{ .name	= "ab8500_ldo_aux8",    .driver_data = (void *) AB8505_LDO_AUX8, },
 	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8505_LDO_ANA, },
+	{ .name = "ab8505_buck_smpsa",  .driver_data = (void *)AB8505_BUCK_SMPSA, },
+	{ .name = "ab8505_buck_smpsb",  .driver_data = (void *)AB8505_BUCK_SMPSB, },
+	{ .name = "ab8505_buck_safe",   .driver_data = (void *)AB8505_BUCK_SAFE, },
+	{ .name = "ab8505_buck_arm",    .driver_data = (void *)AB8505_BUCK_ARM, },
+	{ .name = "ab8505_buck_smpsc",  .driver_data = (void *)AB8505_BUCK_SMPSC, },
+	{ .name = "ab8505_buck_smpsm",  .driver_data = (void *)AB8505_BUCK_SMPSM, },
 };
 
 static struct {
@@ -1677,9 +2298,14 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	config.driver_data = info;
 	config.of_node = np;
 
-	/* fix for hardware before ab8500v2.0 */
-	if (is_ab8500_1p1_or_earlier(ab8500)) {
-		if (info->desc.id == AB8500_LDO_AUX3) {
+	/* Handle the different VAUX3 implementations in early AB8500 cuts. */
+	if (info->desc.id == AB8500_LDO_AUX3) {
+		if (is_ab8500_1p0_or_earlier(ab8500)) {
+			info->desc.ops = &ab8500_regulator_mode_ops;
+			info->desc.n_voltages = 1;
+			info->desc.volt_table = fixed_1200000_voltage;
+			info->voltage_mask = 0;
+		} else if (is_ab8500_1p1_or_earlier(ab8500)) {
 			info->desc.n_voltages =
 				ARRAY_SIZE(ldo_vauxn_voltages);
 			info->desc.volt_table = ldo_vauxn_voltages;

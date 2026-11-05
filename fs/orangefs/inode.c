@@ -181,8 +181,27 @@ static int orangefs_writepages(struct address_space *mapping,
 {
 	struct orangefs_writepages *ow;
 	struct blk_plug plug;
-	int error;
+	int error = 0;
 	struct folio *folio = NULL;
+	int maxpages;
+
+	maxpages = orangefs_bufmap_size_query() / PAGE_SIZE;
+	if (maxpages < 1) {
+		/*
+		 * Probably the client is dead and there's no bufmap.
+		 * Walk writeback_iter anyway so each dirty folio is unlocked
+		 * and writeback is ended. wait_for_direct_io will fail; the
+		 * data is not written.
+		 */
+		gossip_err("%s: maxpages < 1. \n", __func__);
+		while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+			error = orangefs_writepage_locked(folio, wbc);
+			mapping_set_error(mapping, error);
+			folio_unlock(folio);
+			folio_end_writeback(folio);
+		}
+		return error;
+	}
 
 	ow = kzalloc_obj(struct orangefs_writepages);
 	if (!ow)
@@ -828,7 +847,7 @@ int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 /*
  * Change attributes of an object referenced by dentry.
  */
-int orangefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int orangefs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	int ret;
@@ -848,7 +867,7 @@ out:
 /*
  * Obtain attributes of an object given a dentry
  */
-int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int orangefs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
@@ -872,7 +891,7 @@ int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return ret;
 }
 
-int orangefs_permission(struct mnt_idmap *idmap,
+int orangefs_permission(const struct mnt_idmap *idmap,
 			struct inode *inode, int mask)
 {
 	int ret;
@@ -934,7 +953,7 @@ static int orangefs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-static int orangefs_fileattr_set(struct mnt_idmap *idmap,
+static int orangefs_fileattr_set(const struct mnt_idmap *idmap,
 				 struct dentry *dentry, struct file_kattr *fa)
 {
 	u64 val = 0;

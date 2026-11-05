@@ -20,6 +20,12 @@
 	};
 };
 
+&cfg_eeprom {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_cfgeeprom>;
+	wp-gpios = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+};
+
 &ifm_led {
 	pinctrl-1 = <&pinctrl_gpio_led_v2>;
 
@@ -88,6 +94,10 @@
 	eeprom@54 {
 		compatible = "atmel,24c128";
 		reg = <0x54>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_logeeprom>;
+		label = "ifm-logging";
+		wp-gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -103,6 +113,13 @@
 };
 
 &iomuxc {
+	pinctrl_cfgeeprom: cfgeeprom-grp {
+		fsl,pins = <
+			/* CFG_EEPROM_WP */
+			MX8MN_IOMUXC_SD1_STROBE_GPIO2_IO11		0x140
+		>;
+	};
+
 	pinctrl_ecspi1_cs: ecspi1-cs-grp {
 		fsl,pins = <
 			/* KS8794 nCS */
@@ -143,12 +160,8 @@
 		fsl,pins = <
 			MX8MN_IOMUXC_SD1_DATA4_GPIO2_IO6		0x56
 			MX8MN_IOMUXC_SD1_DATA5_GPIO2_IO7		0xd6
-			/* CFG_EEPROM_WP */
-			MX8MN_IOMUXC_SD1_STROBE_GPIO2_IO11		0x140
 			/* RTC_nIRQ */
 			MX8MN_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5		0x116
-			/* LOG_EE_WP */
-			MX8MN_IOMUXC_SPDIF_TX_GPIO5_IO3			0x140
 		>;
 	};
 
@@ -163,6 +176,13 @@
 		fsl,pins = <
 			MX8MN_IOMUXC_I2C3_SCL_GPIO5_IO18		0x56
 			MX8MN_IOMUXC_I2C3_SDA_GPIO5_IO19		0xd6
+		>;
+	};
+
+	pinctrl_logeeprom: logeeprom-grp {
+		fsl,pins = <
+			/* LOG_EE_WP */
+			MX8MN_IOMUXC_SPDIF_TX_GPIO5_IO3			0x140
 		>;
 	};
 

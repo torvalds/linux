@@ -587,7 +587,7 @@ static int tlmm_reg_base(struct device_node *tlmm, struct resource *res)
 		return count;
 	}
 
-	reg_names = kcalloc(count, sizeof(char *), GFP_KERNEL);
+	reg_names = kcalloc(count, sizeof(*reg_names), GFP_KERNEL);
 	if (!reg_names)
 		return -ENOMEM;
 

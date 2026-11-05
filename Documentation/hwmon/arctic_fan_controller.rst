@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0-or-later
+.. SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 
 Kernel driver arctic_fan_controller
 =====================================
@@ -29,18 +29,16 @@ Usage notes
 Since it is a USB device, hotplug is supported. The device is autodetected.
 
 The device does not support GET_REPORT, so the driver cannot read back the
-current hardware PWM state at probe time. The cached PWM values (readable
-via pwm[1-10]) start at 0 and reflect only values that have been
-successfully written. Because each OUT report carries all 10 channel values,
-writing a single channel also sends the cached values for all other channels.
-Users should set all channels to the desired values before relying on the
-cached state.
+current hardware PWM state at probe time. Each OUT report carries all 10
+channels, so pwm[1-10] is a host cache. It starts at the MCU factory
+default of 40% (sysfs 102). After a successful write, the cache reflects
+that value. Users should set all channels to the desired values before
+relying on the cached state.
 
-On system suspend, the device may lose power and reset its PWM channels to
-hardware defaults. The driver clears its cached duty values on resume so
-that reads reflect the unknown hardware state rather than stale pre-suspend
-values. Userspace is responsible for re-applying the desired duty cycles
-after resume.
+On system suspend, the device may lose power and reset PWM to the factory
+default. The driver restores the cache to 40% on resume. If the device
+kept power across suspend, userspace should re-apply the desired duty
+cycles.
 
 Sysfs entries
 -------------
@@ -51,6 +49,6 @@ pwm[1-10]        PWM duty cycle (0-255). Write: sends an OUT report setting the
                  duty cycle (scaled from 0-255 to 0-100% for the device);
                  the cached value is updated only after the device ACKs the
                  command with a success status. Read: returns the last
-                 successfully written value; initialized to 0 at driver load
-                 and after resume (hardware state unknown).
+                 successfully written value; initialized to 102 (40%) at
+                 driver load and after resume (MCU factory default).
 ================ ==============================================================

@@ -177,7 +177,7 @@ static void lio_cn66xx_setup_pkt_ctl_regs(struct octeon_device *oct)
 
 	/* 66XX SPECIFIC */
 	if (CFG_GET_OQ_MAX_Q(cn6xxx->conf) <= 4)
-		/* Disable RING_EN if only upto 4 rings are used. */
+		/* Disable RING_EN if only up to 4 rings are used. */
 		pktctl &= ~(1 << 4);
 	else
 		pktctl |= (1 << 4);

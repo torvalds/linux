@@ -32,144 +32,20 @@
 
 #define VBI_LINE_0 0
 
-/* setup stream encoder in hdmi mode */
-/* Precondition: link is trained */
-static void hpo_enc60_set_hdmi_stream_attribute(
-	struct hpo_frl_stream_encoder *enc,
-	struct dc_crtc_timing *crtc_timing,
-	struct frl_borrow_params *borrow_params,
-	int odm_combine_num_segments)
-{
-	(void)odm_combine_num_segments;
-	uint32_t h_active;
-	uint32_t h_blank;
-	struct dcn401_hpo_frl_stream_encoder *enc401 = DCN401_HPO_FRL_STRENC_FROM_HPO_FRL_STRENC(enc);
-
-	DC_LOG_DEBUG("Entering [%s]\n", __func__);
-
-	/* Configure pixel encoding */
-	switch (crtc_timing->pixel_encoding) {
-	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(HDMI_TB_ENC_PIXEL_FORMAT,
-				HDMI_PIXEL_ENCODING, 1);
-		REG_UPDATE_2(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0,
-				FIFO_PIXEL_ENCODING_TYPE, 0,
-				FIFO_UNCOMPRESSED_PIXEL_FORMAT, 0);
-		break;
-	case PIXEL_ENCODING_YCBCR420:
-		REG_UPDATE(HDMI_TB_ENC_PIXEL_FORMAT,
-				HDMI_PIXEL_ENCODING, 2);
-		REG_UPDATE_2(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0,
-				FIFO_PIXEL_ENCODING_TYPE, 0,
-				FIFO_UNCOMPRESSED_PIXEL_FORMAT, 1);
-		break;
-	default:
-		REG_UPDATE(HDMI_TB_ENC_PIXEL_FORMAT,
-				HDMI_PIXEL_ENCODING, 0);
-		REG_UPDATE_2(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0,
-				FIFO_PIXEL_ENCODING_TYPE, 0,
-				FIFO_UNCOMPRESSED_PIXEL_FORMAT, 0);
-		break;
-	}
-
-	/* Configure color depth */
-	switch (crtc_timing->display_color_depth) {
-	case COLOR_DEPTH_888:
-		REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-				HDMI_DEEP_COLOR_DEPTH, 0,
-				HDMI_DEEP_COLOR_ENABLE, 0);
-		break;
-	case COLOR_DEPTH_101010:
-		if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
-			REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-					HDMI_DEEP_COLOR_DEPTH, 1,
-					HDMI_DEEP_COLOR_ENABLE, 0);
-		} else {
-			REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-					HDMI_DEEP_COLOR_DEPTH, 1,
-					HDMI_DEEP_COLOR_ENABLE, 1);
-		}
-		break;
-	case COLOR_DEPTH_121212:
-		if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
-			REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-					HDMI_DEEP_COLOR_DEPTH, 2,
-					HDMI_DEEP_COLOR_ENABLE, 0);
-		} else {
-			REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-					HDMI_DEEP_COLOR_DEPTH, 2,
-					HDMI_DEEP_COLOR_ENABLE, 1);
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* When compression active, CD/PP/Phase field shall be zero in GCP */
-	if (crtc_timing->flags.DSC) {
-		REG_UPDATE_2(HDMI_TB_ENC_PIXEL_FORMAT,
-				HDMI_DEEP_COLOR_DEPTH, 0,
-				HDMI_DEEP_COLOR_ENABLE, 0);
-	}
-
-	/* Configure horizontal active and blank size */
-	h_active = crtc_timing->h_addressable + crtc_timing->h_border_left + crtc_timing->h_border_right;
-	h_blank = crtc_timing->h_total - h_active;
-
-	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 ||
-			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
-		h_active /= 2;
-		h_blank /= 2;
-	}
-
-	REG_SET_2(HDMI_TB_ENC_H_ACTIVE_BLANK, 0,
-			HDMI_H_ACTIVE, h_active,
-			HDMI_H_BLANK, h_blank);
-
-	/* Configure borrow parameters */
-	REG_UPDATE(HDMI_TB_ENC_MODE,
-			HDMI_BORROW_MODE, borrow_params->borrow_mode);
-	REG_UPDATE(HDMI_TB_ENC_PACKET_CONTROL,
-			HDMI_MAX_PACKETS_PER_LINE, borrow_params->audio_packets_line);
-	REG_SET_2(HDMI_TB_ENC_HC_ACTIVE_BLANK, 0,
-			HDMI_HC_ACTIVE, borrow_params->hc_active_target,
-			HDMI_HC_BLANK, borrow_params->hc_blank_target);
-
-	/* Enable transmission of General Control packet on every frame */
-	REG_UPDATE_2(HDMI_TB_ENC_VBI_PACKET_CONTROL1,
-		HDMI_GC_CONT, 1,
-		HDMI_GC_SEND, 1);
-
-	/* Disable Audio Content Protection packet transmission */
-	/* TODO: review if this needs to be here */
-	REG_UPDATE(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_ACP_SEND, 0);
-
-	/* Enable Audio InfoFrame packet transmission. */
-	REG_UPDATE(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_AUDIO_INFO_SEND, 1);
-
-	/* update double-buffered AUDIO_INFO registers immediately */
-//	ASSERT(enc->afmt);
-//	enc->afmt->funcs->audio_info_immediate_update(enc->afmt);
-
-	/* Select line number on which to send Audio InfoFrame packets */
-	REG_UPDATE(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_AUDIO_INFO_LINE,
-				VBI_LINE_0 + 2);
-
-	/* set HDMI GC AVMUTE */
-	REG_UPDATE(HDMI_TB_ENC_GC_CONTROL, HDMI_GC_AVMUTE, 0);
-
-	DC_LOG_DEBUG("Exiting [%s]\n", __func__);
-}
-
 static void hpo_enc60_audio_mute_control(
 	struct hpo_frl_stream_encoder *enc,
 	bool mute)
 {
+	struct dcn401_hpo_frl_stream_encoder *enc401 = DCN401_HPO_FRL_STRENC_FROM_HPO_FRL_STRENC(enc);
 	ASSERT (enc->apg);
-	if (mute)
+
+	if (mute) {
 		enc->apg->funcs->disable_apg(enc->apg);
-	else
+		REG_UPDATE(HDMI_STREAM_ENC_AUDIO_CONTROL, HDMI_STREAM_ENC_APG_CLOCK_EN, 0);
+	} else {
+		REG_UPDATE(HDMI_STREAM_ENC_AUDIO_CONTROL, HDMI_STREAM_ENC_APG_CLOCK_EN, 1);
 		enc->apg->funcs->enable_apg(enc->apg);
+	}
 }
 
 //Covered both, rounding up or rounding down from FRL Link Rate /18.
@@ -321,7 +197,7 @@ static const struct hpo_frl_stream_encoder_funcs dcn401_str_enc_funcs = {
 	.hdmi_frl_enable		= hpo_enc401_enable,
 	.hdmi_frl_unblank		= hpo_enc401_unblank,
 	.hdmi_frl_blank			= hpo_enc401_blank,
-	.hdmi_frl_set_stream_attribute	= hpo_enc60_set_hdmi_stream_attribute,
+	.hdmi_frl_set_stream_attribute	= hpo_enc401_set_hdmi_stream_attribute,
 	.validate_hdmi_frl_output	= hpo_enc3_validate_hdmi_frl_output,
 	.update_hdmi_info_packets	= hpo_enc401_update_hdmi_info_packets,
 	.stop_hdmi_info_packets		= hpo_enc401_stop_hdmi_info_packets,
@@ -355,4 +231,6 @@ void dcn60_hpo_frl_stream_encoder_construct(
 	enc401->hpo_se_shift = hpo_se_shift;
 	enc401->hpo_se_mask = hpo_se_mask;
 	enc401->base.stream_enc_inst = vpg->inst;
+	enc401->base.inst = enc401->base.stream_enc_inst;
+
 }

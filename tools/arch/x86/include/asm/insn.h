@@ -321,7 +321,7 @@ static inline int insn_offset_immediate(struct insn *insn)
  * are repeated, it cannot be used for looping over the prefixes.
  */
 #define for_each_insn_prefix(insn, prefix)	\
-	for (int idx = 0; idx < ARRAY_SIZE(insn->prefixes.bytes) && (prefix = insn->prefixes.bytes[idx]) != 0; idx++)
+	for (int __i = 0; __i < ARRAY_SIZE(insn->prefixes.bytes) && (prefix = insn->prefixes.bytes[__i]) != 0; __i++)
 
 #define POP_SS_OPCODE 0x1f
 #define MOV_SREG_OPCODE 0x8e

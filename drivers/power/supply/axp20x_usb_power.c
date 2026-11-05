@@ -918,73 +918,68 @@ static void axp20x_usb_power_parse_dt(struct device *dev,
 
 static int axp20x_usb_power_probe(struct platform_device *pdev)
 {
-	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+	struct axp20x_dev *axp20x = dev_get_drvdata(dev->parent);
 	struct power_supply_config psy_cfg = {};
 	struct axp20x_usb_power *power;
 	const struct axp_data *axp_data;
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
+	if (!axp20x)
+		return dev_err_probe(dev, -EINVAL, "Parent drvdata not set\n");
 
-	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
-		return -EINVAL;
-	}
+	axp_data = of_device_get_match_data(dev);
 
-	axp_data = of_device_get_match_data(&pdev->dev);
-
-	power = devm_kzalloc(&pdev->dev,
-			     struct_size(power, irqs, axp_data->num_irq_names),
+	power = devm_kzalloc(dev, struct_size(power, irqs, axp_data->num_irq_names),
 			     GFP_KERNEL);
 	if (!power)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, power);
 
-	power->dev = &pdev->dev;
+	power->dev = dev;
 	power->axp_data = axp_data;
 	power->regmap = axp20x->regmap;
 	power->num_irqs = axp_data->num_irq_names;
 
-	power->curr_lim_fld = devm_regmap_field_alloc(&pdev->dev, power->regmap,
+	power->curr_lim_fld = devm_regmap_field_alloc(dev, power->regmap,
 						      axp_data->curr_lim_fld);
 	if (IS_ERR(power->curr_lim_fld))
 		return PTR_ERR(power->curr_lim_fld);
 
-	axp20x_usb_power_parse_dt(&pdev->dev, power);
+	axp20x_usb_power_parse_dt(dev, power);
 
-	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+	ret = axp20x_regmap_field_alloc_optional(dev, power->regmap,
 						 axp_data->vbus_valid_bit,
 						 &power->vbus_valid_bit);
 	if (ret)
 		return ret;
 
-	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+	ret = axp20x_regmap_field_alloc_optional(dev, power->regmap,
 						 axp_data->vbus_mon_bit,
 						 &power->vbus_mon_bit);
 	if (ret)
 		return ret;
 
-	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+	ret = axp20x_regmap_field_alloc_optional(dev, power->regmap,
 						 axp_data->usb_bc_en_bit,
 						 &power->usb_bc_en_bit);
 	if (ret)
 		return ret;
 
-	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+	ret = axp20x_regmap_field_alloc_optional(dev, power->regmap,
 						 axp_data->usb_bc_det_fld,
 						 &power->usb_bc_det_fld);
 	if (ret)
 		return ret;
 
-	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+	ret = axp20x_regmap_field_alloc_optional(dev, power->regmap,
 						 axp_data->vbus_disable_bit,
 						 &power->vbus_disable_bit);
 	if (ret)
 		return ret;
 
-	ret = devm_delayed_work_autocancel(&pdev->dev, &power->vbus_detect,
+	ret = devm_delayed_work_autocancel(dev, &power->vbus_detect,
 					   axp_data->axp20x_read_vbus);
 	if (ret)
 		return ret;
@@ -1001,7 +996,9 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			ret = axp_data->axp20x_cfg_adc_reg(power);
 
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to initialize for %s usage\n",
+					     IS_ENABLED(CONFIG_AXP20X_ADC) ? "iio" : "adc");
 	}
 
 	if (power->usb_bc_en_bit) {
@@ -1011,26 +1008,29 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
+	psy_cfg.fwnode = dev_fwnode(dev);
 	psy_cfg.drv_data = power;
 
-	power->supply = devm_power_supply_register(&pdev->dev,
+	power->supply = devm_power_supply_register(dev,
 						   axp_data->power_desc,
 						   &psy_cfg);
 	if (IS_ERR(power->supply))
-		return PTR_ERR(power->supply);
+		return dev_err_probe(dev, PTR_ERR(power->supply),
+				     "Failed to register power supply\n");
 
 	/* Request irqs after registering, as irqs may trigger immediately */
 	for (i = 0; i < axp_data->num_irq_names; i++) {
 		irq = platform_get_irq_byname(pdev, axp_data->irq_names[i]);
 		if (irq < 0)
+			/* platform_get_irq_byname() already produced an error message */
 			return irq;
 
 		power->irqs[i] = regmap_irq_get_virq(axp20x->regmap_irqc, irq);
-		ret = devm_request_any_context_irq(&pdev->dev, power->irqs[i],
+		ret = devm_request_any_context_irq(dev, power->irqs[i],
 						   axp20x_usb_power_irq, 0,
 						   DRVNAME, power);
 		if (ret < 0)
+			/* devm_request_any_context_irq() already produced an error message */
 			return ret;
 	}
 

@@ -16,6 +16,47 @@
 #include "tegra264-bwmgr.h"
 
 /*
+ * Description of a single MCF error type: where to read the status and the
+ * faulting address, how to extract the high address bits, which bits encode
+ * the access direction and security state and the optional error-type sub-code.
+ */
+struct tegra264_mc_fault {
+	const char *const *type_names;
+	u32 addr_hi_mask;
+	u32 addr_hi_reg;
+	u32 addr_hi_shift;
+	u32 addr_reg;
+	u32 rw_bit;
+	u32 sec_bit;
+	u32 status1_reg;
+	u32 status_reg;
+	u32 type_mask;
+	u32 type_shift;
+};
+
+/*
+ * Maps an MCF interrupt to a callback that fills in the register offsets and
+ * decoding parameters for that error type. The register offsets live in the
+ * per-SoC tegra_mc_regs, so they are collected at runtime rather than being
+ * stored in a static table.
+ */
+struct tegra264_mc_error_handler {
+	u32 mask;
+	void (*get_offsets)(struct tegra_mc *mc, struct tegra264_mc_fault *fault);
+};
+
+/*
+ * Description of a single HUB error type. addr_reg is zero for error types
+ * that don't latch a fault address.
+ */
+struct tegra264_hub_error_handler {
+	u32 addr_hi_reg;
+	u32 addr_reg;
+	u32 mask;
+	u32 status_reg;
+};
+
+/*
  * MC Client entries are sorted in the increasing order of the
  * override and security register offsets.
  */
@@ -717,11 +758,18 @@ static const char *const tegra264_rt_error_names[16] = {
 };
 
 /*
- * MC instance aperture mapping for hubc registers
+ * On Tegra264 the memory controller error interrupts are distributed across
+ * several HUB/HUBC apertures. Each aperture is accessed like a broadcast
+ * channel through mc_ch_readl()/mc_ch_writel() using its fixed index.
  */
-static const int mc_hubc_aperture_number[5] = {
-	7, 8, 9, 10, 11
-};
+#define TEGRA264_MC_APERTURE_DISP	7
+#define TEGRA264_MC_APERTURE_SYSTEM	8
+#define TEGRA264_MC_APERTURE_VISION	9
+#define TEGRA264_MC_APERTURE_UPHY	10
+#define TEGRA264_MC_APERTURE_TOP	11
+
+/* Tegra264 splits the MCF common interrupt status across five slices. */
+#define TEGRA264_MC_NUM_SLICES 5
 
 /*
  * tegra264_mc_icc_set() - Pass MC client info to the BPMP-FW
@@ -807,115 +855,149 @@ static int tegra264_mc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *pea
 	return 0;
 }
 
+static void tegra264_mc_fault_emem(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_status;
+	fault->addr_reg = mc->soc->regs->err_add;
+	fault->addr_hi_reg = mc->soc->regs->err_add_hi;
+	fault->type_mask = mc->soc->mc_err_status_type_mask;
+	fault->type_shift = MC_ERR_STATUS_TYPE_SHIFT;
+	fault->type_names = tegra264_mc_error_names;
+}
+
+static void tegra264_mc_fault_vpr(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_vpr_status;
+	fault->addr_reg = mc->soc->regs->err_vpr_add;
+	fault->addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
+	fault->addr_hi_mask = mc->soc->mc_addr_hi_mask;
+}
+
+static void tegra264_mc_fault_sec(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_sec_status;
+	fault->addr_reg = mc->soc->regs->err_sec_add;
+	fault->addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
+	fault->addr_hi_mask = mc->soc->mc_addr_hi_mask;
+}
+
+static void tegra264_mc_fault_mts(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_mts_status;
+	fault->addr_reg = mc->soc->regs->err_mts_add;
+	fault->addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
+	fault->addr_hi_mask = mc->soc->mc_addr_hi_mask;
+}
+
+static void tegra264_mc_fault_gsc(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_gen_co_status;
+	fault->status1_reg = MC_ERR_GENERALIZED_CARVEOUT_STATUS_1_0;
+	fault->addr_reg = mc->soc->regs->err_gen_co_add;
+	fault->addr_hi_shift = MC_ERR_STATUS_GSC_ADR_HI_SHIFT;
+	fault->addr_hi_mask = MC_ERR_STATUS_GSC_ADR_HI_MASK;
+}
+
+static void tegra264_mc_fault_route(struct tegra_mc *mc, struct tegra264_mc_fault *fault)
+{
+	fault->status_reg = mc->soc->regs->err_route_status;
+	fault->addr_reg = mc->soc->regs->err_route_add;
+	fault->addr_hi_shift = MC_ERR_STATUS_RT_ADR_HI_SHIFT;
+	fault->addr_hi_mask = mc->soc->mc_addr_hi_mask;
+	fault->rw_bit = MC_ERR_ROUTE_SANITY_RW;
+	fault->sec_bit = MC_ERR_ROUTE_SANITY_SEC;
+	fault->type_mask = MC_ERR_STATUS_RT_TYPE_MASK;
+	fault->type_shift = MC_ERR_STATUS_RT_TYPE_SHIFT;
+	fault->type_names = tegra264_rt_error_names;
+}
+
+static const struct tegra264_mc_error_handler tegra264_mc_error_handlers[] = {
+	{ MC_INT_DECERR_EMEM,			tegra264_mc_fault_emem },
+	{ MC_INT_SECURITY_VIOLATION,		tegra264_mc_fault_emem },
+	{ MC_INT_DECERR_VPR,			tegra264_mc_fault_vpr },
+	{ MC_INT_SECERR_SEC,			tegra264_mc_fault_sec },
+	{ MC_INT_DECERR_MTS,			tegra264_mc_fault_mts },
+	{ MC_INT_DECERR_GENERALIZED_CARVEOUT,	tegra264_mc_fault_gsc },
+	{ MC_INT_DECERR_ROUTE_SANITY,		tegra264_mc_fault_route },
+	{ MC_INT_DECERR_ROUTE_SANITY_GIC_MSI,	tegra264_mc_fault_route },
+};
+
+static void tegra264_mc_report_fault(struct tegra_mc *mc, u32 channel,
+				     unsigned int interrupt,
+				     const struct tegra264_mc_fault *fault)
+{
+	const char *client = "unknown", *desc = "NA";
+	u32 value, client_id, status1 = 0;
+	phys_addr_t addr = 0;
+	unsigned int i;
+	u8 type;
+
+	value = mc_ch_readl(mc, channel, fault->status_reg);
+
+	if (fault->addr_hi_reg) {
+		addr = mc_ch_readl(mc, channel, fault->addr_hi_reg);
+	} else if (fault->status1_reg) {
+		status1 = mc_ch_readl(mc, channel, fault->status1_reg);
+		addr = (status1 >> fault->addr_hi_shift) & fault->addr_hi_mask;
+	} else {
+		addr = (value >> fault->addr_hi_shift) & fault->addr_hi_mask;
+	}
+
+	addr <<= 32;
+	addr |= mc_ch_readl(mc, channel, fault->addr_reg);
+
+	client_id = value & mc->soc->client_id_mask;
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		if (mc->soc->clients[i].id == client_id) {
+			client = mc->soc->clients[i].name;
+			break;
+		}
+	}
+
+	if (fault->type_names) {
+		type = (value & fault->type_mask) >> fault->type_shift;
+		desc = fault->type_names[type];
+	}
+
+	dev_err_ratelimited(mc->dev, "%s: %s %s @%pa: %s (%s)\n",
+			    client, value & fault->sec_bit ? "secure" : "non-secure",
+			    value & fault->rw_bit ? "write" : "read", &addr,
+			    tegra_mc_status_names[interrupt] ?: "unknown", desc);
+
+	if (fault->status1_reg)
+		dev_err_ratelimited(mc->dev, "gsc_apr_id=%u gsc_co_apr_id=%u\n",
+				    (status1 >> ERR_GENERALIZED_APERTURE_ID_SHIFT) &
+				    ERR_GENERALIZED_APERTURE_ID_MASK,
+				    (status1 >> ERR_GENERALIZED_CARVEOUT_APERTURE_ID_SHIFT) &
+				    ERR_GENERALIZED_CARVEOUT_APERTURE_ID_MASK);
+}
+
 static void mcf_log_fault(struct tegra_mc *mc, u32 channel, unsigned long mcf_ch_intstatus)
 {
-	unsigned int bit;
+	unsigned int interrupt;
 
-	for_each_set_bit(bit, &mcf_ch_intstatus, 32) {
-		const char *client = "unknown", *desc = "NA";
-		u32 status_reg, status1_reg = 0, addr_reg, addr_hi_reg = 0, err_type_mask = 0;
-		u32 value, client_id, i, addr_hi_shift = 0, addr_hi_mask = 0, status1;
-		u32 mc_rw_bit = MC_ERR_STATUS_RW, mc_sec_bit = MC_ERR_STATUS_SECURITY;
-		phys_addr_t addr = 0;
-		u8 type;
+	for_each_set_bit(interrupt, &mcf_ch_intstatus, 32) {
+		const struct tegra264_mc_error_handler *handler = NULL;
+		struct tegra264_mc_fault fault = {
+			.rw_bit = MC_ERR_STATUS_RW,
+			.sec_bit = MC_ERR_STATUS_SECURITY,
+		};
+		unsigned int i;
 
-		switch (BIT(bit)) {
-		case MC_INT_DECERR_EMEM:
-		case MC_INT_SECURITY_VIOLATION:
-			status_reg = mc->soc->regs->err_status;
-			addr_reg = mc->soc->regs->err_add;
-			addr_hi_reg = mc->soc->regs->err_add_hi;
-			err_type_mask = mc->soc->mc_err_status_type_mask;
-			break;
-
-		case MC_INT_DECERR_VPR:
-			status_reg = mc->soc->regs->err_vpr_status;
-			addr_reg = mc->soc->regs->err_vpr_add;
-			addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
-			addr_hi_mask = mc->soc->mc_addr_hi_mask;
-			break;
-
-		case MC_INT_SECERR_SEC:
-			status_reg = mc->soc->regs->err_sec_status;
-			addr_reg = mc->soc->regs->err_sec_add;
-			addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
-			addr_hi_mask = mc->soc->mc_addr_hi_mask;
-			break;
-
-		case MC_INT_DECERR_MTS:
-			status_reg = mc->soc->regs->err_mts_status;
-			addr_reg = mc->soc->regs->err_mts_add;
-			addr_hi_shift = MC_ERR_STATUS_ADR_HI_SHIFT;
-			addr_hi_mask = mc->soc->mc_addr_hi_mask;
-			break;
-
-		case MC_INT_DECERR_GENERALIZED_CARVEOUT:
-			status_reg = mc->soc->regs->err_gen_co_status;
-			status1_reg = MC_ERR_GENERALIZED_CARVEOUT_STATUS_1_0;
-			addr_reg = mc->soc->regs->err_gen_co_add;
-			addr_hi_shift = MC_ERR_STATUS_GSC_ADR_HI_SHIFT;
-			addr_hi_mask = MC_ERR_STATUS_GSC_ADR_HI_MASK;
-			break;
-
-		case MC_INT_DECERR_ROUTE_SANITY:
-		case MC_INT_DECERR_ROUTE_SANITY_GIC_MSI:
-			status_reg = mc->soc->regs->err_route_status;
-			addr_reg = mc->soc->regs->err_route_add;
-			addr_hi_shift = MC_ERR_STATUS_RT_ADR_HI_SHIFT;
-			addr_hi_mask = mc->soc->mc_addr_hi_mask;
-			mc_sec_bit = MC_ERR_ROUTE_SANITY_SEC;
-			mc_rw_bit = MC_ERR_ROUTE_SANITY_RW;
-			err_type_mask = MC_ERR_STATUS_RT_TYPE_MASK;
-			break;
-
-		default:
-			dev_err_ratelimited(mc->dev, "Incorrect MC interrupt mask\n");
-			return;
-		}
-
-		value = mc_ch_readl(mc, channel, status_reg);
-		if (addr_hi_reg) {
-			addr = mc_ch_readl(mc, channel, addr_hi_reg);
-		} else {
-			if (!status1_reg) {
-				addr = ((value >> addr_hi_shift) & addr_hi_mask);
-			} else {
-				status1 = mc_ch_readl(mc, channel, status1_reg);
-				addr = ((status1 >> addr_hi_shift) & addr_hi_mask);
-			}
-		}
-
-		addr <<= 32;
-		addr |= mc_ch_readl(mc, channel, addr_reg);
-
-		client_id = value & mc->soc->client_id_mask;
-		for (i = 0; i < mc->soc->num_clients; i++) {
-			if (mc->soc->clients[i].id == client_id) {
-				client = mc->soc->clients[i].name;
+		for (i = 0; i < ARRAY_SIZE(tegra264_mc_error_handlers); i++) {
+			if (tegra264_mc_error_handlers[i].mask == BIT(interrupt)) {
+				handler = &tegra264_mc_error_handlers[i];
 				break;
 			}
 		}
 
-		if (err_type_mask == MC_ERR_STATUS_RT_TYPE_MASK) {
-			type = (value & err_type_mask) >>
-				MC_ERR_STATUS_RT_TYPE_SHIFT;
-			desc = tegra264_rt_error_names[type];
-		} else if (err_type_mask) {
-			type = (value & err_type_mask) >>
-					MC_ERR_STATUS_TYPE_SHIFT;
-			desc = tegra264_mc_error_names[type];
+		if (!handler) {
+			dev_err_ratelimited(mc->dev, "Incorrect MC interrupt mask\n");
+			return;
 		}
 
-		dev_err_ratelimited(mc->dev, "%s: %s %s @%pa: %s (%s)\n",
-				    client, value & mc_sec_bit ? "secure" : "non-secure",
-				    value & mc_rw_bit ? "write" : "read", &addr,
-				    tegra_mc_status_names[bit] ?: "unknown", desc);
-		if (status1_reg)
-			dev_err_ratelimited(mc->dev, "gsc_apr_id=%u gsc_co_apr_id=%u\n",
-					    ((status1 >> ERR_GENERALIZED_APERTURE_ID_SHIFT)
-					    & ERR_GENERALIZED_APERTURE_ID_MASK),
-					    ((status1 >> ERR_GENERALIZED_CARVEOUT_APERTURE_ID_SHIFT)
-					    & ERR_GENERALIZED_CARVEOUT_APERTURE_ID_MASK));
+		handler->get_offsets(mc, &fault);
+		tegra264_mc_report_fault(mc, channel, interrupt, &fault);
 	}
 
 	/* clear interrupts */
@@ -937,7 +1019,7 @@ static irqreturn_t handle_mcf_irq(int irq, void *data)
 
 	for_each_set_bit(slice, &common_intstat, 32) {
 		/* Find out the slice number on which interrupt occurred */
-		if (slice > 4) {
+		if (slice >= TEGRA264_MC_NUM_SLICES) {
 			dev_err(mc->dev, "Slice index out of bounds: %u\n", slice);
 			return IRQ_NONE;
 		}
@@ -950,53 +1032,69 @@ static irqreturn_t handle_mcf_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct tegra264_hub_error_handler tegra264_hub_error_handlers[] = {
+	{
+		.mask = MSS_HUB_COALESCER_ERR_INTMASK,
+		.status_reg = MSS_HUB_COALESCE_ERR_STATUS_0,
+		.addr_reg = MSS_HUB_COALESCE_ERR_ADR_0,
+		.addr_hi_reg = MSS_HUB_COALESCE_ERR_ADR_HI_0,
+	},
+	{
+		.mask = MSS_HUB_SMMU_BYPASS_ALLOW_ERR_INTMASK,
+		.status_reg = MSS_HUB_SMMU_BYPASS_ALLOW_ERR_STATUS_0,
+	},
+	{
+		.mask = MSS_HUB_ILLEGAL_TBUGRP_ID_INTMASK,
+		.status_reg = MSS_HUB_ILLEGAL_TBUGRP_ID_ERR_STATUS_0,
+	},
+	{
+		.mask = MSS_HUB_MSI_ERR_INTMASK,
+		.status_reg = MSS_HUB_MSI_ERR_STATUS_0,
+	},
+	{
+		.mask = MSS_HUB_POISON_RSP_INTMASK,
+		.status_reg = MSS_HUB_POISON_RSP_STATUS_0,
+	},
+	{
+		.mask = MSS_HUB_RESTRICTED_ACCESS_ERR_INTMASK,
+		.status_reg = MSS_HUB_RESTRICTED_ACCESS_ERR_STATUS_0,
+	},
+	{
+		.mask = MSS_HUB_RESERVED_PA_ERR_INTMASK,
+		.status_reg = MSS_HUB_RESERVED_PA_ERR_STATUS_0,
+	},
+};
+
 static void hub_log_fault(struct tegra_mc *mc, u32 hub, unsigned long hub_intstat)
 {
-	unsigned int bit;
+	unsigned int interrupt;
 
-	for_each_set_bit(bit, &hub_intstat, 32) {
+	for_each_set_bit(interrupt, &hub_intstat, 32) {
+		const struct tegra264_hub_error_handler *handler = NULL;
 		const char *client = "unknown";
-		u32 client_id, status_reg, value, i;
+		u32 client_id, value;
 		phys_addr_t addr = 0;
+		unsigned int i;
 
-		switch (BIT(bit)) {
-		case MSS_HUB_COALESCER_ERR_INTMASK:
-			status_reg = MSS_HUB_COALESCE_ERR_STATUS_0;
-			addr = mc_ch_readl(mc, hub, MSS_HUB_COALESCE_ERR_ADR_HI_0);
-			addr <<= 32;
-			addr |= mc_ch_readl(mc, hub, MSS_HUB_COALESCE_ERR_ADR_0);
-			break;
+		for (i = 0; i < ARRAY_SIZE(tegra264_hub_error_handlers); i++) {
+			if (tegra264_hub_error_handlers[i].mask == BIT(interrupt)) {
+				handler = &tegra264_hub_error_handlers[i];
+				break;
+			}
+		}
 
-		case MSS_HUB_SMMU_BYPASS_ALLOW_ERR_INTMASK:
-			status_reg = MSS_HUB_SMMU_BYPASS_ALLOW_ERR_STATUS_0;
-			break;
-
-		case MSS_HUB_ILLEGAL_TBUGRP_ID_INTMASK:
-			status_reg = MSS_HUB_ILLEGAL_TBUGRP_ID_ERR_STATUS_0;
-			break;
-
-		case MSS_HUB_MSI_ERR_INTMASK:
-			status_reg = MSS_HUB_MSI_ERR_STATUS_0;
-			break;
-
-		case MSS_HUB_POISON_RSP_INTMASK:
-			status_reg = MSS_HUB_POISON_RSP_STATUS_0;
-			break;
-
-		case MSS_HUB_RESTRICTED_ACCESS_ERR_INTMASK:
-			status_reg = MSS_HUB_RESTRICTED_ACCESS_ERR_STATUS_0;
-			break;
-
-		case MSS_HUB_RESERVED_PA_ERR_INTMASK:
-			status_reg = MSS_HUB_RESERVED_PA_ERR_STATUS_0;
-			break;
-
-		default:
+		if (!handler) {
 			dev_err_ratelimited(mc->dev, "Incorrect HUB interrupt mask\n");
 			return;
 		}
 
-		value = mc_ch_readl(mc, hub, status_reg);
+		if (handler->addr_reg) {
+			addr = mc_ch_readl(mc, hub, handler->addr_hi_reg);
+			addr <<= 32;
+			addr |= mc_ch_readl(mc, hub, handler->addr_reg);
+		}
+
+		value = mc_ch_readl(mc, hub, handler->status_reg);
 
 		client_id = value & mc->soc->client_id_mask;
 		for (i = 0; i < mc->soc->num_clients; i++) {
@@ -1007,8 +1105,8 @@ static void hub_log_fault(struct tegra_mc *mc, u32 hub, unsigned long hub_intsta
 		}
 
 		dev_err_ratelimited(mc->dev, "%s: @%pa: %s status: 0x%x\n",
-				    client, &addr, tegra264_hub_error_names[bit] ?: "unknown",
-				    value);
+				    client, &addr,
+				    tegra264_hub_error_names[interrupt] ?: "unknown", value);
 	}
 
 	/* clear interrupts */
@@ -1057,27 +1155,27 @@ static irqreturn_t handle_hub_irq(int irq, void *data, int mc_hubc_aperture_numb
 
 static irqreturn_t handle_disp_hub_irq(int irq, void *data)
 {
-	return handle_hub_irq(irq, data, mc_hubc_aperture_number[0]);
+	return handle_hub_irq(irq, data, TEGRA264_MC_APERTURE_DISP);
 }
 
 static irqreturn_t handle_system_hub_irq(int irq, void *data)
 {
-	return handle_hub_irq(irq, data, mc_hubc_aperture_number[1]);
+	return handle_hub_irq(irq, data, TEGRA264_MC_APERTURE_SYSTEM);
 }
 
 static irqreturn_t handle_vision_hub_irq(int irq, void *data)
 {
-	return handle_hub_irq(irq, data, mc_hubc_aperture_number[2]);
+	return handle_hub_irq(irq, data, TEGRA264_MC_APERTURE_VISION);
 }
 
 static irqreturn_t handle_uphy_hub_irq(int irq, void *data)
 {
-	return handle_hub_irq(irq, data, mc_hubc_aperture_number[3]);
+	return handle_hub_irq(irq, data, TEGRA264_MC_APERTURE_UPHY);
 }
 
 static irqreturn_t handle_top_hub_irq(int irq, void *data)
 {
-	return handle_hub_irq(irq, data, mc_hubc_aperture_number[4]);
+	return handle_hub_irq(irq, data, TEGRA264_MC_APERTURE_TOP);
 }
 
 static irqreturn_t handle_generic_irq(struct tegra_mc *mc, unsigned long intstat_reg)

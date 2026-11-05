@@ -320,7 +320,7 @@ struct dcn401_dsc {
 	const struct dcn401_dsc_shift *dsc_shift;
 	const struct dcn401_dsc_mask *dsc_mask;
 
-	struct dsc_reg_values reg_vals;
+	struct dsc20_reg_values reg_vals;
 
 	int max_image_width;
 };
@@ -336,8 +336,9 @@ void dsc401_set_fgcg(struct dcn401_dsc *dsc401, bool enable);
 
 void dsc401_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
 bool dsc401_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc401_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg);
+void dsc401_set_config(struct display_stream_compressor *dsc);
 void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe);
 void dsc401_disable(struct display_stream_compressor *dsc);
 void dsc401_disconnect(struct display_stream_compressor *dsc);

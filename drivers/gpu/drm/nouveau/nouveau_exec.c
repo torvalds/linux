@@ -23,7 +23,7 @@
  * should be managed by the kernel and which by the UMD.
  *
  * The DRM_NOUVEAU_VM_BIND ioctl provides clients an interface to manage the
- * userspace-managable portion of the VA space. It provides operations to map
+ * userspace-manageable portion of the VA space. It provides operations to map
  * and unmap memory. Mappings may be flagged as sparse. Sparse mappings are not
  * backed by a GEM object and the kernel will ignore GEM handles provided
  * alongside a sparse mapping.

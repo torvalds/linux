@@ -613,7 +613,7 @@ static struct clk_rcg2 disp_cc_mdss_mdp_clk_src = {
 		.parent_data = disp_cc_parent_data_5,
 		.num_parents = ARRAY_SIZE(disp_cc_parent_data_5),
 		.flags = CLK_SET_RATE_PARENT,
-		.ops = &clk_rcg2_shared_ops,
+		.ops = &clk_rcg2_shared_no_init_park_ops,
 	},
 };
 
@@ -1778,6 +1778,29 @@ static const struct regmap_config disp_cc_sm8450_regmap_config = {
 	.fast_io = true,
 };
 
+static struct clk_alpha_pll *disp_cc_sm8450_plls[] = {
+	&disp_cc_pll0,
+	&disp_cc_pll1,
+};
+
+static const u32 disp_cc_sm8450_critical_cbcrs[] = {
+	0xe05c, /* DISP_CC_XO_CLK */
+};
+
+static void disp_cc_sm8450_clk_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	/* Enable clock gating for MDP clocks */
+	regmap_set_bits(regmap, DISP_CC_MISC_CMD, BIT(4));
+}
+
+static const struct qcom_cc_driver_data disp_cc_sm8450_driver_data = {
+	.alpha_plls = disp_cc_sm8450_plls,
+	.num_alpha_plls = ARRAY_SIZE(disp_cc_sm8450_plls),
+	.clk_cbcrs = disp_cc_sm8450_critical_cbcrs,
+	.num_clk_cbcrs = ARRAY_SIZE(disp_cc_sm8450_critical_cbcrs),
+	.clk_regs_configure = disp_cc_sm8450_clk_regs_configure,
+};
+
 static const struct qcom_cc_desc disp_cc_sm8450_desc = {
 	.config = &disp_cc_sm8450_regmap_config,
 	.clks = disp_cc_sm8450_clocks,
@@ -1786,6 +1809,7 @@ static const struct qcom_cc_desc disp_cc_sm8450_desc = {
 	.num_resets = ARRAY_SIZE(disp_cc_sm8450_resets),
 	.gdscs = disp_cc_sm8450_gdscs,
 	.num_gdscs = ARRAY_SIZE(disp_cc_sm8450_gdscs),
+	.driver_data = &disp_cc_sm8450_driver_data,
 };
 
 static const struct of_device_id disp_cc_sm8450_match_table[] = {
@@ -1823,18 +1847,12 @@ static int disp_cc_sm8450_probe(struct platform_device *pdev)
 		disp_cc_pll1.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE];
 		disp_cc_pll1.clkr.hw.init = &sm8475_disp_cc_pll1_init;
 
-		clk_lucid_ole_pll_configure(&disp_cc_pll0, regmap, &sm8475_disp_cc_pll0_config);
-		clk_lucid_ole_pll_configure(&disp_cc_pll1, regmap, &sm8475_disp_cc_pll1_config);
+		disp_cc_pll0.config = &sm8475_disp_cc_pll0_config;
+		disp_cc_pll1.config = &sm8475_disp_cc_pll1_config;
 	} else {
-		clk_lucid_evo_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
-		clk_lucid_evo_pll_configure(&disp_cc_pll1, regmap, &disp_cc_pll1_config);
+		disp_cc_pll0.config = &disp_cc_pll0_config;
+		disp_cc_pll1.config = &disp_cc_pll1_config;
 	}
-
-	/* Enable clock gating for MDP clocks */
-	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
-
-	/* Keep some clocks always-on */
-	qcom_branch_set_clk_en(regmap, 0xe05c); /* DISP_CC_XO_CLK */
 
 	ret = qcom_cc_really_probe(&pdev->dev, &disp_cc_sm8450_desc, regmap);
 	if (ret)

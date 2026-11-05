@@ -51,6 +51,13 @@ struct vsec_priv {
 	unsigned long found_caps;
 };
 
+static void intel_vsec_reset_state(struct vsec_priv *priv)
+{
+	memset(priv->suppliers, 0, sizeof(priv->suppliers));
+	memset(priv->state, 0, sizeof(priv->state));
+	priv->found_caps = 0;
+}
+
 static const char *intel_vsec_name(enum intel_vsec_id id)
 {
 	switch (id) {
@@ -641,7 +648,7 @@ static bool intel_vsec_get_features(struct pci_dev *pdev,
 		found = true;
 
 	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
-	    intel_vsec_walk_header(&pdev->dev, info))
+	    !intel_vsec_walk_header(&pdev->dev, info))
 		found = true;
 
 	return found;
@@ -669,8 +676,8 @@ static int intel_vsec_pci_init(struct pci_dev *pdev)
 {
 	struct vsec_priv *priv = pci_get_drvdata(pdev);
 	const struct intel_vsec_platform_info *info = priv->info;
-	int run_once = 0;
 	bool found_any = false;
+	bool run_once = false;
 	int num_caps;
 
 	num_caps = hweight_long(info->caps);
@@ -682,7 +689,7 @@ static int intel_vsec_pci_init(struct pci_dev *pdev)
 
 		if (!run_once) {
 			intel_vsec_skip_missing_dependencies(pdev);
-			run_once = 1;
+			run_once = true;
 		}
 	}
 
@@ -717,15 +724,14 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 	return intel_vsec_pci_init(pdev);
 }
 
-int intel_vsec_set_mapping(struct oobmsm_plat_info *plat_info,
-			   struct intel_vsec_device *vsec_dev)
+int intel_vsec_set_mapping(struct oobmsm_plat_info *plat_info, struct device *dev)
 {
 	struct vsec_priv *priv;
 
-	if (!dev_is_pci(vsec_dev->dev))
+	if (!dev_is_pci(dev))
 		return -ENODEV;
 
-	priv = pci_get_drvdata(to_pci_dev(vsec_dev->dev));
+	priv = pci_get_drvdata(to_pci_dev(dev));
 	if (!priv)
 		return -EINVAL;
 
@@ -857,6 +863,7 @@ static pci_ers_result_t intel_vsec_pci_slot_reset(struct pci_dev *pdev)
 {
 	struct intel_vsec_device *intel_vsec_dev;
 	pci_ers_result_t status = PCI_ERS_RESULT_DISCONNECT;
+	struct vsec_priv *priv = pci_get_drvdata(pdev);
 	unsigned long index;
 
 	dev_info(&pdev->dev, "Resetting PCI slot\n");
@@ -877,6 +884,13 @@ static pci_ers_result_t intel_vsec_pci_slot_reset(struct pci_dev *pdev)
 		devm_release_action(&pdev->dev, intel_vsec_remove_aux,
 				    &intel_vsec_dev->auxdev);
 	}
+
+	/*
+	 * intel_vsec_pci_init() reuses priv. Reset the registration state
+	 * after tearing down old aux devices or the rewalk will skip them as
+	 * already registered.
+	 */
+	intel_vsec_reset_state(priv);
 	pci_restore_state(pdev);
 	intel_vsec_pci_init(pdev);
 

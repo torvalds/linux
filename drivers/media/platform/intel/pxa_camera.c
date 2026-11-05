@@ -1819,7 +1819,7 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 			      pixfmt == V4L2_PIX_FMT_YUV422P ? 4 : 0);
 
 	v4l2_fill_mbus_format(mf, pix, xlate->code);
-	ret = sensor_call(pcdev, pad, set_fmt, &pad_state, &format);
+	ret = sensor_call(pcdev, pad, set_fmt, NULL, &pad_state, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1882,7 +1882,7 @@ static int pxac_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	xlate = pxa_mbus_xlate_by_fourcc(pcdev->user_formats,
 					 pix->pixelformat);
 	v4l2_fill_mbus_format(&format.format, pix, xlate->code);
-	ret = sensor_call(pcdev, pad, set_fmt, NULL, &format);
+	ret = sensor_call(pcdev, pad, set_fmt, NULL, NULL, &format);
 	if (ret < 0) {
 		dev_warn(pcdev_to_dev(pcdev),
 			 "Failed to configure for format %x\n",
@@ -2091,7 +2091,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	if (err)
 		goto out;
 
-	err = sensor_call(pcdev, pad, set_fmt, NULL, &format);
+	err = sensor_call(pcdev, pad, set_fmt, NULL, NULL, &format);
 	if (err)
 		goto out_sensor_poweroff;
 

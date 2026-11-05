@@ -574,9 +574,8 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 		else
 			*dchub_ref_freq_inKhz = dccg_ref_freq_inKhz;
 
-		// DC hub reference frequency must be around 50Mhz, otherwise there may be
-		// overflow/underflow issues when doing HUBBUB programming
-		if (*dchub_ref_freq_inKhz < 40000 || *dchub_ref_freq_inKhz > 60000)
+		// DC Hub reference frequency valid range is 20 to 50 MHz
+		if (*dchub_ref_freq_inKhz < 20000 || *dchub_ref_freq_inKhz > 50000)
 			ASSERT_CRITICAL(false);
 
 		return;
@@ -680,6 +679,8 @@ void hubbub2_construct(struct dcn20_hubbub *hubbub,
 	const struct dcn_hubbub_mask *hubbub_mask)
 {
 	hubbub->base.ctx = ctx;
+
+	hubbub->base.inst = 0;
 
 	hubbub->base.funcs = &hubbub2_funcs;
 

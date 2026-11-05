@@ -421,6 +421,7 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 	struct pinctrl_pin_desc pindesc;
 	unsigned int func;
 	int is_out;
+	int value;
 	int drive;
 	int pull;
 	u32 ctl_reg;
@@ -443,7 +444,10 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 	drive = FIELD_GET(LPI_GPIO_OUT_STRENGTH_MASK, ctl_reg);
 	pull = FIELD_GET(LPI_GPIO_PULL_MASK, ctl_reg);
 
-	seq_printf(s, " %-8s: %-3s %d", pindesc.name, is_out ? "out" : "in", func);
+	value = lpi_gpio_get(chip, offset);
+
+	seq_printf(s, " %-8s: %-3s", pindesc.name, is_out ? "out" : "in");
+	seq_printf(s, " %-4s func%d", str_high_low(value), func);
 	seq_printf(s, " %dmA", lpi_regval_to_drive(drive));
 	seq_printf(s, " %s", pulls[pull]);
 }

@@ -27,7 +27,6 @@
 #include <linux/workqueue.h>
 
 #include <media/ipu-bridge.h>
-#include <media/ipu6-pci-table.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
@@ -338,6 +337,7 @@ static int mei_csi_init_state(struct v4l2_subdev *sd,
 }
 
 static int mei_csi_set_fmt(struct v4l2_subdev *sd,
+			   const struct v4l2_subdev_client_info *ci,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
@@ -644,13 +644,9 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 	struct device *dev = &cldev->dev;
 	struct pci_dev *ipu;
 	struct mei_csi *csi;
-	unsigned int i;
 	int ret;
 
-	for (i = 0, ipu = NULL; !ipu && ipu6_pci_tbl[i].vendor; i++)
-		ipu = pci_get_device(ipu6_pci_tbl[i].vendor,
-				     ipu6_pci_tbl[i].device, NULL);
-
+	ipu = ipu_bridge_get_ipu6();
 	if (!ipu)
 		return -ENODEV;
 

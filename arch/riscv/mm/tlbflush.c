@@ -149,7 +149,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 {
 	unsigned long stride_size;
 
-	if (!is_vm_hugetlb_page(vma)) {
+	if (!vma_is_hugetlb(vma)) {
 		stride_size = PAGE_SIZE;
 	} else {
 		stride_size = huge_page_size(hstate_vma(vma));

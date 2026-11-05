@@ -2343,7 +2343,6 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 					cdns_mhdp_irq_handler, IRQF_ONESHOT,
 					"mhdp8546", mhdp);
 	if (ret) {
-		dev_err(dev, "cannot install IRQ %d\n", irq);
 		ret = -EIO;
 		goto plat_fini;
 	}

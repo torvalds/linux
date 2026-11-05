@@ -474,6 +474,9 @@
 /* DMR */
 #define DMR_IMH1_HIOP_MMIO_BASE			0x1ffff6ae7000
 #define DMR_HIOP_MMIO_SIZE			0x8000
+#define DMR_CXLCM_PMON_CTL_INVERT		BIT(21)
+#define DMR_CXLCM_PMON_RAW_EVENT_MASK		(GENERIC_PMON_RAW_EVENT_MASK | \
+						 DMR_CXLCM_PMON_CTL_INVERT)
 #define DMR_CXLCM_EVENT_MASK_EXT		0xf
 #define DMR_HAMVF_EVENT_MASK_EXT		0xffffffff
 #define DMR_PCIE4_EVENT_MASK_EXT		0xffffff
@@ -6696,7 +6699,7 @@ static struct event_constraint dmr_uncore_cxlcm_constraints[] = {
 
 static struct intel_uncore_type dmr_uncore_cxlcm = {
 	.name			= "cxlcm",
-	.event_mask		= GENERIC_PMON_RAW_EVENT_MASK,
+	.event_mask		= DMR_CXLCM_PMON_RAW_EVENT_MASK,
 	.event_mask_ext		= DMR_CXLCM_EVENT_MASK_EXT,
 	.constraints		= dmr_uncore_cxlcm_constraints,
 	.format_group		= &dmr_cxlcm_uncore_format_group,

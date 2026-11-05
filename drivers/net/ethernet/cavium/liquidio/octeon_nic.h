@@ -277,7 +277,7 @@ int octnet_send_nic_data_pkt(struct octeon_device *oct,
 
 /** Send a NIC control packet to the device
  * @param oct - octeon device pointer
- * @param nctrl - control structure with command, timout, and callback info
+ * @param nctrl - control structure with command, timeout, and callback info
  * @returns IQ_FAILED if it failed to add to the input queue. IQ_STOP if the
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */

@@ -369,7 +369,7 @@ pub(crate) struct ModuleInfo {
     type_: Type,
     license: AsciiLitStr,
     name: AsciiLitStr,
-    authors: Option<Punctuated<AsciiLitStr, Token![,]>>,
+    authors: Option<Punctuated<LitStr, Token![,]>>,
     description: Option<LitStr>,
     alias: Option<Punctuated<AsciiLitStr, Token![,]>>,
     firmware: Option<Punctuated<AsciiLitStr, Token![,]>>,

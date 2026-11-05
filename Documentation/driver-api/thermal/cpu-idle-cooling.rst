@@ -161,7 +161,7 @@ tree. So with the idle injection mechanism, we want an average power
 specific OPP and idle another amount of time. That could be put in a
 equation::
 
- P(opp)target = ((Trunning x (P(opp)running) + (Tidle x P(opp)idle)) /
+ P(opp)target = (Trunning x (P(opp)running) + (Tidle x P(opp)idle)) /
 			(Trunning + Tidle)
 
   ...

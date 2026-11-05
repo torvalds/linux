@@ -7,6 +7,8 @@
 # Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
 #
 
+CONTEXT_ANALYSIS := y
+
 ccflags-$(CONFIG_SCSI_MVSAS_DEBUG) := -DMV_DEBUG
 
 obj-$(CONFIG_SCSI_MVSAS) += mvsas.o

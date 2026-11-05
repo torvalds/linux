@@ -27,6 +27,9 @@
 #define xe_tile_sriov_dbg(_tile, _fmt, ...) \
 	xe_tile_sriov_printk(_tile, dbg, _fmt, ##__VA_ARGS__)
 
+#define xe_tile_sriov_dbg_ratelimited(_tile, _fmt, ...) \
+	xe_tile_sriov_printk(_tile, dbg_ratelimited, _fmt, ##__VA_ARGS__)
+
 #define xe_tile_sriov_dbg_verbose(_tile, _fmt, ...) \
 	xe_tile_sriov_printk(_tile, dbg_verbose, _fmt, ##__VA_ARGS__)
 

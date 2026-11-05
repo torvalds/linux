@@ -460,7 +460,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			 struct sk_buff **to_free)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	/* We don't fill cb now as skb_unshare() may invalidate it */
+	/* We don't fill cb now as skb_unclone_full() may invalidate it */
 	struct netem_skb_cb *cb;
 	struct sk_buff *skb2 = NULL;
 	struct sk_buff *segs = NULL;
@@ -528,7 +528,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			qdisc_skb_cb(skb)->pkt_len = skb->len;
 		}
 
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 		if (unlikely(!skb)) {
 			WRITE_ONCE(q->allocation_errors, q->allocation_errors + 1);
 			qdisc_qstats_drop(sch);

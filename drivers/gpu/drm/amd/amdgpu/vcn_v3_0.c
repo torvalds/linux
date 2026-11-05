@@ -23,6 +23,7 @@
 
 #include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_vcn.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_cs.h"
@@ -2216,21 +2217,6 @@ static int vcn_v3_0_reset(struct amdgpu_vcn_inst *vinst)
 	return vcn_v3_0_start(vinst);
 }
 
-static bool vcn_v3_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	int i, ret = 1;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-
-		ret &= (RREG32_SOC15(VCN, i, mmUVD_STATUS) == UVD_STATUS__IDLE);
-	}
-
-	return ret;
-}
-
 static int vcn_v3_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -2376,7 +2362,6 @@ static const struct amd_ip_funcs vcn_v3_0_ip_funcs = {
 	.hw_fini = vcn_v3_0_hw_fini,
 	.suspend = vcn_v3_0_suspend,
 	.resume = vcn_v3_0_resume,
-	.is_idle = vcn_v3_0_is_idle,
 	.wait_for_idle = vcn_v3_0_wait_for_idle,
 	.set_clockgating_state = vcn_v3_0_set_clockgating_state,
 	.set_powergating_state = vcn_set_powergating_state,

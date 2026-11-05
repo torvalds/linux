@@ -809,6 +809,7 @@ static unsigned long
 dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct dquot *dquot;
+	unsigned long orig_nr_to_scan = sc->nr_to_scan;
 	unsigned long freed = 0;
 
 	spin_lock(&dq_list_lock);
@@ -822,6 +823,21 @@ dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		freed++;
 	}
 	spin_unlock(&dq_list_lock);
+
+	sc->nr_scanned = orig_nr_to_scan - sc->nr_to_scan;
+
+	/*
+	 * DQST_FREE_DQUOTS is a percpu counter, so count_objects() can
+	 * report a stale/approximate value that is still positive even
+	 * though free_dquots is actually empty by the time we get here.
+	 * When that happens sc->nr_scanned comes back 0 and we have
+	 * nothing further to offer this reclaim pass, so tell
+	 * do_shrink_slab() to stop calling us instead of letting it burn
+	 * through its one-shot scan budget against an empty list.
+	 */
+	if (sc->nr_scanned == 0)
+		return SHRINK_STOP;
+
 	return freed;
 }
 
@@ -2079,7 +2095,7 @@ EXPORT_SYMBOL(__dquot_transfer);
 /* Wrapper for transferring ownership of an inode for uid/gid only
  * Called from FSXXX_setattr()
  */
-int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
+int dquot_transfer(const struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *iattr)
 {
 	struct dquot *transfer_to[MAXQUOTAS] = {};

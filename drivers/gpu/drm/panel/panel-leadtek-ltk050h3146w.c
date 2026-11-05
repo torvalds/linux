@@ -583,28 +583,17 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "mipi_dsi_attach failed: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void ltk050h3146w_remove(struct mipi_dsi_device *dsi)
-{
-	struct ltk050h3146w *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id ltk050h3146w_of_match[] = {
@@ -630,7 +619,6 @@ static struct mipi_dsi_driver ltk050h3146w_driver = {
 		.of_match_table = ltk050h3146w_of_match,
 	},
 	.probe	= ltk050h3146w_probe,
-	.remove = ltk050h3146w_remove,
 };
 module_mipi_dsi_driver(ltk050h3146w_driver);
 

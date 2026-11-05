@@ -1,4 +1,5 @@
-/*
+/* SPDX-License-Identifier: MIT
+ *
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -185,6 +186,7 @@ struct clock_source {
 	const struct clock_source_funcs *funcs;
 	struct dc_context *ctx;
 	enum clock_source_id id;
+	unsigned int inst;
 	bool dp_clk_src;
 };
 

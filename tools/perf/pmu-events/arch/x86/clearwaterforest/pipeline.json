@@ -934,6 +934,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.X87",
-        "SampleAfterValue": "1000003"
+        "SampleAfterValue": "1000003",
+        "UMask": "0x100"
     }
 ]

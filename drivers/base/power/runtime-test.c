@@ -5,6 +5,7 @@
 
 #include <linux/cleanup.h>
 #include <linux/pm_runtime.h>
+#include <linux/workqueue.h>
 #include <kunit/device.h>
 #include <kunit/test.h>
 
@@ -229,6 +230,61 @@ static void pm_runtime_probe_active_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
 }
 
+static void pm_runtime_supplier_suspend_test(struct kunit *test)
+{
+	struct device *dev = kunit_device_register(test, DEVICE_NAME);
+	struct device *supplier = kunit_device_register(test, DEVICE_NAME "_supplier");
+	struct device *norpm_supplier = kunit_device_register(test, DEVICE_NAME "_norpm_supplier");
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, supplier);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, norpm_supplier);
+
+	KUNIT_ASSERT_NOT_NULL(test, device_link_add(dev, supplier, DL_FLAG_PM_RUNTIME));
+	KUNIT_ASSERT_NOT_NULL(test, device_link_add(dev, norpm_supplier, 0));
+
+	pm_runtime_enable(dev);
+	pm_runtime_enable(supplier);
+	pm_runtime_enable(norpm_supplier);
+
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(norpm_supplier));
+
+	/*
+	 * Resume the device and RPM-linked supplier; non-RPM-linked supplier
+	 * stays suspended.
+	 */
+	KUNIT_EXPECT_EQ(test, 0, pm_runtime_get_sync(dev));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_active(dev));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_active(supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(norpm_supplier));
+
+	/* Also resume the non-RPM-linked supplier. */
+	KUNIT_EXPECT_EQ(test, 0, pm_runtime_get_sync(norpm_supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_active(norpm_supplier));
+
+	pm_runtime_put_noidle(norpm_supplier);
+	KUNIT_EXPECT_TRUE(test, pm_runtime_active(norpm_supplier));
+
+	/*
+	 * Suspend device. This should only suspend the device and its
+	 * RPM-linked supplier, not the non-RPM-linked supplier.
+	 */
+	KUNIT_EXPECT_EQ(test, 0, pm_runtime_put_sync(dev));
+	/* Note: supplier suspend is async, so we have to flush the queue. */
+	flush_workqueue(pm_wq);
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_active(norpm_supplier));
+
+	/* Now suspend non-RPM-linked supplier. */
+	KUNIT_EXPECT_EQ(test, 0, pm_runtime_suspend(norpm_supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(supplier));
+	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(norpm_supplier));
+}
+
 static struct kunit_case pm_runtime_test_cases[] = {
 	KUNIT_CASE(pm_runtime_depth_test),
 	KUNIT_CASE(pm_runtime_already_suspended_test),
@@ -236,6 +292,7 @@ static struct kunit_case pm_runtime_test_cases[] = {
 	KUNIT_CASE(pm_runtime_disabled_test),
 	KUNIT_CASE(pm_runtime_error_test),
 	KUNIT_CASE(pm_runtime_probe_active_test),
+	KUNIT_CASE(pm_runtime_supplier_suspend_test),
 	{}
 };
 

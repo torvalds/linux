@@ -24,9 +24,12 @@ enum dc_status dcn60_apply_single_controller_ctx_to_hw(
 
 void dcn60_init_hw(struct dc *dc);
 void dcn60_set_cursor_attribute(struct pipe_ctx *pipe_ctx);
-void dcn60_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn60_update_cursor_offload_pipe(struct dmub_srv *dmub, uint32_t stream_idx,
+	uint8_t pipe_idx, const struct dpp *dpp, const struct hubp *hubp);
 
 void dcn60_program_perfmon(struct dc *dc, struct dc_state *context);
 bool dcn60_apply_idle_power_optimizations(struct dc *dc, bool enable);
+
+bool dcn60_set_rmcm_luts(struct set_input_transfer_func_params *params);
 
 #endif /* __DC_HWSS_DCN60_H__ */

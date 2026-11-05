@@ -887,6 +887,7 @@ bool pmo_dcn4_fams2_optimize_for_vmin(struct dml2_pmo_optimize_for_vmin_in_out *
 	const struct dml2_core_mode_support_result *mode_support_result =
 			&in_out->base_display_config->mode_support_result;
 	unsigned int odms_used;
+	int odm_combine_limit;
 	struct dml2_stream_parameters *stream_descriptor;
 	bool optimizable = false;
 
@@ -901,8 +902,16 @@ bool pmo_dcn4_fams2_optimize_for_vmin(struct dml2_pmo_optimize_for_vmin_in_out *
 			in_out->base_display_config->stage4.unoptimizable_streams[stream_index])
 		return false;
 
+	/*
+	 * Enforce a max cap on ODM combine factor of 2:1 for eDP stream
+	 */
+	odm_combine_limit = in_out->instance->odm_combine_limit;
+	if (display_config->stream_descriptors[stream_index].output.output_encoder == dml2_edp &&
+			odm_combine_limit > 2)
+		odm_combine_limit = 2;
+
 	odms_used = mode_support_result->cfg_support_info.stream_support_info[stream_index].odms_used;
-	if ((int)odms_used >= in_out->instance->odm_combine_limit)
+	if ((int)odms_used >= odm_combine_limit)
 		return false;
 
 	memcpy(in_out->optimized_display_config,

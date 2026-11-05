@@ -11,9 +11,7 @@
 
 #define GET_BIOS_TABLE(__name, ...)					\
 do {									\
-	int ret = -ENOENT;						\
-	if (fwrt->uefi_tables_lock_status > UEFI_WIFI_GUID_UNLOCKED)	\
-		ret = iwl_uefi_get_ ## __name(__VA_ARGS__);		\
+	int ret = iwl_uefi_get_ ## __name(__VA_ARGS__);			\
 	if (ret < 0)							\
 		ret = iwl_acpi_get_ ## __name(__VA_ARGS__);		\
 	return ret;							\
@@ -32,6 +30,8 @@ IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name)
 
 IWL_BIOS_TABLE_LOADER(wrds_table);
 IWL_BIOS_TABLE_LOADER(ewrd_table);
+IWL_BIOS_TABLE_LOADER(wsss_table);
+IWL_BIOS_TABLE_LOADER(ewss_table);
 IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
 IWL_BIOS_TABLE_LOADER(phy_filters);
@@ -49,9 +49,14 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 		},
 	},
-	{ .ident = "SAMSUNG",
+	{ .ident = "SAMSUNG_ELECTRONICS",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Samsung"),
 		},
 	},
 	{ .ident = "MSFT",
@@ -126,9 +131,14 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 		},
 	},
-	{ .ident = "SAMSUNG",
+	{ .ident = "SAMSUNG_ELECTRONICS",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Samsung"),
 		},
 	},
 		{ .ident = "LENOVO",
@@ -167,6 +177,12 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
 		},
 	},
+	{ .ident = "GOOGLE-ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUS"),
+		},
+	},
 	{ .ident = "MSI",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
@@ -183,21 +199,22 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
+	u32 ucode_ver = fwrt->fw->ucode_ver;
+
 	/*
 	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is not supported on
 	 * earlier firmware versions.  Unfortunately, we don't have a
-	 * TLV API flag to rely on, so rely on the major version which
-	 * is in the first byte of ucode_ver.  This was implemented
-	 * initially on version 38 and then backported to 17.  It was
-	 * also backported to 29, but only for 7265D devices.  The
-	 * intention was to have it in 36 as well, but not all 8000
-	 * family got this feature enabled.  The 8000 family is the
-	 * only one using version 36, so skip this version entirely.
+	 * TLV API flag to rely on, so rely on the ucode version.  This
+	 * was implemented initially on version 38 and then backported
+	 * to 17.  It was also backported to 29, but only for 7265D
+	 * devices.  The intention was to have it in 36 as well, but not
+	 * all 8000 family got this feature enabled.  The 8000 family is
+	 * the only one using version 36, so skip this version entirely.
 	 */
-	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
-		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 &&
+	return ucode_ver >= 38 ||
+		(ucode_ver == 17 &&
 		 fwrt->trans->info.hw_rev != CSR_HW_REV_TYPE_3160) ||
-		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
+		(ucode_ver == 29 &&
 		 ((fwrt->trans->info.hw_rev & CSR_HW_REV_TYPE_MSK) ==
 		  CSR_HW_REV_TYPE_7265D));
 }
@@ -241,17 +258,22 @@ IWL_EXPORT_SYMBOL(iwl_sar_geo_fill_table);
 
 static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			      __le16 *per_chain, u32 n_subbands,
-			      int prof_a, int prof_b)
+			      int prof_a, int prof_b,
+			      const struct iwl_sar_profile *profiles,
+			      bool is_standalone)
 {
 	int profs[BIOS_SAR_NUM_CHAINS] = { prof_a, prof_b };
 	int i, j;
+
+	BUILD_BUG_ON(ARRAY_SIZE(fwrt->sar_standalone_profiles[0].chains[0].subbands) !=
+		     ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands));
 
 	if (WARN_ON_ONCE(n_subbands >
 			 ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands)))
 		return -EINVAL;
 
 	for (i = 0; i < BIOS_SAR_NUM_CHAINS; i++) {
-		struct iwl_sar_profile *prof;
+		const struct iwl_sar_profile *prof;
 
 		/* don't allow SAR to be disabled (profile 0 means disable) */
 		if (profs[i] == 0)
@@ -262,11 +284,13 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			return -EINVAL;
 
 		/* profiles go from 1 to 4, so decrement to access the array */
-		prof = &fwrt->sar_profiles[profs[i] - 1];
+		prof = &profiles[profs[i] - 1];
 
 		/* if the profile is disabled, do nothing */
 		if (!prof->enabled) {
-			IWL_DEBUG_RADIO(fwrt, "SAR profile %d is disabled.\n",
+			IWL_DEBUG_RADIO(fwrt,
+					"SAR %sprofile %d is disabled.\n",
+					is_standalone ? "standalone " : "",
 					profs[i]);
 			/*
 			 * if one of the profiles is disabled, we
@@ -276,8 +300,8 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 			return 1;
 		}
 
-		IWL_DEBUG_INFO(fwrt,
-			       "SAR EWRD: chain %d profile index %d\n",
+		IWL_DEBUG_INFO(fwrt, "SAR %s: chain %d profile index %d\n",
+			       is_standalone ? "standalone" : "EWRD",
 			       i, profs[i]);
 		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
 		for (j = 0; j < n_subbands; j++) {
@@ -293,14 +317,17 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 
 int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			 int prof_a, int prof_b)
+			 int prof_a, int prof_b,
+			 const struct iwl_sar_profile *profiles,
+			 bool is_standalone)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < n_tables; i++) {
 		ret = iwl_sar_fill_table(fwrt,
 			&per_chain[i * n_subbands * BIOS_SAR_NUM_CHAINS],
-			n_subbands, prof_a, prof_b);
+			n_subbands, prof_a, prof_b, profiles,
+			is_standalone);
 		if (ret)
 			break;
 	}
@@ -447,3 +474,27 @@ bool iwl_rfi_is_enabled_in_bios(struct iwl_fw_runtime *fwrt)
 	return false;
 }
 IWL_EXPORT_SYMBOL(iwl_rfi_is_enabled_in_bios);
+
+/**
+ * iwl_bios_get_guid_lock_status - resolve connectivity variables lock status
+ * @fwrt: the firmware runtime context
+ *
+ * Determine the root-of-trust for the connectivity UEFI variables. The UEFI
+ * GUID Lock Indicator (GLUI) is preferred: if it attests the tables as locked
+ * or in test mode, that result is used. Otherwise (GLUI is missing, invalid or
+ * reports unlocked) the ACPI GUID Lock Indicator is consulted and can override
+ * the GLUI result.
+ *
+ * This only caches the result in &fwrt->uefi_tables_lock_status
+ * (see &enum iwl_uefi_cnv_guid_status).
+ */
+void iwl_bios_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
+{
+	iwl_uefi_get_guid_lock_status(fwrt);
+	if (fwrt->uefi_tables_lock_status == UEFI_CNV_GUID_LOCKED ||
+	    fwrt->uefi_tables_lock_status == UEFI_CNV_GUID_TEST_MODE)
+		return;
+
+	iwl_acpi_get_guid_lock_status(fwrt);
+}
+IWL_EXPORT_SYMBOL(iwl_bios_get_guid_lock_status);

@@ -277,6 +277,9 @@ struct inbound_win {
 	u64 cpu_addr;
 };
 
+/* QUIRKS */
+#define BQUIRK(pcie, quirk)	((pcie)->cfg->quirks & CFG_QUIRK_ ## quirk)
+
 /*
  * The RESCAL block is tied to PCIe controller #1, regardless of the number of
  * controllers, and turning off PCIe controller #1 prevents access to the RESCAL
@@ -285,17 +288,38 @@ struct inbound_win {
  * or a hang (AXI).
  */
 #define CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN		BIT(0)
+/* The outbound windows must be within the 0-4GB region */
+#define CFG_QUIRK_OB_WIN_32BIT_ADDR		BIT(1)
+/* Each of the outbound windows size must be <= SZ_128M */
+#define CFG_QUIRK_OB_WIN_MAXSZ_128MB		BIT(2)
+/* PCIe HW can only access config space with 32bit R/W */
+#define CFG_QUIRK_32BIT_PCI_OPS			BIT(3)
+/* PCIe HW does not have an internal bus timer */
+#define CFG_QUIRK_NO_RGR1_TIMER			BIT(4)
+/* PCIe PERST# must be asserted before internal bridge turned on */
+#define CFG_QUIRK_EARLY_PERST_ASSERT		BIT(5)
+/* PCIe SW PERST behavior only works up to a specific HW version */
+#define CFG_QUIRK_PERST_PCIE_REV_CUTOFF		BIT(6)
+
+/* FLAGS */
+#define BFLAG(pcie, flag)	((pcie)->cfg->flags & CFG_FLG_ ## flag)
+
+/* The PCIe HW registers have phy control of a "RESCAL" reset block */
+#define CFG_FLG_HAS_PHY				BIT(0)
+/* The SoC PCIe HW can dump to the console PCIe error info */
+#define CFG_FLG_HAS_ERR_REPORT			BIT(1)
+/* SoC uses a Broadcom variant of the MIPS-1 ISA */
+#define CFG_FLG_IS_BMIPS			BIT(2)
 
 struct pcie_cfg_data {
 	const int *offsets;
-	const enum pcie_soc_base soc_base;
-	const bool has_phy;
-	const u32 quirks;
+	enum pcie_soc_base soc_base;
+	u32 flags;
+	u32 quirks;
 	u8 num_inbound_wins;
 	int (*perst_set)(struct brcm_pcie *pcie, u32 val);
 	int (*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 	int (*post_setup)(struct brcm_pcie *pcie);
-	bool has_err_report;
 };
 
 struct subdev_regulators {
@@ -346,24 +370,19 @@ struct brcm_pcie {
 	spinlock_t		bridge_lock;
 };
 
-static inline bool is_bmips(const struct brcm_pcie *pcie)
-{
-	return pcie->cfg->soc_base == BCM7435 || pcie->cfg->soc_base == BCM7425;
-}
-
 static int brcm_pcie_bridge_sw_init_set(struct brcm_pcie *pcie, u32 val)
 {
 	unsigned long flags;
 	int ret;
 
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		spin_lock_irqsave(&pcie->bridge_lock, flags);
 
 	ret = pcie->cfg->bridge_sw_init_set(pcie, val);
 	/* If we fail, assume the bridge is in reset (off) */
 	pcie->bridge_in_reset = ret ? true : val;
 
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		spin_unlock_irqrestore(&pcie->bridge_lock, flags);
 
 	return ret;
@@ -508,7 +527,7 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
 			  PCIE_MISC_CPU_2_PCIE_MEM_WIN0_BASE_LIMIT_LIMIT_MASK);
 	writel(tmp, pcie->base + PCIE_MEM_WIN0_BASE_LIMIT(win));
 
-	if (is_bmips(pcie))
+	if (BQUIRK(pcie, OB_WIN_32BIT_ADDR))
 		return;
 
 	/* Write the cpu & limit addr upper bits */
@@ -1144,8 +1163,8 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	if (ret)
 		return ret;
 
-	/* Ensure that PERST# is asserted; some bootloaders may deassert it. */
-	if (pcie->cfg->soc_base == BCM2711) {
+	if (BQUIRK(pcie, EARLY_PERST_ASSERT)) {
+		/* Ensure that PERST# is asserted; some bootloaders may deassert it. */
 		ret = pcie->cfg->perst_set(pcie, 1);
 		if (ret) {
 			pcie->cfg->bridge_sw_init_set(pcie, 0);
@@ -1161,7 +1180,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 		return ret;
 
 	tmp = readl(base + HARD_DEBUG(pcie));
-	if (is_bmips(pcie))
+	if (BFLAG(pcie, IS_BMIPS))
 		tmp &= ~PCIE_BMIPS_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
 	else
 		tmp &= ~PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
@@ -1174,7 +1193,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	 * is encoded as 0=128, 1=256, 2=512, 3=Rsvd, for BCM7278 it
 	 * is encoded as 0=Rsvd, 1=128, 2=256, 3=512.
 	 */
-	if (is_bmips(pcie))
+	if (BFLAG(pcie, IS_BMIPS))
 		burst = 0x1; /* 256 bytes */
 	else if (pcie->cfg->soc_base == BCM2711)
 		burst = 0x0; /* 128 bytes */
@@ -1281,11 +1300,11 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 			return -EINVAL;
 		}
 
-		if (is_bmips(pcie)) {
+		if (BQUIRK(pcie, OB_WIN_MAXSZ_128MB)) {
 			u64 start = res->start;
 			unsigned int j, nwins = resource_size(res) / SZ_128M;
 
-			/* bmips PCIe outbound windows have a 128MB max size */
+			/* PCIe outbound windows have a 128MB max size */
 			if (nwins > BRCM_NUM_PCIE_OUT_WINS)
 				nwins = BRCM_NUM_PCIE_OUT_WINS;
 			for (j = 0; j < nwins; j++, start += SZ_128M)
@@ -1326,8 +1345,8 @@ static void brcm_extend_rbus_timeout(struct brcm_pcie *pcie)
 	const unsigned int REG_OFFSET = PCIE_RGR1_SW_INIT_1(pcie) - 8;
 	u32 timeout_us = 4000000; /* 4 seconds, our setting for L1SS */
 
-	/* 7712 does not have this (RGR1) timer */
-	if (pcie->cfg->soc_base == BCM7712)
+	/* Don't do access if there is no timer */
+	if (BQUIRK(pcie, NO_RGR1_TIMER))
 		return;
 
 	/* Each unit in timeout register is 1/216,000,000 seconds */
@@ -1589,12 +1608,12 @@ static int brcm_phy_cntl(struct brcm_pcie *pcie, const int start)
 
 static inline int brcm_phy_start(struct brcm_pcie *pcie)
 {
-	return pcie->cfg->has_phy ? brcm_phy_cntl(pcie, 1) : 0;
+	return BFLAG(pcie, HAS_PHY) ? brcm_phy_cntl(pcie, 1) : 0;
 }
 
 static inline int brcm_phy_stop(struct brcm_pcie *pcie)
 {
-	return pcie->cfg->has_phy ? brcm_phy_cntl(pcie, 0) : 0;
+	return BFLAG(pcie, HAS_PHY) ? brcm_phy_cntl(pcie, 0) : 0;
 }
 
 static int brcm_pcie_turn_off(struct brcm_pcie *pcie)
@@ -1619,7 +1638,7 @@ static int brcm_pcie_turn_off(struct brcm_pcie *pcie)
 	u32p_replace_bits(&tmp, 1, PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK);
 	writel(tmp, base + HARD_DEBUG(pcie));
 
-	if (!(pcie->cfg->quirks & CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN))
+	if (!(BQUIRK(pcie, AVOID_BRIDGE_SHUTDOWN)))
 		/* Shutdown PCIe bridge */
 		ret = brcm_pcie_bridge_sw_init_set(pcie, 1);
 
@@ -1898,7 +1917,7 @@ static void brcm_pcie_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	pci_unlock_rescan_remove();
-	if (pcie->cfg->has_err_report)
+	if (BFLAG(pcie, HAS_ERR_REPORT))
 		brcm_unregister_die_notifiers(pcie);
 
 	__brcm_pcie_remove(pcie);
@@ -1950,6 +1969,7 @@ static const struct pcie_cfg_data bcm2711_cfg = {
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_EARLY_PERST_ASSERT,
 };
 
 static const struct pcie_cfg_data bcm2712_cfg = {
@@ -1958,7 +1978,8 @@ static const struct pcie_cfg_data bcm2712_cfg = {
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.post_setup	= brcm_pcie_post_setup_bcm2712,
-	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN,
+	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN |
+		CFG_QUIRK_NO_RGR1_TIMER,
 	.num_inbound_wins = 10,
 };
 
@@ -1968,6 +1989,7 @@ static const struct pcie_cfg_data bcm4908_cfg = {
 	.perst_set	= brcm_pcie_perst_set_4908,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_PERST_PCIE_REV_CUTOFF,
 };
 
 static const struct pcie_cfg_data bcm7278_cfg = {
@@ -1984,6 +2006,9 @@ static const struct pcie_cfg_data bcm7425_cfg = {
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_OB_WIN_32BIT_ADDR
+		| CFG_QUIRK_OB_WIN_MAXSZ_128MB | CFG_QUIRK_32BIT_PCI_OPS,
+	.flags		= CFG_FLG_IS_BMIPS,
 };
 
 static const struct pcie_cfg_data bcm7435_cfg = {
@@ -1992,6 +2017,9 @@ static const struct pcie_cfg_data bcm7435_cfg = {
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.num_inbound_wins = 3,
+	.quirks		= CFG_QUIRK_OB_WIN_32BIT_ADDR
+		| CFG_QUIRK_OB_WIN_MAXSZ_128MB,
+	.flags		= CFG_FLG_IS_BMIPS,
 };
 
 static const struct pcie_cfg_data bcm7216_cfg = {
@@ -1999,9 +2027,8 @@ static const struct pcie_cfg_data bcm7216_cfg = {
 	.soc_base	= BCM7278,
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
-	.has_phy	= true,
+	.flags		= CFG_FLG_HAS_PHY | CFG_FLG_HAS_ERR_REPORT,
 	.num_inbound_wins = 3,
-	.has_err_report = true,
 };
 
 static const struct pcie_cfg_data bcm7712_cfg = {
@@ -2010,6 +2037,7 @@ static const struct pcie_cfg_data bcm7712_cfg = {
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.soc_base	= BCM7712,
 	.num_inbound_wins = 10,
+	.quirks		= CFG_QUIRK_NO_RGR1_TIMER,
 };
 
 static const struct of_device_id brcm_pcie_match[] = {
@@ -2034,7 +2062,7 @@ static struct pci_ops brcm_pcie_ops = {
 	.remove_bus = brcm_pcie_remove_bus,
 };
 
-static struct pci_ops brcm7425_pcie_ops = {
+static struct pci_ops brcm_pcie_ops32 = {
 	.map_bus = brcm7425_pcie_map_bus,
 	.read = pci_generic_config_read32,
 	.write = pci_generic_config_write32,
@@ -2143,7 +2171,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		goto fail;
 
 	pcie->hw_rev = readl(pcie->base + PCIE_MISC_REVISION);
-	if (pcie->cfg->soc_base == BCM4908 &&
+	if (BQUIRK(pcie, PERST_PCIE_REV_CUTOFF) &&
 	    pcie->hw_rev >= BRCM_PCIE_HW_REV_3_20) {
 		dev_err(pcie->dev, "hardware revision with unsupported PERST# setup\n");
 		ret = -ENODEV;
@@ -2164,8 +2192,8 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	bridge->ops = pcie->cfg->soc_base == BCM7425 ?
-				&brcm7425_pcie_ops : &brcm_pcie_ops;
+	bridge->ops = BQUIRK(pcie, 32BIT_PCI_OPS)
+		? &brcm_pcie_ops32 : &brcm_pcie_ops;
 	bridge->sysdata = pcie;
 
 	platform_set_drvdata(pdev, pcie);
@@ -2179,7 +2207,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pcie->cfg->has_err_report) {
+	if (BFLAG(pcie, HAS_ERR_REPORT)) {
 		spin_lock_init(&pcie->bridge_lock);
 		brcm_register_die_notifiers(pcie);
 	}

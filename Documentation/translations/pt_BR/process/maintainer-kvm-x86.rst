@@ -122,7 +122,7 @@ Quando se trata de estilo, nomenclatura, padrões, etc., a consistência é a
 prioridade número um no KVM x86. Se tudo mais falhar, siga o que já existe.
 
 Com algumas ressalvas listadas abaixo, siga o estilo de codificação preferido
-dos mantenedores da árvore "tip" (:ref:`maintainer-tip-coding-style`), já que
+dos mantenedores da árvore "tip" (:ref:`pt_BR_maintainer-tip-coding-style`), já que
 patches/séries frequentemente tocam tanto arquivos do KVM quanto arquivos x86
 não-KVM, ou seja, atraem a atenção de mantenedores do KVM *e* da árvore "tip".
 
@@ -206,7 +206,7 @@ Novos tópicos surgem ocasionalmente, mas, por favor, inicie uma discussão na
 lista se desejar propor a introdução de um novo tópico; ou seja, não aja por
 conta própria.
 
-Veja :ref:`the_canonical_patch_format` para mais informações, com uma ressalva:
+Veja :ref:`pt_BR_the_canonical_patch_format` para mais informações, com uma ressalva:
 não trate o limite de 70-75 caracteres como um limite absoluto e rígido. Em
 vez disso, use 75 caracteres como um limite firme, mas não rígido, e use 80
 caracteres como um limite intransponível. Ou seja, permita que o shortlog
@@ -218,7 +218,7 @@ Changelog
 O mais importante: escreva os changelogs usando o modo imperativo e evite o uso
 de pronomes.
 
-Veja :ref:`describe_changes` para mais informações, com uma ressalva: comece com
+Veja :ref:`pt_BR_describe_changes` para mais informações, com uma ressalva: comece com
 uma breve descrição das mudanças reais e, em seguida, apresente o contexto e o
 histórico. Note! Esta ordem entra em conflito direto com a abordagem preferida
 da árvore "tip"! Por favor, siga o estilo preferido da árvore "tip" ao enviar
@@ -431,5 +431,5 @@ Bugs que podem ser explorados pelo convidado (guest) para atacar o hospedeiro
 (host) (kernel ou espaço do usuário), ou que podem ser explorados por uma VM
 aninhada (nested) contra o *seu* próprio hospedeiro (L2 atacando L1), são de
 interesse particular para o KVM. Por favor, siga o protocolo em
-:ref:`securitybugs` se você suspeitar que um bug possa levar a um escape,
-vazamento de dados, etc.
+:ref:`pt_BR_securitybugs` se você suspeitar que um bug possa levar a um
+escape, vazamento de dados, etc.

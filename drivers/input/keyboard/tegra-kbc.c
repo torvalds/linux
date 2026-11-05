@@ -641,7 +641,6 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 
 	kbc->idev->name = pdev->name;
 	kbc->idev->id.bustype = BUS_HOST;
-	kbc->idev->dev.parent = &pdev->dev;
 	kbc->idev->open = tegra_kbc_open;
 	kbc->idev->close = tegra_kbc_close;
 

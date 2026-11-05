@@ -40,6 +40,7 @@
 	reserved_31_test
 	reserved_56_test
 	reserved_63_test
+	gbp_changelink_test
     "}
 
 NUM_NETIFS=4
@@ -336,6 +337,20 @@ reserved_63_test()
 {
 	in_defer_scope \
 	    reserved_test 63
+}
+
+gbp_changelink_test_do()
+{
+	vxlan_device_add gbp
+	__default_test_do 25 "gbp"
+	ip link set dev vx1 type vxlan ageing 300
+	__default_test_do 25 "gbp after changelink"
+}
+
+gbp_changelink_test()
+{
+	in_defer_scope \
+	    gbp_changelink_test_do
 }
 
 trap cleanup EXIT

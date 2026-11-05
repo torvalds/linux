@@ -1,0 +1,266 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================
+Writing a test for objtool's klp code
+=====================================
+
+Instructions for adding a test to tools/objtool/tests/.  Read
+klp-test-design.txt first if you need to know how the harness works; this
+document is the procedure and the rules.
+
+Two kinds of request bring you here:
+
+* *"write a test for commit <sha>"* -- a fix went in without one.
+* *"port the test at <location>, written against another harness"* -- a case
+  exists elsewhere and should live in tree.
+
+Both follow the same procedure.
+
+
+The one rule that matters
+=========================
+
+**A test is not finished until you have watched it fail.**
+
+Break the thing it guards -- revert the fix, or sabotage the exact line -- and
+confirm the test fails.  Then restore and confirm it passes.  A test that has
+never failed is not known to test anything, and this suite has produced
+several that passed against deliberately broken code:
+
+* an alternatives fixture whose empty entry pointed at its own end label rather
+  than the neighbour's replacement, so the bug it guarded made no difference;
+* a sympos fixture where symbol-table order and address order agreed, so
+  counting and reading the linked image gave the same answer;
+* a string fixture using a named ``char[]``, which never reached the
+  contents-hashing path because that keys on ``SHF_STRINGS``;
+* a static array the compiler proved constant, folded to zero, and emitted no
+  relocation for -- so the two builds were byte-identical.
+
+Every one looked correct.  Say in the commit message how you verified, and if
+you could not isolate the behaviour to a single line, **say that too** rather
+than implying otherwise.
+
+
+Procedure
+=========
+
+1. **Read the fix.**  What input reaches the broken line?  What is observable
+   in the output object when it misbehaves -- a missing section, a relocation
+   naming the wrong symbol, an unchanged checksum, a rejected build?  If
+   nothing is observable, stop and say so; see `When to give up`_.
+
+2. **Decide where it lives.**  ``generic/`` unless the fixture needs
+   architecture-specific assembly or the behaviour is architecture-specific,
+   in which case ``x86/`` (or a new directory named for the architecture).
+
+3. **Write the fixture** in the same directory's ``fixtures/``.  Reuse an
+   existing one if it already produces the shape; add a ``-D`` knob rather
+   than copying a fixture to change one line.
+
+4. **Write the test.**  Assert the *premise* before the result -- see
+   `State the premise`_.
+
+5. **Verify by breaking the code.**  Then restore.
+
+6. **Run the whole suite under both compilers**::
+
+       make -C tools/objtool tests
+       CC=clang make -C tools/objtool tests
+
+7. **Commit** the test and its fixture together, alone.  One test per commit.
+
+
+Writing the fixture
+===================
+
+Fixtures are freestanding C.  No kernel headers -- write out the kernel
+structure by hand if you need one, as the existing special-section fixtures do.
+
+Every fixture needs a ``.modinfo`` name, because klp diff reads the object's
+module name from it::
+
+    static const char __modinfo[]
+        __attribute__((section(".modinfo"), used, aligned(1))) = "\0name=vmlinux";
+
+Use ``MODNAME`` if the test needs to vary it.  Note that most fixtures hardcode
+``vmlinux``: passing ``-DMODNAME`` to one that does silently does nothing and
+the test quietly becomes a vmlinux test.
+
+The patched build is selected with ``-DPATCHED``.  For a fixture with several
+variants, gate each on both, so the original is always the baseline::
+
+    #if defined(PATCHED) && defined(WHICH_CALL)
+        r = callee_b(x);
+    #else
+        r = callee_a(x);
+    #endif
+
+and select one per build: ``build_pair foo.c -DWHICH_CALL``.  Without the
+``defined(PATCHED)`` the flag applies to *both* builds and nothing differs.
+
+Traps that have bitten before
+-----------------------------
+
+* **The compiler optimises your fixture away.**  A static never written is
+  proved constant, its reads folded, and no relocation emitted.  Add a writer
+  the compiler cannot see through.
+* **String literals versus named arrays.**  The contents-hashing path keys on
+  ``SHF_STRINGS``, which the compiler sets on the mergeable section a *literal*
+  lands in, not on a ``char[]`` given a section of its own.
+* **Per-function sections hide movement.**  With the default
+  ``-ffunction-sections`` every function sits at offset 0 of its own section,
+  so nothing ever moves.  A test about position needs
+  ``build_pair foo.c -fno-function-sections``.
+* **Special sections need boundaries.**  Either an entsize on the section or an
+  ``ANNOTATE_DATA_SPECIAL`` annotation, or klp diff reports "missing special
+  section entsize or annotations".  Their targets need real (global) symbols,
+  or it reports "failed to convert reloc sym".
+* **Prefer letting objtool generate what objtool generates.**
+  ``.static_call_sites``, ``.mcount_loc``, ``.ibt_endbr_seal`` and ORC come
+  from its check pass.  Call ``run_objtool_check --mcount`` and let it build
+  them; a hand-written copy tests your reading of the format, not the format.
+
+  Write one by hand only when the test needs a shape objtool will not produce,
+  and say so in the fixture.  generic/fixtures/static_call.c does: objtool
+  emits the site but not the ``ANNOTATE_DATA_SPECIAL`` that describes its
+  boundaries -- those come from the kernel's macros -- so a fixture which has
+  to vary whether the annotation is there writes both itself.
+
+
+Writing the test
+================
+
+Start from the shortest existing test, generic/test-basic.sh.
+
+State the premise
+-----------------
+
+A test which asserts only on the output passes when the compiler never emitted
+the construct in the first place, and reads as coverage it does not have.  Say
+what the input must contain::
+
+    assert_input_section __jump_table     # the fixture must produce it -> fail
+    require_input_section .kcfi_traps     # this compiler may not      -> skip
+
+Prefer ``assert_*``.  Reach for ``require_*`` only where absence genuinely
+depends on compiler version or flags, and follow it with something
+unconditional so the test can never be entirely vacuous.
+
+Where a test would otherwise duplicate a sibling, assert what makes it
+different.  ``test-jump-label-module-static-key`` checks that the key really is
+reached through its section symbol -- without that it is a second copy of
+``test-jump-label-module-key``.
+
+Assert both directions
+----------------------
+
+Check that the right thing happened *and* that the wrong thing did not.  A klp
+diff which clones everything is as wrong as one which clones nothing::
+
+    assert_patched changed
+    assert_not_patched untouched
+
+Skips
+-----
+
+* ``gcc_only``/``clang_only`` -- a settled fact about the compiler.  Declared,
+  so it reads as expected forever.
+* ``probe_skip`` -- this toolchain did not produce the construct.  Include what
+  to do about it if there is anything::
+
+      probe_skip "no matching clang/lld pair for a ThinLTO link; set THIN_CC and THIN_LD to one"
+
+* A bare ``skip`` is **counted as a failure**.  Never use it.
+
+Standing in for a kernel configuration
+--------------------------------------
+
+``FIXTURE_CFLAGS`` is what a fixture is built with.  Since objtool reads no
+``.config``, changing these flags is how a test covers a configuration without
+building a kernel.  Two ways:
+
+* trailing arguments to ``build_pair``/``build_one``, which win, and cover
+  anything expressible as a negation::
+
+      build_pair foo.c -fno-function-sections
+
+* otherwise assign ``FIXTURE_CFLAGS`` before building.
+
+Either way **say in a comment which kernel configuration the change stands in
+for**.  A flag with no stated motive is indistinguishable from a mistake.
+
+
+What the test's comment must say
+================================
+
+The comment at the top is the test's justification.  It should let a reader
+decide, without archaeology, whether a skip or a failure matters.  Include:
+
+* **what breaks** in the running kernel if the behaviour regresses -- not the
+  mechanism, the consequence;
+* **why it is not caught otherwise**, which is usually "nothing fails at build
+  time";
+* **the fix commit** it guards, if there is one;
+* **anything load-bearing about the fixture** that is not obvious, especially
+  anything you got wrong first.
+
+That last point is the one people skip.  If the fixture has to be built without
+per-function sections, or the static must not be named ``__warned``, or the key
+must be file-local -- write it down, or the next person will simplify it away.
+
+
+Porting a test from another harness
+===================================
+
+Read the original's *case*, not its code.  The other harness probably builds a
+real kernel module; here you write freestanding C.  A transliteration will
+usually test something else.
+
+* Work out which objtool behaviour the case exercises, then produce that shape
+  the cheapest way here.
+* Verify by breaking the code, exactly as for a new test -- a port is not
+  correct because the original was.
+* If the original names a fix commit, cite it.
+* Credit the source in the commit message with the trailers the original
+  carried, followed by your own.
+
+Sometimes the port shows the case is already covered, and sometimes it shows
+the case cannot be reproduced here.  Both are results; report them rather than
+committing something that passes vacuously.
+
+
+When to give up
+===============
+
+Some behaviour cannot be reached from a compiled fixture.  Say so, with what
+you tried, instead of committing a test that passes either way.  Examples that
+were genuinely abandoned:
+
+* a memory leak -- needs valgrind, not an assertion on ELF;
+* ``mkstemp`` with long paths, and other I/O edge cases;
+* a NULL dereference reachable only through a debug path;
+* changes made redundant by a fallback: removing the code changes no output
+  because something else already handles the case;
+* a fix whose code has since been rewritten, so there is nothing left to
+  revert.
+
+Also stop when the behaviour depends on something outside the fixture's
+control -- an ELF library's handling of empty sections, or a compiler version's
+naming of anonymous data.  A test which passes for you and skips for everyone
+else is worse than none.
+
+
+Checklist
+=========
+
+Before committing:
+
+* the test fails with the code broken, and passes with it fixed
+* the whole suite passes under **both** gcc and clang
+* the premise is asserted, not assumed
+* both directions are asserted where that applies
+* no bare ``skip``
+* the fixture is in the same directory as the test
+* the comment names the consequence, the fix commit, and anything load-bearing
+* the commit contains one test and its fixtures, and nothing else
+* the commit message says how you verified it

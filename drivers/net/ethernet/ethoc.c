@@ -1211,6 +1211,8 @@ static int ethoc_probe(struct platform_device *pdev)
 		goto free3;
 	}
 
+	netdev->netdev_ops = &ethoc_netdev_ops;
+
 	ret = ethoc_mdio_probe(netdev);
 	if (ret) {
 		dev_err(&netdev->dev, "failed to probe MDIO bus\n");
@@ -1218,7 +1220,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	/* setup the net_device structure */
-	netdev->netdev_ops = &ethoc_netdev_ops;
 	netdev->watchdog_timeo = ETHOC_TIMEOUT;
 	netdev->features |= 0;
 	netdev->ethtool_ops = &ethoc_ethtool_ops;

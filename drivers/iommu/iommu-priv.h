@@ -30,6 +30,10 @@ static inline const struct iommu_ops *iommu_fwspec_ops(struct iommu_fwspec *fwsp
 
 void iommu_fwspec_free(struct device *dev);
 
+int iommu_deferred_attach(struct device *dev, struct iommu_domain *domain);
+
+struct iommu_domain *iommu_get_dma_domain(struct device *dev);
+
 int iommu_device_register_bus(struct iommu_device *iommu,
 			      const struct iommu_ops *ops,
 			      const struct bus_type *bus,

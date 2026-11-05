@@ -14,10 +14,15 @@ allOf:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - tianma,tl121bvms07-00
-      - const: ilitek,il79900a
+    oneOf:
+      - items:
+          - enum:
+              - raspberrypi,dsi-10inch
+          - const: ilitek,il79600a
+      - items:
+          - enum:
+              - tianma,tl121bvms07-00
+          - const: ilitek,il79900a
 
   reg:
     maxItems: 1

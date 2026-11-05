@@ -265,6 +265,39 @@ static int rt9471_get_ieoc(struct rt9471_chip *chip, int *microamp)
 	return rt9471_get_value_by_field_range(chip, F_IEOC_CHG, RT9471_RANGE_IEOC, microamp);
 }
 
+static int rt9471_set_batfet(struct rt9471_chip *chip, int val)
+{
+	unsigned int regval;
+
+	switch (val) {
+	case POWER_SUPPLY_LOAD_SWITCH_ON:
+		regval = 0;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_OFF:
+		regval = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_field_write(chip->rm_fields[F_BATFET_DIS], regval);
+}
+
+static int rt9471_get_batfet(struct rt9471_chip *chip, int *val)
+{
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_field_read(chip->rm_fields[F_BATFET_DIS], &regval);
+	if (ret < 0)
+		return ret;
+
+	*val = regval ? POWER_SUPPLY_LOAD_SWITCH_OFF :
+			POWER_SUPPLY_LOAD_SWITCH_ON;
+
+	return 0;
+}
+
 static int rt9471_get_status(struct rt9471_chip *chip, int *status)
 {
 	unsigned int ic_stat;
@@ -342,6 +375,7 @@ static enum power_supply_property rt9471_charger_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
@@ -358,6 +392,7 @@ static int rt9471_charger_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
 		return 1;
 	default:
 		return 0;
@@ -393,6 +428,8 @@ static int rt9471_charger_set_property(struct power_supply *psy,
 			chip, F_IPRE_CHG, RT9471_RANGE_IPRE, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 		return rt9471_set_ieoc(chip, val->intval);
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return rt9471_set_batfet(chip, val->intval);
 	default:
 		return -EINVAL;
 	}
@@ -439,6 +476,8 @@ static int rt9471_charger_get_property(struct power_supply *psy,
 			chip, F_IPRE_CHG, RT9471_RANGE_IPRE, &val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 		return rt9471_get_ieoc(chip, &val->intval);
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return rt9471_get_batfet(chip, &val->intval);
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = rt9471_model;
 		return 0;
@@ -649,14 +688,14 @@ static ssize_t sysoff_enable_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct rt9471_chip *chip = psy_device_to_chip(dev);
-	unsigned int sysoff_enable;
+	unsigned int val;
 	int ret;
 
-	ret = regmap_field_read(chip->rm_fields[F_BATFET_DIS], &sysoff_enable);
-	if (ret)
+	ret = rt9471_get_batfet(chip, &val);
+	if (ret < 0)
 		return ret;
 
-	return sysfs_emit(buf, "%d\n", sysoff_enable);
+	return sysfs_emit(buf, "%d\n", val == POWER_SUPPLY_LOAD_SWITCH_OFF);
 }
 
 static ssize_t sysoff_enable_store(struct device *dev,
@@ -671,8 +710,9 @@ static ssize_t sysoff_enable_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = regmap_field_write(chip->rm_fields[F_BATFET_DIS], !!tmp);
-	if (ret)
+	ret = rt9471_set_batfet(chip, tmp ? POWER_SUPPLY_LOAD_SWITCH_OFF :
+					    POWER_SUPPLY_LOAD_SWITCH_ON);
+	if (ret < 0)
 		return ret;
 
 	return count;
@@ -744,6 +784,8 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 			  BIT(POWER_SUPPLY_USB_TYPE_DCP) |
 			  BIT(POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID) |
 			  BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN);
+	desc->load_switches = BIT(POWER_SUPPLY_LOAD_SWITCH_ON) |
+			      BIT(POWER_SUPPLY_LOAD_SWITCH_OFF);
 	desc->properties = rt9471_charger_properties;
 	desc->num_properties = ARRAY_SIZE(rt9471_charger_properties);
 	desc->get_property = rt9471_charger_get_property;

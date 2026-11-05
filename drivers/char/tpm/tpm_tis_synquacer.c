@@ -107,7 +107,7 @@ static int tpm_tis_synquacer_init(struct device *dev,
 				 ACPI_HANDLE(dev));
 }
 
-static SIMPLE_DEV_PM_OPS(tpm_tis_synquacer_pm, tpm_pm_suspend, tpm_tis_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tpm_tis_synquacer_pm, tpm_pm_suspend, tpm_tis_resume);
 
 static int tpm_tis_synquacer_probe(struct platform_device *pdev)
 {
@@ -155,7 +155,7 @@ static struct platform_driver tis_synquacer_drv = {
 	.remove = tpm_tis_synquacer_remove,
 	.driver = {
 		.name		= "tpm_tis_synquacer",
-		.pm		= &tpm_tis_synquacer_pm,
+		.pm		= pm_sleep_ptr(&tpm_tis_synquacer_pm),
 		.of_match_table = of_match_ptr(tis_synquacer_of_platform_match),
 		.acpi_match_table = ACPI_PTR(tpm_synquacer_acpi_tbl),
 	},

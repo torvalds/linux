@@ -24,7 +24,7 @@
 struct efi_memory_map_loongson {
 	u16 vers;	/* version of efi_memory_map */
 	u32 nr_map;	/* number of memory_maps */
-	u32 mem_freq;	/* memory frequence */
+	u32 mem_freq;	/* memory frequency */
 	struct mem_map {
 		u32 node_id;	/* node_id which memory attached to */
 		u32 mem_type;	/* system memory, pci memory, pci io, etc. */

@@ -8,10 +8,12 @@ ALL_TESTS="
 	ipv4_route_deletion_test
 	ipv4_route_replacement_test
 	ipv4_route_offload_failed_test
+	ipv4_route_nexthop_test
 	ipv6_route_addition_test
 	ipv6_route_deletion_test
 	ipv6_route_replacement_test
 	ipv6_route_offload_failed_test
+	ipv6_route_nexthop_test
 "
 
 NETDEVSIM_PATH=/sys/bus/netdevsim/
@@ -269,6 +271,50 @@ ipv4_route_offload_failed_test()
 	log_test "IPv4 route offload failed"
 }
 
+route_nexthop_check()
+{
+	local ip=$1; shift
+	local route=$1; shift
+	local nhid=$1; shift
+	local expected_num_notifications=$1; shift
+	local outfile
+
+	ip netns exec testns1 sysctl -qw net.$ip.fib_notify_on_flag_change=1
+
+	outfile=$(mktemp)
+
+	$IP monitor route &> $outfile &
+	sleep 1
+	$IP route add $route nhid $nhid
+	sleep 1
+	kill_process %%
+
+	route_notify_check $outfile $expected_num_notifications
+	rm -f $outfile
+
+	$IP route del $route nhid $nhid
+}
+
+ipv4_route_nexthop_test()
+{
+	RET=0
+
+	local ip="ipv4"
+	local route=192.0.2.0/24
+	local nhid=1
+
+	$IP -4 nexthop add id $nhid dev dummy1
+
+	# Make sure two notifications will be emitted for a programmed route
+	# that uses a nexthop object.
+	local expected_num_notifications=2
+	route_nexthop_check $ip $route $nhid $expected_num_notifications
+
+	$IP nexthop del id $nhid
+
+	log_test "IPv4 route with nexthop object"
+}
+
 ipv6_route_addition_test()
 {
 	RET=0
@@ -383,6 +429,26 @@ ipv6_route_offload_failed_test()
 	check_err $? "Failed to setup route offload not to fail"
 
 	log_test "IPv6 route offload failed"
+}
+
+ipv6_route_nexthop_test()
+{
+	RET=0
+
+	local ip="ipv6"
+	local route=2001:db8:1::/64
+	local nhid=1
+
+	$IP -6 nexthop add id $nhid dev dummy1
+
+	# Make sure two notifications will be emitted for a programmed route
+	# that uses a nexthop object.
+	local expected_num_notifications=2
+	route_nexthop_check $ip $route $nhid $expected_num_notifications
+
+	$IP nexthop del id $nhid
+
+	log_test "IPv6 route with nexthop object"
 }
 
 setup_prepare()

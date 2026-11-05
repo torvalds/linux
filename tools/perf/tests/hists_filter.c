@@ -131,7 +131,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 		goto out;
 	err = TEST_FAIL;
 
-	if (machines__init(&machines))
+	if (machines__init(&machines, /*session=*/NULL))
 		goto out;
 
 	/* setup threads/dso/map/symbols also */

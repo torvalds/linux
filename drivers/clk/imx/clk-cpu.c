@@ -76,9 +76,9 @@ struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 		struct clk *div, struct clk *mux, struct clk *pll,
 		struct clk *step)
 {
+	struct clk_init_data init = {};
 	struct clk_cpu *cpu;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	cpu = kzalloc_obj(*cpu);

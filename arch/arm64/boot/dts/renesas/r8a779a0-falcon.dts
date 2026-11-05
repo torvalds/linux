@@ -73,12 +73,12 @@
 			function = "avb0";
 		};
 
-		pins_mdio {
+		pins-mdio {
 			groups = "avb0_mdio";
 			drive-strength = <21>;
 		};
 
-		pins_mii {
+		pins-mii {
 			groups = "avb0_rgmii";
 			drive-strength = <21>;
 		};

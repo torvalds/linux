@@ -45,6 +45,12 @@ properties:
   power-domains:
     maxItems: 1
 
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
 allOf:
   - if:
       properties:

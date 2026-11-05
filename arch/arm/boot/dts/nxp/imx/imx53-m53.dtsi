@@ -41,11 +41,8 @@
 	touchscreen@41 {
 		compatible = "st,stmpe610";
 		reg = <0x41>;
-		id = <0>;
-		blocks = <0x5>;
 		interrupts = <6 0x0>;
 		interrupt-parent = <&gpio7>;
-		irq-trigger = <0x1>;
 
 		touchscreen {
 			compatible = "st,stmpe-ts";

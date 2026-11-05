@@ -13,9 +13,9 @@ use std::num::NonZeroU32;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_quote, spanned::Spanned as _, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Error,
-    Expr, ExprLit, Field, GenericParam, Ident, Index, Lit, LitStr, Meta, Path, Type, Variant,
-    Visibility, WherePredicate,
+    parse::ParseBuffer, parse_quote, spanned::Spanned as _, token::PathSep, Data, DataEnum,
+    DataStruct, DataUnion, DeriveInput, Error, Expr, ExprLit, Field, GenericParam, Ident, Index,
+    Lit, LitStr, Meta, Path, Type, Variant, Visibility, WherePredicate,
 };
 
 use crate::repr::{CompoundRepr, EnumRepr, PrimitiveRepr, Repr, Spanned};
@@ -30,6 +30,59 @@ pub(crate) struct Ctx {
 
     // The span of the last `#[zerocopy(on_error = ...)]` attribute, if any.
     pub(crate) on_error_span: Option<proc_macro2::Span>,
+
+    /// The first field invariant on the source type, if any.
+    pub(crate) invariant_span: Option<Span>,
+}
+
+#[derive(Eq, PartialEq)]
+enum CratePath {
+    External,
+    CrateRelative,
+    ModuleRelative,
+}
+
+fn validate_crate_path(path: &Path) -> Result<CratePath, ()> {
+    if path.segments.is_empty() {
+        return Err(());
+    }
+
+    enum ModuleRelative {
+        Yes,
+        No,
+    }
+    let first = path.segments[0].ident.to_string();
+    let (mut prev_segment, path_type) = match first.as_str() {
+        "Self" => return Err(()),
+        "crate" => {
+            if path.leading_colon.is_some() {
+                return Err(());
+            }
+            (ModuleRelative::No, CratePath::CrateRelative)
+        }
+        "self" | "super" => {
+            if path.leading_colon.is_some() {
+                return Err(());
+            }
+            (ModuleRelative::Yes, CratePath::ModuleRelative)
+        }
+        _ => (ModuleRelative::No, CratePath::External),
+    };
+
+    for seg in path.segments.iter().skip(1) {
+        let ident = seg.ident.to_string();
+        match ident.as_str() {
+            "Self" | "crate" | "self" => return Err(()),
+            "super" => match prev_segment {
+                ModuleRelative::Yes => {}
+                ModuleRelative::No => return Err(()),
+            },
+            _ => {
+                prev_segment = ModuleRelative::No;
+            }
+        }
+    }
+    Ok(path_type)
 }
 
 impl Ctx {
@@ -42,24 +95,40 @@ impl Ctx {
 
         for attr in &ast.attrs {
             if let Meta::List(ref meta_list) = attr.meta {
-                if meta_list.path.is_ident("zerocopy") {
+                if path_is_ident(&meta_list.path, "zerocopy") {
                     attr.parse_nested_meta(|meta| {
-                        if meta.path.is_ident("crate") {
-                            let expr = meta.value().and_then(|value| value.parse());
+                        if path_is_ident(&meta.path, "crate") {
+                            let expr = meta.value().and_then(ParseBuffer::parse);
                             if let Ok(Expr::Lit(ExprLit { lit: Lit::Str(lit), .. })) = expr {
-                                if let Ok(path_lit) = lit.parse::<Ident>() {
-                                    path = parse_quote!(::#path_lit);
-                                    return Ok(());
+                                if let Ok(mut path_lit) = lit.parse_with(Path::parse_mod_style) {
+                                    if let Ok(crate_path) = validate_crate_path(&path_lit) {
+                                        // If not expressly relative, absolutize.
+                                        if path_lit.leading_colon.is_none() && crate_path == CratePath::External {
+                                            path_lit.leading_colon = Some(PathSep::default());
+                                        }
+                                        path = path_lit;
+                                        return Ok(());
+                                    }
+
+                                    return Err(Error::new(
+                                        lit.span(),
+                                        "`crate` attribute requires a valid module path",
+                                    ));
                                 }
+
+                                return Err(Error::new(
+                                    lit.span(),
+                                    "`crate` attribute requires a path as the value",
+                                ));
                             }
 
                             return Err(Error::new(
-                                Span::call_site(),
+                                meta.path.span(),
                                 "`crate` attribute requires a path as the value",
                             ));
                         }
 
-                        if meta.path.is_ident("on_error") {
+                        if path_is_ident(&meta.path, "on_error") {
                             on_error_span = Some(meta.path.span());
                             let value = meta.value()?;
                             let s: LitStr = value.parse()?;
@@ -86,7 +155,8 @@ impl Ctx {
             }
         }
 
-        Ok(Self { ast, zerocopy_crate: path, skip_on_error, on_error_span })
+        let invariant_span = crate::invariant::validate(&ast)?;
+        Ok(Self { ast, zerocopy_crate: path, skip_on_error, on_error_span, invariant_span })
     }
 
     pub(crate) fn with_input(&self, input: &DeriveInput) -> Self {
@@ -95,6 +165,7 @@ impl Ctx {
             zerocopy_crate: self.zerocopy_crate.clone(),
             skip_on_error: self.skip_on_error,
             on_error_span: self.on_error_span,
+            invariant_span: self.invariant_span,
         }
     }
 
@@ -108,15 +179,41 @@ impl Ctx {
         quote!(#zerocopy_crate::util::macro_util::core_reexport)
     }
 
+    /// Choose an implementation name absent from the caller's tokens. This is
+    /// best-effort; names introduced by nested macros are not considered.
+    /// Unlike local variables, type parameters are not hidden by mixed-site
+    /// hygiene.
+    pub(crate) fn fresh_ident(&self, name: &str) -> Ident {
+        let idents = crate::invariant::idents(self.ast.to_token_stream());
+        let mut name = name.to_owned();
+        while idents.iter().any(|ident| ident.to_string().trim_start_matches("r#") == name) {
+            name.push('_');
+        }
+        Ident::new(&name, Span::mixed_site())
+    }
+
+    /// Caller-authored invariant expressions must inherit the caller's lint
+    /// policy, rather than the blanket allowances for generated glue.
+    pub(crate) fn const_block(
+        &self,
+        items: impl IntoIterator<Item = Option<TokenStream>>,
+    ) -> TokenStream {
+        if self.invariant_span.is_none() {
+            const_block(items)
+        } else {
+            let items = items.into_iter().flatten();
+            quote! { const _: () = { #(#items)* }; }
+        }
+    }
+
     pub(crate) fn cfg_compile_error(&self) -> TokenStream {
         // By checking both during the compilation of the proc macro *and* in
-        // the generated code, we ensure that `--cfg
-        // zerocopy_unstable_linux` need only be passed *either* when
+        // the generated code, we ensure that each cfg need only be passed when
         // compiling this crate *or* when compiling the user's crate. The former
         // is preferable, but in some situations (such as when cross-compiling
         // using `cargo build --target`), it doesn't get propagated to this
         // crate's build by default.
-        if cfg!(zerocopy_unstable_linux) {
+        let on_error = if cfg!(zerocopy_unstable_linux) {
             quote!()
         } else if let Some(span) = self.on_error_span {
             let core = self.core_path();
@@ -131,7 +228,24 @@ impl Ctx {
             }
         } else {
             quote!()
-        }
+        };
+        let invariant = if cfg!(zerocopy_unstable_ptr) {
+            quote!()
+        } else if let Some(span) = self.invariant_span {
+            let core = self.core_path();
+            let error_message =
+                "`invariant` is experimental; pass '--cfg zerocopy_unstable_ptr' to enable";
+            quote::quote_spanned! {span=>
+                #[allow(unused_attributes, unexpected_cfgs)]
+                const _: () = {
+                    #[cfg(not(zerocopy_unstable_ptr))]
+                    #core::compile_error!(#error_message);
+                };
+            }
+        } else {
+            quote!()
+        };
+        quote!(#on_error #invariant)
     }
 
     pub(crate) fn error_or_skip<E>(&self, error: E) -> Result<TokenStream, E> {
@@ -151,7 +265,7 @@ pub(crate) trait DataExt {
     /// FIXME: Extracting field names for enums doesn't really make sense. Types
     /// makes sense because we don't care about where they live - we just care
     /// about transitive ownership. But for field names, we'd only use them when
-    /// generating is_bit_valid, which cares about where they live.
+    /// generating is_safe, which cares about where they live.
     fn fields(&self) -> Vec<(&Visibility, TokenStream, &Type)>;
 
     fn variants(&self) -> Vec<(Option<&Variant>, Vec<(&Visibility, TokenStream, &Type)>)>;
@@ -255,6 +369,18 @@ pub(crate) fn to_ident_str(t: &impl ToString) -> String {
     }
 }
 
+/// Does `path` consist solely of the identifier `expected`?
+///
+/// Unlike [`Path::is_ident`], this treats a raw identifier and its ordinary
+/// spelling as the same identifier. Rust applies that same normalization when
+/// interpreting attribute names and arguments.
+pub(crate) fn path_is_ident(path: &Path, expected: &str) -> bool {
+    match path.get_ident() {
+        Some(ident) => to_ident_str(ident) == expected,
+        None => false,
+    }
+}
+
 /// This enum describes what kind of padding check needs to be generated for the
 /// associated impl.
 pub(crate) enum PaddingCheck {
@@ -298,22 +424,46 @@ impl PaddingCheck {
     }
 }
 
+#[derive(Copy, Clone)]
+pub(crate) enum Client {
+    ProjectDerive,
+    TryFromBytesDerive,
+}
+
+impl ToTokens for Client {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let s = match self {
+            Client::ProjectDerive => "ProjectDerive",
+            Client::TryFromBytesDerive => "TryFromBytesDerive",
+        };
+        let ident = Ident::new(s, Span::call_site());
+        tokens.extend(quote!(project_clients::#ident));
+    }
+}
+
+impl Client {
+    pub(crate) fn crate_path(&self, ctx: &Ctx) -> Path {
+        let zerocopy_crate = &ctx.zerocopy_crate;
+        parse_quote!(#zerocopy_crate::#self)
+    }
+}
+
+/// Bundles the trait parameters for `HasField` and `ProjectField`.
+#[derive(Clone)]
+pub(crate) struct FieldProjection {
+    pub(crate) variant_id: Box<Expr>,
+    pub(crate) field: Box<Type>,
+    pub(crate) field_id: Box<Expr>,
+}
+
 #[derive(Clone)]
 pub(crate) enum Trait {
     KnownLayout,
-    HasTag,
-    HasField {
-        variant_id: Box<Expr>,
-        field: Box<Type>,
-        field_id: Box<Expr>,
-    },
-    ProjectField {
-        variant_id: Box<Expr>,
-        field: Box<Type>,
-        field_id: Box<Expr>,
-        invariants: Box<Type>,
-    },
+    HasTag { client: Client },
+    HasField { client: Client, projection: FieldProjection },
+    ProjectField { client: Client, projection: FieldProjection, invariants: Box<Type> },
     Immutable,
+    Project,
     TryFromBytes,
     FromZeros,
     FromBytes,
@@ -340,8 +490,9 @@ impl ToTokens for Trait {
             Trait::HasField { .. } => "HasField",
             Trait::ProjectField { .. } => "ProjectField",
             Trait::KnownLayout => "KnownLayout",
-            Trait::HasTag => "HasTag",
+            Trait::HasTag { .. } => "HasTag",
             Trait::Immutable => "Immutable",
+            Trait::Project => "Project",
             Trait::TryFromBytes => "TryFromBytes",
             Trait::FromZeros => "FromZeros",
             Trait::FromBytes => "FromBytes",
@@ -354,15 +505,18 @@ impl ToTokens for Trait {
         };
         let ident = Ident::new(s, Span::call_site());
         let arguments: Option<syn::AngleBracketedGenericArguments> = match self {
-            Trait::HasField { variant_id, field, field_id } => {
-                Some(parse_quote!(<#field, #variant_id, #field_id>))
+            Trait::HasTag { client } => Some(parse_quote!(<#client>)),
+            Trait::HasField { client, projection } => {
+                let FieldProjection { variant_id, field, field_id } = projection;
+                Some(parse_quote!(<#client, #field, #variant_id, #field_id>))
             }
-            Trait::ProjectField { variant_id, field, field_id, invariants } => {
-                Some(parse_quote!(<#field, #invariants, #variant_id, #field_id>))
+            Trait::ProjectField { client, projection, invariants } => {
+                let FieldProjection { variant_id, field, field_id } = projection;
+                Some(parse_quote!(<#client, #field, #invariants, #variant_id, #field_id>))
             }
             Trait::KnownLayout
-            | Trait::HasTag
             | Trait::Immutable
+            | Trait::Project
             | Trait::TryFromBytes
             | Trait::FromZeros
             | Trait::FromBytes
@@ -383,6 +537,28 @@ impl Trait {
         let core = ctx.core_path();
         match self {
             Self::Sized => parse_quote!(#core::marker::#self),
+            Self::HasTag { client } => {
+                let client = client.crate_path(ctx);
+                parse_quote!(#zerocopy_crate::HasTag<#client>)
+            }
+            Self::HasField { client, projection } => {
+                let FieldProjection { variant_id, field, field_id } = projection;
+                let client = client.crate_path(ctx);
+                parse_quote!(#zerocopy_crate::HasField<#client, #field, #variant_id, #field_id>)
+            }
+            Self::ProjectField { client, projection, invariants } => {
+                let FieldProjection { variant_id, field, field_id } = projection;
+                let client = client.crate_path(ctx);
+                parse_quote!(
+                    #zerocopy_crate::ProjectField<
+                        #client,
+                        #field,
+                        #invariants,
+                        #variant_id,
+                        #field_id
+                    >
+                )
+            }
             _ => parse_quote!(#zerocopy_crate::#self),
         }
     }
@@ -704,7 +880,12 @@ impl<'a> ImplBlockBuilder<'a> {
 
         let outer_extras = self.outer_extras.filter(|e| !e.is_empty());
         let cfg_compile_error = self.ctx.cfg_compile_error();
-        const_block([Some(cfg_compile_error), Some(impl_tokens), outer_extras])
+        let items = [Some(cfg_compile_error), Some(impl_tokens), outer_extras];
+        if matches!(self.trt, Trait::TryFromBytes) {
+            self.ctx.const_block(items)
+        } else {
+            const_block(items)
+        }
     }
 }
 
@@ -730,8 +911,7 @@ impl BoolExt for bool {
     }
 }
 
-pub(crate) fn const_block(items: impl IntoIterator<Item = Option<TokenStream>>) -> TokenStream {
-    let items = items.into_iter().flatten();
+pub(crate) fn allow_generated_code() -> TokenStream {
     quote! {
         #[allow(
             // FIXME(#553): Add a test that generates a warning when
@@ -748,6 +928,14 @@ pub(crate) fn const_block(items: impl IntoIterator<Item = Option<TokenStream>>) 
             non_ascii_idents,
             clippy::missing_inline_in_public_items,
         )]
+    }
+}
+
+pub(crate) fn const_block(items: impl IntoIterator<Item = Option<TokenStream>>) -> TokenStream {
+    let items = items.into_iter().flatten();
+    let allow = allow_generated_code();
+    quote! {
+        #allow
         #[deny(ambiguous_associated_items)]
         // While there are not currently any warnings that this suppresses
         // (that we're aware of), it's good future-proofing hygiene.
@@ -778,7 +966,8 @@ pub(crate) fn generate_tag_enum(ctx: &Ctx, repr: &EnumRepr, data: &DataEnum) -> 
 
     quote! {
         #repr
-        #[allow(dead_code)]
+        #[allow(dead_code, clippy::derive_partial_eq_without_eq)]
+        #[derive(Copy, Clone, PartialEq)]
         pub enum ___ZerocopyTag {
             #(#variants,)*
         }
@@ -824,17 +1013,39 @@ pub(crate) mod testutil {
     pub(crate) fn check_hygiene(ts: TokenStream) {
         struct AmbiguousItemVisitor;
 
+        fn panic_ambiguous_path(path: &impl quote::ToTokens) -> ! {
+            panic!(
+                "Found ambiguous path `{}` in generated output. \
+                 All associated item access must be fully qualified (e.g., `<Self as Trait>::Item`) \
+                 to prevent hygiene issues.",
+                quote::quote!(#path)
+            );
+        }
+
         impl<'ast> Visit<'ast> for AmbiguousItemVisitor {
+            fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
+                if let Some(qself) = &i.qself {
+                    if qself.position == 0 {
+                        panic_ambiguous_path(i);
+                    }
+                }
+                visit::visit_expr_path(self, i);
+            }
+
             fn visit_path(&mut self, i: &'ast syn::Path) {
                 if i.segments.len() > 1 && i.segments.first().unwrap().ident == "Self" {
-                    panic!(
-                    "Found ambiguous path `{}` in generated output. \
-                     All associated item access must be fully qualified (e.g., `<Self as Trait>::Item`) \
-                     to prevent hygiene issues.",
-                    quote::quote!(#i)
-                );
+                    panic_ambiguous_path(i);
                 }
                 visit::visit_path(self, i);
+            }
+
+            fn visit_type_path(&mut self, i: &'ast syn::TypePath) {
+                if let Some(qself) = &i.qself {
+                    if qself.position == 0 {
+                        panic_ambiguous_path(i);
+                    }
+                }
+                visit::visit_type_path(self, i);
             }
         }
 
@@ -859,5 +1070,118 @@ pub(crate) mod testutil {
                 let _ = Self::Ambiguous;
             }
         });
+    }
+
+    #[test]
+    #[should_panic(expected = "Found ambiguous path `< T > :: Ambiguous`")]
+    fn test_check_hygiene_type_relative_expr_failure() {
+        check_hygiene(quote::quote! {
+            fn foo<T>() {
+                let _ = <T>::Ambiguous;
+            }
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Found ambiguous path `< T > :: Ambiguous`")]
+    fn test_check_hygiene_type_relative_type_failure() {
+        check_hygiene(quote::quote! {
+            fn foo<T>() {
+                let _: <T>::Ambiguous;
+            }
+        });
+    }
+
+    #[test]
+    fn test_validate_crate_path() {
+        use syn::parse_str;
+
+        let valid = [
+            "zerocopy",
+            "crate",
+            "crate::foo::bar",
+            "self",
+            "self::foo",
+            "self::super::foo",
+            "super",
+            "super::foo",
+            "super::super::foo",
+            "super::super::super",
+            "foo::bar::baz",
+            "::foo::bar",
+        ];
+
+        for path_str in valid {
+            let path = parse_str::<syn::Path>(path_str).unwrap();
+            assert!(
+                super::validate_crate_path(&path).is_ok(),
+                "expected valid path for `{}`",
+                path_str
+            );
+        }
+
+        let invalid = [
+            "::crate::foo",
+            "::self::foo",
+            "::super::foo",
+            "Self",
+            "Self::foo",
+            "foo::Self::bar",
+            "foo::crate::bar",
+            "foo::super::bar",
+            "foo::self",
+            "super::foo::super",
+            "super::crate::foo",
+            "crate::super::foo",
+            "self::self::foo",
+        ];
+
+        for path_str in invalid {
+            let path = parse_str::<syn::Path>(path_str).unwrap();
+            assert!(
+                super::validate_crate_path(&path).is_err(),
+                "expected invalid path for `{}`",
+                path_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_path_is_ident() {
+        use syn::parse_str;
+
+        for (expected, ordinary, raw) in [
+            ("doc", "doc", "r#doc"),
+            ("repr", "repr", "r#repr"),
+            ("zerocopy", "zerocopy", "r#zerocopy"),
+            ("on_error", "on_error", "r#on_error"),
+        ] {
+            let ordinary = parse_str::<syn::Path>(ordinary).unwrap();
+            let raw = parse_str::<syn::Path>(raw).unwrap();
+            assert!(super::path_is_ident(&ordinary, expected));
+            assert!(super::path_is_ident(&raw, expected));
+        }
+
+        // `r#crate` is forbidden by Rust's raw identifier grammar.
+        let crate_path = parse_str::<syn::Path>("crate").unwrap();
+        assert!(super::path_is_ident(&crate_path, "crate"));
+
+        for path in ["::zerocopy", "module::zerocopy"] {
+            let path = parse_str::<syn::Path>(path).unwrap();
+            assert!(!super::path_is_ident(&path, "zerocopy"));
+        }
+    }
+
+    #[test]
+    fn test_raw_zerocopy_attributes() {
+        let ast: syn::DeriveInput = syn::parse_quote! {
+            #[r#zerocopy(crate = "renamed", r#on_error = "skip")]
+            struct Foo;
+        };
+
+        let ctx = super::Ctx::try_from_derive_input(ast).unwrap();
+        let path = &ctx.zerocopy_crate;
+        assert_eq!(quote::quote!(#path).to_string(), ":: renamed");
+        assert!(ctx.skip_on_error);
     }
 }

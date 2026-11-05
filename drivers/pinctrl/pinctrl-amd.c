@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/log2.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -39,6 +40,13 @@
 static struct amd_gpio *pinctrl_dev;
 #endif
 
+static inline void __iomem *amd_gpio_pin_reg(struct amd_gpio *gpio_dev, unsigned int pin)
+{
+	if (gpio_dev->base_rgpio && pin >= AMD_GPIO_RGPIO_PIN_BASE)
+		return gpio_dev->base_rgpio + (pin - AMD_GPIO_RGPIO_PIN_BASE) * 4;
+	return gpio_dev->base + pin * 4;
+}
+
 static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 {
 	unsigned long flags;
@@ -46,7 +54,7 @@ static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	if (pin_reg & BIT(OUTPUT_ENABLE_OFF))
@@ -62,9 +70,9 @@ static int amd_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 	pin_reg &= ~BIT(OUTPUT_ENABLE_OFF);
-	writel(pin_reg, gpio_dev->base + offset * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, offset));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	return 0;
@@ -78,13 +86,13 @@ static int amd_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 	pin_reg |= BIT(OUTPUT_ENABLE_OFF);
 	if (value)
 		pin_reg |= BIT(OUTPUT_VALUE_OFF);
 	else
 		pin_reg &= ~BIT(OUTPUT_VALUE_OFF);
-	writel(pin_reg, gpio_dev->base + offset * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, offset));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	return 0;
@@ -97,7 +105,7 @@ static int amd_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	return !!(pin_reg & BIT(PIN_STS_OFF));
@@ -111,12 +119,12 @@ static int amd_gpio_set_value(struct gpio_chip *gc, unsigned int offset,
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 	if (value)
 		pin_reg |= BIT(OUTPUT_VALUE_OFF);
 	else
 		pin_reg &= ~BIT(OUTPUT_VALUE_OFF);
-	writel(pin_reg, gpio_dev->base + offset * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, offset));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	return 0;
@@ -136,7 +144,7 @@ static int amd_gpio_set_debounce(struct amd_gpio *gpio_dev, unsigned int offset,
 			debounce = 0;
 	}
 
-	pin_reg = readl(gpio_dev->base + offset * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, offset));
 
 	if (debounce) {
 		pin_reg |= DB_TYPE_REMOVE_GLITCH << DB_CNTRL_OFF;
@@ -185,7 +193,7 @@ static int amd_gpio_set_debounce(struct amd_gpio *gpio_dev, unsigned int offset,
 		pin_reg &= ~DB_TMR_OUT_MASK;
 		pin_reg &= ~(DB_CNTRl_MASK << DB_CNTRL_OFF);
 	}
-	writel(pin_reg, gpio_dev->base + offset * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, offset));
 
 	return ret;
 }
@@ -238,6 +246,10 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			i = 192;
 			pin_num = AMD_GPIO_PINS_BANK3 + i;
 			break;
+		case 4:
+			i = AMD_GPIO_RGPIO_PIN_BASE;
+			pin_num = AMD_GPIO_PINS_BANK4 + i;
+			break;
 		default:
 			/* Illegal bank number, ignore */
 			continue;
@@ -247,7 +259,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 		for (; i < pin_num; i++) {
 			seq_printf(s, "#%d\t", i);
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-			pin_reg = readl(gpio_dev->base + i * 4);
+			pin_reg = readl(amd_gpio_pin_reg(gpio_dev, i));
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
@@ -386,10 +398,10 @@ static void amd_gpio_irq_enable(struct irq_data *d)
 	gpiochip_enable_irq(gc, hwirq);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 	pin_reg |= BIT(INTERRUPT_ENABLE_OFF);
 	pin_reg |= BIT(INTERRUPT_MASK_OFF);
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 }
 
@@ -402,10 +414,10 @@ static void amd_gpio_irq_disable(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 	pin_reg &= ~BIT(INTERRUPT_ENABLE_OFF);
 	pin_reg &= ~BIT(INTERRUPT_MASK_OFF);
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	gpiochip_disable_irq(gc, hwirq);
@@ -420,9 +432,9 @@ static void amd_gpio_irq_mask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 	pin_reg &= ~BIT(INTERRUPT_MASK_OFF);
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 }
 
@@ -435,9 +447,9 @@ static void amd_gpio_irq_unmask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 	pin_reg |= BIT(INTERRUPT_MASK_OFF);
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 }
 
@@ -455,14 +467,14 @@ static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 		   hwirq, str_enable_disable(on));
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 
 	if (on)
 		pin_reg |= wake_mask;
 	else
 		pin_reg &= ~wake_mask;
 
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	if (on)
@@ -494,14 +506,14 @@ static void amd_gpio_irq_eoi(struct irq_data *d)
 static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	int ret = 0;
-	u32 pin_reg, pin_reg_irq_en, mask;
+	u32 pin_reg, pin_reg_irq_en, mask, reg;
 	unsigned long flags;
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + hwirq * 4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, hwirq));
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -567,10 +579,11 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	pin_reg_irq_en = pin_reg;
 	pin_reg_irq_en |= mask;
 	pin_reg_irq_en &= ~BIT(INTERRUPT_MASK_OFF);
-	writel(pin_reg_irq_en, gpio_dev->base + hwirq * 4);
-	while ((readl(gpio_dev->base + hwirq * 4) & mask) != mask)
-		continue;
-	writel(pin_reg, gpio_dev->base + hwirq * 4);
+	writel(pin_reg_irq_en, amd_gpio_pin_reg(gpio_dev, hwirq));
+	if (readl_poll_timeout_atomic(amd_gpio_pin_reg(gpio_dev, hwirq), reg,
+				      (reg & mask) == mask, 1, 1000))
+		ret = -ETIMEDOUT;
+	writel(pin_reg, amd_gpio_pin_reg(gpio_dev, hwirq));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 	return ret;
@@ -613,7 +626,6 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 	struct gpio_chip *gc = &gpio_dev->gc;
 	unsigned int i, irqnr;
 	unsigned long flags;
-	u32 __iomem *regs;
 	bool ret = false;
 	u32  regval;
 	u64 status, mask;
@@ -627,15 +639,14 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 
 	/* Bit 0-45 contain the relevant status bits */
 	status &= (1ULL << 46) - 1;
-	regs = gpio_dev->base;
-	for (mask = 1, irqnr = 0; status; mask <<= 1, regs += 4, irqnr += 4) {
+	for (mask = 1, irqnr = 0; status; mask <<= 1, irqnr += 4) {
 		if (!(status & mask))
 			continue;
 		status &= ~mask;
 
 		/* Each status bit covers four pins */
 		for (i = 0; i < 4; i++) {
-			regval = readl(regs + i);
+			regval = readl(amd_gpio_pin_reg(gpio_dev, irqnr + i));
 
 			if (regval & PIN_IRQ_PENDING)
 				pm_pr_dbg("GPIO %d is active: 0x%x",
@@ -658,7 +669,7 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 			 * avoid a system hang caused by an interrupt storm.
 			 */
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-			regval = readl(regs + i);
+			regval = readl(amd_gpio_pin_reg(gpio_dev, irqnr + i));
 			if (!gpiochip_line_is_irq(gc, irqnr + i)) {
 				regval &= ~BIT(INTERRUPT_MASK_OFF);
 				dev_dbg(&gpio_dev->pdev->dev,
@@ -667,10 +678,62 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 			} else {
 				ret = true;
 			}
-			writel(regval, regs + i);
+			writel(regval, amd_gpio_pin_reg(gpio_dev, irqnr + i));
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 		}
 	}
+
+	/*
+	 * Unlike WAKE_INT_STATUS_REG0/1, where each status bit covers four
+	 * pins, the RGPIO status register uses one bit per pin. As with the
+	 * main bank status registers, a bit is cleared by acknowledging the
+	 * pending interrupt on its pin below (clearing PIN_IRQ_PENDING); no
+	 * separate write to the RGPIO status register is required.
+	 */
+	if (gpio_dev->base_rgpio) {
+		u32 status_rgpio;
+
+		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+		status_rgpio = readl(gpio_dev->base_rgpio + WAKE_INT_STATUS_REG_RGPIO);
+		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+
+		status_rgpio &= GENMASK(AMD_GPIO_PINS_BANK4 - 1, 0);
+
+		for (i = 0; i < AMD_GPIO_PINS_BANK4; i++) {
+			unsigned int pin = AMD_GPIO_RGPIO_PIN_BASE + i;
+
+			if (!(status_rgpio & BIT(i)))
+				continue;
+
+			regval = readl(amd_gpio_pin_reg(gpio_dev, pin));
+
+			if (regval & PIN_IRQ_PENDING)
+				pm_pr_dbg("GPIO %d is active: 0x%x", pin, regval);
+
+			/* caused wake on resume context for shared IRQ */
+			if (irq < 0 && (regval & BIT(WAKE_STS_OFF)))
+				return true;
+
+			if (!(regval & PIN_IRQ_PENDING) ||
+			    !(regval & BIT(INTERRUPT_MASK_OFF)))
+				continue;
+			generic_handle_domain_irq_safe(gc->irq.domain, pin);
+
+			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+			regval = readl(amd_gpio_pin_reg(gpio_dev, pin));
+			if (!gpiochip_line_is_irq(gc, pin)) {
+				regval &= ~BIT(INTERRUPT_MASK_OFF);
+				dev_dbg(&gpio_dev->pdev->dev,
+					"Disabling spurious GPIO IRQ %d\n",
+					pin);
+			} else {
+				ret = true;
+			}
+			writel(regval, amd_gpio_pin_reg(gpio_dev, pin));
+			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+		}
+	}
+
 	/* did not cause wake on resume context for shared IRQ */
 	if (irq < 0)
 		return false;
@@ -742,8 +805,11 @@ static int amd_pinconf_get(struct pinctrl_dev *pctldev,
 	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
 
+	if (pin >= AMD_GPIO_RGPIO_PIN_BASE && !gpio_dev->base_rgpio)
+		return -EOPNOTSUPP;
+
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	pin_reg = readl(gpio_dev->base + pin*4);
+	pin_reg = readl(amd_gpio_pin_reg(gpio_dev, pin));
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 	switch (param) {
 	case PIN_CONFIG_INPUT_DEBOUNCE:
@@ -784,11 +850,14 @@ static int amd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param;
 	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctldev);
 
+	if (pin >= AMD_GPIO_RGPIO_PIN_BASE && !gpio_dev->base_rgpio)
+		return -EOPNOTSUPP;
+
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
 		arg = pinconf_to_config_argument(configs[i]);
-		pin_reg = readl(gpio_dev->base + pin*4);
+		pin_reg = readl(amd_gpio_pin_reg(gpio_dev, pin));
 
 		switch (param) {
 		case PIN_CONFIG_INPUT_DEBOUNCE:
@@ -818,7 +887,7 @@ static int amd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			ret = -ENOTSUPP;
 		}
 
-		writel(pin_reg, gpio_dev->base + pin*4);
+		writel(pin_reg, amd_gpio_pin_reg(gpio_dev, pin));
 	}
 out_unlock:
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
@@ -886,6 +955,15 @@ static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
 
 	mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3);
 
+#ifdef CONFIG_ACPI
+	/*
+	 * Platforms without _AEI leave GPIO wake sources to firmware, so
+	 * preserve their S4 wake bits.
+	 */
+	if (acpi_has_method(ACPI_HANDLE(&gpio_dev->pdev->dev), "_AEI"))
+		mask |= BIT(WAKE_CNTRL_OFF_S4);
+#endif
+
 	for (i = 0; i < desc->npins; i++) {
 		int pin = desc->pins[i].number;
 		const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
@@ -893,11 +971,14 @@ static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
 		if (!pd)
 			continue;
 
+		if (pin >= AMD_GPIO_RGPIO_PIN_BASE && !gpio_dev->base_rgpio)
+			continue;
+
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 
-		pin_reg = readl(gpio_dev->base + pin * 4);
+		pin_reg = readl(amd_gpio_pin_reg(gpio_dev, pin));
 		pin_reg &= ~mask;
-		writel(pin_reg, gpio_dev->base + pin * 4);
+		writel(pin_reg, amd_gpio_pin_reg(gpio_dev, pin));
 
 		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 	}
@@ -917,7 +998,10 @@ static void amd_gpio_check_pending(void)
 		int pin = desc->pins[i].number;
 		u32 tmp;
 
-		tmp = readl(gpio_dev->base + pin * 4);
+		if (pin >= AMD_GPIO_RGPIO_PIN_BASE && !gpio_dev->base_rgpio)
+			continue;
+
+		tmp = readl(amd_gpio_pin_reg(gpio_dev, pin));
 		if (tmp & PIN_IRQ_PENDING)
 			pm_pr_dbg("%s: GPIO %d is active: 0x%x.\n", __func__, pin, tmp);
 	}
@@ -975,12 +1059,12 @@ static int amd_gpio_suspend_hibernate_common(struct device *dev, bool is_suspend
 			continue;
 
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-		gpio_dev->saved_regs[i] = readl(gpio_dev->base + pin * 4) & ~PIN_IRQ_PENDING;
+		gpio_dev->saved_regs[i] = readl(amd_gpio_pin_reg(gpio_dev, pin)) & ~PIN_IRQ_PENDING;
 
 		/* mask any interrupts not intended to be a wake source */
 		if (!(gpio_dev->saved_regs[i] & wake_mask)) {
 			writel(gpio_dev->saved_regs[i] & ~BIT(INTERRUPT_MASK_OFF),
-			       gpio_dev->base + pin * 4);
+			       amd_gpio_pin_reg(gpio_dev, pin));
 			pm_pr_dbg("Disabling GPIO #%d interrupt for %s.\n",
 				  pin, is_suspend ? "suspend" : "hibernate");
 		}
@@ -1029,8 +1113,8 @@ static int amd_gpio_resume(struct device *dev)
 			continue;
 
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-		gpio_dev->saved_regs[i] |= readl(gpio_dev->base + pin * 4) & PIN_IRQ_PENDING;
-		writel(gpio_dev->saved_regs[i], gpio_dev->base + pin * 4);
+		gpio_dev->saved_regs[i] |= readl(amd_gpio_pin_reg(gpio_dev, pin)) & PIN_IRQ_PENDING;
+		writel(gpio_dev->saved_regs[i], amd_gpio_pin_reg(gpio_dev, pin));
 		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 	}
 
@@ -1063,7 +1147,8 @@ static int amd_get_groups(struct pinctrl_dev *pctrldev, unsigned int selector,
 {
 	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctrldev);
 
-	if (!gpio_dev->iomux_base) {
+	if (!gpio_dev->iomux_base &&
+	    pmx_functions[selector].index < AMD_GPIO_RGPIO_PIN_BASE) {
 		dev_err(&gpio_dev->pdev->dev, "iomux function %d group not supported\n", selector);
 		return -EINVAL;
 	}
@@ -1079,6 +1164,34 @@ static int amd_set_mux(struct pinctrl_dev *pctrldev, unsigned int function, unsi
 	struct device *dev = &gpio_dev->pdev->dev;
 	struct pin_desc *pd;
 	int ind, index;
+	unsigned int pin = gpio_dev->groups[group].pins[0];
+
+	if (pin >= AMD_GPIO_RGPIO_PIN_BASE) {
+		if (!gpio_dev->base_rgpio)
+			return -EINVAL;
+
+		for (index = 0; index < NSELECTS; index++)
+			if (!strcmp(gpio_dev->groups[group].name,
+				    pmx_functions[function].groups[index]))
+				break;
+		if (index >= NSELECTS)
+			return -EINVAL;
+
+		writeb(index, gpio_dev->base_rgpio + AMD_GPIO_RGPIO_MUX_OFFSET +
+			      (pin - AMD_GPIO_RGPIO_PIN_BASE));
+
+		if (index != (readb(gpio_dev->base_rgpio + AMD_GPIO_RGPIO_MUX_OFFSET +
+				    (pin - AMD_GPIO_RGPIO_PIN_BASE)) & FUNCTION_MASK)) {
+			dev_err(dev, "RGPIO_GPIO %u mux not present or supported\n", pin);
+			return -EINVAL;
+		}
+
+		for (ind = 0; ind < gpio_dev->groups[group].npins; ind++) {
+			pd = pin_desc_get(gpio_dev->pctrl, gpio_dev->groups[group].pins[ind]);
+			pd->mux_owner = gpio_dev->groups[group].name;
+		}
+		return 0;
+	}
 
 	if (!gpio_dev->iomux_base)
 		return -EINVAL;
@@ -1132,28 +1245,31 @@ static struct pinctrl_desc amd_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static void amd_get_iomux_res(struct amd_gpio *gpio_dev)
+static void __iomem *amd_get_named_res(struct device *dev, struct platform_device *pdev,
+				       const char *name, resource_size_t minsz)
 {
-	struct pinctrl_desc *desc = &amd_pinctrl_desc;
-	struct device *dev = &gpio_dev->pdev->dev;
+	struct resource *res;
+	void __iomem *base;
 	int index;
 
-	index = device_property_match_string(dev, "pinctrl-resource-names",  "iomux");
+	index = device_property_match_string(dev, "pinctrl-resource-names", name);
 	if (index < 0) {
-		dev_dbg(dev, "iomux not supported\n");
-		goto out_no_pinmux;
+		dev_dbg(dev, "%s not supported\n", name);
+		return NULL;
 	}
 
-	gpio_dev->iomux_base = devm_platform_ioremap_resource(gpio_dev->pdev, index);
-	if (IS_ERR(gpio_dev->iomux_base)) {
-		dev_dbg(dev, "iomux not supported %d io resource\n", index);
-		goto out_no_pinmux;
+	base = devm_platform_get_and_ioremap_resource(pdev, index, &res);
+	if (IS_ERR(base)) {
+		dev_dbg(dev, "%s not supported %d io resource\n", name, index);
+		return NULL;
 	}
 
-	return;
+	if (resource_size(res) < minsz) {
+		dev_err(dev, "%s resource too small\n", name);
+		return NULL;
+	}
 
-out_no_pinmux:
-	desc->pmxops = NULL;
+	return base;
 }
 
 static int amd_gpio_probe(struct platform_device *pdev)
@@ -1174,6 +1290,19 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio_dev->base)) {
 		dev_err(&pdev->dev, "Failed to get gpio io resource.\n");
 		return PTR_ERR(gpio_dev->base);
+	}
+
+	gpio_dev->base_rgpio = amd_get_named_res(&pdev->dev, pdev, "rgpio",
+						 WAKE_INT_STATUS_REG_RGPIO + sizeof(u32));
+	/*
+	 * RGPIO pins are numbered from AMD_GPIO_RGPIO_PIN_BASE, so the main
+	 * bank must span exactly that many register slots for the RGPIO pin
+	 * numbering to line up. Disable RGPIO if the main bank is a different
+	 * size.
+	 */
+	if (gpio_dev->base_rgpio && resource_size(res) / 4 != AMD_GPIO_RGPIO_PIN_BASE) {
+		dev_err(&pdev->dev, "unexpected GPIO bank size, disabling RGPIO\n");
+		gpio_dev->base_rgpio = NULL;
 	}
 
 	gpio_dev->irq = platform_get_irq(pdev, 0);
@@ -1202,13 +1331,18 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->gc.owner			= THIS_MODULE;
 	gpio_dev->gc.parent			= &pdev->dev;
 	gpio_dev->gc.ngpio			= resource_size(res) / 4;
-
 	gpio_dev->hwbank_num = gpio_dev->gc.ngpio / 64;
+	if (gpio_dev->base_rgpio) {
+		gpio_dev->gc.ngpio += AMD_GPIO_PINS_BANK4;
+		gpio_dev->hwbank_num++;
+	}
 	gpio_dev->groups = kerncz_groups;
 	gpio_dev->ngroups = ARRAY_SIZE(kerncz_groups);
 
 	amd_pinctrl_desc.name = dev_name(&pdev->dev);
-	amd_get_iomux_res(gpio_dev);
+	gpio_dev->iomux_base = amd_get_named_res(&pdev->dev, pdev, "iomux", 0);
+	if (!gpio_dev->iomux_base && !gpio_dev->base_rgpio)
+		amd_pinctrl_desc.pmxops = NULL;
 	gpio_dev->pctrl = devm_pinctrl_register(&pdev->dev, &amd_pinctrl_desc,
 						gpio_dev);
 	if (IS_ERR(gpio_dev->pctrl)) {

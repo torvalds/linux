@@ -178,6 +178,9 @@ struct network_resiliency_req {
  */
 #define SMB2_IOCTL_IOV_SIZE 2
 
+/* extra iov for the alignment padding smb2_set_next_command() may add */
+#define SMB2_QUERY_INFO_IOV_SIZE 2
+
 /*
  *	PDU query infolevel structure definitions
  *	BB consider moving to a different header

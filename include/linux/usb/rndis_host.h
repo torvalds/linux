@@ -182,8 +182,9 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 #define FLAG_RNDIS_PHYM_WIRELESS	0x0002
 
 /* Flags for driver_info::data */
-#define RNDIS_DRIVER_DATA_POLL_STATUS	1	/* poll status before control */
-#define RNDIS_DRIVER_DATA_DST_MAC_FIXUP	2	/* device ignores configured MAC address */
+#define RNDIS_DRIVER_DATA_POLL_STATUS		1	/* poll status before control */
+#define RNDIS_DRIVER_DATA_DST_MAC_FIXUP		2	/* device ignores configured MAC address */
+#define RNDIS_DRIVER_DATA_RX_AGGREGATION	4	/* needs RX limit > 2048 */
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
 extern int

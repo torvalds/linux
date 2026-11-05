@@ -140,6 +140,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_XQ.ANY",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "All accesses to L2 cache [This event is alias to L2_RQSTS.REFERENCES, L2_RQSTS.ANY]",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x24",
@@ -237,6 +246,15 @@
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache. [This event is alias to L2_RQSTS.RFO_HIT]",
         "SampleAfterValue": "200003",
         "UMask": "0x42",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "L2_REQUEST.RFO_HIT_XSNP_HIT_FWD",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.RFO_HIT_XSNP_HIT_FWD",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2002",
         "Unit": "cpu_core"
     },
     {
@@ -380,6 +398,16 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Cycles when L1D is locked",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x42",
+        "EventName": "LOCK_CYCLES.CACHE_LOCK_DURATION",
+        "PublicDescription": "This event counts the number of cycles when the L1D is locked.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Counts the number of cacheable memory requests that miss in the LLC. Counts on a per core basis.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
@@ -407,6 +435,90 @@
         "PublicDescription": "Counts the number of cacheable memory requests that access the Last Level Cache (LLC). Requests include demand loads, reads for ownership (RFO), instruction fetches and L1 HW prefetches. If the core has access to an L3 cache, the LLC is the L3 cache, otherwise it is the L2 cache. Counts on a per core basis.",
         "SampleAfterValue": "1000003",
         "UMask": "0x4f",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Core-originated cacheable requests that refer to L3 (Except hardware prefetches to the L3)",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2e",
+        "EventName": "LONGEST_LAT_CACHE.REFERENCE",
+        "PublicDescription": "Counts core-originated cacheable requests to the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4f",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3f",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss that hit an L2 in different module, L3, or MMIO, on the same CBB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.CACHE_HIT_LOCAL_CBB",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss that also miss an L2 in different module, L3, or MMIO, on the same CBB",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.CACHE_MISS_LOCAL_CBB",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3c",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss. that hit the L2 cache within the same module.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.L2_HIT_LOCAL_MODULE",
+        "PublicDescription": "Counts the number of cycles the core is stalled due to a demand load that hit the L2 cache within the same module.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss. that miss the L2 cache within the same module.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.L2_MISS_LOCAL_MODULE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3e",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1cache miss that hit in any cache, L2 or L3 or MMIO, that is not on the same CBB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_CACHE_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x6",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a load miss at ret that hit in memory regions 0, 1, 2, 3, 4, 5, 6, 7.  Memory regions may be mapped to the local or remote sockets.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.MEM_HIT_ANY_SOCKET",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x30",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss that hit in memory regions 0, 1, 2, 4, 5.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.MEM_HIT_LOCAL_SOCKET",
+        "PublicDescription": "Counts the number of unhalted cycles when the core is stalled due to L1 cache miss that hit in memory regions 0,1,2,4,5",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
         "Unit": "cpu_atom"
     },
     {
@@ -443,7 +555,7 @@
     },
     {
         "BriefDescription": "All retired memory instructions.",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ANY",
@@ -530,27 +642,82 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB",
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HIT.SNP_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2_HIT_SAME_CBB_SNP_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HIT.SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x8D000800000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HIT.SNP_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2_HIT_SAME_CBB_SNP_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x89000800000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_HIT_NO_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_HIT_NO_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x45000400000001",
+        "PublicDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_HIT_NO_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_MISS]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_MISS",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x25000400000001",
+        "PublicDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_MISS] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT]",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD6",
         "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB",
         "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
         "MSRValue": "0xED000400000001",
-        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB Available PDIST counters: 0,1",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT] Available PDIST counters: 0,1",
         "SampleAfterValue": "100021",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB_SNP_HIT_NO_FWD",
+        "BriefDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT.SNP_HIT_NO_FWD]",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
+        "Deprecated": "1",
         "EventCode": "0xD6",
         "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB_SNP_HIT_NO_FWD",
         "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
         "MSRValue": "0x4D000400000001",
-        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB_SNP_HIT_NO_FWD Available PDIST counters: 0,1",
+        "PublicDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT.SNP_HIT_NO_FWD] Available PDIST counters: 0,1",
         "SampleAfterValue": "100021",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -569,6 +736,71 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xED000400000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT.SNP_HIT_NO_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB_SNP_HIT_NO_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT.SNP_HIT_NO_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x4D000400000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HIT.SNP_HIT_NO_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3_HIT_SAME_CBB_SNP_HIT_NO_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_HIT_NO_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_HIT_NO_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_HIT_NO_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x45000400000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_HIT_NO_FWD [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_HIT_NO_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_MISS [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_MISS]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_MISS",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x25000400000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.L3_SAME_CBB.HITESF.SNP_MISS [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L3.SAME_CBB.HITESF.SNP_MISS] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.MEM_REGION_0",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.MEM_REGION_0",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xF5010000000001",
+        "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.MEM_REGION_0 Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "MEM_LOAD_L2_MISS_RETIRED.MEM_REGION_1",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -577,6 +809,34 @@
         "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
         "MSRValue": "0xF5020000000001",
         "PublicDescription": "MEM_LOAD_L2_MISS_RETIRED.MEM_REGION_1 Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x89000800000001",
+        "PublicDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD] Available PDIST counters: 0,1",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HIT.SNP_FWD]",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xD6",
+        "EventName": "MEM_LOAD_L2_MISS_RETIRED.OTHER_MODULE_L2_HIT_SAME_CBB_SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x8D000800000001",
+        "PublicDescription": "This event is deprecated. [This event is alias to MEM_LOAD_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HIT.SNP_FWD] Available PDIST counters: 0,1",
         "SampleAfterValue": "100021",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -666,6 +926,117 @@
         "EventName": "MEM_LOAD_RETIRED.L2_MISS",
         "PublicDescription": "Counts retired load instructions missed L2 cache as data sources. Available PDIST counters: 0,1",
         "SampleAfterValue": "100021",
+        "UMask": "0x8000",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired instruction with at least 1 load uop whose Data Source was: Hit in L2 cache that required a snoop to other core in DCM - data was forwarded from other core.",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_RETIRED.L2_XSNP_HIT_FWD",
+        "PublicDescription": "Retired instruction with at least 1 load uop whose Data Source was: Hit in L2 cache that required a snoop to other core in DCM - data was forwarded from other core. Available PDIST counters: 0,1",
+        "SampleAfterValue": "50021",
+        "UMask": "0x200",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired instruction with at least 1 load uop whose Data Source was: Hit in L2 cache that required a snoop to other core in DCM which missed the other core and no data was forwarded.",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_RETIRED.L2_XSNP_MISS",
+        "PublicDescription": "Retired instruction with at least 1 load uop whose Data Source was: Hit in L2 cache that required a snoop to other core in DCM which missed the other core and no data was forwarded. Available PDIST counters: 0,1",
+        "SampleAfterValue": "50021",
+        "UMask": "0x80",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit the L1 data cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit the L1 data cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss in the L1 data cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
+        "PublicDescription": "Counts the number of load ops retired that miss in the L1 data cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L2 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
+        "PublicDescription": "Counts the number of load ops retired that miss in the L2 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit an L2 in different module, L3, or MMIO, on the same CBB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED_2.CACHE_HIT_LOCAL_CBB",
+        "PublicDescription": "Counts the number of load ops retired that hit an L2 in different module, L3, or MMIO, on the same CBB Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in memory regions 0, 1, 2, 4, 5.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_RETIRED_2.MEM_HIT_LOCAL_SOCKET",
+        "PublicDescription": "Counts the number of load ops retired that hit in memory regions 0,1,2,4,5 Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "MEM_STORE_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD [This event is alias to MEM_STORE_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x4F",
+        "EventName": "MEM_STORE_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x89000800000002",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "MEM_STORE_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD [This event is alias to MEM_STORE_L2_MISS_RETIRED.L2_OTHER_MODULE.SAME_CBB.HITM.SNP_FWD]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x4F",
+        "EventName": "MEM_STORE_L2_MISS_RETIRED.OTHER_MODULE_L2.SAME_CBB.HITM.SNP_FWD",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x89000800000002",
+        "SampleAfterValue": "100021",
+        "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
@@ -676,6 +1047,116 @@
         "SampleAfterValue": "200003",
         "UMask": "0x20",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired. A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST).",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST) Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x83",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
+        "PublicDescription": "Counts the number of load ops retired. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x81",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of store ops retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
+        "PublicDescription": "Counts the number of store ops retired. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x82",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load uops retired that performed one or more locks.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that performed one or more locks Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x21",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired that were splits.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT",
+        "PublicDescription": "Counts the number of memory uops retired that were splits. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x43",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired split load uops.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
+        "PublicDescription": "Counts the number of retired split load uops. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x41",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired split store uops.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
+        "PublicDescription": "Counts the number of retired split store uops. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x42",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired that missed in the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS",
+        "PublicDescription": "Counts the number of memory uops retired that missed in the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x13",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load uops retired that miss in the second Level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that miss in the second Level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x11",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of store uops retired that miss in the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
+        "PublicDescription": "Counts the number of store uops retired that miss in the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x12",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Retired memory uops for any access",
@@ -745,5 +1226,14 @@
         "SampleAfterValue": "100003",
         "UMask": "0x4",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to an icache miss.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.ICACHE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20",
+        "Unit": "cpu_atom"
     }
 ]

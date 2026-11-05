@@ -206,6 +206,18 @@ static inline void dcn6_test_initialize_v3_sop_latencies_all_levels(
 				df_response_time_ps);
 }
 
+/**
+ * dcn6_test_override_lsdma_bandwidth_v3 - Debug / test interface that
+ * can be used to override the LSDMA bandwidth as needed for any LL and SOP.
+ * @dchub: DCN6 flat UTM QoS v3 table to modify
+ */
+static inline void dcn6_test_override_lsdma_bandwidth_v3(
+		struct utm_qos_model_dchub_v3 *dchub)
+{
+	/* Implement override as needed */
+	(void)dchub;
+}
+
 static inline void dcn6_test_initialize_utm_qos_model_v3(
 		struct utm_qos_model *qos_model,
 		struct utm_qos_model_dchub_v3 *dchub)

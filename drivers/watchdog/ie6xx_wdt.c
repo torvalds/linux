@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/spinlock.h>
+#include <linux/stringify.h>
 
 #define DRIVER_NAME "ie6xx_wdt"
 
@@ -49,14 +50,14 @@ static unsigned int timeout = DEFAULT_TIME;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 		"Default Watchdog timer setting ("
-		__MODULE_STRING(DEFAULT_TIME) "s)."
+		__stringify(DEFAULT_TIME) "s)."
 		"The range is from 1 to 600");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static u8 resetmode = 0x10;
 module_param(resetmode, byte, 0);

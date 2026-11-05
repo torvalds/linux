@@ -2189,6 +2189,7 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 }
 
 static int ccs_set_format_source(struct v4l2_subdev *subdev,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
@@ -2242,6 +2243,7 @@ static int ccs_set_format_source(struct v4l2_subdev *subdev,
 }
 
 static int ccs_set_format(struct v4l2_subdev *subdev,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
@@ -2252,7 +2254,7 @@ static int ccs_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == ssd->source_pad) {
 		int rval;
 
-		rval = ccs_set_format_source(subdev, sd_state, fmt);
+		rval = ccs_set_format_source(subdev, ci, sd_state, fmt);
 
 		return rval;
 	}
@@ -2467,6 +2469,7 @@ static void ccs_set_compose_scaler(struct v4l2_subdev *subdev,
 }
 /* We're only called on source pads. This function sets scaling. */
 static int ccs_set_compose(struct v4l2_subdev *subdev,
+			   const struct v4l2_subdev_client_info *ci,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_selection *sel)
 {
@@ -2536,6 +2539,7 @@ static int ccs_sel_supported(struct v4l2_subdev *subdev,
 }
 
 static int ccs_set_crop(struct v4l2_subdev *subdev,
+			const struct v4l2_subdev_client_info *ci,
 			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_selection *sel)
 {
@@ -2587,6 +2591,7 @@ static void ccs_get_native_size(struct ccs_subdev *ssd, struct v4l2_rect *r)
 }
 
 static int ccs_get_selection(struct v4l2_subdev *subdev,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
@@ -2633,6 +2638,7 @@ static int ccs_get_selection(struct v4l2_subdev *subdev,
 }
 
 static int ccs_set_selection(struct v4l2_subdev *subdev,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
@@ -2655,10 +2661,10 @@ static int ccs_set_selection(struct v4l2_subdev *subdev,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		ret = ccs_set_crop(subdev, sd_state, sel);
+		ret = ccs_set_crop(subdev, ci, sd_state, sel);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		ret = ccs_set_compose(subdev, sd_state, sel);
+		ret = ccs_set_compose(subdev, ci, sd_state, sel);
 		break;
 	default:
 		ret = -EINVAL;

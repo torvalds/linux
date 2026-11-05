@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: August 2026
+:Date: October 2026
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -29,20 +29,29 @@ If Landlock is not currently supported, we need to
 Landlock rules
 ==============
 
-A Landlock rule describes an action on an object which the process intends to
-perform.  A set of rules is aggregated in a ruleset, which can then restrict
-the thread enforcing it, and its future children.
+A Landlock rule describes the actions a process is allowed to perform on a
+specific resource.  A set of rules is aggregated in a ruleset, which can then
+restrict the thread enforcing it, and its future children.
 
-The two existing types of rules are:
+The existing types of rules are:
 
 Filesystem rules
-    For these rules, the object is a file hierarchy,
-    and the related filesystem actions are defined with
-    `filesystem access rights`.
+    The rule key is a file hierarchy, and the actions it allows are
+    defined with `filesystem access rights`.
 
 Network rules (since ABI v4 for TCP and v10 for UDP)
     For these rules, the object is a TCP or UDP port,
     and the related actions are defined with `network access rights`.
+
+Capability rules (since ABI v12)
+    The rule body lists which Linux capabilities (see
+    :manpage:`capabilities(7)`) the process may exercise; the action is
+    defined with `permission flags`.
+
+Namespace rules (since ABI v12)
+    The rule body lists which namespace types (see
+    :manpage:`namespaces(7)`) the process may use; the action is defined
+    with `permission flags`.
 
 Defining and enforcing a security policy
 ----------------------------------------
@@ -87,6 +96,9 @@ to be explicit about the denied-by-default access rights.
         .scoped =
             LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
             LANDLOCK_SCOPE_SIGNAL,
+        .handled_permissions =
+            LANDLOCK_PERMISSION_NAMESPACE_USE |
+            LANDLOCK_PERMISSION_CAPABILITY_USE,
     };
 
 Because we may not know which kernel version an application will be executed
@@ -140,6 +152,13 @@ version, and only use the available subset of access rights:
         ruleset_attr.handled_access_net &=
             ~(LANDLOCK_ACCESS_NET_BIND_UDP |
               LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP);
+        __attribute__((fallthrough));
+    case 10:
+    case 11:
+        /* Removes LANDLOCK_PERMISSION_* for ABI < 12 */
+        ruleset_attr.handled_permissions &=
+            ~(LANDLOCK_PERMISSION_NAMESPACE_USE |
+              LANDLOCK_PERMISSION_CAPABILITY_USE);
     }
 
 This enables the creation of an inclusive ruleset that will contain our rules.
@@ -241,6 +260,56 @@ the program explicitly called :manpage:`bind(2)` on port 0.
     if (udp_bind.allowed_access)
         err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
                                 &udp_bind, 0);
+
+Capability and namespace rules use a different attribute layout:
+``permissions`` identifies the permission category (a single
+``LANDLOCK_PERMISSION_*`` flag) and a type-specific value field carries the
+bitmask to allow within it.  See `Capability and namespace restrictions`_ for
+the model.
+
+For capability access-control, we can add rules that allow specific
+capabilities (see :manpage:`capabilities(7)` for the list of ``CAP_*``
+values).  For instance, to allow ``CAP_SYS_CHROOT`` (so the sandboxed
+process can call :manpage:`chroot(2)` inside a user namespace):
+
+.. code-block:: c
+
+    struct landlock_capability_attr cap_attr = {
+        .permissions = LANDLOCK_PERMISSION_CAPABILITY_USE,
+        .allowed_capabilities = (1ULL << CAP_SYS_CHROOT),
+    };
+
+    cap_attr.permissions &= ruleset_attr.handled_permissions;
+    if (cap_attr.permissions)
+        err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_CAPABILITY,
+                                &cap_attr, 0);
+
+For namespace access-control, we can add rules that allow using specific
+namespace types (see :manpage:`namespaces(7)` for the list of ``CLONE_NEW*``
+values): creating them via :manpage:`unshare(2)` / :manpage:`clone(2)` /
+:manpage:`clone3(2)`, joining them via :manpage:`setns(2)`, or acquiring an fd
+reference via :manpage:`open_tree(2)` / :manpage:`fsmount(2)`.  For instance,
+to allow creating user namespaces (which grants all capabilities inside the new
+namespace):
+
+.. code-block:: c
+
+    struct landlock_namespace_attr ns_attr = {
+        .permissions = LANDLOCK_PERMISSION_NAMESPACE_USE,
+        .allowed_namespace_types = CLONE_NEWUSER,
+    };
+
+    ns_attr.permissions &= ruleset_attr.handled_permissions;
+    if (ns_attr.permissions)
+        err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NAMESPACE,
+                                &ns_attr, 0);
+
+Together, these two rules allow an unprivileged process to create a user
+namespace and call :manpage:`chroot(2)` inside it, while denying all other
+capabilities and namespace types.  User namespace creation is the one operation
+that does not require ``CAP_SYS_ADMIN``, so no capability rule is needed for it.
+See `Capability and namespace restrictions`_ for details on capability
+requirements.
 
 When passing a non-zero ``flags`` argument to ``landlock_restrict_self()``, a
 similar backwards compatibility check is needed for the restrict flags
@@ -442,9 +511,139 @@ The operations which can be scoped are:
     A :manpage:`sendto(2)` on a socket which was previously connected will not
     be restricted.  This works for both datagram and stream sockets.
 
-IPC scoping does not support exceptions via :manpage:`landlock_add_rule(2)`.
-If an operation is scoped within a domain, no rules can be added to allow access
-to resources or processes outside of the scope.
+Scoping does not support exceptions via :manpage:`landlock_add_rule(2)`.  If an
+operation is scoped within a domain, no rules can be added to allow access to
+resources or processes outside of the scope.
+
+Capability and namespace restrictions
+-------------------------------------
+
+``handled_permissions`` declares per-category permissions: each permission
+selects which members of a kernel-defined category (CAP_* capabilities,
+CLONE_NEW* namespace types) the process may use.  Unlike per-object access
+rights (``handled_access_*``) or cross-domain scopes (``scoped``), per-category
+permissions constrain the sandboxed process's own use of these enums; members
+not allowed by a rule are denied by default.
+
+``LANDLOCK_PERMISSION_NAMESPACE_USE`` gates *acquisition of access* to
+namespaces: creation via :manpage:`unshare(2)` / :manpage:`clone(2)`
+/ :manpage:`clone3(2)`, entry via :manpage:`setns(2)`, and fd-reference
+acquisition via :manpage:`open_tree(2)` / :manpage:`fsmount(2)`.  Namespaces
+the process is already a member of when the domain is enforced are implicitly
+allowed (the process could not continue running otherwise); rules describe
+which new namespace types the process may acquire.
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` gates every exercise of a capability
+after the domain is enforced, regardless
+of how the capability was obtained (inherited credentials, ``CLONE_NEWUSER``
+grant, ``setuid``/file-cap-bearing :manpage:`execve(2)`, etc.).  Configuring
+both together restricts what privileges are available *and* the namespaces in
+which they take effect, which matters because user namespace creation has no
+capability check and grants all capabilities within the new namespace: gating
+only one of the two leaves a kernel attack-surface widening path open.  When a
+domain handles both permissions, an operation is allowed only if each
+independently allows it: :manpage:`unshare(2)` with ``CLONE_NEWNET`` then
+requires both a rule allowing ``CLONE_NEWNET`` and a rule allowing
+``CAP_SYS_ADMIN``.
+
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` complements :manpage:`prctl(2)`
+``PR_SET_NO_NEW_PRIVS`` but does not replace it.  ``PR_SET_NO_NEW_PRIVS``
+prevents privilege *acquisition* via :manpage:`execve(2)` (setuid, file
+capability xattrs, privilege-elevating LSM transitions) and is a prerequisite
+for unprivileged Landlock self-sandboxing.
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` restricts *exercise* of capabilities the
+process already holds, including those
+gained via ``CLONE_NEWUSER`` which ``PR_SET_NO_NEW_PRIVS`` does not block.
+Sandboxes typically set both.
+
+Rules are added with ``LANDLOCK_RULE_CAPABILITY`` and &struct
+landlock_capability_attr (each rule lists ``CAP_*`` values to allow), and with
+``LANDLOCK_RULE_NAMESPACE`` and &struct landlock_namespace_attr (each rule
+lists ``CLONE_NEW*`` flags to allow).  Landlock is purely restrictive: it can
+only deny what the traditional check would have allowed, never grant additional
+privileges.
+
+Denials of specific capabilities or namespace types can be excluded from audit
+logging per rule, by listing them in the ``quiet_capabilities`` or
+``quiet_namespace_types`` field of the rule (independently of the allowed
+members).  Quieting requires the permission to be handled, is member-granular,
+and only suppresses the audit record of a denial attributed to the rule's own
+layer; it never changes the denial itself or suppresses its trace event, which
+reports ``logged=0``.  Sandboxes should quiet only specific members known to be
+requested but expected to be denied (for example for compatibility with older
+callers), never a blanket set: a blanket set follows the running kernel's known
+members and would hide surprising or future denials from audit.
+
+Rule bodies silently accept values unknown to the current kernel (capabilities
+above ``CAP_LAST_CAP``, unrecognised ``CLONE_NEW*`` bits): they have no runtime
+effect, so a rule compiled against future kernel headers loads without error on
+older kernels.  Future kernels gain new members denied by default until a rule
+explicitly allows them.
+
+The single ``LANDLOCK_PERMISSION_NAMESPACE_USE`` bit gates every kernel path
+that grants the calling process access to a namespace of the controlled types,
+whether by becoming a member of the namespace or by holding a file descriptor
+that references it.  The covered syscall paths are:
+
+* :manpage:`unshare(2)` with ``CLONE_NEW*``: the caller becomes a member of a
+  newly-created namespace.
+* :manpage:`clone(2)` (or :manpage:`clone3(2)`) with ``CLONE_NEW*``: the
+  child becomes a member of a newly-created namespace.
+* :manpage:`setns(2)`: the caller becomes a member of an existing namespace
+  referenced by file descriptor.
+* :manpage:`open_tree(2)` with ``OPEN_TREE_NAMESPACE``: the caller obtains a
+  file descriptor referring to a newly-created mount namespace.
+* :manpage:`open_tree(2)` with ``OPEN_TREE_CLONE``: the caller obtains a file
+  descriptor referring to a newly-created anonymous mount namespace.
+* :manpage:`fsmount(2)` with ``FSMOUNT_NAMESPACE``: the caller obtains a file
+  descriptor referring to a newly-created mount namespace.
+* :manpage:`fsmount(2)` (default): the caller obtains a file descriptor
+  referring to a newly-created anonymous mount namespace.
+
+Anonymous mount namespaces (created by ``open_tree(OPEN_TREE_CLONE)`` and the
+default :manpage:`fsmount(2)`) are intentionally covered by the bit even though
+the calling process does not become a member of them.  Without this coverage, a
+sandboxed process could combine ``open_tree(OPEN_TREE_CLONE)`` with
+:manpage:`move_mount(2)` to graft mounts from a freshly-allocated mount
+namespace into its current namespace, bypassing a ``CLONE_NEWNS`` restriction
+(these mount operations require ``CAP_SYS_ADMIN``, which a sandboxed process
+typically obtains by first creating a user namespace).
+
+In practice, unprivileged processes first create a user namespace (which
+requires no capability and grants all capabilities within it), then use those
+capabilities to create other namespace types.  All non-user namespace types
+require ``CAP_SYS_ADMIN`` for both creation and :manpage:`setns(2)` entry; mount
+namespace entry additionally requires ``CAP_SYS_CHROOT``.  For
+:manpage:`setns(2)`, capabilities are checked relative to the target namespace,
+so a process in an ancestor user namespace naturally satisfies them; this
+includes joining user namespaces, which requires ``CAP_SYS_ADMIN``.  When
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` is also handled, each of these
+capabilities must be explicitly allowed by a rule.
+
+Creating a non-user namespace always requires ``CAP_SYS_ADMIN``, and
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` (when handled) gates that check
+regardless of which user namespace it targets.  This is true whether the
+namespace is created
+on its own, combined with ``CLONE_NEWUSER`` in a single :manpage:`unshare(2)`
+call, or in a separate :manpage:`unshare(2)` call after a user namespace: in
+all cases the kernel checks ``CAP_SYS_ADMIN`` against the owning user
+namespace, and Landlock denies it unless a rule allows
+``CAP_SYS_ADMIN``.  Combining ``CLONE_NEWUSER`` with another ``CLONE_NEW*``
+flag therefore does not avoid the capability check; only user namespace
+creation itself needs no capability rule.
+
+When creating child user namespaces, it is recommended to also create a
+dedicated Landlock domain with restrictions relevant to each namespace context.
+
+Note that ``LANDLOCK_PERMISSION_CAPABILITY_USE`` restricts the *use* of
+capabilities, not their presence in the process's credential.  Capability sets
+can change
+after a domain is enforced through user namespace entry or :manpage:`capset(2)`;
+privileged sandboxes that did not set ``PR_SET_NO_NEW_PRIVS`` may also gain
+capabilities through :manpage:`execve(2)` of binaries with file capabilities.
+In all cases, :manpage:`capget(2)` will report the credential's capability sets,
+but any denied capability will fail with ``EPERM`` when exercised.  Do not rely
+on :manpage:`capget(2)` to determine whether the policy permits a given
+capability; only the actual operation will return ``EPERM`` upon denial.
 
 Truncating files
 ----------------
@@ -610,7 +809,7 @@ Access rights
 -------------
 
 .. kernel-doc:: include/uapi/linux/landlock.h
-    :identifiers: fs_access net_access scope
+    :identifiers: fs_access net_access scope permission
 
 Creating a new ruleset
 ----------------------
@@ -629,7 +828,8 @@ Extending a ruleset
 
 .. kernel-doc:: include/uapi/linux/landlock.h
     :identifiers: landlock_rule_type landlock_path_beneath_attr
-                  landlock_net_port_attr
+                  landlock_net_port_attr landlock_capability_attr
+                  landlock_namespace_attr
 
 Enforcing a ruleset
 -------------------
@@ -833,6 +1033,23 @@ succeeds.  This removes the need for a prior :manpage:`prctl(2)`
 with ``LANDLOCK_RESTRICT_SELF_TSYNC``, no_new_privs is set on all threads
 of the process.  As explained in the tutorial above, leaving no_new_privs
 unset is risky even when Landlock does not require it.
+
+Capability (ABI < 12)
+---------------------
+
+Starting with the Landlock ABI version 12, it is possible to restrict
+:manpage:`capabilities(7)` with the new ``LANDLOCK_PERMISSION_CAPABILITY_USE``
+permission flag and ``LANDLOCK_RULE_CAPABILITY`` rule type.
+
+Namespace (ABI < 12)
+--------------------
+
+Starting with the Landlock ABI version 12, it is possible to restrict namespace
+use (see :manpage:`namespaces(7)`) across creation (:manpage:`unshare(2)`,
+:manpage:`clone(2)`, :manpage:`clone3(2)`), entry (:manpage:`setns(2)`), and
+fd-reference acquisition (:manpage:`open_tree(2)`, :manpage:`fsmount(2)`) with
+the new ``LANDLOCK_PERMISSION_NAMESPACE_USE`` permission flag and
+``LANDLOCK_RULE_NAMESPACE`` rule type.
 
 .. _kernel_support:
 

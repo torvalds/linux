@@ -49,6 +49,11 @@ int mlx5hws_pat_init_pattern_cache(struct mlx5hws_pattern_cache **cache);
 
 void mlx5hws_pat_uninit_pattern_cache(struct mlx5hws_pattern_cache *cache);
 
+bool mlx5hws_pat_compare_pattern(int cur_num_of_actions,
+				 __be64 cur_actions[],
+				 int num_of_actions,
+				 __be64 actions[]);
+
 bool mlx5hws_pat_verify_actions(struct mlx5hws_context *ctx, __be64 pattern[], size_t sz);
 
 int mlx5hws_arg_create(struct mlx5hws_context *ctx,

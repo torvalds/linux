@@ -24,8 +24,10 @@
 #include <subcmd/parse-options.h>
 #include <linux/zalloc.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /**
  * struct print_state - State and configuration passed to the default_print
@@ -325,7 +327,7 @@ static void fix_escape_fprintf(FILE *fp, struct strbuf *buf, const char *fmt, ..
 			case 'S': {
 				const char *s = va_arg(args, const char*);
 
-				for (size_t s_pos = 0; s_pos < strlen(s); s_pos++) {
+				for (size_t s_pos = 0; s[s_pos] != '\0'; s_pos++) {
 					switch (s[s_pos]) {
 					case '\n':
 						strbuf_addstr(buf, "\\n");
@@ -538,6 +540,31 @@ static bool default_skip_duplicate_pmus(void *ps)
 	return !print_state->long_desc;
 }
 
+/*
+ * Launch the interactive textual based ilist python script via 'perf script'
+ * that finds the script and sets up the python environment. Arguments are
+ * passed to the script.
+ */
+static int list__tui(int argc, const char **argv)
+{
+	const char **script_argv;
+	int script_argc = 0, ret;
+
+	script_argv = calloc(argc + 4, sizeof(*script_argv));
+	if (!script_argv)
+		return -ENOMEM;
+
+	script_argv[script_argc++] = "script";
+	script_argv[script_argc++] = "ilist";
+	script_argv[script_argc++] = "--";
+	for (int i = 0; i < argc; i++)
+		script_argv[script_argc++] = argv[i];
+
+	ret = cmd_script(script_argc, script_argv);
+	free(script_argv);
+	return ret;
+}
+
 int cmd_list(int argc, const char **argv)
 {
 	int i, ret = 0;
@@ -562,6 +589,7 @@ int cmd_list(int argc, const char **argv)
 	const char *unit_name = NULL;
 	const char *output_path = NULL;
 	bool json = false;
+	bool use_tui = false;
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &default_ps.name_only, "Dump raw events"),
 		OPT_BOOLEAN('j', "json", &json, "JSON encode events and metrics"),
@@ -578,6 +606,8 @@ int cmd_list(int argc, const char **argv)
 			   "Limit PMU or metric printing to the given PMU (e.g. cpu, core or atom)."),
 		OPT_STRING(0, "unit", &unit_name, "PMU name",
 			   "Limit PMU or metric printing to the specified PMU."),
+		OPT_BOOLEAN(0, "tui", &use_tui,
+			    "Interactively browse and count events and metrics with ilist"),
 		OPT_INCR(0, "debug", &verbose,
 			     "Enable debugging output"),
 		OPT_END()
@@ -588,6 +618,7 @@ int cmd_list(int argc, const char **argv)
 #else
 		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|metric|metricgroup|event_glob]",
 #endif
+		"perf list --tui [-- <ilist options>]",
 		NULL
 	};
 
@@ -597,6 +628,9 @@ int cmd_list(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, list_options, list_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (use_tui)
+		return list__tui(argc, argv);
 
 	if (json)
 		ps = &json_ps.common;

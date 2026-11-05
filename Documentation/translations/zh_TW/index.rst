@@ -119,9 +119,10 @@ TODOList:
 術語表
 ------
 
-TODOList:
+.. toctree::
+   :maxdepth: 1
 
-* glossary
+   glossary
 
 
 索引和表格

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# ACPI Configuration for LOONGARCH
+#
+
+config ACPI_IOVT
+	bool

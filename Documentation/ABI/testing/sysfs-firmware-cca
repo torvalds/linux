@@ -1,0 +1,7 @@
+What:		/sys/firmware/cca/realm_guest
+Date:		September 2026
+Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Description:	Read-only. Present only when the kernel is running as an
+		Arm Confidential Compute Architecture (CCA) Realm guest, in
+		which case it reads 1. If the file does not exist, the kernel
+		is not running as a Realm guest.

@@ -1321,6 +1321,10 @@ All memory amounts are in bytes.  If a value which is not aligned to
 PAGE_SIZE is written, the value may be rounded up to the closest
 PAGE_SIZE multiple when read back.
 
+For the limit files described below, an empty or all-whitespace
+write is accepted and sets the limit to 0.  To disable a limit,
+write "max"; to set it to zero explicitly, write "0".
+
   memory.current
 	A read-only single value file which exists on non-root
 	cgroups.
@@ -2127,12 +2131,19 @@ IO Interface Files
 	  [r|w]bps	The maximum sequential IO throughput
 	  [r|w]seqiops	The maximum 4k sequential IOs per second
 	  [r|w]randiops	The maximum 4k random IOs per second
+	  flushiops	The maximum flushes per second
 	  =============	========================================
 
 	From the above, the builtin linear model determines the base
 	costs of a sequential and random IO and the cost coefficient
 	for the IO size.  While simple, this model can cover most
 	common device classes acceptably.
+
+	"flushiops" determines the cost of a cache flush: a write with
+	a preceding cache flush is charged one flush on top of its data
+	cost, and a FUA write one more flush on devices without native
+	FUA support.  It is zero in the builtin profiles, so flushes
+	stay free until it is configured.
 
 	The IO cost model isn't expected to be accurate in absolute
 	sense and is scaled to the device behavior dynamically.
@@ -2536,16 +2547,55 @@ Cpuset Interface Files
 	A read-only multiple values file which exists on all
 	cpuset-enabled cgroups.
 
-	It lists the onlined CPUs that are actually granted to this
-	cgroup by its parent.  These CPUs are allowed to be used by
-	tasks within the current cgroup.
+	It lists the active CPUs available to tasks in this cgroup.
 
-	If "cpuset.cpus" is empty, the "cpuset.cpus.effective" file shows
-	all the CPUs from the parent cgroup that can be available to
-	be used by this cgroup.  Otherwise, it should be a subset of
-	"cpuset.cpus" unless none of the CPUs listed in "cpuset.cpus"
-	can be granted.  In this case, it will be treated just like an
-	empty "cpuset.cpus".
+	For a cgroup that is not a valid partition root, an empty
+	"cpuset.cpus" makes "cpuset.cpus.effective" show all CPUs
+	available from the parent cgroup. Otherwise, it is a subset
+	of "cpuset.cpus" unless none of the requested CPUs can be
+	granted. In that case, it is treated like an empty
+	"cpuset.cpus".
+
+	For example::
+
+	  P (cpuset.cpus.effective=0-3)
+	  |
+	  +-- C0 (member):       cpuset.cpus=1-2
+	  |                      cpuset.cpus.effective=1-2
+	  +-- C1 (invalid root): cpuset.cpus=4-5
+	  |                      cpuset.cpus.effective=0-3
+	  \-- C2 (member):       cpuset.cpus=<empty>
+	                         cpuset.cpus.effective=0-3
+
+	C0 gets CPUs 1-2 because they are available from P.
+	None of C1's requested CPUs 4-5 are available from P, so C1 uses P's
+	effective CPUs 0-3 instead.
+	C2 has an empty "cpuset.cpus" and therefore also uses P's effective
+	CPUs 0-3.
+
+	For a valid non-root partition root, "cpuset.cpus.effective" contains
+	the active CPUs from "cpuset.cpus.exclusive.effective" except
+	those granted to valid child partition roots. If
+	"cpuset.cpus.exclusive" is set to a value different from
+	"cpuset.cpus", the effective CPUs need not be a subset of
+	"cpuset.cpus".
+
+	For example, if CPUs 2-5 are allocated to P for exclusive use,
+	CPUs 2-4 are active, CPU 5 is offline, and none of CPUs 2-5 are
+	assigned to a valid child partition root::
+
+	  top (root)
+	  |
+	  \-- P (valid partition root)
+	      cpuset.cpus=0-3
+	      cpuset.cpus.exclusive=2-5
+	      cpuset.cpus.exclusive.effective=2-5
+	      cpuset.cpus.effective=2-4
+
+	P has 2-5 in "cpuset.cpus.exclusive.effective", including the
+	offline CPU 5. CPU 5 is excluded from "cpuset.cpus.effective",
+	leaving 2-4. The result also shows that "cpuset.cpus.effective"
+	need not be a subset of "cpuset.cpus", which is 0-3.
 
 	Its value will be affected by CPU hotplug events.
 
@@ -2657,8 +2707,9 @@ Cpuset Interface Files
 	A read-only and root cgroup only multiple values file.
 
 	This file shows the set of all isolated CPUs used in existing
-	isolated partitions. It will be empty if no isolated partition
-	is created.
+	isolated partitions or isolated at boot time via the "domain"
+	flag of "isolcpus". The latter remain listed even after any
+	partition using them is released.
 
   cpuset.cpus.partition
 	A read-write single value file which exists on non-root
@@ -2727,7 +2778,9 @@ Cpuset Interface Files
 	be retained, but behaves more like a "member".
 
 	All possible state transitions among "member", "root" and
-	"isolated" are allowed.
+	"isolated" are allowed with the exception that a local child
+	"root" partition is not allowed to be created under an "isolated"
+	parent partition.
 
 	On read, the "cpuset.cpus.partition" file can show the following
 	values.

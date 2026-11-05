@@ -23,7 +23,7 @@ ifeq ($(CONFIG_SPARC64),y)
 # Actual linking
 
 $(obj)/zImage: $(obj)/image FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
 $(obj)/vmlinux.aout: vmlinux FORCE
@@ -45,7 +45,7 @@ $(obj)/image.bin: $(obj)/image FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/image.gz: $(obj)/image.bin FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 UIMAGE_LOADADDR = $(CONFIG_UBOOT_LOAD_ADDR)
 UIMAGE_ENTRYADDR = $(CONFIG_UBOOT_ENTRY_ADDR)

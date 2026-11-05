@@ -216,12 +216,10 @@ int kvm_riscv_gstage_map_page(struct kvm_gstage *gstage,
 	pte_t *ptep;
 	int ret;
 
-	out_map->addr = gpa;
-	out_map->level = 0;
-
 	ret = gstage_page_size_to_level(gstage, page_size, &out_map->level);
 	if (ret)
 		return ret;
+	out_map->addr = ALIGN_DOWN(gpa, page_size);
 
 	/*
 	 * A RISC-V implementation can choose to either:
@@ -280,6 +278,8 @@ int kvm_riscv_gstage_map_page(struct kvm_gstage *gstage,
 						    out_map->level, true);
 		} else if (ALIGN_DOWN(PFN_PHYS(pte_pfn(ptep_get(ptep))), page_size) == hpa) {
 			kvm_riscv_gstage_update_pte_prot(gstage, ptep_level, gpa, ptep, prot);
+			out_map->level = ptep_level;
+			out_map->pte = ptep_get(ptep);
 			return 0;
 		}
 	}

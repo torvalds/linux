@@ -1030,6 +1030,8 @@ int efx_mae_lookup_mport(struct efx_nic *efx, u32 vf_idx, u32 *id)
 	rhashtable_walk_enter(&mae->mports_ht, &walk);
 	rhashtable_walk_start(&walk);
 	while ((m = rhashtable_walk_next(&walk)) != NULL) {
+		if (IS_ERR(m))
+			continue;
 		if (m->mport_type == MAE_MPORT_DESC_MPORT_TYPE_VNIC &&
 		    m->interface_idx == nic_data->local_mae_intf &&
 		    m->pf_idx == 0 &&

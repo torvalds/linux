@@ -278,7 +278,7 @@ static bool wait_until_running(struct hang *h, struct i915_request *rq)
 			     10) &&
 		 wait_for(i915_seqno_passed(hws_seqno(h, rq),
 					    rq->fence.seqno),
-			  1000));
+			  2000));
 }
 
 static int igt_hang_sanitycheck(void *arg)

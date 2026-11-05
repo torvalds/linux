@@ -50,7 +50,7 @@
 	ld1	{v0.16b}, [x5]			/* load mac */
 	cbz	x2, ce_aes_ccm_final
 	ldr	x8, [x6, #8]			/* load lower ctr */
-CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
+	rev	x8, x8				/* keep swabbed ctr in reg */
 0:	/* outer loop */
 	ld1	{v1.8b}, [x6]			/* load upper ctr */
 	prfm	pldl1strm, [x1]
@@ -73,7 +73,7 @@ CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
 	eor	v0.16b, v0.16b, v2.16b		/* xor mac with pt ^ rk[last] */
 	st1	{v6.16b}, [x0], #16		/* write output block */
 	bne	0b
-CPU_LE(	rev	x8, x8			)
+	rev	x8, x8
 	str	x8, [x6, #8]			/* store lsb end of ctr (BE) */
 	cbnz	x7, ce_aes_ccm_final
 	st1	{v0.16b}, [x5]			/* store mac */

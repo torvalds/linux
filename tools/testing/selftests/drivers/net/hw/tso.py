@@ -4,6 +4,7 @@
 """A simple test for TSO."""
 
 import fcntl
+import mmap
 import socket
 import struct
 import termios
@@ -13,6 +14,87 @@ from lib.py import ksft_pr, ksft_run, ksft_exit, KsftSkipEx, KsftXfailEx
 from lib.py import ksft_eq, ksft_ge, ksft_lt
 from lib.py import EthtoolFamily, NetdevFamily, NetDrvEpEnv
 from lib.py import bkg, cmd, defer, ethtool, ip, rand_port, wait_port_listen
+
+
+MAP_HUGETLB = getattr(mmap, "MAP_HUGETLB", 0x40000)
+MSG_ZEROCOPY = getattr(socket, "MSG_ZEROCOPY", 0x4000000)
+SO_ZEROCOPY = getattr(socket, "SO_ZEROCOPY", 60)
+
+GSO_LEGACY_MAX_SIZE = 65536
+
+# Pool of the default hugepage size, the one /proc/meminfo reports on.
+NR_HUGEPAGES = "/proc/sys/vm/nr_hugepages"
+
+
+def default_huge_page_size():
+    """Return the hugepage size in bytes"""
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as meminfo:
+            for line in meminfo:
+                if line.startswith("Hugepagesize:"):
+                    return int(line.split()[1]) * 1024
+    except OSError:
+        pass
+
+    return 2 * 1024 * 1024
+
+
+def hugepages_free():
+    """Return the number of unused hugepages of the default size."""
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as meminfo:
+            for line in meminfo:
+                if line.startswith("HugePages_Free:"):
+                    return int(line.split()[1])
+    except OSError:
+        pass
+    return 0
+
+
+def set_nr_hugepages(count):
+    with open(NR_HUGEPAGES, "w", encoding="utf-8") as sysctl:
+        sysctl.write(f"{count}\n")
+
+
+def tx_dropped(ifname):
+    with open(f"/sys/class/net/{ifname}/statistics/tx_dropped",
+              encoding="utf-8") as counter:
+        return int(counter.read())
+
+
+def setup_hugepage():
+    """Reserve one hugepage, and put the pool back afterwards."""
+    if hugepages_free() >= 1:
+        return
+
+    try:
+        with open(NR_HUGEPAGES, encoding="utf-8") as sysctl:
+            old_count = int(sysctl.read())
+        set_nr_hugepages(old_count + 1)
+    except OSError as error:
+        raise KsftSkipEx(f"Unable to reserve a hugepage: {error}") from error
+
+    defer(set_nr_hugepages, old_count)
+
+    if hugepages_free() < 1:
+        raise KsftSkipEx("Unable to reserve a hugepage")
+
+
+def mmap_large_buffer():
+    """Allocate a buffer backed by one huge page."""
+    size = default_huge_page_size()
+
+    setup_hugepage()
+
+    try:
+        return mmap.mmap(-1, size,
+                         flags=mmap.MAP_PRIVATE |
+                               mmap.MAP_ANONYMOUS |
+                               MAP_HUGETLB,
+                         prot=mmap.PROT_READ)
+    except OSError as e:
+        raise KsftSkipEx(f"Unable to allocate a {size >> 20}MB hugepage "
+                         f"buffer: {e}") from e
 
 
 def sock_wait_drain(sock, max_wait=1000):
@@ -31,6 +113,32 @@ def tcp_sock_get_retrans(sock):
     """Get the number of retransmissions for the TCP socket."""
     info = sock.getsockopt(socket.SOL_TCP, socket.TCP_INFO, 512)
     return struct.unpack("I", info[100:104])[0]
+
+
+def setup_big_tcp(cfg):
+    """Lift the GSO ceiling to what the device advertises for TSO."""
+    if cfg.dev["tso_max_size"] <= GSO_LEGACY_MAX_SIZE:
+        raise KsftSkipEx("Device does not support BIG TCP")
+
+    ip(f"link set dev {cfg.ifname} "
+       f"gso_max_size {cfg.dev['tso_max_size']} "
+       f"gso_ipv4_max_size {cfg.dev['tso_max_size']}")
+
+    defer(ip, f"link set dev {cfg.ifname} "
+              f"gso_max_size {cfg.dev['gso_max_size']} "
+              f"gso_ipv4_max_size {cfg.dev['gso_ipv4_max_size']}")
+
+
+def sock_send_zerocopy(sock):
+    """Send with MSG_ZEROCOPY, return the bytes queued."""
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, SO_ZEROCOPY, 1)
+    except OSError as e:
+        raise KsftSkipEx(f"SO_ZEROCOPY not supported: {e}") from e
+
+    with mmap_large_buffer() as tx_buf:
+        sock.sendall(tx_buf, MSG_ZEROCOPY)
+        return len(tx_buf)
 
 
 def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
@@ -96,6 +204,46 @@ def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
                         500, comment="Number of LSO wire-packets with LSO disabled")
 
 
+def run_big_tcp_stream(cfg, ipver, remote_v4, remote_v6):
+    """Send with MSG_ZEROCOPY out of a huge page, so the frags exceed 64kB."""
+    cfg.require_cmd("socat", local=False, remote=True)
+
+    # No clamping, as it would keep the frags under 64kB
+    port = rand_port()
+    listen_opts = f"{port},reuseport"
+    listen_cmd = f"socat -{ipver} -t 2 -u TCP-LISTEN:{listen_opts} /dev/null,ignoreeof"
+
+    with bkg(listen_cmd, host=cfg.remote, exit_wait=True):
+        wait_port_listen(port, host=cfg.remote)
+
+        if ipver == "4":
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((remote_v4, port))
+        else:
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            sock.connect((remote_v6, port))
+
+        # Small send to make sure the connection is working.
+        sock.send("ping".encode())
+        sock_wait_drain(sock)
+
+        retrans_old = tcp_sock_get_retrans(sock)
+        drops_old = tx_dropped(cfg.ifname)
+
+        sent = sock_send_zerocopy(sock)
+        sock_wait_drain(sock)
+
+        drops = tx_dropped(cfg.ifname) - drops_old
+        retrans = tcp_sock_get_retrans(sock) - retrans_old
+        sock.close()
+
+        ksft_eq(drops, 0, comment="Driver TX drops during BIG TCP send")
+
+        # Same best effort bound as the plain stream.
+        total_lso_wire = sent * 0.90 // cfg.dev["mtu"]
+        ksft_lt(retrans, total_lso_wire / 16)
+
+
 def build_tunnel(cfg, outer_ipver, tun_info):
     local_v4  = NetDrvEpEnv.nsim_v4_pfx + "1"
     local_v6  = NetDrvEpEnv.nsim_v6_pfx + "1"
@@ -147,6 +295,11 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
         if feature not in cfg.hw_features:
             raise KsftSkipEx(f"Device does not support {feature}")
 
+        # Run non-tunnel test cases under the BIG TCP limits too.
+        big_tcp = "big_tcp" in name
+        if big_tcp:
+            setup_big_tcp(cfg)
+
         ipver = outer_ipver
         if tun:
             remote_v4, remote_v6 = build_tunnel(cfg, ipver, tun)
@@ -159,6 +312,9 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
         ethtool(f"-K {cfg.ifname} {feature} off")
         run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso=False)
 
+        if big_tcp:
+            run_big_tcp_stream(cfg, ipver, remote_v4, remote_v6)
+
         ethtool(f"-K {cfg.ifname} tx-gso-partial off")
         ethtool(f"-K {cfg.ifname} tx-tcp-mangleid-segmentation off")
         if feature in cfg.partial_features:
@@ -170,6 +326,9 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
         # Full feature enabled.
         ethtool(f"-K {cfg.ifname} {feature} on")
         run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso=True)
+
+        if big_tcp:
+            run_big_tcp_stream(cfg, ipver, remote_v4, remote_v6)
 
     f.__name__ = name + ((outer_ipver + "_") if tun else "") + "ipv" + inner_ipver
     return f
@@ -230,6 +389,8 @@ def main() -> None:
             # name,       v4/v6  ethtool_feature               tun:(type, args, inner ip versions)
             ("",           "4", "tx-tcp-segmentation",         None),
             ("",           "6", "tx-tcp6-segmentation",        None),
+            ("big_tcp_",   "4", "tx-tcp-segmentation",         None),
+            ("big_tcp_",   "6", "tx-tcp6-segmentation",        None),
             ("vxlan",      "4", "tx-udp_tnl-segmentation",     ("vxlan", "id 100 dstport 4789 noudpcsum", ("4", "6"))),
             ("vxlan",      "6", "tx-udp_tnl-segmentation",     ("vxlan", "id 100 dstport 4789 udp6zerocsumtx udp6zerocsumrx", ("4", "6"))),
             ("vxlan_csum", "", "tx-udp_tnl-csum-segmentation", ("vxlan", "id 100 dstport 4789 udpcsum", ("4", "6"))),

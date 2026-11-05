@@ -392,7 +392,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(surface3_spi_pm_ops,
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id surface3_spi_acpi_match[] = {
-	{ "MSHW0037", 0 },
+	{ .id = "MSHW0037" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, surface3_spi_acpi_match);

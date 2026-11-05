@@ -37,6 +37,7 @@
 #include "amdgpu_dm_freesync.h"
 #include "dm_helpers.h"
 #include "modules/inc/mod_freesync.h"
+#include "modules/inc/mod_info_packet.h"
 
 bool amdgpu_dm_is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
 					  struct dm_crtc_state *new_state)
@@ -106,6 +107,8 @@ void amdgpu_dm_reset_freesync_config_for_crtc(
 
 	memset(&new_crtc_state->vrr_infopacket, 0,
 	       sizeof(new_crtc_state->vrr_infopacket));
+	memset(&new_crtc_state->vtem_infopacket, 0,
+	       sizeof(new_crtc_state->vtem_infopacket));
 }
 EXPORT_IF_KUNIT(amdgpu_dm_reset_freesync_config_for_crtc);
 
@@ -151,6 +154,14 @@ void amdgpu_dm_get_freesync_config_for_crtc(
 	}
 out:
 	new_crtc_state->freesync_config = config;
+
+	drm_dbg_driver(new_con_state->base.connector->dev,
+		       "VRR: cfg vrr_enabled=%d vrr_supported=%d fs_capable=%d vrefresh=%d min=%d max=%d state=%d\n",
+		       new_crtc_state->base.vrr_enabled,
+		       new_crtc_state->vrr_supported,
+		       new_con_state->freesync_capable, vrefresh,
+		       aconnector->min_vfreq, aconnector->max_vfreq,
+		       config.state);
 }
 EXPORT_IF_KUNIT(amdgpu_dm_get_freesync_config_for_crtc);
 
@@ -163,6 +174,7 @@ void amdgpu_dm_update_freesync_state_on_stream(
 {
 	struct mod_vrr_params vrr_params;
 	struct dc_info_packet vrr_infopacket = {0};
+	struct dc_info_packet vtem_infopacket = {0};
 	struct amdgpu_device *adev = dm->adev;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_crtc_state->base.crtc);
 	unsigned long flags;
@@ -229,16 +241,64 @@ void amdgpu_dm_update_freesync_state_on_stream(
 		&vrr_infopacket,
 		pack_sdp_v1_3);
 
+	/*
+	 * If the sink does not support FreeSync, but it does support VRR,
+	 * we need to build a VTEM packet to enable VRR.
+	 */
+	if (aconn && !aconn->vsdb_info.freesync_supported &&
+	    aconn->base.display_info.hdmi.vrr_cap.supported &&
+	    (new_stream->signal == SIGNAL_TYPE_HDMI_FRL ||
+	     new_stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)) {
+		mod_build_infopacket_vtem(new_stream, &vrr_params, 0, &vtem_infopacket);
+		memset(&vrr_infopacket, 0, sizeof(vrr_infopacket));
+	}
+
 	new_crtc_state->freesync_vrr_info_changed |=
 		(memcmp(&new_crtc_state->vrr_infopacket,
 			&vrr_infopacket,
 			sizeof(vrr_infopacket)) != 0);
 
+	new_crtc_state->freesync_vrr_info_changed |=
+		(memcmp(&new_crtc_state->vtem_infopacket,
+			&vtem_infopacket,
+			sizeof(vtem_infopacket)) != 0);
+
 	acrtc->dm_irq_params.vrr_params = vrr_params;
 	new_crtc_state->vrr_infopacket = vrr_infopacket;
+	new_crtc_state->vtem_infopacket = vtem_infopacket;
 
 	new_stream->vrr_infopacket = vrr_infopacket;
+	new_stream->vtem_infopacket = vtem_infopacket;
 	new_stream->allow_freesync = mod_freesync_get_freesync_enabled(&vrr_params);
+
+	/*
+	 * HDMI ALLM: when Gaming-VRR is active (VRR_EN=1) and the sink
+	 * advertises ALLM in the SCDS, the Source shall transmit the HF-VSIF
+	 * with ALLM_Mode=1 (HDMI 2.1 Section 7.6.6).
+	 */
+	if (new_stream->signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+	    new_stream->signal == SIGNAL_TYPE_HDMI_FRL) {
+		struct dc_info_packet vsp_infopacket = {0};
+		bool sink_allm = aconn && aconn->base.display_info.hdmi.allm;
+		bool allm = sink_allm &&
+			(vrr_params.state == VRR_STATE_ACTIVE_VARIABLE ||
+			 vrr_params.state == VRR_STATE_ACTIVE_FIXED);
+		bool allm_changed;
+
+		mod_build_hf_vsif_infopacket(new_stream, &vsp_infopacket, allm, allm);
+
+		allm_changed = memcmp(&new_stream->vsp_infopacket, &vsp_infopacket,
+				      sizeof(vsp_infopacket)) != 0;
+		new_crtc_state->freesync_vrr_info_changed |= allm_changed;
+		new_stream->vsp_infopacket = vsp_infopacket;
+
+		if (allm_changed)
+			drm_dbg_driver(adev_to_drm(adev),
+				       "ALLM: flip on crtc=%u: sink_allm=%d vrr_state=%d -> ALLM_Mode=%d\n",
+				    new_crtc_state->base.crtc->base.id,
+				    sink_allm,
+				    vrr_params.state, allm);
+	}
 
 	if (new_crtc_state->freesync_vrr_info_changed)
 		drm_dbg_kms(adev_to_drm(adev), "VRR packet update: crtc=%u enabled=%d state=%d",
@@ -248,6 +308,7 @@ void amdgpu_dm_update_freesync_state_on_stream(
 
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_update_freesync_state_on_stream);
 
 void amdgpu_dm_update_stream_irq_parameters(
 	struct amdgpu_display_manager *dm,
@@ -307,6 +368,7 @@ void amdgpu_dm_update_stream_irq_parameters(
 	acrtc->dm_irq_params.vrr_params = vrr_params;
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_update_stream_irq_parameters);
 
 void amdgpu_dm_handle_vrr_transition(struct amdgpu_display_manager *dm,
 				     struct dm_crtc_state *old_state,
@@ -360,3 +422,4 @@ void amdgpu_dm_handle_vrr_transition(struct amdgpu_display_manager *dm,
 		}
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_handle_vrr_transition);

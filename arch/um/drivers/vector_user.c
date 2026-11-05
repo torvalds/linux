@@ -93,6 +93,9 @@ struct arglist *uml_parse_vector_ifspec(char *arg)
 	len = strlen(arg);
 	for (pos = 0; pos < len; pos++) {
 		if (next_starts) {
+			if (result->numargs >= MAXVARGS)
+				goto cleanup;
+
 			if (parsing_token) {
 				result->tokens[result->numargs] = arg + pos;
 			} else {

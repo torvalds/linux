@@ -90,7 +90,7 @@ foreach my $file (@files) {
 			next;
 		}
 
-		if (/^\s*(default|def_bool|def_tristate|select|depends\s+on|imply|visible\s+if|range|if|bool|tristate|int|hex|string|prompt)\s+(.+)\s*$/) {
+		if (/^\s*(default|def_bool|def_tristate|def_string|def_int|def_hex|select|depends\s+on|imply|visible\s+if|range|if|bool|tristate|int|hex|string|prompt)\s+(.+)\s*$/) {
 			my $s = $2;
 			$s =~ s/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'//g;
 			$s =~ s/#.*//;

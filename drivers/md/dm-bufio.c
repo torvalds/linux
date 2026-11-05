@@ -1044,12 +1044,6 @@ static unsigned long dm_bufio_default_cache_size;
  */
 static unsigned long dm_bufio_cache_size;
 
-/*
- * A copy of dm_bufio_cache_size because dm_bufio_cache_size can change
- * at any time.  If it disagrees, the user has changed cache size.
- */
-static unsigned long dm_bufio_cache_size_latch;
-
 static DEFINE_SPINLOCK(global_spinlock);
 
 static unsigned int dm_bufio_max_age; /* No longer does anything */
@@ -1076,7 +1070,7 @@ static int dm_bufio_client_count;
 static LIST_HEAD(dm_bufio_all_clients);
 
 /*
- * This mutex protects dm_bufio_cache_size_latch and dm_bufio_client_count
+ * This mutex protects dm_bufio_client_count
  */
 static DEFINE_MUTEX(dm_bufio_clients_lock);
 
@@ -1092,6 +1086,17 @@ static void buffer_record_stack(struct dm_buffer *b)
 #endif
 
 /*----------------------------------------------------------------*/
+
+static unsigned long dm_budio_get_cache_size(void)
+{
+	unsigned long s = READ_ONCE(dm_bufio_cache_size);
+	if (unlikely(!s)) {
+		unsigned long d = dm_bufio_default_cache_size;
+		(void)cmpxchg(&dm_bufio_cache_size, 0, d);
+		s = d;
+	}
+	return s;
+}
 
 static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 {
@@ -1120,33 +1125,11 @@ static void adjust_total_allocated(struct dm_buffer *b, bool unlink)
 		dm_bufio_peak_allocated = dm_bufio_current_allocated;
 
 	if (!unlink) {
-		if (dm_bufio_current_allocated > dm_bufio_cache_size)
+		if (dm_bufio_current_allocated > dm_budio_get_cache_size())
 			queue_work(dm_bufio_wq, &dm_bufio_replacement_work);
 	}
 
 	spin_unlock(&global_spinlock);
-}
-
-/*
- * Change the number of clients and recalculate per-client limit.
- */
-static void __cache_size_refresh(void)
-{
-	if (WARN_ON(!mutex_is_locked(&dm_bufio_clients_lock)))
-		return;
-	if (WARN_ON(dm_bufio_client_count < 0))
-		return;
-
-	dm_bufio_cache_size_latch = READ_ONCE(dm_bufio_cache_size);
-
-	/*
-	 * Use default if set to 0 and report the actual cache size used.
-	 */
-	if (!dm_bufio_cache_size_latch) {
-		(void)cmpxchg(&dm_bufio_cache_size, 0,
-			      dm_bufio_default_cache_size);
-		dm_bufio_cache_size_latch = dm_bufio_default_cache_size;
-	}
 }
 
 /*
@@ -1618,7 +1601,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 	 * be allocated.
 	 */
 	while (1) {
-		if (dm_bufio_cache_size_latch != 1) {
+		if (dm_budio_get_cache_size() != 1) {
 			b = alloc_buffer(c, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOMEMALLOC);
 			if (b)
 				return b;
@@ -1627,7 +1610,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 		if (nf == NF_PREFETCH)
 			return NULL;
 
-		if (dm_bufio_cache_size_latch != 1 && !tried_noio_alloc) {
+		if (dm_budio_get_cache_size() != 1 && !tried_noio_alloc) {
 			dm_bufio_unlock(c);
 			b = alloc_buffer(c, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
 			dm_bufio_lock(c);
@@ -2426,8 +2409,10 @@ static void __scan(struct dm_bufio_client *c)
 
 	for (l = 0; l < LIST_SIZE; l++) {
 		while (true) {
-			if (count - freed <= retain_target)
+			if (count - freed <= retain_target) {
 				atomic_long_set(&c->need_shrink, 0);
+				break;
+			}
 			if (!atomic_long_read(&c->need_shrink))
 				break;
 
@@ -2545,6 +2530,13 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	init_waitqueue_head(&c->free_buffer_wait);
 	c->async_write_error = 0;
 
+	/*
+	 * A client with no buffers yet is not holding the oldest buffer in
+	 * the system; leaving this zeroed would claim exactly that and keep
+	 * the client pinned at the front of dm_bufio_all_clients.
+	 */
+	c->oldest_buffer = jiffies;
+
 	c->dm_io = dm_io_client_create();
 	if (IS_ERR(c->dm_io)) {
 		r = PTR_ERR(c->dm_io);
@@ -2607,7 +2599,6 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	mutex_lock(&dm_bufio_clients_lock);
 	dm_bufio_client_count++;
 	list_add(&c->client_list, &dm_bufio_all_clients);
-	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
 	return c;
@@ -2649,7 +2640,6 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 
 	list_del(&c->client_list);
 	dm_bufio_client_count--;
-	__cache_size_refresh();
 
 	mutex_unlock(&dm_bufio_clients_lock);
 
@@ -2779,9 +2769,23 @@ static unsigned long __evict_a_few(unsigned long nr_buffers)
 
 	dm_bufio_unlock(c);
 
-	if (count)
+	if (count) {
 		c->oldest_buffer = oldest_buffer;
-	__insert_client(c);
+		__insert_client(c);
+	} else {
+		/*
+		 * We evicted nothing, so 'oldest_buffer' tells us nothing new
+		 * and the client keeps its old, possibly very stale, value.
+		 * Requeue it at the back rather than by that value, otherwise
+		 * __insert_client() would put it straight back at the front
+		 * and every subsequent call would pop this same client again,
+		 * never reaching any of the others.
+		 *
+		 * This leaves the list slightly out of order, which is fine -
+		 * it is only ever an approximation.
+		 */
+		list_add_tail(&c->client_list, &dm_bufio_all_clients);
+	}
 
 	return count;
 }
@@ -2804,13 +2808,25 @@ static void check_watermarks(void)
 
 static void evict_old(void)
 {
-	unsigned long threshold = dm_bufio_cache_size -
-		dm_bufio_cache_size / DM_BUFIO_LOW_WATERMARK_RATIO;
+	unsigned long cs = dm_budio_get_cache_size();
+	unsigned long threshold = cs - cs / DM_BUFIO_LOW_WATERMARK_RATIO;
+	int unproductive = 0;
 
 	mutex_lock(&dm_bufio_clients_lock);
 	while (dm_bufio_current_allocated > threshold) {
-		if (!__evict_a_few(64))
-			break;
+		if (__evict_a_few(64)) {
+			unproductive = 0;
+		} else {
+			/*
+			 * This client had nothing to give.  Try the others
+			 * before giving up: one idle client, or one whose
+			 * buffers are all held, must not stop us evicting
+			 * from everybody else.  Stop once a whole sweep of
+			 * the client list has freed nothing.
+			 */
+			if (++unproductive >= dm_bufio_client_count)
+				break;
+		}
 		cond_resched();
 	}
 	mutex_unlock(&dm_bufio_clients_lock);
@@ -2854,10 +2870,8 @@ static int __init dm_bufio_init(void)
 #endif
 
 	dm_bufio_default_cache_size = mem;
-
-	mutex_lock(&dm_bufio_clients_lock);
-	__cache_size_refresh();
-	mutex_unlock(&dm_bufio_clients_lock);
+	if (!dm_bufio_cache_size)
+		dm_bufio_cache_size = mem;
 
 	dm_bufio_wq = alloc_workqueue("dm_bufio_cache",
 				      WQ_MEM_RECLAIM | WQ_PERCPU, 0);

@@ -290,7 +290,6 @@ fail:
 
 void imgu_css_set_powerdown(struct device *dev, void __iomem *base)
 {
-	dev_dbg(dev, "%s\n", __func__);
 	/* wait for cio idle signal */
 	if (imgu_hw_wait(base, IMGU_REG_CIO_GATE_BURST_STATE,
 			 IMGU_CIO_GATE_BURST_MASK, 0))

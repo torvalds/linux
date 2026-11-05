@@ -157,9 +157,9 @@ int __init pv_time_init(void)
 
 	static_call_update(pv_steal_clock, para_steal_clock);
 
-	static_key_slow_inc(&paravirt_steal_enabled);
+	static_branch_inc(&paravirt_steal_enabled);
 	if (steal_acc)
-		static_key_slow_inc(&paravirt_steal_rq_enabled);
+		static_branch_inc(&paravirt_steal_rq_enabled);
 
 	pr_info("using stolen time PV\n");
 

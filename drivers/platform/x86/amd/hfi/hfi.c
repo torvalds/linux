@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/mailbox_client.h>
 #include <linux/mutex.h>
+#include <linux/overflow.h>
 #include <linux/percpu-defs.h>
 #include <linux/platform_device.h>
 #include <linux/smp.h>
@@ -37,8 +38,6 @@
 #define AMD_HETERO_RANKING_TABLE_MAX_VER	3
 
 #define AMD_HETERO_CPUID_27	0x80000027
-
-static struct platform_device *device;
 
 /**
  * struct amd_shmem_info - Shared memory table for AMD HFI
@@ -76,6 +75,8 @@ struct amd_hfi_data {
 	struct amd_shmem_info	*shmem;
 
 	struct dentry *dbgfs_dir;
+
+	int cpuhp_state;
 };
 
 /**
@@ -166,6 +167,21 @@ static int amd_hfi_fill_metadata(struct amd_hfi_data *amd_hfi_data)
 		return -EINVAL;
 	}
 
+	/*
+	 * The bitmaps enumerating the APIC IDs occupy the first n_bitmaps
+	 * words of table_data.  Reject a firmware-provided count that would
+	 * push those reads past the end of the shared memory region.
+	 */
+	if (struct_size(amd_hfi_data->shmem, table_data, amd_hfi_data->shmem->n_bitmaps) >
+	    pcct_ext->length) {
+		dev_err(amd_hfi_data->dev, "invalid number of bitmaps: %u\n",
+			amd_hfi_data->shmem->n_bitmaps);
+		return -EINVAL;
+	}
+
+	/* The ranking data for each processor follows the bitmaps */
+	u32 *table = amd_hfi_data->shmem->table_data + amd_hfi_data->shmem->n_bitmaps;
+
 	for (unsigned int i = 0; i < amd_hfi_data->shmem->n_bitmaps; i++) {
 		u32 bitmap = amd_hfi_data->shmem->table_data[i];
 
@@ -190,10 +206,6 @@ static int amd_hfi_fill_metadata(struct amd_hfi_data *amd_hfi_data)
 			info = per_cpu_ptr(&amd_hfi_cpuinfo, cpu_index);
 			apic_index = apic_start * info->nr_class * 2;
 			for (unsigned int k = 0; k < info->nr_class; k++) {
-				u32 *table = amd_hfi_data->shmem->table_data +
-					     amd_hfi_data->shmem->n_bitmaps +
-					     i * info->nr_class;
-
 				info->amd_hfi_classes[k].eff = table[apic_index + 2 * k];
 				info->amd_hfi_classes[k].perf = table[apic_index + 2 * k + 1];
 			}
@@ -244,6 +256,8 @@ static void amd_hfi_remove(struct platform_device *pdev)
 {
 	struct amd_hfi_data *dev = platform_get_drvdata(pdev);
 
+	cpuhp_remove_state(dev->cpuhp_state);
+	cancel_work_sync(&sched_amd_hfi_itmt_work);
 	debugfs_remove_recursive(dev->dbgfs_dir);
 }
 
@@ -494,6 +508,7 @@ static int amd_hfi_probe(struct platform_device *pdev)
 				amd_hfi_online, amd_hfi_offline);
 	if (ret < 0)
 		return ret;
+	amd_hfi_data->cpuhp_state = ret;
 
 	schedule_work(&sched_amd_hfi_itmt_work);
 
@@ -523,12 +538,6 @@ static int __init amd_hfi_init(void)
 	    !cpu_feature_enabled(X86_FEATURE_AMD_WORKLOAD_CLASS))
 		return -ENODEV;
 
-	device = platform_device_register_simple(AMD_HFI_DRIVER, -1, NULL, 0);
-	if (IS_ERR(device)) {
-		pr_err("unable to register HFI platform device\n");
-		return PTR_ERR(device);
-	}
-
 	ret = platform_driver_register(&amd_hfi_driver);
 	if (ret)
 		pr_err("failed to register HFI driver\n");
@@ -539,7 +548,6 @@ static int __init amd_hfi_init(void)
 static __exit void amd_hfi_exit(void)
 {
 	platform_driver_unregister(&amd_hfi_driver);
-	platform_device_unregister(device);
 }
 module_init(amd_hfi_init);
 module_exit(amd_hfi_exit);

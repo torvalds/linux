@@ -201,7 +201,7 @@ def socat_send(cfg, port, buf_size=0):
     else:
         addr = cfg.baddr
 
-    suffix = f",bind={cfg.remote_baddr}:{port}"
+    suffix = f",bind={cfg.remote_baddr}:{port},reuseaddr"
 
     buf = ""
     if buf_size:
@@ -213,7 +213,7 @@ def socat_send(cfg, port, buf_size=0):
 
 def socat_listen(cfg, port):
     """Socat listen command for TX tests."""
-    return f"socat -U - TCP{cfg.addr_ipver}-LISTEN:{port}"
+    return f"socat -U - TCP{cfg.addr_ipver}-LISTEN:{port},reuseaddr"
 
 
 def setup_test(cfg, bin_local):

@@ -9,7 +9,7 @@
 #include "dsc/dscc_types.h"
 #include "dsc/rc_calc.h"
 
-static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals);
+static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc20_reg_values *reg_vals);
 
 /* Object I/F functions */
 //static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
@@ -19,6 +19,7 @@ static void dsc401_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsign
 static const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_read_state = dsc401_read_state,
 	.dsc_validate_stream = dsc401_validate_stream,
+	.dsc_prepare_config = dsc401_prepare_config,
 	.dsc_set_config = dsc401_set_config,
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
 	.dsc_enable = dsc401_enable,
@@ -127,16 +128,31 @@ bool dsc401_validate_stream(struct display_stream_compressor *dsc, const struct 
 	return dsc_prepare_config(dsc_cfg, &dsc401->reg_vals, &dsc_optc_cfg);
 }
 
-void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc401_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg)
 {
-	bool is_config_ok;
-	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
+	struct dcn401_dsc *dsc401;
+	struct dsc20_reg_values reg_vals = {};
+	struct dsc_optc_config optc = {};
 
-	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
-	dsc_config_log(dsc, dsc_cfg);
-	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc401->reg_vals, dsc_optc_cfg);
-	ASSERT(is_config_ok);
+	if (!dsc || !dsc_cfg || !dsc_optc_cfg)
+		return false;
+
+	dsc401 = TO_DCN401_DSC(dsc);
+	if (!dsc_prepare_config(dsc_cfg, &reg_vals, &optc))
+		return false;
+	dsc401->reg_vals = reg_vals;
+	*dsc_optc_cfg = optc;
+	return true;
+}
+
+void dsc401_set_config(struct display_stream_compressor *dsc)
+{
+	struct dcn401_dsc *dsc401;
+
+	if (!dsc)
+		return;
+	dsc401 = TO_DCN401_DSC(dsc);
 	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	dsc_log_pps(dsc, &dsc401->reg_vals.pps);
 	dsc_write_to_registers(dsc, &dsc401->reg_vals);
@@ -203,7 +219,7 @@ void dsc401_disconnect(struct display_stream_compressor *dsc)
 		DSCRM_DSC_FORWARD_EN, 0);
 }
 
-static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals)
+static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc20_reg_values *reg_vals)
 {
 	uint32_t temp_int;
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);

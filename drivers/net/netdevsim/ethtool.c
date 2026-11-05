@@ -205,7 +205,59 @@ static int nsim_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static u32 nsim_get_rxfh_key_size(struct net_device *dev)
+{
+	return NETDEV_RSS_KEY_LEN;
+}
+
+static u32 nsim_get_rxfh_indir_size(struct net_device *dev)
+{
+	return NSIM_RSS_INDIR_SIZE;
+}
+
+static int nsim_get_rxfh(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+	u32 i;
+
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (rxfh->indir) {
+		for (i = 0; i < NSIM_RSS_INDIR_SIZE; i++)
+			rxfh->indir[i] = ethtool_rxfh_indir_default(i, ns->ethtool.channels);
+	}
+	if (rxfh->key)
+		memcpy(rxfh->key, ns->ethtool.rss_key,
+		       sizeof(ns->ethtool.rss_key));
+
+	return 0;
+}
+
+static int nsim_get_rxfh_fields(struct net_device *dev,
+				struct ethtool_rxfh_fields *info)
+{
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST |
+			     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		return 0;
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops nsim_ethtool_ops = {
+	.get_rxfh_key_size		= nsim_get_rxfh_key_size,
+	.get_rxfh_indir_size		= nsim_get_rxfh_indir_size,
+	.get_rxfh			= nsim_get_rxfh,
+	.get_rxfh_fields		= nsim_get_rxfh_fields,
 	.supported_coalesce_params	= ETHTOOL_COALESCE_ALL_PARAMS,
 	.supported_ring_params		= ETHTOOL_RING_USE_TCP_DATA_SPLIT |
 					  ETHTOOL_RING_USE_HDS_THRS,
@@ -250,6 +302,7 @@ void nsim_ethtool_init(struct netdevsim *ns)
 	ns->ethtool.fec.active_fec = ETHTOOL_FEC_NONE;
 
 	ns->ethtool.channels = ns->nsim_bus_dev->num_queues;
+	netdev_rss_key_fill(ns->ethtool.rss_key, sizeof(ns->ethtool.rss_key));
 
 	ethtool = debugfs_create_dir("ethtool", ns->nsim_dev_port->ddir);
 	ns->ethtool_ddir = ethtool;

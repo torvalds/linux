@@ -13,10 +13,8 @@ struct perf_gtk_context {
 	GtkWidget *main_window;
 	GtkWidget *notebook;
 
-#ifdef HAVE_GTK_INFO_BAR_SUPPORT
 	GtkWidget *info_bar;
 	GtkWidget *message_label;
-#endif
 	GtkWidget *statbar;
 	guint statbar_ctx_id;
 };
@@ -38,19 +36,15 @@ void perf_gtk__init_helpline(void);
 void gtk_ui_progress__init(void);
 void perf_gtk__init_hpp(void);
 
-void perf_gtk__signal(int sig);
+void perf_gtk__install_quit_signals(void);
+void perf_gtk__fatal_signal(int sig);
 void perf_gtk__resize_window(GtkWidget *window);
+void perf_gtk__run_main_loop(GtkWidget *window);
+void perf_gtk__quit_main_loop(void);
+void perf_gtk__quit_error_dialog(void);
 const char *perf_gtk__get_percent_color(double percent);
 GtkWidget *perf_gtk__setup_statusbar(void);
-
-#ifdef HAVE_GTK_INFO_BAR_SUPPORT
 GtkWidget *perf_gtk__setup_info_bar(void);
-#else
-static inline GtkWidget *perf_gtk__setup_info_bar(void)
-{
-	return NULL;
-}
-#endif
 
 struct evsel;
 struct evlist;

@@ -328,13 +328,6 @@ config SATA_AHCI_SEATTLE
 
 	 If unsure, say N
 
-config SATA_INIC162X
-	tristate "Initio 162x SATA support (Very Experimental)"
-	depends on PCI
-	select SATA_HOST
-	help
-	  This option enables support for Initio 162x Serial ATA.
-
 config SATA_ACARD_AHCI
 	tristate "ACard AHCI variant (ATP 8620)"
 	depends on PCI
@@ -1037,6 +1030,16 @@ config PATA_GAYLE
 	  A4000 and A4000T) and also for IDE interfaces on
 	  the Zorro expansion bus (M-Tech E-Matrix 530
 	  expansion card).
+
+	  If unsure, say N.
+
+config PATA_CSWARP
+	tristate "Amiga CS Warp PATA support"
+	depends on M68K && AMIGA && ZORRO
+	help
+	  This option enables support for the on-board IDE interface on
+	  CS-Lab Warp Expansion Card (NOTE that idemode=native has to be
+	  set in Warp Configuration)
 
 	  If unsure, say N.
 

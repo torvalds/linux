@@ -345,15 +345,7 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		return dev_err_probe(dev, PTR_ERR(jdi->backlight),
 				     "failed to register backlight %d\n", ret);
 
-	drm_panel_add(&jdi->base);
-
-	return 0;
-}
-
-static void jdi_panel_del(struct jdi_panel *jdi)
-{
-	if (jdi->base.dev)
-		drm_panel_remove(&jdi->base);
+	return devm_drm_panel_add(dev, &jdi->base);
 }
 
 static int jdi_panel_probe(struct mipi_dsi_device *dsi)
@@ -380,26 +372,7 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return ret;
 
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		jdi_panel_del(jdi);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void jdi_panel_remove(struct mipi_dsi_device *dsi)
-{
-	struct jdi_panel *jdi = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n",
-			ret);
-
-	jdi_panel_del(jdi);
+	return devm_mipi_dsi_attach(&dsi->dev, dsi);
 }
 
 static struct mipi_dsi_driver jdi_panel_driver = {
@@ -408,7 +381,6 @@ static struct mipi_dsi_driver jdi_panel_driver = {
 		.of_match_table = jdi_of_match,
 	},
 	.probe = jdi_panel_probe,
-	.remove = jdi_panel_remove,
 };
 module_mipi_dsi_driver(jdi_panel_driver);
 

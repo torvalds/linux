@@ -701,6 +701,10 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 	result = dml2_core_calcs_mode_programming_ex(&l->mode_programming_ex_params);
 
 	if (result) {
+		// Populate the global Z8 stutter support (common to all packing paths)
+		dml2_core_calcs_get_z8_stutter_support(&core->clean_me_up.mode_lib,
+			&in_out->programming->z8_stutter.global_support);
+
 		// If the input display configuration contains implict SVP, we need to use a special packer
 		if (in_out->display_cfg->display_config.overrides.enable_subvp_implicit_pmo) {
 			pack_mode_programming_params_with_implicit_subvp(core, in_out->display_cfg, &l->svp_expanded_display_cfg, in_out->programming, &core->scratch);

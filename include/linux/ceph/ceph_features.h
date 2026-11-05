@@ -174,6 +174,18 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
 
 
 /*
+ * Only advertise CEPH_FEATURE_MDS_INLINE_DATA when inline data support is
+ * built in.  Without it the MDS refuses to hand out files that still have
+ * inline data instead of letting the client read the data pool objects
+ * that do not hold it yet.
+ */
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
+#define CEPH_FEATURE_MDS_INLINE_DATA_SUPPORTED	CEPH_FEATURE_MDS_INLINE_DATA
+#else
+#define CEPH_FEATURE_MDS_INLINE_DATA_SUPPORTED	0
+#endif
+
+/*
  * Features supported.
  */
 #define CEPH_FEATURES_SUPPORTED_DEFAULT		\
@@ -204,7 +216,7 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
 	 CEPH_FEATURE_CRUSH_V2 |		\
 	 CEPH_FEATURE_EXPORT_PEER |		\
 	 CEPH_FEATURE_OSDMAP_ENC |		\
-	 CEPH_FEATURE_MDS_INLINE_DATA |		\
+	 CEPH_FEATURE_MDS_INLINE_DATA_SUPPORTED |\
 	 CEPH_FEATURE_CRUSH_TUNABLES3 |		\
 	 CEPH_FEATURE_OSD_PRIMARY_AFFINITY |	\
 	 CEPH_FEATURE_MSGR_KEEPALIVE2 |		\

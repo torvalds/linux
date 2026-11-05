@@ -219,7 +219,7 @@ __ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
  * inode->i_mutex: down
  */
 int
-ext2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+ext2_set_acl(const struct mnt_idmap *idmap, struct dentry *dentry,
 	     struct posix_acl *acl, int type)
 {
 	int error;

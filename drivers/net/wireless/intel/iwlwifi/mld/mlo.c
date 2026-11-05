@@ -1076,9 +1076,9 @@ static void iwl_mld_chan_load_update_iter(void *_data, u8 *mac,
 					  struct ieee80211_vif *vif)
 {
 	struct iwl_mld_chan_load_data *data = _data;
-	const struct iwl_mld_phy *phy = data->phy;
+	struct iwl_mld_phy *phy = data->phy;
 	struct ieee80211_chanctx_conf *chanctx =
-		container_of((const void *)phy, struct ieee80211_chanctx_conf,
+		container_of((void *)phy, struct ieee80211_chanctx_conf,
 			     drv_priv);
 	struct iwl_mld *mld = iwl_mld_vif_from_mac80211(vif)->mld;
 	u32 new_chan_load = phy->avg_channel_load_not_by_us;

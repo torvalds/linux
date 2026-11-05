@@ -382,31 +382,21 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				     "Failed to create backlight\n");
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "dsi attach failed ret = %d\n", ret);
-		goto err_dsi_attach;
+		return ret;
 	}
 
 	return 0;
-
-err_dsi_attach:
-	drm_panel_remove(&ctx->panel);
-	return ret;
-}
-
-static void visionox_rm69299_remove(struct mipi_dsi_device *dsi)
-{
-	struct visionox_rm69299 *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mipi_dsi_detach(ctx->dsi);
-	drm_panel_remove(&ctx->panel);
 }
 
 const struct visionox_rm69299_panel_desc visionox_rm69299_1080p_display_desc = {
@@ -438,7 +428,6 @@ static struct mipi_dsi_driver visionox_rm69299_driver = {
 		.of_match_table = visionox_rm69299_of_match,
 	},
 	.probe = visionox_rm69299_probe,
-	.remove = visionox_rm69299_remove,
 };
 module_mipi_dsi_driver(visionox_rm69299_driver);
 

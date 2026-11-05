@@ -25,11 +25,48 @@
 #include <asm/irq_regs.h>
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
+#include <asm/percpu.h>
 #include <asm/processor.h>
 #include <asm/sdei.h>
 #include <asm/stacktrace.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
+
+/*
+ * Where the context being returned to had an active percpu GPR critical
+ * section, ensure that the offset and address GPRs are updated to match the
+ * current CPU.
+ *
+ * For simplicity we always update the GPRs when a critical section is active
+ * and preemption was *possible*, regardless of whether preemption actually
+ * occurred. Where preemption did not occur, the updates are redundant but not
+ * harmful.
+ */
+static __always_inline void irqentry_exit_pcpu_adjust(struct pt_regs *regs)
+{
+	int reg_pcp, reg_off, reg_addr;
+	unsigned long pcp, off, addr;
+	u16 gprs = regs->pcpu_gprs;
+
+	/*
+	 * Zero means no active PCPU GPRs. As the PCPU GPRs must be distinct,
+	 * a PCPU critical section cannot possibly use {x0,x0,x0}.
+	 */
+	if (likely(!gprs))
+		return;
+
+	reg_pcp  = FIELD_GET(PCPU_GPR_PCP,  gprs);
+	reg_off  = FIELD_GET(PCPU_GPR_OFF,  gprs);
+	reg_addr = FIELD_GET(PCPU_GPR_ADDR, gprs);
+
+	pcp = pt_regs_read_reg(regs, reg_pcp);
+
+	off = __kern_my_cpu_offset();
+	pt_regs_write_reg(regs, reg_off, off);
+
+	addr = pcp + off;
+	pt_regs_write_reg(regs, reg_addr, addr);
+}
 
 /*
  * Handle IRQ/context state management when entering from kernel mode.
@@ -56,6 +93,7 @@ static void noinstr __arm64_exit_to_kernel_mode(struct pt_regs *regs,
 						irqentry_state_t state)
 {
 	local_daif_mask();
+	irqentry_exit_pcpu_adjust(regs);
 	mte_check_tfsr_exit();
 	irqentry_exit_to_kernel_mode_after_preempt(regs, state);
 }

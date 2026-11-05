@@ -217,13 +217,13 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 		uint8_t panel_inst,
 		uint16_t frame_skip_number)
 {
-	(void)panel_inst;
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
 	struct dmub_rb_cmd_replay_set_coasting_vtotal *pCmd = NULL;
 
 	pCmd = &(cmd.replay_set_coasting_vtotal);
 
+	(void)panel_inst;
 	memset(&cmd, 0, sizeof(cmd));
 	pCmd->header.type = DMUB_CMD__REPLAY;
 	pCmd->header.sub_type = DMUB_CMD__REPLAY_SET_COASTING_VTOTAL;
@@ -415,6 +415,30 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 	dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
+static bool dmub_replay_get_cumulative_residency(struct dmub_replay *dmub,
+	uint8_t panel_inst, uint32_t *residency_milli_pct)
+{
+	uint32_t milli_pct = 0;
+	uint16_t param = (uint16_t)panel_inst;
+
+	if (!residency_milli_pct)
+		return false;
+
+	/* Zero on failure so the caller never reads a stale value, and report
+	 * false so a failed query is still distinguishable from a genuine 0%.
+	 */
+	*residency_milli_pct = 0;
+
+	if (!dc_wake_and_execute_gpint(dmub->ctx,
+			DMUB_GPINT__REPLAY_SNAPSHOT_CUMULATIVE_RESIDENCY,
+			param, &milli_pct, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		return false;
+
+	*residency_milli_pct = milli_pct;
+
+	return true;
+}
+
 static const struct dmub_replay_funcs replay_funcs = {
 	.replay_copy_settings				= dmub_replay_copy_settings,
 	.replay_enable					= dmub_replay_enable,
@@ -424,6 +448,7 @@ static const struct dmub_replay_funcs replay_funcs = {
 	.replay_residency				= dmub_replay_residency,
 	.replay_set_power_opt_and_coasting_vtotal	= dmub_replay_set_power_opt_and_coasting_vtotal,
 	.replay_send_cmd				= dmub_replay_send_cmd,
+	.replay_get_cumulative_residency		= dmub_replay_get_cumulative_residency,
 };
 
 /*
@@ -433,6 +458,7 @@ static void dmub_replay_construct(struct dmub_replay *replay, struct dc_context 
 {
 	replay->ctx = ctx;
 	replay->funcs = &replay_funcs;
+	replay->inst = 0;
 }
 
 /*

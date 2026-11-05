@@ -493,7 +493,7 @@
 			status = "disabled";
 		};
 
-		icram0:	sram@e63a0000 {
+		icram0: sram@e63a0000 {
 			compatible = "mmio-sram";
 			reg = <0 0xe63a0000 0 0x12000>;
 			#address-cells = <1>;
@@ -501,7 +501,7 @@
 			ranges = <0 0 0xe63a0000 0x12000>;
 		};
 
-		icram1:	sram@e63c0000 {
+		icram1: sram@e63c0000 {
 			compatible = "mmio-sram";
 			reg = <0 0xe63c0000 0 0x1000>;
 			#address-cells = <1>;

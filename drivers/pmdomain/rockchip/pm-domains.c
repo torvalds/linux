@@ -721,7 +721,7 @@ static int rockchip_pd_power_on(struct generic_pm_domain *domain)
 	ret = rockchip_pd_regulator_enable(pd);
 	if (ret)
 		return dev_err_probe(pd->pmu->dev, ret,
-				     "Failed to enable supply: %d\n", ret);
+				     "Failed to enable supply\n");
 
 	ret = rockchip_pd_power(pd, true);
 	if (ret)
@@ -821,7 +821,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 		return 0;
 
 	pd_info = &pmu->info->domain_info[id];
-	if (!pd_info) {
+	if (!pd_info->pwr_mask && !pd_info->req_mask) {
 		dev_err(pmu->dev, "%pOFn: undefined domain id %d\n",
 			node, id);
 		return -EINVAL;

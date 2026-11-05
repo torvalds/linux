@@ -30,6 +30,7 @@
 #include "gfxhub_v1_2.h"
 #include "sdma_v4_4_2.h"
 #include "amdgpu_ip.h"
+#include "amdgpu_sdma.h"
 
 void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 {
@@ -391,15 +392,9 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 		!adev->in_suspend)
 		flags |= AMDGPU_XCP_OPS_KFD;
 
-	if (flags & AMDGPU_XCP_OPS_KFD) {
-		ret = amdgpu_amdkfd_check_and_lock_kfd(adev);
-		if (ret)
-			goto out;
-	}
-
 	ret = amdgpu_xcp_pre_partition_switch(xcp_mgr, flags);
 	if (ret)
-		goto unlock;
+		goto out;
 
 	num_xcc_per_xcp = __aqua_vanjaram_get_xcc_per_xcp(xcp_mgr, mode);
 	if (adev->gfx.funcs->switch_partition_mode)
@@ -413,9 +408,6 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	ret = amdgpu_xcp_post_partition_switch(xcp_mgr, flags);
 	if (!ret)
 		__aqua_vanjaram_update_available_partition_mode(xcp_mgr);
-unlock:
-	if (flags & AMDGPU_XCP_OPS_KFD)
-		amdgpu_amdkfd_unlock_kfd(adev);
 out:
 	return ret;
 }
@@ -513,6 +505,34 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 	return ret;
 }
 
+static void amdgpu_populate_ip_map(struct amdgpu_device *adev,
+				   enum amd_hw_ip_block_type ip_block,
+				   uint32_t inst_mask)
+{
+	int l = 0, i;
+
+	while (inst_mask) {
+		i = ffs(inst_mask) - 1;
+		adev->ip_map.dev_inst[ip_block][l++] = i;
+		inst_mask &= ~(1 << i);
+	}
+	for (; l < HWIP_MAX_INSTANCE; l++)
+		adev->ip_map.dev_inst[ip_block][l] = -1;
+}
+
+static void amdgpu_ip_map_aqua_vanjaram_override(struct amdgpu_device *adev)
+{
+	u32 ip_map[][2] = {
+		{ GC_HWIP, adev->gfx.xcc_mask },
+		{ SDMA0_HWIP, adev->sdma.sdma_mask },
+		{ VCN_HWIP, adev->vcn.inst_mask },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ip_map); ++i)
+		amdgpu_populate_ip_map(adev, ip_map[i][0], ip_map[i][1]);
+}
+
 int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 {
 	u32 mask, avail_inst, inst_mask = adev->sdma.sdma_mask;
@@ -547,7 +567,7 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	amdgpu_ip_map_init(adev);
+	amdgpu_ip_map_aqua_vanjaram_override(adev);
 
 	return 0;
 }

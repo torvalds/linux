@@ -1290,6 +1290,14 @@ static bool convert_bandwidth_to_frl_params(
 		*num_lanes = 4;
 		*frl_rate = 12000;
 		break;
+	case 64000000:
+		*num_lanes = 4;
+		*frl_rate = 16000;
+		break;
+	case 80000000:
+		*num_lanes = 4;
+		*frl_rate = 20000;
+		break;
 	default:
 		return false;
 	}

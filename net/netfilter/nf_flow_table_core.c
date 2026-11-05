@@ -742,14 +742,9 @@ static void nf_flow_table_do_cleanup(struct nf_flowtable *flow_table,
 {
 	struct net_device *dev = data;
 
-	if (!dev) {
-		flow_offload_teardown(flow);
-		return;
-	}
-
-	if (net_eq(nf_ct_net(flow->ct), dev_net(dev)) &&
-	    (flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
-	     flow->tuplehash[1].tuple.iifidx == dev->ifindex))
+	if (!dev ||
+	    flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
+	    flow->tuplehash[1].tuple.iifidx == dev->ifindex)
 		flow_offload_teardown(flow);
 }
 
@@ -766,8 +761,10 @@ void nf_flow_table_cleanup(struct net_device *dev)
 	struct nf_flowtable *flowtable;
 
 	mutex_lock(&flowtable_lock);
-	list_for_each_entry(flowtable, &flowtables, list)
-		nf_flow_table_gc_cleanup(flowtable, dev);
+	list_for_each_entry(flowtable, &flowtables, list) {
+		if (net_eq(read_pnet(&flowtable->net), dev_net(dev)))
+			nf_flow_table_gc_cleanup(flowtable, dev);
+	}
 	mutex_unlock(&flowtable_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);

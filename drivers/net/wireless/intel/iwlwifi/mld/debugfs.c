@@ -5,7 +5,7 @@
 
 #include "mld.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "hcmd.h"
 #include "iface.h"
 #include "sta.h"
@@ -69,7 +69,7 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mld *mld, char *buf,
 	if (count == 6 && !strcmp(buf, "nolog\n"))
 		mld->fw_status.do_not_dump_once = true;
 
-	iwl_force_nmi(mld->trans);
+	iwl_trans_force_nmi(mld->trans);
 
 	return count;
 }

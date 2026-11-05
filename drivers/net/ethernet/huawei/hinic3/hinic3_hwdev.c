@@ -545,6 +545,10 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 	hwdev->dev = &pci_adapter->pdev->dev;
 	hwdev->func_state = 0;
 	hwdev->dev_id = hinic3_adev_idx_alloc();
+	if (hwdev->dev_id < 0) {
+		err = hwdev->dev_id;
+		goto err_free_hwdev_no_id;
+	}
 	spin_lock_init(&hwdev->channel_lock);
 
 	err = hinic3_init_hwif(hwdev);
@@ -602,8 +606,9 @@ err_destroy_workqueue:
 err_free_hwif:
 	hinic3_free_hwif(hwdev);
 err_free_hwdev:
-	pci_adapter->hwdev = NULL;
 	hinic3_adev_idx_free(hwdev->dev_id);
+err_free_hwdev_no_id:
+	pci_adapter->hwdev = NULL;
 	kfree(hwdev);
 
 	return err;

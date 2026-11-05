@@ -349,6 +349,9 @@ void hexdump(const char *prefix, const void *buf, size_t len);
 	___ok;								\
 })
 
+#define ASSERT_TEXT_EQ(actual, expected, name) \
+	ASSERT_TRUE(compare_text_to_expected(actual, expected) == 0, name)
+
 #define ASSERT_MEMEQ(actual, expected, len, name) ({			\
 	static int duration = 0;					\
 	const void *__act = actual;					\

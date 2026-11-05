@@ -127,6 +127,8 @@ by using xa_set_mark() and remove the mark from an entry by calling
 xa_clear_mark().  You can ask whether any entry in the XArray has a
 particular mark set by calling xa_marked().  Erasing an entry from the
 XArray causes all marks associated with that entry to be cleared.
+Storing a new entry that replaces an existing entry keeps the marks
+associated with the index intact.
 
 Setting or clearing a mark on any index of a multi-index entry will
 affect all indices covered by that entry.  Querying the mark on any
@@ -490,7 +492,7 @@ entry at every index to ``NULL`` and dissolve the tie.  A multi-index
 entry can be split into entries occupying smaller ranges by calling
 xas_split_alloc() without the xa_lock held, followed by taking the lock
 and calling xas_split() or calling xas_try_split() with xa_lock. The
-difference between xas_split_alloc()+xas_split() and xas_try_alloc() is
+difference between xas_split_alloc()+xas_split() and xas_try_split() is
 that xas_split_alloc() + xas_split() split the entry from the original
 order to the new order in one shot uniformly, whereas xas_try_split()
 iteratively splits the entry containing the index non-uniformly.

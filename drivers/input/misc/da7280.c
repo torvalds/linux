@@ -1218,7 +1218,6 @@ static int da7280_probe(struct i2c_client *client)
 	}
 
 	input_dev->name = "da7280-haptic";
-	input_dev->dev.parent = client->dev.parent;
 	input_dev->open = da7280_haptic_open;
 	input_dev->close = da7280_haptic_close;
 	input_set_drvdata(input_dev, haptics);

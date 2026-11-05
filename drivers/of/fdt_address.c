@@ -172,7 +172,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 		goto bail;
 	bus = &of_busses[0];
 
-	/* Cound address cells & copy address locally */
+	/* Count address cells & copy address locally */
 	bus->count_cells(blob, parent, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
 		pr_err("Bad cell count for %s\n",

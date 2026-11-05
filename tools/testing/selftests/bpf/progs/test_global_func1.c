@@ -48,8 +48,73 @@ int f3(int val, struct __sk_buff *skb, int var)
 }
 
 SEC("tc")
+__load_if_no_large_stack()
 __failure __msg("combined stack size of 3 calls is")
 int global_func1(struct __sk_buff *skb)
 {
 	return f0(1, skb) + f1(skb) + f2(2, skb) + f3(3, skb, 4);
+}
+
+/*
+ * A chain of five frames that stay under 512 bytes each but add up to more
+ * than the 2 KiB budget of JITs with large stacks; the chain also exceeds
+ * 512 bytes after two frames, so it is rejected everywhere.
+ */
+#define MAX_STACK_LARGE 480
+
+__attribute__ ((noinline))
+int g0(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK_LARGE] = {};
+
+	__sink(buf[MAX_STACK_LARGE - 1]);
+
+	return skb->len;
+}
+
+__attribute__ ((noinline))
+int g1(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK_LARGE] = {};
+
+	__sink(buf[MAX_STACK_LARGE - 1]);
+
+	return g0(skb) + skb->len;
+}
+
+__attribute__ ((noinline))
+int g2(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK_LARGE] = {};
+
+	__sink(buf[MAX_STACK_LARGE - 1]);
+
+	return g1(skb) + skb->len;
+}
+
+__attribute__ ((noinline))
+int g3(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK_LARGE] = {};
+
+	__sink(buf[MAX_STACK_LARGE - 1]);
+
+	return g2(skb) + skb->len;
+}
+
+__attribute__ ((noinline))
+int g4(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK_LARGE] = {};
+
+	__sink(buf[MAX_STACK_LARGE - 1]);
+
+	return g3(skb) + skb->len;
+}
+
+SEC("tc")
+__failure __msg("combined stack size of {{[0-9]+}} calls is")
+int global_func1_deep(struct __sk_buff *skb)
+{
+	return g4(skb);
 }

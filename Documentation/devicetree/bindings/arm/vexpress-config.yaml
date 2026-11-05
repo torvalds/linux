@@ -139,6 +139,10 @@ patternProperties:
 
   "^regulator-.+$":
     $ref: /schemas/regulator/regulator.yaml#
+    description:
+      If regulator-min-microvolt and regulator-max-microvolt do not both
+      define a range, the supply is treated as fixed and only its voltage
+      can be read.
     properties:
       compatible:
         const: arm,vexpress-volt

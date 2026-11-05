@@ -2,6 +2,7 @@
 /* Driver for Pericom UART */
 
 #include <linux/bits.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/pci.h>
@@ -45,7 +46,7 @@
 struct pericom8250 {
 	void __iomem *virt;
 	unsigned int nr;
-	int line[];
+	struct uart_8250_port *uport[];
 };
 
 static void pericom_do_set_divisor(struct uart_port *port, unsigned int baud,
@@ -102,7 +103,7 @@ static int pericom8250_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	else
 		nr = 1;
 
-	pericom = devm_kzalloc(&pdev->dev, struct_size(pericom, line, nr), GFP_KERNEL);
+	pericom = devm_kzalloc(&pdev->dev, struct_size(pericom, uport, nr), GFP_KERNEL);
 	if (!pericom)
 		return -ENOMEM;
 
@@ -127,12 +128,12 @@ static int pericom8250_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_dbg(&pdev->dev, "Setup PCI port: port %lx, irq %d, type %d\n",
 			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
-		pericom->line[i] = serial8250_register_8250_port(&uart);
-		if (pericom->line[i] < 0) {
+		pericom->uport[i] = serial8250_register_8250_port(&uart);
+		if (IS_ERR(pericom->uport[i])) {
 			dev_err(&pdev->dev,
-				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
+				"Couldn't register serial port %lx, irq %d, type %d, error %pe\n",
 				uart.port.iobase, uart.port.irq,
-				uart.port.iotype, pericom->line[i]);
+				uart.port.iotype, pericom->uport[i]);
 			break;
 		}
 	}
@@ -148,7 +149,7 @@ static void pericom8250_remove(struct pci_dev *pdev)
 	unsigned int i;
 
 	for (i = 0; i < pericom->nr; i++)
-		serial8250_unregister_port(pericom->line[i]);
+		serial8250_unregister_port(pericom->uport[i]);
 }
 
 static const struct pci_device_id pericom8250_pci_ids[] = {

@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -48,6 +49,10 @@ struct test_sysctl_data {
 
 	int boot_int;
 
+	int int_jiffies;
+	int int_ms_jiffies;
+	int int_userhz_jiffies;
+
 	unsigned int uint_0001;
 
 	char string_0001[65];
@@ -66,6 +71,11 @@ static struct test_sysctl_data test_data = {
 	.int_0003[3] = 3,
 
 	.boot_int = 0,
+
+	/* One second in each converter's unit; all three store HZ jiffies. */
+	.int_jiffies = HZ,
+	.int_ms_jiffies = HZ,
+	.int_userhz_jiffies = HZ,
 
 	.uint_0001 = 314,
 
@@ -112,6 +122,27 @@ static const struct ctl_table test_table[] = {
 		.proc_handler	= proc_dointvec,
 		.extra1		= SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
+	},
+	{
+		.procname	= "int_jiffies",
+		.data		= &test_data.int_jiffies,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "int_ms_jiffies",
+		.data		= &test_data.int_ms_jiffies,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_ms_jiffies,
+	},
+	{
+		.procname	= "int_userhz_jiffies",
+		.data		= &test_data.int_userhz_jiffies,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_userhz_jiffies,
 	},
 	{
 		.procname	= "uint_0001",
@@ -321,11 +352,11 @@ module_init(test_sysctl_init);
 
 static void __exit test_sysctl_exit(void)
 {
-	kfree(test_data.bitmap_0001);
 	for (int i = 0; i < TEST_H_SIZE; i++) {
 		if (ctl_headers[i])
 			unregister_sysctl_table(ctl_headers[i]);
 	}
+	kfree(test_data.bitmap_0001);
 }
 
 module_exit(test_sysctl_exit);

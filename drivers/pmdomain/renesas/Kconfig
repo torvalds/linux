@@ -37,6 +37,10 @@ config SYSC_R8A774A1
 	bool "System Controller support for R8A774A1 (RZ/G2M)" if COMPILE_TEST
 	select SYSC_RCAR
 
+config SYSC_R8A774A3
+	bool "System Controller support for R8A774A3 (RZ/G2M v3.0)" if COMPILE_TEST
+	select SYSC_RCAR
+
 config SYSC_R8A774B1
 	bool "System Controller support for R8A774B1 (RZ/G2N)" if COMPILE_TEST
 	select SYSC_RCAR

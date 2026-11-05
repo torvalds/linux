@@ -141,6 +141,7 @@ obj-$(CONFIG_WATCH_QUEUE) += watch_queue.o
 
 obj-$(CONFIG_RESOURCE_KUNIT_TEST) += resource_kunit.o
 obj-$(CONFIG_SYSCTL_KUNIT_TEST) += sysctl-test.o
+obj-$(CONFIG_USER_NS_MAP_KUNIT_TEST) += tests/user_ns_map_kunit.o
 
 CFLAGS_kstack_erase.o += $(DISABLE_KSTACK_ERASE)
 CFLAGS_kstack_erase.o += $(call cc-option,-mgeneral-regs-only)
@@ -153,9 +154,13 @@ obj-$(CONFIG_SCF_TORTURE_TEST) += scftorture.o
 
 $(obj)/configs.o: $(obj)/config_data.gz
 
+# .config is small, so it is compressed with gzip rather than the image compressor.
+quiet_cmd_gzip_config = GZIP    $@
+      cmd_gzip_config = cat $(real-prereqs) | $(KGZIP) -n -f -9 > $@
+
 targets += config_data config_data.gz
 $(obj)/config_data.gz: $(obj)/config_data FORCE
-	$(call if_changed,gzip)
+	$(call if_changed,gzip_config)
 
 filechk_cat = cat $<
 

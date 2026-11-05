@@ -2,21 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (riscv)"
 
-config CRYPTO_AES_RISCV64
-	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XTS"
-	depends on 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
-		   RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
-	select CRYPTO_LIB_AES
-	select CRYPTO_SKCIPHER
-	help
-	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XTS
-
-	  Architecture: riscv64 using:
-	  - Zvkned vector crypto extension
-	  - Zvbb vector extension (XTS)
-	  - Zvkb vector crypto extension (CTR)
-	  - Zvkg vector crypto extension (XTS)
-
 config CRYPTO_SM4_RISCV64
 	tristate "Ciphers: SM4 (ShangMi 4)"
 	depends on 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \

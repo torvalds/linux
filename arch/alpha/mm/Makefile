@@ -4,3 +4,5 @@
 #
 
 obj-y	:= init.o fault.o tlbflush.o
+
+obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o

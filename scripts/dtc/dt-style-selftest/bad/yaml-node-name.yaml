@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/test-node-name.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test fixture with incorrect node names
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+properties:
+  compatible:
+    const: example,test-node-name
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    foo_bar@1000 {
+        compatible = "example,test-node-name";
+        reg = <0x1000 0x100>;
+    };
+
+    foo,bar@2000 {
+        compatible = "example,test-node-name";
+        reg = <0x2000 0x100>;
+    };
+
+    foo.bar@3000 {
+        compatible = "example,test-node-name";
+        reg = <0x3000 0x100>;
+    };
+
+    foo+bar@4000 {
+        compatible = "example,test-node-name";
+        reg = <0x4000 0x100>;
+    };
+
+    foo-bar-@5000 {
+        compatible = "example,test-node-name";
+        reg = <0x5000 0x100>;
+    };
+
+    // TODO handle also "-foo-bar" which is against spec but accepted by DTC
+
+    foo_bar {
+        compatible = "example,test-node-name";
+    };

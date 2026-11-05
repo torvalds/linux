@@ -4,6 +4,7 @@
 #include <linux/bcd.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -23,6 +24,7 @@
 #define NCT3018Y_REG_CTRL	0x0A /* timer control */
 #define NCT3018Y_REG_ST		0x0B /* status */
 #define NCT3018Y_REG_CLKO	0x0C /* clock out */
+#define NCT3018Y_REG_INTR_CTRL	0x12 /* intrusion control */
 #define NCT3018Y_REG_PART	0x21 /* part info */
 
 #define NCT3018Y_BIT_AF		BIT(7)
@@ -34,6 +36,7 @@
 #define NCT3018Y_BIT_OFIE	BIT(2)
 #define NCT3018Y_BIT_CIE	BIT(1)
 #define NCT3018Y_BIT_TWO	BIT(0)
+#define NCT3018Y_BIT_INTRUSION	BIT(1) /* in NCT3018Y_REG_INTR_CTRL */
 
 #define NCT3018Y_REG_BAT_MASK		0x07
 #define NCT3018Y_REG_CLKO_F_MASK	0x03 /* frequenc mask */
@@ -491,6 +494,95 @@ static const struct rtc_class_ops nct3018y_rtc_ops = {
 	.ioctl		= nct3018y_ioctl,
 };
 
+#if IS_REACHABLE(CONFIG_HWMON)
+
+static umode_t nct3018y_hwmon_is_visible(const void *data,
+					 enum hwmon_sensor_types type,
+					 u32 attr, int channel)
+{
+	if (type == hwmon_intrusion && attr == hwmon_intrusion_alarm)
+		return 0644;
+
+	return 0;
+}
+
+static int nct3018y_hwmon_read(struct device *dev,
+			       enum hwmon_sensor_types type, u32 attr,
+			       int channel, long *val)
+{
+	struct nct3018y *nct3018y = dev_get_drvdata(dev);
+	int flags;
+
+	flags = i2c_smbus_read_byte_data(nct3018y->client,
+					 NCT3018Y_REG_INTR_CTRL);
+	if (flags < 0)
+		return flags;
+
+	*val = !!(flags & NCT3018Y_BIT_INTRUSION);
+
+	return 0;
+}
+
+static int nct3018y_hwmon_write(struct device *dev,
+				enum hwmon_sensor_types type, u32 attr,
+				int channel, long val)
+{
+	struct nct3018y *nct3018y = dev_get_drvdata(dev);
+	int flags;
+
+	/* The alarm latches until it is cleared, and only clearing is a
+	 * meaningful thing to ask for.
+	 */
+	if (val)
+		return -EINVAL;
+
+	flags = i2c_smbus_read_byte_data(nct3018y->client,
+					 NCT3018Y_REG_INTR_CTRL);
+	if (flags < 0)
+		return flags;
+
+	return i2c_smbus_write_byte_data(nct3018y->client,
+					 NCT3018Y_REG_INTR_CTRL,
+					 flags & ~NCT3018Y_BIT_INTRUSION);
+}
+
+static const struct hwmon_channel_info * const nct3018y_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(intrusion, HWMON_INTRUSION_ALARM),
+	NULL
+};
+
+static const struct hwmon_ops nct3018y_hwmon_ops = {
+	.is_visible = nct3018y_hwmon_is_visible,
+	.read = nct3018y_hwmon_read,
+	.write = nct3018y_hwmon_write,
+};
+
+static const struct hwmon_chip_info nct3018y_hwmon_chip_info = {
+	.ops = &nct3018y_hwmon_ops,
+	.info = nct3018y_hwmon_info,
+};
+
+static void nct3018y_hwmon_register(struct nct3018y *nct3018y)
+{
+	struct device *dev;
+
+	dev = devm_hwmon_device_register_with_info(&nct3018y->client->dev,
+						   "nct3018y", nct3018y,
+						   &nct3018y_hwmon_chip_info,
+						   NULL);
+	if (IS_ERR(dev))
+		dev_warn(&nct3018y->client->dev,
+			 "unable to register hwmon device %ld\n", PTR_ERR(dev));
+}
+
+#else
+
+static void nct3018y_hwmon_register(struct nct3018y *nct3018y)
+{
+}
+
+#endif /* IS_REACHABLE(CONFIG_HWMON) */
+
 static int nct3018y_probe(struct i2c_client *client)
 {
 	struct nct3018y *nct3018y;
@@ -567,6 +659,8 @@ static int nct3018y_probe(struct i2c_client *client)
 	/* register clk in common clk framework */
 	nct3018y_clkout_register_clk(nct3018y);
 #endif
+
+	nct3018y_hwmon_register(nct3018y);
 
 	return devm_rtc_register_device(nct3018y->rtc);
 }

@@ -71,38 +71,40 @@
 #define LINK_WAIT_IATU			9
 
 /* Synopsys-specific PCIe configuration registers */
-#define PCIE_PORT_FORCE			0x708
+#define PORT_FORCE_LINK			0x708		/* Port Force Link */
 /* Bit[7:0] LINK_NUM: Link Number. Not used for endpoint */
-#define PORT_LINK_NUM_MASK		GENMASK(7, 0)
-#define PORT_FORCE_DO_DESKEW_FOR_SRIS	BIT(23)
+#define  PORT_FORCE_LINK_NUM_MASK	GENMASK(7, 0)	/* Link Number. Not used for endpoint */
+#define  PORT_FORCE_LINK_DDFS		BIT(23)		/* do deskew for sris */
 
-#define PCIE_PORT_AFR			0x70C
-#define PORT_AFR_N_FTS_MASK		GENMASK(15, 8)
-#define PORT_AFR_N_FTS(n)		FIELD_PREP(PORT_AFR_N_FTS_MASK, n)
-#define PORT_AFR_CC_N_FTS_MASK		GENMASK(23, 16)
-#define PORT_AFR_CC_N_FTS(n)		FIELD_PREP(PORT_AFR_CC_N_FTS_MASK, n)
-#define PORT_AFR_ENTER_ASPM		BIT(30)
-#define PORT_AFR_L0S_ENTRANCE_LAT_SHIFT	24
-#define PORT_AFR_L0S_ENTRANCE_LAT_MASK	GENMASK(26, 24)
-#define PORT_AFR_L1_ENTRANCE_LAT_SHIFT	27
-#define PORT_AFR_L1_ENTRANCE_LAT_MASK	GENMASK(29, 27)
+#define PORT_AFAC			0x70C		/* Ack Frequency and L0-L1 ASPM Control */
+/* Ack the number of Fast Training Sequence mask */
+#define  PORT_AFAC_N_FTS_MASK		GENMASK(15, 8)
+/* Ack the number of Fast Training Sequence */
+#define  PORT_AFAC_N_FTS(n)		FIELD_PREP(PORT_AFAC_N_FTS_MASK, n)
+#define  PORT_AFAC_CC_N_FTS_MASK	GENMASK(23, 16)	/* Common Clock N_FTS mask */
+/* Common Clock N_FTS */
+#define  PORT_AFAC_CC_N_FTS(n)		FIELD_PREP(PORT_AFAC_CC_N_FTS_MASK, n)
+#define  PORT_AFAC_ENTER_ASPM		BIT(30)		/* ASPM L1 Entry Control */
+#define  PORT_AFAC_L0S_ELM		GENMASK(26, 24)	/* L0s Entrance Latency mask */
+#define  PORT_AFAC_L1_ELM		GENMASK(29, 27)	/* L1 Entrance Latency mask */
 
-#define PCIE_PORT_LINK_CONTROL		0x710
-#define PORT_LINK_DLL_LINK_EN		BIT(5)
-#define PORT_LINK_FAST_LINK_MODE	BIT(7)
-#define PORT_LINK_MODE_MASK		GENMASK(21, 16)
-#define PORT_LINK_MODE(n)		FIELD_PREP(PORT_LINK_MODE_MASK, n)
-#define PORT_LINK_MODE_1_LANES		PORT_LINK_MODE(0x1)
-#define PORT_LINK_MODE_2_LANES		PORT_LINK_MODE(0x3)
-#define PORT_LINK_MODE_4_LANES		PORT_LINK_MODE(0x7)
-#define PORT_LINK_MODE_8_LANES		PORT_LINK_MODE(0xf)
-#define PORT_LINK_MODE_16_LANES		PORT_LINK_MODE(0x1f)
+#define PORT_LINK_CTRL			0x710		/* Port Link Control Register */
+#define  PORT_LINK_CTRL_DLE		BIT(5)		/* DLL Link Enable */
+#define  PORT_LINK_CTRL_FLM		BIT(7)		/* Fast Link Mode */
+#define  PORT_LINK_CTRL_LC_MASK		GENMASK(21, 16)	/* Link Mode Enable (LINK_CAPABLE) mask */
+/* Link Mode Enable (LINK_CAPABLE) */
+#define  PORT_LINK_CTRL_LC(n)		FIELD_PREP(PORT_LINK_CTRL_LC_MASK, n)
+#define  PORT_LINK_CTRL_LC_1_LANES	PORT_LINK_CTRL_LC(0x1)	/* Link Mode 1 lane */
+#define  PORT_LINK_CTRL_LC_2_LANES	PORT_LINK_CTRL_LC(0x3)	/* Link Mode 2 lane */
+#define  PORT_LINK_CTRL_LC_4_LANES	PORT_LINK_CTRL_LC(0x7)	/* Link Mode 4 lane */
+#define  PORT_LINK_CTRL_LC_8_LANES	PORT_LINK_CTRL_LC(0xf)	/* Link Mode 8 lane */
+#define  PORT_LINK_CTRL_LC_16_LANES	PORT_LINK_CTRL_LC(0x1f)	/* Link Mode 16 lane */
 
-#define PCIE_PORT_LANE_SKEW		0x714
-#define PORT_LANE_SKEW_INSERT_MASK	GENMASK(23, 0)
+#define PORT_LANE_SKEW			0x714		/* Lane Skew */
+#define  PORT_LANE_SKEW_INSERT_MASK	GENMASK(23, 0)
 
 /*
- * PCIE_TIMER_CTRL_MAX_FUNC_NUM: Timer Control and Max Function Number
+ * TIMER_CTRL_MAX_FUNC_NUM: Timer Control and Max Function Number
  * Register.
  *
  * This register holds the ack frequency, latency, replay, fast link
@@ -116,68 +118,79 @@
  *   0x2 (SF_64): Scaling Factor is 64 (1ms is 16us)
  *   0x3 (SF_16): Scaling Factor is 16 (1ms is 64us)
  */
-#define PCIE_TIMER_CTRL_MAX_FUNC_NUM	0x718
-#define PORT_FLT_SF_MASK	GENMASK(30, 29)
-#define PORT_FLT_SF_VAL_1024	0x0
-#define PORT_FLT_SF_VAL_256	0x1
-#define PORT_FLT_SF_VAL_64	0x2
-#define PORT_FLT_SF_VAL_16	0x3
+#define TIMER_CTRL_MAX_FUNC_NUM		0x718
+#define  PORT_FLT_SF_MASK		GENMASK(30, 29)
+#define  PORT_FLT_SF_VAL_1024		0x0
+#define  PORT_FLT_SF_VAL_256		0x1
+#define  PORT_FLT_SF_VAL_64		0x2
+#define  PORT_FLT_SF_VAL_16		0x3
 
-#define PCIE_PORT_DEBUG0		0x728
-#define PORT_LOGIC_LTSSM_STATE_MASK	0x3f
-#define PORT_LOGIC_LTSSM_STATE_L0	0x11
-#define PCIE_PORT_DEBUG1		0x72C
-#define PCIE_PORT_DEBUG1_LINK_UP		BIT(4)
-#define PCIE_PORT_DEBUG1_LINK_IN_TRAINING	BIT(29)
+#define PORT_LINK_DEBUG0		0x728		/* Port Link Debug Register 0 */
+#define  PORT_LINK_DEBUG0_LTSSM_MASK	0x3f		/* LTSSM current state mask */
+#define PORT_LINK_DEBUG1		0x72C		/* Port Link Debug Register 1 */
+/* LTSSM reports PHY link up or LTSSM is in Loopback */
+#define  PORT_LINK_DEBUG1_LINK_UP		BIT(4)
+#define  PORT_LINK_DEBUG1_LINK_IN_TRAINING	BIT(29) /* LTSSM performing link training */
 
-#define PCIE_LINK_WIDTH_SPEED_CONTROL	0x80C
-#define PORT_LOGIC_N_FTS_MASK		GENMASK(7, 0)
-#define PORT_LOGIC_SPEED_CHANGE		BIT(17)
-#define PORT_LOGIC_LINK_WIDTH_MASK	GENMASK(12, 8)
-#define PORT_LOGIC_LINK_WIDTH(n)	FIELD_PREP(PORT_LOGIC_LINK_WIDTH_MASK, n)
-#define PORT_LOGIC_LINK_WIDTH_1_LANES	PORT_LOGIC_LINK_WIDTH(0x1)
-#define PORT_LOGIC_LINK_WIDTH_2_LANES	PORT_LOGIC_LINK_WIDTH(0x2)
-#define PORT_LOGIC_LINK_WIDTH_4_LANES	PORT_LOGIC_LINK_WIDTH(0x4)
-#define PORT_LOGIC_LINK_WIDTH_8_LANES	PORT_LOGIC_LINK_WIDTH(0x8)
+#define LINK_WIDTH_SPEED_CTRL		0x80C		/* Link Width and Speed Change Control */
+#define  N_FTS_MASK			GENMASK(7, 0)
+#define  SPEED_CHANGE			BIT(17)
+#define  LINK_WIDTH_MASK		GENMASK(12, 8)
+#define  LINK_WIDTH(n)			FIELD_PREP(LINK_WIDTH_MASK, n)
+#define  LINK_WIDTH_1_LANES		LINK_WIDTH(0x1)
+#define  LINK_WIDTH_2_LANES		LINK_WIDTH(0x2)
+#define  LINK_WIDTH_4_LANES		LINK_WIDTH(0x4)
+#define  LINK_WIDTH_8_LANES		LINK_WIDTH(0x8)
 
+/* Integrated MSI Reception Module Lower Address */
 #define PCIE_MSI_ADDR_LO		0x820
+/* Integrated MSI Reception Module Upper Address */
 #define PCIE_MSI_ADDR_HI		0x824
+/* Integrated MSI Reception Module Interrupt0 Enable */
 #define PCIE_MSI_INTR0_ENABLE		0x828
+/* Integrated MSI Reception Module Interrupt0 Mask */
 #define PCIE_MSI_INTR0_MASK		0x82C
+/* Integrated MSI Reception Module Interrupt0 Status */
 #define PCIE_MSI_INTR0_STATUS		0x830
 
-#define GEN3_RELATED_OFF			0x890
-#define GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL	BIT(0)
-#define GEN3_RELATED_OFF_EQ_PHASE_2_3		BIT(9)
-#define GEN3_RELATED_OFF_RXEQ_RGRDLESS_RXTS	BIT(13)
-#define GEN3_RELATED_OFF_GEN3_EQ_DISABLE	BIT(16)
-#define GEN3_RELATED_OFF_RATE_SHADOW_SEL_SHIFT	24
-#define GEN3_RELATED_OFF_RATE_SHADOW_SEL_MASK	GENMASK(25, 24)
+#define GEN3_CTRL			0x890		/* Gen3 Control Register */
+/* Gen3 Receiver Impedance ZRX-DC Not Compliant */
+#define  GEN3_CTRL_GEN3_ZRXDC_NONCOMPL	BIT(0)
+#define  GEN3_CTRL_EQ_PHASE_2_3		BIT(9)		/* Equalization Phase 2 and Phase 3 */
+#define  GEN3_CTRL_RXEQ_RGRDLESS_RXTS	BIT(13)
+#define  GEN3_CTRL_GEN3_EQ_DISABLE	BIT(16)		/* Equalization Disable */
+#define  GEN3_CTRL_RATE_SHADOW_SEL_MASK	GENMASK(25, 24)	/* Rate Shadow Select mask */
 
-#define GEN3_EQ_CONTROL_OFF			0x8A8
-#define GEN3_EQ_CONTROL_OFF_FB_MODE		GENMASK(3, 0)
-#define GEN3_EQ_CONTROL_OFF_PHASE23_EXIT_MODE	BIT(4)
-#define GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC	GENMASK(23, 8)
-#define GEN3_EQ_CONTROL_OFF_FOM_INC_INITIAL_EVAL	BIT(24)
+#define GEN3_EQ_CTRL			0x8A8		/* Gen3 EQ Control */
+#define  GEN3_EQ_CTRL_FB_MODE		GENMASK(3, 0)	/* Feedback Mode */
+#define  GEN3_EQ_CTRL_PHASE23_EXIT_MODE	BIT(4)		/* Behavior After 24 ms Timeout */
+#define  GEN3_EQ_CTRL_PSET_REQ_VEC	GENMASK(23, 8)	/* Preset Request Vector */
+/* Include or not the FOM feedback from the initial preset */
+#define  GEN3_EQ_CTRL_FOM_INC_INITIAL_EVAL	BIT(24)
 
-#define GEN3_EQ_FB_MODE_DIR_CHANGE_OFF		0x8AC
-#define GEN3_EQ_FMDC_T_MIN_PHASE23		GENMASK(4, 0)
-#define GEN3_EQ_FMDC_N_EVALS			GENMASK(9, 5)
-#define GEN3_EQ_FMDC_MAX_PRE_CURSOR_DELTA	GENMASK(13, 10)
-#define GEN3_EQ_FMDC_MAX_POST_CURSOR_DELTA	GENMASK(17, 14)
+/* Gen3 EQ Direction Change Feedback Mode Control */
+#define GEN3_EQ_FB_MODE_DIR_CHANGE		0x8AC
+#define  GEN3_EQ_FMDC_T_MIN_PHASE23		GENMASK(4, 0)
+#define  GEN3_EQ_FMDC_N_EVALS			GENMASK(9, 5)
+#define  GEN3_EQ_FMDC_MAX_PRE_CURSOR_DELTA	GENMASK(13, 10)
+#define  GEN3_EQ_FMDC_MAX_POST_CURSOR_DELTA	GENMASK(17, 14)
 
-#define COHERENCY_CONTROL_1_OFF			0x8E0
-#define CFG_MEMTYPE_BOUNDARY_LOW_ADDR_MASK	GENMASK(31, 2)
-#define CFG_MEMTYPE_VALUE			BIT(0)
+#define MISC_CONTROL_1			0x8BC		/* DBI Read-Only Write Enable */
+#define  DBI_RO_WR_EN			BIT(0)		/* Write to RO Registers Using DBI */
 
-#define COHERENCY_CONTROL_2_OFF			0x8E4
-#define COHERENCY_CONTROL_3_OFF			0x8E8
+#define COHERENCY_CTRL1				0x8E0	/* Cache Coherency Control Register 1 */
+/* Boundary Lower Address For Memory Type */
+#define  CFG_MEMTYPE_BOUNDARY_LOW_ADDR_MASK	GENMASK(31, 2)
+#define  CFG_MEMTYPE_VALUE			BIT(0)	/* Sets the memory type */
 
-#define PCIE_PORT_MULTI_LANE_CTRL	0x8C0
-#define PORT_MLTI_UPCFG_SUPPORT		BIT(7)
+#define COHERENCY_CTRL2				0x8E4	/* Cache Coherency Control Register 2 */
+#define COHERENCY_CTRL3				0x8E8	/* Cache Coherency Control Register 3 */
 
-#define PCIE_VERSION_NUMBER		0x8F8
-#define PCIE_VERSION_TYPE		0x8FC
+#define MULTI_LANE_CTRL			0x8C0	/* UpConfigure Multi-lane Control */
+#define  MULTI_LANE_CTRL_UPCFG_SUPPORT	BIT(7)	/* Upconfigure Support */
+
+#define PCIE_VERSION_NUMBER		0x8F8	/* PCIe Controller IIP Release Version Number */
+#define PCIE_VERSION_TYPE		0x8FC	/* PCIe Controller IIP Release Version Type */
 
 /*
  * iATU inbound and outbound windows CSRs. Before the IP-core v4.80a each
@@ -186,38 +199,36 @@
  * v4.80a in a way so the viewport was unrolled into the directly accessible
  * iATU/eDMA CSRs space.
  */
-#define PCIE_ATU_VIEWPORT		0x900
-#define PCIE_ATU_REGION_DIR_IB		BIT(31)
-#define PCIE_ATU_REGION_DIR_OB		0
-#define PCIE_ATU_VIEWPORT_BASE		0x904
-#define PCIE_ATU_UNROLL_BASE(dir, index) \
-	(((index) << 9) | ((dir == PCIE_ATU_REGION_DIR_IB) ? BIT(8) : 0))
-#define PCIE_ATU_VIEWPORT_SIZE		0x2C
-#define PCIE_ATU_REGION_CTRL1		0x000
-#define PCIE_ATU_INCREASE_REGION_SIZE	BIT(13)
-#define PCIE_ATU_TD			BIT(8)
-#define PCIE_ATU_FUNC_NUM(pf)           ((pf) << 20)
-#define PCIE_ATU_REGION_CTRL2		0x004
-#define PCIE_ATU_ENABLE			BIT(31)
-#define PCIE_ATU_BAR_MODE_ENABLE	BIT(30)
-#define PCIE_ATU_CFG_SHIFT_MODE_ENABLE	BIT(28)
-#define PCIE_ATU_INHIBIT_PAYLOAD	BIT(22)
-#define PCIE_ATU_FUNC_NUM_MATCH_EN      BIT(19)
-#define PCIE_ATU_LOWER_BASE		0x008
-#define PCIE_ATU_UPPER_BASE		0x00C
-#define PCIE_ATU_LIMIT			0x010
-#define PCIE_ATU_LOWER_TARGET		0x014
-#define PCIE_ATU_BUS(x)			FIELD_PREP(GENMASK(31, 24), x)
-#define PCIE_ATU_DEV(x)			FIELD_PREP(GENMASK(23, 19), x)
-#define PCIE_ATU_FUNC(x)		FIELD_PREP(GENMASK(18, 16), x)
-#define PCIE_ATU_UPPER_TARGET		0x018
-#define PCIE_ATU_UPPER_LIMIT		0x020
+#define IATU_VIEWPORT			0x900	/* iATU Index */
+#define ATU_REGION_DIR_IB		BIT(31)
+#define ATU_REGION_DIR_OB		0
+#define ATU_VIEWPORT_BASE		0x904
+#define ATU_UNROLL_BASE(dir, index) \
+	(((index) << 9) | ((dir == ATU_REGION_DIR_IB) ? BIT(8) : 0))
+#define ATU_VIEWPORT_SIZE		0x2C
+#define ATU_REGION_CTRL1		0x000
+#define  ATU_INCREASE_REGION_SIZE	BIT(13)
+#define  ATU_TD				BIT(8)
+#define ATU_FUNC_NUM(pf)		((pf) << 20)
+#define ATU_REGION_CTRL2		0x004
+#define  ATU_ENABLE			BIT(31)
+#define  ATU_BAR_MODE_ENABLE		BIT(30)
+#define  ATU_CFG_SHIFT_MODE_ENABLE	BIT(28)
+#define  ATU_DMA_BYPASS			BIT(27)
+#define  ATU_INHIBIT_PAYLOAD		BIT(22)
+#define  ATU_FUNC_NUM_MATCH_EN		BIT(19)
+#define ATU_LOWER_BASE			0x008
+#define ATU_UPPER_BASE			0x00C
+#define ATU_LIMIT			0x010
+#define ATU_LOWER_TARGET		0x014
+#define ATU_BUS(x)			FIELD_PREP(GENMASK(31, 24), x)
+#define ATU_DEV(x)			FIELD_PREP(GENMASK(23, 19), x)
+#define ATU_FUNC(x)			FIELD_PREP(GENMASK(18, 16), x)
+#define ATU_UPPER_TARGET		0x018
+#define ATU_UPPER_LIMIT			0x020
 
-#define PCIE_MISC_CONTROL_1_OFF		0x8BC
-#define PCIE_DBI_RO_WR_EN		BIT(0)
-
-#define PCIE_MSIX_DOORBELL		0x948
-#define PCIE_MSIX_DOORBELL_PF_SHIFT	24
+#define MSIX_DOORBELL			0x948
+#define  MSIX_DOORBELL_PF_MASK		GENMASK(28, 24)
 
 /*
  * eDMA CSRs. DW PCIe IP-core v4.70a and older had the eDMA registers accessible
@@ -258,37 +269,24 @@
 #define MARGINING_MAXLANES			GENMASK(20, 16)
 #define MARGINING_SAMPLE_RATE_TIMING		GENMASK(13, 8)
 #define MARGINING_SAMPLE_RATE_VOLTAGE		GENMASK(5, 0)
-/*
- * iATU Unroll-specific register definitions
- * From 4.80 core version the address translation will be made by unroll
- */
-#define PCIE_ATU_UNR_REGION_CTRL1	0x00
-#define PCIE_ATU_UNR_REGION_CTRL2	0x04
-#define PCIE_ATU_UNR_LOWER_BASE		0x08
-#define PCIE_ATU_UNR_UPPER_BASE		0x0C
-#define PCIE_ATU_UNR_LOWER_LIMIT	0x10
-#define PCIE_ATU_UNR_LOWER_TARGET	0x14
-#define PCIE_ATU_UNR_UPPER_TARGET	0x18
-#define PCIE_ATU_UNR_UPPER_LIMIT	0x20
 
 /*
  * RAS-DES register definitions
  */
-#define PCIE_RAS_DES_EVENT_COUNTER_CONTROL	0x8
+#define RAS_DES_EVENT_COUNTER_CONTROL	0x8
 #define EVENT_COUNTER_ALL_CLEAR		0x3
 #define EVENT_COUNTER_ENABLE_ALL	0x7
-#define EVENT_COUNTER_ENABLE_SHIFT	2
-#define EVENT_COUNTER_EVENT_SEL_MASK	GENMASK(7, 0)
-#define EVENT_COUNTER_EVENT_SEL_SHIFT	16
+#define EVENT_COUNTER_ENABLE_MASK	GENMASK(4, 2)
+#define EVENT_COUNTER_EVENT_SEL_MASK	GENMASK(23, 16)
+#define EVENT_COUNTER_GROUP_SEL_MASK	GENMASK(27, 24)
 #define EVENT_COUNTER_EVENT_Tx_L0S	0x2
 #define EVENT_COUNTER_EVENT_Rx_L0S	0x3
 #define EVENT_COUNTER_EVENT_L1		0x5
 #define EVENT_COUNTER_EVENT_L1_1	0x7
 #define EVENT_COUNTER_EVENT_L1_2	0x8
-#define EVENT_COUNTER_GROUP_SEL_SHIFT	24
 #define EVENT_COUNTER_GROUP_5		0x5
 
-#define PCIE_RAS_DES_EVENT_COUNTER_DATA		0xc
+#define RAS_DES_EVENT_COUNTER_DATA	0xc
 
 /* PTM register definitions */
 #define PTM_RES_REQ_CTRL		0x8
@@ -376,7 +374,7 @@ enum dw_pcie_core_rst {
 };
 
 enum dw_pcie_ltssm {
-	/* Need to align with PCIE_PORT_DEBUG0 bits 0:5 */
+	/* Need to align with PORT_LINK_DEBUG0 bits 0:5 */
 	DW_PCIE_LTSSM_DETECT_QUIET = 0x0,
 	DW_PCIE_LTSSM_DETECT_ACT = 0x1,
 	DW_PCIE_LTSSM_POLL_ACTIVE = 0x2,
@@ -454,7 +452,7 @@ struct dw_pcie_rp {
 	int			irq;
 	const struct dw_pcie_host_ops *ops;
 	int			msi_irq[MAX_MSI_CTRLS];
-	struct irq_domain	*irq_domain;
+	struct irq_domain	*msi_irq_domain;
 	dma_addr_t		msi_data;
 	struct irq_chip		*msi_irq_chip;
 	u32			num_vectors;
@@ -469,12 +467,16 @@ struct dw_pcie_rp {
 	struct pci_config_window *cfg;
 	bool			ecam_enabled;
 	bool			native_ecam;
+	bool			bypass_ob_mem_iatu;
 	bool                    skip_l23_ready;
 	bool			skip_pwrctrl_off;
+	/* Set if the RC loses power during suspend */
+	bool                    suspend_poweroff;
 };
 
 struct dw_pcie_ep_ops {
 	int	(*pre_init)(struct dw_pcie_ep *ep);
+	void	(*post_deinit)(struct dw_pcie_ep *ep);
 	int	(*init)(struct dw_pcie_ep *ep);
 	int	(*raise_irq)(struct dw_pcie_ep *ep, u8 func_no,
 			     unsigned int type, u16 interrupt_num);
@@ -813,9 +815,9 @@ static inline void dw_pcie_dbi_ro_wr_en(struct dw_pcie *pci)
 	u32 reg;
 	u32 val;
 
-	reg = PCIE_MISC_CONTROL_1_OFF;
+	reg = MISC_CONTROL_1;
 	val = dw_pcie_readl_dbi(pci, reg);
-	val |= PCIE_DBI_RO_WR_EN;
+	val |= DBI_RO_WR_EN;
 	dw_pcie_writel_dbi(pci, reg, val);
 }
 
@@ -824,9 +826,9 @@ static inline void dw_pcie_dbi_ro_wr_dis(struct dw_pcie *pci)
 	u32 reg;
 	u32 val;
 
-	reg = PCIE_MISC_CONTROL_1_OFF;
+	reg = MISC_CONTROL_1;
 	val = dw_pcie_readl_dbi(pci, reg);
-	val &= ~PCIE_DBI_RO_WR_EN;
+	val &= ~DBI_RO_WR_EN;
 	dw_pcie_writel_dbi(pci, reg, val);
 }
 
@@ -851,9 +853,9 @@ static inline enum dw_pcie_ltssm dw_pcie_get_ltssm(struct dw_pcie *pci)
 	if (pci->ops && pci->ops->get_ltssm)
 		return pci->ops->get_ltssm(pci);
 
-	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0);
+	val = dw_pcie_readl_dbi(pci, PORT_LINK_DEBUG0);
 
-	return (enum dw_pcie_ltssm)FIELD_GET(PORT_LOGIC_LTSSM_STATE_MASK, val);
+	return (enum dw_pcie_ltssm)FIELD_GET(PORT_LINK_DEBUG0_LTSSM_MASK, val);
 }
 
 const char *dw_pcie_ltssm_status_string(enum dw_pcie_ltssm ltssm);
@@ -868,7 +870,7 @@ void dw_pcie_free_msi(struct dw_pcie_rp *pp);
 int dw_pcie_setup_rc(struct dw_pcie_rp *pp);
 int dw_pcie_host_init(struct dw_pcie_rp *pp);
 void dw_pcie_host_deinit(struct dw_pcie_rp *pp);
-int dw_pcie_allocate_domains(struct dw_pcie_rp *pp);
+int dw_pcie_allocate_msi_domains(struct dw_pcie_rp *pp);
 void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus, unsigned int devfn,
 				       int where);
 #else
@@ -909,7 +911,7 @@ static inline void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 {
 }
 
-static inline int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
+static inline int dw_pcie_allocate_msi_domains(struct dw_pcie_rp *pp)
 {
 	return 0;
 }

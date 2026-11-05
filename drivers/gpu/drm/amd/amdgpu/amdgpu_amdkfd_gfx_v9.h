@@ -102,7 +102,8 @@ void kgd_gfx_v9_build_dequeue_wait_counts_packet_info(struct amdgpu_device *adev
 					       uint32_t sch_wave,
 					       uint32_t que_sleep,
 					       uint32_t *reg_offset,
-					       uint32_t *reg_data);
+					       uint32_t *reg_data,
+					       uint32_t inst);
 uint64_t kgd_gfx_v9_hqd_get_pq_addr(struct amdgpu_device *adev,
 				    uint32_t pipe_id,
 				    uint32_t queue_id,
@@ -114,3 +115,4 @@ uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
 			      unsigned int utimeout);
 uint32_t kgd_gfx_v9_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
 					  int engine, int queue);
+void kgd_gfx_v9_clean_fault(struct amdgpu_device *adev);

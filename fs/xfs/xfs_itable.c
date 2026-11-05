@@ -63,7 +63,7 @@ want_metadir_file(
 STATIC int
 xfs_bulkstat_one_int(
 	struct xfs_mount	*mp,
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
 	struct xfs_bstat_chunk	*bc)

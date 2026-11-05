@@ -127,7 +127,7 @@ xfs_refcountbt_get_maxrecs(
 	return cur->bc_mp->m_refc_mxr[level != 0];
 }
 
-STATIC void
+void
 xfs_refcountbt_init_key_from_rec(
 	union xfs_btree_key		*key,
 	const union xfs_btree_rec	*rec)
@@ -135,7 +135,7 @@ xfs_refcountbt_init_key_from_rec(
 	key->refc.rc_startblock = rec->refc.rc_startblock;
 }
 
-STATIC void
+void
 xfs_refcountbt_init_high_key_from_rec(
 	union xfs_btree_key		*key,
 	const union xfs_btree_rec	*rec)
@@ -147,7 +147,7 @@ xfs_refcountbt_init_high_key_from_rec(
 	key->refc.rc_startblock = cpu_to_be32(x);
 }
 
-STATIC void
+void
 xfs_refcountbt_init_rec_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_rec	*rec)
@@ -174,7 +174,7 @@ xfs_refcountbt_init_ptr_from_cur(
 	ptr->s = agf->agf_refcount_root;
 }
 
-STATIC int
+int
 xfs_refcountbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
@@ -188,7 +188,7 @@ xfs_refcountbt_cmp_key_with_cur(
 	return cmp_int(be32_to_cpu(kp->rc_startblock), start);
 }
 
-STATIC int
+int
 xfs_refcountbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -283,7 +283,7 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 	.verify_struct		= xfs_refcountbt_verify,
 };
 
-STATIC int
+int
 xfs_refcountbt_keys_inorder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -293,7 +293,7 @@ xfs_refcountbt_keys_inorder(
 	       be32_to_cpu(k2->refc.rc_startblock);
 }
 
-STATIC int
+int
 xfs_refcountbt_recs_inorder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
@@ -304,7 +304,7 @@ xfs_refcountbt_recs_inorder(
 		be32_to_cpu(r2->refc.rc_startblock);
 }
 
-STATIC enum xbtree_key_contig
+enum xbtree_key_contig
 xfs_refcountbt_keys_contiguous(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key1,

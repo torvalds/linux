@@ -495,10 +495,7 @@ send:
 	iv[il++] = (struct kvec) { skb->data, skb->len };
 	len += skb->len;
 
-	/* FIXME: linearize skb */
-	{
-		len = kernel_sendmsg(sock, &s->msg, iv, il, len);
-	}
+	len = kernel_sendmsg(sock, &s->msg, iv, il, len);
 	kfree_skb(skb);
 
 	if (len > 0) {
@@ -539,9 +536,12 @@ static int bnep_session(void *arg)
 			break;
 
 		/* TX */
-		while ((skb = skb_dequeue(&sk->sk_write_queue)))
-			if (bnep_tx_frame(s, skb))
+		while ((skb = skb_dequeue(&sk->sk_write_queue))) {
+			if (skb_linearize(skb))
+				kfree_skb(skb);
+			else if (bnep_tx_frame(s, skb))
 				break;
+		}
 		netif_wake_queue(dev);
 
 		/*
@@ -685,7 +685,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 		goto failed;
 	}
 
-	strcpy(req->device, dev->name);
+	strscpy(req->device, dev->name, sizeof(req->device));
 	up_write(&bnep_session_sem);
 	return 0;
 
@@ -727,7 +727,7 @@ static void __bnep_copy_ci(struct bnep_conninfo *ci, struct bnep_session *s)
 
 	memset(ci, 0, sizeof(*ci));
 	memcpy(ci->dst, s->eh.h_source, ETH_ALEN);
-	strcpy(ci->device, s->dev->name);
+	strscpy(ci->device, s->dev->name, sizeof(ci->device));
 	ci->flags = s->flags & valid_flags;
 	ci->state = s->state;
 	ci->role  = s->role;

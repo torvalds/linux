@@ -31,6 +31,7 @@
 #include <bpf/bpf.h>
 #include <bpf/hashmap.h>
 #include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
+#include <bpf/libbpf_internal.h>
 #include <bpf/btf.h>
 #include <zlib.h>
 
@@ -69,6 +70,17 @@ void p_info(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
+}
+
+/*
+ * Like strerror(), but also knows ENOTSUPP (524), which the kernel returns
+ * to user space from some BPF commands although it is not a userspace errno.
+ */
+const char *bpf_strerror(int err)
+{
+	if (err == 524 /* ENOTSUPP */)
+		return "Operation not supported";
+	return strerror(err);
 }
 
 static bool is_bpffs(const char *path)
@@ -653,6 +665,45 @@ unsigned int get_possible_cpus(void)
 		exit(-1);
 	}
 	return cpus;
+}
+
+int get_possible_cpu_ids(int **cpu_ids)
+{
+	const char *possible_cpus_file = "/sys/devices/system/cpu/possible";
+	bool *mask = NULL;
+	int mask_sz, nr_cpus = 0;
+	int *ids = NULL;
+	int i, res;
+
+	*cpu_ids = NULL;
+
+	res = parse_cpu_mask_file(possible_cpus_file, &mask, &mask_sz);
+	if (res) {
+		p_err("failed to parse possible CPU mask: %s", strerror(-res));
+		return res;
+	}
+
+	for (i = 0; i < mask_sz; i++)
+		nr_cpus += mask[i];
+
+	ids = calloc(nr_cpus, sizeof(*ids));
+	if (!ids) {
+		p_err("mem alloc failed");
+		res = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0, nr_cpus = 0; i < mask_sz; i++) {
+		if (mask[i])
+			ids[nr_cpus++] = i;
+	}
+	*cpu_ids = ids;
+	ids = NULL;
+	res = nr_cpus;
+out:
+	free(ids);
+	free(mask);
+	return res;
 }
 
 static char *

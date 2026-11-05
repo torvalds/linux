@@ -63,7 +63,7 @@ struct xenbus_watch
 	unsigned int nr_pending;
 
 	/*
-	 * Called just before enqueing new event while a spinlock is held.
+	 * Called just before enqueuing new event while a spinlock is held.
 	 * The event will be discarded if this callback returns false.
 	 */
 	bool (*will_handle)(struct xenbus_watch *,

@@ -16,7 +16,7 @@
 
 #define IMX_DDR_TYPE_LPDDR2		1
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_SOC_IMX6SL
 static inline bool cpu_is_imx6sl(void)

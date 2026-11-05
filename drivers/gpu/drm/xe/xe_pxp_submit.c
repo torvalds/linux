@@ -46,7 +46,7 @@ static int allocate_vcs_execution_resources(struct xe_pxp *pxp)
 		return -ENODEV;
 
 	q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance), 1, hwe,
-				 EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_PERMANENT, 0);
+				 EXEC_QUEUE_FLAG_KERNEL, 0);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -144,8 +144,7 @@ static int allocate_gsc_client_resources(struct xe_gt *gt,
 	}
 
 	q = xe_exec_queue_create(xe, vm, BIT(hwe->logical_instance), 1, hwe,
-				 EXEC_QUEUE_FLAG_KERNEL |
-				 EXEC_QUEUE_FLAG_PERMANENT, 0);
+				 EXEC_QUEUE_FLAG_KERNEL, 0);
 	if (IS_ERR(q)) {
 		err = PTR_ERR(q);
 		goto bo_out;

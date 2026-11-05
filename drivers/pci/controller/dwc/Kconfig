@@ -295,7 +295,7 @@ config PCIE_DW_PLAT_HOST
 	  Designware IP.
 	  This controller can work either as EP or RC. In order to enable
 	  host-specific features PCIE_DW_PLAT_HOST must be selected and in
-	  order to enable device-specific features PCI_DW_PLAT_EP must be
+	  order to enable device-specific features PCIE_DW_PLAT_EP must be
 	  selected.
 
 config PCIE_DW_PLAT_EP
@@ -310,7 +310,7 @@ config PCIE_DW_PLAT_EP
 	  in Designware IP.
 	  This controller can work either as EP or RC. In order to enable
 	  host-specific features PCIE_DW_PLAT_HOST must be selected and in
-	  order to enable device-specific features PCI_DW_PLAT_EP must be
+	  order to enable device-specific features PCIE_DW_PLAT_EP must be
 	  selected.
 
 config PCIE_QCOM_COMMON

@@ -540,6 +540,12 @@ static int i2c_atr_attach_addr(struct i2c_adapter *adapter,
 	struct i2c_atr_alias_pair *c2a;
 	int ret = 0;
 
+	/*
+	 * attach_addr() may reconfigure the remote side of the bus, keep
+	 * transfers on other channels out until it is done.
+	 */
+	mutex_lock(&atr->lock);
+
 	mutex_lock(&chan->alias_pairs_lock);
 
 	c2a = i2c_atr_create_mapping_by_addr(chan, addr);
@@ -557,6 +563,8 @@ static int i2c_atr_attach_addr(struct i2c_adapter *adapter,
 
 out_unlock:
 	mutex_unlock(&chan->alias_pairs_lock);
+	mutex_unlock(&atr->lock);
+
 	return ret;
 }
 
@@ -567,6 +575,8 @@ static void i2c_atr_detach_addr(struct i2c_adapter *adapter,
 	struct i2c_atr *atr = chan->atr;
 	struct i2c_atr_alias_pair *c2a;
 
+	mutex_lock(&atr->lock);
+
 	atr->ops->detach_addr(atr, chan->chan_id, addr);
 
 	mutex_lock(&chan->alias_pairs_lock);
@@ -574,6 +584,7 @@ static void i2c_atr_detach_addr(struct i2c_adapter *adapter,
 	c2a = i2c_atr_find_mapping_by_addr(chan, addr);
 	if (!c2a) {
 		mutex_unlock(&chan->alias_pairs_lock);
+		mutex_unlock(&atr->lock);
 		return;
 	}
 
@@ -586,6 +597,7 @@ static void i2c_atr_detach_addr(struct i2c_adapter *adapter,
 	i2c_atr_destroy_c2a(&c2a);
 
 	mutex_unlock(&chan->alias_pairs_lock);
+	mutex_unlock(&atr->lock);
 }
 
 static int i2c_atr_bus_notifier_call(struct notifier_block *nb,

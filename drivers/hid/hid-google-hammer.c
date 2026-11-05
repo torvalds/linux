@@ -268,7 +268,7 @@ static void cbas_ec_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id cbas_ec_acpi_ids[] = {
-	{ "GOOG000B", 0 },
+	{ .id = "GOOG000B" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cbas_ec_acpi_ids);

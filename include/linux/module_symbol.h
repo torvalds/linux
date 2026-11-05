@@ -7,8 +7,11 @@ enum ksym_flags {
 	KSYM_FLAG_GPL_ONLY	= 1 << 0,
 };
 
-/* This ignores the intensely annoying "mapping symbols" found in ELF files. */
-static inline bool is_mapping_symbol(const char *str)
+/*
+ * Ignore local labels (.L*, L0*) and mapping symbols ($*). These symbols are
+ * not useful for the kernel, for example, they should not appear in kallsyms.
+ */
+static inline bool is_ignored_kernel_symbol(const char *str)
 {
 	if (str[0] == '.' && str[1] == 'L')
 		return true;

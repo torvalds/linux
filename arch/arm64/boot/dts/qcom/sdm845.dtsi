@@ -2395,15 +2395,14 @@
 
 			power-domains = <&gcc PCIE_0_GDSC>;
 
-			phys = <&pcie0_phy>;
-			phy-names = "pciephy";
-
 			status = "disabled";
 
-			pcie@0 {
+			pcie0_port0: pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie0_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -2525,15 +2524,14 @@
 
 			power-domains = <&gcc PCIE_1_GDSC>;
 
-			phys = <&pcie1_phy>;
-			phy-names = "pciephy";
-
 			status = "disabled";
 
-			pcie@0 {
+			pcie1_port0: pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie1_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -4626,7 +4624,7 @@
 			interconnect-names = "mdp0-mem", "mdp1-mem";
 
 			iommus = <&apps_smmu 0x880 0x8>,
-			         <&apps_smmu 0xc80 0x8>;
+				 <&apps_smmu 0xc80 0x8>;
 
 			status = "disabled";
 
@@ -5031,7 +5029,7 @@
 				     <GIC_SPI 370 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 371 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-			         <&gcc GCC_GPU_CFG_AHB_CLK>;
+				 <&gcc GCC_GPU_CFG_AHB_CLK>;
 			clock-names = "bus", "iface";
 
 			power-domains = <&gpucc GPU_CX_GDSC>;
@@ -5050,7 +5048,7 @@
 			interrupt-names = "hfi", "gmu";
 
 			clocks = <&gpucc GPU_CC_CX_GMU_CLK>,
-			         <&gpucc GPU_CC_CXO_CLK>,
+				 <&gpucc GPU_CC_CXO_CLK>,
 				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
 				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>;
 			clock-names = "gmu", "cxo", "axi", "memnoc";

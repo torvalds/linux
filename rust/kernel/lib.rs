@@ -67,6 +67,8 @@ pub mod device;
 pub mod device_id;
 pub mod devres;
 pub mod dma;
+#[cfg(CONFIG_DMA_SHARED_BUFFER)]
+pub mod dma_buf;
 pub mod driver;
 #[cfg(CONFIG_DRM = "y")]
 pub mod drm;
@@ -98,6 +100,7 @@ pub mod jump_label;
 pub mod kunit;
 pub mod list;
 pub mod maple_tree;
+pub mod mem;
 pub mod miscdevice;
 pub mod mm;
 pub mod module;
@@ -119,6 +122,7 @@ pub mod processor;
 pub mod ptr;
 #[cfg(CONFIG_RUST_PWM_ABSTRACTIONS)]
 pub mod pwm;
+pub mod ratelimit;
 pub mod rbtree;
 pub mod regulator;
 pub mod revocable;

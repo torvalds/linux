@@ -615,8 +615,8 @@ static ssize_t timestamp0_show(struct device *dev,
 	if (sr)
 		return sr;
 
-	return sprintf(buf, "%llu\n",
-				(unsigned long long)rtc_tm_to_time64(&tm));
+	return sysfs_emit(buf, "%llu\n",
+			  (unsigned long long)rtc_tm_to_time64(&tm));
 };
 
 static DEVICE_ATTR_RW(timestamp0);
@@ -709,7 +709,7 @@ isl1208_sysfs_show_atrim(struct device *dev,
 	if (atr < 0)
 		return atr;
 
-	return sprintf(buf, "%d.%.2d pF\n", atr >> 2, (atr & 0x3) * 25);
+	return sysfs_emit(buf, "%d.%.2d pF\n", atr >> 2, (atr & 0x3) * 25);
 }
 
 static DEVICE_ATTR(atrim, S_IRUGO, isl1208_sysfs_show_atrim, NULL);
@@ -722,7 +722,7 @@ isl1208_sysfs_show_dtrim(struct device *dev,
 	if (dtr < 0)
 		return dtr;
 
-	return sprintf(buf, "%d ppm\n", dtr - 100);
+	return sysfs_emit(buf, "%d ppm\n", dtr - 100);
 }
 
 static DEVICE_ATTR(dtrim, S_IRUGO, isl1208_sysfs_show_dtrim, NULL);
@@ -735,7 +735,7 @@ isl1208_sysfs_show_usr(struct device *dev,
 	if (usr < 0)
 		return usr;
 
-	return sprintf(buf, "0x%.4x\n", usr);
+	return sysfs_emit(buf, "0x%.4x\n", usr);
 }
 
 static ssize_t

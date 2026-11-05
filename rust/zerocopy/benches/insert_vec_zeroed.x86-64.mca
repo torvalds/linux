@@ -68,8 +68,8 @@ Instruction Info:
  1      1     0.33                        mov	r15, rsi
  1      1     0.33                        mov	rbp, rdx
  1      1     0.50                        lea	rcx, [rax + rax]
- 1      1     0.33                        cmp	r12, rcx
- 3      3     1.00                        cmova	rcx, r12
+ 1      1     0.33                        cmp	rcx, r12
+ 3      3     1.00                        cmovbe	rcx, r12
  1      1     0.33                        cmp	rcx, 5
  1      1     0.33                        mov	r14d, 4
  2      2     0.67                        cmovae	r14, rcx
@@ -159,8 +159,8 @@ Resource pressure by instruction:
  -      -     0.49   0.51    -      -      -      -     mov	r15, rsi
  -      -     0.51   0.49    -      -      -      -     mov	rbp, rdx
  -      -     0.49   0.51    -      -      -      -     lea	rcx, [rax + rax]
- -      -     0.49   0.50    -     0.01    -      -     cmp	r12, rcx
- -      -     1.04   0.50    -     1.46    -      -     cmova	rcx, r12
+ -      -     0.49   0.50    -     0.01    -      -     cmp	rcx, r12
+ -      -     1.04   0.50    -     1.46    -      -     cmovbe	rcx, r12
  -      -     0.49   0.49    -     0.02    -      -     cmp	rcx, 5
  -      -     0.50    -      -     0.50    -      -     mov	r14d, 4
  -      -     0.50   0.51    -     0.99    -      -     cmovae	r14, rcx

@@ -54,10 +54,9 @@ static void lan969x_fdma_tx_clear_buf(struct sparx5 *sparx5, int weight)
 {
 	struct fdma *fdma = &sparx5->tx.fdma;
 	struct sparx5_tx_buf *db;
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&sparx5->tx_lock, flags);
+	spin_lock(&sparx5->tx_lock);
 
 	for (i = 0; i < fdma->n_dcbs; ++i) {
 		db = &sparx5->tx.dbs[i];
@@ -83,7 +82,7 @@ static void lan969x_fdma_tx_clear_buf(struct sparx5 *sparx5, int weight)
 		db->used = false;
 	}
 
-	spin_unlock_irqrestore(&sparx5->tx_lock, flags);
+	spin_unlock(&sparx5->tx_lock);
 }
 
 static void lan969x_fdma_free_pages(struct sparx5_rx *rx)

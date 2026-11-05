@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 #include <linux/dmi.h>
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-v2.h"
-#include "gen1_2/internal.h"
+#include "internal.h"
+#include "pcie/utils.h"
 #include "iwl-prph.h"
 
 static const struct dmi_system_id dmi_force_scu_active_approved_list[] = {
@@ -111,6 +112,14 @@ int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
 	int ret;
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			      trans->mac_cfg->base->min_txq_size);
+
+	if (WARN_ON_ONCE(trans_pcie->ctxt_info_v2 || trans_pcie->prph_info ||
+			 trans_pcie->prph_scratch || trans_pcie->iml ||
+			 trans_pcie->ctxt_info_dma_addr ||
+			 trans_pcie->prph_info_dma_addr ||
+			 trans_pcie->prph_scratch_dma_addr ||
+			 trans_pcie->iml_dma_addr || trans_pcie->iml_len))
+		return -EBUSY;
 
 	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_DEF:
@@ -263,7 +272,6 @@ int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
 	trans_pcie->prph_scratch = prph_scratch;
 
 	/* Allocate IML */
-	trans_pcie->iml_len = fw->iml_len;
 	trans_pcie->iml = dma_alloc_coherent(trans->dev, fw->iml_len,
 					     &trans_pcie->iml_dma_addr,
 					     GFP_KERNEL);
@@ -271,6 +279,7 @@ int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
 		ret = -ENOMEM;
 		goto err_free_ctxt_info;
 	}
+	trans_pcie->iml_len = fw->iml_len;
 
 	memcpy(trans_pcie->iml, fw->iml, fw->iml_len);
 
@@ -280,16 +289,21 @@ err_free_ctxt_info:
 	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_v2),
 			  trans_pcie->ctxt_info_v2,
 			  trans_pcie->ctxt_info_dma_addr);
+	trans_pcie->ctxt_info_dma_addr = 0;
 	trans_pcie->ctxt_info_v2 = NULL;
 err_free_prph_info:
 	dma_free_coherent(trans->dev, PAGE_SIZE, prph_info,
 			  trans_pcie->prph_info_dma_addr);
+	trans_pcie->prph_info_dma_addr = 0;
+	trans_pcie->prph_info = NULL;
 
 err_free_prph_scratch:
 	dma_free_coherent(trans->dev,
 			  sizeof(*prph_scratch),
 			prph_scratch,
 			trans_pcie->prph_scratch_dma_addr);
+	trans_pcie->prph_scratch_dma_addr = 0;
+	trans_pcie->prph_scratch = NULL;
 	return ret;
 
 }
@@ -301,12 +315,12 @@ void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans)
 	iwl_enable_fw_load_int_ctx_info(trans, trans->do_top_reset);
 
 	/* kick FW self load */
-	iwl_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
-	iwl_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
-	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
+	iwl_pcie_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
+	iwl_pcie_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
+	iwl_trans_pcie_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
 
-	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
-		    CSR_AUTO_FUNC_BOOT_ENA);
+	iwl_trans_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
+			  CSR_AUTO_FUNC_BOOT_ENA);
 }
 
 void iwl_pcie_ctxt_info_v2_free(struct iwl_trans *trans, bool alive)

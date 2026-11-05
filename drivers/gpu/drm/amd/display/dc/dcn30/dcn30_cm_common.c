@@ -356,20 +356,20 @@ bool cm3_helper_translate_curve_to_degamma_hw_format(
 	region_end = 0;
 
 	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)
-		seg_distr[i] = -1;
+		seg_distr[i] = (uint32_t)-1;
 
 	for (k = 0; k < MAX_REGIONS_NUMBER; k++) {
-		if (seg_distr[k] != -1)
+		if (seg_distr[k] != (uint32_t)-1)
 			hw_points += (1 << seg_distr[k]);
 	}
 
 	j = 0;
-	for (k = 0; k < (region_end - region_start); k++) {
+	for (k = 0; k < (uint32_t)(region_end - region_start); k++) {
 		increment = (NUMBER_SW_SEGMENTS << 4) / (1 << seg_distr[k]);
 		start_index = (region_start + k + MAX_LOW_POINT) *
 				NUMBER_SW_SEGMENTS;
 		for (i = (start_index << 4);
-		     i < (start_index << 4) + (NUMBER_SW_SEGMENTS << 4);
+		     i < (int32_t)(start_index << 4) + (NUMBER_SW_SEGMENTS << 4);
 		     i += increment) {
 			if (j == hw_points - 1)
 				break;

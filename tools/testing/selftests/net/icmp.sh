@@ -27,11 +27,8 @@ PINGADDR=172.16.1.1
 RT2=172.16.0.0/24
 H2_IP6=2001:db8:1::2
 
-TMPFILE=$(mktemp)
-
 cleanup()
 {
-    rm -f "$TMPFILE"
     cleanup_ns $NS1 $NS2
 }
 
@@ -52,21 +49,24 @@ ip -netns $NS2 route add $RT2 via inet6 $H1_IP6
 
 # Make sure ns2 will respond with ICMP unreachable
 ip netns exec $NS2 sysctl -qw net.ipv4.icmp_ratelimit=0 net.ipv4.ip_forward=1
+# Install tc flower filter to count ICMP unreachable from 192.0.0.8
+ip netns exec $NS1 tc qdisc add dev veth0 clsact
+ip netns exec $NS1 tc filter add dev veth0 ingress \
+	protocol ip pref 1 handle 1 flower \
+	src_ip 192.0.0.8 ip_proto icmp type 3 code 0 \
+	action pass
 
-# Run the test - a ping runs in the background, and we capture ICMP responses
-# with tcpdump; -c 1 means it should exit on the first ping, but add a timeout
-# in case something goes wrong
-ip netns exec $NS1 ping -w 3 -i 0.5 $PINGADDR >/dev/null &
-ip netns exec $NS1 timeout 10 tcpdump -tpni veth0 -c 1 'icmp and icmp[icmptype] != icmp-echo' > $TMPFILE 2>/dev/null
+# Send ping to trigger ICMP unreachable from ns2
+ip netns exec $NS1 ping -c 1 $PINGADDR >/dev/null 2>&1
 
-# Parse response and check for dummy address
-# tcpdump output looks like:
-# IP 192.0.0.8 > 172.16.0.1: ICMP net 172.16.1.1 unreachable, length 92
-RESP_IP=$(awk '{print $2}' < $TMPFILE)
-if [[ "$RESP_IP" != "192.0.0.8" ]]; then
-    echo "FAIL - got ICMP response from $RESP_IP, should be 192.0.0.8"
-    exit 1
-else
+# Verify ICMP unreachable was received from dummy address 192.0.0.8 per RFC7600
+COUNT=$(ip netns exec $NS1 tc -j -s filter show dev veth0 ingress \
+	| jq '.[1].options.actions[].stats.packets')
+
+if [[ "$COUNT" -eq 1 ]]; then
     echo "OK"
     exit 0
+else
+    echo "FAIL - expected 1 ICMP unreachable from 192.0.0.8, got $COUNT"
+    exit 1
 fi

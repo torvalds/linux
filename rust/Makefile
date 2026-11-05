@@ -39,10 +39,8 @@ obj-$(CONFIG_RUST) += exports.o
 always-$(CONFIG_RUST) += host/libproc_macro2.rlib host/libquote.rlib host/libsyn.rlib
 
 always-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated.rs
-always-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated_kunit.c
 
 obj-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated.o
-obj-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated_kunit.o
 
 always-$(subst y,$(CONFIG_RUST),$(CONFIG_JUMP_LABEL)) += kernel/generated_arch_static_branch_asm.rs
 ifndef CONFIG_UML
@@ -53,7 +51,6 @@ endif
 ifdef CONFIG_RUST
 
 procmacro-name = $(shell MAKEFLAGS= $(RUSTC) --print file-names --crate-name $(1) --crate-type proc-macro - </dev/null)
-procmacro-extension := $(patsubst libname.%,%,$(call procmacro-name,name))
 
 libzerocopy_derive_name := $(call procmacro-name,zerocopy_derive)
 libmacros_name := $(call procmacro-name,macros)
@@ -75,7 +72,8 @@ endif
 cfgs-to-flags = $(patsubst %,--cfg='%',$1)
 
 core-cfgs := \
-    no_fp_fmt_parse
+    no_fp_fmt_parse \
+    no_io_statics
 
 core-edition := $(if $(call rustc-min-version,108700),2024,2021)
 
@@ -85,6 +83,7 @@ core-skip_flags := \
 
 core-flags := \
     --edition=$(core-edition) \
+    -Aunused_variables \
     $(call cfgs-to-flags,$(core-cfgs))
 
 zerocopy-cfgs := \
@@ -95,11 +94,12 @@ zerocopy-flags := \
     $(call cfgs-to-flags,$(zerocopy-cfgs))
 
 zerocopy-envs := \
-    CARGO_PKG_VERSION=0.8.54
+    CARGO_PKG_VERSION=0.8.62
 
 proc_macro2-cfgs := \
     feature="proc-macro" \
     wrap_proc_macro \
+    proc_macro_span \
     $(if $(call rustc-min-version,108800),proc_macro_span_file proc_macro_span_location)
 
 proc_macro2-flags := \
@@ -400,7 +400,7 @@ quiet_cmd_rustdoc_test_kernel = RUSTDOC TK $<
 		$< $(rustdoc_test_kernel_quiet); \
 	$(objtree)/scripts/rustdoc_test_gen
 
-%/doctests_kernel_generated.rs %/doctests_kernel_generated_kunit.c: \
+%/doctests_kernel_generated.rs: \
     $(src)/kernel/lib.rs $(obj)/kernel.o \
     $(objtree)/scripts/rustdoc_test_builder \
     $(objtree)/scripts/rustdoc_test_gen FORCE
@@ -620,7 +620,7 @@ quiet_cmd_rustc_procmacro = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) 
 		-Clink-args='$(call escsq,$(KBUILD_PROCMACROLDFLAGS))' \
 		--emit=dep-info=$(depfile) --emit=link=$@ --extern proc_macro \
 		--crate-type proc-macro -L$(objtree)/$(obj)/host \
-		--crate-name $(patsubst lib%.$(procmacro-extension),%,$(notdir $@)) \
+		--crate-name $(basename $(@F:lib%=%)) \
 		@$(objtree)/include/generated/rustc_cfg $<
 
 # Procedural macros can only be used with the `rustc` that compiled it.

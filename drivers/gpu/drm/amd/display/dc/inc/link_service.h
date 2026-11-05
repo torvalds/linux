@@ -297,6 +297,8 @@ struct link_service {
 	bool (*edp_replay_residency)(const struct dc_link *link,
 			unsigned int *residency, const bool is_start,
 			const enum pr_residency_mode mode);
+	bool (*edp_replay_get_cumulative_residency)(const struct dc_link *link,
+			uint32_t *residency_milli_pct);
 	bool (*edp_set_replay_power_opt_and_coasting_vtotal)(struct dc_link *link,
 			const unsigned int *power_opts, uint32_t coasting_vtotal, uint16_t frame_skip_number);
 
@@ -309,13 +311,15 @@ struct link_service {
 	bool (*edp_receiver_ready_T7)(struct dc_link *link);
 	bool (*edp_power_alpm_dpcd_enable)(struct dc_link *link, bool enable);
 	bool (*dp_setup_replay)(struct dc_link *link, const struct dc_stream_state *stream);
-	bool (*dp_pr_get_panel_inst)(const struct dc *dc, const struct dc_link *link, unsigned int *inst_out);
+	bool (*dp_pr_get_pr_panel_inst)(const struct dc *dc, const struct dc_link *link, unsigned int *inst_out);
 	bool (*dp_pr_enable)(struct dc_link *link, bool enable);
 	bool (*dp_pr_update_state)(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data);
 	bool (*dp_pr_set_general_cmd)(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
 	bool (*dp_pr_get_state)(const struct dc_link *link, uint64_t *state);
 	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
-
+	void (*edp_set_panel_polarity_enabled)(const struct dc_link *link, bool enable);
+	void (*edp_panel_polarity_reset)(struct dc_link *link);
+	bool (*edp_get_panel_polarity)(struct dc_link *link, int32_t *polarity);
 
 	/*************************** HDMI FRL *********************************/
 	bool (*hdmi_frl_poll_status_flag)(struct dc_link *link);
@@ -363,5 +367,6 @@ struct link_service {
 	uint64_t (*dp_trace_get_edp_poweroff_timestamp)(struct dc_link *link);
 	void (*dp_trace_source_sequence)(
 			struct dc_link *link, uint8_t dp_test_mode);
+
 };
 #endif /* __DC_LINK_HPD_H__ */

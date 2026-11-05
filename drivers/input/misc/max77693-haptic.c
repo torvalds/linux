@@ -356,7 +356,6 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 
 	haptic->input_dev->name = "max77693-haptic";
 	haptic->input_dev->id.version = 1;
-	haptic->input_dev->dev.parent = &pdev->dev;
 	haptic->input_dev->open = max77693_haptic_open;
 	haptic->input_dev->close = max77693_haptic_close;
 	input_set_drvdata(haptic->input_dev, haptic);

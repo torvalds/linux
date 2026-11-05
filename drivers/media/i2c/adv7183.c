@@ -420,6 +420,7 @@ static int adv7183_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int adv7183_set_fmt(struct v4l2_subdev *sd,
+		const struct v4l2_subdev_client_info *ci,
 		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
@@ -598,7 +599,7 @@ static int adv7183_probe(struct i2c_client *client)
 	adv7183_s_std(sd, decoder->std);
 	fmt.format.width = 720;
 	fmt.format.height = 576;
-	adv7183_set_fmt(sd, NULL, &fmt);
+	adv7183_set_fmt(sd, NULL, NULL, &fmt);
 
 	/* initialize the hardware to the default control values */
 	ret = v4l2_ctrl_handler_setup(hdl);

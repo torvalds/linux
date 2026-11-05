@@ -667,6 +667,17 @@ config SPI_LP8841_RTC
 	  Say N here unless you plan to run the kernel on an ICP DAS
 	  LP-8x4x industrial computer.
 
+config SPI_MA35D1
+	tristate "Nuvoton MA35D1 SPI controller"
+	depends on ARCH_MA35 || COMPILE_TEST
+	help
+	  This enables support for the SPI controller found in
+	  Nuvoton MA35D1 SoCs.
+
+	  The controller supports standard SPI peripheral devices with
+	  configurable clock polarity and phase, chip select, and data
+	  word sizes from 8 to 32 bits.
+
 config SPI_MA35D1_QSPI
 	tristate "Nuvoton MA35D1 QSPI controller"
 	depends on ARCH_MA35 || COMPILE_TEST

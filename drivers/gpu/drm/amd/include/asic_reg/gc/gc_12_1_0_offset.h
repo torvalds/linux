@@ -6649,6 +6649,8 @@
 #define regRLC_IMU_MISC_BASE_IDX                                                                        1
 #define regRLC_IMU_RESET_VECTOR                                                                         0x4e17
 #define regRLC_IMU_RESET_VECTOR_BASE_IDX                                                                1
+#define regRLC_IMU_AID_CONFIG                                                                           0x4e18
+#define regRLC_IMU_AID_CONFIG_BASE_IDX                                                                  1
 
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_cpwd_rlcsdec
@@ -7369,6 +7371,8 @@
 #define regGFX_IMU_TIMER1_VALUE                                                                         0x40d1
 #define regGFX_IMU_TIMER1_VALUE_BASE_IDX                                                                1
 #define regGFX_IMU_FUSE_CTRL                                                                            0x40e0
+#define regGFX_IMU_PARTITION_SWITCH_SHADOW                                                              0x40f8
+#define regGFX_IMU_PARTITION_SWITCH_SHADOW_BASE_IDX                                                     1
 #define regGFX_IMU_FUSE_CTRL_BASE_IDX                                                                   1
 #define regGFX_IMU_D_RAM_ADDR                                                                           0x40fc
 #define regGFX_IMU_D_RAM_ADDR_BASE_IDX                                                                  1

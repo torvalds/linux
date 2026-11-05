@@ -143,6 +143,69 @@ static inline void scx_bpf_cid_override(const s32 __arena *cpu_to_cid, u32 cpu_t
 					      shard_start, shard_start_cnt);
 }
 
+/*
+ * v7.3: b38332be61a8 ("sched_ext: Make scx_bpf_kick_cid() return void") flipped
+ * the return type from s32 to void without renaming the kfunc, so the v7.2 and
+ * v7.3 kfuncs share a name but have incompatible prototypes. libbpf leaves a
+ * weak kfunc unresolved when the prototype doesn't match, so declare both
+ * flavors: the ___vN suffix is stripped on the BPF side, both resolve against
+ * the same kernel symbol and only the matching one gets bound. Drop the
+ * wrapper and move the decl back to common.bpf.h after v7.6.
+ */
+void scx_bpf_kick_cid___v2(s32 cid, u64 flags) __ksym __weak;
+s32 scx_bpf_kick_cid___v1(s32 cid, u64 flags) __ksym __weak;
+
+static inline void scx_bpf_kick_cid(s32 cid, u64 flags)
+{
+	if (bpf_ksym_exists(scx_bpf_kick_cid___v2))
+		scx_bpf_kick_cid___v2(cid, flags);
+	else if (bpf_ksym_exists(scx_bpf_kick_cid___v1))
+		scx_bpf_kick_cid___v1(cid, flags);
+}
+
+/*
+ * v7.3: 94480606a677 ("sched_ext: Add a size argument to scx_bpf_cid_topo() so
+ * struct scx_cid_topo can grow") added out__sz without renaming the kfunc, so
+ * the v7.2 and v7.3 kfuncs share a name with incompatible prototypes. Same
+ * two-flavor trick as scx_bpf_kick_cid() above. The size is always the output
+ * buffer's, so a macro supplies it and callers keep the two-argument form.
+ * Drop the wrapper and move the decl back to common.bpf.h after v7.6.
+ */
+void scx_bpf_cid_topo___v2(s32 cid, struct scx_cid_topo *out, size_t out__sz) __ksym __weak;
+void scx_bpf_cid_topo___v1(s32 cid, struct scx_cid_topo *out) __ksym __weak;
+
+static inline void __scx_bpf_cid_topo(s32 cid, struct scx_cid_topo *out, size_t out__sz)
+{
+	if (bpf_ksym_exists(scx_bpf_cid_topo___v2))
+		scx_bpf_cid_topo___v2(cid, out, out__sz);
+	else if (bpf_ksym_exists(scx_bpf_cid_topo___v1))
+		scx_bpf_cid_topo___v1(cid, out);
+}
+
+#define scx_bpf_cid_topo(cid, out) __scx_bpf_cid_topo((cid), (out), sizeof(*(out)))
+
+/*
+ * v7.3: 3a21e34eb258 ("sched_ext: Gate scx_bpf_cidperf_set() behind a new
+ * SCX_CAP_PERF") flipped the return type the other way, from void to s32, again
+ * without renaming the kfunc. Same two-flavor trick as scx_bpf_kick_cid()
+ * above; the v7.2 kfunc can't fail, so report success for it. Drop the wrapper
+ * and move the decl back to common.bpf.h after v7.6.
+ */
+s32 scx_bpf_cidperf_set___v2(s32 cid, u32 perf) __ksym __weak;
+void scx_bpf_cidperf_set___v1(s32 cid, u32 perf) __ksym __weak;
+
+static inline s32 scx_bpf_cidperf_set(s32 cid, u32 perf)
+{
+	if (bpf_ksym_exists(scx_bpf_cidperf_set___v2)) {
+		return scx_bpf_cidperf_set___v2(cid, perf);
+	} else if (bpf_ksym_exists(scx_bpf_cidperf_set___v1)) {
+		scx_bpf_cidperf_set___v1(cid, perf);
+		return 0;
+	} else {
+		return -EOPNOTSUPP;
+	}
+}
+
 /**
  * __COMPAT_is_enq_cpu_selected - Test if SCX_ENQ_CPU_SELECTED is on
  * in a compatible way. We will preserve this __COMPAT helper until v6.16.
@@ -242,6 +305,18 @@ static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
 	(bpf_ksym_exists(scx_bpf_pick_any_cpu_node) ?				\
 	 scx_bpf_pick_any_cpu_node(cpus_allowed, node, flags) :			\
 	 scx_bpf_pick_any_cpu(cpus_allowed, flags))
+
+/* v7.4: Add scx_bpf_cid_node(). */
+#define __COMPAT_scx_bpf_cid_node(cid)					\
+	(bpf_ksym_exists(scx_bpf_cid_node) ?				\
+	 scx_bpf_cid_node(cid) : NUMA_NO_NODE)
+
+/*
+ * v7.4: Add scx_bpf_cgroup_nr_cpus().
+ */
+#define __COMPAT_scx_bpf_cgroup_nr_cpus(cgrp)					\
+	(bpf_ksym_exists(scx_bpf_cgroup_nr_cpus) ?				\
+	 scx_bpf_cgroup_nr_cpus(cgrp) : scx_bpf_nr_cpu_ids())
 
 /*
  * v6.18: Add a helper to retrieve the current task running on a CPU.
@@ -403,6 +478,15 @@ static inline void scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
 		p->scx.dsq_vtime = vtime;
 }
 
+/* v7.4: Add scx_bpf_task_set_lazy_resched(). */
+bool scx_bpf_task_set_lazy_resched___new(struct task_struct *p, bool lazy) __ksym __weak;
+
+static inline void scx_bpf_task_set_lazy_resched(struct task_struct *p, bool lazy)
+{
+	if (bpf_ksym_exists(scx_bpf_task_set_lazy_resched___new))
+		scx_bpf_task_set_lazy_resched___new(p, lazy);
+}
+
 /*
  * v7.1: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
  * will eventually deprecate scx_bpf_reenqueue_local().
@@ -412,6 +496,12 @@ void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags) __ksym __weak;
 static inline bool __COMPAT_has_generic_reenq(void)
 {
 	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+}
+
+/* v7.4: Add scx_bpf_dsq_reenq_task(). */
+static inline bool __COMPAT_has_dsq_reenq_task(void)
+{
+	return bpf_ksym_exists(scx_bpf_dsq_reenq_task);
 }
 
 /*

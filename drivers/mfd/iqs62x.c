@@ -1015,7 +1015,7 @@ static void iqs62x_remove(struct i2c_client *client)
 	wait_for_completion(&iqs62x->fw_done);
 }
 
-static int __maybe_unused iqs62x_suspend(struct device *dev)
+static int iqs62x_suspend(struct device *dev)
 {
 	struct iqs62x_core *iqs62x = dev_get_drvdata(dev);
 	int ret;
@@ -1036,7 +1036,7 @@ static int __maybe_unused iqs62x_suspend(struct device *dev)
 				  IQS62X_PWR_SETTINGS_PWR_MODE_HALT);
 }
 
-static int __maybe_unused iqs62x_resume(struct device *dev)
+static int iqs62x_resume(struct device *dev)
 {
 	struct iqs62x_core *iqs62x = dev_get_drvdata(dev);
 	int ret;
@@ -1051,7 +1051,7 @@ static int __maybe_unused iqs62x_resume(struct device *dev)
 				  IQS62X_PWR_SETTINGS_DIS_AUTO, 0);
 }
 
-static SIMPLE_DEV_PM_OPS(iqs62x_pm, iqs62x_suspend, iqs62x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(iqs62x_pm, iqs62x_suspend, iqs62x_resume);
 
 static const struct of_device_id iqs62x_of_match[] = {
 	{ .compatible = "azoteq,iqs620a" },
@@ -1067,7 +1067,7 @@ static struct i2c_driver iqs62x_i2c_driver = {
 	.driver = {
 		.name = "iqs62x",
 		.of_match_table = iqs62x_of_match,
-		.pm = &iqs62x_pm,
+		.pm = pm_sleep_ptr(&iqs62x_pm),
 	},
 	.probe = iqs62x_probe,
 	.remove = iqs62x_remove,

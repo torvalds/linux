@@ -725,6 +725,27 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 	INTEL_SIP_SMC_ASYNC_VAL(INTEL_SIP_SMC_ASYNC_FUNC_ID_POLL)
 
 /**
+ * Request INTEL_SIP_SMC_ASYNC_POLL_ON_IRQ
+ * Async call used by service driver at EL1 to retrieve the transaction IDs
+ * of available responses from the SDM mailbox (typically after an IRQ).
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_ASYNC_POLL_ON_IRQ
+ * a1-a17 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ * a1-a4 contain a bitmap of pending transaction IDs (set bit positions)
+ * a5-a17 not used
+ * Or
+ * a0 INTEL_SIP_SMC_STATUS_NO_RESPONSE
+ * a1-a17 not used
+ */
+#define INTEL_SIP_SMC_ASYNC_FUNC_ID_IRQ_POLL (0xC9)
+#define INTEL_SIP_SMC_ASYNC_POLL_ON_IRQ \
+	INTEL_SIP_SMC_ASYNC_VAL(INTEL_SIP_SMC_ASYNC_FUNC_ID_IRQ_POLL)
+
+/**
  * Request INTEL_SIP_SMC_ASYNC_HWMON_READTEMP
  * Async call to request temperature
  *
@@ -813,4 +834,27 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 #define INTEL_SIP_SMC_ASYNC_FUNC_ID_RSU_NOTIFY (0xEC)
 #define INTEL_SIP_SMC_ASYNC_RSU_NOTIFY \
 	INTEL_SIP_SMC_ASYNC_VAL(INTEL_SIP_SMC_ASYNC_FUNC_ID_RSU_NOTIFY)
+
+/**
+ * Request INTEL_SIP_SMC_SDM_REMAPPER_CONFIG
+ *
+ * Sync call to configure the SDM address remapper. On Agilex5, the remapper
+ * must be bypassed when the SMMU is active to avoid conflicts with IOMMU
+ * address translation.
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_SDM_REMAPPER_CONFIG
+ * a1: INTEL_SIP_SMC_SDM_REMAPPER_ENABLE or INTEL_SIP_SMC_SDM_REMAPPER_BYPASS
+ * a2-7: not used
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK
+ * a1-3: not used
+ */
+#define INTEL_SIP_SMC_FUNCID_SDM_REMAPPER_CONFIG	513
+#define INTEL_SIP_SMC_SDM_REMAPPER_CONFIG \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_SDM_REMAPPER_CONFIG)
+#define INTEL_SIP_SMC_SDM_REMAPPER_ENABLE		0
+#define INTEL_SIP_SMC_SDM_REMAPPER_BYPASS		1
+
 #endif

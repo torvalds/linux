@@ -18,7 +18,8 @@ SYNOPSIS
 
 *OPTIONS* := { |COMMON_OPTIONS| |
 { **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
-{ **-L** | **--use-loader** } | [ { **-S** | **--sign** } **-k** <private_key.pem> **-i** <certificate.x509> ] }
+{ **-L** | **--use-loader** } | [ { **-S** | **--sign** } **-k** <private_key.pem> **-i** <certificate.x509> ] |
+{ **-w** | **--wait** } }
 
 *COMMANDS* :=
 { **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** |
@@ -186,6 +187,12 @@ bpftool prog tracelog { stdout | stderr } *PROG*
     error messages to the standard error stream. This facility should be used
     only for debugging purposes.
 
+    By default, bpftool prints the output buffered so far and exits. With
+    **-w** or **--wait**, it keeps printing new output as the program produces
+    it, until the program is unloaded or <Ctrl+C> is hit. Waiting requires a
+    kernel that supports opening a stream as a file descriptor, introduced
+    upstream in Linux 7.4.
+
 bpftool prog run *PROG* data_in *FILE* [data_out *FILE* [data_size_out *L*]] [ctx_in *FILE* [ctx_out *FILE* [ctx_size_out *M*]]] [repeat *N*]
     Run BPF program *PROG* in the kernel testing infrastructure for BPF,
     meaning that the program works on the data and context provided by the
@@ -217,7 +224,14 @@ bpftool prog run *PROG* data_in *FILE* [data_out *FILE* [data_size_out *L*]] [ct
 bpftool prog profile *PROG* [duration *DURATION*] *METRICs*
     Profile *METRICs* for bpf program *PROG* for *DURATION* seconds or until
     user hits <Ctrl+C>. *DURATION* is optional. If *DURATION* is not specified,
-    the profiling will run up to **UINT_MAX** seconds.
+    the profiling will run up to **UINT_MAX** seconds. Selected metrics form a
+    perf event group on each CPU so that ratios use counters scheduled over the
+    same intervals. Plain output scales each per-CPU metric value to correct
+    for perf event multiplexing. When **cycles** is selected, it also reports
+    cycles per program run.
+
+    In JSON output, **value** is raw, **value_scaled** is scaled, and
+    **run_cnt** is the total number of program runs.
 
 bpftool prog help
     Print short help message.
@@ -259,6 +273,11 @@ OPTIONS
 -i <certificate.x509>
     Path to the X.509 certificate file in PEM or DER format, required when
     signing.
+
+-w, --wait
+    When dumping a program stream with **bpftool prog tracelog** { **stdout** |
+    **stderr** } *PROG*, wait for new output instead of exiting once the
+    buffered output has been printed.
 
 EXAMPLES
 ========
@@ -360,7 +379,7 @@ EXAMPLES
 ::
 
          51397 run_cnt
-      40176203 cycles                                                 (83.05%)
+      40176203 cycles          # 781.68 cycles per run                (83.05%)
       42518139 instructions    #   1.06 insns per cycle               (83.39%)
            123 llc_misses      #   2.89 LLC misses per million insns  (83.15%)
 

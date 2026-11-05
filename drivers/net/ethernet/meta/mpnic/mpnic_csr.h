@@ -1,0 +1,319 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
+
+#ifndef _MPNIC_CSR_H_
+#define _MPNIC_CSR_H_
+
+#include <linux/bits.h>
+
+#define CSR_BIT(nr)		BIT_ULL(nr)
+#define CSR_GENMASK(h, l)	GENMASK_ULL(h, l)
+
+#define DESC_BIT(nr)		BIT_ULL(nr)
+#define DESC_GENMASK(h, l)	GENMASK_ULL(h, l)
+
+/* Transmit Work Descriptor Format */
+#define MPNIC_TWD_FLAG_REQ_COMPLETION	DESC_BIT(37)
+#define MPNIC_TWD_FLAG_DEST_MAC		DESC_BIT(43)
+#define MPNIC_TWD_TYPE			DESC_GENMASK(47, 46)
+enum {
+	MPNIC_TWD_TYPE_META	= 0,
+	MPNIC_TWD_TYPE_AL	= 2,
+	MPNIC_TWD_TYPE_LAST_AL	= 3,
+};
+
+#define MPNIC_TWD_ADDR			DESC_GENMASK(45, 0)
+#define MPNIC_TWD_LEN			DESC_GENMASK(63, 48)
+
+/* Tx Completion Descriptor Format */
+#define MPNIC_TCD_TYPE0_HEAD0		DESC_GENMASK(15, 0)
+#define MPNIC_TCD_DONE			DESC_BIT(63)
+
+/* Rx Buffer Descriptor Format */
+#define MPNIC_BD_DESC_ADDR		DESC_GENMASK(39, 2)
+#define MPNIC_BD_DESC_ID		DESC_GENMASK(57, 40)
+#define MPNIC_BD_DESC_BUF_SZ_LOG2	DESC_GENMASK(62, 58)
+
+/* Rx Completion Queue Descriptors */
+#define MPNIC_RCD_TYPE			DESC_GENMASK(62, 61)
+enum {
+	MPNIC_RCD_TYPE_HDR_AL	= 0,
+	MPNIC_RCD_TYPE_PAY_AL	= 1,
+	MPNIC_RCD_TYPE_META	= 3,
+};
+
+#define MPNIC_RCD_DONE			DESC_BIT(63)
+
+#define MPNIC_RCD_HDR_SUBTYPE		DESC_GENMASK(60, 59)
+enum {
+	MPNIC_RCD_HDR_SUBTYPE_HDR	= 2,
+};
+
+/* Address/Length Completion Descriptors */
+#define MPNIC_RCD_AL_BUFF_OFF		DESC_GENMASK(15, 0)
+#define MPNIC_RCD_AL_BUFF_ID		DESC_GENMASK(33, 16)
+#define MPNIC_RCD_AL_BUFF_LEN		DESC_GENMASK(47, 34)
+#define MPNIC_RCD_AL_PAGE_FIN		DESC_BIT(53)
+
+/* Metadata Completion Descriptors */
+#define MPNIC_RCD_META_ERR_MAC_EOP		DESC_BIT(53)
+#define MPNIC_RCD_META_ERR_TRUNCATED_FRAME	DESC_BIT(54)
+#define MPNIC_RCD_META_UNCORRECTABLE_ERR_MASK	\
+	(MPNIC_RCD_META_ERR_MAC_EOP | MPNIC_RCD_META_ERR_TRUNCATED_FRAME)
+
+/* Common fields for all DESC_CFG CSRs */
+#define MPNIC_DESC_CFG_NUM_DESCS	CSR_GENMASK(2, 0)
+#define MPNIC_DESC_CFG_START_ADDR	CSR_GENMASK(19, 8)
+
+/* Register Definitions
+ *
+ * The register file is addressed as an array of le32, so the byte address of
+ * a register is 4 times the index below. Each register is listed with its
+ * name, index and byte address.
+ *
+ *	Name				Index			Address
+ *****************************************************************************/
+
+/* NIC_CORE_TDF */
+#define MPNIC_TWQ_CTL(i, j)		(0x0 + 1024 * (i) + 2 * (j))
+								/* 0x0 */
+#define MPNIC_TWQ_CTL_RESET			CSR_BIT(0)
+#define MPNIC_TWQ_CTL_ENABLE			CSR_BIT(1)
+#define MPNIC_TWQ_TAIL(i, j)		(0x4 + 1024 * (i) + 2 * (j))
+								/* 0x10 */
+#define MPNIC_TWQ_SIZE(i, j)		(0x10 + 1024 * (i) + 2 * (j))
+								/* 0x40 */
+#define MPNIC_TWQ_SIZE_SIZE			CSR_GENMASK(3, 0)
+#define MPNIC_TWQ_BASE_ADDR(i, j)	(0x1c + 1024 * (i) + 2 * (j))
+								/* 0x70 */
+
+/* NIC_CORE_TCM */
+#define MPNIC_TCQ_CTL(i)		(0x80 + 1024 * (i))	/* 0x200 */
+#define MPNIC_TCQ_CTL_RESET			CSR_BIT(0)
+#define MPNIC_TCQ_CTL_ENABLE			CSR_BIT(1)
+#define MPNIC_TCQ_BASE_ADDR(i)		(0x86 + 1024 * (i))	/* 0x218 */
+#define MPNIC_TCQ_HEAD(i)		(0x8e + 1024 * (i))	/* 0x238 */
+#define MPNIC_TCQ_SIZE(i)		(0x94 + 1024 * (i))	/* 0x250 */
+#define MPNIC_TCQ_SIZE_SIZE			CSR_GENMASK(4, 0)
+
+/* NIC_CORE_TIM */
+#define MPNIC_TIM_CTL1(i)		(0xc0 + 1024 * (i))	/* 0x300 */
+#define MPNIC_TIM_CTL1_UPD_IGN_LONG_EVENT_CNT	CSR_BIT(48)
+#define MPNIC_TIM_CTL1_UPD_IGN_LONG_TIME_CNT	CSR_BIT(49)
+#define MPNIC_TIM_CTL1_UPD_IGN_SHORT_TIME_CNT	CSR_BIT(50)
+#define MPNIC_TIM_CTL1_MASK			CSR_BIT(51)
+#define MPNIC_TIM_CTL1_MASK_EN			CSR_BIT(52)
+#define MPNIC_TIM_CTL1_TRIGGER			CSR_BIT(53)
+#define MPNIC_TIM_INTR_MASK(i)		(0xc8 + 1024 * (i))	/* 0x320 */
+#define MPNIC_TIM_INTR_MASK_MASK		CSR_BIT(0)
+
+/* NIC_CORE_RBP */
+#define MPNIC_BDQ_CTL(i)		(0x200 + 1024 * (i))	/* 0x800 */
+#define MPNIC_BDQ_CTL_RESET			CSR_BIT(0)
+#define MPNIC_BDQ_CTL_ENABLE			CSR_BIT(1)
+#define MPNIC_BDQ_CTL_ENABLE_PPQ		CSR_BIT(3)
+#define MPNIC_HPQ_TAIL(i)		(0x202 + 1024 * (i))	/* 0x808 */
+#define MPNIC_PPQ_TAIL(i)		(0x204 + 1024 * (i))	/* 0x810 */
+#define MPNIC_HPQ_SIZE(i)		(0x20a + 1024 * (i))	/* 0x828 */
+#define MPNIC_HPQ_SIZE_SIZE			CSR_GENMASK(4, 0)
+#define MPNIC_PPQ_SIZE(i)		(0x20c + 1024 * (i))	/* 0x830 */
+#define MPNIC_PPQ_SIZE_SIZE			CSR_GENMASK(4, 0)
+#define MPNIC_HPQ_BASE_ADDR(i)		(0x216 + 1024 * (i))	/* 0x858 */
+#define MPNIC_PPQ_BASE_ADDR(i)		(0x218 + 1024 * (i))	/* 0x860 */
+
+/* NIC_CORE_RCM */
+#define MPNIC_RCQ_CTL(i)		(0x280 + 1024 * (i))	/* 0xa00 */
+#define MPNIC_RCQ_CTL_RESET			CSR_BIT(0)
+#define MPNIC_RCQ_CTL_ENABLE			CSR_BIT(1)
+#define MPNIC_RCQ_BASE_ADDR(i)		(0x286 + 1024 * (i))	/* 0xa18 */
+#define MPNIC_RCQ_HEAD(i)		(0x28e + 1024 * (i))	/* 0xa38 */
+#define MPNIC_RCQ_SIZE(i)		(0x294 + 1024 * (i))	/* 0xa50 */
+#define MPNIC_RCQ_SIZE_SIZE			CSR_GENMASK(4, 0)
+
+/* NIC_CORE_RIM */
+#define MPNIC_RIM_INTR_MASK(i)		(0x2c8 + 1024 * (i))	/* 0xb20 */
+#define MPNIC_RIM_INTR_MASK_MASK		CSR_BIT(0)
+
+/* NIC_CORE_TIM_PRV */
+#define MPNIC_TIM_CTL(i)		(0x100100 + 1024 * (i))	/* 0x400400 */
+
+/* NIC_CORE_RDE */
+#define MPNIC_RDE_CFG(i)		(0x10021c + 1024 * (i))	/* 0x400870 */
+#define MPNIC_RDE_CFG_MIN_TAIL_ROOM		CSR_GENMASK(9, 0)
+#define MPNIC_RDE_CFG_MIN_HEAD_ROOM		CSR_GENMASK(18, 10)
+#define MPNIC_RDE_CFG_MAX_HEADER_BYTES		CSR_GENMASK(45, 32)
+
+/* NIC_CORE_RIM_PRV */
+#define MPNIC_RIM_CTL(i)		(0x100280 + 1024 * (i))	/* 0x400a00 */
+
+/* NIC_CORE_RBP_HP_GLBL */
+#define MPNIC_HPQ_IDLE(i)		(0x420000 + 2 * (i))	/* 0x1080000 */
+#define MPNIC_HPQ_IDLE_CNT		16
+#define MPNIC_PPQ_IDLE(i)		(0x420060 + 2 * (i))	/* 0x1080180 */
+#define MPNIC_PPQ_IDLE_CNT		16
+#define MPNIC_BDQ_GLBL_CTL0		0x420080		/* 0x1080200 */
+#define MPNIC_BDQ_GLBL_CTL0_MAX_REQ_SIZE	CSR_GENMASK(26, 18)
+#define MPNIC_BDQ_GLBL_CTL0_PREFETCH_SPACE_THRESH \
+						CSR_GENMASK(42, 32)
+#define MPNIC_RDE_CTL			0x420082		/* 0x1080208 */
+#define MPNIC_RDE_CTL_HPQ_DROP_THRESHOLD	CSR_GENMASK(10, 0)
+#define MPNIC_RDE_CTL_PPQ_DROP_THRESHOLD	CSR_GENMASK(21, 11)
+#define MPNIC_RDE_CTL_HPQ_LOCAL_DROP_THRESHOLD	CSR_GENMASK(42, 32)
+#define MPNIC_RDE_CTL_PPQ_LOCAL_DROP_THRESHOLD	CSR_GENMASK(53, 43)
+#define MPNIC_BDQ_MEM_INIT_REQ		0x42013a		/* 0x10804e8 */
+#define MPNIC_BDQ_MEM_INIT_DONE		0x42013c		/* 0x10804f0 */
+#define MPNIC_BDQ_SPARE			0x42013e		/* 0x10804f8 */
+#define MPNIC_HPQ_DESC_CFG(i)		(0x420140 + 2 * (i))	/* 0x1080500 */
+#define MPNIC_PPQ_DESC_CFG(i)		(0x420940 + 2 * (i))	/* 0x1082500 */
+
+/* NIC_CORE_RDE_GLBL */
+#define MPNIC_RDE_MEM_INIT_REQ		0x4240e6		/* 0x1090398 */
+#define MPNIC_RDE_MEM_INIT_DONE		0x4240e8		/* 0x10903a0 */
+
+/* NIC_CORE_RCM_GLBL */
+#define MPNIC_RCQ_IDLE(i)		(0x42505e + 2 * (i))	/* 0x1094178 */
+#define MPNIC_RCQ_IDLE_CNT		16
+#define MPNIC_RCM_MEM_INIT_REQ		0x42507e		/* 0x10941f8 */
+#define MPNIC_RCM_MEM_INIT_DONE		0x425080		/* 0x1094200 */
+
+/* NIC_CORE_RNI_GLBL */
+#define MPNIC_RNI_RBP_CTL		0x427000		/* 0x109c000 */
+#define MPNIC_RNI_RDE_CTL		0x427002		/* 0x109c008 */
+#define MPNIC_RNI_RDE_CTL_MPS			CSR_GENMASK(1, 0)
+#define MPNIC_RNI_RDE_CTL_CLS			CSR_GENMASK(3, 2)
+#define MPNIC_RNI_RCM_CTL		0x427004		/* 0x109c010 */
+
+/* NIC_CORE_TDF_GLBL */
+#define MPNIC_TWQ_IDLE(i)		(0x428042 + 2 * (i))	/* 0x10a0108 */
+#define MPNIC_TWQ_IDLE_CNT		32
+#define MPNIC_TWQ_DEF_PRI_TWD		0x428082		/* 0x10a0208 */
+#define MPNIC_TDF_MEM_INIT_REQ		0x42813a		/* 0x10a04e8 */
+#define MPNIC_TDF_MEM_INIT_DONE		0x42813c		/* 0x10a04f0 */
+#define MPNIC_TDF_DESC_CFG(i)		(0x428140 + 2 * (i))	/* 0x10a0500 */
+
+/* NIC_CORE_TQS_GLBL */
+#define MPNIC_TQS_GLBL_CTL0		0x42a000		/* 0x10a8000 */
+#define MPNIC_TQS_GLBL_CTL0_TWD_ERROR_CHECK_EN	CSR_BIT(2)
+#define MPNIC_TQS_GLBL_P0_0		0x42a002		/* 0x10a8008 */
+#define MPNIC_TQS_GLBL_P0_0_TXB_MAX_CRDTS_0	CSR_GENMASK(63, 48)
+#define MPNIC_TQS_GLBL_P0_1		0x42a004		/* 0x10a8010 */
+#define MPNIC_TQS_GLBL_BMC		0x42a012		/* 0x10a8048 */
+#define MPNIC_TQS_GLBL_BMC_TXB_MAX_CRDTS	CSR_GENMASK(15, 0)
+#define MPNIC_TQS_SLOWDOWN_CTL		0x42a026		/* 0x10a8098 */
+#define MPNIC_TQS_SLOWDOWN_CTL_ENABLE		CSR_BIT(6)
+#define MPNIC_TQS_MTU_CTL0		0x42a030		/* 0x10a80c0 */
+#define MPNIC_TQS_MTU_CTL1		0x42a032		/* 0x10a80c8 */
+#define MPNIC_TQS_IDLE(i)		(0x42a040 + 2 * (i))	/* 0x10a8100 */
+#define MPNIC_TQS_IDLE_CNT		32
+#define MPNIC_TQS_SET_P0_MAP0(i)	(0x42a082 + 2 * (i))	/* 0x10a8208 */
+#define MPNIC_TQS_SET_P0_MAP1(i)	(0x42a092 + 2 * (i))	/* 0x10a8248 */
+#define MPNIC_TQS_GLBL_SHAPING		0x42a108		/* 0x10a8420 */
+#define MPNIC_TQS_GLBL_SHAPING_DISABLE		CSR_BIT(0)
+#define MPNIC_TQS_ARB_CTL		0x42a122		/* 0x10a8488 */
+#define MPNIC_TQS_ARB_CTL_SET_CRDT_BUCKET_EN	CSR_BIT(9)
+#define MPNIC_TQS_ARB_CTL_SET_IMM_DECR_EN	CSR_BIT(8)
+#define MPNIC_TQS_ARB_CTL_GROUP_CRDT_BUCKET_EN	CSR_BIT(5)
+#define MPNIC_TQS_ARB_CTL_GROUP_IMM_DECR_EN	CSR_BIT(4)
+#define MPNIC_TQS_ARB_CTL_QUEUE_CRDT_BUCKET_EN	CSR_BIT(1)
+#define MPNIC_TQS_ARB_CTL_QUEUE_IMM_DECR_EN	CSR_BIT(0)
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_0 \
+					0x42a124		/* 0x10a8490 */
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_0_QUEUE	CSR_GENMASK(19, 0)
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_0_GROUP	CSR_GENMASK(59, 32)
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_1 \
+					0x42a126		/* 0x10a8498 */
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_1_SET	CSR_GENMASK(27, 0)
+#define MPNIC_TQS_CEV_MIN_SCHED_THRESH_1_PORT	CSR_GENMASK(63, 32)
+#define MPNIC_TQS_SRAM_INIT_CTL		0x42a128		/* 0x10a84a0 */
+#define MPNIC_TQS_SRAM_INIT_CTL_QUANTUM		CSR_GENMASK(31, 20)
+#define MPNIC_TQS_SRAM_INIT_CTL_INIT		CSR_BIT(32)
+#define MPNIC_TQS_GROUP_INIT_CTL	0x42a12a		/* 0x10a84a8 */
+#define MPNIC_TQS_GROUP_INIT_CTL_QUANTUM	CSR_GENMASK(51, 32)
+#define MPNIC_TQS_GROUP_INIT_CTL_INIT		CSR_BIT(52)
+#define MPNIC_TQS_SET_INIT_CTL		0x42a12c		/* 0x10a84b0 */
+#define MPNIC_TQS_SET_INIT_CTL_QUANTUM		CSR_GENMASK(51, 32)
+#define MPNIC_TQS_SET_INIT_CTL_INIT		CSR_BIT(52)
+#define MPNIC_TQS_PORT_INIT_CTL		0x42a12e		/* 0x10a84b8 */
+#define MPNIC_TQS_PORT_INIT_CTL_QUANTUM		CSR_GENMASK(55, 32)
+#define MPNIC_TQS_PORT_INIT_CTL_INIT		CSR_BIT(56)
+#define MPNIC_TQS_SRAM_STS		0x42a130		/* 0x10a84c0 */
+#define MPNIC_TQS_PORT_CTL(i)		(0x42a1e4 + 2 * (i))	/* 0x10a8790 */
+
+/* NIC_CORE_TDE_GLBL */
+#define MPNIC_TDE_IDLE(i)		(0x42b000 + 2 * (i))	/* 0x10ac000 */
+#define MPNIC_TDE_IDLE_CNT		32
+#define MPNIC_TDE_MEM_INIT_REQ		0x42b1ee		/* 0x10ac7b8 */
+#define MPNIC_TDE_MEM_INIT_DONE		0x42b1f0		/* 0x10ac7c0 */
+
+/* NIC_CORE_TCM_GLBL */
+#define MPNIC_TCQ_IDLE(i)		(0x42c09e + 2 * (i))	/* 0x10b0278 */
+#define MPNIC_TCQ_IDLE_CNT		16
+#define MPNIC_TCM_MEM_INIT_REQ		0x42c0be		/* 0x10b02f8 */
+#define MPNIC_TCM_MEM_INIT_DONE		0x42c0c0		/* 0x10b0300 */
+
+/* NIC_CORE_TNI_GLBL */
+#define MPNIC_TNI_GLBL_TDF_CTL		0x42e000		/* 0x10b8000 */
+#define MPNIC_TNI_GLBL_TDF_CTL_MRRS		CSR_GENMASK(2, 0)
+#define MPNIC_TNI_GLBL_TDF_CTL_CLS		CSR_GENMASK(5, 3)
+#define MPNIC_TNI_GLBL_TDE_CTL		0x42e002		/* 0x10b8008 */
+#define MPNIC_TNI_GLBL_TCM_CTL		0x42e004		/* 0x10b8010 */
+
+/* NIC_CORE_TXB */
+#define MPNIC_TXB_PORT_CONFIG		0x600000		/* 0x1800000 */
+#define MPNIC_TXB_PORT_CONFIG_PORT_MODE		CSR_GENMASK(15, 13)
+#define MPNIC_TXB_BMC			0x600122		/* 0x1800488 */
+#define MPNIC_TXB_P0(i)			(0x600124 + 2 * (i))	/* 0x1800490 */
+#define MPNIC_TXB_P0_CNT		17
+#define MPNIC_TXB_P0_THRESH(i)		(0x60025e + 2 * (i))	/* 0x1800978 */
+#define MPNIC_TXB_P0_ARB_WEIGHTS(i)	(0x600378 + 2 * (i))	/* 0x1800de0 */
+
+/* NIC_CORE_RXB */
+#define MPNIC_RXB_MEM_INIT_REQ		0x620002		/* 0x1880008 */
+#define MPNIC_RXB_MEM_INIT_DONE		0x620004		/* 0x1880010 */
+#define MPNIC_RXB_PORT_CFG(i)		(0x620006 + 2 * (i))	/* 0x1880018 */
+#define MPNIC_RXB_PORT_CFG_FCS_STRIP_MODE	CSR_GENMASK(22, 22)
+enum {
+	MPNIC_FCS_MODE_KEEP	= 0,
+	MPNIC_FCS_MODE_STRIP	= 1,
+};
+
+#define MPNIC_RXB_PORT_CLASS_CFG(i)	(0x620020 + 2 * (i))	/* 0x1880080 */
+#define MPNIC_RXB_PORT_CLASS_CFG_DEFAULT_L2_ACTION \
+						CSR_GENMASK(0, 0)
+enum {
+	MPNIC_L2_ACTION_DROP	= 0,
+	MPNIC_L2_ACTION_PASS	= 1,
+};
+
+#define MPNIC_RXB_TC_CRDTS(i)		(0x620418 + 2 * (i))	/* 0x1881060 */
+#define MPNIC_RXB_POOL_COMMON_CRDTS(i)	(0x620458 + 2 * (i))	/* 0x1881160 */
+#define MPNIC_RXB_COMMON_CRDT_CTRL_TC(i) \
+					(0x620472 + 2 * (i))	/* 0x18811c8 */
+#define MPNIC_RXB_COMMON_CRDT_CTRL_TC_THRESH	CSR_GENMASK(15, 0)
+#define MPNIC_RXB_COMMON_CRDT_CTRL_TC_TC_EN	CSR_BIT(29)
+#define MPNIC_RXB_COMMON_CRDT_CTRL_TC_MAX_CRDTS	CSR_GENMASK(47, 32)
+#define MPNIC_RXB_HOST_DROP_THRESH(i)	(0x6205b0 + 2 * (i))	/* 0x18816c0 */
+#define MPNIC_RXB_BMC_CRDTS(i)		(0x6205d0 + 2 * (i))	/* 0x1881740 */
+
+/* NIC_CORE_RPC */
+#define MPNIC_RPC_MEM_INIT_REQ		0x780440		/* 0x1e01100 */
+#define MPNIC_RPC_MEM_INIT_DONE		0x780442		/* 0x1e01108 */
+
+/* NIC_CORE_ROF */
+#define MPNIC_RSC_GLOBAL_CONF		0x7e2002		/* 0x1f88008 */
+#define MPNIC_RSC_GLOBAL_CONF_RSC_DISABLE	CSR_BIT(0)
+
+/* NIC_CORE_TOF */
+#define MPNIC_TOF_TCAM_DEST_REMAP	0x7e3022		/* 0x1f8c088 */
+
+/* PEMO_WRAPPER */
+#define MPNIC_OB_ATTR_RO			CSR_BIT(1)
+#define MPNIC_OB_ATTR_TDE_H		0x9a000e		/* 0x2680038 */
+#define MPNIC_OB_ATTR_TDE_P		0x9a0010		/* 0x2680040 */
+#define MPNIC_OB_ATTR_TDF		0x9a0012		/* 0x2680048 */
+#define MPNIC_OB_ATTR_RBP_HPQ		0x9a0014		/* 0x2680050 */
+#define MPNIC_OB_ATTR_RBP_PPQ		0x9a0016		/* 0x2680058 */
+#define MPNIC_OB_ATTR_RDE_H		0x9a0018		/* 0x2680060 */
+#define MPNIC_OB_ATTR_RDE_P		0x9a001a		/* 0x2680068 */
+
+#endif /* _MPNIC_CSR_H_ */

@@ -151,8 +151,8 @@ static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
 					const char **parent_names,
 					int num_parents)
 {
+	struct clk_init_data init = {};
 	struct clk_plt *pclk;
-	struct clk_init_data init;
 	int ret;
 
 	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);

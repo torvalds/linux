@@ -833,6 +833,17 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	return 0;
 }
 
+static u64 calc_remap_wb_len(struct btrfs_inode *src_inode, loff_t off, loff_t len,
+			     unsigned int remap_flags)
+{
+	const u32 bs = src_inode->root->fs_info->sectorsize;
+	const loff_t isize = i_size_read(&src_inode->vfs_inode);
+
+	if (len == 0 && !(remap_flags & REMAP_FILE_DEDUP))
+		return ALIGN(isize, bs) - ALIGN_DOWN(off, bs);
+	return ALIGN(len, bs);
+}
+
 static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				       struct file *file_out, loff_t pos_out,
 				       loff_t *len, unsigned int remap_flags)
@@ -876,10 +887,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	 *    not for the ordered extents to complete. We need to wait for them
 	 *    to complete so that new file extent items are in the fs tree.
 	 */
-	if (*len == 0 && !(remap_flags & REMAP_FILE_DEDUP))
-		wb_len = ALIGN(inode_in->vfs_inode.i_size, bs) - ALIGN_DOWN(pos_in, bs);
-	else
-		wb_len = ALIGN(*len, bs);
+	wb_len = calc_remap_wb_len(inode_in, pos_in, *len, remap_flags);
 
 	/*
 	 * Workaround to make sure NOCOW buffered write reach disk as NOCOW.
@@ -930,6 +938,8 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 	struct btrfs_inode *src_inode = BTRFS_I(file_inode(src_file));
 	struct btrfs_inode *dst_inode = BTRFS_I(file_inode(dst_file));
 	bool same_inode = dst_inode == src_inode;
+	u64 wb_start, wb_len;
+	bool src_downgraded = false;
 	int ret;
 
 	if (btrfs_is_shutdown(src_inode->root->fs_info))
@@ -937,6 +947,23 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
+
+	/*
+	 * Optimistically write out the src inode before taking locks.
+	 * Consistency is properly ensured by the btrfs_wait_ordered_range()
+	 * inside btrfs_remap_file_range_prep(). This optimization causes
+	 * redundant writeback if there is a concurrent writer to the src file
+	 * so try to catch anyone holding the file open for writes and skip
+	 * the optimization in that case.
+	 */
+	wb_start = ALIGN_DOWN(off, src_inode->root->fs_info->sectorsize);
+	wb_len = calc_remap_wb_len(src_inode, off, len, remap_flags);
+	if (!inode_is_open_for_write(&src_inode->vfs_inode) &&
+	    !mapping_writably_mapped(src_inode->vfs_inode.i_mapping)) {
+		ret = btrfs_wait_ordered_range(src_inode, wb_start, wb_len);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (same_inode) {
 		btrfs_inode_lock(src_inode, BTRFS_ILOCK_MMAP);
@@ -950,6 +977,12 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 	if (ret < 0 || len == 0)
 		goto out_unlock;
 
+	if (!same_inode) {
+		set_bit(BTRFS_INODE_REFLINK_SRC, &src_inode->runtime_flags);
+		downgrade_write(&src_inode->vfs_inode.i_rwsem);
+		src_downgraded = true;
+	}
+
 	if (remap_flags & REMAP_FILE_DEDUP)
 		ret = btrfs_extent_same(src_inode, off, len, dst_inode, destoff);
 	else
@@ -960,8 +993,14 @@ out_unlock:
 		btrfs_inode_unlock(src_inode, BTRFS_ILOCK_MMAP);
 	} else {
 		btrfs_double_mmap_unlock(src_inode, dst_inode);
-		unlock_two_nondirectories(&src_inode->vfs_inode,
-					  &dst_inode->vfs_inode);
+		if (src_downgraded) {
+			clear_bit(BTRFS_INODE_REFLINK_SRC, &src_inode->runtime_flags);
+			inode_unlock_shared(&src_inode->vfs_inode);
+			inode_unlock(&dst_inode->vfs_inode);
+		} else {
+			unlock_two_nondirectories(&src_inode->vfs_inode,
+						  &dst_inode->vfs_inode);
+		}
 	}
 
 	/*

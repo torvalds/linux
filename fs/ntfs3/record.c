@@ -665,16 +665,30 @@ int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
 	u32 run_size = asize - run_off;
 	u32 tail = used - aoff - asize;
 	u32 dsize = sbi->record_size - used;
+	u32 avail;
 
 	/* Make a maximum gap in current record. */
 	memmove(next + dsize, next, tail);
 
+	/* Leave room for the 8-byte ALIGN() to avoid OOB write */
+	avail = (run_size + dsize) & ~7u;
+
+	if (!avail) {
+		memmove(next, next + dsize, tail);
+		return -ENOSPC;
+	}
+
 	/* Pack as much as possible. */
-	err = run_pack(run, svcn, len, Add2Ptr(attr, run_off), run_size + dsize,
+	err = run_pack(run, svcn, len, Add2Ptr(attr, run_off), avail,
 		       &plen);
 	if (err < 0) {
 		memmove(next, next + dsize, tail);
 		return err;
+	}
+
+	if (!plen) {
+		memmove(next, next + dsize, tail);
+		return -ENOSPC;
 	}
 
 	new_run_size = ALIGN(err, 8);

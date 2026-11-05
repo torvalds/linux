@@ -43,6 +43,12 @@ int amdgpu_dm_crtc_get_cursor_mode(struct amdgpu_device *adev,
 				   enum amdgpu_dm_cursor_mode *cursor_mode);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
+		       struct drm_plane_state *new_plane_state,
+		       struct drm_framebuffer *fb);
+bool dm_plane_color_pipeline_active(struct drm_atomic_commit *state,
+				    struct drm_plane *plane,
+				    bool use_old);
 void dm_get_oriented_plane_size(struct drm_plane_state *plane_state,
 				int *src_w, int *src_h);
 void dm_get_plane_scale(struct drm_plane_state *plane_state,

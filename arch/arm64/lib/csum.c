@@ -47,11 +47,7 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 	 */
 	shift = offset * 8;
 	data = *ptr++;
-#ifdef __LITTLE_ENDIAN
 	data = (data >> shift) << shift;
-#else
-	data = (data << shift) >> shift;
-#endif
 
 	/*
 	 * Body: straightforward aligned loads from here on (the paired loads
@@ -94,13 +90,8 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 		len -= 16;
 		ptr += 2;
 
-#ifdef __LITTLE_ENDIAN
 		data = tmp >> 64;
 		sum64 = accumulate(sum64, tmp);
-#else
-		data = tmp;
-		sum64 = accumulate(sum64, tmp >> 64);
-#endif
 	}
 	if (len > 0) {
 		sum64 = accumulate(sum64, data);
@@ -112,11 +103,7 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 	 * preserving odd/even alignment.
 	 */
 	shift = len * -8;
-#ifdef __LITTLE_ENDIAN
 	data = (data << shift) >> shift;
-#else
-	data = (data >> shift) << shift;
-#endif
 	sum64 = accumulate(sum64, data);
 
 	/* Finally, folding */
@@ -140,11 +127,7 @@ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 	dst = *(const __uint128_t *)daddr->s6_addr;
 
 	sum += (__force u32)htonl(len);
-#ifdef __LITTLE_ENDIAN
 	sum += (u32)proto << 24;
-#else
-	sum += proto;
-#endif
 	src += (src >> 64) | (src << 64);
 	dst += (dst >> 64) | (dst << 64);
 

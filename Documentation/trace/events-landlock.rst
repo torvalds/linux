@@ -6,7 +6,7 @@ Landlock Trace Events
 =====================
 
 :Author: Mickaël Salaün
-:Date: September 2026
+:Date: October 2026
 
 Landlock emits trace events for sandbox lifecycle operations and access
 denials.  These events can be consumed by ftrace (for human-readable
@@ -35,6 +35,8 @@ Landlock trace events are organized in four categories:
 - ``landlock_add_rule_net_port``: a network port rule is added to a ruleset
 - ``landlock_create_domain``: a new domain is created from a ruleset
 - ``landlock_enforce_domain``: a domain is enforced on a thread
+- ``landlock_add_rule_namespace``: a namespace rule is added to a ruleset
+- ``landlock_add_rule_capability``: a capability rule is added to a ruleset
 
 **Denial events** are emitted when an access is denied:
 
@@ -44,6 +46,8 @@ Landlock trace events are organized in four categories:
 - ``landlock_deny_scope_signal``: signal delivery denied
 - ``landlock_deny_scope_abstract_unix_socket``: abstract unix socket
   access denied
+- ``landlock_deny_permission_namespace``: namespace use denied
+- ``landlock_deny_permission_capability``: capability use denied
 
 **Rule evaluation events** are emitted during rule matching:
 
@@ -84,7 +88,7 @@ Landlock, not from regular file permissions::
   $ LC_ALL=C LL_FS_RO=/usr:/lib:/lib64:/bin:/etc/ld.so.cache LL_FS_RW=/tmp \
       ./sandboxer cat /etc/passwd
   $ cat /sys/kernel/tracing/trace_pipe
-  cat-127 [...] landlock_create_ruleset: ruleset=195cc6b76.0 handled_fs=execute|write_file|read_file|read_dir|remove_dir|remove_file|make_char|make_dir|make_reg|make_sock|make_fifo|make_block|make_sym|refer|truncate|ioctl_dev|resolve_unix handled_net= scoped=
+  cat-127 [...] landlock_create_ruleset: ruleset=195cc6b76.0 handled_fs=execute|write_file|read_file|read_dir|remove_dir|remove_file|make_char|make_dir|make_reg|make_sock|make_fifo|make_block|make_sym|refer|truncate|ioctl_dev|resolve_unix handled_net= scoped= handled_permissions=
   cat-127 [...] landlock_create_domain: domain=195cc6b7c parent=0 ruleset=195cc6b76.6
   cat-127 [...] landlock_enforce_domain: domain=195cc6b7c complete=1 process_wide=1 no_new_privs=1
   cat-127 [...] landlock_deny_access_fs: domain=195cc6b7c same_exec=0 logged=0 blockers=read_file dev=0:17 ino=5901179 path=/etc/passwd
@@ -119,10 +123,13 @@ in some field formats:
   Audit uses string ``dev="<s_id>"``.  Numeric format is more precise
   for machine parsing.
 
-- **Denied access field**: The ``deny_access_fs`` and ``deny_access_net``
-  tracepoints use the ``blockers=`` field name (same as audit).  Both
-  render the blocked access rights as names: audit prefixes the category
-  and separates with commas (e.g., ``blockers=fs.read_file``), while the
+- **Blocker field**: Denial tracepoints that carry a blocker use the
+  ``blockers=`` field name (same as audit).  The ``deny_access_fs`` and
+  ``deny_access_net`` tracepoints render the blocked access rights, the
+  ``deny_permission_namespace`` and ``deny_permission_capability``
+  tracepoints render the blocked permission, and a ``change_topology``
+  denial renders its request type.  Audit prefixes the category and
+  separates with commas (e.g., ``blockers=fs.read_file``), while the
   tracepoints omit the category (carried by the event name) and separate
   with ``|`` (e.g., ``blockers=read_file``).  Scope and ptrace
   tracepoints omit ``blockers`` because the event name identifies the
@@ -160,10 +167,34 @@ Ruleset versioning
 ==================
 
 Syscall events include a ruleset version (``ruleset=<hex_id>.<version>``)
-that tracks the number of rules added to the ruleset.  The version is
-incremented on each ``landlock_add_rule()`` call and frozen at
-``landlock_restrict_self()`` time.  This enables trace consumers to
-correlate a domain with the exact set of rules it was created from.
+that tracks the number of successful add-rule calls on the ruleset.  The
+version is incremented on each successful ``landlock_add_rule()`` call and
+frozen at ``landlock_restrict_self()`` time.  Namespace and capability calls
+increment it even when their effective known masks are empty or already
+present, so the event stream preserves every successful call.  This enables
+trace consumers to correlate a domain with the exact rule history from which
+it was created.
+
+Permission rule and denial events
+=================================
+
+``landlock_create_ruleset`` reports handled permissions as symbolic names in
+``handled_permissions=``.  ``landlock_add_rule_namespace`` and
+``landlock_add_rule_capability`` report ``permissions=`` plus the effective
+known allowed and quiet member masks.  Capability masks and the raw
+``CLONE_NEW*`` namespace masks are printed in hexadecimal.  Unknown-only input
+therefore appears as zero while still advancing the ruleset version, and adding
+a member already present still emits an event.
+
+``landlock_deny_permission_namespace`` reports the denied raw
+``CLONE_NEW*`` value.  ``namespace_id`` is zero for namespace creation and is
+the exact target namespace ID for :manpage:`setns(2)`.
+``landlock_deny_permission_capability`` reports the denied ``CAP_*`` number.
+Like every denial event, both include the denying domain, ``same_exec``, and
+``logged``.
+
+Per-member quiet masks suppress audit submission but never these trace events,
+which report ``logged=0``.
 
 Domain enforcement
 ==================
@@ -290,8 +321,8 @@ per-domain state in BPF maps:
    ``domain=`` key (join to the ``create_domain`` recorded in step 1),
    building the per-domain thread set; filter ``complete==1`` for a
    one-event-per-operation summary.
-3. On ``landlock_deny_access_*``: look up the domain, decide whether
-   to count, alert, or ignore the denial based on custom policy.
+3. On ``landlock_deny_*``: look up the domain, decide whether to count,
+   alert, or ignore the denial based on custom policy.
 4. On ``landlock_free_domain``: clean up the per-domain state, log
    final statistics.
 
@@ -304,11 +335,12 @@ reconcile incomplete state.
 Audit filtering equivalence
 ===========================
 
-The ``logged`` field reflects the domain's log policy but not the global
-``audit_enabled`` toggle, so it does not change when audit is turned on
-or off.  When audit is enabled, ``logged==1`` selects the denials the
-domain submits to audit (audit-side rate-limiting and exclude rules may
-still drop some), so a stateless ftrace filter can select them::
+The ``logged`` field reflects the domain's log policy and per-request quiet
+selection, but not the global ``audit_enabled`` toggle, so it does not
+change when audit is turned on or off.  When audit is enabled, ``logged==1``
+selects the denials the domain submits to audit (audit-side rate-limiting and
+exclude rules may still drop some), so a stateless ftrace filter can select
+them::
 
     # Show only denials that audit would also log:
     echo 'logged==1' > \

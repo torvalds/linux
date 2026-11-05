@@ -24,14 +24,14 @@ use crate::{
     FromBytes, Immutable, IntoBytes, Unalign,
 };
 
-/// Transmutations which are sound to attempt, conditional on validating the bit
-/// validity of the destination type.
+/// Exact pointer reinterpretations which are sound to attempt, conditional on
+/// establishing the destination validity invariant.
 ///
 /// If a `Ptr` transmutation is `TryTransmuteFromPtr`, then it is sound to
 /// perform that transmutation so long as some additional mechanism is used to
-/// validate that the referent is bit-valid for the destination type. That
-/// validation mechanism could be a type bound (such as `TransmuteFrom`) or a
-/// runtime validity check.
+/// establish that the referent is `DV`-valid for the destination type. That
+/// mechanism could be a type bound (such as `TransmuteFrom`) or a runtime
+/// validity check.
 ///
 /// # Safety
 ///
@@ -49,14 +49,14 @@ use crate::{
 /// Given `src: Ptr<Src, (A, _, SV)>` and `dst: Ptr<Dst, (A, Unaligned, DV)>`,
 /// `Dst: TryTransmuteFromPtr<Src, A, SV, DV, C, _>` is sound if all of the
 /// following hold:
-/// - Forwards transmutation: Either of the following hold:
+/// - Preserve destination validity: Either of the following hold:
 ///   - So long as `dst` is active, no mutation of `dst`'s referent is allowed
 ///     except via `dst` itself
 ///   - The set of `DV`-valid referents of `dst` is a superset of the set of
 ///     `SV`-valid referents of `src` (NOTE: this condition effectively bans
 ///     shrinking or overwriting transmutes, which cannot satisfy this
 ///     condition)
-/// - Reverse transmutation: Either of the following hold:
+/// - Preserve source validity: Either of the following hold:
 ///   - `dst` does not permit mutation of its referent
 ///   - The set of `DV`-valid referents of `dst` is a subset of the set of
 ///     `SV`-valid referents of `src` (NOTE: this condition effectively bans
@@ -126,7 +126,7 @@ pub unsafe trait TryTransmuteFromPtr<
 pub enum BecauseMutationCompatible {}
 
 // SAFETY:
-// - Forwards transmutation: By `Dst: MutationCompatible<Src, A, SV, DV, _>`, we
+// - Preserve destination validity: By `Dst: MutationCompatible<Src, A, SV, DV, _>`, we
 //   know that at least one of the following holds:
 //   - So long as `dst: Ptr<Dst>` is active, no mutation of its referent is
 //     allowed except via `dst` itself if either of the following hold:
@@ -138,17 +138,18 @@ pub enum BecauseMutationCompatible {}
 //     referent as `src`. By `Dst: TransmuteFrom<Src, SV, DV>`, the set of
 //     `DV`-valid referents of `dst` is a superset of the set of `SV`-valid
 //     referents of `src`.
-// - Reverse transmutation: Since the underlying cast is size-preserving, `dst`
-//   addresses the same referent as `src`. By `Src: TransmuteFrom<Dst, DV, SV>`,
-//   the set of `DV`-valid referents of `src` is a subset of the set of
-//   `SV`-valid referents of `dst`.
+// - Preserve source validity: Since the underlying cast is size-preserving,
+//   `dst` addresses the same referent as `src`. By
+//   `Src: TransmuteFrom<Dst, DV, SV>`, the set of `DV`-valid referents of `dst`
+//   is a subset of the set of `SV`-valid referents of `src`.
 // - No safe code, given access to `src` and `dst`, can cause undefined
 //   behavior: By `Dst: MutationCompatible<Src, A, SV, DV, _>`, at least one of
 //   the following holds:
 //   - `A` is `Exclusive`
 //   - `Src: Immutable` and `Dst: Immutable`
-//   - `Dst: InvariantsEq<Src>`, which guarantees that `Src` and `Dst` have the
-//     same invariants, and permit interior mutation on the same byte ranges
+//   - `Dst: SharedCompatible<Src>`, which guarantees that it is sound for safe
+//     code to operate on `&Src` and `&Dst` pointing to the same byte range at
+//     the same time
 unsafe impl<Src, Dst, SV, DV, A, C, R>
     TryTransmuteFromPtr<Src, A, SV, DV, C, (BecauseMutationCompatible, R)> for Dst
 where
@@ -162,9 +163,9 @@ where
 }
 
 // SAFETY:
-// - Forwards transmutation: Since aliasing is `Shared` and `Src: Immutable`,
+// - Preserve destination validity: Since aliasing is `Shared` and `Src: Immutable`,
 //   `src` does not permit mutation of its referent.
-// - Reverse transmutation: Since aliasing is `Shared` and `Dst: Immutable`,
+// - Preserve source validity: Since aliasing is `Shared` and `Dst: Immutable`,
 //   `dst` does not permit mutation of its referent.
 // - No safe code, given access to `src` and `dst`, can cause undefined
 //   behavior: `Src: Immutable` and `Dst: Immutable`
@@ -187,9 +188,9 @@ where
 ///
 /// At least one of the following must hold:
 /// - `Src: Read<A, _>` and `Self: Read<A, _>`
-/// - `Self: InvariantsEq<Src>`, and, for some `V`:
-///   - `Dst: TransmuteFrom<Src, V, V>`
-///   - `Src: TransmuteFrom<Dst, V, V>`
+/// - `Self: SharedCompatible<Src>`, and, for some `V`:
+///   - `Self: TransmuteFrom<Src, V, V>`
+///   - `Src: TransmuteFrom<Self, V, V>`
 pub unsafe trait MutationCompatible<Src: ?Sized, A: Aliasing, SV, DV, R> {}
 
 #[allow(missing_copy_implementations, missing_debug_implementations)]
@@ -204,38 +205,39 @@ where
 {
 }
 
-/// Denotes that two types have the same invariants.
+/// Denotes that shared references to two types may safely coexist on the same
+/// referent.
 ///
 /// # Safety
 ///
 /// It is sound for safe code to operate on a `&T` and a `&Self` pointing to the
 /// same referent at the same time - no such safe code can cause undefined
 /// behavior.
-pub unsafe trait InvariantsEq<T: ?Sized> {}
+pub unsafe trait SharedCompatible<T: ?Sized> {}
 
 // SAFETY: Trivially sound to have multiple `&T` pointing to the same referent.
-unsafe impl<T: ?Sized> InvariantsEq<T> for T {}
+unsafe impl<T: ?Sized> SharedCompatible<T> for T {}
 
-// SAFETY: `Dst: InvariantsEq<Src> + TransmuteFrom<Src, SV, DV>`, and `Src:
+// SAFETY: `Dst: SharedCompatible<Src> + TransmuteFrom<Src, SV, DV>`, and `Src:
 // TransmuteFrom<Dst, DV, SV>`.
 unsafe impl<Src: ?Sized, Dst: ?Sized, A: Aliasing, SV: Validity, DV: Validity>
-    MutationCompatible<Src, A, SV, DV, BecauseInvariantsEq> for Dst
+    MutationCompatible<Src, A, SV, DV, BecauseSharedCompatible> for Dst
 where
     Src: TransmuteFrom<Dst, DV, SV>,
-    Dst: TransmuteFrom<Src, SV, DV> + InvariantsEq<Src>,
+    Dst: TransmuteFrom<Src, SV, DV> + SharedCompatible<Src>,
 {
 }
 
 #[allow(missing_debug_implementations, missing_copy_implementations)]
-pub enum BecauseInvariantsEq {}
+pub enum BecauseSharedCompatible {}
 
-macro_rules! unsafe_impl_invariants_eq {
+macro_rules! unsafe_impl_shared_compatible {
     ($tyvar:ident => $t:ty, $u:ty) => {{
         crate::util::macros::__unsafe();
         // SAFETY: The caller promises that this is sound.
-        unsafe impl<$tyvar> InvariantsEq<$t> for $u {}
+        unsafe impl<$tyvar> SharedCompatible<$t> for $u {}
         // SAFETY: The caller promises that this is sound.
-        unsafe impl<$tyvar> InvariantsEq<$u> for $t {}
+        unsafe impl<$tyvar> SharedCompatible<$u> for $t {}
     }};
 }
 
@@ -253,11 +255,11 @@ impl_transitive_transmute_from!(T => Wrapping<T> => T => MaybeUninit<T>);
 //   validity as `T`
 //
 // [2] https://doc.rust-lang.org/1.81.0/std/mem/struct.ManuallyDrop.html#impl-Deref-for-ManuallyDrop%3CT%3E
-unsafe impl<T: ?Sized> InvariantsEq<T> for ManuallyDrop<T> {}
+unsafe impl<T: ?Sized> SharedCompatible<T> for ManuallyDrop<T> {}
 // SAFETY: See previous safety comment.
-unsafe impl<T: ?Sized> InvariantsEq<ManuallyDrop<T>> for T {}
+unsafe impl<T: ?Sized> SharedCompatible<ManuallyDrop<T>> for T {}
 
-/// Transmutations which are always sound.
+/// Exact pointer reinterpretations which are always sound.
 ///
 /// `TransmuteFromPtr` is a shorthand for [`TryTransmuteFromPtr`] and
 /// [`TransmuteFrom`].
@@ -293,8 +295,12 @@ where
 {
 }
 
-/// Denotes that any `SV`-valid `Src` may soundly be transmuted into a
-/// `DV`-valid `Self`.
+/// Denotes that, for equally-sized referents, every bit pattern allowed for an
+/// `SV`-valid `Src` is also allowed for a `DV`-valid `Self`.
+///
+/// `TransmuteFrom` does not by itself authorize a pointer transmutation. It
+/// provides a directional validity implication used by the pointer-transmutation
+/// machinery.
 ///
 /// # Safety
 ///
@@ -333,7 +339,7 @@ impl<T: ?Sized> SizeEq<T> for T {
 // SAFETY: Since `Src: IntoBytes`, the set of valid `Src`'s is the set of
 // initialized bit patterns, which is exactly the set allowed in the referent of
 // any `Initialized` `Ptr`.
-unsafe impl<Src, Dst> TransmuteFrom<Src, Valid, Initialized> for Dst
+unsafe impl<Src, Dst> TransmuteFrom<Src, Safe, Initialized> for Dst
 where
     Src: IntoBytes + ?Sized,
     Dst: ?Sized,
@@ -341,18 +347,19 @@ where
 }
 
 // SAFETY: Since `Dst: FromBytes`, any initialized bit pattern may appear in the
-// referent of a `Ptr<Dst, (_, _, Valid)>`. This is exactly equal to the set of
+// referent of a `Ptr<Dst, (_, _, Safe)>`. This is exactly equal to the set of
 // bit patterns which may appear in the referent of any `Initialized` `Ptr`.
-unsafe impl<Src, Dst> TransmuteFrom<Src, Initialized, Valid> for Dst
+unsafe impl<Src, Dst> TransmuteFrom<Src, Initialized, Safe> for Dst
 where
     Src: ?Sized,
     Dst: FromBytes + ?Sized,
 {
 }
 
-// FIXME(#2354): This seems like a smell - the soundness of this bound has
-// nothing to do with `Src` or `Dst` - we're basically just saying `[u8; N]` is
-// transmutable into `[u8; N]`.
+// FIXME(#2354): This relation does not depend on `Src` or `Dst`. That is
+// expected semantically: `Initialized` permits the same states regardless of
+// referent type. The awkward part is encoding that validity-state relation as a
+// trait relation between referent types.
 
 // SAFETY: The set of allowed bit patterns in the referent of any `Initialized`
 // `Ptr` is the same regardless of referent type.
@@ -363,9 +370,10 @@ where
 {
 }
 
-// FIXME(#2354): This seems like a smell - the soundness of this bound has
-// nothing to do with `Dst` - we're basically just saying that any type is
-// transmutable into `MaybeUninit<[u8; N]>`.
+// FIXME(#2354): This relation does not depend on `Src` or `Dst`. That is
+// expected semantically: every validity state implies `Uninit`, which permits
+// any byte sequence. The awkward part is encoding that validity-state relation
+// as a trait relation between referent types.
 
 // SAFETY: A `Dst` with validity `Uninit` permits any byte sequence, and
 // therefore can be transmuted from any value.
@@ -400,7 +408,7 @@ const _: () = unsafe { unsafe_impl_for_transparent_wrapper!(pub T => Unalign<T>)
 // sound for these two references to exist at the same time since it's already
 // possible for safe code to get into this state.
 #[allow(clippy::multiple_unsafe_ops_per_block)]
-const _: () = unsafe { unsafe_impl_invariants_eq!(T => T, Unalign<T>) };
+const _: () = unsafe { unsafe_impl_shared_compatible!(T => T, Unalign<T>) };
 
 // SAFETY:
 // - `Wrapping<T>` has the same size as `T` [1].
@@ -433,7 +441,7 @@ const _: () = unsafe { unsafe_impl_for_transparent_wrapper!(pub T => Wrapping<T>
 // already possible for safe code to obtain a `&Wrapping<T>` and a `&T` pointing
 // to the same referent at the same time. Thus, this must be sound.
 #[allow(clippy::multiple_unsafe_ops_per_block)]
-const _: () = unsafe { unsafe_impl_invariants_eq!(T => T, Wrapping<T>) };
+const _: () = unsafe { unsafe_impl_shared_compatible!(T => T, Wrapping<T>) };
 
 // SAFETY:
 // - `UnsafeCell<T>` has the same size as `T` [1].
@@ -478,7 +486,7 @@ impl_transitive_transmute_from!(T: ?Sized => UnsafeCell<T> => T => Cell<T>);
 // explicitly guaranteed, but it's obvious from `MaybeUninit`'s documentation
 // that this is the intention:
 // https://doc.rust-lang.org/1.85.0/core/mem/union.MaybeUninit.html
-unsafe impl<T> TransmuteFrom<T, Uninit, Valid> for MaybeUninit<T> {}
+unsafe impl<T> TransmuteFrom<T, Uninit, Safe> for MaybeUninit<T> {}
 
 impl<T> SizeEq<T> for MaybeUninit<T> {
     type CastFrom = CastSizedExact;

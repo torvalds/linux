@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device tree for the network processing unit (NPU) of the Sophos XGS 87/107
+ * firewalls: a Marvell CN9130 SoC with a Marvell 88E6193X switch.
+ *
+ * The x86 host on the same board is not described here.
+ */
+
+/dts-v1/;
+
+#include "cn9130.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Sophos XGS 107w (CN9130 NPU)";
+	compatible = "sophos,xgs107w-npu", "marvell,cn9130";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		ethernet0 = &cp0_eth0;
+		i2c1 = &cp0_i2c1;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	reserved-memory {
+		/* OP-TEE, reserved by the firmware */
+		tee@4400000 {
+			reg = <0x0 0x4400000 0x0 0x1000000>;
+			no-map;
+		};
+	};
+
+	/* Front-panel SFP cage "F1", wired to switch port 9 */
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&cp0_i2c1>;
+		los-gpios = <&cp0_gpio1 1 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio1 2 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp0_gpio1 3 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp0_gpio1 7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+/* eMMC on the AP */
+&ap_sdhci0 {
+	bus-width = <8>;
+	non-removable;
+	mmc-ddr-1_8v;
+	status = "okay";
+};
+
+/*
+ * The MPP pin muxing is left as configured by the boot loader; the pin
+ * controller node only exists to back the GPIO banks.
+ */
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
+		compatible = "marvell,cp115-standalone-pinctrl";
+	};
+};
+
+&cp0_i2c1 {
+	/* I2C bus of the SFP cage */
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+/* 4 MB SPI NOR with U-Boot and its environment, read-only on purpose */
+&cp0_spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x3f0000>;
+				read-only;
+			};
+
+			partition@3f0000 {
+				label = "u-boot-env";
+				reg = <0x3f0000 0x10000>;
+				read-only;
+			};
+		};
+	};
+};
+
+&cp0_ethernet {
+	status = "okay";
+};
+
+/* 10G link to switch port 0 */
+&cp0_eth0 {
+	phy-mode = "10gbase-r";
+	phys = <&cp0_comphy4 0>;
+	managed = "in-band-status";
+	status = "okay";
+};
+
+&cp0_mdio {
+	status = "okay";
+
+	switch@2 {
+		compatible = "marvell,mv88e6190";
+		reg = <2>;
+		reset-gpios = <&cp0_gpio2 17 GPIO_ACTIVE_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				ethernet = <&cp0_eth0>;
+				phy-mode = "10gbase-r";
+				managed = "in-band-status";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "p1";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "p2";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "p3";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "p4";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "p5";
+			};
+
+			port@6 {
+				reg = <6>;
+				label = "p6";
+			};
+
+			port@7 {
+				reg = <7>;
+				label = "p7";
+			};
+
+			port@8 {
+				reg = <8>;
+				label = "p8";
+			};
+
+			port@9 {
+				reg = <9>;
+				label = "sfp";
+				phy-mode = "1000base-x";
+				managed = "in-band-status";
+				sfp = <&sfp>;
+			};
+		};
+	};
+};

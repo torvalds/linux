@@ -82,6 +82,9 @@ int lan969x_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 	struct lan969x_dsm_cal_dev_speed *speed;
 	int err;
 
+	for (u32 i = 0; i < SPX5_DSM_CAL_LEN; i++)
+		data->schedule[i] = SPX5_DSM_CAL_EMPTY;
+
 	/* Maximum bandwidth for this taxi */
 	taxi_bw = (128 * 1000000) / sparx5_clk_period(sparx5->coreclock);
 
@@ -125,7 +128,7 @@ int lan969x_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 	}
 
 	if (n_devs == 0) {
-		data->schedule[0] = SPX5_DSM_CAL_EMPTY;
+		data->schedule[0] = SPX5_DSM_CAL_MAX_DEVS_PER_TAXI;
 		return 0;
 	}
 
@@ -166,9 +169,6 @@ int lan969x_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 		pr_err("Invalid length: %u for taxi: %u", cal_len, taxi);
 		return -EINVAL;
 	}
-
-	for (u32 i = 0; i < SPX5_DSM_CAL_LEN; i++)
-		data->schedule[i] = SPX5_DSM_CAL_EMPTY;
 
 	/* Place the remaining devices */
 	for (u32 i = 0; i < DSM_CAL_DEV_MAX; i++) {

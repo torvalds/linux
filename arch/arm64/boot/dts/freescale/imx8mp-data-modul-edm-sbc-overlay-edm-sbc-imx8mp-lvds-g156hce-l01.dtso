@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023-2026 Marek Vasut
+ */
+
+#include "imx8mp-data-modul-edm-sbc-overlay-edm-sbc-imx8mp-lvds.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-g156hce-l01.dtsi"
+
+&media_blk_ctrl {
+	/*
+	 * The G156HCE-L01 panel requires 141.86 MHz LVDS clock.
+	 * Set IMX8MP_VIDEO_PLL1 to 993.2 MHz , since 993.2 MHz / 7 = 141.86 MHz .
+	 */
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <500000000>, <993020000>;
+};
+
+&ldb_lvds_ch0 {
+	remote-endpoint = <&panel_lvds_b>;
+};
+
+&ldb_lvds_ch1 {
+	remote-endpoint = <&panel_lvds_a>;
+};
+
+&panel_lvds_a {
+	remote-endpoint = <&ldb_lvds_ch1>;
+};
+
+&panel_lvds_b {
+	remote-endpoint = <&ldb_lvds_ch0>;
+};

@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+enum {
+{% for member in members %}
+	{{ member }},
+{% endfor %}
+};
+
+bool {{ hook }}_encode_begin(struct xdrgen_aggregate_cursor *c);
+bool {{ hook }}_encode(struct xdrgen_aggregate_cursor *c, {{ classifier }}{{ c_type }} *out);
+bool {{ hook }}_encode_end(struct xdrgen_aggregate_cursor *c, bool ok);
+bool {{ hook }}_decode_begin(struct xdrgen_aggregate_cursor *c);
+bool {{ hook }}_decode(struct xdrgen_aggregate_cursor *c, const {{ classifier }}{{ c_type }} *in);
+bool {{ hook }}_decode_end(struct xdrgen_aggregate_cursor *c, bool ok);

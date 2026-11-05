@@ -138,8 +138,7 @@ SYM_CODE_START_LOCAL(record_mmu_state)
 	b.ne	0f
 	mrs	x19, sctlr_el2
 0:
-CPU_LE( tbnz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
-CPU_BE( tbz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
+	tbnz	x19, #SCTLR_ELx_EE_SHIFT, 1f
 	tst	x19, #SCTLR_ELx_C		// Z := (C == 0)
 	and	x19, x19, #SCTLR_ELx_M		// isolate M bit
 	csel	x19, xzr, x19, eq		// clear x19 if Z
@@ -299,7 +298,7 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	isb
 0:
 
-	init_el2_hcr	HCR_HOST_NVHE_FLAGS | HCR_ATA
+	init_el2_hcr	HCR_HOST_NVHE_FLAGS | HCR_EL2_ATA
 	init_el2_state
 
 	/* Hypervisor stub */
@@ -310,7 +309,7 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	mov_q	x1, INIT_SCTLR_EL1_MMU_OFF
 
 	mrs	x0, hcr_el2
-	and	x0, x0, #HCR_E2H
+	and	x0, x0, #HCR_EL2_E2H
 	cbz	x0, 2f
 
 	/* Set a sane SCTLR_EL1, the VHE way */

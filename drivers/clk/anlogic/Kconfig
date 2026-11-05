@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config ANLOGIC_DR1_CRU
+	tristate "Clock support for Anlogic DR1 series SoCs"
+	depends on ARCH_ANLOGIC || COMPILE_TEST
+	select AUXILIARY_BUS
+	default ARCH_ANLOGIC
+	help
+	  Say Y to enable clock controller unit support for Anlogic DR1 series
+	  SoCs.
+
+if ANLOGIC_DR1_CRU
+
+config ANLOGIC_DR1V90_CRU
+	tristate "Anlogic DR1V90 clock support"
+	depends on ARCH_ANLOGIC || COMPILE_TEST
+	default ARCH_ANLOGIC
+	help
+	  Support for the Clock and Reset Unit in Anlogic DR1V90 SoCs.
+
+endif

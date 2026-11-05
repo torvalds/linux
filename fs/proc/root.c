@@ -402,7 +402,7 @@ void __init proc_root_init(void)
 	register_filesystem(&proc_fs_type);
 }
 
-static int proc_root_getattr(struct mnt_idmap *idmap,
+static int proc_root_getattr(const struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {

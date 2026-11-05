@@ -12,7 +12,7 @@
 
 #include <linux/ptp_clock_kernel.h>
 
-#define KSZ_PTP_N_GPIO		2
+#define KSZ_PTP_N_GPIO		12
 
 enum ksz_ptp_tou_mode {
 	KSZ_PTP_TOU_IDLE,
@@ -29,10 +29,11 @@ struct ksz_ptp_data {
 	spinlock_t clock_lock;
 	struct timespec64 clock_time;
 	enum ksz_ptp_tou_mode tou_mode;
-	struct timespec64 perout_target_time_first;  /* start of first pulse */
-	struct timespec64 perout_period;
+	struct ptp_perout_request perout_request;
 };
 
+void ksz_ptp_set_caps(struct dsa_switch *ds);
+void ksz8463_ptp_set_caps(struct dsa_switch *ds);
 int ksz_ptp_clock_register(struct dsa_switch *ds);
 
 void ksz_ptp_clock_unregister(struct dsa_switch *ds);
@@ -65,6 +66,8 @@ struct ksz_ptp_data {
 	struct mutex lock;
 };
 
+static inline void ksz_ptp_set_caps(struct dsa_switch *ds) { }
+static inline void ksz8463_ptp_set_caps(struct dsa_switch *ds) { }
 static inline int ksz_ptp_clock_register(struct dsa_switch *ds)
 {
 	return 0;

@@ -30,13 +30,14 @@
 #include "dsc/dscc_types.h"
 #include "dsc/rc_calc.h"
 
-static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals);
+static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc20_reg_values *reg_vals);
 
 static const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
 	.dsc_read_state = dsc2_read_state,
 	.dsc_read_reg_state = dsc2_read_reg_state,
 	.dsc_validate_stream = dsc2_validate_stream,
+	.dsc_prepare_config = dsc2_prepare_config,
 	.dsc_set_config = dsc2_set_config,
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
 	.dsc_enable = dsc2_enable,
@@ -188,26 +189,41 @@ void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_conf
 	DC_LOG_DSC("\tcolor_depth %d", config->color_depth);
 }
 
-void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc2_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg)
 {
-	bool is_config_ok;
-	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
+	struct dcn20_dsc *dsc20;
+	struct dsc20_reg_values reg_vals = {};
+	struct dsc_optc_config optc = {};
 
-	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
-	dsc_config_log(dsc, dsc_cfg);
-	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
-	ASSERT(is_config_ok);
+	if (!dsc || !dsc_cfg || !dsc_optc_cfg)
+		return false;
+
+	dsc20 = TO_DCN20_DSC(dsc);
+	if (!dsc_prepare_config(dsc_cfg, &reg_vals, &optc))
+		return false;
+	dsc20->reg_vals = reg_vals;
+	*dsc_optc_cfg = optc;
+	return true;
+}
+
+void dsc2_set_config(struct display_stream_compressor *dsc)
+{
+	struct dcn20_dsc *dsc20;
+
+	if (!dsc)
+		return;
+
+	dsc20 = TO_DCN20_DSC(dsc);
 	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	dsc_log_pps(dsc, &dsc20->reg_vals.pps);
 	dsc_write_to_registers(dsc, &dsc20->reg_vals);
 }
 
-
 bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps)
 {
 	bool is_config_ok;
-	struct dsc_reg_values dsc_reg_vals;
+	struct dsc20_reg_values dsc_reg_vals;
 	struct dsc_optc_config dsc_optc_cfg;
 
 	memset(&dsc_reg_vals, 0, sizeof(dsc_reg_vals));
@@ -368,7 +384,7 @@ void dsc_override_rc_params(struct rc_params *rc, const struct dc_dsc_rc_params_
 	rc->flatness_det_thresh = override->flatness_det_thresh;
 }
 
-bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
+bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc20_reg_values *dsc_reg_vals,
 			struct dsc_optc_config *dsc_optc_cfg)
 {
 	struct dsc_parameters dsc_params;
@@ -515,11 +531,11 @@ enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_dep
 }
 
 
-void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
+void dsc_init_reg_values(struct dsc20_reg_values *reg_vals)
 {
 	int i;
 
-	memset(reg_vals, 0, sizeof(struct dsc_reg_values));
+	memset(reg_vals, 0, sizeof(struct dsc20_reg_values));
 
 	/* Non-PPS values */
 	reg_vals->dsc_clock_enable            = 1;
@@ -567,11 +583,11 @@ void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 	reg_vals->pps.rc_tgt_offset_high          = 3;
 }
 
-/* Updates dsc_reg_values::reg_vals::xxx fields based on the values from computed params.
+/* Updates dsc20_reg_values::reg_vals::xxx fields based on the values from computed params.
  * This is required because dscc_compute_dsc_parameters returns a modified PPS, which in turn
  * affects non-PPS register values.
  */
-void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
+void dsc_update_from_dsc_parameters(struct dsc20_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
 {
 	int i;
 
@@ -584,7 +600,7 @@ void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struc
 	reg_vals->rc_buffer_model_size = dsc_params->rc_buffer_model_size;
 }
 
-static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals)
+static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc20_reg_values *reg_vals)
 {
 	uint32_t temp_int;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);

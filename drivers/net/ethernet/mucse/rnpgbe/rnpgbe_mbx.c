@@ -84,7 +84,7 @@ static u32 mucse_mbx_get_lock_pf(struct mucse_hw *hw)
  * @hw: pointer to the HW structure
  *
  * Pair with mucse_release_mbx_lock_pf()
- * This function maybe used in an irq handler.
+ * All mailbox access runs in process context.
  *
  * Return: 0 on success, negative errno on failure
  **/
@@ -93,11 +93,11 @@ static int mucse_obtain_mbx_lock_pf(struct mucse_hw *hw)
 	struct mucse_mbx_info *mbx = &hw->mbx;
 	u32 val;
 
-	return read_poll_timeout_atomic(mucse_mbx_get_lock_pf,
-					val, val & MUCSE_MBX_PFU,
-					mbx->delay_us,
-					mbx->timeout_us,
-					false, hw);
+	return read_poll_timeout(mucse_mbx_get_lock_pf,
+				 val, val & MUCSE_MBX_PFU,
+				 mbx->delay_us,
+				 mbx->timeout_us,
+				 false, hw);
 }
 
 /**
@@ -197,7 +197,8 @@ static int mucse_read_mbx_pf(struct mucse_hw *hw, __le32 *msg, u16 size)
  * mucse_check_for_msg_pf - Check to see if the fw has sent mail
  * @hw: pointer to the HW structure
  *
- * Return: 0 if the fw has set the Status bit or else -EIO
+ * Return: 0 if firmware has posted a new message, -ENOMSG if there is no
+ * new message, or -EIO if the mailbox has been reset
  **/
 static int mucse_check_for_msg_pf(struct mucse_hw *hw)
 {
@@ -209,8 +210,13 @@ static int mucse_check_for_msg_pf(struct mucse_hw *hw)
 	 * mbx command. Return -EIO if in this state, others
 	 * fw == hw->mbx.fw_req means no new msg.
 	 **/
-	if (fw_req == 0 || fw_req == hw->mbx.fw_req)
+	/* Firmware skips zero for valid FW-to-PF requests and wraps the
+	 * counter from U16_MAX to 1.
+	 **/
+	if (!fw_req)
 		return -EIO;
+	if (fw_req == hw->mbx.fw_req)
+		return -ENOMSG;
 
 	return 0;
 }
@@ -253,6 +259,68 @@ int mucse_poll_and_read_mbx(struct mucse_hw *hw, __le32 *msg, u16 size)
 }
 
 /**
+ * mucse_mbx_event_begin - Lock and read a pending firmware event
+ * @hw: pointer to the HW structure
+ * @msg: the message buffer
+ * @size: length of buffer
+ *
+ * On success the hardware mailbox remains locked. The caller must process
+ * the event and call mucse_mbx_event_end() to acknowledge it and release
+ * the hardware mailbox lock.
+ *
+ * Firmware releases the hardware mailbox lock before raising the event
+ * interrupt and does not access the shared window again until the PF
+ * acknowledges the event. Therefore, failure to acquire the lock indicates
+ * a mailbox fault rather than transient contention.
+ *
+ * Return: 0 on success, -ENOMSG if no event is pending, or another negative
+ * errno on failure
+ **/
+int mucse_mbx_event_begin(struct mucse_hw *hw, __le32 *msg, u16 size)
+{
+	const int size_in_words = size / sizeof(__le32);
+	struct mucse_mbx_info *mbx = &hw->mbx;
+	int off = MUCSE_MBX_FWPF_SHM;
+	int err;
+
+	err = mucse_check_for_msg_pf(hw);
+	if (err)
+		return err;
+
+	err = mucse_obtain_mbx_lock_pf(hw);
+	if (err)
+		return err;
+
+	/* Check again after taking ownership of the shared mailbox. */
+	err = mucse_check_for_msg_pf(hw);
+	if (err) {
+		mucse_release_mbx_lock_pf(hw, false);
+		return err;
+	}
+
+	for (int i = 0; i < size_in_words; i++)
+		msg[i] = cpu_to_le32(mbx_data_rd32(mbx, off + 4 * i));
+
+	return 0;
+}
+
+/**
+ * mucse_mbx_event_end - Acknowledge a firmware event and unlock the mailbox
+ * @hw: pointer to the HW structure
+ *
+ * Pair with a successful mucse_mbx_event_begin().
+ **/
+void mucse_mbx_event_end(struct mucse_hw *hw)
+{
+	struct mucse_mbx_info *mbx = &hw->mbx;
+
+	mbx_data_wr32(mbx, MUCSE_MBX_FWPF_SHM, 0);
+	hw->mbx.fw_req = mucse_mbx_get_fwreq(mbx);
+	mucse_mbx_inc_pf_ack(hw);
+	mucse_release_mbx_lock_pf(hw, false);
+}
+
+/**
  * mucse_mbx_get_fwack - Read fw ack from reg
  * @mbx: pointer to the MBX structure
  *
@@ -287,6 +355,36 @@ static void mucse_mbx_inc_pf_req(struct mucse_hw *hw)
 }
 
 /**
+ * mucse_ack_pending_event - Acknowledge a level-like firmware event
+ * @hw: pointer to the HW structure
+ *
+ * The caller must own the hardware mailbox lock.
+ *
+ * Return: 0 on success, negative errno on failure
+ **/
+static int mucse_ack_pending_event(struct mucse_hw *hw)
+{
+	struct mucse_mbx_info *mbx = &hw->mbx;
+	u16 fw_req;
+
+	fw_req = mucse_mbx_get_fwreq(mbx);
+	if (fw_req == hw->mbx.fw_req)
+		return 0;
+	if (!fw_req)
+		return -EIO;
+
+	/* Firmware only posts LINK_CHANGE_EVT asynchronously. It is level-like,
+	 * so leaving the link snapshot unchanged lets firmware report the
+	 * current state again if reporting stays enabled.
+	 */
+	mbx_data_wr32(mbx, MUCSE_MBX_FWPF_SHM, 0);
+	hw->mbx.fw_req = fw_req;
+	mucse_mbx_inc_pf_ack(hw);
+
+	return 0;
+}
+
+/**
  * mucse_write_mbx_pf - Place a message in the mailbox
  * @hw: pointer to the HW structure
  * @msg: the message buffer
@@ -318,6 +416,44 @@ static int mucse_write_mbx_pf(struct mucse_hw *hw, const __le32 *msg, u16 size)
 	mucse_release_mbx_lock_pf(hw, true);
 
 	return 0;
+}
+
+/**
+ * mucse_write_mbx_pf_coalesce_event - Write around a level-like event
+ * @hw: pointer to the HW structure
+ * @msg: the message buffer
+ * @size: length of buffer
+ *
+ * Return: 0 on success, negative errno on failure
+ **/
+static int mucse_write_mbx_pf_coalesce_event(struct mucse_hw *hw,
+					     const __le32 *msg, u16 size)
+{
+	const int size_in_words = size / sizeof(__le32);
+	struct mucse_mbx_info *mbx = &hw->mbx;
+	int err;
+
+	err = mucse_obtain_mbx_lock_pf(hw);
+	if (err)
+		return err;
+
+	err = mucse_ack_pending_event(hw);
+	if (err)
+		goto release;
+
+	for (int i = 0; i < size_in_words; i++)
+		mbx_data_wr32(mbx, MUCSE_MBX_FWPF_SHM + i * 4,
+			      le32_to_cpu(msg[i]));
+
+	hw->mbx.fw_ack = mucse_mbx_get_fwack(mbx);
+	mucse_mbx_inc_pf_req(hw);
+	mucse_release_mbx_lock_pf(hw, true);
+
+	return 0;
+
+release:
+	mucse_release_mbx_lock_pf(hw, false);
+	return err;
 }
 
 /**
@@ -375,6 +511,33 @@ int mucse_write_and_wait_ack_mbx(struct mucse_hw *hw, const __le32 *msg,
 	int err;
 
 	err = mucse_write_mbx_pf(hw, msg, size);
+	if (err)
+		return err;
+
+	return mucse_poll_for_ack(hw);
+}
+
+/**
+ * mucse_write_mbx_coalesce_event - Send a command while coalescing an event
+ * @hw: pointer to the HW structure
+ * @msg: the message buffer
+ * @size: length of buffer
+ *
+ * A pending link event is acknowledged without updating its snapshot, then
+ * the PF command is written while the hardware mailbox remains locked. If
+ * event reporting remains enabled, firmware reports the event again because
+ * its snapshot still differs from the hardware state. This function waits
+ * for firmware to acknowledge the PF command before returning.
+ *
+ * Return: 0 after firmware acknowledges the command, negative errno on
+ * failure
+ **/
+int mucse_write_mbx_coalesce_event(struct mucse_hw *hw,
+				   const __le32 *msg, u16 size)
+{
+	int err;
+
+	err = mucse_write_mbx_pf_coalesce_event(hw, msg, size);
 	if (err)
 		return err;
 

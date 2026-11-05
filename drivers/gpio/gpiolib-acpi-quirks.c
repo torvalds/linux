@@ -345,6 +345,36 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 	},
 	{
 		/*
+		 * GPIO 11 is the power enable of the internal USB camera.
+		 * The firmware drives it high but also lists it in _AEI with
+		 * an empty handler. Requesting it as an input turns the camera
+		 * off, so it never enumerates.
+		 * Found in BIOS V1.14
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Acer Nitro V 16S AI"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
+		},
+	},
+	{
+		/*
+		 * Same camera power enable on GPIO 11 as the Acer Nitro V 16S AI
+		 * above. It also powers the internal microphones.
+		 * Found in BIOS V1.53
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Acer Nitro 16S AI"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
+		},
+	},
+	{
+		/*
 		 * Wakeup only works when keyboard backlight is turned off
 		 * https://gitlab.freedesktop.org/drm/amd/-/issues/4169
 		 */
@@ -354,6 +384,23 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_interrupt = "AMDI0030:00@8",
+		},
+	},
+	{
+		/*
+		 * ACPI incorrectly declares GPIO 11 as an interrupt in _AEI,
+		 * although the EC uses the pin to control the Caps Lock LED.
+		 * Requesting the interrupt configures the pin as an input and
+		 * prevents the LED from working.
+		 * Found in BIOS R1QET54W (1.40).
+		 * https://lore.kernel.org/linux-gpio/CAAUQFRPW-rbcZV-=qV1NMjF_358sdJTiGvQuRxRqAsehY+J9Qg@mail.gmail.com/
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21AB"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
 		},
 	},
 	{
@@ -390,6 +437,32 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_wake = "VEN_0488:00@355",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from GPP3 PCIe bridge interrupt
+		 * Found in BIOS UX425UA.301
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZenBook UX425UA_UM425UA"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "AMDI0030:00@24",
+		},
+	},
+	{
+		/*
+		 * Lenovo IdeaPad Slim 3 15ABR8: the touchscreen wake IRQ fires as soon
+		 * as the system enters suspend, causing an immediate spurious resume.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82XM"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "GTCH7503:00@10",
 		},
 	},
 	{} /* Terminating entry */

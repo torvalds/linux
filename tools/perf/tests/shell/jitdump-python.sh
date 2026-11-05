@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 SHELLDIR=$(dirname $0)
-# shellcheck source=lib/setup_python.sh
 . "${SHELLDIR}"/lib/setup_python.sh
 
 OUTPUT=$(${PYTHON} -Xperf_jit -c 'import os, sys; print(os.getpid(), sys.is_stack_trampoline_active())' 2> /dev/null)

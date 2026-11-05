@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 include ../Makefile.deps
+include ../../../scripts/Makefile.include
 
 INSTALL	?= install
 prefix  ?= /usr
 
-CC := gcc
-CFLAGS := -Wall -Wextra -Werror -O2
+CFLAGS += -Wall -Wextra -Werror -O2
 ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
@@ -23,17 +23,15 @@ OBJS := $(patsubst %.c,$(OUTPUT)%.o,$(SRCS))
 
 YNLTOOL := $(OUTPUT)ynltool
 
-include $(wildcard *.d)
+include $(wildcard $(OUTPUT)*.d)
 
 all: $(YNLTOOL)
-
-Q = @
 
 $(YNLTOOL): ../libynl.a $(OBJS)
 	$(Q)echo -e "\tLINK $@"
 	$(Q)$(CC) $(CFLAGS) -o $@ $(OBJS) ../libynl.a -lm
 
-%.o: %.c ../libynl.a
+$(OUTPUT)%.o: %.c ../libynl.a
 	$(Q)echo -e "\tCC $@"
 	$(Q)$(COMPILE.c) -MMD -c -o $@ $<
 

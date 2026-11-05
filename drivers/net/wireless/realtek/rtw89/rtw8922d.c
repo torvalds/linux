@@ -14,12 +14,12 @@
 #include "sar.h"
 #include "util.h"
 
-#define RTW8922D_FW_FORMAT_MAX 0
+#define RTW8922D_FW_FORMAT_MAX 1
 #define RTW8922D_FW_BASENAME "rtw89/rtw8922d_fw"
 #define RTW8922D_MODULE_FIRMWARE \
 	RTW89_GEN_MODULE_FWNAME(RTW8922D_FW_BASENAME, RTW8922D_FW_FORMAT_MAX)
 
-#define RTW8922DS_FW_FORMAT_MAX 0
+#define RTW8922DS_FW_FORMAT_MAX 1
 #define RTW8922DS_FW_BASENAME "rtw89/rtw8922ds_fw"
 #define RTW8922DS_MODULE_FIRMWARE \
 	RTW89_GEN_MODULE_FWNAME(RTW8922DS_FW_BASENAME, RTW8922DS_FW_FORMAT_MAX)
@@ -271,7 +271,7 @@ static const struct rtw89_edcca_regs rtw8922d_edcca_regs = {
 		.rpt_sel_mask		= B_EDCCA_RPT_SEL_BE4_MSK,
 	}, {
 		.rpt_a			= R_EDCCA_RPT_A_BE4_C1,
-		.rpt_b			= R_EDCCA_RPT_A_BE4_C1,
+		.rpt_b			= R_EDCCA_RPT_B_BE4_C1,
 		.rpt_sel		= R_EDCCA_RPT_SEL_BE4_C1,
 		.rpt_sel_mask		= B_EDCCA_RPT_SEL_BE4_MSK,
 	}},
@@ -343,35 +343,79 @@ static const struct rtw89_efuse_block_cfg rtw8922d_efuse_blocks[] = {
 static const struct rtw89_bb_wrap_common_data rtw8922d_bb_wrap_common_data_7025 = {
 	.bands = {
 	[RFSI_CTRL_BAND_5_6GHZ] = {
-		.cim3k = {CIM3K_OFF, CIM3K_OFF, CIM3K_ENABLE, CIM3K_ENABLE},
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
 		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
 				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
 		.pb_tb = 3,
+		.qam_th = {RFSI_BPSK, RFSI_QPSK, RFSI_256QAM},
 	},
 	[RFSI_CTRL_BAND_2GHZ] = {
-		.cim3k = {CIM3K_OFF, CIM3K_OFF, CIM3K_ENABLE, CIM3K_ENABLE},
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
 		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
 				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
 		.pb_tb = 0,
+		.qam_th = {RFSI_BPSK, RFSI_QPSK, RFSI_256QAM},
 	}},
-	.qam_th = {RFSI_BPSK, RFSI_QPSK, RFSI_256QAM, RFSI_MAX, RFSI_MAX, RFSI_MAX},
 };
 
 static const struct rtw89_bb_wrap_common_data rtw8922d_bb_wrap_common_data_7090 = {
 	.bands = {
 	[RFSI_CTRL_BAND_5_6GHZ] = {
-		.cim3k = {CIM3K_OFF, CIM3K_OFF, CIM3K_DISABLE, CIM3K_ENABLE},
-		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
-				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
-		.pb_tb = 3,
-	},
-	[RFSI_CTRL_BAND_2GHZ] = {
-		.cim3k = {CIM3K_OFF, CIM3K_OFF, CIM3K_DISABLE, CIM3K_ENABLE},
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
 		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
 				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
 		.pb_tb = 0,
+		.qam_th = {RFSI_BPSK, RFSI_QPSK, RFSI_256QAM},
+	},
+	[RFSI_CTRL_BAND_2GHZ] = {
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
+		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
+				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
+		.pb_tb = 0,
+		.qam_th = {RFSI_QPSK, RFSI_16QAM, RFSI_256QAM},
 	}},
-	.qam_th = {RFSI_BPSK, RFSI_QPSK, RFSI_256QAM, RFSI_MAX, RFSI_MAX, RFSI_MAX},
+};
+
+static const struct rtw89_bb_wrap_common_data rtw8922d_bb_wrap_common_data_7090_rfe38 = {
+	.bands = {
+	[RFSI_CTRL_BAND_5_6GHZ] = {
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
+		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
+				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
+		.pb_tb = 0,
+		.qam_th = {RFSI_QPSK, RFSI_16QAM, RFSI_256QAM},
+	},
+	[RFSI_CTRL_BAND_2GHZ] = {
+		.cim3k = {CIM3K_ON, CIM3K_ON, CIM3K_ENABLE, CIM3K_ENABLE},
+		.rfsi_ct_opt = {_8nibble(2, 2, 2, 2, 1, 1, 1, 1),
+				_8nibble(2, 2, 2, 2, 1, 1, 1, 1)},
+		.pb_tb = 0,
+		.qam_th = {RFSI_QPSK, RFSI_16QAM, RFSI_256QAM},
+	}},
+};
+
+static const
+struct rtw89_bb_wrap_common_data_gen2 rtw8922d_bb_wrap_common_data_gen2_7025 = {
+	.qam_th = {
+		.mdpd_160m = RFSI_BPSK,
+		.mdpd_320m = RFSI_BPSK,
+		.oob_dpd_20m = RFSI_16QAM,
+		.oob_dpd_40m = RFSI_16QAM,
+		.oob_dpd_80m = RFSI_16QAM,
+		.cim3k = RFSI_16QAM,
+	},
+};
+
+static const
+struct rtw89_bb_wrap_common_data_gen2 rtw8922d_bb_wrap_common_data_gen2_7090 = {
+	.qam_th = {
+		.mdpd_160m = RFSI_16QAM,
+		.mdpd_320m = RFSI_16QAM,
+		.oob_dpd_20m = RFSI_16QAM,
+		.oob_dpd_40m = RFSI_16QAM,
+		.oob_dpd_80m = RFSI_16QAM,
+		.cim3k = RFSI_16QAM,
+	},
 };
 
 static const
@@ -390,6 +434,7 @@ struct rtw89_bb_wrap_common_data_gen3 rtw8922d_bb_wrap_common_data_gen3_7090 = {
 
 static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7025_default = {
 	.common = &rtw8922d_bb_wrap_common_data_7025,
+	.common_gen2 = &rtw8922d_bb_wrap_common_data_gen2_7025,
 	.common_gen3 = NULL,
 	.bands = {
 	[RFSI_CTRL_BAND_5_6GHZ] = {
@@ -417,21 +462,22 @@ static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7025_default = {
 
 static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7090_default = {
 	.common = &rtw8922d_bb_wrap_common_data_7090,
+	.common_gen2 = &rtw8922d_bb_wrap_common_data_gen2_7090,
 	.common_gen3 = &rtw8922d_bb_wrap_common_data_gen3_7090,
 	.bands = {
 	[RFSI_CTRL_BAND_5_6GHZ] = {
-		.qam_comp_th0 = {0x4000, 0x6420, 0x6520, 0x6000, 0, 0, 0, 0, 0, 0},
-		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x6400, 0x6500, 0x6000,
+		.qam_comp_th0 = {0x4000, 0x4400, 0x4500, 0, 0, 0, 0, 0, 0, 0},
+		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4500, 0,
 						  0, 0, 0, 0, 0, 0)},
-		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0x4000,
+		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0,
 						  0, 0, 0, 0, 0, 0)},
-		.qam_comp_ow = {0x4000, 0x4000, 0x4000, 0x4000, 0, 0, 0, 0, 0, 0},
+		.qam_comp_ow = {0x4000, 0x4000, 0x4000, 0, 0, 0, 0, 0, 0, 0},
 		.oob_dpd_by_cbw = {OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF,
 				   OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF},
 	},
 	[RFSI_CTRL_BAND_2GHZ] = {
 		.qam_comp_th0 = {0x4000, 0x4400, 0x4500, 0, 0, 0, 0, 0, 0, 0},
-		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4500, 0, 0,
+		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4600, 0, 0,
 						  0, 0, 0, 0, 0)},
 		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0, 0,
 						  0, 0, 0, 0, 0)},
@@ -442,23 +488,24 @@ static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7090_default = {
 	.mdpd_by_dbw = {MDPD_OFF, MDPD_OFF, MDPD_ON, MDPD_ON},
 };
 
-static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7090_rfe35_41_44 = {
-	.common = &rtw8922d_bb_wrap_common_data_7090,
+static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7090_rfe38 = {
+	.common = &rtw8922d_bb_wrap_common_data_7090_rfe38,
+	.common_gen2 = &rtw8922d_bb_wrap_common_data_gen2_7090,
 	.common_gen3 = &rtw8922d_bb_wrap_common_data_gen3_7090,
 	.bands = {
 	[RFSI_CTRL_BAND_5_6GHZ] = {
-		.qam_comp_th0 = {0x4000, 0x6420, 0x6520, 0x6000, 0, 0, 0, 0, 0, 0},
-		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x6400, 0x6500, 0x6000,
+		.qam_comp_th0 = {0x4000, 0x4400, 0x4500, 0, 0, 0, 0, 0, 0, 0},
+		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4600, 0,
 						  0, 0, 0, 0, 0, 0)},
-		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0x4000,
+		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0,
 						  0, 0, 0, 0, 0, 0)},
-		.qam_comp_ow = {0x4000, 0x4000, 0x4000, 0x4000, 0, 0, 0, 0, 0, 0},
+		.qam_comp_ow = {0x4000, 0x4000, 0x4000, 0, 0, 0, 0, 0, 0, 0},
 		.oob_dpd_by_cbw = {OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF,
 				   OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF},
 	},
 	[RFSI_CTRL_BAND_2GHZ] = {
 		.qam_comp_th0 = {0x4000, 0x4400, 0x4500, 0, 0, 0, 0, 0, 0, 0},
-		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4500, 0, 0,
+		.qam_comp_th1 = {_10qam_comp_code(0x4000, 0x4400, 0x4700, 0, 0,
 						  0, 0, 0, 0, 0)},
 		.qam_comp_th2 = {_10qam_comp_code(0x4000, 0x4400, 0x4400, 0, 0,
 						  0, 0, 0, 0, 0)},
@@ -466,7 +513,7 @@ static const struct rtw89_bb_wrap_data rtw8922d_bb_wrap_data_7090_rfe35_41_44 = 
 		.oob_dpd_by_cbw = {OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF,
 				   OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF, OOB_DPD_OFF},
 	}},
-	.mdpd_by_dbw = {MDPD_OFF, MDPD_OFF, MDPD_ON, MDPD_ON},
+	.mdpd_by_dbw = {MDPD_ON, MDPD_ON, MDPD_ON, MDPD_ON},
 };
 
 static void rtw8922d_sel_bt_rx_path(struct rtw89_dev *rtwdev, u8 val,
@@ -901,6 +948,9 @@ static int rtw8922d_read_sys(struct rtw89_dev *rtwdev, u8 *log_map)
 	u16 digk;
 	u8 vmin;
 
+	if (!test_bit(RTW89_QUIRK_THERMAL_PROT_VCORE, rtwdev->quirks))
+		return 0;
+
 	digk = log_map[0x200] | log_map[0x201] << 8;
 	hal->thermal_prot_vmax = u16_get_bits(digk, B_BE_PWMTUNE_MASK);
 
@@ -1142,24 +1192,13 @@ static int rtw8922d_data_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_bb_wrap_data *data;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	bool rfe35_41_44 = false;
 
-	switch (rtwdev->efuse.rfe_type) {
-	case 35:
-	case 41:
-	case 44:
-		rfe35_41_44 = true;
-		break;
-	}
-
-	if (hal->cid == RTL8922D_CID7025) {
+	if (hal->cid == RTL8922D_CID7025)
 		data = &rtw8922d_bb_wrap_data_7025_default;
-	} else {
-		if (rfe35_41_44)
-			data = &rtw8922d_bb_wrap_data_7090_rfe35_41_44;
-		else
-			data = &rtw8922d_bb_wrap_data_7090_default;
-	}
+	else if (rtwdev->efuse.rfe_type == 38)
+		data = &rtw8922d_bb_wrap_data_7090_rfe38;
+	else
+		data = &rtw8922d_bb_wrap_data_7090_default;
 
 	rtwdev->phy_info.bb_wrap_data = data;
 
@@ -1281,7 +1320,7 @@ static int rtw8922d_ctrl_sco_cck(struct rtw89_dev *rtwdev,
 {
 	u8 ch_element;
 
-	if (primary_ch >= 14)
+	if (primary_ch > 14 || unlikely(primary_ch == 0))
 		return -EINVAL;
 
 	ch_element = primary_ch - 1;
@@ -2432,14 +2471,15 @@ static int rtw8922d_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode 
 		rtw89_write32_mask(rtwdev, reg1, B_BBWRAP_ELMSR_EN_BE4, 0);
 	} else if (mode == MLO_0_PLUS_2_1RF) {
 		rtw89_phy_write32_mask(rtwdev, R_SYS_DBCC_BE4,
-				       B_SYS_DBCC_24G_BAND_SEL_BE4, RTW89_PHY_0);
+				       B_SYS_DBCC_24G_BAND_SEL_BE4, RTW89_PHY_1);
 		rtw89_write32_mask(rtwdev, reg0, B_BBWRAP_ELMSR_EN_BE4, 0);
 		rtw89_write32_mask(rtwdev, reg1, B_BBWRAP_ELMSR_EN_BE4, 0);
 	} else if ((mode == MLO_1_PLUS_1_1RF) || (mode == DBCC_LEGACY)) {
 		struct rtw89_entity_conf conf;
 
 		rtw89_entity_get_conf(rtwdev, &conf);
-		cck_phy_idx = conf.chans[1]->band_type == RTW89_BAND_2G ?
+		cck_phy_idx = conf.chans[0]->band_type != RTW89_BAND_2G &&
+			      conf.chans[1]->band_type == RTW89_BAND_2G ?
 			      RTW89_PHY_1 : RTW89_PHY_0;
 
 		rtw89_phy_write32_mask(rtwdev, R_SYS_DBCC_BE4,
@@ -2464,6 +2504,8 @@ static void rtw8922d_bb_sethw(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_phy_idx phy_idx;
 	u32 reg;
+
+	rtw89_fw_h2c_phy_rfe_type(rtwdev);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_BOOST, RTW89_PHY_0);
 	rtw89_write32_clr(rtwdev, reg, B_BE_PWR_CTRL_SEL);
@@ -2508,7 +2550,8 @@ static void rtw8922d_set_channel_bb(struct rtw89_dev *rtwdev,
 	u8 pri_sb = chan->pri_sb_idx;
 	u32 val;
 
-	rtw89_phy_bb_wrap_set_rfsi_ct_opt(rtwdev, chan->rfsi_band, phy_idx);
+	rtw89_phy_bb_wrap_tx_rfsi_ctrl_init_by_chan(rtwdev, chan, phy_idx);
+
 	rtw8922d_ctrl_ch(rtwdev, chan, phy_idx);
 	rtw8922d_ctrl_bw(rtwdev, pri_sb, chan->band_width, phy_idx);
 	rtw89_phy_bb_wrap_set_rfsi_bandedge_ch(rtwdev, chan, phy_idx);
@@ -2822,6 +2865,64 @@ static void __rtw8922d_txiqk_enable(struct rtw89_dev *rtwdev)
 	}
 }
 
+static void __rtw8922d_rxiqk_disable(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+	u8 path, kidx;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		kidx = rfk_mcc[path].table_idx;
+
+		if (kidx == 0) {
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX0_EN);
+		} else if (kidx == 1) {
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX1_EN);
+		} else {
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x1);
+			rtw89_phy_write32_clr(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX0_EN);
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x0);
+		}
+
+		rtw89_phy_write32(rtwdev, R_RX_IQC_A_BE4 + (path << 8), 0x40000002);
+	}
+}
+
+static void __rtw8922d_rxiqk_enable(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
+	u8 path, kidx;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		if (iqk_info->iqk_rx_fail[0][path])
+			continue;
+
+		kidx = rfk_mcc[path].table_idx;
+
+		if (kidx == 0) {
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX0_EN);
+		} else if (kidx == 1) {
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX1_EN);
+		} else {
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x1);
+			rtw89_phy_write32_set(rtwdev, R_CFIR_CTRL_A_BE4 + (path << 8),
+					      B_CFIR_CTRL_RXKIDX0_EN);
+			rtw89_phy_write32_mask(rtwdev, R_NCTL_CFG_BE4,
+					       B_NCTL_CFG_BE4_SPAGE, 0x0);
+		}
+
+		rtw89_phy_write32(rtwdev, R_RX_IQC_A_BE4 + (path << 8), 0x40000000);
+	}
+}
+
 static void rtw8922d_rfk_scan(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      bool start)
@@ -2829,9 +2930,11 @@ static void rtw8922d_rfk_scan(struct rtw89_dev *rtwdev,
 	if (start) {
 		__rtw8922d_tssi_disable(rtwdev, rtwvif_link->phy_idx);
 		__rtw8922d_txiqk_disable(rtwdev);
+		__rtw8922d_rxiqk_disable(rtwdev);
 	} else {
 		__rtw8922d_tssi_enable(rtwdev, rtwvif_link->phy_idx);
 		__rtw8922d_txiqk_enable(rtwdev);
+		__rtw8922d_rxiqk_enable(rtwdev);
 	}
 }
 
@@ -2909,61 +3012,6 @@ static void rtw8922d_set_txpwr_ref(struct rtw89_dev *rtwdev,
 				     B_BE_PWR_REF_CTRL_CCK, ref_cck);
 }
 
-static void rtw8922d_set_tx_shape(struct rtw89_dev *rtwdev,
-				  const struct rtw89_chan *chan,
-				  enum rtw89_phy_idx phy_idx)
-{
-	const struct rtw89_bb_wrap_data *d = rtwdev->phy_info.bb_wrap_data;
-	u8 band = chan->band_type;
-	u8 tx_shape_idx;
-	const u16 *th;
-
-	tx_shape_idx = rtw89_get_tx_shape_idx(rtwdev, band, RTW89_RS_OFDM);
-	if (tx_shape_idx == 0)
-		goto disable;
-
-	th = d->bands[chan->rfsi_band].qam_comp_th0;
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH0_BE4, MASKLWORD, th[0], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH0_BE4, MASKHWORD, th[1], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH1_BE4, MASKLWORD, th[2], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH1_BE4, MASKHWORD, th[3], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH2_BE4, MASKLWORD, th[4], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH2_BE4, MASKHWORD, th[5], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH3_BE4, MASKLWORD, th[6], phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH3_BE4, MASKHWORD, th[7], phy_idx);
-
-	th = d->bands[chan->rfsi_band].qam_comp_ow;
-	rtw89_write32_idx(rtwdev, R_OW_VAL_0_BE4, MASKLWORD, th[0], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_0_BE4, MASKHWORD, th[1], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_1_BE4, MASKLWORD, th[2], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_1_BE4, MASKHWORD, th[3], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_2_BE4, MASKLWORD, th[4], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_2_BE4, MASKHWORD, th[5], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_3_BE4, MASKLWORD, th[6], phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_3_BE4, MASKHWORD, th[7], phy_idx);
-
-	return;
-
-disable:
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH0_BE4, B_QAM_COMP_TH_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH0_BE4, B_QAM_COMP_TH_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH1_BE4, B_QAM_COMP_TH_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH1_BE4, B_QAM_COMP_TH_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH2_BE4, B_QAM_COMP_TH_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH2_BE4, B_QAM_COMP_TH_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH3_BE4, B_QAM_COMP_TH_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_QAM_COMP_TH3_BE4, B_QAM_COMP_TH_TRIANGULAR_H, 0, phy_idx);
-
-	rtw89_write32_idx(rtwdev, R_OW_VAL_0_BE4, B_OW_VAL_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_0_BE4, B_OW_VAL_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_1_BE4, B_OW_VAL_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_1_BE4, B_OW_VAL_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_2_BE4, B_OW_VAL_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_2_BE4, B_OW_VAL_TRIANGULAR_H, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_3_BE4, B_OW_VAL_TRIANGULAR_L, 0, phy_idx);
-	rtw89_write32_idx(rtwdev, R_OW_VAL_3_BE4, B_OW_VAL_TRIANGULAR_H, 0, phy_idx);
-}
-
 static void rtw8922d_set_txpwr_sar_diff(struct rtw89_dev *rtwdev,
 					const struct rtw89_chan *chan,
 					enum rtw89_phy_idx phy_idx)
@@ -2995,7 +3043,6 @@ static void rtw8922d_set_txpwr(struct rtw89_dev *rtwdev,
 {
 	rtw89_phy_set_txpwr_byrate(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_offset(rtwdev, chan, phy_idx);
-	rtw8922d_set_tx_shape(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
 	rtw8922d_set_txpwr_ref(rtwdev, chan, phy_idx);
@@ -3258,7 +3305,7 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 		if (is_bt_share) { /* WL-S0 + (WL-S1 & BT0-S1) */
 			md->ant.type = BTC_ANT_SHARED;
 			md->bt0_pos = BTC_BT_BTG;
-			md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+			md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
 			dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 		} else { /* WL-S0 + BT0-S1 */
 			md->ant.type = BTC_ANT_DEDICATED;
@@ -3289,7 +3336,6 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 			md->bt0_pos = BTC_BT_BTG;
 			md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
 			dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
-			dm->wl_trx_nss_en = 1; /* 1ss MIMO-PS capability */
 		} else {
 			md->ant.func[0] = BTC_EFMAP_NONE;
 			md->ant.func[1] = BTC_EFMAP_NONE;
@@ -3665,7 +3711,7 @@ static const struct rtw89_chip_ops rtw8922d_chip_ops = {
 	.h2c_punctured_cmac_tbl	= rtw89_fw_h2c_punctured_cmac_tbl_be,
 	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v3,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
-	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
+	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_g7,
 	.h2c_wow_cam_update	= rtw89_fw_h2c_wow_cam_update_v1,
 
 	.btc_set_rfe		= rtw8922d_btc_set_rfe,
@@ -3760,7 +3806,7 @@ const struct rtw89_chip_info rtw8922d_chip_info = {
 	.scam_num		= 32,
 	.bacam_num		= 24,
 	.bacam_dynamic_num	= 8,
-	.bacam_ver		= RTW89_BACAM_V1,
+	.bacam_ver		= RTW89_BACAM_G7,
 	.addrcam_ver		= 1,
 	.ppdu_max_usr		= 16,
 	.sec_ctrl_efuse_size	= 4,

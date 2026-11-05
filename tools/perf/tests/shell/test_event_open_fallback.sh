@@ -57,8 +57,6 @@ ret=0
 test_decrease_precise_ip		|| ret=$? ; count_result $ret ; ret=0
 test_decrease_precise_ip_complicated	|| ret=$? ; count_result $ret ; ret=0
 
-cleanup
-
 if [ ${err_cnt} -gt 0 ] ; then
 	exit 1
 fi

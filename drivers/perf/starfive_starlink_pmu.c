@@ -51,7 +51,7 @@
 
 #define STARLINK_FORMAT_ATTR(_name, _config)				      \
 	(&((struct dev_ext_attribute[]) {				      \
-		{ .attr = __ATTR(_name, 0444, starlink_pmu_sysfs_format_show, NULL), \
+		{ .attr = __DEVICE_ATTR(_name, 0444, starlink_pmu_sysfs_format_show, NULL), \
 		  .var = (void *)_config, }				      \
 	})[0].attr.attr)
 

@@ -362,7 +362,7 @@ enum regulator_type {
  * @off_on_delay: guard time (in uS), before re-enabling a regulator
  *
  * @poll_enabled_time: The polling interval (in uS) to use while checking that
- *                     the regulator was actually enabled. Max upto enable_time.
+ *                     the regulator was actually enabled. Max up to enable_time.
  *
  * @of_map_mode: Maps a hardware mode defined in a DeviceTree to a standard mode
  */

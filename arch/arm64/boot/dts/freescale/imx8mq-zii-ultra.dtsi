@@ -99,7 +99,7 @@
 		regulator-max-microvolt = <1000000>;
 		gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 		states = <1000000 0x1
-		           900000 0x0>;
+			   900000 0x0>;
 		regulator-always-on;
 	};
 
@@ -295,7 +295,7 @@
 		reg = <0x32>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <17 IRQ_TYPE_EDGE_BOTH>,
-		             <18 IRQ_TYPE_EDGE_FALLING>;
+			     <18 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-names = "a_det", "alert";
 	};
 
@@ -549,9 +549,9 @@
 	pinctrl-0 = <&pinctrl_pcie0>;
 	reset-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
 	clocks = <&clk IMX8MQ_CLK_PCIE1_ROOT>,
-	         <&pcie0_refclk>,
-	         <&clk IMX8MQ_CLK_PCIE1_PHY>,
-	         <&clk IMX8MQ_CLK_PCIE1_AUX>;
+		 <&pcie0_refclk>,
+		 <&clk IMX8MQ_CLK_PCIE1_PHY>,
+		 <&clk IMX8MQ_CLK_PCIE1_AUX>;
 	vph-supply = <&vgen5_reg>;
 	status = "okay";
 };
@@ -561,9 +561,9 @@
 	pinctrl-0 = <&pinctrl_pcie1>;
 	reset-gpio = <&gpio1 6 GPIO_ACTIVE_LOW>;
 	clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
-	         <&pcie1_refclk>,
-	         <&clk IMX8MQ_CLK_PCIE2_PHY>,
-	         <&clk IMX8MQ_CLK_PCIE2_AUX>;
+		 <&pcie1_refclk>,
+		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
+		 <&clk IMX8MQ_CLK_PCIE2_AUX>;
 	vph-supply = <&vgen5_reg>;
 	status = "okay";
 };

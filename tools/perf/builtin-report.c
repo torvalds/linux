@@ -51,6 +51,7 @@
 #include "util/units.h"
 #include "util/unwind.h"
 #include "util/util.h" // perf_tip()
+#include "ui/keysyms.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
 #include "util/block-info.h"
@@ -82,10 +83,12 @@ struct report {
 #ifdef HAVE_SLANG_SUPPORT
 	bool			use_tui;
 #endif
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	bool			use_gtk;
 #endif
 	bool			use_stdio;
+	bool			progress;
+	bool			progress_set;
 	bool			show_full_info;
 	bool			show_threads;
 	bool			inverted_callchain;
@@ -1113,6 +1116,23 @@ static int __cmd_report(struct report *rep)
 	evlist__for_each_entry(session->evlist, pos)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
+	if (symbol_conf.hybrid_merge) {
+		struct perf_env *env = perf_session__env(session);
+
+		if (evlist__can_merge_hybrid(session->evlist, env)) {
+			evlist__merge_hybrid(session->evlist, env);
+			evlist__merge_hists_hybrid(session->evlist, false);
+		} else if (symbol_conf.hybrid_merge_set) {
+			/*
+			 * Only an explicit --hybrid-merge warns. A
+			 * core.hybrid-merge default is silent, as most
+			 * machines aren't hybrid and there is nothing the
+			 * user needs to do about it.
+			 */
+			ui__warning("--hybrid-merge: no events to merge across core PMUs\n");
+		}
+	}
+
 	if (use_browser == 0) {
 		if (verbose > 3)
 			perf_session__fprintf(session, stdout);
@@ -1359,11 +1379,15 @@ int cmd_report(int argc, const char **argv)
 #ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "tui", &report.use_tui, "Use the TUI interface"),
 #endif
-#ifdef HAVE_GTK2_SUPPORT
-	OPT_BOOLEAN(0, "gtk", &report.use_gtk, "Use the GTK2 interface"),
+#ifdef HAVE_GTK4_SUPPORT
+	OPT_BOOLEAN(0, "gtk", &report.use_gtk, "Use the GTK4 interface"),
 #endif
 	OPT_BOOLEAN(0, "stdio", &report.use_stdio,
 		    "Use the stdio interface"),
+	OPT_BOOLEAN(0, "weights", &symbol_conf.annotate_weight,
+			"Show or hide weight columns in annotation. Default show if non-zero."),
+	OPT_BOOLEAN_SET(0, "progress", &report.progress, &report.progress_set,
+			"Show progress while processing the perf.data file"),
 	OPT_BOOLEAN(0, "header", &report.header, "Show data header."),
 	OPT_BOOLEAN(0, "header-only", &report.header_only,
 		    "Show only data header."),
@@ -1446,6 +1470,9 @@ int cmd_report(int argc, const char **argv)
 		    parse_branch_mode),
 	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
 		    "add last branch records to call history"),
+	OPT_BOOLEAN_SET(0, "hybrid-merge", &symbol_conf.hybrid_merge,
+			&symbol_conf.hybrid_merge_set,
+			"merge the same event across hybrid core PMUs"),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_STRING(0, "addr2line", &addr2line_path, "path",
@@ -1525,6 +1552,7 @@ int cmd_report(int argc, const char **argv)
 	 * reference exited threads.
 	 */
 	symbol_conf.keep_exited_threads = true;
+	symbol_conf.annotate_weight = true;
 
 	annotation_options__init();
 
@@ -1542,6 +1570,17 @@ int cmd_report(int argc, const char **argv)
 			usage_with_options(report_usage, options);
 
 		report.symbol_filter_str = argv[0];
+	}
+
+	if (symbol_conf.report_hierarchy && symbol_conf.hybrid_merge) {
+		if (symbol_conf.hybrid_merge_set) {
+			pr_err("Error: --hierarchy and --hybrid-merge are mutually exclusive.\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* A config file default shouldn't fail an explicit option. */
+		pr_warning("core.hybrid-merge ignored: --hierarchy cannot display merged hybrid events\n");
+		symbol_conf.hybrid_merge = false;
 	}
 
 	if (disassembler_style) {
@@ -1710,7 +1749,7 @@ repeat:
 	else if (report.use_tui)
 		use_browser = 1;
 #endif
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	else if (report.use_gtk)
 		use_browser = 2;
 #endif
@@ -1754,6 +1793,11 @@ repeat:
 		setup_browser(true);
 	else
 		use_browser = 0;
+
+	if (report.progress_set && !report.progress)
+		ui_progress__noop_init();
+	else if (report.progress && !quiet && use_browser == 0)
+		stdio_progress__init();
 
 	if (report.data_type && use_browser == 1) {
 		symbol_conf.annotate_data_member = true;

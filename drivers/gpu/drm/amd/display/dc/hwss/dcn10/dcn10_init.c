@@ -27,6 +27,7 @@
 #include "dce110/dce110_hwseq.h"
 #include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
+#include "dc/hwss/dce/dce_hwseq.h"
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
@@ -38,6 +39,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.post_unlock_program_front_end = dcn10_post_unlock_program_front_end,
 	.wait_for_pending_cleared = dcn10_wait_for_pending_cleared,
 	.update_plane_addr = dcn10_update_plane_addr,
+	.prepare_plane_addr_update = dcn10_prepare_plane_addr_update,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.clear_surface_dcc_and_tiling = dcn10_reset_surface_dcc_and_tiling,
@@ -54,7 +56,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn10_disable_plane,
-	.pipe_control_lock = dcn10_pipe_control_lock,
+	.build_pipe_control_lock_sequence = dce_build_pipe_control_lock_sequence,
+	.tg_lock = dcn10_tg_lock,
 	.cursor_lock = dcn10_cursor_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.prepare_bandwidth = dcn10_prepare_bandwidth,
@@ -91,6 +94,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 };
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {
+	.build_cursor_pos_update_params = dcn10_build_cursor_pos_update_params,
 	.init_pipes = dcn10_init_pipes,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.program_pipe = dcn10_program_pipe,

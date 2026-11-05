@@ -1124,6 +1124,34 @@ xfs_dir2_sf_replace(
 	return 0;
 }
 
+static inline void
+xfs_dir2_sf_copy_entries(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_sf_hdr	*sfp,
+	struct xfs_dir2_sf_hdr	*oldsfp)
+{
+	int			i;
+	struct xfs_dir2_sf_entry *sfep;		/* new sf entry */
+	struct xfs_dir2_sf_entry *oldsfep;	/* old sf entry */
+
+	/*
+	 * Copy the entries field by field.
+	 */
+	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp),
+		    oldsfep = xfs_dir2_sf_firstentry(oldsfp);
+	     i < sfp->count;
+	     i++, sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep),
+		  oldsfep = xfs_dir2_sf_nextentry(mp, oldsfp, oldsfep)) {
+		sfep->namelen = oldsfep->namelen;
+		memcpy(sfep->offset, oldsfep->offset, sizeof(sfep->offset));
+		memcpy(sfep->name, oldsfep->name, sfep->namelen);
+		xfs_dir2_sf_put_ino(mp, sfp, sfep,
+				xfs_dir2_sf_get_ino(mp, oldsfp, oldsfep));
+		xfs_dir2_sf_put_ftype(mp, sfep,
+				xfs_dir2_sf_get_ftype(mp, oldsfep));
+	}
+}
+
 /*
  * Convert from 8-byte inode numbers to 4-byte inode numbers.
  * The last 8-byte inode number is gone, but the count is still 1.
@@ -1136,11 +1164,8 @@ xfs_dir2_sf_toino4(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_dir2_sf_hdr	*oldsfp = dp->i_df.if_data;
 	char			*buf;		/* old dir's buffer */
-	int			i;		/* entry index */
 	int			newsize;	/* new inode size */
-	xfs_dir2_sf_entry_t	*oldsfep;	/* old sf entry */
 	int			oldsize;	/* old inode size */
-	xfs_dir2_sf_entry_t	*sfep;		/* new sf entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* new sf directory */
 
 	trace_xfs_dir2_sf_toino4(args);
@@ -1171,22 +1196,7 @@ xfs_dir2_sf_toino4(
 	sfp->count = oldsfp->count;
 	sfp->i8count = 0;
 	xfs_dir2_sf_put_parent_ino(sfp, xfs_dir2_sf_get_parent_ino(oldsfp));
-	/*
-	 * Copy the entries field by field.
-	 */
-	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp),
-		    oldsfep = xfs_dir2_sf_firstentry(oldsfp);
-	     i < sfp->count;
-	     i++, sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep),
-		  oldsfep = xfs_dir2_sf_nextentry(mp, oldsfp, oldsfep)) {
-		sfep->namelen = oldsfep->namelen;
-		memcpy(sfep->offset, oldsfep->offset, sizeof(sfep->offset));
-		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		xfs_dir2_sf_put_ino(mp, sfp, sfep,
-				xfs_dir2_sf_get_ino(mp, oldsfp, oldsfep));
-		xfs_dir2_sf_put_ftype(mp, sfep,
-				xfs_dir2_sf_get_ftype(mp, oldsfep));
-	}
+	xfs_dir2_sf_copy_entries(mp, sfp, oldsfp);
 	/*
 	 * Clean up the inode.
 	 */
@@ -1208,11 +1218,8 @@ xfs_dir2_sf_toino8(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_dir2_sf_hdr	*oldsfp = dp->i_df.if_data;
 	char			*buf;		/* old dir's buffer */
-	int			i;		/* entry index */
 	int			newsize;	/* new inode size */
-	xfs_dir2_sf_entry_t	*oldsfep;	/* old sf entry */
 	int			oldsize;	/* old inode size */
-	xfs_dir2_sf_entry_t	*sfep;		/* new sf entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* new sf directory */
 
 	trace_xfs_dir2_sf_toino8(args);
@@ -1243,22 +1250,7 @@ xfs_dir2_sf_toino8(
 	sfp->count = oldsfp->count;
 	sfp->i8count = 1;
 	xfs_dir2_sf_put_parent_ino(sfp, xfs_dir2_sf_get_parent_ino(oldsfp));
-	/*
-	 * Copy the entries field by field.
-	 */
-	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp),
-		    oldsfep = xfs_dir2_sf_firstentry(oldsfp);
-	     i < sfp->count;
-	     i++, sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep),
-		  oldsfep = xfs_dir2_sf_nextentry(mp, oldsfp, oldsfep)) {
-		sfep->namelen = oldsfep->namelen;
-		memcpy(sfep->offset, oldsfep->offset, sizeof(sfep->offset));
-		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		xfs_dir2_sf_put_ino(mp, sfp, sfep,
-				xfs_dir2_sf_get_ino(mp, oldsfp, oldsfep));
-		xfs_dir2_sf_put_ftype(mp, sfep,
-				xfs_dir2_sf_get_ftype(mp, oldsfep));
-	}
+	xfs_dir2_sf_copy_entries(mp, sfp, oldsfp);
 	/*
 	 * Clean up the inode.
 	 */

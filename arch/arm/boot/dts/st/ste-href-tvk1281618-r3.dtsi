@@ -83,7 +83,7 @@
 				st,drdy-int-pin = <1>;
 				reg = <0x19>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				interrupt-parent = <&gpio2>;
 				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
 					     <19 IRQ_TYPE_EDGE_RISING>;
@@ -97,7 +97,7 @@
 				compatible = "st,lsm303dlm-magn";
 				reg = <0x1e>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				// This interrupt is not properly working with the driver
 				// interrupt-parent = <&gpio1>;
 				// interrupts = <0 IRQ_TYPE_EDGE_RISING>;
@@ -109,14 +109,14 @@
 				compatible = "st,l3g4200d-gyro";
 				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 			};
 			pressure@5c {
 				/* Barometer/pressure sensor */
 				compatible = "st,lps001wp-press";
 				reg = <0x5c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 			};
 		};
 
@@ -139,7 +139,7 @@
 				interrupt-parent = <&gpio2>;
 				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
 				vcpin-supply = <&ab8500_ldo_aux1_reg>;
-				vdd-supply = <&db8500_vsmps2_reg>;
+				vdd-supply = <&buck_vio18>;
 				reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
 				touchscreen-size-x = <480>;
 				touchscreen-size-y = <854>;

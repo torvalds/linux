@@ -281,7 +281,6 @@ exit:
 			    count, allocated);
 	return allocated;
 }
-EXPORT_SYMBOL(otx2_alloc_mcam_entries);
 
 int otx2_mcam_entry_init(struct otx2_nic *pfvf)
 {
@@ -420,7 +419,6 @@ int otx2_mcam_entry_init(struct otx2_nic *pfvf)
 	refcount_set(&flow_cfg->mark_flows, 1);
 	return 0;
 }
-EXPORT_SYMBOL(otx2_mcam_entry_init);
 
 /* TODO : revisit on size */
 #define OTX2_DMAC_FLTR_BITMAP_SZ (4 * 2048 + 32)
@@ -654,7 +652,6 @@ int otx2_get_maxflows(struct otx2_flow_config *flow_cfg)
 	else
 		return flow_cfg->max_flows;
 }
-EXPORT_SYMBOL(otx2_get_maxflows);
 
 int otx2_get_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 		  u32 location)

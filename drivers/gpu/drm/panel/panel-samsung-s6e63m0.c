@@ -720,19 +720,9 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 	if (ret < 0)
 		return ret;
 
-	drm_panel_add(&ctx->panel);
-
-	return 0;
+	return devm_drm_panel_add(dev, &ctx->panel);
 }
 EXPORT_SYMBOL_GPL(s6e63m0_probe);
-
-void s6e63m0_remove(struct device *dev)
-{
-	struct s6e63m0 *ctx = dev_get_drvdata(dev);
-
-	drm_panel_remove(&ctx->panel);
-}
-EXPORT_SYMBOL_GPL(s6e63m0_remove);
 
 MODULE_AUTHOR("Paweł Chmiel <pawel.mikolaj.chmiel@gmail.com>");
 MODULE_DESCRIPTION("s6e63m0 LCD Driver");

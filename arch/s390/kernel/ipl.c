@@ -188,9 +188,9 @@ static inline int __diag308(unsigned long subcode, unsigned long addr)
 	r1.even = addr;
 	r1.odd	= 0;
 	asm_inline volatile(
-		"	diag	%[r1],%[subcode],0x308\n"
-		"0:	nopr	%%r7\n"
-		EX_TABLE(0b,0b)
+		"0:	diag	%[r1],%[subcode],0x308\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: [r1] "+&d" (r1.pair)
 		: [subcode] "d" (subcode)
 		: "cc", "memory");

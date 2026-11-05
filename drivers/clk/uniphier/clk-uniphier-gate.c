@@ -61,8 +61,8 @@ struct clk_hw *uniphier_clk_register_gate(struct device *dev,
 					  const char *name,
 				const struct uniphier_clk_gate_data *data)
 {
+	struct clk_init_data init = {};
 	struct uniphier_clk_gate *gate;
-	struct clk_init_data init;
 	int ret;
 
 	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);

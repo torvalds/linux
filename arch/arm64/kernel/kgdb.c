@@ -60,11 +60,7 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	 * 32-bits. Look for the big comment in asm/kgdb.h for more
 	 * detail.
 	 */
-	{ "pstate", 4, offsetof(struct pt_regs, pstate)
-#ifdef CONFIG_CPU_BIG_ENDIAN
-							+ 4
-#endif
-	},
+	{ "pstate", 4, offsetof(struct pt_regs, pstate)},
 	{ "v0", 16, -1 },
 	{ "v1", 16, -1 },
 	{ "v2", 16, -1 },

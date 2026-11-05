@@ -10,9 +10,27 @@
 
 #include <drm/gpu_scheduler.h>
 
-struct xe_exec_queue;
 struct dma_fence;
 struct dma_fence_chain;
+
+struct xe_exec_queue;
+struct xe_cpu_bind_pt_update_ops;
+struct xe_pt_job_ops;
+struct xe_tile;
+struct xe_vm;
+
+/**
+ * struct xe_pt_update_args - PT update arguments
+ */
+struct xe_pt_update_args {
+	/** @vm: VM which is being bound */
+	struct xe_vm *vm;
+	/** @ops: CPU bind PT update ops */
+	const struct xe_cpu_bind_pt_update_ops *ops;
+#define XE_PT_UPDATE_JOB_OPS_COUNT	2
+	/** @pt_job_ops: PT job ops state */
+	struct xe_pt_job_ops *pt_job_ops[XE_PT_UPDATE_JOB_OPS_COUNT];
+};
 
 /**
  * struct xe_job_ptrs - Per hw engine instance data
@@ -29,6 +47,23 @@ struct xe_job_ptrs {
 	 * job was submitted
 	 */
 	u32 head;
+};
+
+/**
+ * enum xe_ulls_state - ULLS state of a migration job
+ *
+ * Describes where a job sits in a ULLS (Ultra Low Latency Submission)
+ * sequence. See the ULLS documentation in xe_migrate.c.
+ */
+enum xe_ulls_state {
+	/** @ULLS_NONE: Not a ULLS job */
+	ULLS_NONE = 0,
+	/** @ULLS_ENTER: Job which enters ULLS mode */
+	ULLS_ENTER,
+	/** @ULLS_ACTIVE: Job submitted while in ULLS mode */
+	ULLS_ACTIVE,
+	/** @ULLS_EXIT: Job which exits ULLS mode */
+	ULLS_EXIT,
 };
 
 /**
@@ -61,6 +96,8 @@ struct xe_sched_job {
 	u32 migrate_flush_flags;
 	/** @sample_timestamp: Sampling of job timestamp in TDR */
 	u64 sample_timestamp;
+	/** @ulls: ULLS state of this job */
+	enum xe_ulls_state ulls;
 	/** @ring_ops_flush_tlb: The ring ops need to flush TLB before payload. */
 	bool ring_ops_flush_tlb;
 	/** @ring_ops_force_reset: The ring ops need to trigger a reset before payload. */
@@ -71,8 +108,14 @@ struct xe_sched_job {
 	bool restore_replay;
 	/** @last_replay: last job being replayed */
 	bool last_replay;
-	/** @ptrs: per instance pointers. */
-	struct xe_job_ptrs ptrs[];
+	/** @is_pt_job: is a PT job */
+	bool is_pt_job;
+	union {
+		/** @ptrs: per instance pointers. */
+		DECLARE_FLEX_ARRAY(struct xe_job_ptrs, ptrs);
+		/** @pt_update: PT update arguments */
+		DECLARE_FLEX_ARRAY(struct xe_pt_update_args, pt_update);
+	};
 };
 
 struct xe_sched_job_snapshot {

@@ -41,14 +41,6 @@ ifeq ($(CONFIG_PXA_SHARPSL_DETECT_MACH_ID),y)
 OBJS		+= head-sharpsl.o
 endif
 
-ifeq ($(CONFIG_CPU_ENDIAN_BE32),y)
-ifeq ($(CONFIG_CPU_CP15),y)
-OBJS		+= big-endian.o
-else
-# The endian should be set by h/w design.
-endif
-endif
-
 #
 # We now have a PIC decompressor implementation.  Decompressors running
 # from RAM should not define ZTEXTADDR.  Decompressors running directly
@@ -153,7 +145,7 @@ $(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/$(HEAD) $(obj)/piggy.o \
 	@$(check_for_bad_syms)
 
 $(obj)/piggy_data: $(obj)/../Image FORCE
-	$(call if_changed,$(compress-y))
+	+$(call if_changed,$(compress-y))
 
 $(obj)/piggy.o: $(obj)/piggy_data
 

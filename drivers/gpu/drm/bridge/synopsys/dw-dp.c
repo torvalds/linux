@@ -2079,10 +2079,8 @@ struct dw_dp *dw_dp_bind(struct device *dev, struct drm_encoder *encoder,
 
 	ret = devm_request_threaded_irq(dev, dp->irq, NULL, dw_dp_irq,
 					IRQF_ONESHOT, dev_name(dev), dp);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to request irq\n");
+	if (ret)
 		goto unregister_aux;
-	}
 
 	return dp;
 

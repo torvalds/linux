@@ -1,0 +1,23 @@
+What:		/sys/kernel/debug/iio/iio:deviceX/frequency_source
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only. Reports the channel label that is read from the
+		<dir>_<type>[Y]_label attribute, which corresponds to the on-chip
+		signal generator that is currently driving the output frequency.
+
+What:		/sys/kernel/debug/iio/iio:deviceX/phase_source
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only. Reports the channel label that is read from the
+		<dir>_<type>[Y]_label attribute, which corresponds to the on-chip
+		signal generator that is currently driving the output phase.
+
+What:		/sys/kernel/debug/iio/iio:deviceX/amplitude_source
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only. Reports the channel label that is read from the
+		<dir>_<type>[Y]_label attribute, which corresponds to the on-chip
+		signal generator that is currently driving the output amplitude.

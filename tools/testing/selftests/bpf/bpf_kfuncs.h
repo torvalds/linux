@@ -78,18 +78,29 @@ extern void bpf_key_put(struct bpf_key *key) __ksym;
 extern int bpf_verify_pkcs7_signature(const struct bpf_dynptr *data_ptr,
 				      const struct bpf_dynptr *sig_ptr,
 				      struct bpf_key *trusted_keyring) __ksym;
-
-struct dentry;
-/* Description
+/*
+ * Description
  *  Returns xattr of a dentry
  * Returns
  *  Error code
  */
+struct dentry;
 extern int bpf_get_dentry_xattr(struct dentry *dentry, const char *name,
 			      struct bpf_dynptr *value_ptr) __ksym __weak;
-
 extern int bpf_set_dentry_xattr(struct dentry *dentry, const char *name__str,
 				const struct bpf_dynptr *value_p, int flags) __ksym __weak;
 extern int bpf_remove_dentry_xattr(struct dentry *dentry, const char *name__str) __ksym __weak;
 
+/*
+ * Description
+ *  Attach a xattr to an inode that is being created, from a program on the
+ *  inode_init_security LSM hook. *xattrs* and *xattr_count* must be the
+ *  hook's own arguments, passed through unmodified.
+ * Returns
+ *  0 on success, a negative value on error
+ */
+struct xattr;
+extern int bpf_inode_init_xattr(struct xattr *xattrs, int *xattr_count,
+				const char *name__str,
+				const struct bpf_dynptr *value_p) __ksym __weak;
 #endif

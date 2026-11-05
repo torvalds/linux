@@ -623,7 +623,7 @@ Under ``/sys/devices/system/edac/pci`` are control and attribute files as
 follows:
 
 
-- ``check_pci_parity`` - Enable/Disable PCI Parity checking control file
+- ``check_pci_errors`` - Enable/Disable PCI Parity checking control file
 
 	This control file enables or disables the PCI Bus Parity scanning
 	operation. Writing a 1 to this file enables the scanning. Writing
@@ -631,11 +631,11 @@ follows:
 
 	Enable::
 
-		echo "1" >/sys/devices/system/edac/pci/check_pci_parity
+		echo "1" >/sys/devices/system/edac/pci/check_pci_errors
 
 	Disable::
 
-		echo "0" >/sys/devices/system/edac/pci/check_pci_parity
+		echo "0" >/sys/devices/system/edac/pci/check_pci_errors
 
 
 - ``pci_parity_count`` - Parity Count
@@ -725,15 +725,15 @@ Module parameters
 
 	module/kernel parameter::
 
-			edac_panic_on_pci_pe=[0|1]
+			edac_pci_panic_on_pe=[0|1]
 
 	Enable::
 
-		echo "1" > /sys/module/edac_core/parameters/edac_panic_on_pci_pe
+		echo "1" > /sys/module/edac_core/parameters/edac_pci_panic_on_pe
 
 	Disable::
 
-		echo "0" > /sys/module/edac_core/parameters/edac_panic_on_pci_pe
+		echo "0" > /sys/module/edac_core/parameters/edac_pci_panic_on_pe
 
 
 

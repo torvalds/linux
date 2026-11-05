@@ -62,7 +62,7 @@ enum kuart_mode {
 struct kuart {
 	struct keba_uart_auxdev *auxdev;
 	void __iomem *base;
-	unsigned int line;
+	struct uart_8250_port *uport;
 
 	unsigned int flags;
 	u8 capability;
@@ -174,7 +174,6 @@ static int kuart_probe(struct auxiliary_device *auxdev,
 	struct uart_8250_port uart = {};
 	struct resource res;
 	struct kuart *kuart;
-	int retval;
 
 	kuart = devm_kzalloc(dev, sizeof(*kuart), GFP_KERNEL);
 	if (!kuart)
@@ -250,12 +249,10 @@ static int kuart_probe(struct auxiliary_device *auxdev,
 		}
 	}
 
-	retval = serial8250_register_8250_port(&uart);
-	if (retval < 0)
-		return dev_err_probe(&auxdev->dev, retval,
+	kuart->uport = serial8250_register_8250_port(&uart);
+	if (IS_ERR(kuart->uport))
+		return dev_err_probe(&auxdev->dev, PTR_ERR(kuart->uport),
 				     "UART registration failed!\n");
-	kuart->line = retval;
-
 	return 0;
 }
 
@@ -266,7 +263,7 @@ static void kuart_remove(struct auxiliary_device *auxdev)
 	if (kuart->flags & KUART_USE_CAPABILITY)
 		kuart_set_phy_mode(kuart, KUART_MODE_NONE);
 
-	serial8250_unregister_port(kuart->line);
+	serial8250_unregister_port(kuart->uport);
 }
 
 static const struct auxiliary_device_id kuart_devtype_aux[] = {

@@ -9,7 +9,7 @@
 #include "runtime.h"
 #include "dbg.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "iwl-fh.h"
@@ -47,8 +47,8 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 		u32 rd_cmd = RADIO_RSP_RD_CMD;
 
 		rd_cmd |= i << RADIO_RSP_ADDR_POS;
-		iwl_trans_write_prph(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
-		*pos = (u8)iwl_trans_read_prph(fwrt->trans, RSP_RADIO_RDDAT);
+		iwl_trans_write_prph_no_grab(fwrt->trans, RSP_RADIO_CMD, rd_cmd);
+		*pos = (u8)iwl_trans_read_prph_no_grab(fwrt->trans, RSP_RADIO_RDDAT);
 
 		pos++;
 	}
@@ -81,35 +81,35 @@ static void iwl_fwrt_dump_rxf(struct iwl_fw_runtime *fwrt,
 
 	fifo_hdr->fifo_num = cpu_to_le32(fifo_num);
 	fifo_hdr->available_bytes =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						RXF_RD_D_SPACE + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							RXF_RD_D_SPACE + offset));
 	fifo_hdr->wr_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						RXF_RD_WR_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							RXF_RD_WR_PTR + offset));
 	fifo_hdr->rd_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						RXF_RD_RD_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							RXF_RD_RD_PTR + offset));
 	fifo_hdr->fence_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						RXF_RD_FENCE_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							RXF_RD_FENCE_PTR + offset));
 	fifo_hdr->fence_mode =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						RXF_SET_FENCE_MODE + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							RXF_SET_FENCE_MODE + offset));
 
 	/* Lock fence */
-	iwl_trans_write_prph(fwrt->trans, RXF_SET_FENCE_MODE + offset, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offset, 0x1);
 	/* Set fence pointer to the same place like WR pointer */
-	iwl_trans_write_prph(fwrt->trans, RXF_LD_WR2FENCE + offset, 0x1);
+	iwl_trans_write_prph_no_grab(fwrt->trans, RXF_LD_WR2FENCE + offset, 0x1);
 	/* Set fence offset */
-	iwl_trans_write_prph(fwrt->trans,
-			     RXF_LD_FENCE_OFFSET_ADDR + offset, 0x0);
+	iwl_trans_write_prph_no_grab(fwrt->trans,
+				     RXF_LD_FENCE_OFFSET_ADDR + offset, 0x0);
 
 	/* Read FIFO */
 	fifo_len /= sizeof(u32); /* Size in DWORDS */
 	for (i = 0; i < fifo_len; i++)
-		fifo_data[i] = iwl_trans_read_prph(fwrt->trans,
-						 RXF_FIFO_RD_FENCE_INC +
-						 offset);
+		fifo_data[i] = iwl_trans_read_prph_no_grab(fwrt->trans,
+							   RXF_FIFO_RD_FENCE_INC +
+							   offset);
 	*dump_data = iwl_fw_error_next_data(*dump_data);
 }
 
@@ -136,33 +136,33 @@ static void iwl_fwrt_dump_txf(struct iwl_fw_runtime *fwrt,
 
 	fifo_hdr->fifo_num = cpu_to_le32(fifo_num);
 	fifo_hdr->available_bytes =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						TXF_FIFO_ITEM_CNT + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							TXF_FIFO_ITEM_CNT + offset));
 	fifo_hdr->wr_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						TXF_WR_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							TXF_WR_PTR + offset));
 	fifo_hdr->rd_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						TXF_RD_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							TXF_RD_PTR + offset));
 	fifo_hdr->fence_ptr =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						TXF_FENCE_PTR + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							TXF_FENCE_PTR + offset));
 	fifo_hdr->fence_mode =
-		cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-						TXF_LOCK_FENCE + offset));
+		cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+							TXF_LOCK_FENCE + offset));
 
 	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-	iwl_trans_write_prph(fwrt->trans, TXF_READ_MODIFY_ADDR + offset,
-			     TXF_WR_PTR + offset);
+	iwl_trans_write_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_ADDR + offset,
+				     TXF_WR_PTR + offset);
 
 	/* Dummy-read to advance the read pointer to the head */
-	iwl_trans_read_prph(fwrt->trans, TXF_READ_MODIFY_DATA + offset);
+	iwl_trans_read_prph_no_grab(fwrt->trans, TXF_READ_MODIFY_DATA + offset);
 
 	/* Read FIFO */
 	for (i = 0; i < fifo_len / sizeof(u32); i++)
-		fifo_data[i] = iwl_trans_read_prph(fwrt->trans,
-						  TXF_READ_MODIFY_DATA +
-						  offset);
+		fifo_data[i] = iwl_trans_read_prph_no_grab(fwrt->trans,
+							   TXF_READ_MODIFY_DATA +
+							   offset);
 
 	if (fwrt->sanitize_ops && fwrt->sanitize_ops->frob_txf)
 		fwrt->sanitize_ops->frob_txf(fwrt->sanitize_ctx,
@@ -217,7 +217,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 		/* Pull TXF data from LMAC1 */
 		for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(fwrt->trans, TXF_LARC_NUM, i);
+			iwl_trans_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM, i);
 			iwl_fwrt_dump_txf(fwrt, dump_data,
 					  cfg->lmac[0].txfifo_size[i], 0, i);
 		}
@@ -227,9 +227,9 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 			for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries;
 			     i++) {
 				/* Mark the number of TXF we're pulling now */
-				iwl_trans_write_prph(fwrt->trans,
-						     TXF_LARC_NUM +
-						     LMAC2_PRPH_OFFSET, i);
+				iwl_trans_write_prph_no_grab(fwrt->trans,
+							     TXF_LARC_NUM +
+							     LMAC2_PRPH_OFFSET, i);
 				iwl_fwrt_dump_txf(fwrt, dump_data,
 						  cfg->lmac[1].txfifo_size[i],
 						  LMAC2_PRPH_OFFSET,
@@ -262,40 +262,40 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 			fifo_hdr->fifo_num = cpu_to_le32(i);
 
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(fwrt->trans, TXF_CPU2_NUM, i +
-				fwrt->smem_cfg.num_txfifo_entries);
+			iwl_trans_write_prph_no_grab(fwrt->trans, TXF_CPU2_NUM, i +
+						     fwrt->smem_cfg.num_txfifo_entries);
 
 			fifo_hdr->available_bytes =
-				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								TXF_CPU2_FIFO_ITEM_CNT));
+				cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									TXF_CPU2_FIFO_ITEM_CNT));
 			fifo_hdr->wr_ptr =
-				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								TXF_CPU2_WR_PTR));
+				cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									TXF_CPU2_WR_PTR));
 			fifo_hdr->rd_ptr =
-				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								TXF_CPU2_RD_PTR));
+				cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									TXF_CPU2_RD_PTR));
 			fifo_hdr->fence_ptr =
-				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								TXF_CPU2_FENCE_PTR));
+				cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									TXF_CPU2_FENCE_PTR));
 			fifo_hdr->fence_mode =
-				cpu_to_le32(iwl_trans_read_prph(fwrt->trans,
-								TXF_CPU2_LOCK_FENCE));
+				cpu_to_le32(iwl_trans_read_prph_no_grab(fwrt->trans,
+									TXF_CPU2_LOCK_FENCE));
 
 			/* Set TXF_CPU2_READ_MODIFY_ADDR to TXF_CPU2_WR_PTR */
-			iwl_trans_write_prph(fwrt->trans,
-					     TXF_CPU2_READ_MODIFY_ADDR,
-					     TXF_CPU2_WR_PTR);
+			iwl_trans_write_prph_no_grab(fwrt->trans,
+						     TXF_CPU2_READ_MODIFY_ADDR,
+						     TXF_CPU2_WR_PTR);
 
 			/* Dummy-read to advance the read pointer to head */
-			iwl_trans_read_prph(fwrt->trans,
-					    TXF_CPU2_READ_MODIFY_DATA);
+			iwl_trans_read_prph_no_grab(fwrt->trans,
+						    TXF_CPU2_READ_MODIFY_DATA);
 
 			/* Read FIFO */
 			fifo_len /= sizeof(u32); /* Size in DWORDS */
 			for (j = 0; j < fifo_len; j++)
 				fifo_data[j] =
-					iwl_trans_read_prph(fwrt->trans,
-							    TXF_CPU2_READ_MODIFY_DATA);
+					iwl_trans_read_prph_no_grab(fwrt->trans,
+								    TXF_CPU2_READ_MODIFY_DATA);
 			*dump_data = iwl_fw_error_next_data(*dump_data);
 		}
 	}
@@ -514,7 +514,7 @@ static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
 	u32 i;
 
 	for (i = 0; i < len_bytes; i += 4)
-		*data++ = cpu_to_le32(iwl_trans_read_prph(trans, start + i));
+		*data++ = cpu_to_le32(iwl_trans_read_prph_no_grab(trans, start + i));
 }
 
 static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,

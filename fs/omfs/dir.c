@@ -279,13 +279,13 @@ out_free_inode:
 	return err;
 }
 
-static struct dentry *omfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *omfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
 	return ERR_PTR(omfs_add_node(dir, dentry, mode));
 }
 
-static int omfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int omfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFREG);
@@ -370,7 +370,7 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 	return true;
 }
 
-static int omfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+static int omfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		       struct dentry *old_dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, unsigned int flags)
 {

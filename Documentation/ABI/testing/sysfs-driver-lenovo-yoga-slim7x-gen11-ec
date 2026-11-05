@@ -1,0 +1,22 @@
+What:		/sys/bus/i2c/devices/*/fn_lock
+Date:		October 2026
+KernelVersion:	7.5
+Contact:	Oleg Keri <okerixx@gmail.com>
+Description:
+		Control fn-lock mode.
+
+			* 1 -> Switched On
+			* 0 -> Switched Off
+
+		When switched on, the function keys act as F1..F12 and the
+		multimedia functions require the Fn modifier.
+
+		The embedded controller reports the Fn+Esc key as an event but
+		keeps no state of its own, so this attribute is the state: the
+		driver toggles it when the key is pressed, and writing it takes
+		effect immediately. A toggle from the key is signalled with
+		sysfs_notify(), so the attribute can be polled.
+
+		For example::
+
+		  # echo "0" > /sys/bus/i2c/devices/9-0070/fn_lock

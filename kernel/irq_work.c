@@ -252,10 +252,7 @@ static void irq_work_run_list(struct llist_head *list)
 		irq_work_single(work);
 }
 
-/*
- * hotplug calls this through:
- *  hotplug_cfd() -> flush_smp_call_function_queue()
- */
+/* CPU hotplug calls this through smpcfd_dying_cpu() */
 void irq_work_run(void)
 {
 	irq_work_run_list(this_cpu_ptr(&raised_list));
@@ -265,6 +262,17 @@ void irq_work_run(void)
 		wake_irq_workd();
 }
 EXPORT_SYMBOL_GPL(irq_work_run);
+
+void irq_work_run_cpu(unsigned int cpu)
+{
+	if (WARN_ON_ONCE(!cpumask_test_cpu(cpu, cpu_dying_mask)))
+		return;
+
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		return;
+
+	irq_work_run_list(per_cpu_ptr(&lazy_list, cpu));
+}
 
 void irq_work_tick(void)
 {

@@ -218,9 +218,6 @@ static int dcb_ets_check(struct net_device *dev, struct ieee_ets *ets)
 		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
 			ets_exists = true;
 			sum += ets->tc_tx_bw[i];
-		} else if (ets->tc_tx_bw[i]) {
-			nfp_warn(app->cpp, "ETS BW for strict/vendor TC must be 0.");
-			return -EINVAL;
 		}
 	}
 

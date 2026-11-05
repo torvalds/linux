@@ -392,6 +392,71 @@ const struct kobj_type xfs_stats_ktype = {
 	.default_groups = xfs_stats_groups,
 };
 
+static inline struct xfs_mount *csum_to_mp(struct kobject *kobj)
+{
+	return container_of(to_kobj(kobj), struct xfs_mount, m_csum_kobj);
+}
+
+static bool
+xfs_has_read_bounce(
+	struct xfs_mount	*mp)
+{
+	if (bdev_has_integrity_csum(mp->m_ddev_targp->bt_bdev))
+		return true;
+	if (mp->m_rtdev_targp &&
+	    bdev_has_integrity_csum(mp->m_rtdev_targp->bt_bdev))
+		return true;
+	return false;
+}
+
+static const char * const bounce_modes[] = {
+	[XFS_READ_BOUNCE_NEVER]		= "never",
+	[XFS_READ_BOUNCE_ALWAYS]	= "always",
+	[XFS_READ_BOUNCE_LAZY]		= "lazy",
+};
+
+static ssize_t
+read_bounce_show(
+	struct kobject		*kobj,
+	char			*buf)
+{
+	struct xfs_mount	*mp = csum_to_mp(kobj);
+
+	return sysfs_emit(buf, "%s\n",
+			bounce_modes[READ_ONCE(mp->m_read_bounce)]);
+}
+
+static ssize_t
+read_bounce_store(
+	struct kobject		*kobj,
+	const char		*buf,
+	size_t			count)
+{
+	struct xfs_mount	*mp = csum_to_mp(kobj);
+	int			ret;
+
+	if (!xfs_has_read_bounce(mp))
+		return -EINVAL;
+	ret = sysfs_match_string(bounce_modes, buf);
+	if (ret < 0)
+		return ret;
+	WRITE_ONCE(mp->m_read_bounce, ret);
+	return count;
+}
+XFS_SYSFS_ATTR_RW(read_bounce);
+
+static struct attribute *xfs_csum_attrs[] = {
+	ATTR_LIST(read_bounce),
+	NULL,
+};
+ATTRIBUTE_GROUPS(xfs_csum);
+
+static const struct kobj_type xfs_csum_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_groups = xfs_csum_groups,
+};
+
 /* xlog */
 
 static inline struct xlog *
@@ -817,11 +882,17 @@ xfs_mount_sysfs_init(
 	if (error)
 		goto out_remove_fsdir;
 
+	/* .../xfs/<dev>/csum/ */
+	error = xfs_sysfs_init(&mp->m_csum_kobj, &xfs_csum_ktype, &mp->m_kobj,
+			"csum");
+	if (error)
+		goto out_remove_stats_dir;
+
 	/* .../xfs/<dev>/error/ */
 	error = xfs_sysfs_init(&mp->m_error_kobj, &xfs_error_ktype,
 				&mp->m_kobj, "error");
 	if (error)
-		goto out_remove_stats_dir;
+		goto out_remove_csum_dir;
 
 	/* .../xfs/<dev>/error/fail_at_unmount */
 	error = sysfs_create_file(&mp->m_error_kobj.kobject,
@@ -835,12 +906,14 @@ xfs_mount_sysfs_init(
 				"metadata", &mp->m_error_meta_kobj,
 				xfs_error_meta_init);
 	if (error)
-		goto out_remove_error_dir;
+		goto out_remove_csum_dir;
 
 	return 0;
 
 out_remove_error_dir:
 	xfs_sysfs_del(&mp->m_error_kobj);
+out_remove_csum_dir:
+	xfs_sysfs_del(&mp->m_csum_kobj);
 out_remove_stats_dir:
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 out_remove_fsdir:
@@ -864,6 +937,7 @@ xfs_mount_sysfs_del(
 	}
 	xfs_sysfs_del(&mp->m_error_meta_kobj);
 	xfs_sysfs_del(&mp->m_error_kobj);
+	xfs_sysfs_del(&mp->m_csum_kobj);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
 }

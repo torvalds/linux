@@ -263,7 +263,7 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 			might_sleep();
 			cleared = nvdimm_clear_poison(&ndns->dev,
 					nsio->res.start + offset, size);
-			if (cleared < size)
+			if (cleared < 0 || cleared < size)
 				rc = -EIO;
 			if (cleared > 0 && cleared / 512) {
 				cleared /= 512;

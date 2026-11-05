@@ -53,6 +53,13 @@ enum psp_gfx_crtl_cmd_id
     GFX_CTRL_CMD_ID_MAX             = 0x000F0000,   /* max command ID */
 };
 
+typedef enum
+{
+    GFX_CTRL_ADDR_TYPE_AUTO_DETECT = 0,
+    GFX_CTRL_ADDR_TYPE_SYS_PHY_ADDR,
+    GFX_CTRL_ADDR_TYPE_GPU_PHY_ADDR,
+    GFX_CTRL_ADDR_TYPE_GPU_VIRT_ADDR
+}  GFX_CTRL_ADDR_TYPE;
 
 /*-----------------------------------------------------------------------------
     NOTE:   All physical addresses used in this interface are actually
@@ -110,6 +117,13 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_PERF_HW            = 0x0000004C,   /* performance monitor */
     GFX_CMD_ID_FB_FW_RESERV_ADDR  = 0x00000050,  /* Query FW reservation addr */
     GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR = 0x00000051,  /* Query FW reservation extended addr */
+    GFX_CMD_ID_UAL_GET_INTERFACE_VER = 0x00000053,  /* Get UAL interface version */
+    GFX_CMD_ID_UAL_GET_CONFIG        = 0x00000054,  /* Get UAL full config */
+    GFX_CMD_ID_UAL_SET_PPOD_CONFIG   = 0x00000055,  /* Set UAL config */
+    GFX_CMD_ID_UAL_SET_VPOD_CONFIG   = 0x00000056,  /* Set UAL vPod config */
+    GFX_CMD_ID_UAL_SET_STATION_CONFIG= 0x00000057,  /* Set UAL Station config */
+    GFX_CMD_ID_UAL_SET_NPA_CONFIG    = 0x00000059,  /* Set UAL NPA config and VMID */
+    GFX_CMD_ID_UAL_SEND_COMPLETION   = 0x0000005A,  /* Ack from driver after UAL config completion */
     GFX_CMD_ID_SET_MMHUB_ECO_SEC_LEVEL = 0x0000005D,  /* Set MMHUB ECO sec lvls on VCN block */
 };
 
@@ -308,6 +322,11 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_VPE                             = 102,
 	GFX_FW_TYPE_JPEG_RAM                        = 128,  /**< JPEG Command buffer */
 	GFX_FW_TYPE_P2S_TABLE                       = 129,
+	GFX_FW_TYPE_RS64_MEC_P4_STACK               = 133,  /* RS64 MEC stack P4                */
+	GFX_FW_TYPE_RS64_MEC_P5_STACK               = 134,  /* RS64 MEC stack P5                */
+	GFX_FW_TYPE_RS64_MEC_P6_STACK               = 135,  /* RS64 MEC stack P6                */
+	GFX_FW_TYPE_RS64_MEC_P7_STACK               = 136,  /* RS64 MEC stack P7                */
+	GFX_FW_TYPE_MP5                             = 158,  /* MP5 ucode    */
 	GFX_FW_TYPE_MAX
 };
 
@@ -382,6 +401,136 @@ struct psp_gfx_cmd_req_perf_hw {
 	uint32_t pref_format2;
 };
 
+#define PSP_GFX_MAX_LOCAL_GPUS_UAL_V1   16       /* max gpu per local node */
+#define PSP_GFX_UAL_MAX_STATIONS_V1     64       /* max UALink stations */
+#define PSP_GFX_UAL_MAX_ACC_BIT_MASK    32       /* max accelerator bit mask 32*32 */
+
+/* Interrupt category identifiers (upper byte) - ASP interrupts to Driver */
+
+/* Commands from ASP */
+#define PSP_GFX_INT_CTXT_UAL_CAT_CMD 0x01000000
+/* Mask for Command bits */
+#define PSP_GFX_INT_CTXT_UAL_CAT_CMD_MASK 0x000000FF
+/* Notifications from ASP */
+#define PSP_GFX_INT_CTXT_UAL_CAT_NOTIFY 0x02000000
+/* Mask for category bits */
+#define PSP_GFX_INT_CTXT_UAL_CAT_MASK 0xFF000000
+
+#define PSP_GFX_INT_CTXT_UAL_CMD_CFG_UPDATE_ID 0x00000001
+#define PSP_GFX_INT_CTXT_UAL_CMD_PAUSE_ID 0x00000002
+#define PSP_GFX_INT_CTXT_UAL_CMD_RESUME_ID 0x00000003
+
+/* Command interrupts from ASP (GIM must execute action) */
+#define PSP_GFX_INT_CTXT_UAL_CMD_CFG_UPDATE \
+	(PSP_GFX_INT_CTXT_UAL_CAT_CMD | PSP_GFX_INT_CTXT_UAL_CMD_CFG_UPDATE_ID)
+
+#define PSP_GFX_INT_CTXT_UAL_CMD_PAUSE \
+	(PSP_GFX_INT_CTXT_UAL_CAT_CMD | PSP_GFX_INT_CTXT_UAL_CMD_PAUSE_ID)
+
+#define PSP_GFX_INT_CTXT_UAL_CMD_RESUME \
+	(PSP_GFX_INT_CTXT_UAL_CAT_CMD | PSP_GFX_INT_CTXT_UAL_CMD_RESUME_ID)
+
+enum psp_gfx_ual_npa_address_mode {
+	PSP_GFX_UAL_NPA_ADDRESS_MODE_SOURCE_ALIASING = 0,
+	PSP_GFX_UAL_NPA_ADDRESS_MODE_SOURCE_IDENTIFICATION = 1,
+	PSP_GFX_UAL_NPA_ADDRESS_MODE_MAX
+};
+
+enum psp_gfx_ual_ports_per_station
+{
+    PSP_GFX_UAL_PPS_1 = 1,    // 1x 800Gbps
+    PSP_GFX_UAL_PPS_2 = 2,    // 2x 400Gbps
+    PSP_GFX_UAL_PPS_4 = 4     // 4x 200Gbps
+};
+
+enum psp_gfx_ual_link_type
+{
+    PSP_GFX_UALOE = 0,
+    PSP_GFX_UALLINK = 1,
+    PSP_GFX_UALMAX
+};
+
+enum psp_gfx_ual_config_state
+{
+	UAL_CFG_IDLE        = 0,
+	UAL_CFG_PPOD        = 1,
+	UAL_CFG_VPOD        = 2,
+	UAL_CFG_PAUSE       = 3,
+	UAL_CFG_STATION     = 4,
+	UAL_CFG_COMPLETE    = 5,
+	UAL_CFG_INVALID     = 0xFF
+};
+
+struct psp_gfx_cmd_set_ppod_config_ual_v1
+{
+    uint32_t accelerator_id;     // Accelerator ID
+    uint8_t  ppod_id[16];        // Physical Pod ID
+    uint32_t ppod_size;          // number of gpu in physical pod
+    uint32_t bandwidth;          // Bandwidth
+    uint32_t latency;            // Latency
+    uint32_t local_accelerators[PSP_GFX_MAX_LOCAL_GPUS_UAL_V1]; // local accelerator list, sorted in socket-id order
+};
+
+struct psp_gfx_cmd_set_vpod_config_ual_v1
+{
+    uint32_t vpod_id;                       // vPod ID
+    uint32_t vpod_size;                     // number of gpu in virtual pod
+    uint32_t vpod_active_accelerators[PSP_GFX_UAL_MAX_ACC_BIT_MASK];  // accelerator ID list in each vPOD
+    enum psp_gfx_ual_npa_address_mode addr_mode; // NPA Addressing Mode
+};
+
+struct psp_gfx_cmd_station_config_ual_v1
+{
+    /* Number of valid stations in this configuration
+     * Only lane_en_bitmap[0..n_stations-1] will be processed.
+     */
+    uint8_t num_stations;
+    /* Station configuration flags
+     *
+     * Bit [3:0]: PortPerStation (PPS) - 1, 2, or 4
+     * Bit [7:4]: Reserved
+     */
+    uint8_t station_flag;
+    uint8_t reserved[2]; /* Future use / alignment padding */
+    /* Bitmap of enabled lanes for each station
+     * in logical station order.
+     */
+    uint8_t lane_en_bitmap[PSP_GFX_UAL_MAX_STATIONS_V1];
+};
+
+struct psp_gfx_cmd_get_config_ual_v1
+{
+    uint32_t ual_cfg_addr_hi;               // UAL Config Buffer Address Hi
+    uint32_t ual_cfg_addr_lo;               // UAL Config Buffer Address Lo
+    uint32_t ual_cfg_size;                  // UAL Config Buffer Size
+    GFX_CTRL_ADDR_TYPE addr_type;    // Buffer Address Type
+};
+
+struct psp_gfx_get_config_ual_v1 {
+    enum psp_gfx_ual_link_type link_type;
+    uint32_t accelerator_id;
+    uint8_t ppod_id[16];
+    uint32_t ppod_size;
+    uint32_t bandwidth;
+    uint32_t latency;
+    uint32_t vpod_id;
+    uint32_t vpod_size;
+    uint32_t vpod_active_accelerators[PSP_GFX_UAL_MAX_ACC_BIT_MASK];
+    enum psp_gfx_ual_npa_address_mode addr_mode;
+    enum psp_gfx_ual_config_state config_state;
+};
+
+struct psp_gfx_cmd_send_completion_ual_v1
+{
+    uint32_t cmd_id;
+    uint32_t status;
+};
+
+struct psp_gfx_cmd_set_npa_config_ual_v1 {
+    uint32_t vmid;
+    uint32_t enable_npa_translation;
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -399,6 +548,12 @@ union psp_gfx_commands
     struct psp_gfx_cmd_config_sq_perfmon config_sq_perfmon;
     struct psp_gfx_cmd_fb_memory_part cmd_memory_part;
     struct psp_gfx_cmd_req_perf_hw     cmd_req_perf_hw;
+    struct psp_gfx_cmd_get_config_ual_v1    cmd_get_config_ual;
+    struct psp_gfx_cmd_set_ppod_config_ual_v1 cmd_set_ppod_config_ual;
+    struct psp_gfx_cmd_set_vpod_config_ual_v1 cmd_set_vpod_config_ual;
+    struct psp_gfx_cmd_station_config_ual_v1  cmd_set_station_config_ual;
+    struct psp_gfx_cmd_send_completion_ual_v1 cmd_send_completion_ual;
+    struct psp_gfx_cmd_set_npa_config_ual_v1  cmd_set_npa_config_ual;
 };
 
 struct psp_gfx_uresp_reserved
@@ -432,6 +587,16 @@ struct psp_gfx_uresp_perf_hw {
 	uint32_t pref_format2;
 };
 
+struct psp_gfx_uresp_get_intf_ver_ual
+{
+    uint32_t intf_ver; /* [31:16] major version, [15:0] minor version */
+};
+
+struct psp_gfx_uresp_get_config_ual_v1
+{
+    uint32_t resp_size;
+};
+
 /* Union of command-specific responses for GPCOM ring. */
 union psp_gfx_uresp {
 	struct psp_gfx_uresp_reserved		reserved;
@@ -439,6 +604,8 @@ union psp_gfx_uresp {
 	struct psp_gfx_uresp_fwar_db_info	fwar_db_info;
 	struct psp_gfx_uresp_fw_reserve_info	fw_reserve_info;
 	struct psp_gfx_uresp_perf_hw		perf_hw_info;
+	struct psp_gfx_uresp_get_config_ual_v1  get_config_ual;
+	struct psp_gfx_uresp_get_intf_ver_ual   get_intf_ver_ual;
 };
 
 /* Structure of GFX Response buffer.

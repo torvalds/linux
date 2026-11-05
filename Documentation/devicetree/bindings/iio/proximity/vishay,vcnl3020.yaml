@@ -57,8 +57,8 @@ examples:
         #size-cells = <0>;
 
         proximity@13 {
-              compatible = "vishay,vcnl3020";
-              reg = <0x13>;
-              vishay,led-current-microamp = <200000>;
+            compatible = "vishay,vcnl3020";
+            reg = <0x13>;
+            vishay,led-current-microamp = <200000>;
         };
     };

@@ -14,7 +14,7 @@ $(obj)/linux.bin.ub: $(obj)/linux.bin FORCE
 	$(call if_changed,uimage)
 
 $(obj)/linux.bin.gz: $(obj)/linux.bin FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 quiet_cmd_strip = STRIP   $< $@$2
 	cmd_strip = $(STRIP) -K microblaze_start -K _end -K __log_buf \

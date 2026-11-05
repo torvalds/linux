@@ -26,6 +26,7 @@
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_ras_mgr.h"
 #include "amdgpu_ras_eeprom_i2c.h"
+#include "ras.h"
 #include "eeprom.h"
 
 /* These are memory addresses as would be seen by one or more EEPROM
@@ -61,11 +62,46 @@
 
 #define EEPROM_OFFSET_SIZE 2
 
-static int ras_eeprom_i2c_config(struct ras_core_context *ras_core)
+/* typical ras bad page rate is 1 bad page per 100MB VRAM */
+#define ESTIMATE_BAD_PAGE_THRESHOLD(size) div64_u64(size, 100ULL * SZ_1M)
+
+#define COUNT_BAD_PAGE_THRESHOLD(size) (((size) >> 21) << 4)
+
+/* Reserve 8 physical dram row for possible retirement.
+ * In worst cases, it will lose 8 * 2MB memory in vram domain
+ */
+#define RAS_RESERVED_VRAM_SIZE_DEFAULT	(16ULL << 20)
+
+#define RAS_PAGES_TO_EEPROM_RECORDS(pages, ratio)  div64_u64(pages, ratio)
+
+#define BAD_PAGE_NUM_PER_EEPROM_RECORD_V13  16
+#define BAD_PAGE_NUM_PER_EEPROM_RECORD_V15  128
+
+static u64 ras_eeprom_reserved_vram_size(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	/* Set by amdgpu_ras_init_reserved_vram_size(); 0 means that path
+	 * does not cover this ASIC.
+	 */
+	if (con && con->reserved_pages_in_bytes)
+		return con->reserved_pages_in_bytes;
+
+	return RAS_RESERVED_VRAM_SIZE_DEFAULT;
+}
+
+static int ras_eeprom_i2c_config(struct ras_core_context *ras_core,
+		struct ras_eeprom_param_config *cfg)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
-	struct ras_eeprom_control *control = &ras_core->ras_eeprom;
+	struct ras_module_param mod_param = {0};
+	u64 badpages, badpages_per_record = 0;
 	u8 i2c_addr;
+	u32 ip_version;
+	int badpage_threshold = 0;
+	int ret;
+
+	ip_version = amdgpu_ip_version(adev, MP1_HWIP, 0);
 
 	if (adev->bios && amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
 		/* The address given by VBIOS is an 8-bit, wire-format
@@ -77,28 +113,100 @@ static int ras_eeprom_i2c_config(struct ras_core_context *ras_core)
 		 * amdgpu_eeprom.c.
 		 */
 		i2c_addr = (i2c_addr & 0x0F) >> 1;
-		control->i2c_address = ((u32) i2c_addr) << 16;
-		return 0;
+		cfg->eeprom_i2c_addr = ((u32) i2c_addr) << 16;
+	} else {
+		switch (ip_version) {
+		case IP_VERSION(13, 0, 5):
+		case IP_VERSION(13, 0, 6):
+		case IP_VERSION(13, 0, 10):
+		case IP_VERSION(13, 0, 12):
+		case IP_VERSION(13, 0, 14):
+		case IP_VERSION(13, 0, 15):
+			cfg->eeprom_i2c_addr = EEPROM_I2C_MADDR_4;
+			badpages_per_record = BAD_PAGE_NUM_PER_EEPROM_RECORD_V13;
+			break;
+		case IP_VERSION(15, 0, 8):
+			cfg->eeprom_i2c_addr = EEPROM_I2C_MADDR_4;
+			badpages_per_record = BAD_PAGE_NUM_PER_EEPROM_RECORD_V15;
+			break;
+		default:
+			RAS_DEV_ERR(adev, "IP version(0x%x) is not supported!\n", ip_version);
+			return -ENODATA;
+		}
 	}
 
-	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-	case IP_VERSION(13, 0, 5):
-	case IP_VERSION(13, 0, 6):
-	case IP_VERSION(13, 0, 10):
-	case IP_VERSION(13, 0, 12):
-	case IP_VERSION(13, 0, 14):
-		control->i2c_address = EEPROM_I2C_MADDR_4;
-		return 0;
-	default:
-		return -ENODATA;
+	if (!badpages_per_record || !cfg->eeprom_i2c_addr) {
+		RAS_DEV_ERR(adev, "EEPROM parameters are not configured!\n");
+		return -EINVAL;
 	}
-	return -ENODATA;
+
+	cfg->eeprom_ip_version = ip_version;
+
+	cfg->eeprom_i2c_adapter = adev->pm.ras_eeprom_i2c_bus;
+	if (cfg->eeprom_i2c_adapter) {
+		const struct i2c_adapter_quirks *quirks =
+			((struct i2c_adapter *)cfg->eeprom_i2c_adapter)->quirks;
+
+		if (quirks) {
+			cfg->max_i2c_read_len = quirks->max_read_len;
+			cfg->max_i2c_write_len = quirks->max_write_len;
+		}
+	}
+
+	ret = ras_core_get_module_param(ras_core, &mod_param);
+	if (ret) {
+		RAS_DEV_ERR(adev, "Failed to get module option parameter.\n");
+		return ret;
+	}
+
+	badpage_threshold = mod_param.ras_bad_page_threshold;
+
+	/*
+	 * badpage_threshold is used to config
+	 * the threshold for the number of bad pages.
+	 * -1:  Threshold is set to default value
+	 *      Driver will issue a warning message when threshold is reached
+	 *      and continue runtime services.
+	 * 0:   Disable bad page retirement
+	 *      Driver will not retire bad pages
+	 *      which is intended for debugging purpose.
+	 * -2:  Threshold is determined by a formula
+	 *      that assumes 1 bad page per 100M of local memory.
+	 *      Driver will continue runtime services when threhold is reached.
+	 * 0 < threshold < max number of bad page records in EEPROM,
+	 *      A user-defined threshold is set
+	 *      Driver will halt runtime services when this custom threshold is reached.
+	 */
+	if (badpage_threshold == NONSTOP_OVER_THRESHOLD) {
+		cfg->work_mode_over_thresh = RAS_WORK_MODE_OVER_THRESH_NORMAL;
+		badpages = ESTIMATE_BAD_PAGE_THRESHOLD(adev->gmc.mc_vram_size);
+	} else if (badpage_threshold == WARN_NONSTOP_OVER_THRESHOLD) {
+		cfg->work_mode_over_thresh = RAS_WORK_MODE_OVER_THRESH_STRICT;
+		badpages = COUNT_BAD_PAGE_THRESHOLD(ras_eeprom_reserved_vram_size(adev));
+	} else if (!badpage_threshold) {
+		cfg->work_mode_over_thresh = RAS_WORK_MODE_OVER_THRESH_DEBUG;
+		badpages = 128;
+	} else if (badpage_threshold > 0) {
+		cfg->work_mode_over_thresh = RAS_WORK_MODE_OVER_THRESH_RMA;
+		badpages = badpage_threshold;
+	} else {
+		RAS_DEV_ERR(adev, "Invalid badpage_threshold value(%d)\n",
+			badpage_threshold);
+		return -EINVAL;
+	}
+
+	/* Convert bad page count to record count as the threshold value */
+	cfg->eeprom_record_threshold_count =
+		RAS_PAGES_TO_EEPROM_RECORDS(badpages, badpages_per_record);
+
+	return 0;
 }
 
 static int ras_eeprom_i2c_xfer(struct ras_core_context *ras_core, u32 eeprom_addr,
 				u8 *eeprom_buf, u32 buf_size, bool read)
 {
-	struct i2c_adapter *i2c_adap = ras_core->ras_eeprom.i2c_adapter;
+	struct ras_eeprom_control *control = ras_core->eeprom_mgr.ras_eeprom;
+	struct i2c_adapter *i2c_adap = control->i2c_adapter;
 	u8 eeprom_offset_buf[EEPROM_OFFSET_SIZE];
 	struct i2c_msg msgs[] = {
 		{
@@ -178,5 +286,5 @@ static int ras_eeprom_i2c_xfer(struct ras_core_context *ras_core, u32 eeprom_add
 
 const struct ras_eeprom_sys_func amdgpu_ras_eeprom_i2c_sys_func = {
 	.eeprom_i2c_xfer = ras_eeprom_i2c_xfer,
-	.update_eeprom_i2c_config = ras_eeprom_i2c_config,
+	.get_eeprom_config = ras_eeprom_i2c_config,
 };

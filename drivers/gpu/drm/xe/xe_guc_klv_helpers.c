@@ -372,6 +372,84 @@ int xe_guc_klv_parser(const u32 *klvs, u32 num_dwords, void *obj,
 	return total;
 }
 
+/**
+ * xe_guc_klv_decode_u16() - Decode u16 data from KLV.
+ * @value: array of dwords
+ * @len: number of dwords in @value
+ * @data: pointer where to store the data
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_guc_klv_decode_u16(const u32 *value, u16 len, u16 *data)
+{
+	u32 tmp;
+	int err;
+
+	err = xe_guc_klv_decode_u32(value, len, &tmp);
+	if (err)
+		return err;
+	if (upper_16_bits(tmp))
+		return -EOVERFLOW;
+	*data = lower_16_bits(tmp);
+	return 0;
+}
+
+/**
+ * xe_guc_klv_decode_u32() - Decode u32 data from KLV.
+ * @value: array of dwords
+ * @len: number of dwords in @value
+ * @data: pointer where to store the data
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_guc_klv_decode_u32(const u32 *value, u16 len, u32 *data)
+{
+	if (len < to_num_dwords(sizeof(u32)))
+		return -ENODATA;
+	if (len > to_num_dwords(sizeof(u32)))
+		return -ENOMSG;
+	*data = *value;
+	return 0;
+}
+
+/**
+ * xe_guc_klv_decode_u64() - Decode u64 data from KLV.
+ * @value: array of dwords
+ * @len: number of dwords in @value
+ * @data: pointer where to store the data
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_guc_klv_decode_u64(const u32 *value, u16 len, u64 *data)
+{
+	if (len < to_num_dwords(sizeof(u64)))
+		return -ENODATA;
+	if (len != to_num_dwords(sizeof(u64)))
+		return -ENOMSG;
+	*data = make_u64(value[1], value[0]);
+	return 0;
+}
+
+/**
+ * xe_guc_klv_decode_string() - Decode string data from KLV.
+ * @value: array of dwords
+ * @len: number of dwords in @value
+ * @data: pointer where to store the data
+ *
+ * Note: caller must use kfree() to release decoded string.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_guc_klv_decode_string(const u32 *value, u16 len, char **data)
+{
+	const char *src = (const void *)value;
+
+	if (!len)
+		return -ENOMSG;
+	*data = kstrndup(src, to_num_bytes(len), GFP_KERNEL);
+	return *data ? 0 : -ENOMEM;
+}
+
 #if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)
 #include "tests/xe_guc_klv_helpers_kunit.c"
 #endif

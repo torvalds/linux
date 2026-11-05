@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/debugfs.h>
+#include <linux/error-injection.h>
 #include <linux/fault-inject.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -17,6 +18,9 @@ static struct {
 static bool should_fail_net_realloc_skb(struct sk_buff *skb)
 {
 	struct net_device *net = skb->dev;
+
+	if (!net)
+		return false;
 
 	if (skb_realloc.filtered &&
 	    strncmp(net->name, skb_realloc.devname, IFNAMSIZ))

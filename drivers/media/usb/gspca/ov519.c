@@ -13,7 +13,7 @@
  * Copyright (c) 1999-2006 Mark W. McClelland
  * Support for OV519, OV8610 Copyright (c) 2003 Joerg Heckenbach
  * Many improvements by Bret Wallach <bwallac1@san.rr.com>
- * Color fixes by by Orion Sky Lawlor <olawlor@acm.org> (2/26/2000)
+ * Color fixes by Orion Sky Lawlor <olawlor@acm.org> (2/26/2000)
  * OV7620 fixes by Charl P. Botha <cpbotha@ieee.org>
  * Changes by Claudio Matsuoka <claudio@conectiva.com>
  *

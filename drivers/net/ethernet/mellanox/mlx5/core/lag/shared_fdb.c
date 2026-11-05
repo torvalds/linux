@@ -35,8 +35,7 @@ bool mlx5_lag_shared_fdb_supported_filter(struct mlx5_lag *ldev, u32 filter)
 
 	if (is_mdev_switchdev_mode(dev0) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev0->priv.eswitch) &&
-	    mlx5_esw_offloads_devcom_is_ready(dev0->priv.eswitch) &&
-	    MLX5_CAP_ESW(dev0, esw_shared_ingress_acl))
+	    mlx5_esw_offloads_devcom_is_ready(dev0->priv.eswitch))
 		ret = true;
 
 	return ret;

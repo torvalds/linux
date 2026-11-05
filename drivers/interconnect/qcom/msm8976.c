@@ -454,7 +454,8 @@ static struct qcom_icc_node mas_oxili = {
 	.qos.qos_mode = NOC_QOS_MODE_BYPASS,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
-	.qos.qos_port = 16, /* [16, 17] */
+	.qos.qos_port = 16,
+	.qos.aux_qos_port = 17,
 	.num_links = ARRAY_SIZE(mas_oxili_links),
 	.links = mas_oxili_links,
 };

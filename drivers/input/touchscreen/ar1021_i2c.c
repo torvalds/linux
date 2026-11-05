@@ -111,7 +111,6 @@ static int ar1021_i2c_probe(struct i2c_client *client)
 
 	input->name = "ar1021 I2C Touchscreen";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
 	input->open = ar1021_i2c_open;
 	input->close = ar1021_i2c_close;
 

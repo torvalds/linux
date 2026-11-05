@@ -185,7 +185,7 @@ static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 
 			raw_desc = &buf_pool->raw_desc16[i];
 			dma_addr = GET_VAL(DATAADDR, le64_to_cpu(raw_desc->m1));
-			dma_unmap_single(dev, dma_addr, XGENE_ENET_MAX_MTU,
+			dma_unmap_single(dev, dma_addr, XGENE_ENET_STD_MTU,
 					 DMA_FROM_DEVICE);
 		}
 	}

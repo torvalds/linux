@@ -2465,9 +2465,6 @@ static int fsl_udc_probe(struct platform_device *pdev)
 	udc_controller->gadget.speed = USB_SPEED_UNKNOWN;
 	udc_controller->gadget.name = driver_name;
 
-	/* Setup gadget.dev and register with kernel */
-	udc_controller->gadget.dev.of_node = pdev->dev.of_node;
-
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver))
 		udc_controller->gadget.is_otg = 1;
 

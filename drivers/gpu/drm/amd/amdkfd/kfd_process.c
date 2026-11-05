@@ -318,8 +318,10 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	 * XCCs in the partition.
 	 * For PM4 queues, there is no cooperative dispatch so wave_cnt stay as it is.
 	 */
+	amdgpu_gfx_off_ctrl(dev->adev, false);
 	dev->kfd2kgd->get_cu_occupancy(dev->adev, cu_occupancy,
 			&max_waves_per_cu, ffs(dev->xcc_mask) - 1);
+	amdgpu_gfx_off_ctrl(dev->adev, true);
 
 	for (i = 0; i < AMDGPU_MAX_QUEUES; i++) {
 		if (cu_occupancy[i].wave_cnt != 0 &&
@@ -1231,6 +1233,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		}
 
 		atomic_dec(&pdd->dev->kfd->kfd_processes_count);
+		mutex_destroy(&pdd->doorbell_mutex);
 
 		kfree(pdd);
 		p->pdds[i] = NULL;
@@ -1291,7 +1294,7 @@ static void kfd_process_remove_sysfs(struct kfd_process *p)
 /*
  * If any GPU is ongoing reset, wait for reset complete.
  */
-static void kfd_process_wait_gpu_reset_complete(struct kfd_process *p)
+void kfd_process_wait_gpu_reset_complete(struct kfd_process *p)
 {
 	int i;
 
@@ -1408,23 +1411,16 @@ void kfd_process_notifier_release_internal(struct kfd_process *p)
 		kfd_unref_process(p);
 
 	/*
-	 * Dequeue and destroy user queues, it is not safe for GPU to access
-	 * system memory after mmu release notifier callback returns because
-	 * exit_mmap free process memory afterwards.
+	 * Disable debug BEFORE dequeuing/flushing the MES process context.
+	 *
+	 * kfd_dbg_trap_disable() -> kfd_dbg_trap_deactivate() issues
+	 * SET_SHADER_DEBUGGER (process_ctx_flush=0) packets that re-add the
+	 * process to the MES scheduler list. kfd_process_dequeue_from_all_devices()
+	 * sends the process_ctx_flush=1 that retires the context. If debug
+	 * teardown ran after the dequeue, those packets would put the process
+	 * back on the MES list and, once proc_ctx_bo is freed, MES would fault
+	 * on the freed process context. Retiring the context last avoids this.
 	 */
-	kfd_process_dequeue_from_all_devices(p);
-	pqm_uninit(&p->pqm);
-
-	for (i = 0; i < p->n_pdds; i++) {
-		struct kfd_process_device *pdd = p->pdds[i];
-
-		/* re-enable GFX OFF since runtime enable with ttmp setup disabled it. */
-		if (!kfd_dbg_is_rlc_restore_supported(pdd->dev) && p->runtime_info.ttmp_setup)
-			amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
-	}
-
-	/* Indicate to other users that MM is no longer valid */
-	p->mm = NULL;
 	kfd_dbg_trap_disable(p);
 
 	if (atomic_read(&p->debugged_process_count) > 0) {
@@ -1444,6 +1440,25 @@ void kfd_process_notifier_release_internal(struct kfd_process *p)
 
 		srcu_read_unlock(&kfd_processes_srcu, idx);
 	}
+
+	/*
+	 * Dequeue and destroy user queues, it is not safe for GPU to access
+	 * system memory after mmu release notifier callback returns because
+	 * exit_mmap free process memory afterwards.
+	 */
+	kfd_process_dequeue_from_all_devices(p);
+	pqm_uninit(&p->pqm);
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		/* re-enable GFX OFF since runtime enable with ttmp setup disabled it. */
+		if (!kfd_dbg_is_rlc_restore_supported(pdd->dev) && p->runtime_info.ttmp_setup)
+			amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+	}
+
+	/* Indicate to other users that MM is no longer valid */
+	p->mm = NULL;
 
 	if (p->context_id == KFD_CONTEXT_ID_PRIMARY)
 		mmu_notifier_put(&p->mmu_notifier);
@@ -1788,6 +1803,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 	pdd->dev = dev;
 	INIT_LIST_HEAD(&pdd->qpd.queues_list);
 	INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
+	mutex_init(&pdd->doorbell_mutex);
 	pdd->qpd.dqm = dev->dqm;
 	pdd->qpd.pqm = &p->pqm;
 	pdd->qpd.evicted = 0;

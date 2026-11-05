@@ -25,6 +25,7 @@
 #ifndef __EEPROM_H__
 #define __EEPROM_H__
 #include "ras_sys.h"
+#include "ras_eeprom_mgr.h"
 
 #define RAS_TABLE_VER_V1           0x00010000
 #define RAS_TABLE_VER_V2_1         0x00021000
@@ -80,11 +81,11 @@ struct ras_eeprom_table_ras_info {
 } __packed;
 
 struct ras_eeprom_control {
+	void *mgr;
 	struct ras_eeprom_table_header tbl_hdr;
 	struct ras_eeprom_table_ras_info tbl_rai;
 
 	/* record threshold */
-	int record_threshold_config;
 	uint32_t record_threshold_count;
 	bool update_channel_flag;
 
@@ -133,6 +134,8 @@ struct ras_eeprom_control {
 	/* Record channel info which occurred bad pages
 	 */
 	u32 bad_channel_bitmap;
+
+	bool ras_tbl_status_ok;
 };
 
 /*
@@ -162,29 +165,23 @@ struct eeprom_umc_record {
 	/* The following variables will not be saved to eeprom.
 	 */
 	uint64_t cur_nps_retired_row_pfn;
+	/* Combined PA flip bit mask across all bad pages in a row;
+	 * used with cur_nps_retired_row_pfn to derive all bad page addresses
+	 */
+	uint64_t cur_nps_pa_flip_mask;
+	uint32_t cur_nps_valid_page_num;
 	uint32_t cur_nps_bank;
 	uint32_t cur_nps;
+	uint64_t ipid;
 };
 
 struct ras_core_context;
-int ras_eeprom_hw_init(struct ras_core_context *ras_core);
-int ras_eeprom_hw_fini(struct ras_core_context *ras_core);
-
-int ras_eeprom_reset_table(struct ras_core_context *ras_core);
 
 bool ras_eeprom_check_safety_watermark(struct ras_core_context *ras_core);
-
-int ras_eeprom_read(struct ras_core_context *ras_core,
-			 struct eeprom_umc_record *records, const u32 num);
-
-int ras_eeprom_append(struct ras_core_context *ras_core,
-			   struct eeprom_umc_record *records, const u32 num);
-
-uint32_t ras_eeprom_max_record_count(struct ras_core_context *ras_core);
-uint32_t ras_eeprom_get_record_count(struct ras_core_context *ras_core);
-void ras_eeprom_sync_info(struct ras_core_context *ras_core);
 
 int ras_eeprom_check_storage_status(struct ras_core_context *ras_core);
 enum ras_gpu_health_status
 	ras_eeprom_check_gpu_status(struct ras_core_context *ras_core);
+
+extern struct ras_eeprom_ops ras_drv_eeprom_ops;
 #endif

@@ -11,6 +11,7 @@
 #define __ASM_ATOMIC_LL_SC_H
 
 #include <linux/stringify.h>
+#include <asm/xwreg.h>
 
 #ifndef CONFIG_CC_HAS_K_CONSTRAINT
 #define K
@@ -239,19 +240,16 @@ __ll_sc_atomic64_dec_if_positive(atomic64_t *v)
 #define __CMPXCHG_CASE(w, sfx, name, sz, mb, acq, rel, cl, constraint)	\
 static __always_inline u##sz						\
 __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
-					 unsigned long old,		\
+					 u##sz old,			\
 					 u##sz new)			\
 {									\
+	/*                                                              \
+	 * Sub-word sizes require zero extension so that EOR+CBNZ won't	\
+	 * consume non-zero upper bits of the register containing "old".\
+	 */								\
+	xwreg_t(w) cmpval = xwreg_zero_extend(old, w, sz);		\
 	unsigned long tmp;						\
 	u##sz oldval;							\
-									\
-	/*								\
-	 * Sub-word sizes require explicit casting so that the compare  \
-	 * part of the cmpxchg doesn't end up interpreting non-zero	\
-	 * upper bits of the register containing "old".			\
-	 */								\
-	if (sz < 32)							\
-		old = (u##sz)old;					\
 									\
 	asm volatile(							\
 	"	prfm	pstl1strm, %[v]\n"				\
@@ -264,7 +262,8 @@ __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
 	"2:"								\
 	: [tmp] "=&r" (tmp), [oldval] "=&r" (oldval),			\
 	  [v] "+Q" (*(u##sz *)ptr)					\
-	: [old] __stringify(constraint) "r" (old), [new] "r" (new)	\
+	: [old] __stringify(constraint) "r" (cmpval),			\
+	  [new] "r" (new)						\
 	: cl);								\
 									\
 	return oldval;							\
@@ -278,19 +277,19 @@ __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
 __CMPXCHG_CASE(w, b,     ,  8,        ,  ,  ,         , K)
 __CMPXCHG_CASE(w, h,     , 16,        ,  ,  ,         , K)
 __CMPXCHG_CASE(w,  ,     , 32,        ,  ,  ,         , K)
-__CMPXCHG_CASE( ,  ,     , 64,        ,  ,  ,         , L)
+__CMPXCHG_CASE(x,  ,     , 64,        ,  ,  ,         , L)
 __CMPXCHG_CASE(w, b, acq_,  8,        , a,  , "memory", K)
 __CMPXCHG_CASE(w, h, acq_, 16,        , a,  , "memory", K)
 __CMPXCHG_CASE(w,  , acq_, 32,        , a,  , "memory", K)
-__CMPXCHG_CASE( ,  , acq_, 64,        , a,  , "memory", L)
+__CMPXCHG_CASE(x,  , acq_, 64,        , a,  , "memory", L)
 __CMPXCHG_CASE(w, b, rel_,  8,        ,  , l, "memory", K)
 __CMPXCHG_CASE(w, h, rel_, 16,        ,  , l, "memory", K)
 __CMPXCHG_CASE(w,  , rel_, 32,        ,  , l, "memory", K)
-__CMPXCHG_CASE( ,  , rel_, 64,        ,  , l, "memory", L)
+__CMPXCHG_CASE(x,  , rel_, 64,        ,  , l, "memory", L)
 __CMPXCHG_CASE(w, b,  mb_,  8, dmb ish,  , l, "memory", K)
 __CMPXCHG_CASE(w, h,  mb_, 16, dmb ish,  , l, "memory", K)
 __CMPXCHG_CASE(w,  ,  mb_, 32, dmb ish,  , l, "memory", K)
-__CMPXCHG_CASE( ,  ,  mb_, 64, dmb ish,  , l, "memory", L)
+__CMPXCHG_CASE(x,  ,  mb_, 64, dmb ish,  , l, "memory", L)
 
 #undef __CMPXCHG_CASE
 

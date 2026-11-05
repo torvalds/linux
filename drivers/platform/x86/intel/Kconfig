@@ -209,11 +209,15 @@ config INTEL_SMARTCONNECT
 config INTEL_TPMI_POWER_DOMAINS
 	tristate
 
+config INTEL_TPMI_COMMON
+	tristate
+
 config INTEL_TPMI
 	tristate "Intel Topology Aware Register and PM Capsule Interface (TPMI)"
 	depends on INTEL_VSEC
 	depends on X86_64
 	select INTEL_TPMI_POWER_DOMAINS
+	select INTEL_TPMI_COMMON
 	help
 	  The Intel Topology Aware Register and PM Capsule Interface (TPMI),
 	  provides enumerable MMIO interface for power management features.

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/ricoh,r2223x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ricoh R2223x Real-Time Clock
+
+maintainers:
+  - Heiko Schocher <hs@nabladev.com>
+
+allOf:
+  - $ref: rtc.yaml#
+
+properties:
+  compatible:
+    const: ricoh,r2223x
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+
+  ricoh,eco-mode:
+    type: boolean
+    description:
+      Put the RTC into eco mode, which lowers its current consumption while
+      running from the backup supply. Set this on boards where the RTC is
+      expected to keep time on a small backup cell.
+
+  start-year: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rtc@32 {
+            compatible = "ricoh,r2223x";
+            reg = <0x32>;
+            interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+            #clock-cells = <0>;
+            ricoh,eco-mode;
+        };
+    };

@@ -25,6 +25,15 @@ properties:
   interrupts:
     maxItems: 1
 
+  vcc33-supply:
+    description: 3.3V supply (VCC33 pin), powering the SuperSpeed 2:1 MUX.
+
+  vdd5-supply:
+    description:
+      5V supply (VDD5 pin), powering the CC controller and sourcing VCONN.
+      VDD5 has to be stable for at least tVDD5V_PG (2ms) before VCC33 starts
+      ramping up, unless ENn_CC is held high while both rails ramp up.
+
   id-gpios:
     description:
       An input gpio for USB ID pin. Upon detecting a UFP device, HD3SS3220
@@ -68,6 +77,8 @@ examples:
             reg = <0x47>;
             interrupt-parent = <&gpio6>;
             interrupts = <3>;
+            vcc33-supply = <&vcc3v3_control>;
+            vdd5-supply = <&vcc5v0_device_s0>;
 
             ports {
                 #address-cells = <1>;

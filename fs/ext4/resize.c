@@ -1462,11 +1462,11 @@ static void ext4_update_super(struct super_block *sb,
 	 *
 	 * The precise rules we use are:
 	 *
-	 * * Writers must perform a smp_wmb() after updating all
-	 *   dependent data and before modifying the groups count
+	 * * Writers must use a release store when updating the groups count
+	 *   after all dependent data has been updated
 	 *
-	 * * Readers must perform an smp_rmb() after reading the groups
-	 *   count and before reading any dependent data.
+	 * * Readers must use an acquire load when reading the groups
+	 *   count before reading any dependent data.
 	 *
 	 * NB. These rules can be relaxed when checking the group count
 	 * while freeing data, as we can only allocate from a block
@@ -1474,12 +1474,15 @@ static void ext4_update_super(struct super_block *sb,
 	 * only then free after serialising in turn against that
 	 * allocation.
 	 */
-	smp_wmb();
 
 	/* Update the global fs size fields */
-	sbi->s_groups_count += flex_gd->count;
-	sbi->s_blockfile_groups = min(sbi->s_groups_count,
-			(EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb)));
+	/* Pairs with smp_load_acquire() in ext4_get_groups_count() */
+	smp_store_release(&sbi->s_groups_count,
+			  sbi->s_groups_count + flex_gd->count);
+	/* Pairs with smp_load_acquire() in ext4_get_allocation_groups_count() */
+	smp_store_release(&sbi->s_blockfile_groups,
+			  min(sbi->s_groups_count,
+			      (EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb))));
 
 	/* Update the reserved block counts only once the new group is
 	 * active. */

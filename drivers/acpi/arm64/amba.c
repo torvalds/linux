@@ -87,11 +87,12 @@ static int amba_handler_attach(struct acpi_device *adev,
 	 * the amba device we are about to create.
 	 */
 	if (parent)
-		dev->dev.parent = acpi_get_first_physical_node(parent);
+		dev->dev.parent = acpi_bus_get_primary_device(parent);
 
 	device_set_node(&dev->dev, acpi_fwnode_handle(adev));
 
 	ret = amba_device_add(dev, &iomem_resource);
+	put_device(dev->dev.parent);
 	if (ret) {
 		dev_err(&adev->dev, "%s(): amba_device_add() failed (%d)\n",
 		       __func__, ret);

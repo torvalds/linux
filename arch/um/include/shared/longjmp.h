@@ -2,11 +2,12 @@
 #ifndef __UML_LONGJMP_H
 #define __UML_LONGJMP_H
 
+#include <linux/compiler_types.h>
 #include <sysdep/archsetjmp.h>
 #include <os.h>
 
 extern int setjmp(jmp_buf);
-extern void longjmp(jmp_buf, int);
+extern void __noreturn longjmp(jmp_buf, int);
 
 #define UML_LONGJMP(buf, val) do { \
 	longjmp(*buf, val);	\

@@ -541,8 +541,13 @@
 	pinctrl-0 = <&uart0_data &uart0_fctl>;
 	pinctrl-names = "default";
 
+	uart-has-rtscts;
+
 	bluetooth {
 		compatible = "brcm,bcm4330-bt";
+
+		max-speed = <3000000>;
+
 		pinctrl-0 = <&bt_shutdown &bt_device_wakeup &bt_host_wakeup>;
 		pinctrl-names = "default";
 		shutdown-gpios = <&gpl1 0 GPIO_ACTIVE_HIGH>;

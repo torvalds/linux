@@ -48,7 +48,7 @@ __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 __failure
 __msg(": (85) call bpf_wq_init#") /* anchor message */
-__msg("pointer in R2 isn't map pointer")
+__msg("R2 type=fp expected=map_ptr")
 long test_wq_init_nomap(void *ctx)
 {
 	struct bpf_wq *wq;
@@ -98,7 +98,7 @@ __failure
  * is a correct bpf_wq pointer.
  */
 __msg(": (85) call bpf_wq_set_callback#") /* anchor message */
-__msg("R1 doesn't point to a map value")
+__msg("R1 type=fp expected=map_value")
 long test_wrong_wq_pointer(void *ctx)
 {
 	int key = 0;

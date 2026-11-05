@@ -84,6 +84,8 @@
 #define SE_GCC_QUPV3_WRAP1_S6_CLK				74
 #define SE_GCC_QUPV3_WRAP1_S6_CLK_SRC				75
 #define SE_GCC_QUPV3_WRAP1_S_AHB_CLK				76
+#define SE_GCC_EMAC0_CNOC_APB_CLK				77
+#define SE_GCC_EMAC1_CNOC_APB_CLK				78
 
 /* SE_GCC power domains */
 #define SE_GCC_EMAC0_GDSC					0

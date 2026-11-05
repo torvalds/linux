@@ -346,6 +346,9 @@ static void __init ic_close_devs(void)
 		kfree(d);
 	}
 	rtnl_unlock();
+
+	ic_first_dev = NULL;
+	ic_dev = NULL;
 }
 
 /*

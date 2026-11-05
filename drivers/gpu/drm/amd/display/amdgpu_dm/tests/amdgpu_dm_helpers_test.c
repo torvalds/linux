@@ -6,19 +6,25 @@
  */
 
 #include <kunit/test.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 #include <drm/display/drm_dp_mst_helper.h>
 
 #include "dc.h"
 #include "core_types.h"
+#include "clk_mgr.h"
+#include "link_service.h"
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_mst_types.h"
 #include "dc_bios_types.h"
 #include "dm_helpers.h"
+#include "dpcd_defs.h"
 #include "ddc_service_types.h"
+#include "dmub/dmub_srv.h"
 #include "dmub_cmd.h"
 #include "amdgpu_dm_helpers.h"
 #include "amdgpu_dm_kunit_test_helpers.h"
@@ -171,6 +177,34 @@ static void dm_test_apply_edid_quirks_disable_colorimetry(struct kunit *test)
 }
 
 /**
+ * dm_test_apply_edid_quirks_psr_phy_power_down - Test SDC PSR PHY power-down quirk
+ * @test: The KUnit test context
+ *
+ * The quirk is embedded-only, so an external signal leaves the debug option
+ * alone and an embedded one forces PHY power down/up level 2.
+ */
+static void dm_test_apply_edid_quirks_psr_phy_power_down(struct kunit *test)
+{
+	struct dc_edid_caps edid_caps = {0};
+	struct dc_link *link = dm_test_quirk_link(test);
+	struct dc *dc = dm_kunit_alloc_dc_with_ctx(test);
+	struct edid *external = dm_test_edid_with_panel_id(test,
+			drm_edid_encode_panel_id('S', 'D', 'C', 0x4197));
+	struct edid *embedded = dm_test_edid_with_panel_id(test,
+			drm_edid_encode_panel_id('S', 'D', 'C', 0x4203));
+
+	link->ctx = dc->ctx;
+
+	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+	apply_edid_quirks(link, external, &edid_caps);
+	KUNIT_EXPECT_FALSE(test, dc->debug.psr_phy_force_phy_power_down_up_level_2);
+
+	link->connector_signal = SIGNAL_TYPE_EDP;
+	apply_edid_quirks(link, embedded, &edid_caps);
+	KUNIT_EXPECT_TRUE(test, dc->debug.psr_phy_force_phy_power_down_up_level_2);
+}
+
+/**
  * dm_test_apply_edid_quirks_skip_phy_ssc - Test DEL 0x4147 PHY SSC quirk
  * @test: The KUnit test context
  */
@@ -184,6 +218,22 @@ static void dm_test_apply_edid_quirks_skip_phy_ssc(struct kunit *test)
 	apply_edid_quirks(link, edid, &edid_caps);
 
 	KUNIT_EXPECT_TRUE(test, link->wa_flags.skip_phy_ssc_reduction);
+}
+
+/**
+ * dm_test_apply_edid_quirks_force_freesync_min - Test ACR 0x08AF FreeSync min quirk
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_edid_quirks_force_freesync_min(struct kunit *test)
+{
+	struct dc_edid_caps edid_caps = {0};
+	struct dc_link *link = dm_test_quirk_link(test);
+	struct edid *edid = dm_test_edid_with_panel_id(test,
+			drm_edid_encode_panel_id('A', 'C', 'R', 0x08AF));
+
+	apply_edid_quirks(link, edid, &edid_caps);
+
+	KUNIT_EXPECT_EQ(test, edid_caps.panel_patch.force_freesync_min_hz, 55U);
 }
 
 /**
@@ -205,6 +255,38 @@ static void dm_test_apply_edid_quirks_unknown_noop(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, edid_caps.panel_patch.remove_sink_ext_caps);
 	KUNIT_EXPECT_FALSE(test, edid_caps.panel_patch.disable_colorimetry);
 	KUNIT_EXPECT_FALSE(test, link->wa_flags.skip_phy_ssc_reduction);
+}
+
+/**
+ * dm_test_apply_edid_quirks_disable_second_tile - Test Apple Studio Display tile quirk
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_edid_quirks_disable_second_tile(struct kunit *test)
+{
+	struct dc_edid_caps edid_caps = {0};
+	struct dc_link *link = dm_test_quirk_link(test);
+	struct edid *edid = dm_test_edid_with_panel_id(test,
+			drm_edid_encode_panel_id('A', 'P', 'P', 0xAE3A));
+
+	apply_edid_quirks(link, edid, &edid_caps);
+
+	KUNIT_EXPECT_TRUE(test, edid_caps.panel_patch.disable_second_tile);
+}
+
+/**
+ * dm_test_apply_edid_quirks_force_freesync_min_60 - Test Lenovo G34w-30 FreeSync min quirk
+ * @test: The KUnit test context
+ */
+static void dm_test_apply_edid_quirks_force_freesync_min_60(struct kunit *test)
+{
+	struct dc_edid_caps edid_caps = {0};
+	struct dc_link *link = dm_test_quirk_link(test);
+	struct edid *edid = dm_test_edid_with_panel_id(test,
+			drm_edid_encode_panel_id('L', 'E', 'N', 0x66F1));
+
+	apply_edid_quirks(link, edid, &edid_caps);
+
+	KUNIT_EXPECT_EQ(test, edid_caps.panel_patch.force_freesync_min_hz, 60U);
 }
 
 /* Tests for dm_helpers_parse_edid_caps() */
@@ -409,6 +491,40 @@ static void dm_test_parse_edid_caps_hdmi_frl_dsc(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, edid_caps->frl_dsc_10bpc);
 }
 
+/**
+ * dm_test_parse_edid_caps_hdmi_comp_auto - Test the HDMI compliance-auto branch
+ * @test: The KUnit test context
+ *
+ * A connector flagged for automated HDMI compliance forces the FRL and FRL DSC
+ * debug options on and records the quirk in the panel patch.
+ */
+static void dm_test_parse_edid_caps_hdmi_comp_auto(struct kunit *test)
+{
+	struct dc_link *link = dm_test_quirk_link(test);
+	struct amdgpu_dm_connector *aconnector = link->priv;
+	struct dc *dc = dm_kunit_alloc_dc_with_ctx(test);
+	struct dc_edid_caps *edid_caps;
+	struct dc_edid *dc_edid;
+
+	dc_edid = kunit_kzalloc(test, sizeof(*dc_edid), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc_edid);
+	edid_caps = kunit_kzalloc(test, sizeof(*edid_caps), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, edid_caps);
+
+	link->dc = dc;
+	link->ctx = dc->ctx;
+
+	dm_test_fill_base_edid(dc_edid, true);
+
+	aconnector->base.display_info.is_hdmi = true;
+	aconnector->hdmi_comp_auto = true;
+
+	KUNIT_EXPECT_EQ(test, dm_helpers_parse_edid_caps(link, dc_edid, edid_caps), EDID_OK);
+	KUNIT_EXPECT_TRUE(test, edid_caps->panel_patch.hdmi_comp_auto);
+	KUNIT_EXPECT_TRUE(test, dc->debug.force_frl_max);
+	KUNIT_EXPECT_TRUE(test, dc->debug.force_frl_dsc);
+}
+
 /*
  * Build a 2-block EDID: a valid base block plus a CTA-861 extension block
  * carrying one LPCM Short Audio Descriptor and, when @with_speaker is set, a
@@ -577,6 +693,25 @@ static void dm_test_read_acpi_edid_force_off(struct kunit *test)
 	aconnector = dm_kunit_alloc_connector(test, adev, NULL);
 	aconnector->base.connector_type = DRM_MODE_CONNECTOR_eDP;
 	aconnector->base.force = DRM_FORCE_OFF;
+
+	KUNIT_EXPECT_NULL(test, dm_helpers_read_acpi_edid(aconnector));
+}
+
+/**
+ * dm_test_read_acpi_edid_panel_connector - Test the ACPI EDID read is attempted
+ * @test: The KUnit test context
+ *
+ * An eDP connector that is not forced off reaches drm_edid_read_custom(), whose
+ * probe callback finds no ACPI companion, so no EDID is returned.
+ */
+static void dm_test_read_acpi_edid_panel_connector(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_device *adev;
+
+	adev = dm_kunit_alloc_adev(test);
+	aconnector = dm_kunit_alloc_connector(test, adev, NULL);
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_eDP;
 
 	KUNIT_EXPECT_NULL(test, dm_helpers_read_acpi_edid(aconnector));
 }
@@ -1331,6 +1466,8 @@ struct dm_test_synaptics_aux {
 	unsigned int downspread_reads;
 	unsigned int downspread_writes;
 	unsigned int dsc_enable_writes;
+	/* number of RC command reads that report the command still active */
+	unsigned int command_busy_reads;
 };
 
 static ssize_t dm_test_synaptics_aux_transfer(struct drm_dp_aux *aux,
@@ -1399,8 +1536,14 @@ static ssize_t dm_test_synaptics_aux_transfer(struct drm_dp_aux *aux,
 			fixture->downspread_reads++;
 			break;
 		case SYNAPTICS_RC_COMMAND:
-			if (msg->size)
-				buffer[0] = fixture->last_rc_command & 0x7f;
+			if (msg->size) {
+				if (fixture->command_busy_reads) {
+					fixture->command_busy_reads--;
+					buffer[0] = fixture->last_rc_command;
+				} else {
+					buffer[0] = fixture->last_rc_command & 0x7f;
+				}
+			}
 			fixture->rc_command_reads++;
 			break;
 		case SYNAPTICS_RC_RESULT:
@@ -1545,6 +1688,77 @@ static void dm_test_execute_synaptics_rc_command_write_fail(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, execute_synaptics_rc_command(&fixture->aux, true,
 							      0x01, sizeof(data), 0, &data));
 	KUNIT_EXPECT_EQ(test, fixture->rc_command_count, 0U);
+}
+
+/**
+ * dm_test_execute_synaptics_rc_command_data_fail - Test RC data write failure
+ * @test: The KUnit test context
+ */
+static void dm_test_execute_synaptics_rc_command_data_fail(struct kunit *test)
+{
+	struct dm_test_synaptics_aux *fixture;
+	u8 data = 0;
+
+	fixture = dm_test_alloc_synaptics_aux(test);
+	fixture->fail_address = SYNAPTICS_RC_DATA;
+
+	KUNIT_EXPECT_FALSE(test, execute_synaptics_rc_command(&fixture->aux, true,
+							      0x01, sizeof(data), 0, &data));
+	KUNIT_EXPECT_EQ(test, fixture->last_rc_offset, 0U);
+}
+
+/**
+ * dm_test_execute_synaptics_rc_command_offset_fail - Test RC offset write failure
+ * @test: The KUnit test context
+ */
+static void dm_test_execute_synaptics_rc_command_offset_fail(struct kunit *test)
+{
+	struct dm_test_synaptics_aux *fixture;
+	u8 data = 0;
+
+	fixture = dm_test_alloc_synaptics_aux(test);
+	fixture->fail_address = SYNAPTICS_RC_OFFSET;
+
+	KUNIT_EXPECT_FALSE(test, execute_synaptics_rc_command(&fixture->aux, false,
+							      0x31, sizeof(data), 0, &data));
+	KUNIT_EXPECT_EQ(test, fixture->last_rc_length, 0U);
+}
+
+/**
+ * dm_test_execute_synaptics_rc_command_command_fail - Test RC command write failure
+ * @test: The KUnit test context
+ */
+static void dm_test_execute_synaptics_rc_command_command_fail(struct kunit *test)
+{
+	struct dm_test_synaptics_aux *fixture;
+	u8 data = 0;
+
+	fixture = dm_test_alloc_synaptics_aux(test);
+	fixture->fail_address = SYNAPTICS_RC_COMMAND;
+
+	KUNIT_EXPECT_FALSE(test, execute_synaptics_rc_command(&fixture->aux, false,
+							      0x31, sizeof(data), 0, &data));
+	KUNIT_EXPECT_EQ(test, fixture->rc_result_reads, 0U);
+}
+
+/**
+ * dm_test_execute_synaptics_rc_command_busy_poll - Test the RC command poll loop
+ * @test: The KUnit test context
+ *
+ * The command stays marked active for the first reads, so the helper sleeps and
+ * polls again before reading the result.
+ */
+static void dm_test_execute_synaptics_rc_command_busy_poll(struct kunit *test)
+{
+	struct dm_test_synaptics_aux *fixture;
+	u8 data = 0;
+
+	fixture = dm_test_alloc_synaptics_aux(test);
+	fixture->command_busy_reads = 2;
+
+	KUNIT_EXPECT_TRUE(test, execute_synaptics_rc_command(&fixture->aux, false,
+							     0x31, sizeof(data), 0, &data));
+	KUNIT_EXPECT_EQ(test, fixture->rc_command_reads, 3U);
 }
 
 /**
@@ -2274,6 +2488,39 @@ static void dm_test_dmub_aux_transfer_sync_hpd_discon(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, (int)result, (int)AUX_RET_ERROR_HPD_DISCON);
 }
 
+/**
+ * dm_test_dmub_aux_transfer_sync_hpd_connected - Test the transfer is forwarded to DMUB
+ * @test: The KUnit test context
+ *
+ * With HPD connected the helper forwards the payload to
+ * amdgpu_dm_process_dmub_aux_transfer_sync(). dc->link_count is zero, so the
+ * async transfer is rejected and the engine-acquire error is reported.
+ */
+static void dm_test_dmub_aux_transfer_sync_hpd_connected(struct kunit *test)
+{
+	struct aux_payload payload = {0};
+	enum aux_return_code_type result = AUX_RET_SUCCESS;
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	struct dc_link *link;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	ctx = dm_kunit_alloc_dc_with_ctx(test)->ctx;
+	link = dm_kunit_alloc_link(test);
+
+	ctx->driver_context = adev;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+	link->hpd_status = true;
+
+	ret = dm_helper_dmub_aux_transfer_sync(ctx, link, &payload, &result);
+
+	KUNIT_EXPECT_EQ(test, ret, -1);
+	KUNIT_EXPECT_EQ(test, (int)result, (int)AUX_RET_ERROR_ENGINE_ACQUIRE);
+}
+
 /* Tests for empty stub functions (must not crash) */
 
 /**
@@ -2519,6 +2766,38 @@ static void dm_test_mst_enable_stream_features_writes_downspread(struct kunit *t
 	KUNIT_EXPECT_EQ(test, fixture->last_dpcd_write_address,
 			 DP_DOWNSPREAD_CTRL);
 	KUNIT_EXPECT_EQ(test, fixture->dpcd_write_value, (u8)BIT(7));
+}
+
+/**
+ * dm_test_mst_enable_stream_features_read_fail - Test early return on DPCD read failure
+ * @test: The KUnit test context
+ */
+static void dm_test_mst_enable_stream_features_read_fail(struct kunit *test)
+{
+	struct dm_test_synaptics_aux *fixture;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_stream_state *stream;
+	struct amdgpu_device *adev;
+	struct dc_link *link;
+
+	adev = dm_kunit_alloc_adev(test);
+	fixture = dm_test_alloc_synaptics_aux_with_dev(test, &adev->ddev);
+	aconnector = dm_kunit_alloc_connector(test, adev, NULL);
+	link = dm_kunit_alloc_link(test);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	fixture->fail_address = DP_DOWNSPREAD_CTRL;
+	dm_test_current_aux_recorder = fixture;
+	aconnector->dm_dp_aux.aux.drm_dev = &adev->ddev;
+	aconnector->dm_dp_aux.aux.transfer = dm_test_current_aux_transfer;
+	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
+	link->priv = aconnector;
+	stream->link = link;
+
+	dm_helpers_mst_enable_stream_features(stream);
+
+	KUNIT_EXPECT_EQ(test, fixture->downspread_writes, 0U);
 }
 
 /* Tests for dm_helpers_enable_periodic_detection() */
@@ -2829,6 +3108,56 @@ static void dm_test_read_mccs_caps_i2c_failure(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fake->reads, 0U);
 }
 
+/* Counts sized I2C-over-AUX writes; the bracketing bare-address ones have size 0. */
+static unsigned int dm_test_mccs_aux_writes;
+
+static ssize_t dm_test_mccs_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+{
+	if ((msg->request & ~DP_AUX_I2C_MOT) == DP_AUX_I2C_WRITE && msg->size)
+		dm_test_mccs_aux_writes++;
+
+	msg->reply = DP_AUX_I2C_REPLY_ACK;
+	return msg->size;
+}
+
+/*
+ * Route the fixture's link through an AUX DDC instead of the fake I2C adapter,
+ * so the MCCS helpers take their link->aux_mode branch.
+ */
+static void dm_test_mccs_use_aux(struct dm_test_mccs_fixture *fixture)
+{
+	struct drm_dp_aux *aux = &fixture->aconnector->dm_dp_aux.aux;
+
+	aux->drm_dev = &fixture->adev->ddev;
+	aux->transfer = dm_test_mccs_aux_transfer;
+	drm_dp_aux_init(aux);
+
+	fixture->aconnector->base.dev = &fixture->adev->ddev;
+	fixture->link->aux_mode = true;
+	dm_test_mccs_aux_writes = 0;
+}
+
+/**
+ * dm_test_read_mccs_caps_aux_mode - Test the MCCS VCP request over I2C-over-AUX
+ * @test: The KUnit test context
+ *
+ * The AUX DDC ACKs both transactions but answers with an empty VCP reply, so
+ * every attempt is retried and the request finally fails.
+ */
+static void dm_test_read_mccs_caps_aux_mode(struct kunit *test)
+{
+	struct dm_test_mccs_fixture fixture = dm_test_alloc_mccs_fixture(test);
+
+	dm_test_mccs_use_aux(&fixture);
+	fixture.link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+	fixture.sink->edid_caps.freesync_vcp_code = 0xe3;
+
+	dm_helpers_read_mccs_caps(fixture.ctx, fixture.link, fixture.sink);
+
+	KUNIT_EXPECT_FALSE(test, fixture.sink->mccs_caps.freesync_supported);
+	KUNIT_EXPECT_EQ(test, dm_test_mccs_aux_writes, 5U);
+}
+
 /* Tests for dm_helpers_mccs_vcp_set() */
 
 /**
@@ -2940,6 +3269,23 @@ static void dm_test_mccs_vcp_set_i2c_failure(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, fake->writes, 5U);
 	KUNIT_EXPECT_EQ(test, fake->reads, 0U);
+}
+
+/**
+ * dm_test_mccs_vcp_set_aux_mode - Test the MCCS VCP set over I2C-over-AUX
+ * @test: The KUnit test context
+ */
+static void dm_test_mccs_vcp_set_aux_mode(struct kunit *test)
+{
+	struct dm_test_mccs_fixture fixture = dm_test_alloc_mccs_fixture(test);
+
+	dm_test_mccs_use_aux(&fixture);
+	fixture.sink->mccs_caps.freesync_supported = true;
+	fixture.sink->edid_caps.freesync_vcp_code = 0xe3;
+
+	dm_helpers_mccs_vcp_set(fixture.ctx, fixture.link, fixture.sink);
+
+	KUNIT_EXPECT_EQ(test, dm_test_mccs_aux_writes, 1U);
 }
 
 /* Tests for dm_helpers_construct_old_payload() */
@@ -3187,6 +3533,30 @@ static void dm_test_mst_start_top_mgr_set_mst_fail(struct kunit *test)
 	link->priv = aconnector;
 
 	KUNIT_EXPECT_FALSE(test, dm_helpers_dp_mst_start_top_mgr(NULL, link, false));
+}
+
+/**
+ * dm_test_mst_start_top_mgr_already_started - Test MST start on an active manager
+ * @test: The KUnit test context
+ *
+ * With the topology manager already in MST mode,
+ * drm_dp_mst_topology_mgr_set_mst(true) is a no-op that returns success, so the
+ * helper logs the cached DPCD caps and returns true.
+ */
+static void dm_test_mst_start_top_mgr_already_started(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	link = dm_kunit_alloc_link(test);
+
+	mutex_init(&aconnector->mst_mgr.lock);
+	aconnector->mst_mgr.mst_state = true;
+	link->priv = aconnector;
+
+	KUNIT_EXPECT_TRUE(test, dm_helpers_dp_mst_start_top_mgr(NULL, link, false));
 }
 
 /**
@@ -3720,6 +4090,728 @@ static void dm_test_dp_handle_test_pattern_no_pipe(struct kunit *test)
 							       test_params));
 }
 
+/* Tests for dm_helpers_submit_i2c_over_aux() */
+
+/**
+ * dm_test_submit_i2c_over_aux_unimplemented - Test the unimplemented stub returns false
+ * @test: The KUnit test context
+ */
+static void dm_test_submit_i2c_over_aux_unimplemented(struct kunit *test)
+{
+	u8 buffer[1] = { 0 };
+
+	KUNIT_EXPECT_FALSE(test, dm_helpers_submit_i2c_over_aux(NULL, 0x50, 0, buffer,
+								sizeof(buffer), true));
+}
+
+/* Tests for dm_helpers_allocate_gpu_mem() and dm_helpers_free_gpu_mem() */
+
+/*
+ * Fake buffer object allocator: amdgpu_bo_create_kernel() and
+ * amdgpu_bo_free_kernel() need a live TTM device, so dm_allocate_gpu_mem() is
+ * routed through this fake.
+ */
+
+#define DM_TEST_FAKE_GPU_ADDR	0x1234ABCD0000ULL
+
+struct dm_test_bo_ctx {
+	void *cpu_ptr;
+	unsigned int create_calls;
+	unsigned int free_calls;
+	unsigned long create_size;
+	u32 create_domain;
+};
+
+static struct dm_test_bo_ctx dm_test_bo;
+
+static int dm_test_bo_create_kernel(struct amdgpu_device *adev, unsigned long size,
+				    int align, u32 domain, struct amdgpu_bo **bo_ptr,
+				    u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo.create_calls++;
+	dm_test_bo.create_size = size;
+	dm_test_bo.create_domain = domain;
+
+	*gpu_addr = DM_TEST_FAKE_GPU_ADDR;
+	*cpu_addr = dm_test_bo.cpu_ptr;
+
+	return 0;
+}
+
+static void dm_test_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo.free_calls++;
+
+	*bo = NULL;
+	*gpu_addr = 0;
+	*cpu_addr = NULL;
+}
+
+static const struct amdgpu_dm_services_kunit_ops dm_test_services_ops = {
+	.bo_create_kernel = dm_test_bo_create_kernel,
+	.bo_free_kernel = dm_test_bo_free_kernel,
+};
+
+/**
+ * dm_test_gpu_mem_alloc_and_free - Test the GPU memory helper wrappers
+ * @test: The KUnit test context
+ *
+ * Both helpers only unwrap the device from the DC context and forward to
+ * dm_allocate_gpu_mem()/dm_free_gpu_mem().
+ */
+static void dm_test_gpu_mem_alloc_and_free(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dc_context *ctx;
+	long long addr = 0;
+	void *cpu_ptr;
+	void *mem;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	cpu_ptr = kunit_kzalloc(test, PAGE_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cpu_ptr);
+
+	ctx->driver_context = adev;
+	INIT_LIST_HEAD(&adev->dm.da_list);
+	dm_test_bo = (struct dm_test_bo_ctx) { .cpu_ptr = cpu_ptr };
+	amdgpu_dm_services_kunit_set_ops(&dm_test_services_ops);
+
+	mem = dm_helpers_allocate_gpu_mem(ctx, DC_MEM_ALLOC_TYPE_GART, 4096, &addr);
+
+	KUNIT_EXPECT_PTR_EQ(test, mem, cpu_ptr);
+	KUNIT_EXPECT_EQ(test, addr, (long long)DM_TEST_FAKE_GPU_ADDR);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_calls, 1U);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_size, 4096UL);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_domain, (u32)AMDGPU_GEM_DOMAIN_GTT);
+
+	dm_helpers_free_gpu_mem(ctx, DC_MEM_ALLOC_TYPE_GART, mem);
+
+	KUNIT_EXPECT_EQ(test, dm_test_bo.free_calls, 1U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+
+	amdgpu_dm_services_kunit_set_ops(NULL);
+}
+
+/* Tests for dm_helpers_dmub_set_config_sync() */
+
+/**
+ * dm_test_dmub_set_config_sync_unknown_error - Test SET_CONFIG without a DMUB service
+ * @test: The KUnit test context
+ *
+ * The helper only unwraps the link index before forwarding. With no DC DMUB
+ * service the command cannot reach the firmware and is reported as completed
+ * with SET_CONFIG_UNKNOWN_ERROR.
+ */
+static void dm_test_dmub_set_config_sync_unknown_error(struct kunit *test)
+{
+	struct set_config_cmd_payload payload = {0};
+	enum set_config_status result = SET_CONFIG_PENDING;
+	struct dmub_notification *notify;
+	struct amdgpu_device *adev;
+	struct dc_context *dc_ctx;
+	struct dc_context *ctx;
+	struct dc_link *link;
+	struct dc *dc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	dc_ctx = kunit_kzalloc(test, sizeof(*dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc_ctx);
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc);
+	notify = kunit_kzalloc(test, sizeof(*notify), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, notify);
+	link = dm_kunit_alloc_link(test);
+
+	dc->ctx = dc_ctx;
+	dc->links[0] = link;
+	ctx->dc = dc;
+	ctx->driver_context = adev;
+	adev->dm.dmub_notify = notify;
+	mutex_init(&adev->dm.dpia_aux_lock);
+	init_completion(&adev->dm.dmub_aux_transfer_done);
+
+	KUNIT_EXPECT_EQ(test, dm_helpers_dmub_set_config_sync(ctx, link, &payload, &result), 0);
+	KUNIT_EXPECT_EQ(test, (int)result, (int)SET_CONFIG_UNKNOWN_ERROR);
+}
+
+/* Tests for dm_helpers_is_dp_sink_present() */
+
+static bool dm_test_dp_sink_present_true(struct dc_link *link)
+{
+	return true;
+}
+
+/**
+ * dm_test_is_dp_sink_present_queries_link_service - Test sink presence query
+ * @test: The KUnit test context
+ *
+ * With a connector present the helper takes the AUX hardware mutex and
+ * forwards to the link service.
+ */
+static void dm_test_is_dp_sink_present_queries_link_service(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct link_service *link_srv;
+	struct amdgpu_device *adev;
+	struct dc_link *link;
+	struct dc *dc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc);
+	link_srv = kunit_kzalloc(test, sizeof(*link_srv), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link_srv);
+	link = dm_kunit_alloc_link(test);
+	aconnector = dm_kunit_alloc_connector(test, adev, link);
+
+	aconnector->dm_dp_aux.aux.drm_dev = &adev->ddev;
+	aconnector->dm_dp_aux.aux.transfer = dm_test_dpcd_ack_transfer;
+	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
+
+	link_srv->dp_is_sink_present = dm_test_dp_sink_present_true;
+	dc->link_srv = link_srv;
+	link->dc = dc;
+	link->priv = aconnector;
+
+	KUNIT_EXPECT_TRUE(test, dm_helpers_is_dp_sink_present(link));
+}
+
+/* Tests for dm_helpers_read_local_edid() */
+
+/*
+ * dm_helpers_read_local_edid() feeds the EDID it reads into
+ * drm_edid_connector_update(), which needs a fully initialised connector so the
+ * EDID property blob is published. dm_kunit_alloc_connector() only fills in the
+ * device pointer, so build a real one here.
+ */
+static const struct drm_connector_funcs dm_test_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static struct amdgpu_dm_connector *dm_test_alloc_real_connector(struct kunit *test,
+								struct amdgpu_device *adev)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	KUNIT_ASSERT_EQ(test, drmm_mode_config_init(&adev->ddev), 0);
+
+	aconnector = drmm_kzalloc(&adev->ddev, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_ASSERT_EQ(test,
+			drmm_connector_init(&adev->ddev, &aconnector->base,
+					    &dm_test_connector_funcs,
+					    DRM_MODE_CONNECTOR_DisplayPort, NULL),
+			0);
+
+	return aconnector;
+}
+
+/*
+ * Fake AUX channel that serves an EDID over I2C-over-AUX and answers the
+ * native DPCD reads the compliance test-request path makes.
+ */
+struct dm_test_edid_aux {
+	u8 edid[EDID_LENGTH];
+	u8 offset;
+	u8 test_request;
+	u8 checksum_written;
+	u8 response_written;
+};
+
+static struct dm_test_edid_aux *dm_test_current_edid_aux;
+
+static ssize_t dm_test_edid_aux_transfer(struct drm_dp_aux *aux,
+					 struct drm_dp_aux_msg *msg)
+{
+	struct dm_test_edid_aux *fixture = dm_test_current_edid_aux;
+	u8 *buffer = msg->buffer;
+	size_t len;
+
+	switch (msg->request & ~DP_AUX_I2C_MOT) {
+	case DP_AUX_I2C_WRITE:
+		if (msg->size >= 1)
+			fixture->offset = buffer[0];
+		msg->reply = DP_AUX_I2C_REPLY_ACK;
+		return msg->size;
+	case DP_AUX_I2C_READ:
+		len = min_t(size_t, msg->size, EDID_LENGTH - fixture->offset);
+		memcpy(buffer, fixture->edid + fixture->offset, len);
+		fixture->offset += len;
+		msg->reply = DP_AUX_I2C_REPLY_ACK;
+		return len;
+	case DP_AUX_NATIVE_READ:
+		memset(buffer, 0, msg->size);
+		if (msg->address == DP_TEST_REQUEST && msg->size)
+			buffer[0] = fixture->test_request;
+		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+		return msg->size;
+	case DP_AUX_NATIVE_WRITE:
+		if (msg->size) {
+			if (msg->address == DP_TEST_EDID_CHECKSUM)
+				fixture->checksum_written = buffer[0];
+			else if (msg->address == DP_TEST_RESPONSE)
+				fixture->response_written = buffer[0];
+		}
+		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+		return msg->size;
+	}
+
+	msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+	return msg->size;
+}
+
+/* Fake I2C DDC adapter and prepare_ddc hook for the non-AUX EDID read path. */
+
+static int dm_test_ddc_no_sink_xfer(struct i2c_adapter *adapter,
+				    struct i2c_msg *msgs, int num)
+{
+	return -ENXIO;
+}
+
+static const struct i2c_algorithm dm_test_ddc_algorithm = {
+	.master_xfer = dm_test_ddc_no_sink_xfer,
+};
+
+static unsigned int dm_test_prepare_ddc_calls;
+
+static void dm_test_prepare_ddc(struct dc_link *link)
+{
+	dm_test_prepare_ddc_calls++;
+}
+
+struct dm_test_local_edid {
+	struct dm_test_edid_aux *aux;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_context *ctx;
+	struct dc_link *link;
+	struct dc_sink *sink;
+	struct dc *dc;
+};
+
+static struct dm_test_local_edid dm_test_setup_local_edid(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = {0};
+	struct amdgpu_device *adev;
+	struct dc_edid *dc_edid;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+
+	fixture.aconnector = dm_test_alloc_real_connector(test, adev);
+	fixture.aux = kunit_kzalloc(test, sizeof(*fixture.aux), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, fixture.aux);
+	fixture.ctx = kunit_kzalloc(test, sizeof(*fixture.ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, fixture.ctx);
+	fixture.sink = kunit_kzalloc(test, sizeof(*fixture.sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, fixture.sink);
+	fixture.dc = kunit_kzalloc(test, sizeof(*fixture.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, fixture.dc);
+	fixture.link = dm_kunit_alloc_link(test);
+	dc_edid = kunit_kzalloc(test, sizeof(*dc_edid), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc_edid);
+
+	dm_test_fill_base_edid(dc_edid, true);
+	memcpy(fixture.aux->edid, dc_edid->raw_edid, EDID_LENGTH);
+	dm_test_current_edid_aux = fixture.aux;
+
+	fixture.aconnector->dm_dp_aux.aux.drm_dev = &adev->ddev;
+	fixture.aconnector->dm_dp_aux.aux.transfer = dm_test_edid_aux_transfer;
+	drm_dp_aux_init(&fixture.aconnector->dm_dp_aux.aux);
+
+	fixture.link->priv = fixture.aconnector;
+	fixture.link->dc = fixture.dc;
+	fixture.link->aux_mode = true;
+
+	return fixture;
+}
+
+/**
+ * dm_test_read_local_edid_aux_mode - Test reading EDID over the AUX DDC channel
+ * @test: The KUnit test context
+ *
+ * A DP link reads the EDID through the connector's AUX channel, copies it into
+ * the sink and parses the caps.
+ */
+static void dm_test_read_local_edid_aux_mode(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = dm_test_setup_local_edid(test);
+
+	KUNIT_EXPECT_EQ(test,
+			dm_helpers_read_local_edid(fixture.ctx, fixture.link, fixture.sink),
+			EDID_OK);
+	KUNIT_EXPECT_EQ(test, fixture.sink->dc_edid.length, (uint32_t)EDID_LENGTH);
+	KUNIT_EXPECT_EQ(test, fixture.sink->edid_caps.manufacturer_id, 0xAC10);
+	KUNIT_EXPECT_EQ(test, fixture.sink->edid_caps.product_id, 0x1234);
+}
+
+/**
+ * dm_test_read_local_edid_test_request - Test the compliance EDID-read request
+ * @test: The KUnit test context
+ *
+ * When the sink raises the EDID_READ test request, the helper writes back the
+ * EDID checksum and the test response.
+ */
+static void dm_test_read_local_edid_test_request(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = dm_test_setup_local_edid(test);
+	struct dm_test_edid_aux *aux = fixture.aux;
+	union test_response expected_response = {0};
+
+	aux->test_request = DP_TEST_LINK_EDID_READ;
+	expected_response.bits.EDID_CHECKSUM_WRITE = 1;
+
+	KUNIT_EXPECT_EQ(test,
+			dm_helpers_read_local_edid(fixture.ctx, fixture.link, fixture.sink),
+			EDID_OK);
+	KUNIT_EXPECT_EQ(test, aux->checksum_written,
+			aux->edid[EDID_LENGTH - 1]);
+	KUNIT_EXPECT_EQ(test, aux->response_written, expected_response.raw);
+}
+
+/*
+ * Fake link service and clock manager for the test-pattern request path, which
+ * would otherwise reach the DSC config update, the clock update and the PHY
+ * test pattern programming.
+ */
+struct dm_test_pattern_state {
+	unsigned int dsc_config_calls;
+	unsigned int set_pattern_calls;
+	unsigned int update_clocks_calls;
+	enum dp_test_pattern last_pattern;
+	enum dp_test_pattern_color_space last_color_space;
+};
+
+static struct dm_test_pattern_state dm_test_pattern;
+
+static bool dm_test_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
+{
+	dm_test_pattern.dsc_config_calls++;
+	return true;
+}
+
+static bool dm_test_link_dp_set_test_pattern(struct dc_link *link,
+					     enum dp_test_pattern test_pattern,
+					     enum dp_test_pattern_color_space color_space,
+					     const struct link_training_settings *settings,
+					     const unsigned char *custom_pattern,
+					     unsigned int custom_pattern_size)
+{
+	dm_test_pattern.set_pattern_calls++;
+	dm_test_pattern.last_pattern = test_pattern;
+	dm_test_pattern.last_color_space = color_space;
+	return true;
+}
+
+static void dm_test_update_clocks(struct clk_mgr *clk_mgr,
+				  struct dc_state *context, bool safe_to_lower)
+{
+	dm_test_pattern.update_clocks_calls++;
+}
+
+static struct clk_mgr_funcs dm_test_clk_mgr_funcs = {
+	.update_clocks = dm_test_update_clocks,
+};
+
+struct dm_test_pattern_fixture {
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_context *ctx;
+	struct dc_link *link;
+	struct dc_stream_state *stream;
+};
+
+static struct dm_test_pattern_fixture dm_test_setup_pattern(struct kunit *test)
+{
+	struct dm_test_pattern_fixture fixture = {0};
+	struct clk_bw_params *bw_params;
+	struct amdgpu_device *adev;
+	struct link_service *link_srv;
+	struct clk_mgr *clk_mgr;
+	struct dc_state *state;
+	struct dc *dc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	fixture.ctx = kunit_kzalloc(test, sizeof(*fixture.ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, fixture.ctx);
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dc);
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+	link_srv = kunit_kzalloc(test, sizeof(*link_srv), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link_srv);
+	clk_mgr = kunit_kzalloc(test, sizeof(*clk_mgr), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, clk_mgr);
+	bw_params = kunit_kzalloc(test, sizeof(*bw_params), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, bw_params);
+	fixture.link = dm_kunit_alloc_link(test);
+	fixture.aconnector = dm_kunit_alloc_connector(test, adev, fixture.link);
+	fixture.stream = dm_kunit_alloc_stream(test, fixture.link);
+
+	link_srv->update_dsc_config = dm_test_link_update_dsc_config;
+	link_srv->dp_set_test_pattern = dm_test_link_dp_set_test_pattern;
+	clk_mgr->funcs = &dm_test_clk_mgr_funcs;
+	clk_mgr->bw_params = bw_params;
+
+	dc->link_srv = link_srv;
+	dc->clk_mgr = clk_mgr;
+	dc->current_state = state;
+	fixture.ctx->dc = dc;
+	fixture.link->dc = dc;
+	fixture.link->priv = fixture.aconnector;
+
+	/* the first pipe drives the link under test */
+	state->res_ctx.pipe_ctx[0].stream = fixture.stream;
+
+	dm_test_pattern = (struct dm_test_pattern_state) {0};
+
+	return fixture;
+}
+
+/**
+ * dm_test_dp_handle_test_pattern_patterns - Test the requested pattern mapping
+ * @test: The KUnit test context
+ */
+static void dm_test_dp_handle_test_pattern_patterns(struct kunit *test)
+{
+	static const struct {
+		u8 pattern;
+		u8 dyn_range;
+		enum dp_test_pattern expected;
+	} cases[] = {
+		{ LINK_TEST_PATTERN_COLOR_RAMP, 0, DP_TEST_PATTERN_COLOR_RAMP },
+		{ LINK_TEST_PATTERN_VERTICAL_BARS, 0, DP_TEST_PATTERN_VERTICAL_BARS },
+		{ LINK_TEST_PATTERN_COLOR_SQUARES, TEST_DYN_RANGE_VESA, DP_TEST_PATTERN_COLOR_SQUARES },
+		{ LINK_TEST_PATTERN_COLOR_SQUARES, TEST_DYN_RANGE_CEA,  DP_TEST_PATTERN_COLOR_SQUARES_CEA },
+		/* PATTERN is 2 bits wide, so NONE is the only unhandled value */
+		{ LINK_TEST_PATTERN_NONE, 0, DP_TEST_PATTERN_VIDEO_MODE },
+	};
+	struct dm_test_pattern_fixture fixture = dm_test_setup_pattern(test);
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cases); i++) {
+		union link_test_pattern test_pattern = {0};
+		union test_misc test_params = {0};
+		bool ret;
+
+		dm_test_pattern = (struct dm_test_pattern_state) {0};
+		test_pattern.bits.PATTERN = cases[i].pattern;
+		test_params.bits.DYN_RANGE = cases[i].dyn_range;
+
+		ret = dm_helpers_dp_handle_test_pattern_request(fixture.ctx, fixture.link,
+								test_pattern, test_params);
+
+		KUNIT_EXPECT_FALSE(test, ret);
+		KUNIT_EXPECT_EQ_MSG(test, (int)dm_test_pattern.last_pattern,
+				    (int)cases[i].expected, "pattern %u", cases[i].pattern);
+		KUNIT_EXPECT_EQ(test, dm_test_pattern.set_pattern_calls, 1U);
+		KUNIT_EXPECT_EQ(test, dm_test_pattern.update_clocks_calls, 1U);
+	}
+}
+
+/**
+ * dm_test_dp_handle_test_pattern_color_spaces - Test the colour space mapping
+ * @test: The KUnit test context
+ */
+static void dm_test_dp_handle_test_pattern_color_spaces(struct kunit *test)
+{
+	static const struct {
+		u8 clr_format;
+		u8 ycbcr_coefs;
+		enum dp_test_pattern_color_space expected;
+	} cases[] = {
+		{ 0, 0, DP_TEST_PATTERN_COLOR_SPACE_RGB },
+		{ 1, 0, DP_TEST_PATTERN_COLOR_SPACE_YCBCR601 },
+		{ 2, 1, DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 },
+	};
+	struct dm_test_pattern_fixture fixture = dm_test_setup_pattern(test);
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cases); i++) {
+		union link_test_pattern test_pattern = {0};
+		union test_misc test_params = {0};
+
+		dm_test_pattern = (struct dm_test_pattern_state) {0};
+		test_params.bits.CLR_FORMAT = cases[i].clr_format;
+		test_params.bits.YCBCR_COEFS = cases[i].ycbcr_coefs;
+
+		dm_helpers_dp_handle_test_pattern_request(fixture.ctx, fixture.link,
+							  test_pattern, test_params);
+
+		KUNIT_EXPECT_EQ_MSG(test, (int)dm_test_pattern.last_color_space,
+				    (int)cases[i].expected, "format %u", cases[i].clr_format);
+	}
+}
+
+/**
+ * dm_test_dp_handle_test_pattern_timing_change - Test the timing update branch
+ * @test: The KUnit test context
+ *
+ * A requested colour depth or pixel encoding that differs from the current
+ * stream timing reprograms the timing and updates the DSC config.
+ */
+static void dm_test_dp_handle_test_pattern_timing_change(struct kunit *test)
+{
+	static const struct {
+		u8 bpc;
+		u8 clr_format;
+		enum dc_color_depth depth;
+		enum dc_pixel_encoding encoding;
+	} cases[] = {
+		{ 2, 1, COLOR_DEPTH_101010, PIXEL_ENCODING_YCBCR422 },
+		{ 3, 2, COLOR_DEPTH_121212, PIXEL_ENCODING_YCBCR444 },
+	};
+	struct dm_test_pattern_fixture fixture = dm_test_setup_pattern(test);
+	struct dc_crtc_timing requested = {0};
+	unsigned int i;
+
+	fixture.aconnector->timing_requested = &requested;
+
+	for (i = 0; i < ARRAY_SIZE(cases); i++) {
+		union link_test_pattern test_pattern = {0};
+		union test_misc test_params = {0};
+
+		dm_test_pattern = (struct dm_test_pattern_state) {0};
+		fixture.stream->timing.display_color_depth = COLOR_DEPTH_888;
+		fixture.stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
+		test_params.bits.BPC = cases[i].bpc;
+		test_params.bits.CLR_FORMAT = cases[i].clr_format;
+
+		dm_helpers_dp_handle_test_pattern_request(fixture.ctx, fixture.link,
+							  test_pattern, test_params);
+
+		KUNIT_EXPECT_EQ_MSG(test, (int)fixture.stream->timing.display_color_depth,
+				    (int)cases[i].depth, "bpc %u", cases[i].bpc);
+		KUNIT_EXPECT_EQ_MSG(test, (int)fixture.stream->timing.pixel_encoding,
+				    (int)cases[i].encoding, "format %u", cases[i].clr_format);
+		KUNIT_EXPECT_EQ(test, dm_test_pattern.dsc_config_calls, 1U);
+		KUNIT_EXPECT_TRUE(test, fixture.aconnector->timing_changed);
+		KUNIT_EXPECT_EQ(test, (int)requested.display_color_depth,
+				(int)cases[i].depth);
+	}
+}
+
+/**
+ * dm_test_dp_handle_test_pattern_no_timing_storage - Test the missing storage path
+ * @test: The KUnit test context
+ *
+ * Without a timing_requested buffer the helper still reprograms the timing but
+ * reports that it could not store it.
+ */
+static void dm_test_dp_handle_test_pattern_no_timing_storage(struct kunit *test)
+{
+	struct dm_test_pattern_fixture fixture = dm_test_setup_pattern(test);
+	union link_test_pattern test_pattern = {0};
+	union test_misc test_params = {0};
+
+	fixture.aconnector->timing_requested = NULL;
+	fixture.stream->timing.display_color_depth = COLOR_DEPTH_888;
+
+	/* 6 bpc differs from the current 8 bpc timing */
+	test_params.bits.BPC = 0;
+
+	dm_helpers_dp_handle_test_pattern_request(fixture.ctx, fixture.link,
+						  test_pattern, test_params);
+
+	KUNIT_EXPECT_EQ(test, (int)fixture.stream->timing.display_color_depth,
+			(int)COLOR_DEPTH_666);
+	KUNIT_EXPECT_TRUE(test, fixture.aconnector->timing_changed);
+}
+
+/**
+ * dm_test_read_local_edid_i2c_no_response - Test the I2C DDC path with no sink
+ * @test: The KUnit test context
+ *
+ * A non-AUX link reads the EDID over the connector's I2C adapter. With no sink
+ * responding, every retry fails and the helper reports EDID_NO_RESPONSE.
+ */
+static void dm_test_read_local_edid_i2c_no_response(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = dm_test_setup_local_edid(test);
+	struct i2c_adapter *ddc;
+
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ddc);
+	ddc->algo = &dm_test_ddc_algorithm;
+	ddc->lock_ops = &dm_test_i2c_lock_ops;
+	rt_mutex_init(&ddc->bus_lock);
+	rt_mutex_init(&ddc->mux_lock);
+
+	fixture.link->aux_mode = false;
+	fixture.link->ddc_hw_inst = 1;
+	fixture.aconnector->i2c = (struct amdgpu_i2c_adapter *)ddc;
+	fixture.dc->hwss.prepare_ddc = dm_test_prepare_ddc;
+	dm_test_prepare_ddc_calls = 0;
+
+	KUNIT_EXPECT_EQ(test,
+			dm_helpers_read_local_edid(fixture.ctx, fixture.link, fixture.sink),
+			EDID_NO_RESPONSE);
+	KUNIT_EXPECT_EQ(test, dm_test_prepare_ddc_calls, 1U);
+}
+
+/**
+ * dm_test_read_local_edid_vbios_embedded - Test the VBIOS hardcoded EDID path
+ * @test: The KUnit test context
+ *
+ * An embedded panel with no DDC line has no I2C adapter to read from, so the
+ * helper falls back to the EDID hardcoded in the VBIOS embedded panel info.
+ */
+static void dm_test_read_local_edid_vbios_embedded(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = dm_test_setup_local_edid(test);
+	struct dm_test_vbios_edid *vbios;
+
+	vbios = kunit_kzalloc(test, sizeof(*vbios), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, vbios);
+
+	vbios->bios.funcs = &dm_test_vbios_edid_funcs;
+	vbios->result = BP_RESULT_OK;
+	/* the fixture already holds a valid base EDID */
+	vbios->fake_edid = fixture.aux->edid;
+	vbios->fake_edid_size = EDID_LENGTH;
+
+	fixture.ctx->dc_bios = &vbios->bios;
+	fixture.link->ctx = fixture.ctx;
+	fixture.link->aux_mode = false;
+	fixture.link->ddc_hw_inst = GPIO_DDC_LINE_UNKNOWN;
+	fixture.link->connector_signal = SIGNAL_TYPE_EDP;
+
+	KUNIT_EXPECT_EQ(test,
+			dm_helpers_read_local_edid(fixture.ctx, fixture.link, fixture.sink),
+			EDID_OK);
+	KUNIT_EXPECT_EQ(test, fixture.sink->dc_edid.length, (uint32_t)EDID_LENGTH);
+	KUNIT_EXPECT_EQ(test, fixture.sink->edid_caps.manufacturer_id, 0xAC10);
+}
+
+/**
+ * dm_test_read_local_edid_corrupt_checksum - Test the corrupt-EDID compliance path
+ * @test: The KUnit test context
+ *
+ * The sink serves an EDID with a bad checksum, so the DDC read fails and marks
+ * the connector's EDID corrupt. The helper writes the real checksum back over
+ * AUX, clears the corrupt flag and reports EDID_BAD_CHECKSUM.
+ */
+static void dm_test_read_local_edid_corrupt_checksum(struct kunit *test)
+{
+	struct dm_test_local_edid fixture = dm_test_setup_local_edid(test);
+
+	fixture.aux->edid[EDID_LENGTH - 1] ^= 0xFF;
+
+	KUNIT_EXPECT_EQ(test,
+			dm_helpers_read_local_edid(fixture.ctx, fixture.link, fixture.sink),
+			EDID_BAD_CHECKSUM);
+	KUNIT_EXPECT_FALSE(test, fixture.aconnector->base.edid_corrupt);
+}
+
 static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	/* edid_extract_panel_id */
 	KUNIT_CASE(dm_test_edid_extract_panel_id_basic),
@@ -3729,8 +4821,12 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_apply_edid_quirks_disable_fams),
 	KUNIT_CASE(dm_test_apply_edid_quirks_remove_sink_ext_caps),
 	KUNIT_CASE(dm_test_apply_edid_quirks_disable_colorimetry),
+	KUNIT_CASE(dm_test_apply_edid_quirks_psr_phy_power_down),
 	KUNIT_CASE(dm_test_apply_edid_quirks_skip_phy_ssc),
+	KUNIT_CASE(dm_test_apply_edid_quirks_force_freesync_min),
 	KUNIT_CASE(dm_test_apply_edid_quirks_unknown_noop),
+	KUNIT_CASE(dm_test_apply_edid_quirks_disable_second_tile),
+	KUNIT_CASE(dm_test_apply_edid_quirks_force_freesync_min_60),
 	/* dm_helpers_parse_edid_caps */
 	KUNIT_CASE(dm_test_parse_edid_caps_null_edid),
 	KUNIT_CASE(dm_test_parse_edid_caps_null_caps),
@@ -3738,6 +4834,7 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_parse_edid_caps_bad_checksum),
 	KUNIT_CASE(dm_test_parse_edid_caps_hdmi_frl),
 	KUNIT_CASE(dm_test_parse_edid_caps_hdmi_frl_dsc),
+	KUNIT_CASE(dm_test_parse_edid_caps_hdmi_comp_auto),
 	KUNIT_CASE(dm_test_parse_edid_caps_cea_audio),
 	KUNIT_CASE(dm_test_parse_edid_caps_cea_no_speaker),
 	/* ACPI / VBIOS / local EDID readers */
@@ -3745,6 +4842,7 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_read_acpi_edid_debug_mask_disabled),
 	KUNIT_CASE(dm_test_read_acpi_edid_non_panel_connector),
 	KUNIT_CASE(dm_test_read_acpi_edid_force_off),
+	KUNIT_CASE(dm_test_read_acpi_edid_panel_connector),
 	KUNIT_CASE(dm_test_read_vbios_edid_non_embedded),
 	KUNIT_CASE(dm_test_read_vbios_edid_missing_callback),
 	KUNIT_CASE(dm_test_read_vbios_edid_callback_error),
@@ -3792,6 +4890,10 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_execute_synaptics_rc_command_write_success),
 	KUNIT_CASE(dm_test_execute_synaptics_rc_command_read_success),
 	KUNIT_CASE(dm_test_execute_synaptics_rc_command_write_fail),
+	KUNIT_CASE(dm_test_execute_synaptics_rc_command_data_fail),
+	KUNIT_CASE(dm_test_execute_synaptics_rc_command_offset_fail),
+	KUNIT_CASE(dm_test_execute_synaptics_rc_command_command_fail),
+	KUNIT_CASE(dm_test_execute_synaptics_rc_command_busy_poll),
 	KUNIT_CASE(dm_test_apply_synaptics_fifo_reset_wa_full),
 	KUNIT_CASE(dm_test_apply_synaptics_fifo_reset_wa_first_fail),
 	KUNIT_CASE(dm_test_write_dsc_enable_synaptics_enable_inactive),
@@ -3805,6 +4907,7 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_mst_stop_top_mgr_null_priv),
 	KUNIT_CASE(dm_test_mst_start_top_mgr_boot),
 	KUNIT_CASE(dm_test_mst_start_top_mgr_set_mst_fail),
+	KUNIT_CASE(dm_test_mst_start_top_mgr_already_started),
 	KUNIT_CASE(dm_test_mst_stop_top_mgr_active),
 	/* dm_helpers_dp_write_hblank_reduction */
 	KUNIT_CASE(dm_test_dp_write_hblank_reduction_false),
@@ -3833,6 +4936,7 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_submit_i2c_partial_transfer),
 	/* dm_helper_dmub_aux_transfer_sync */
 	KUNIT_CASE(dm_test_dmub_aux_transfer_sync_hpd_discon),
+	KUNIT_CASE(dm_test_dmub_aux_transfer_sync_hpd_connected),
 	/* Empty stub functions */
 	KUNIT_CASE(dm_test_dp_update_branch_info_no_crash),
 	KUNIT_CASE(dm_test_mst_poll_pending_down_reply_no_crash),
@@ -3865,6 +4969,7 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	/* dm_helpers_mst_enable_stream_features */
 	KUNIT_CASE(dm_test_mst_enable_stream_features_aux_disabled),
 	KUNIT_CASE(dm_test_mst_enable_stream_features_writes_downspread),
+	KUNIT_CASE(dm_test_mst_enable_stream_features_read_fail),
 	/* dm_helpers_enable_periodic_detection */
 	KUNIT_CASE(dm_test_enable_periodic_detection_no_workqueue),
 	KUNIT_CASE(dm_test_enable_periodic_detection_updates_enable),
@@ -3877,12 +4982,14 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_read_mccs_caps_hdmi_vcp_request),
 	KUNIT_CASE(dm_test_read_mccs_caps_legacy_pcon_vcp_request),
 	KUNIT_CASE(dm_test_read_mccs_caps_i2c_failure),
+	KUNIT_CASE(dm_test_read_mccs_caps_aux_mode),
 	/* dm_helpers_mccs_vcp_set */
 	KUNIT_CASE(dm_test_mccs_vcp_set_null_ctx),
 	KUNIT_CASE(dm_test_mccs_vcp_set_not_supported),
 	KUNIT_CASE(dm_test_mccs_vcp_set_null_link),
 	KUNIT_CASE(dm_test_mccs_vcp_set_i2c_packet),
 	KUNIT_CASE(dm_test_mccs_vcp_set_i2c_failure),
+	KUNIT_CASE(dm_test_mccs_vcp_set_aux_mode),
 	/* dm_helpers_construct_old_payload */
 	KUNIT_CASE(dm_test_construct_old_payload_empty_list),
 	KUNIT_CASE(dm_test_construct_old_payload_intervening),
@@ -3899,6 +5006,24 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_dp_write_dsc_enable_pcon_disable),
 	/* dm_helpers_dp_handle_test_pattern_request */
 	KUNIT_CASE(dm_test_dp_handle_test_pattern_no_pipe),
+	KUNIT_CASE(dm_test_dp_handle_test_pattern_patterns),
+	KUNIT_CASE(dm_test_dp_handle_test_pattern_color_spaces),
+	KUNIT_CASE(dm_test_dp_handle_test_pattern_timing_change),
+	KUNIT_CASE(dm_test_dp_handle_test_pattern_no_timing_storage),
+	/* dm_helpers_submit_i2c_over_aux */
+	KUNIT_CASE(dm_test_submit_i2c_over_aux_unimplemented),
+	/* dm_helpers_allocate_gpu_mem / dm_helpers_free_gpu_mem */
+	KUNIT_CASE(dm_test_gpu_mem_alloc_and_free),
+	/* dm_helpers_dmub_set_config_sync */
+	KUNIT_CASE(dm_test_dmub_set_config_sync_unknown_error),
+	/* dm_helpers_is_dp_sink_present */
+	KUNIT_CASE(dm_test_is_dp_sink_present_queries_link_service),
+	/* dm_helpers_read_local_edid */
+	KUNIT_CASE(dm_test_read_local_edid_aux_mode),
+	KUNIT_CASE(dm_test_read_local_edid_test_request),
+	KUNIT_CASE(dm_test_read_local_edid_i2c_no_response),
+	KUNIT_CASE(dm_test_read_local_edid_vbios_embedded),
+	KUNIT_CASE(dm_test_read_local_edid_corrupt_checksum),
 	{}
 };
 

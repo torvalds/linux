@@ -384,7 +384,7 @@ static const struct of_device_id b53_of_match[] = {
 	{ .compatible = "brcm,bcm5395" },
 	{ .compatible = "brcm,bcm5397" },
 	{ .compatible = "brcm,bcm5398" },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, b53_of_match);
 

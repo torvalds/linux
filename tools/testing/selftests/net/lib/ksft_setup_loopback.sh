@@ -12,7 +12,7 @@
 #
 # Example use:
 #   export NETIF=eth0
-#   ./net/lib/ksft_setup_loopback.sh ./drivers/net/gro.py
+#   ./net/lib/ksft_setup_loopback.sh ./drivers/net/gro_sw.py
 
 if [ -z "$NETIF" ]; then
     echo "Error: NETIF variable not set"

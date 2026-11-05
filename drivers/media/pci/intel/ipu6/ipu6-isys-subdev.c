@@ -160,6 +160,7 @@ u32 ipu6_isys_convert_bayer_order(u32 code, int x, int y)
 }
 
 int ipu6_isys_subdev_set_fmt(struct v4l2_subdev *sd,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_format *format)
 {
@@ -265,16 +266,12 @@ static int subdev_set_routing(struct v4l2_subdev *sd,
 	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &format);
 }
 
-u32 ipu6_isys_get_src_stream_by_src_pad(struct v4l2_subdev *sd, u32 pad)
+u32 __ipu6_isys_get_src_stream_by_src_pad(struct v4l2_subdev_state *state,
+					  u32 pad)
 {
-	struct v4l2_subdev_state *state;
 	struct v4l2_subdev_route *routes;
 	unsigned int i;
 	u32 source_stream = 0;
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-	if (!state)
-		return 0;
 
 	routes = state->routing.routes;
 	for (i = 0; i < state->routing.num_routes; i++) {
@@ -283,6 +280,20 @@ u32 ipu6_isys_get_src_stream_by_src_pad(struct v4l2_subdev *sd, u32 pad)
 			break;
 		}
 	}
+
+	return source_stream;
+}
+
+u32 ipu6_isys_get_src_stream_by_src_pad(struct v4l2_subdev *sd, u32 pad)
+{
+	struct v4l2_subdev_state *state;
+	u32 source_stream = 0;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+	if (!state)
+		return 0;
+
+	source_stream = __ipu6_isys_get_src_stream_by_src_pad(state, pad);
 
 	v4l2_subdev_unlock_state(state);
 

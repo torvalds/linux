@@ -144,7 +144,7 @@ struct adfs_discmap {
 /* Inode stuff */
 struct inode *adfs_iget(struct super_block *sb, struct object_info *obj);
 int adfs_write_inode(struct inode *inode, struct writeback_control *wbc);
-int adfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int adfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr);
 
 /* map.c */

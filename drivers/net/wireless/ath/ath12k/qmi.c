@@ -14,11 +14,11 @@
 #include <linux/of_address.h>
 #include <linux/ioport.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/sizes.h>
 
 #define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
 #define HOST_CSTATE_BIT			0x04
 #define PLATFORM_CAP_PCIE_GLOBAL_RESET	0x08
-#define ATH12K_QMI_MAX_CHUNK_SIZE	2097152
 
 static const struct qmi_elem_info wlfw_host_mlo_chip_info_s_v01_ei[] = {
 	{
@@ -2584,46 +2584,63 @@ static void ath12k_qmi_free_mlo_mem_chunk(struct ath12k_base *ab,
 		mlo_chunk->v.ioaddr = NULL;
 	} else if (mlo_chunk->v.addr) {
 		dma_free_coherent(ab->dev,
-				  mlo_chunk->size,
-				  mlo_chunk->v.addr,
-				  mlo_chunk->paddr);
+				  mlo_chunk->total_size,
+				  mlo_chunk->vaddr_unaligned,
+				  mlo_chunk->paddr_unaligned);
+		mlo_chunk->vaddr_unaligned = NULL;
 		mlo_chunk->v.addr = NULL;
 	}
 
 	mlo_chunk->paddr = 0;
+	mlo_chunk->paddr_unaligned = 0;
 	mlo_chunk->size = 0;
-	if (fixed_mem)
+	mlo_chunk->total_size = 0;
+
+	if (fixed_mem) {
 		chunk->v.ioaddr = NULL;
-	else
+	} else {
 		chunk->v.addr = NULL;
+		chunk->vaddr_unaligned = NULL;
+	}
 	chunk->paddr = 0;
+	chunk->paddr_unaligned = 0;
 	chunk->size = 0;
+	chunk->total_size = 0;
 }
 
 static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
 {
 	struct ath12k_hw_group *ag = ab->ag;
+	struct target_mem_chunk *chunk;
 	int i, mlo_idx;
 
 	for (i = 0, mlo_idx = 0; i < ab->qmi.mem_seg_count; i++) {
-		if (ab->qmi.target_mem[i].type == MLO_GLOBAL_MEM_REGION_TYPE) {
+		chunk = &ab->qmi.target_mem[i];
+
+		if (chunk->type == MLO_GLOBAL_MEM_REGION_TYPE) {
 			ath12k_qmi_free_mlo_mem_chunk(ab,
-						      &ab->qmi.target_mem[i],
+						      chunk,
 						      mlo_idx++);
 		} else {
 			if (test_bit(ATH12K_FLAG_FIXED_MEM_REGION, &ab->dev_flags) &&
-			    ab->qmi.target_mem[i].v.ioaddr) {
-				iounmap(ab->qmi.target_mem[i].v.ioaddr);
-				ab->qmi.target_mem[i].v.ioaddr = NULL;
+			    chunk->v.ioaddr) {
+				iounmap(chunk->v.ioaddr);
+				chunk->v.ioaddr = NULL;
 			} else {
-				if (!ab->qmi.target_mem[i].v.addr)
+				if (!chunk->v.addr)
 					continue;
 				dma_free_coherent(ab->dev,
-						  ab->qmi.target_mem[i].prev_size,
-						  ab->qmi.target_mem[i].v.addr,
-						  ab->qmi.target_mem[i].paddr);
-				ab->qmi.target_mem[i].v.addr = NULL;
+						  chunk->total_size,
+						  chunk->vaddr_unaligned,
+						  chunk->paddr_unaligned);
+				chunk->vaddr_unaligned = NULL;
+				chunk->v.addr = NULL;
 			}
+
+			chunk->paddr = 0;
+			chunk->paddr_unaligned = 0;
+			chunk->size = 0;
+			chunk->total_size = 0;
 		}
 	}
 
@@ -2636,6 +2653,10 @@ static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
 static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
 				  struct target_mem_chunk *chunk)
 {
+	dma_addr_t paddr;
+	size_t size;
+	void *vaddr;
+
 	/* Firmware reloads in recovery/resume.
 	 * In such cases, no need to allocate memory for FW again.
 	 */
@@ -2645,29 +2666,56 @@ static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
 			goto this_chunk_done;
 
 		/* cannot reuse the existing chunk */
-		dma_free_coherent(ab->dev, chunk->prev_size,
-				  chunk->v.addr, chunk->paddr);
+		dma_free_coherent(ab->dev, chunk->total_size,
+				  chunk->vaddr_unaligned, chunk->paddr_unaligned);
 		chunk->v.addr = NULL;
+		chunk->vaddr_unaligned = NULL;
+		chunk->paddr_unaligned = 0;
+		chunk->total_size = 0;
 	}
 
-	chunk->v.addr = dma_alloc_coherent(ab->dev,
-					   chunk->size,
-					   &chunk->paddr,
+	/*
+	 * Each unaligned chunk costs the firmware extra TLB entries when
+	 * mapping it, and too many unaligned chunks exhaust the TLB and
+	 * crash the firmware, so align the base to 64 KB. The DMA
+	 * allocator only guarantees page alignment, but a natural
+	 * allocation is often already 64 KB aligned. Try the exact size
+	 * first and keep it when it happens to be aligned; only fall back
+	 * to over-allocating and rounding up when it is not.
+	 */
+	size = chunk->size;
+	vaddr = dma_alloc_coherent(ab->dev, size, &paddr,
+				   GFP_KERNEL | __GFP_NOWARN);
+	if (vaddr && !IS_ALIGNED(paddr, SZ_64K)) {
+		dma_free_coherent(ab->dev, size, vaddr, paddr);
+
+		size = chunk->size + SZ_64K - PAGE_SIZE;
+		vaddr = dma_alloc_coherent(ab->dev, size, &paddr,
 					   GFP_KERNEL | __GFP_NOWARN);
-	if (!chunk->v.addr) {
-		if (chunk->size > ATH12K_QMI_MAX_CHUNK_SIZE) {
+	}
+
+	if (!vaddr) {
+		if (chunk->size > ab->hw_params->qmi_max_chunk_size) {
 			ab->qmi.target_mem_delayed = true;
 			ath12k_warn(ab,
-				    "qmi dma allocation failed (%u B type %u), will try later with small size\n",
-				    chunk->size,
+				    "qmi dma allocation failed (%zu B type %u), will try later with small size\n",
+				    size,
 				    chunk->type);
 			ath12k_qmi_free_target_mem_chunk(ab);
 			return -EAGAIN;
 		}
-		ath12k_warn(ab, "memory allocation failure for %u size: %u\n",
-			    chunk->type, chunk->size);
+		ath12k_warn(ab, "memory allocation failure for %u size: %zu\n",
+			    chunk->type, size);
 		return -ENOMEM;
 	}
+
+	chunk->vaddr_unaligned = vaddr;
+	chunk->paddr_unaligned = paddr;
+	chunk->total_size = size;
+
+	chunk->paddr = ALIGN(paddr, SZ_64K);
+	chunk->v.addr = (u8 *)vaddr + (chunk->paddr - paddr);
+
 	chunk->prev_type = chunk->type;
 	chunk->prev_size = chunk->size;
 this_chunk_done:
@@ -2971,6 +3019,10 @@ int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 	r = ath12k_core_check_smbios(ab);
 	if (r)
 		ath12k_dbg(ab, ATH12K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
+
+	r = ath12k_core_check_dt(ab);
+	if (r)
+		ath12k_dbg(ab, ATH12K_DBG_QMI, "DT bdf variant name not set.\n");
 
 	r = ath12k_acpi_start(ab);
 	if (r)

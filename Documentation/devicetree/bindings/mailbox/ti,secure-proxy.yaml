@@ -22,7 +22,9 @@ properties:
     pattern: "^mailbox@[0-9a-f]+$"
 
   compatible:
-    const: ti,am654-secure-proxy
+    enum:
+      - ti,am654-secure-proxy
+      - ti,tda54-main-secure-proxy
 
   "#mbox-cells":
     const: 1

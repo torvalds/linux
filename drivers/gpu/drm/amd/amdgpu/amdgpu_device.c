@@ -33,6 +33,7 @@
 #include <linux/console.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
+#include <linux/amd-iommu.h>
 #include <linux/pci.h>
 #include <linux/pci-p2pdma.h>
 #include <linux/apple-gmux.h>
@@ -68,6 +69,7 @@
 #include "amdgpu_vf_error.h"
 
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_pm.h"
 
 #include "amdgpu_xgmi.h"
@@ -247,6 +249,9 @@ static int amdgpu_device_attr_sysfs_init(struct amdgpu_device *adev)
 		ret = sysfs_create_file(&adev->dev->kobj,
 					&dev_attr_pcie_replay_count.attr);
 
+	if (!ret)
+		ret = amdgpu_discovery_mem_reserved_info_sysfs_init(adev);
+
 	return ret;
 }
 
@@ -255,6 +260,8 @@ static void amdgpu_device_attr_sysfs_fini(struct amdgpu_device *adev)
 	if (amdgpu_nbio_is_replay_cnt_supported(adev))
 		sysfs_remove_file(&adev->dev->kobj,
 				  &dev_attr_pcie_replay_count.attr);
+
+	amdgpu_discovery_mem_reserved_info_sysfs_fini(adev);
 }
 
 static ssize_t amdgpu_sysfs_reg_state_get(struct file *f, struct kobject *kobj,
@@ -328,6 +335,7 @@ void amdgpu_reg_state_sysfs_fini(struct amdgpu_device *adev)
  *
  * - "cem"		- PCIE CEM card
  * - "oam"		- Open Compute Accelerator Module
+ * - "eam"		- Enhanced Accelerator Module
  * - "unknown"	- Not known
  *
  */
@@ -350,6 +358,9 @@ static ssize_t amdgpu_device_get_board_info(struct device *dev,
 		break;
 	case AMDGPU_PKG_TYPE_OAM:
 		pkg = "oam";
+		break;
+	case AMDGPU_PKG_TYPE_BB:
+		pkg = "eam";
 		break;
 	default:
 		pkg = "unknown";
@@ -583,10 +594,8 @@ bool amdgpu_device_supports_boco(struct amdgpu_device *adev)
 	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
 		return false;
 
-	if (adev->has_pr3 ||
-	    ((adev->flags & AMD_IS_PX) && amdgpu_is_atpx_hybrid()))
-		return true;
-	return false;
+	/* BOCO needs a platform power resource (_PR3) to cut the power */
+	return adev->has_pr3;
 }
 
 /**
@@ -939,6 +948,9 @@ u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev)
 
 static uint32_t amdgpu_device_get_vbios_flags(struct amdgpu_device *adev)
 {
+	if (amdgpu_virt_vram_is_spm(adev))
+		return AMDGPU_VBIOS_OPTIONAL;
+
 	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU))
 		return AMDGPU_VBIOS_SKIP;
 
@@ -1348,31 +1360,6 @@ static bool amdgpu_device_aspm_support_quirk(struct amdgpu_device *adev)
 #endif
 }
 
-/*
- * Some dGPUs expose their display endpoint below an internal PCIe switch.
- * Use the switch upstream port to query the host-facing link.
- */
-static struct pci_dev *amdgpu_device_get_aspm_pdev(struct amdgpu_device *adev)
-{
-	struct pci_dev *swds, *swus;
-
-	swds = pci_upstream_bridge(adev->pdev);
-	if (!swds ||
-	    (swds->vendor != PCI_VENDOR_ID_ATI &&
-	     swds->vendor != PCI_VENDOR_ID_AMD) ||
-	    pci_pcie_type(swds) != PCI_EXP_TYPE_DOWNSTREAM)
-		return adev->pdev;
-
-	swus = pci_upstream_bridge(swds);
-	if (!swus ||
-	    (swus->vendor != PCI_VENDOR_ID_ATI &&
-	     swus->vendor != PCI_VENDOR_ID_AMD) ||
-	    pci_pcie_type(swus) != PCI_EXP_TYPE_UPSTREAM)
-		return adev->pdev;
-
-	return swus;
-}
-
 /**
  * amdgpu_device_should_use_aspm - check if the device should program ASPM
  *
@@ -1408,7 +1395,7 @@ bool amdgpu_device_should_use_aspm(struct amdgpu_device *adev)
 	 * the immediate upstream bridge. Use SWUS for dGPUs with an
 	 * internal switch so that this is the host-facing link.
 	 */
-	aspm_pdev = amdgpu_device_get_aspm_pdev(adev);
+	aspm_pdev = adev->link_dev;
 	parent = pci_upstream_bridge(aspm_pdev);
 	if (!parent) {
 		dev_dbg(adev->dev, "ASPM: no upstream PCIe link for %s\n",
@@ -1429,16 +1416,15 @@ bool amdgpu_device_should_use_aspm(struct amdgpu_device *adev)
 /**
  * amdgpu_device_vga_set_decode - enable/disable vga decode
  *
- * @pdev: PCI device pointer
+ * @data: driver private data (adev)
  * @state: enable/disable vga decode
  *
  * Enable/disable vga decode (all asics).
  * Returns VGA resource flags.
  */
-static unsigned int amdgpu_device_vga_set_decode(struct pci_dev *pdev,
-		bool state)
+static unsigned int amdgpu_device_vga_set_decode(void *data, bool state)
 {
-	struct amdgpu_device *adev = drm_to_adev(pci_get_drvdata(pdev));
+	struct amdgpu_device *adev = data;
 
 	amdgpu_asic_set_vga_state(adev, state);
 	if (state)
@@ -1734,10 +1720,17 @@ static bool amdgpu_switcheroo_can_switch(struct pci_dev *pdev)
 	return atomic_read(&dev->open_count) == 0;
 }
 
+static void amdgpu_switcheroo_pre_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	drm_client_dev_acquire_outputs(dev);
+}
+
 static const struct vga_switcheroo_client_ops amdgpu_switcheroo_ops = {
 	.set_gpu_state = amdgpu_switcheroo_set_state,
-	.reprobe = NULL,
 	.can_switch = amdgpu_switcheroo_can_switch,
+	.pre_switch = amdgpu_switcheroo_pre_switch,
 };
 
 /**
@@ -1956,15 +1949,26 @@ static void amdgpu_uid_fini(struct amdgpu_device *adev)
 
 static void amdgpu_device_init_pcie_links(struct amdgpu_device *adev)
 {
+	struct pci_dev *swds, *swus;
+
 	adev->link_dev = adev->pdev;
 	adev->link_partner = pci_upstream_bridge(adev->link_dev);
 
-	/* Skip upstream/downstream switches internal to the dGPU. */
-	while (adev->link_partner &&
-	       adev->link_partner->vendor == PCI_VENDOR_ID_ATI) {
-		adev->link_dev = adev->link_partner;
-		adev->link_partner = pci_upstream_bridge(adev->link_dev);
-	}
+	/* Skip an upstream/downstream switch internal to the dGPU. */
+	swds = adev->link_partner;
+	if (!swds || swds->vendor != PCI_VENDOR_ID_ATI ||
+	    pci_pcie_type(swds) != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+
+	swus = pci_upstream_bridge(swds);
+	if (!swus ||
+	    (swus->vendor != PCI_VENDOR_ID_ATI &&
+	     swus->vendor != PCI_VENDOR_ID_AMD) ||
+	    pci_pcie_type(swus) != PCI_EXP_TYPE_UPSTREAM)
+		return;
+
+	adev->link_dev = swus;
+	adev->link_partner = pci_upstream_bridge(swus);
 }
 
 /**
@@ -2075,9 +2079,14 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	    !dev_is_removable(&adev->pdev->dev))
 		adev->flags |= AMD_IS_PX;
 
-	if (!(adev->flags & AMD_IS_APU))
+	if (!(adev->flags & AMD_IS_APU)) {
 		adev->has_pr3 = adev->link_partner &&
 			pci_pr3_present(adev->link_partner);
+
+		if ((amdgpu_sriov_vf(adev) || amdgpu_passthrough(adev)) &&
+		    !pci_resource_len(adev->pdev, 0))
+			adev->virt.caps |= AMDGPU_VIRT_VRAM_IS_SPM;
+	}
 
 	adev->pm.pp_feature = amdgpu_pp_feature_mask;
 	if (amdgpu_sriov_vf(adev) || sched_policy == KFD_SCHED_POLICY_NO_HWS)
@@ -2501,7 +2510,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	/**
 	 * In case of XGMI grab extra reference for reset domain for this device
 	 */
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	    adev->gmc.xgmi.supported) {
 		if (amdgpu_xgmi_add_device(adev) == 0) {
 			if (!amdgpu_sriov_vf(adev)) {
 				struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
@@ -2772,6 +2782,12 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_GATE);
 
+	r = amdgpu_dpm_reapply_umd_profile(adev);
+	if (r) {
+		dev_err(adev->dev, "Failed to restore UMD profile state: %d\n", r);
+		return r;
+	}
+
 	amdgpu_device_fill_reset_magic(adev);
 
 	r = amdgpu_device_enable_mgpu_fan_boost();
@@ -2784,7 +2800,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	     adev->asic_type == CHIP_ALDEBARAN))
 		amdgpu_dpm_handle_passthrough_sbr(adev, true);
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if (adev->gmc.xgmi.num_physical_nodes > 1 && adev->gmc.xgmi.supported) {
 		mutex_lock(&mgpu_info.mutex);
 
 		/*
@@ -2947,7 +2963,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev) && adev->virt.ras_init_done)
 		amdgpu_virt_release_ras_err_handler_data(adev);
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1)
+	if (adev->gmc.xgmi.num_physical_nodes > 1 && adev->gmc.xgmi.supported)
 		amdgpu_xgmi_remove_device(adev);
 
 	amdgpu_amdkfd_device_fini_sw(adev);
@@ -3721,6 +3737,7 @@ static int amdgpu_device_sys_interface_init(struct amdgpu_device *adev)
 	amdgpu_xcp_sysfs_init(adev);
 	amdgpu_uma_sysfs_init(adev);
 	amdgpu_ptl_sysfs_init(adev);
+	amdgpu_ualink_sysfs_init(adev);
 
 	return r;
 }
@@ -3742,6 +3759,7 @@ static void amdgpu_device_sys_interface_fini(struct amdgpu_device *adev)
 	amdgpu_xcp_sysfs_fini(adev);
 	amdgpu_uma_sysfs_fini(adev);
 	amdgpu_ptl_sysfs_fini(adev);
+	amdgpu_ualink_sysfs_fini(adev);
 }
 
 static bool
@@ -3750,6 +3768,28 @@ amdgpu_device_should_register_switcheroo(struct amdgpu_device *adev, bool px)
 	return !pci_is_thunderbolt_attached(adev->pdev) &&
 	       (px || (!dev_is_removable(&adev->pdev->dev) &&
 		       apple_gmux_detect(NULL, NULL)));
+}
+
+static inline bool amdgpu_device_identity(struct amdgpu_device *adev)
+{
+	struct pci_dev *pdev = adev->pdev;
+	struct iommu_domain *domain = iommu_get_domain_for_dev(&pdev->dev);
+
+	if (!domain)
+		return false;
+
+	return domain->type == IOMMU_DOMAIN_IDENTITY;
+}
+
+static bool amdgpu_device_use_perfopt(struct amdgpu_device *adev)
+{
+	if (amdgpu_iommu_perfopt == 0)
+		return false;
+
+	if (!(adev->flags & AMD_IS_APU))
+		return false;
+
+	return amdgpu_device_identity(adev);
 }
 
 /**
@@ -3840,6 +3880,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	spin_lock_init(&adev->irq.lock);
 
+	amdgpu_ip_map_init(adev);
 	amdgpu_early_init_rlc_reg_funcs(adev);
 	amdgpu_device_init_apu_flags(adev);
 
@@ -3851,6 +3892,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	spin_lock_init(&adev->mm_stats.lock);
 	spin_lock_init(&adev->virt.rlcg_reg_lock);
 	spin_lock_init(&adev->wb.lock);
+	mutex_init(&adev->lsdma.lock);
 
 	INIT_LIST_HEAD(&adev->reset_list);
 
@@ -3959,6 +4001,16 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
+	if (amdgpu_device_use_perfopt(adev)) {
+		int perfopt_ret = amd_iommu_enable_perfopt(pdev);
+
+		/* Optional optimization; a failure to arm it must not abort probe. */
+		if (perfopt_ret)
+			dev_warn(adev->dev,
+				 "Failed to enable IOMMU PerfOpt (%d); continuing without it\n",
+				 perfopt_ret);
+	}
+
 	/*
 	 * No need to remove conflicting FBs for non-display class devices.
 	 * This prevents the sysfb from being freed accidently.
@@ -4002,24 +4054,21 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	}
 
 	/* enable PCIE atomic ops */
-	if (amdgpu_sriov_vf(adev)) {
-		if (adev->virt.fw_reserve.p_pf2vf)
-			adev->have_atomics_support = ((struct amd_sriov_msg_pf2vf_info *)
-						      adev->virt.fw_reserve.p_pf2vf)->pcie_atomic_ops_support_flags ==
-				(PCI_EXP_DEVCAP2_ATOMIC_COMP32 | PCI_EXP_DEVCAP2_ATOMIC_COMP64);
-	/* APUs w/ gfx9 onwards doesn't reply on PCIe atomics, rather it is a
-	 * internal path natively support atomics, set have_atomics_support to true.
-	 */
-	} else if ((adev->flags & AMD_IS_APU &&
-		   amdgpu_ip_version(adev, GC_HWIP, 0) > IP_VERSION(9, 0, 0)) ||
-		   (adev->gmc.xgmi.connected_to_cpu &&
-		   amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 1, 0))) {
-		adev->have_atomics_support = true;
-	} else {
-		adev->have_atomics_support =
-			!pci_enable_atomic_ops_to_root(adev->pdev,
-					  PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
-					  PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+	if (!amdgpu_sriov_vf(adev)) {
+		/* APUs w/ gfx9 onwards doesn't reply on PCIe atomics, rather it is a
+		 * internal path natively support atomics, set have_atomics_support to true.
+		 */
+		if ((adev->flags & AMD_IS_APU &&
+		     amdgpu_ip_version(adev, GC_HWIP, 0) > IP_VERSION(9, 0, 0)) ||
+		    (adev->gmc.xgmi.connected_to_cpu &&
+		     amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 1, 0))) {
+			adev->have_atomics_support = true;
+		} else {
+			adev->have_atomics_support =
+				!pci_enable_atomic_ops_to_root(adev->pdev,
+						  PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
+						  PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+		}
 	}
 
 	if (!adev->have_atomics_support)
@@ -4199,7 +4248,7 @@ fence_driver_init:
 	 * ignore it
 	 */
 	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
-		vga_client_register(adev->pdev, amdgpu_device_vga_set_decode);
+		vga_client_register(adev->pdev, amdgpu_device_vga_set_decode, adev);
 
 	px = amdgpu_device_supports_px(adev);
 
@@ -4315,8 +4364,11 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 	 * before ip_fini_early to prevent kfd locking refcount issues by calling
 	 * amdgpu_amdkfd_suspend()
 	 */
-	if (pci_dev_is_disconnected(adev->pdev))
+	if (pci_dev_is_disconnected(adev->pdev)) {
+		/* Drain KFD processes while kfd.dev is still valid */
+		amdgpu_amdkfd_teardown_processes(adev);
 		amdgpu_amdkfd_device_fini_sw(adev);
+	}
 
 	amdgpu_coredump_fini(adev);
 	amdgpu_device_ip_fini_early(adev);
@@ -4327,6 +4379,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 		ttm_device_clear_dma_mappings(&adev->mman.bdev);
 
 	amdgpu_gart_dummy_page_fini(adev);
+
+	if (amdgpu_device_use_perfopt(adev))
+		amd_iommu_disable_perfopt(adev->pdev);
 
 	if (pci_dev_is_disconnected(adev->pdev))
 		amdgpu_device_unmap_mmio(adev);
@@ -4690,6 +4745,20 @@ int amdgpu_device_resume(struct drm_device *dev, bool notify_clients)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
+
+	if (amdgpu_device_use_perfopt(adev)) {
+		int perfopt_ret = amd_iommu_enable_perfopt(adev->pdev);
+
+		/*
+		 * Must not return on failure: a bare return would leak the
+		 * SR-IOV VF exclusive-mode acquisition taken above (released
+		 * via the exit: path).
+		 */
+		if (perfopt_ret)
+			dev_warn(adev->dev,
+				 "Failed to enable IOMMU PerfOpt (%d); continuing without it\n",
+				 perfopt_ret);
+	}
 
 	if (adev->in_s0ix)
 		amdgpu_dpm_gfx_state_change(adev, sGpuChangeState_D0Entry);
@@ -6418,16 +6487,10 @@ static void amdgpu_device_cache_switch_state(struct amdgpu_device *adev)
 	struct pci_dev *swus, *swds;
 	int r;
 
+	swus = adev->link_dev != adev->pdev ? adev->link_dev : NULL;
+	if (!swus)
+		return;
 	swds = pci_upstream_bridge(adev->pdev);
-	if (!swds || swds->vendor != PCI_VENDOR_ID_ATI ||
-	    pci_pcie_type(swds) != PCI_EXP_TYPE_DOWNSTREAM)
-		return;
-	swus = pci_upstream_bridge(swds);
-	if (!swus ||
-	    (swus->vendor != PCI_VENDOR_ID_ATI &&
-	     swus->vendor != PCI_VENDOR_ID_AMD) ||
-	    pci_pcie_type(swus) != PCI_EXP_TYPE_UPSTREAM)
-		return;
 
 	/* If already saved, return */
 	if (adev->pcie_reset_ctx.swus)

@@ -297,7 +297,7 @@ union dmub_fw_boot_options dmub_dcn42_get_fw_boot_option(struct dmub_srv *dmub);
 
 /* Timing and diagnostics */
 uint32_t dmub_dcn42_get_current_time(struct dmub_srv *dmub);
-void dmub_dcn42_get_diagnostic_data(struct dmub_srv *dmub);
+void dmub_dcn42_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_hw_diagnostic_data *hw_data);
 bool dmub_dcn42_get_preos_fw_info(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN42_H_ */

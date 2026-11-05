@@ -53,6 +53,7 @@ struct evsel {
 	int			id_pos;
 	int			is_pos;
 	unsigned int		sample_size;
+	bool			merged_hybrid_group;
 
 	/*
 	 * These fields can be set in the parse-events code or similar.
@@ -119,6 +120,7 @@ struct evsel {
 	u64			db_id;
 	bool			uniquified_name;
 	bool 			supported;
+	bool			support_probe;	/* Opened just to check for support. */
 	bool 			needs_swap;
 	bool 			disabled;
 	bool			no_aux_samples;
@@ -468,6 +470,7 @@ int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 				  u64 *timestamp);
 
 u16 evsel__id_hdr_size(const struct evsel *evsel);
+u16 evsel__event_size(const struct evsel *evsel, const union perf_event *event);
 
 static inline struct evsel *evsel__next(struct evsel *evsel)
 {
@@ -585,6 +588,13 @@ static inline bool evsel__is_dummy_event(struct evsel *evsel)
 {
 	return (evsel->core.attr.type == PERF_TYPE_SOFTWARE) &&
 	       (evsel->core.attr.config == PERF_COUNT_SW_DUMMY);
+}
+
+static inline bool evsel__is_non_software_event(struct evsel *evsel)
+{
+	return (evsel->core.attr.type != PERF_TYPE_SOFTWARE) &&
+	       (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) &&
+	       (evsel->core.attr.type != PERF_TYPE_BREAKPOINT);
 }
 
 struct perf_session *evsel__session(struct evsel *evsel);

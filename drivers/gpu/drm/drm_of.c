@@ -264,73 +264,6 @@ int drm_of_get_panel_orientation(const struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(drm_of_get_panel_orientation);
 
-/**
- * drm_of_find_panel_or_bridge - return connected panel or bridge device
- * @np: device tree node containing encoder output ports
- * @port: port in the device tree node
- * @endpoint: endpoint in the device tree node
- * @panel: pointer to hold returned drm_panel, must not be NULL. On success
- *         the caller must call drm_panel_put() when done with the panel
- * @bridge: pointer to hold returned drm_bridge
- *
- * Given a DT node's port and endpoint number, find the connected node and
- * return either the associated struct drm_panel or drm_bridge device.
- *
- * This function is deprecated and should not be used in new drivers. Use
- * of_drm_get_bridge_by_endpoint() instead when not looking for a panel, or
- * devm_drm_of_get_bridge() otherwise.
- *
- * Returns zero if successful, or one of the standard error codes if it fails.
- */
-int drm_of_find_panel_or_bridge(const struct device_node *np,
-				int port, int endpoint,
-				struct drm_panel **panel,
-				struct drm_bridge **bridge)
-{
-	int ret = -EPROBE_DEFER;
-	struct device_node *remote;
-
-	if (WARN_ON(!panel))
-		return -EINVAL;
-
-	*panel = NULL;
-
-	/*
-	 * of_graph_get_remote_node() produces a noisy error message if port
-	 * node isn't found and the absence of the port is a legit case here,
-	 * so at first we silently check whether a graph is present in the
-	 * device-tree node.
-	 */
-	if (!of_graph_is_present(np))
-		return -ENODEV;
-
-	remote = of_graph_get_remote_node(np, port, endpoint);
-	if (!remote)
-		return -ENODEV;
-
-	*panel = of_drm_find_panel(remote);
-	if (!IS_ERR(*panel))
-		ret = 0;
-	else
-		*panel = NULL;
-
-	if (bridge) {
-		if (ret) {
-			/* No panel found yet, check for a bridge next. */
-			*bridge = of_drm_find_bridge(remote);
-			if (*bridge)
-				ret = 0;
-		} else {
-			*bridge = NULL;
-		}
-
-	}
-
-	of_node_put(remote);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(drm_of_find_panel_or_bridge);
-
 enum drm_of_lvds_pixels {
 	DRM_OF_LVDS_EVEN = BIT(0),
 	DRM_OF_LVDS_ODD = BIT(1),
@@ -550,8 +483,8 @@ EXPORT_SYMBOL_GPL(drm_of_lvds_get_data_mapping);
  *
  * Return:
  * * min..max - positive integer count of "data-lanes" elements
- * * -ve - the "data-lanes" property is missing or invalid
- * * -EINVAL - the "data-lanes" property is unsupported
+ * * -ENODATA - the property does not have a value.
+ * * -EINVAL - the "data-lanes" property is missing or invalid
  */
 int drm_of_get_data_lanes_count(const struct device_node *endpoint,
 				const unsigned int min, const unsigned int max)
@@ -582,8 +515,8 @@ EXPORT_SYMBOL_GPL(drm_of_get_data_lanes_count);
  *
  * Return:
  * * min..max - positive integer count of "data-lanes" elements
- * * -EINVAL - the "data-mapping" property is unsupported
- * * -ENODEV - the "data-mapping" property is missing
+ * * -ENODATA - the property does not have a value.
+ * * -EINVAL - the "data-lanes" property is missing or invalid
  */
 int drm_of_get_data_lanes_count_ep(const struct device_node *port,
 				   int port_reg, int reg,

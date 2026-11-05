@@ -46,6 +46,9 @@ struct imsic_local_config {
 };
 
 struct imsic_global_config {
+	/* Device details */
+	struct fwnode_handle                    *fwnode;
+
 	/*
 	 * MSI Target Address Scheme
 	 *

@@ -14,6 +14,27 @@ description:
 
 allOf:
   - $ref: dma-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ultrarisc,dp1000-axi-dma
+    then:
+      properties:
+        reg:
+          maxItems: 1
+        interrupts:
+          minItems: 8
+        dma-channels:
+          const: 8
+        snps,dma-masters:
+          const: 1
+        snps,data-width:
+          const: 4
+        snps,priority:
+          minItems: 8
+        snps,block-size:
+          minItems: 8
 
 properties:
   compatible:
@@ -27,6 +48,7 @@ properties:
           - enum:
               - altr,agilex5-axi-dma
               - sophgo,cv1800b-axi-dma
+              - ultrarisc,dp1000-axi-dma
           - const: snps,axi-dma-1.01a
 
   reg:

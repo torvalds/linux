@@ -239,6 +239,25 @@ class NetDrvEpEnv(NetDrvEnvBase):
         if missing:
             raise Exception("Invalid environment, missing configuration:", missing,
                             "Please see tools/testing/selftests/drivers/net/README.rst")
+        if "LOCAL_V6" in self.env:
+            self._check_v6_env()
+
+    def _check_v6_env(self):
+        """Tests bind() to LOCAL_V6 and bounce the link, it must survive both."""
+        ifname, addr = self.env["NETIF"], self.env["LOCAL_V6"]
+
+        def _keep_addr(scope):
+            with open(f"/proc/sys/net/ipv6/conf/{scope}/keep_addr_on_down",
+                      encoding="utf-8") as fp:
+                return int(fp.read())
+
+        # 'all' wins when non-zero, see addrconf_ifdown()
+        if (_keep_addr("all") or _keep_addr(ifname)) <= 0:
+            ksft_pr(f"WARN: net.ipv6.conf.{ifname}.keep_addr_on_down not set")
+
+        dev = ip(f"-6 address show dev {ifname} to {addr}", json=True)
+        if not (dev and dev[0]["addr_info"][0].get("nodad")):
+            ksft_pr(f"WARN: LOCAL_V6 {addr} not configured with nodad")
 
     def resolve_remote_ifc(self):
         v4 = v6 = None

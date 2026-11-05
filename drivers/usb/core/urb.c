@@ -254,6 +254,14 @@ EXPORT_SYMBOL_GPL(usb_urb_ep_type_check);
  * request.  The completion handler may then immediately free or reuse that
  * URB.
  *
+ * The USB core makes no guarantees at all about the context in which
+ * the complete() callback is invoked.  It may be in process context,
+ * interrupt context, BH context, or anything else.  Also, local interrupts
+ * may be enabled or disabled.  To deal with this, the callback routine
+ * must always use the _irqsave and _irqrestore variants of things like
+ * spin_lock(), and it must always use GFP_ATOMIC for its memory
+ * allocation flags.
+ *
  * With few exceptions, USB device drivers should never access URB fields
  * provided by usbcore or the HCD until its complete() is called.
  * The exceptions relate to periodic transfer scheduling.  For both
@@ -951,8 +959,8 @@ EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);
  * usb_get_from_anchor - get an anchor's oldest urb
  * @anchor: the anchor whose urb you want
  *
- * This will take the oldest urb from an anchor,
- * unanchor and return it
+ * This will take the oldest urb from an anchor, unanchor and return it with
+ * a reference held.
  *
  * Return: The oldest urb from @anchor, or %NULL if @anchor has no
  * urbs associated with it.

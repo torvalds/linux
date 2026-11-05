@@ -337,6 +337,8 @@ static int svc_uses_rpcbind(struct svc_serv *serv)
 
 int svc_bind(struct svc_serv *serv, struct net *net)
 {
+	if (serv->sv_no_rpcbind)
+		return 0;
 	if (!svc_uses_rpcbind(serv))
 		return 0;
 	return svc_rpcb_setup(serv, net);
@@ -1179,9 +1181,39 @@ int svc_generic_rpcbind_set(struct net *net,
 	error = svc_rpcbind_set_version(net, progp, version,
 					family, proto, port);
 
+	/* -EIO means no answer, not a refusal, so vs_rpcb_optnl must keep it. */
+	if (error == -EIO)
+		return error;
+
 	return (vers->vs_rpcb_optnl) ? 0 : error;
 }
 EXPORT_SYMBOL_GPL(svc_generic_rpcbind_set);
+
+/**
+ * svc_rpcb_failure_count - local rpcbind calls for @serv that got no answer
+ * @serv: RPC service to query
+ *
+ * svc_register() adds one for each of its calls that got no answer. A reply
+ * that refuses one entry does not count, because rpcbind answered and the
+ * next entry may still succeed.
+ *
+ * The count is kept per serv rather than per net. The local rpcbind client
+ * is per-net and lockd shares it, but a count that another service can move
+ * says nothing about this serv's own calls.
+ *
+ * This is for callers that cannot see the svc_register() return, because a
+ * transport class sits in between. Such a caller reads the count before it
+ * starts and compares as it goes, so there is no state to reset between
+ * operations. The count never resets, and callers must not attach meaning
+ * to the value itself.
+ *
+ * Return: the number of unanswered calls since this serv was created.
+ */
+unsigned int svc_rpcb_failure_count(struct svc_serv *serv)
+{
+	return atomic_read(&serv->sv_rpcb_failures);
+}
+EXPORT_SYMBOL_GPL(svc_rpcb_failure_count);
 
 /**
  * svc_register - register an RPC service with the local portmapper
@@ -1193,10 +1225,11 @@ EXPORT_SYMBOL_GPL(svc_generic_rpcbind_set);
  *
  * Service is registered for any address in the passed-in protocol family
  */
-int svc_register(const struct svc_serv *serv, struct net *net,
+int svc_register(struct svc_serv *serv, struct net *net,
 		 const int family, const unsigned short proto,
 		 const unsigned short port)
 {
+	bool			noanswer = false;
 	unsigned int		p, i;
 	int			error = 0;
 
@@ -1204,21 +1237,42 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 	if (proto == 0 && port == 0)
 		return -EINVAL;
 
+	if (serv->sv_no_rpcbind)
+		return 0;
+
 	for (p = 0; p < serv->sv_nprogs; p++) {
 		struct svc_program *progp = &serv->sv_programs[p];
 
 		for (i = 0; i < progp->pg_nvers; i++) {
+			const struct svc_version *vers = progp->pg_vers[i];
+			int ret;
 
-			error = progp->pg_rpcbind_set(net, progp, i,
+			ret = progp->pg_rpcbind_set(net, progp, i,
 					family, proto, port);
-			if (error < 0) {
+			if (ret == -EIO) {
+				noanswer = true;
+				if (vers && vers->vs_rpcb_optnl)
+					ret = 0;
+			}
+			if (ret < 0) {
 				printk(KERN_WARNING "svc: failed to register "
 					"%sv%u RPC service (errno %d).\n",
-					progp->pg_name, i, -error);
+					progp->pg_name, i, -ret);
+				if (!error)
+					error = ret;
 				break;
 			}
+			if (noanswer)
+				break;
 		}
+
+		/* Give up on trying to register anything if it didn't respond */
+		if (noanswer)
+			break;
 	}
+
+	if (noanswer)
+		atomic_inc(&serv->sv_rpcb_failures);
 
 	return error;
 }
@@ -1230,8 +1284,8 @@ int svc_register(const struct svc_serv *serv, struct net *net,
  * any "inet6" entries anyway.  So a PMAP_UNSET should be sufficient
  * in this case to clear all existing entries for [program, version].
  */
-static void __svc_unregister(struct net *net, const u32 program, const u32 version,
-			     const char *progname)
+static int __svc_unregister(struct net *net, const u32 program, const u32 version,
+			    const char *progname)
 {
 	int error;
 
@@ -1245,6 +1299,7 @@ static void __svc_unregister(struct net *net, const u32 program, const u32 versi
 		error = rpcb_register(net, program, version, 0, 0);
 
 	trace_svc_unregister(progname, version, error);
+	return error;
 }
 
 /*
@@ -1271,10 +1326,13 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 				continue;
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
-			__svc_unregister(net, progp->pg_prog, i, progp->pg_name);
+			if (__svc_unregister(net, progp->pg_prog, i,
+					     progp->pg_name) == -EIO)
+				goto out;
 		}
 	}
 
+out:
 	rcu_read_lock();
 	sighand = rcu_dereference(current->sighand);
 	spin_lock_irqsave(&sighand->siglock, flags);

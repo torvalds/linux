@@ -3208,17 +3208,7 @@ static struct platform_driver gcc_milos_driver = {
 	},
 };
 
-static int __init gcc_milos_init(void)
-{
-	return platform_driver_register(&gcc_milos_driver);
-}
-subsys_initcall(gcc_milos_init);
-
-static void __exit gcc_milos_exit(void)
-{
-	platform_driver_unregister(&gcc_milos_driver);
-}
-module_exit(gcc_milos_exit);
+subsys_platform_driver(gcc_milos_driver);
 
 MODULE_DESCRIPTION("QTI GCC Milos Driver");
 MODULE_LICENSE("GPL");

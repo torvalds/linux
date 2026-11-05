@@ -57,8 +57,8 @@ int handler(const void *ctx)
 	sym_ret  = BPF_SNPRINTF(sym_out,  sizeof(sym_out), "%ps %pS %pB",
 				&schedule, &schedule, &schedule);
 	/* Kernel pointers */
-	addr_ret = BPF_SNPRINTF(addr_out, sizeof(addr_out), "%pK %px %p",
-				0, 0xFFFF00000ADD4E55, 0xFFFF00000ADD4E55);
+	addr_ret = BPF_SNPRINTF(addr_out, sizeof(addr_out), "%px %p",
+				0xFFFF00000ADD4E55, 0xFFFF00000ADD4E55);
 	/* Strings and single-byte character embedding */
 	str_ret  = BPF_SNPRINTF(str_out, sizeof(str_out), "%s % 9c %+2c %-3c %04c %0c %+05s",
 				str1, 'a', 'b', 'c', 'd', 'e', longstr);

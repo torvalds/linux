@@ -725,50 +725,257 @@ static const char *shmem_format_huge(int huge)
 }
 #endif
 
+static bool is_shmem_unused_huge_isolated(struct shmem_inode_info *info)
+{
+
+	return info->shrinklist_nid == -1;
+}
+
+static void set_shmem_unused_huge_isolated(struct shmem_inode_info *info)
+{
+	info->shrinklist_nid = -1;
+}
+
+static struct obj_cgroup *shmem_get_and_clear_objcg(struct shmem_inode_info *info)
+{
+	struct obj_cgroup *objcg = info->shrinklist_objcg;
+
+	info->shrinklist_objcg = NULL;
+
+	return objcg;
+}
+
+#ifdef CONFIG_MEMCG
+static struct obj_cgroup *
+shmem_unused_huge_alloc_lru(struct shmem_sb_info *sbinfo, struct folio *folio,
+			    gfp_t gfp)
+{
+	int ret;
+
+	ret = folio_memcg_list_lru_alloc(folio, &sbinfo->shrinklist, gfp);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return get_obj_cgroup_from_folio(folio);
+}
+#else
+static struct obj_cgroup *
+shmem_unused_huge_alloc_lru(struct shmem_sb_info *sbinfo, struct folio *folio,
+			    gfp_t gfp)
+{
+	return NULL;
+}
+#endif
+
+static void shmem_unused_huge_lru_add(struct shmem_sb_info *sbinfo,
+				      struct list_head *item, int nid,
+				      struct obj_cgroup *objcg)
+{
+	struct mem_cgroup *memcg;
+
+	rcu_read_lock();
+	memcg = obj_cgroup_memcg(objcg);
+	list_lru_add(&sbinfo->shrinklist, item, nid, memcg);
+	rcu_read_unlock();
+}
+
+static void shmem_unused_huge_lru_del(struct shmem_sb_info *sbinfo,
+				      struct list_head *item, int nid,
+				      struct obj_cgroup *objcg)
+{
+	struct mem_cgroup *memcg;
+
+	rcu_read_lock();
+	memcg = obj_cgroup_memcg(objcg);
+	list_lru_del(&sbinfo->shrinklist, item, nid, memcg);
+	rcu_read_unlock();
+}
+
+static void shmem_unused_huge_add(struct inode *inode, struct folio *folio,
+				  gfp_t gfp)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	int nid = folio_nid(folio);
+	struct obj_cgroup *objcg = NULL, *old_objcg = NULL;
+
+	objcg = shmem_unused_huge_alloc_lru(sbinfo, folio, gfp);
+	if (IS_ERR(objcg))
+		return;
+
+	spin_lock(&info->lock);
+	if (!list_empty(&info->shrinklist)) {
+		/* isolated on scan list, let shrink handle it */
+		if (is_shmem_unused_huge_isolated(info))
+			goto unlock;
+
+		if (info->shrinklist_nid == nid &&
+		    info->shrinklist_objcg == objcg)
+			goto unlock;
+
+		shmem_unused_huge_lru_del(sbinfo, &info->shrinklist,
+					  info->shrinklist_nid,
+					  info->shrinklist_objcg);
+		old_objcg = shmem_get_and_clear_objcg(info);
+	}
+
+	info->shrinklist_objcg = objcg;
+	info->shrinklist_nid = nid;
+	shmem_unused_huge_lru_add(sbinfo, &info->shrinklist, nid, objcg);
+	objcg = NULL;
+unlock:
+	spin_unlock(&info->lock);
+	obj_cgroup_put(old_objcg);
+	obj_cgroup_put(objcg);
+}
+
+static void shmem_unused_huge_del(struct inode *inode)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	struct obj_cgroup *objcg = NULL;
+
+	spin_lock(&info->lock);
+	if (!list_empty(&info->shrinklist)) {
+		shmem_unused_huge_lru_del(sbinfo, &info->shrinklist,
+					  info->shrinklist_nid,
+					  info->shrinklist_objcg);
+		objcg = shmem_get_and_clear_objcg(info);
+	}
+	spin_unlock(&info->lock);
+
+	obj_cgroup_put(objcg);
+}
+
+struct shmem_unused_huge_scan {
+	struct list_head list;
+	struct shrink_control *sc;
+};
+
+static enum lru_status shmem_unused_huge_isolate(struct list_head *item,
+						 struct list_lru_one *lru,
+						 void *arg)
+{
+	struct shmem_unused_huge_scan *scan = arg;
+	struct shmem_inode_info *info;
+	struct inode *inode;
+	struct obj_cgroup *objcg = NULL;
+
+	info = list_entry(item, struct shmem_inode_info, shrinklist);
+
+	/*
+	 * Use trylock to avoid ABBA deadlock: add/del path takes info->lock
+	 * before the list_lru bucket lock, while here the order is reversed.
+	 */
+	if (!spin_trylock(&info->lock))
+		return LRU_SKIP;
+
+	/* pin the inode */
+	inode = igrab(&info->vfs_inode);
+	/* inode is about to be evicted */
+	if (!inode) {
+		list_lru_isolate(lru, item);
+		objcg = shmem_get_and_clear_objcg(info);
+		spin_unlock(&info->lock);
+		obj_cgroup_put(objcg);
+		return LRU_REMOVED;
+	}
+
+	list_lru_isolate(lru, item);
+	objcg = shmem_get_and_clear_objcg(info);
+	set_shmem_unused_huge_isolated(info);
+	list_add_tail(&info->shrinklist, &scan->list);
+	spin_unlock(&info->lock);
+	obj_cgroup_put(objcg);
+
+	return LRU_REMOVED;
+}
+
+static bool is_shmem_unused_huge_match(struct folio *folio,
+				       struct shrink_control *sc)
+{
+	struct mem_cgroup *memcg = NULL;
+	bool match;
+
+	/* shmem quota reclaim has no NUMA node or memcg restriction */
+	if (!sc)
+		return true;
+
+	if (folio_nid(folio) != sc->nid)
+		return false;
+
+	/*
+	 * Only non-root memcg reclaim needs to match the folio charge against
+	 * sc->memcg. Skip the folio memcg check for global shrinker reclaim and
+	 * root memcg reclaim.
+	 */
+	if (!sc->memcg || mem_cgroup_is_root(sc->memcg))
+		return true;
+
+	memcg = get_mem_cgroup_from_folio(folio);
+	match = memcg == sc->memcg;
+	mem_cgroup_put(memcg);
+
+	return match;
+}
+
+static void shmem_unused_huge_drop(struct inode *inode)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+
+	spin_lock(&info->lock);
+	list_del_init(&info->shrinklist);
+	spin_unlock(&info->lock);
+}
+
+static void shmem_unused_huge_requeue(struct inode *inode, struct folio *folio)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	struct obj_cgroup *objcg;
+	int nid = folio_nid(folio);
+
+	objcg = shmem_unused_huge_alloc_lru(sbinfo, folio, GFP_NOWAIT);
+	if (IS_ERR(objcg)) {
+		shmem_unused_huge_drop(inode);
+		return;
+	}
+
+	spin_lock(&info->lock);
+	/* Requeue the inode to shrinklist */
+	list_del_init(&info->shrinklist);
+	shmem_unused_huge_lru_add(sbinfo, &info->shrinklist, nid, objcg);
+	info->shrinklist_objcg = objcg;
+	info->shrinklist_nid = nid;
+	spin_unlock(&info->lock);
+}
+
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		struct shrink_control *sc, unsigned long nr_to_free)
 {
-	LIST_HEAD(list), *pos, *next;
+	struct shmem_unused_huge_scan scan;
 	struct inode *inode;
 	struct shmem_inode_info *info;
 	struct folio *folio;
-	unsigned long batch = sc ? sc->nr_to_scan : 128;
+	struct list_head *pos, *next;
 	unsigned long split = 0, freed = 0;
 
-	if (list_empty(&sbinfo->shrinklist))
-		return SHRINK_STOP;
+	INIT_LIST_HEAD(&scan.list);
+	scan.sc = sc;
+	if (sc)
+		list_lru_shrink_walk(&sbinfo->shrinklist, sc,
+				     shmem_unused_huge_isolate, &scan);
+	else
+		list_lru_walk(&sbinfo->shrinklist, shmem_unused_huge_isolate,
+			      &scan, 128);
 
-	spin_lock(&sbinfo->shrinklist_lock);
-	list_for_each_safe(pos, next, &sbinfo->shrinklist) {
-		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-
-		/* pin the inode */
-		inode = igrab(&info->vfs_inode);
-
-		/* inode is about to be evicted */
-		if (!inode) {
-			list_del_init(&info->shrinklist);
-			goto next;
-		}
-
-		list_move(&info->shrinklist, &list);
-next:
-		sbinfo->shrinklist_len--;
-		if (!--batch)
-			break;
-	}
-	spin_unlock(&sbinfo->shrinklist_lock);
-
-	list_for_each_safe(pos, next, &list) {
-		pgoff_t next, end;
+	list_for_each_safe(pos, next, &scan.list) {
+		pgoff_t folio_end, end;
 		loff_t i_size;
 		int ret;
 
 		info = list_entry(pos, struct shmem_inode_info, shrinklist);
 		inode = &info->vfs_inode;
-
-		if (nr_to_free && freed >= nr_to_free)
-			goto move_back;
 
 		i_size = i_size_read(inode);
 		folio = filemap_get_entry(inode->i_mapping, i_size / PAGE_SIZE);
@@ -782,12 +989,18 @@ next:
 		}
 
 		/* Check if there is anything to gain from splitting */
-		next = folio_next_index(folio);
+		folio_end = folio_next_index(folio);
 		end = shmem_fallocend(inode, DIV_ROUND_UP(i_size, PAGE_SIZE));
-		if (end <= folio->index || end >= next) {
+		if (end <= folio->index || end >= folio_end) {
 			folio_put(folio);
 			goto drop;
 		}
+
+		if (!is_shmem_unused_huge_match(folio, scan.sc))
+			goto move_back;
+
+		if (nr_to_free && freed >= nr_to_free)
+			goto move_back;
 
 		/*
 		 * Move the inode on the list back to shrinklist if we failed
@@ -796,35 +1009,30 @@ next:
 		 * Waiting for the lock may lead to deadlock in the
 		 * reclaim path.
 		 */
-		if (!folio_trylock(folio)) {
-			folio_put(folio);
+		if (!folio_trylock(folio))
+			goto move_back;
+
+		if (!is_shmem_unused_huge_match(folio, scan.sc)) {
+			folio_unlock(folio);
 			goto move_back;
 		}
 
 		ret = split_folio(folio);
 		folio_unlock(folio);
-		folio_put(folio);
 
 		/* If split failed move the inode on the list back to shrinklist */
 		if (ret)
 			goto move_back;
 
-		freed += next - end;
+		freed += folio_end - end;
 		split++;
+		folio_put(folio);
 drop:
-		list_del_init(&info->shrinklist);
+		shmem_unused_huge_drop(inode);
 		goto put;
 move_back:
-		/*
-		 * Make sure the inode is either on the global list or deleted
-		 * from any local list before iput() since it could be deleted
-		 * in another thread once we put the inode (then the local list
-		 * is corrupted).
-		 */
-		spin_lock(&sbinfo->shrinklist_lock);
-		list_move(&info->shrinklist, &sbinfo->shrinklist);
-		sbinfo->shrinklist_len++;
-		spin_unlock(&sbinfo->shrinklist_lock);
+		shmem_unused_huge_requeue(inode, folio);
+		folio_put(folio);
 put:
 		iput(inode);
 	}
@@ -837,7 +1045,7 @@ static long shmem_unused_huge_scan(struct super_block *sb,
 {
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 
-	if (!READ_ONCE(sbinfo->shrinklist_len))
+	if (!list_lru_shrink_count(&sbinfo->shrinklist, sc))
 		return SHRINK_STOP;
 
 	return shmem_unused_huge_shrink(sbinfo, sc, 0);
@@ -848,20 +1056,20 @@ static long shmem_unused_huge_count(struct super_block *sb,
 {
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 
-	/*
-	 * The per-superblock shrinklist is filesystem-global and does not
-	 * honour sc->memcg, so it is only meaningful on the global (kswapd or
-	 * root direct reclaim) shrink path. Skip the per-memcg iterations of
-	 * shrink_slab_memcg() to avoid queueing duplicate global work.
-	 */
-	if (!mem_cgroup_shrink_is_root(sc))
-		return 0;
-
-	return READ_ONCE(sbinfo->shrinklist_len);
+	return list_lru_shrink_count(&sbinfo->shrinklist, sc);
 }
 #else /* !CONFIG_TRANSPARENT_HUGEPAGE */
 
 #define shmem_huge SHMEM_HUGE_DENY
+
+static void shmem_unused_huge_add(struct inode *inode, struct folio *folio,
+				  gfp_t gfp)
+{
+}
+
+static void shmem_unused_huge_del(struct inode *inode)
+{
+}
 
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		struct shrink_control *sc, unsigned long nr_to_free)
@@ -976,6 +1184,7 @@ static long shmem_free_swap(struct address_space *mapping,
 			    pgoff_t index, pgoff_t end, void *radswap)
 {
 	XA_STATE(xas, &mapping->i_pages, index);
+	const softleaf_t swp = radix_to_swp_entry(radswap);
 	unsigned int nr_pages = 0;
 	pgoff_t base;
 	void *entry;
@@ -992,8 +1201,9 @@ static long shmem_free_swap(struct address_space *mapping,
 	}
 	xas_unlock_irq(&xas);
 
-	if (nr_pages)
-		swap_put_entries_direct(radix_to_swp_entry(radswap), nr_pages);
+	/* A swapin-error marker holds no swap slot, so just drop it. */
+	if (nr_pages && softleaf_is_swap(swp))
+		swap_put_entries_direct(swp, nr_pages);
 
 	return nr_pages;
 }
@@ -1159,7 +1369,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, uoff_t lend,
 		}
 		folio_batch_remove_exceptionals(&fbatch);
 		folio_batch_release(&fbatch);
-		cond_resched();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	/*
@@ -1176,11 +1386,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, uoff_t lend,
 	if (folio) {
 		same_folio = lend < folio_next_pos(folio);
 		folio_mark_dirty(folio);
-		if (!truncate_inode_partial_folio(folio, lstart, lend)) {
-			start = folio_next_index(folio);
-			if (same_folio)
-				end = folio->index;
-		}
+		truncate_inode_partial_folio(folio, lstart, lend, &start,
+					     same_folio ? &end : NULL);
 		folio_unlock(folio);
 		folio_put(folio);
 		folio = NULL;
@@ -1190,8 +1397,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, uoff_t lend,
 		folio = shmem_get_partial_folio(inode, lend >> PAGE_SHIFT);
 	if (folio) {
 		folio_mark_dirty(folio);
-		if (!truncate_inode_partial_folio(folio, lstart, lend))
-			end = folio->index;
+		truncate_inode_partial_folio(folio, lstart, lend, NULL, &end);
 		folio_unlock(folio);
 		folio_put(folio);
 	}
@@ -1200,7 +1406,7 @@ whole_folios:
 
 	index = start;
 	while (index < end) {
-		cond_resched();
+		cond_resched_tasks_rcu_qs();
 
 		if (!find_get_entries(mapping, &index, end - 1, &fbatch,
 				indices)) {
@@ -1259,7 +1465,8 @@ whole_folios:
 
 				if (!folio_test_large(folio)) {
 					truncate_inode_folio(mapping, folio);
-				} else if (truncate_inode_partial_folio(folio, lstart, lend)) {
+				} else if (truncate_inode_partial_folio(folio,
+						lstart, lend, NULL, NULL)) {
 					/*
 					 * If we split a page, reset the loop so
 					 * that we pick up the new sub pages.
@@ -1292,7 +1499,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, uoff_t lend)
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
-static int shmem_getattr(struct mnt_idmap *idmap,
+static int shmem_getattr(const struct mnt_idmap *idmap,
 			 const struct path *path, struct kstat *stat,
 			 u32 request_mask, unsigned int query_flags)
 {
@@ -1326,7 +1533,7 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int shmem_setattr(struct mnt_idmap *idmap,
+static int shmem_setattr(const struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1418,14 +1625,7 @@ static void shmem_evict_inode(struct inode *inode)
 		inode->i_size = 0;
 		mapping_set_exiting(inode->i_mapping);
 		shmem_truncate_range(inode, 0, (loff_t)-1);
-		if (!list_empty(&info->shrinklist)) {
-			spin_lock(&sbinfo->shrinklist_lock);
-			if (!list_empty(&info->shrinklist)) {
-				list_del_init(&info->shrinklist);
-				sbinfo->shrinklist_len--;
-			}
-			spin_unlock(&sbinfo->shrinklist_lock);
-		}
+		shmem_unused_huge_del(inode);
 		while (!list_empty(&info->swaplist)) {
 			/* Wait while shmem_unuse() is scanning this inode... */
 			wait_var_event(&info->stop_eviction,
@@ -1612,7 +1812,7 @@ int shmem_writeout(struct swap_io_ctx *ctx, struct folio *folio,
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 	pgoff_t index;
-	int nr_pages;
+	int nr_pages, ret;
 	bool split = false;
 
 	if ((info->flags & SHMEM_F_LOCKED) || sbinfo->noswap)
@@ -1693,7 +1893,8 @@ try_split:
 		folio_mark_uptodate(folio);
 	}
 
-	if (!folio_alloc_swap(folio)) {
+	ret = folio_alloc_swap(folio);
+	if (!ret) {
 		bool first_swapped = shmem_recalc_inode(inode, 0, nr_pages);
 		int error;
 
@@ -1746,7 +1947,7 @@ try_split:
 		swap_cache_del_folio(folio);
 		goto redirty;
 	}
-	if (nr_pages > 1)
+	if (nr_pages > 1 && ret == -E2BIG)
 		goto try_split;
 redirty:
 	folio_mark_dirty(folio);
@@ -2280,7 +2481,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 
 	si = get_swap_device(index_entry);
 	order = shmem_confirm_swap(mapping, index, index_entry);
-	if (unlikely(!si)) {
+	if (IS_ERR_OR_NULL(si)) {
 		if (order < 0)
 			return -EEXIST;
 		else
@@ -2539,27 +2740,6 @@ repeat:
 
 alloced:
 	alloced = true;
-	if (folio_test_large(folio) &&
-	    DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
-					folio_next_index(folio)) {
-		struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
-		struct shmem_inode_info *info = SHMEM_I(inode);
-		/*
-		 * Part of the large folio is beyond i_size: subject
-		 * to shrink under memory pressure.
-		 */
-		spin_lock(&sbinfo->shrinklist_lock);
-		/*
-		 * _careful to defend against unlocked access to
-		 * ->shrink_list in shmem_unused_huge_shrink()
-		 */
-		if (list_empty_careful(&info->shrinklist)) {
-			list_add_tail(&info->shrinklist,
-				      &sbinfo->shrinklist);
-			sbinfo->shrinklist_len++;
-		}
-		spin_unlock(&sbinfo->shrinklist_lock);
-	}
 
 	if (sgp == SGP_WRITE)
 		folio_set_referenced(folio);
@@ -2588,6 +2768,20 @@ clear:
 	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
 		error = -EINVAL;
 		goto unlock;
+	}
+
+	/*
+	 * Queue the inode on the shrink list only after all checks that might
+	 * remove the folio have passed. Otherwise the inode could be left on
+	 * the shrinker list with a stale folio.
+	 */
+	if (alloced && folio_test_large(folio) &&
+	    DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) < folio_next_index(folio)) {
+		/*
+		 * Part of the large folio is beyond i_size: subject
+		 * to shrink under memory pressure.
+		 */
+		shmem_unused_huge_add(inode, folio, gfp);
 	}
 out:
 	*foliop = folio;
@@ -2789,7 +2983,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 			sb = file_inode(file)->i_sb;
 		} else {
 			/*
-			 * Called directly from mm/mmap.c, or drivers/char/mem.c
+			 * Called directly from mm/mmap.c, or mm/char-mem.c
 			 * for "/dev/zero", to create a shared anonymous object.
 			 */
 			if (IS_ERR(shm_mnt))
@@ -3025,7 +3219,7 @@ static struct offset_ctx *shmem_get_offset_ctx(struct inode *inode)
 	return &SHMEM_I(inode)->dir_offsets;
 }
 
-static struct inode *__shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *__shmem_get_inode(const struct mnt_idmap *idmap,
 				       struct super_block *sb,
 				       struct inode *dir, umode_t mode,
 				       dev_t dev, vma_flags_t flags)
@@ -3065,6 +3259,10 @@ static struct inode *__shmem_get_inode(struct mnt_idmap *idmap,
 	if (info->fsflags)
 		shmem_set_inode_flags(inode, info->fsflags, NULL);
 	INIT_LIST_HEAD(&info->shrinklist);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	info->shrinklist_objcg = NULL;
+	info->shrinklist_nid = -1;
+#endif
 	INIT_LIST_HEAD(&info->swaplist);
 	cache_no_acl(inode);
 	if (sbinfo->noswap)
@@ -3105,7 +3303,7 @@ static struct inode *__shmem_get_inode(struct mnt_idmap *idmap,
 }
 
 #ifdef CONFIG_TMPFS_QUOTA
-static struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				     struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, vma_flags_t flags)
 {
@@ -3133,7 +3331,7 @@ errout:
 	return ERR_PTR(err);
 }
 #else
-static struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				     struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, vma_flags_t flags)
 {
@@ -3821,7 +4019,7 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
  * File creation. Allocate an inode, and we're done..
  */
 static int
-shmem_mknod(struct mnt_idmap *idmap, struct inode *dir,
+shmem_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -3860,7 +4058,7 @@ out_iput:
 }
 
 static int
-shmem_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+shmem_tmpfile(const struct mnt_idmap *idmap, struct inode *dir,
 	      struct file *file, umode_t mode)
 {
 	struct inode *inode;
@@ -3888,7 +4086,7 @@ out_iput:
 	return error;
 }
 
-static struct dentry *shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *shmem_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				  struct dentry *dentry, umode_t mode)
 {
 	int error;
@@ -3900,7 +4098,7 @@ static struct dentry *shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return NULL;
 }
 
-static int shmem_create(struct mnt_idmap *idmap, struct inode *dir,
+static int shmem_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	return shmem_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
@@ -3973,7 +4171,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 	return shmem_unlink(dir, dentry);
 }
 
-static int shmem_whiteout(struct mnt_idmap *idmap,
+static int shmem_whiteout(const struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry)
 {
 	struct dentry *whiteout;
@@ -3994,7 +4192,7 @@ static int shmem_whiteout(struct mnt_idmap *idmap,
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename2(struct mnt_idmap *idmap,
+static int shmem_rename2(const struct mnt_idmap *idmap,
 			 struct inode *old_dir, struct dentry *old_dentry,
 			 struct inode *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
@@ -4050,7 +4248,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int shmem_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int error;
@@ -4162,7 +4360,7 @@ static int shmem_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-static int shmem_fileattr_set(struct mnt_idmap *idmap,
+static int shmem_fileattr_set(const struct mnt_idmap *idmap,
 			      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -4267,7 +4465,7 @@ static int shmem_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
-				   struct mnt_idmap *idmap,
+				   const struct mnt_idmap *idmap,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *value,
 				   size_t size, int flags)
@@ -4508,6 +4706,9 @@ static int shmem_parse_opt_casefold(struct fs_context *fc, struct fs_parameter *
 	int version = UTF8_LATEST;
 	struct unicode_map *encoding;
 	char *version_str = param->string + 5;
+
+	if (ctx->encoding)
+		return invalfc(fc, "casefold parameter cannot be specified twice\n");
 
 	if (!latest_version) {
 		if (strncmp(param->string, "utf8-", 5))
@@ -4939,6 +5140,9 @@ static void shmem_put_super(struct super_block *sb)
 #endif
 	free_percpu(sbinfo->ino_batch);
 	percpu_counter_destroy(&sbinfo->used_blocks);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	list_lru_destroy(&sbinfo->shrinklist);
+#endif
 	mpol_put(sbinfo->mpol);
 #ifdef CONFIG_TMPFS_XATTR
 	simple_xattr_cache_cleanup(&sbinfo->xa_cache);
@@ -4956,6 +5160,9 @@ static const struct dentry_operations shmem_ci_dentry_ops = {
 
 static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	static struct lock_class_key shmem_unused_huge_lock_key;
+#endif
 	struct shmem_options *ctx = fc->fs_private;
 	struct inode *inode;
 	struct shmem_sb_info *sbinfo;
@@ -4998,6 +5205,7 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	if (ctx->encoding) {
 		sb->s_encoding = ctx->encoding;
+		ctx->encoding = NULL;
 		set_default_d_op(sb, &shmem_ci_dentry_ops);
 		if (ctx->strict_encoding)
 			sb->s_encoding_flags = SB_ENC_STRICT_MODE_FL;
@@ -5032,8 +5240,12 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 	raw_spin_lock_init(&sbinfo->stat_lock);
 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
 		goto failed;
-	spin_lock_init(&sbinfo->shrinklist_lock);
-	INIT_LIST_HEAD(&sbinfo->shrinklist);
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	if (list_lru_init_memcg_key(&sbinfo->shrinklist, sb->s_shrink,
+				    &shmem_unused_huge_lock_key))
+		goto failed;
+#endif
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_SIZE;
@@ -5095,6 +5307,9 @@ static void shmem_free_fc(struct fs_context *fc)
 	struct shmem_options *ctx = fc->fs_private;
 
 	if (ctx) {
+#if IS_ENABLED(CONFIG_UNICODE)
+		utf8_unload(ctx->encoding);
+#endif
 		mpol_put(ctx->mpol);
 		kfree(ctx);
 	}
@@ -5158,7 +5373,7 @@ static void __init shmem_destroy_inodecache(void)
 static int shmem_error_remove_folio(struct address_space *mapping,
 				   struct folio *folio)
 {
-	return 0;
+	return MF_DELAYED;
 }
 
 static const struct address_space_operations shmem_aops = {
@@ -5795,7 +6010,7 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
 {
 }
 
-static inline struct inode *shmem_get_inode(struct mnt_idmap *idmap,
+static inline struct inode *shmem_get_inode(const struct mnt_idmap *idmap,
 				struct super_block *sb, struct inode *dir,
 				umode_t mode, dev_t dev, vma_flags_t flags)
 {

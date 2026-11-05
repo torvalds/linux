@@ -29,7 +29,7 @@ ip_vs_fo_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 * Find virtual server with highest weight and send it traffic
 	 */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
-		if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
+		if (!ip_vs_dest_is_overloaded(dest) &&
 		    atomic_read(&dest->weight) > hw) {
 			hweight = dest;
 			hw = atomic_read(&dest->weight);

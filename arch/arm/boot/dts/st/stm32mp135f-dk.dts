@@ -60,17 +60,6 @@
 		};
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		button-user {
-			/* GPIO on PA13 "User button 2 (B2)" */
-			label = "User-PA13";
-			linux,code = <BTN_1>;
-			gpios = <&gpioa 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
@@ -190,11 +179,11 @@
 	status = "okay";
 };
 
-&cs_cti_trace {
+&cs_cti_cpu0 {
 	status = "okay";
 };
 
-&cs_cti_cpu0 {
+&cs_cti_trace {
 	status = "okay";
 };
 
@@ -479,7 +468,19 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&spi5_pins_a>;
 	pinctrl-1 = <&spi5_sleep_pins_a>;
+	dmas = <&dmamux1 85 0x400 0x01>,
+	       <&dmamux1 86 0x400 0x01>,
+	       <&mdma 0 0x3 0x1200000a 0 0>;
+	dma-names = "rx", "tx", "rxm2m";
+	sram = <&spi5_dma_pool>;
 	status = "disabled";
+};
+
+&sram2 {
+	spi5_dma_pool: dma-sram@1000 {
+		reg = <0x1000 0x1000>;
+		pool;
+	};
 };
 
 &timers3 {
@@ -628,6 +629,7 @@
 		compatible = "usb424,2514";
 		reg = <1>;
 		vdd-supply = <&scmi_v3v3_sw>;
+		vdda-supply = <&scmi_v3v3_sw>;
 	};
 };
 

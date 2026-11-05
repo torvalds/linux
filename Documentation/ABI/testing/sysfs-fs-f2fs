@@ -271,7 +271,7 @@ Description:	Shows all enabled kernel features.
 		inode_crtime, lost_found, verity, sb_checksum,
 		casefold, readonly, compression, test_dummy_encryption_v2,
 		atomic_write, pin_file, encrypted_casefold, linear_lookup,
-		fserror.
+		fserror, metadata_cache, resizable_tail.
 
 What:		/sys/fs/f2fs/<disk>/inject_rate
 Date:		May 2016
@@ -1014,9 +1014,48 @@ Description:	Every time a write operation completes f2fs_write_end_io() is
 		(atc) context. The default value for this attribute is UINT_MAX
 		which means that this functionality is disabled by default.
 
+What:		/sys/fs/f2fs/<disk>/max_atc_write_bio_entry_cnt
+Date:		October 2026
+Contact:	Chao Yu <chao@kernel.org>
+Description:	Every time a write operation completes f2fs_write_end_io() is
+		called. This function may be called from an atomic context,
+		e.g. from inside an interrupt handler. This attribute controls
+		the maximum number of entries (folios or cached blocks) in a
+		write bio that is completed in atomic (atc) context. The default
+		value for this attribute is UINT_MAX which means that this
+		functionality is disabled by default.
+
 What:		/sys/fs/f2fs/<disk>/pinned_area_max_secno
 Date:		August 2026
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	This is a read-only entry to show the upper bound section number
 		for pinned files. Pinned files will only be allocated within
 		sections 0 to pinned_area_max_secno - 1.
+
+What:		/sys/fs/f2fs/<disk>/cache_wb_interval
+Date:		August 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a writable entry to control writeback interval of
+		f2fs_writeback-x:y, the range is [100, 30000], by default the value
+		is 5000, unit is ms.
+
+What:		/sys/fs/f2fs/<disk>/cache_wb_dirty_threshold
+Date:		October 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a writable entry for metadata cache. f2fs_writeback-x:y
+		will be woken up for writeback once the number of dirty meta and
+		node caches reaches this value. 0 disables this check. By default
+		the value is 8192, unit is cache entries.
+
+What:		/sys/fs/f2fs/<disk>/cache_wb_total_threshold
+Date:		October 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a writable entry for metadata cache. f2fs_writeback-x:y
+		will be woken up for writeback only if the total number of cached
+		entries also reaches this value. 0 disables this check. By default
+		the value is 0, unit is cache entries.
+
+		If both cache_wb_dirty_threshold and cache_wb_total_threshold are
+		0, f2fs_writeback-x:y only runs every cache_wb_interval, unless
+		checkpoint is disabled, in which case it will still be woken up
+		once there are enough dirty caches to be gathered for writeback.

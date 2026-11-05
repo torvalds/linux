@@ -586,7 +586,7 @@ static void get_access_mask(const struct sys_reg_desc *r, u64 *mask, u64 *shift)
 }
 
 /*
- * Generic accessor for VM registers. Only called as long as HCR_TVM
+ * Generic accessor for VM registers. Only called as long as HCR_EL2_TVM
  * is set. If the guest enables the MMU, we stop trapping the VM
  * sys_regs and leave it in complete control of the caches.
  */
@@ -1029,7 +1029,7 @@ static unsigned int hidden_visibility(const struct kvm_vcpu *vcpu,
 static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 				   const struct sys_reg_desc *r)
 {
-	if (kvm_vcpu_has_pmu(vcpu))
+	if (kvm_has_feat(vcpu->kvm, ID_AA64DFR0_EL1, PMUVer, IMP))
 		return 0;
 
 	return REG_HIDDEN;
@@ -1059,10 +1059,6 @@ static u64 reset_pmevcntr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 
 static u64 reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	/* This thing will UNDEF, who cares about the reset value? */
-	if (!kvm_vcpu_has_pmu(vcpu))
-		return 0;
-
 	reset_unknown(vcpu, r);
 	__vcpu_rmw_sys_reg(vcpu, r->reg, &=, kvm_pmu_evtyper_mask(vcpu->kvm));
 
@@ -2164,6 +2160,8 @@ static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 	 */
 	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
 
+	val &= ~ID_AA64PFR0_EL1_RME_MASK;
+
 	return val;
 }
 
@@ -2512,9 +2510,10 @@ static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 
 	/*
 	 * Once the VM has started the ID registers are immutable. Reject any
-	 * write that does not match the final register value.
+	 * write that does not match the final register value once we have
+	 * got far enough into first running the VM to use the values.
 	 */
-	if (kvm_vm_has_ran_once(vcpu->kvm)) {
+	if (kvm_id_regs_final(vcpu->kvm)) {
 		if (val != read_id_reg(vcpu, rd))
 			ret = -EBUSY;
 		else
@@ -2548,7 +2547,7 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val)
 
 	lockdep_assert_held(&kvm->arch.config_lock);
 
-	if (KVM_BUG_ON(kvm_vm_has_ran_once(kvm) || !p, kvm))
+	if (KVM_BUG_ON(kvm_id_regs_final(kvm) || !p, kvm))
 		return;
 
 	*p = val;
@@ -2894,7 +2893,7 @@ static u64 reset_hcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	u64 val = r->val;
 
 	if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
-		val |= HCR_E2H;
+		val |= HCR_EL2_E2H;
 
 	__vcpu_assign_sys_reg(vcpu, r->reg, val);
 
@@ -3244,10 +3243,10 @@ static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 		return -EINVAL;
 
 	/*
-	 * Once the VM has started the ID registers are immutable. Reject the
-	 * write if userspace tries to change it.
+	 * Once we have been far enough into starting the VM the ID registers
+	 * are immutable. Reject the write if userspace tries to change it.
 	 */
-	if (kvm_vm_has_ran_once(kvm))
+	if (kvm_id_regs_final(kvm))
 		return -EBUSY;
 
 	/*
@@ -5799,31 +5798,31 @@ static void vcpu_set_hcr(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 
 	if (has_vhe() || has_hvhe())
-		vcpu->arch.hcr_el2 |= HCR_E2H;
+		vcpu->arch.hcr_el2 |= HCR_EL2_E2H;
 	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
-		vcpu->arch.hcr_el2 |= HCR_TEA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TEA;
 		/* trap error record accesses */
-		vcpu->arch.hcr_el2 |= HCR_TERR;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TERR;
 	}
 
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		vcpu->arch.hcr_el2 |= HCR_FWB;
+		vcpu->arch.hcr_el2 |= HCR_EL2_FWB;
 
 	if (cpus_have_final_cap(ARM64_HAS_EVT) &&
 	    !cpus_have_final_cap(ARM64_MISMATCHED_CACHE_TYPE) &&
 	    kvm_read_vm_id_reg(kvm, SYS_CTR_EL0) == read_sanitised_ftr_reg(SYS_CTR_EL0))
-		vcpu->arch.hcr_el2 |= HCR_TID4;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID4;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TID2;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID2;
 
 	if (vcpu_el1_is_32bit(vcpu))
-		vcpu->arch.hcr_el2 &= ~HCR_RW;
+		vcpu->arch.hcr_el2 &= ~HCR_EL2_RW;
 
 	if (kvm_has_mte(vcpu->kvm))
-		vcpu->arch.hcr_el2 |= HCR_ATA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_ATA;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TID5;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID5;
 
 	/*
 	 * In the absence of FGT, we cannot independently trap TLBI
@@ -5831,7 +5830,7 @@ static void vcpu_set_hcr(struct kvm_vcpu *vcpu)
 	 * TLBIs would be far worse. Live with it...
 	 */
 	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
-		vcpu->arch.hcr_el2 |= HCR_TTLBOS;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TTLBOS;
 }
 
 void kvm_calculate_traps(struct kvm_vcpu *vcpu)
@@ -5862,27 +5861,20 @@ out:
 }
 
 /*
- * Perform last adjustments to the ID registers that are implied by the
+ * Do system register finalization that is shared by the whole guest. This
+ * includes last adjustments to the ID registers that are implied by the
  * configuration outside of the ID regs themselves, as well as any
  * initialisation that directly depend on these ID registers (such as
  * RES0/RES1 behaviours). This is not the place to configure traps though.
- *
- * Because this can be called once per CPU, changes must be idempotent.
  */
-int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
+static int kvm_vm_finalize_sys_regs(struct kvm *kvm)
 {
-	struct kvm *kvm = vcpu->kvm;
+	lockdep_assert_held(&kvm->arch.config_lock);
 
-	guard(mutex)(&kvm->arch.config_lock);
-
-	if (vcpu_has_nv(vcpu)) {
-		int ret = kvm_init_nv_sysregs(vcpu);
-		if (ret)
-			return ret;
-	}
-
-	if (kvm_vm_has_ran_once(kvm))
+	if (kvm_id_regs_final(kvm))
 		return 0;
+
+	kvm_idregs_enforce_dependencies(kvm);
 
 	/*
 	 * This hacks into the ID registers, so only perform it when the
@@ -5929,12 +5921,37 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 		kvm_vgic_finalize_idregs(kvm);
 	}
 
+	set_bit(KVM_ARCH_FLAG_ID_REGS_FINAL, &kvm->arch.flags);
+
+	return 0;
+}
+
+/*
+ * Because this can be called once per CPU, changes must be idempotent.
+ */
+int kvm_vcpu_finalize_sys_regs(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	int ret;
+
+	guard(mutex)(&kvm->arch.config_lock);
+
+	ret = kvm_vm_finalize_sys_regs(kvm);
+	if (ret)
+		return ret;
+
+	if (vcpu_has_nv(vcpu)) {
+		ret = kvm_init_nv_sysregs(vcpu);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
 int __init kvm_sys_reg_table_init(void)
 {
-	const struct sys_reg_desc *gicv3_regs;
+	const struct sys_reg_desc *gicv3_regs, *gicv5_regs;
 	bool valid = true;
 	unsigned int i, sz;
 	int ret = 0;
@@ -5947,8 +5964,12 @@ int __init kvm_sys_reg_table_init(void)
 	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
 
+	/* The GICv3 system registers... */
 	gicv3_regs = vgic_v3_get_sysreg_table(&sz);
 	valid &= check_sysreg_table(gicv3_regs, sz, false);
+	/* ...and the GICv5 system registers. */
+	gicv5_regs = vgic_v5_get_sysreg_table(&sz);
+	valid &= check_sysreg_table(gicv5_regs, sz, false);
 
 	if (!valid)
 		return -EINVAL;

@@ -255,7 +255,7 @@ static void trace_noc_remove(struct amba_device *adev)
 	coresight_trace_id_put_system_id(drvdata->atid);
 }
 
-static struct amba_id trace_noc_ids[] = {
+static const struct amba_id trace_noc_ids[] = {
 	{
 		.id     = 0x000f0c00,
 		.mask   = 0x00ffff00,

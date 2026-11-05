@@ -444,9 +444,9 @@ static struct clk * __init st_clk_register_quadfs_pll(
 		struct clkgen_quadfs_data *quadfs, void __iomem *reg,
 		spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct st_clk_quadfs_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	/*
 	 * Sanity check required pointers.
@@ -885,8 +885,8 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 		unsigned long flags, spinlock_t *lock)
 {
 	struct st_clk_quadfs_fsynth *fs;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 
 	/*
 	 * Sanity check required pointers, note that nsdiv3 is optional.

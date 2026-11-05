@@ -245,6 +245,28 @@ EXPORT_SYMBOL(__sie64a)
 EXPORT_SYMBOL(sie_exit)
 #endif
 
+#if IS_ENABLED(CONFIG_KVM)
+/*
+ * SAE calling convention:
+ * %r2 physical address of the SAE control block
+ */
+SYM_FUNC_START(sae)
+	stmg	%r6,%r14,__SF_GPRS(%r15)	# store kernel registers
+	STBEAR	__SF_SAE_BEAR(%r15)		# save breaking event address register
+	.insn	rre,0xb9a50000,%r2,0		# Start Arm Execution
+	LBEAR	__SF_SAE_BEAR(%r15)		# restore breaking event address register
+	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
+	xgr	%r0,%r0				# clear guest registers to
+	xgr	%r1,%r1				# prevent speculative use
+	xgr	%r2,%r2
+	xgr	%r3,%r3
+	xgr	%r4,%r4
+	xgr	%r5,%r5
+	BR_EX	%r14
+SYM_FUNC_END(sae)
+EXPORT_SYMBOL(sae)
+#endif
+
 /*
  * SVC interrupt handler routine. System calls are synchronous events and
  * are entered with interrupts disabled.
@@ -613,6 +635,8 @@ SYM_CODE_END(early_pgm_check_handler)
  * The synchronous or the asynchronous stack pointer is invalid. We are dead.
  * No need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
+ * Copy lowcore of the current CPU to stack_invalid_lowcore before it
+ * is modified by printing debug messages and crash handling.
  */
 SYM_CODE_START(stack_invalid)
 	GET_LC	%r15
@@ -621,8 +645,21 @@ SYM_CODE_START(stack_invalid)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_R8(64,%r11),0(%r14)
+	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	GET_LC	%r2
-	mvc	__PT_ORIG_GPR2(8,%r11),__LC_PGM_LAST_BREAK(%r2)
+	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK(%r2)
+	/* copy lowcore; skip if used by another CPU */
+	larl	%r4,stack_invalid_lowcore_used
+	lhi	%r1,0
+	lhi	%r3,1
+	cs	%r1,%r3,0(%r4)
+	jne	.Lskip
+	larl	%r0,stack_invalid_lowcore
+	lghi	%r1,LC_PAGES * PAGE_SIZE
+	lgr	%r4,%r2
+	lgr	%r5,%r1
+	mvcl	%r0,%r4
+.Lskip:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	jg	kernel_stack_invalid

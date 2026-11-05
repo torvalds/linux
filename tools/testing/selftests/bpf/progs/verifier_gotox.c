@@ -6,7 +6,9 @@
 #include "bpf_misc.h"
 #include "../../../include/linux/filter.h"
 
-#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_powerpc)
+#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	defined(__TARGET_ARCH_powerpc) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)
 
 #define DEFINE_SIMPLE_JUMP_TABLE_PROG(NAME, SRC_REG, OFF, IMM, OUTCOME)	\
 									\
@@ -101,9 +103,11 @@ __naked void jump_table_terminal_gotox_subprog(void)
  */
 SEC("socket")
 __failure __msg("no jump tables found for subprog starting at 0")
+__msg(">>> 1 | (0d) gotox r0")
 __naked void jump_table_no_jump_table(void)
 {
 	asm volatile ("						\
+	r0 = 0;							\
 	.8byte %[gotox_r0];					\
 	r0 = 1;							\
 	exit;							\
@@ -366,7 +370,7 @@ __used static int test_subprog(void)
 }
 
 SEC("socket")
-__failure __msg("jump table for insn 4 points outside of the subprog [0,10]")
+__failure __msg("jump table of subprog starting at 0 spans multiple subprogs")
 __naked void jump_table_outside_subprog(void)
 {
 	asm volatile ("						\
@@ -457,6 +461,133 @@ __naked void spill_fill_ptr_to_insn(void)
 	: __clobber_all);
 }
 
-#endif /* __TARGET_ARCH_x86 || __TARGET_ARCH_arm64 || __TARGET_ARCH_powerpc*/
+/*
+ * Emit each table entry next to the instruction it targets. Numeric labels
+ * can be reused by .rept, while %= keeps table symbols unique per asm block.
+ * BASE is the code section: libbpf relocates section-relative byte offsets
+ * to instruction offsets in the loaded program.
+ */
+#define GOTOX_TABLE_BEGIN(COUNT) \
+	".pushsection .jumptables,\"\",@progbits;" \
+	"jt_%=:;" \
+	".global jt_%=;" \
+	".size jt_%=, 8 * (" #COUNT ");" \
+	".popsection;" \
+	"r1 = jt_%= ll;"
+
+#define GOTOX_TABLE_ENTRY(LABEL, BASE) \
+	".pushsection .jumptables,\"\",@progbits;" \
+	".quad " LABEL " - " BASE ";" \
+	".popsection;"
+
+/* N gotox instructions, each targeting all N gotox plus the final block. */
+#define GOTOX_SELF_TARGETS(N, BASE) \
+	GOTOX_TABLE_BEGIN(N + 1) \
+	"r0 = 0;" \
+	".rept " #N ";" \
+		GOTOX_TABLE_ENTRY("1f", BASE) \
+		"1:; .8byte %[gotox];" \
+	".endr;" \
+	GOTOX_TABLE_ENTRY("2f", BASE) \
+	"2:;"
+
+#define GOTOX_OPERAND \
+	__imm_insn(gotox, BPF_RAW_INSN(BPF_JMP | BPF_JA | BPF_X, BPF_REG_0, 0, 0, 0))
+
+/*
+ * Count edges even when their targets are already discovered. These
+ * programs deliberately use a scalar: the CFG edge limit must reject them
+ * before symbolic verification reaches the invalid gotox operand.
+ */
+SEC("socket")
+__description("too-many-gotox-edges")
+__failure __msg("number of indirect jump edges in the program exceeds")
+__naked void too_many_gotox_edges(void)
+{
+	asm volatile (
+		/* 1000 * 1001 = 1,001,000 edges. */
+		GOTOX_SELF_TARGETS(1000, "socket")
+		"r0 = 0; exit;"
+		: : GOTOX_OPERAND : __clobber_all);
+}
+
+SEC("socket")
+__description("gotox-edges-at-limit")
+__failure __msg("Too many nested loops")
+__naked void gotox_edges_at_limit(void)
+{
+	asm volatile (
+		/*
+		 * 1000 gotox * 1000 targets = 1,000,000 CFG edges. At run
+		 * time, each block loads the next table entry and jumps to
+		 * the following block, so the program terminates.
+		 *
+		 * Every block can jump to every later block, so the CFG is
+		 * a nest of ~1000 irreducible loops, deeper than the
+		 * verifier's loop stack; the program is rejected.
+		 */
+		GOTOX_TABLE_BEGIN(1000)
+		".rept 1000;"
+			GOTOX_TABLE_ENTRY("1f", "socket")
+			"r0 = *(u64 *)(r1 + 0);"
+			"r1 += 8;"
+			".8byte %[gotox];"
+			"1:;"
+		".endr;"
+		"r0 = 0; exit;"
+		: : GOTOX_OPERAND : __clobber_all);
+}
+
+static __noinline __used __naked void gotox_edges_subprog(void)
+{
+	asm volatile (
+		GOTOX_SELF_TARGETS(750, ".text")
+		"r0 = 0; exit;"
+		: : GOTOX_OPERAND : __clobber_all);
+}
+
+SEC("socket")
+__description("gotox-edges-across-subprogs")
+__failure __msg("number of indirect jump edges in the program exceeds")
+__naked void gotox_edges_across_subprogs(void)
+{
+	asm volatile (
+		/* Each subprog has 563,250 edges; together, 1,126,500. */
+		GOTOX_SELF_TARGETS(750, "socket")
+		"call gotox_edges_subprog;"
+		"exit;"
+		: : GOTOX_OPERAND : __clobber_all);
+}
+
+/*
+ * The gotox target is a ja +0, which the nop removal pass must keep as the
+ * jump table still names it.
+ */
+SEC("socket")
+__success __retval(0)
+__xlated("goto pc+0")
+__naked void jump_table_target_nop(void)
+{
+	asm volatile ("						\
+	.pushsection .jumptables,\"\",@progbits;		\
+jt0_%=:								\
+	.quad nop_%= - socket;					\
+	.size jt0_%=, 8;					\
+	.global jt0_%=;						\
+	.popsection;						\
+								\
+	r0 = jt0_%= ll;						\
+	r0 = *(u64 *)(r0 + 0);					\
+	.8byte %[gotox_r0];					\
+nop_%=:								\
+	goto +0;						\
+	r0 = 0;							\
+	exit;							\
+"	:
+	: __imm_insn(gotox_r0, BPF_RAW_INSN(BPF_JMP | BPF_JA | BPF_X, BPF_REG_0, 0, 0, 0))
+	: __clobber_all);
+}
+
+#endif /* gotox: x86, arm64, powerpc, riscv64 */
 
 char _license[] SEC("license") = "GPL";

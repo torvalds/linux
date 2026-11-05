@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023-2026 Marek Vasut
+ */
+
+#include "imx8mp-data-modul-edm-sbc-overlay-edm-sbc-imx8mp-lvds.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-g101ice-l01.dtsi"
+
+&media_blk_ctrl {
+	/*
+	 * The G101ICE-L01 panel requires 71.1 MHz LVDS clock.
+	 * Set IMX8MP_VIDEO_PLL1 to 497.7 MHz , since 497.7 MHz / 7 = 71.1 MHz .
+	 */
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <500000000>, <497700000>;
+};
+
+&ldb_lvds_ch1 {
+	remote-endpoint = <&panel_lvds>;
+};
+
+&panel_lvds {
+	remote-endpoint = <&ldb_lvds_ch1>;
+};

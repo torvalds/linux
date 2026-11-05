@@ -45,6 +45,7 @@ struct __ip6_tnl_parm {
 /* IPv6 tunnel */
 struct ip6_tnl {
 	struct ip6_tnl __rcu *next;	/* next tunnel in list */
+	struct hlist_node hash_node;
 	struct net_device *dev;	/* virtual device associated with tunnel */
 	netdevice_tracker dev_tracker;
 	struct net *net;	/* netns for packet i/o */

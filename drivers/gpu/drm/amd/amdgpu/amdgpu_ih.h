@@ -29,6 +29,8 @@
 
 #define IH_RING_SIZE	(256 * 1024)
 #define IH_SW_RING_SIZE	(16 * 1024)	/* enough for 512 CAM entries */
+#define IH_PSP_RING_SIZE (SZ_4K)
+#define IH_UALINK_RING_SIZE    (256 * 1024)
 
 struct amdgpu_device;
 struct amdgpu_iv_entry;

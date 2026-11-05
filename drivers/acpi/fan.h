@@ -52,7 +52,7 @@ struct acpi_fan_fst {
 };
 
 struct acpi_fan {
-	acpi_handle handle;
+	struct acpi_device *adev;
 	bool acpi4;
 	bool has_fst;
 	struct acpi_fan_fif fif;

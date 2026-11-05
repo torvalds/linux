@@ -95,6 +95,8 @@
 #define SW_LED_LINK_ACT_DUPLEX		2
 #define SW_LED_LINK_DUPLEX		3
 
+#define SW_SPECIAL_TAG			BIT(0) /* KSZ8995XA only */
+
 #define REG_SW_CTRL_10			0x0C
 
 #define SW_PASS_PAUSE			BIT(0)

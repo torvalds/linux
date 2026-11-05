@@ -233,12 +233,13 @@ static inline void xe_res_first_sg(const struct sg_table *sg,
  * @dma_addr: struct drm_pagemap_addr array to walk
  * @start: Start of the range
  * @size: Size of the range
+ * @contiguous: Whether one entry describes the whole range
  * @cur: cursor object to initialize
  *
  * Start walking over the range of allocations between @start and @size.
  */
 static inline void xe_res_first_dma(const struct drm_pagemap_addr *dma_addr,
-				    u64 start, u64 size,
+				    u64 start, u64 size, bool contiguous,
 				    struct xe_res_cursor *cur)
 {
 	XE_WARN_ON(!dma_addr);
@@ -248,7 +249,7 @@ static inline void xe_res_first_dma(const struct drm_pagemap_addr *dma_addr,
 	cur->node = NULL;
 	cur->start = start;
 	cur->remaining = size;
-	cur->dma_seg_size = PAGE_SIZE << dma_addr->order;
+	cur->dma_seg_size = contiguous ? start + size : PAGE_SIZE << dma_addr->order;
 	cur->dma_start = 0;
 	cur->size = 0;
 	cur->dma_addr = dma_addr;

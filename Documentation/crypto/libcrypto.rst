@@ -127,6 +127,8 @@ The crypto library uses standard KUnit tests.  Like many of the kernel's other
 KUnit tests, they are included in the set of tests that is run by
 ``tools/testing/kunit/kunit.py run --alltests``.
 
+For more information about KUnit, see Documentation/dev-tools/kunit/start.rst.
+
 A ``.kunitconfig`` file is also provided to run just the crypto library tests.
 For example, here's how to run them in user-mode Linux:
 
@@ -148,6 +150,17 @@ emulate the correct type of hardware for the code to be reached.
 Since correctness is essential in cryptographic code, new architecture-optimized
 code is accepted only if it can be tested in QEMU.
 
+Most of the crypto KUnit tests also include benchmarks.  To enable these, enable
+``CONFIG_CRYPTO_LIB_BENCHMARK=y`` (in addition to the tests themselves).  The
+benchmark results are printed to the kernel log when the test runs.
+
+Of course, the crypto KUnit tests can also be run on real hardware.  Note that
+it is generally still possible to test and benchmark non-default code paths in
+this case (for example, the software implementation of AES when the CPU has
+hardware-accelerated AES), since on many architectures the kernel supports
+disabling CPU features via the kernel command line.  For example, on x86,
+the ``clearcpuid=aes`` kernel command line option disables AES acceleration.
+
 Note: the crypto library also includes FIPS 140 self-tests.  These are
 lightweight, are designed specifically to meet FIPS 140 requirements, and exist
 *only* to meet those requirements.  Normal testing done by kernel developers and
@@ -165,4 +178,5 @@ API documentation
    libcrypto-signature
    libcrypto-unauth-encryption
    libcrypto-utils
+   libcrypto-zeroization
    sha3

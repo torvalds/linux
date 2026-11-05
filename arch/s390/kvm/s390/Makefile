@@ -4,7 +4,7 @@ KVM := ../../../../virt/kvm
 include $(srctree)/virt/kvm/Makefile.kvm
 include $(srctree)/arch/s390/kvm/gmap/Makefile
 
-ccflags-y := -I$(src) -I$(srctree)/arch/s390/kvm/gmap
+ccflags-y += -I$(src) -I$(srctree)/arch/s390/kvm/gmap
 
 kvm-y += s390.o intercept.o interrupt.o priv.o sigp.o
 kvm-y += diag.o gaccess.o guestdbg.o vsie.o pv.o

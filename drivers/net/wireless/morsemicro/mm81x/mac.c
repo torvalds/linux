@@ -7,6 +7,7 @@
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
 #include <net/mac80211.h>
+#include <net/ieee80211_radiotap.h>
 #include <asm/div64.h>
 #include <linux/kernel.h>
 #include "hif.h"
@@ -66,6 +67,9 @@
 /* HW restart delay time before terminating hardware IF work items */
 #define MM81X_HW_RESTART_DELAY_MS 20
 
+/* Maximum number of multicast frames to release after a DTIM beacon */
+#define MM81X_MAX_MC_FRAMES_AFTER_DTIM 4
+
 /* clang-format off */
 
 /* mm81x chips do not support 16MHz */
@@ -80,7 +84,7 @@
 	.max_power = 30,					\
 }
 
-static struct ieee80211_channel mors_s1ghz_channels[] = {
+static const struct ieee80211_channel mors_s1ghz_channels[] = {
 	CHANS1G(1, 902, 500, IEEE80211_CHAN_S1G_NO_PRIMARY),
 	CHANS1G(3, 903, 500, 0),
 	CHANS1G(5, 904, 500, 0),
@@ -111,11 +115,9 @@ static struct ieee80211_channel mors_s1ghz_channels[] = {
 
 /* clang-format on */
 
-static struct ieee80211_supported_band mors_band_s1ghz = {
+static const struct ieee80211_supported_band mors_band_s1ghz = {
 	.band = NL80211_BAND_S1GHZ,
 	.s1g_cap.s1g = true,
-	.channels = mors_s1ghz_channels,
-	.n_channels = ARRAY_SIZE(mors_s1ghz_channels),
 	.bitrates = NULL,
 	.n_bitrates = 0,
 	.s1g_cap.cap[4] = 0x80 /* STA type sensor only for AP & STA */
@@ -265,8 +267,10 @@ static void mm81x_mac_check_fw_disabled_chans(struct ieee80211_hw *hw)
 	u32 i;
 	struct mm81x *mors = hw->priv;
 	struct host_cmd_resp_get_disabled_channels *resp;
+	struct ieee80211_supported_band *sband =
+		hw->wiphy->bands[NL80211_BAND_S1GHZ];
 	u32 resp_len = sizeof(struct host_cmd_disabled_channel_entry) *
-			       ARRAY_SIZE(mors_s1ghz_channels) +
+			       sband->n_channels +
 		       sizeof(*resp);
 
 	resp = kzalloc(resp_len, GFP_KERNEL);
@@ -279,8 +283,13 @@ static void mm81x_mac_check_fw_disabled_chans(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
-	for (i = 0; i < ARRAY_SIZE(mors_s1ghz_channels); i++) {
-		struct ieee80211_channel *ch = &mors_s1ghz_channels[i];
+	if (le32_to_cpu(resp->n_channels) > sband->n_channels) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < sband->n_channels; i++) {
+		struct ieee80211_channel *ch = &sband->channels[i];
 
 		if (ch->flags & IEEE80211_CHAN_DISABLED)
 			continue;
@@ -322,7 +331,7 @@ static int mm81x_mac_ops_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static int mm81x_tx_h_get_max_bw(struct mm81x *mors)
+static int mm81x_tx_h_get_max_tx_bw(struct mm81x *mors)
 {
 	return MM81X_FW_SUPP(&mors->fw_caps, 8MHZ) ? 8 :
 	       MM81X_FW_SUPP(&mors->fw_caps, 4MHZ) ? 4 :
@@ -333,7 +342,8 @@ static int mm81x_tx_h_get_max_bw(struct mm81x *mors)
 static void mm81x_mac_caps_init(struct mm81x *mors)
 {
 	struct mm81x_fw_caps *fw_caps = &mors->fw_caps;
-	struct ieee80211_sta_s1g_cap *s1g = &mors_band_s1ghz.s1g_cap;
+	struct ieee80211_sta_s1g_cap *s1g =
+		&mors->hw->wiphy->bands[NL80211_BAND_S1GHZ]->s1g_cap;
 
 #define __FW_CAP_N(_n, _cap, _bit)                \
 	do {                                      \
@@ -445,39 +455,6 @@ static void mm81x_beacon_h_fill_tx_info(struct mm81x *mors,
 			cpu_to_le32(MM81X_TX_CONF_FLAGS_IMMEDIATE_REPORT);
 }
 
-static void mm81x_mac_beacon_work(struct work_struct *work)
-{
-	struct mm81x_vif *mors_vif =
-		from_work(mors_vif, work, u.ap.beacon_work);
-	struct mm81x *mors = mm81x_vif_to_mors(mors_vif);
-	struct mm81x_skbq *mq;
-	struct sk_buff *beacon;
-	struct ieee80211_vif *vif = mm81x_vif_to_ieee80211_vif(mors_vif);
-	struct mm81x_skb_tx_info tx_info = { 0 };
-	int num_bcn_vifs = atomic_read(&mors->num_bcn_vifs);
-
-	mq = mm81x_hif_get_tx_beacon_queue(mors);
-	if (!mq) {
-		dev_err(mors->dev, "no matching beacon Q found");
-		return;
-	}
-
-	if (mm81x_skbq_count(mq) >= num_bcn_vifs) {
-		dev_err(mors->dev,
-			"previous beacon not consumed, dropping req [id:%d]",
-			mors_vif->id);
-		return;
-	}
-
-	beacon = ieee80211_beacon_get(mors->hw, vif, false);
-	if (!beacon)
-		return;
-
-	mm81x_beacon_h_fill_tx_info(mors, &tx_info, mors_vif,
-				    cfg80211_chandef_s1g_pri_width(&mors->chandef));
-	mm81x_skbq_skb_tx(mq, &beacon, &tx_info, MM81X_SKB_CHAN_BEACON);
-}
-
 void mm81x_mac_beacon_irq_handle(struct mm81x *mors, u32 status)
 {
 	int vif_id;
@@ -495,15 +472,6 @@ void mm81x_mac_beacon_irq_handle(struct mm81x *mors, u32 status)
 			queue_work(system_bh_wq, &mors_vif->u.ap.beacon_work);
 		}
 	}
-}
-
-static void mm81x_mac_beacon_init(struct mm81x_vif *mors_vif)
-{
-	struct mm81x *mors = mm81x_vif_to_mors(mors_vif);
-
-	INIT_WORK(&mors_vif->u.ap.beacon_work, mm81x_mac_beacon_work);
-	mm81x_mac_beacon_irq_enable(mors_vif, true);
-	atomic_inc(&mors->num_bcn_vifs);
 }
 
 static struct hw_scan_tlv_hdr mm81x_hw_scan_h_pack_tlv_hdr(u16 tag, u16 len)
@@ -1281,38 +1249,54 @@ static void mm81x_tx_h_fill_info(struct mm81x *mors,
 	}
 }
 
+static int mm81x_tx_h_get_bw(struct mm81x *mors, struct ieee80211_sta *sta,
+			     struct sk_buff *skb, bool is_mgmt)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mm81x_sta *mors_sta = NULL;
+	int tx_bw_mhz;
+
+	if (ieee80211_is_probe_resp(hdr->frame_control))
+		return 1;
+
+	if (is_mgmt || info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO)
+		return cfg80211_chandef_s1g_pri_width(&mors->chandef);
+
+	/*
+	 * In AP mode group addressed frames go out at the primary width so
+	 * that every associated STA can receive them, including any that
+	 * cannot support the operating width.
+	 */
+	if (info->control.vif->type == NL80211_IFTYPE_AP &&
+	    is_multicast_ether_addr(ieee80211_get_DA(hdr)))
+		return cfg80211_chandef_s1g_pri_width(&mors->chandef);
+
+	if (sta)
+		mors_sta = (struct mm81x_sta *)sta->drv_priv;
+
+	tx_bw_mhz = min(mm81x_tx_h_get_max_tx_bw(mors),
+			cfg80211_chandef_get_width(&mors->chandef));
+	if (mors_sta && mors_sta->max_rx_bw_mhz)
+		tx_bw_mhz = min(tx_bw_mhz, mors_sta->max_rx_bw_mhz);
+
+	return tx_bw_mhz;
+}
+
 static void mm81x_mac_ops_tx(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_control *control,
 			     struct sk_buff *skb)
 {
-	struct mm81x *mors = hw->priv;
-	struct mm81x_skbq *mq = NULL;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_vif *vif = info->control.vif;
-	struct mm81x_skb_tx_info tx_info = { 0 };
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	bool is_mgmt = ieee80211_is_mgmt(hdr->frame_control);
-	int tx_bw_mhz = cfg80211_chandef_get_width(&mors->chandef);
 	struct ieee80211_sta *sta = control->sta;
-	int max_tx_bw = 0, sta_max_bw_mhz = 0;
+	struct mm81x_skb_tx_info tx_info = { 0 };
+	struct mm81x *mors = hw->priv;
+	struct mm81x_skbq *mq;
 
-	if (sta) {
-		struct mm81x_sta *mors_sta = (struct mm81x_sta *)sta->drv_priv;
-
-		sta_max_bw_mhz = mors_sta->max_bw_mhz;
-	}
-
-	max_tx_bw = mm81x_tx_h_get_max_bw(mors);
-	tx_bw_mhz = min(max_tx_bw, tx_bw_mhz);
-
-	if (is_mgmt)
-		tx_bw_mhz = cfg80211_chandef_s1g_pri_width(&mors->chandef);
-	if (sta_max_bw_mhz)
-		tx_bw_mhz = min(tx_bw_mhz, sta_max_bw_mhz);
-	if (ieee80211_is_probe_resp(hdr->frame_control))
-		tx_bw_mhz = 1;
-
-	mm81x_tx_h_fill_info(mors, &tx_info, skb, vif, tx_bw_mhz, sta);
+	mm81x_tx_h_fill_info(mors, &tx_info, skb, info->control.vif,
+			     mm81x_tx_h_get_bw(mors, sta, skb, is_mgmt), sta);
 
 	if (mm81x_tx_h_ps_filtered_for_sta(mors, skb, sta))
 		return;
@@ -1326,6 +1310,64 @@ static void mm81x_mac_ops_tx(struct ieee80211_hw *hw,
 	mm81x_skbq_skb_tx(mq, &skb, &tx_info,
 			  (is_mgmt) ? MM81X_SKB_CHAN_MGMT :
 				      MM81X_SKB_CHAN_DATA);
+}
+
+static void mm81x_mac_send_buffered_bc(struct mm81x *mors,
+				       struct ieee80211_vif *vif)
+{
+	int count = MM81X_MAX_MC_FRAMES_AFTER_DTIM;
+	struct ieee80211_tx_control control = { 0 };
+	struct sk_buff *bc_frame;
+
+	while (count-- &&
+	       (bc_frame = ieee80211_get_buffered_bc(mors->hw, vif))) {
+		IEEE80211_SKB_CB(bc_frame)->control.vif = vif;
+		mm81x_mac_ops_tx(mors->hw, &control, bc_frame);
+	}
+}
+
+static void mm81x_mac_beacon_work(struct work_struct *work)
+{
+	struct mm81x_vif *mors_vif =
+		from_work(mors_vif, work, u.ap.beacon_work);
+	struct mm81x *mors = mm81x_vif_to_mors(mors_vif);
+	struct mm81x_skbq *mq;
+	struct sk_buff *beacon;
+	struct ieee80211_vif *vif = mm81x_vif_to_ieee80211_vif(mors_vif);
+	struct mm81x_skb_tx_info tx_info = { 0 };
+	int num_bcn_vifs = atomic_read(&mors->num_bcn_vifs);
+
+	mq = mm81x_hif_get_tx_beacon_queue(mors);
+	if (!mq) {
+		dev_err(mors->dev, "no matching beacon Q found");
+		return;
+	}
+
+	if (mm81x_skbq_count(mq) >= num_bcn_vifs) {
+		dev_err(mors->dev,
+			"previous beacon not consumed, dropping req [id:%d]",
+			mors_vif->id);
+		return;
+	}
+
+	beacon = ieee80211_beacon_get(mors->hw, vif, false);
+	if (!beacon)
+		return;
+
+	mm81x_beacon_h_fill_tx_info(mors, &tx_info, mors_vif,
+				    cfg80211_chandef_s1g_pri_width(&mors->chandef));
+	mm81x_skbq_skb_tx(mq, &beacon, &tx_info, MM81X_SKB_CHAN_BEACON);
+
+	if (!test_bit(MM81X_STATE_DATA_QS_STOPPED, &mors->state_flags))
+		mm81x_mac_send_buffered_bc(mors, vif);
+}
+
+static void mm81x_mac_beacon_start(struct mm81x_vif *mors_vif)
+{
+	struct mm81x *mors = mm81x_vif_to_mors(mors_vif);
+
+	mm81x_mac_beacon_irq_enable(mors_vif, true);
+	atomic_inc(&mors->num_bcn_vifs);
 }
 
 static void mm81x_mac_ops_stop(struct ieee80211_hw *hw, bool suspend)
@@ -1360,6 +1402,9 @@ static void mm81x_mac_ops_remove_interface(struct ieee80211_hw *hw,
 		dev_err(mors->dev, "mm81x_cmd_rm_if failed %d", ret);
 
 	RCU_INIT_POINTER(mors->vifs[mors_vif->id], NULL);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, hw->flags);
 }
 
 static s32 mm81x_mac_get_max_txpower(struct mm81x *mors)
@@ -1474,6 +1519,9 @@ static int mm81x_mac_ops_config(struct ieee80211_hw *hw, int radio_idx,
 			return ret;
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
+		mors->monitor_en = conf->flags & IEEE80211_CONF_MONITOR;
+
 	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
 	    !(changed & IEEE80211_CONF_CHANGE_CHANNEL) &&
 	    !(conf->flags & IEEE80211_CONF_MONITOR)) {
@@ -1546,7 +1594,9 @@ static void mm81x_mac_ops_bss_info_changed(struct ieee80211_hw *hw,
 		mm81x_cmd_config_beacon_timer(mors, mors_vif,
 					      info->enable_beacon);
 
-		if (!info->enable_beacon)
+		if (info->enable_beacon)
+			mm81x_mac_beacon_start(mors_vif);
+		else
 			mm81x_mac_beacon_finish(mors_vif);
 	}
 
@@ -1563,7 +1613,7 @@ static u64 mm81x_mac_ops_prepare_multicast(struct ieee80211_hw *hw,
 					   struct netdev_hw_addr_list *mc_list)
 {
 	struct mm81x *mors = hw->priv;
-	struct mcast_filter *filter;
+	struct mm81x_mcast_filter *filter;
 	struct netdev_hw_addr *addr;
 	u16 addr_count = netdev_hw_addr_list_count(mc_list);
 	u16 len = sizeof(*filter) + addr_count * sizeof(filter->addr_list[0]);
@@ -1590,17 +1640,38 @@ static u64 mm81x_mac_ops_prepare_multicast(struct ieee80211_hw *hw,
 	return (u64)(unsigned long)filter;
 }
 
+static void mm81x_mc_iface_iterator(void *data, u8 *mac,
+				    struct ieee80211_vif *vif)
+{
+	struct mm81x_vif *mors_vif = ieee80211_vif_to_mors_vif(vif);
+	struct mm81x *mors = data;
+	int ret;
+
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		return;
+
+	ret = mm81x_cmd_cfg_multicast_filter(mors, mors_vif);
+	if (ret)
+		dev_err(mors->dev, "Multicast filtering failed - rc=%d", ret);
+}
+
+#define MM81X_MONITOR_FILTERS		\
+	(FIF_ALLMULTI |			\
+	FIF_BCN_PRBRESP_PROMISC |	\
+	FIF_CONTROL |			\
+	FIF_FCSFAIL |			\
+	FIF_OTHER_BSS |			\
+	FIF_PSPOLL |			\
+	FIF_PROBE_REQ |			\
+	FIF_MCAST_ACTION)
+
 static void mm81x_mac_ops_configure_filter(struct ieee80211_hw *hw,
 					   unsigned int changed_flags,
 					   unsigned int *total_flags,
 					   u64 multicast)
 {
+	struct mm81x_mcast_filter *cmd = (void *)(unsigned long)multicast;
 	struct mm81x *mors = hw->priv;
-	struct mcast_filter *cmd = (void *)(unsigned long)multicast;
-	struct mm81x_vif *mors_vif = NULL;
-	struct ieee80211_vif *vif = NULL;
-	int vif_id = 0;
-	int ret = 0;
 
 	if (!cmd)
 		goto out;
@@ -1608,25 +1679,15 @@ static void mm81x_mac_ops_configure_filter(struct ieee80211_hw *hw,
 	kfree(mors->mcast_filter);
 	mors->mcast_filter = cmd;
 
-	for (vif_id = 0; vif_id < ARRAY_SIZE(mors->vifs); vif_id++) {
-		vif = mm81x_rcu_dereference_vif_id(mors, vif_id, false);
-		if (!vif)
-			continue;
-
-		mors_vif = ieee80211_vif_to_mors_vif(vif);
-
-		ret = mm81x_cmd_cfg_multicast_filter(mors, mors_vif);
-		if (!ret)
-			continue;
-
-		dev_err(mors->dev, "Multicast filtering failed - rc=%d", ret);
-		mors->mcast_filter = NULL;
-		kfree(cmd);
-		break;
-	}
+	ieee80211_iterate_active_interfaces(mors->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    mm81x_mc_iface_iterator, mors);
 
 out:
-	*total_flags &= 0;
+	if (mors->monitor_en)
+		*total_flags &= MM81X_MONITOR_FILTERS;
+	else
+		*total_flags = 0;
 }
 
 static int mm81x_mac_ops_conf_tx(struct ieee80211_hw *hw,
@@ -1690,6 +1751,9 @@ static int mm81x_mac_ops_sta_state(struct ieee80211_hw *hw,
 			mors_vif->u.ap.num_stas++;
 		else if (vif->type == NL80211_IFTYPE_STATION)
 			mors_vif->u.sta.is_assoc = true;
+
+		mors_sta->max_rx_bw_mhz =
+			S1G_SUPP_CH_WIDTH_MAX(sta->deflink.s1g_cap.cap);
 	}
 
 	if (new_state < old_state && new_state == IEEE80211_STA_NONE) {
@@ -1861,14 +1925,95 @@ static u8 mm81x_rx_h_rc_bw_to_rx_bw(__le32 ratecode)
 	}
 }
 
+static u32 mm81x_rx_h_ampdu_reference(struct mm81x *mors, u64 timestamp)
+{
+	if (timestamp != mors->rx_ampdu.timestamp) {
+		mors->rx_ampdu.timestamp = timestamp;
+		mors->rx_ampdu.reference++;
+	}
+
+	return mors->rx_ampdu.reference;
+}
+
+static enum ieee80211_radiotap_s1g_ppdu_format
+mm81x_rx_h_ppdu_format(__le32 ratecode)
+{
+	switch (mm81x_ratecode_preamble_get(ratecode)) {
+	case MM81X_RATE_PREAMBLE_S1G_1M:
+		return IEEE80211_RADIOTAP_S1G_PPDU_FORMAT_1M;
+	case MM81X_RATE_PREAMBLE_S1G_LONG:
+		return IEEE80211_RADIOTAP_S1G_PPDU_FORMAT_LONG;
+	default:
+		return IEEE80211_RADIOTAP_S1G_PPDU_FORMAT_SHORT;
+	}
+}
+
+#define S1G_RADIOTAP_TLV_LEN				\
+	(sizeof(struct ieee80211_radiotap_tlv) +	\
+	 ALIGN(sizeof(struct ieee80211_radiotap_s1g), 4))
+
+static void mm81x_rx_h_add_rt_s1g_tlv(struct sk_buff *skb,
+				      struct mm81x_skb_rx_status *hdr_rx_status,
+				      struct ieee80211_rx_status *rx_status)
+{
+	__le32 ratecode = hdr_rx_status->mm81x_ratecode;
+	u32 flags = le32_to_cpu(hdr_rx_status->flags);
+	u8 color = hdr_rx_status->bss_color;
+	struct ieee80211_radiotap_tlv *tlv;
+	struct ieee80211_radiotap_s1g s1g;
+
+	if (skb_headroom(skb) < S1G_RADIOTAP_TLV_LEN)
+		return;
+
+	s1g.known = cpu_to_le16(IEEE80211_RADIOTAP_S1G_KNOWN_PPDU_FORMAT |
+				IEEE80211_RADIOTAP_S1G_KNOWN_RESPONSE_IND |
+				IEEE80211_RADIOTAP_S1G_KNOWN_GI |
+				IEEE80211_RADIOTAP_S1G_KNOWN_BW |
+				IEEE80211_RADIOTAP_S1G_KNOWN_UPLINK_IND |
+				IEEE80211_RADIOTAP_S1G_KNOWN_NSS |
+				IEEE80211_RADIOTAP_S1G_KNOWN_MCS |
+				IEEE80211_RADIOTAP_S1G_KNOWN_COLOR);
+
+	s1g.data1 = le16_encode_bits(mm81x_rx_h_ppdu_format(ratecode),
+				     IEEE80211_RADIOTAP_S1G_DATA1_PPDU_FORMAT) |
+		    le16_encode_bits(MM81X_RX_STATUS_FLAGS_RI_GET(flags),
+				     IEEE80211_RADIOTAP_S1G_DATA1_RESPONSE_IND) |
+		    le16_encode_bits(mm81x_ratecode_sgi_get(ratecode),
+				     IEEE80211_RADIOTAP_S1G_DATA1_GI) |
+		    le16_encode_bits(mm81x_ratecode_nss_index_get(ratecode),
+				     IEEE80211_RADIOTAP_S1G_DATA1_NSS) |
+		    le16_encode_bits(mm81x_ratecode_bw_index_get(ratecode),
+				     IEEE80211_RADIOTAP_S1G_DATA1_BW) |
+		    le16_encode_bits(mm81x_ratecode_mcs_index_get(ratecode),
+				     IEEE80211_RADIOTAP_S1G_DATA1_MCS);
+
+	s1g.data2 = le16_encode_bits(color, IEEE80211_RADIOTAP_S1G_DATA2_COLOR) |
+		    le16_encode_bits(MM81X_RX_STATUS_FLAGS_UPL_IND_GET(flags),
+				     IEEE80211_RADIOTAP_S1G_DATA2_UPLINK_IND) |
+		    le16_encode_bits((u8)rx_status->signal,
+				     IEEE80211_RADIOTAP_S1G_DATA2_RSSI);
+
+	tlv = skb_push(skb, S1G_RADIOTAP_TLV_LEN);
+	tlv->type = cpu_to_le16(IEEE80211_RADIOTAP_S1G);
+	tlv->len = cpu_to_le16(sizeof(s1g));
+
+	memcpy(tlv->data, &s1g, sizeof(s1g));
+	memset(tlv->data + sizeof(s1g), 0,
+	       S1G_RADIOTAP_TLV_LEN - sizeof(*tlv) - sizeof(s1g));
+
+	skb_set_mac_header(skb, S1G_RADIOTAP_TLV_LEN);
+	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
+}
+
 static void mm81x_rx_h_fill_status(struct mm81x *mors,
 				   struct mm81x_skb_rx_status *hdr_rx_status,
 				   struct ieee80211_rx_status *rx_status,
 				   struct sk_buff *skb)
 {
-	u32 flags = le32_to_cpu(hdr_rx_status->flags);
+	u64 timestamp = le64_to_cpu(hdr_rx_status->rx_timestamp_us);
 	u16 freq_100khz = le16_to_cpu(hdr_rx_status->freq_100khz);
 	__le32 ratecode = hdr_rx_status->mm81x_ratecode;
+	u32 flags = le32_to_cpu(hdr_rx_status->flags);
 
 	rx_status->signal = le16_to_cpu(hdr_rx_status->rssi);
 	rx_status->encoding = RX_ENC_S1G;
@@ -1876,33 +2021,60 @@ static void mm81x_rx_h_fill_status(struct mm81x *mors,
 	rx_status->freq = KHZ100_TO_MHZ(freq_100khz);
 	rx_status->freq_offset = (freq_100khz % 10) ? 1 : 0;
 	rx_status->nss = NSS_IDX_TO_NSS(mm81x_ratecode_nss_index_get(ratecode));
+	rx_status->rate_idx = mm81x_ratecode_mcs_index_get(ratecode);
+	rx_status->bw = mm81x_rx_h_rc_bw_to_rx_bw(ratecode);
+	rx_status->mactime = timestamp;
+	rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
 
 	if (flags & MM81X_RX_STATUS_FLAGS_DECRYPTED)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 
-	rx_status->rate_idx = mm81x_ratecode_mcs_index_get(ratecode);
-	rx_status->bw = mm81x_rx_h_rc_bw_to_rx_bw(ratecode);
-
 	if (mm81x_ratecode_sgi_get(ratecode))
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+
+	if (mors->monitor_en) {
+		if (flags & MM81X_RX_STATUS_FLAGS_CRC_ERROR)
+			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
+
+		if (flags & MM81X_RX_STATUS_FLAGS_AMPDU) {
+			rx_status->flag |= RX_FLAG_AMPDU_DETAILS |
+					   RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+			rx_status->ampdu_reference =
+				mm81x_rx_h_ampdu_reference(mors, timestamp);
+
+			if (flags & MM81X_RX_STATUS_FLAGS_EOF)
+				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
+		}
+
+		if (flags & MM81X_RX_STATUS_FLAGS_NDP) {
+			rx_status->flag |= RX_FLAG_NO_PSDU;
+
+			/*
+			 * S1G PSDUs are not standardised in radiotap yet, so
+			 * for now report as sounding PSDUs so that acks etc.
+			 * can be passed through.
+			 */
+			rx_status->zero_length_psdu_type =
+				IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
+
+			/*
+			 * Null Data Packets contain no data, therefore no
+			 * mcs encoding. The STF/LTF are usually BPSK, therefore
+			 * the NDP mcs rate can always be considered as 0.
+			 */
+			rx_status->rate_idx = 0;
+			rx_status->nss = 1;
+		}
+	}
 }
 
-static void mm81x_rx_h_update_sta(struct ieee80211_vif *vif,
-				  struct ieee80211_hdr *hdr,
+static void mm81x_rx_h_update_sta(struct ieee80211_sta *sta,
 				  struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_sta *sta;
-	struct mm81x_sta *msta;
-	u8 *lookup = ieee80211_is_s1g_beacon(hdr->frame_control) ? hdr->addr1 :
-								   hdr->addr2;
+	struct mm81x_sta *msta = (void *)sta->drv_priv;
 
 	lockdep_assert_in_rcu_read_lock();
 
-	sta = ieee80211_find_sta(vif, lookup);
-	if (!sta)
-		return;
-
-	msta = (void *)sta->drv_priv;
 	if (msta->avg_rssi) {
 		msta->avg_rssi =
 			CALC_AVG_RSSI(msta->avg_rssi, rx_status->signal);
@@ -1930,9 +2102,11 @@ void mm81x_mac_rx_skb(struct mm81x *mors, struct sk_buff *skb,
 		      struct mm81x_skb_rx_status *hdr_rx_status)
 {
 	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_hw *hw = mors->hw;
 	struct ieee80211_rx_status rx_status;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	u8 *lookup;
 
 	memset(&rx_status, 0, sizeof(rx_status));
 
@@ -1941,19 +2115,28 @@ void mm81x_mac_rx_skb(struct mm81x *mors, struct sk_buff *skb,
 		return;
 	}
 
+	lookup = ieee80211_is_s1g_beacon(hdr->frame_control) ? hdr->addr1 :
+							       hdr->addr2;
+
 	mm81x_rx_h_fill_status(mors, hdr_rx_status, &rx_status, skb);
 
 	scoped_guard(rcu) {
 		vif = mm81x_rx_h_skb_get_vif(mors, skb, hdr_rx_status);
-		if (!vif)
-			goto rx;
+		if (vif) {
+			sta = ieee80211_find_sta(vif, lookup);
+			if (sta)
+				mm81x_rx_h_update_sta(sta, &rx_status);
+		}
 
-		mm81x_rx_h_update_sta(vif, hdr, &rx_status);
+		if (mors->monitor_en)
+			mm81x_rx_h_add_rt_s1g_tlv(skb, hdr_rx_status, &rx_status);
+
+		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+
+		local_bh_disable();
+		ieee80211_rx_napi(hw, sta ? &sta->deflink : NULL, skb, NULL);
+		local_bh_enable();
 	}
-
-rx:
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
-	ieee80211_rx_ni(hw, skb);
 }
 
 static void mm81x_mac_flush_queues(struct mm81x *mors)
@@ -2012,6 +2195,13 @@ static void mm81x_mac_ops_flush(struct ieee80211_hw *hw,
 		mm81x_mac_flush_queues(mors);
 	else
 		mm81x_mac_wait_queues(mors);
+}
+
+static bool mm81x_mac_ops_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct mm81x *mors = hw->priv;
+
+	return mm81x_mac_has_tx_pending(mors);
 }
 
 static int mm81x_mac_ops_set_rts_threshold(struct ieee80211_hw *hw,
@@ -2213,9 +2403,6 @@ static int mm81x_mac_ops_add_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(mors->vifs[mors_vif->id], vif);
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		mm81x_mac_beacon_init(mors_vif);
-
 	ret = mm81x_cmd_get_capabilities(mors, mors_vif->id, &mors->fw_caps);
 	if (ret) {
 		dev_err(mors->dev,
@@ -2223,6 +2410,12 @@ static int mm81x_mac_ops_add_interface(struct ieee80211_hw *hw,
 			mors_vif->id);
 		return ret;
 	}
+
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		INIT_WORK(&mors_vif->u.ap.beacon_work, mm81x_mac_beacon_work);
 
 	ieee80211_wake_queues(mors->hw);
 	return ret;
@@ -2239,6 +2432,7 @@ static const struct ieee80211_ops mm81x_ops = {
 	.configure_filter = mm81x_mac_ops_configure_filter,
 	.sta_state = mm81x_mac_ops_sta_state,
 	.flush = mm81x_mac_ops_flush,
+	.tx_frames_pending = mm81x_mac_ops_tx_frames_pending,
 	.set_frag_threshold = mm81x_mac_set_frag_threshold,
 	.set_rts_threshold = mm81x_mac_ops_set_rts_threshold,
 	.sta_statistics = mm81x_mac_ops_sta_statistics,
@@ -2283,7 +2477,6 @@ static void mm81x_mac_config_hw(struct mm81x *mors)
 	for (i = 0; i < NUM_NL80211_BANDS; i++)
 		hw->wiphy->bands[i] = NULL;
 
-	hw->wiphy->bands[NL80211_BAND_S1GHZ] = &mors_band_s1ghz;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_AP) |
 				     BIT(NL80211_IFTYPE_STATION);
 	hw->wiphy->reg_notifier = mm81x_reg_notifier;
@@ -2296,6 +2489,9 @@ static void mm81x_mac_config_hw(struct mm81x *mors)
 	hw->sta_data_size = sizeof(struct mm81x_sta);
 	hw->extra_tx_headroom =
 		sizeof(struct mm81x_skb_hdr) + mm81x_bus_get_alignment(mors);
+	hw->radiotap_timestamp.units_pos =
+		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US |
+		IEEE80211_RADIOTAP_TIMESTAMP_SPOS_BEGIN_MDPU;
 
 	mors->wiphy = hw->wiphy;
 
@@ -2310,6 +2506,7 @@ static void mm81x_mac_config_hw(struct mm81x *mors)
 	ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
 	ieee80211_hw_set(hw, SUPPORTS_TX_FRAG);
 	ieee80211_hw_set(hw, SUPPORTS_NDP_BLOCKACK);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	SET_IEEE80211_PERM_ADDR(hw, mors->macaddr);
 
@@ -2357,6 +2554,28 @@ static void mm81x_mac_stale_tx_status_timer_init(struct mm81x *mors)
 	timer_setup(&mors->stale_status.timer, mm81x_stale_tx_status_timer, 0);
 }
 
+static int mm81x_mac_set_sband(struct mm81x *mors)
+{
+	struct ieee80211_supported_band *sband;
+
+	sband = devm_kmemdup(mors->dev, &mors_band_s1ghz, sizeof(*sband),
+			     GFP_KERNEL);
+	if (!sband)
+		return -ENOMEM;
+
+	sband->channels = devm_kmemdup_array(mors->dev, mors_s1ghz_channels,
+					     ARRAY_SIZE(mors_s1ghz_channels),
+					     sizeof(*mors_s1ghz_channels),
+					     GFP_KERNEL);
+	if (!sband->channels)
+		return -ENOMEM;
+
+	sband->n_channels = ARRAY_SIZE(mors_s1ghz_channels);
+	mors->hw->wiphy->bands[NL80211_BAND_S1GHZ] = sband;
+
+	return 0;
+}
+
 int mm81x_mac_register(struct mm81x *mors)
 {
 	int ret;
@@ -2371,6 +2590,11 @@ int mm81x_mac_register(struct mm81x *mors)
 		return ret;
 
 	mm81x_mac_config_hw(mors);
+
+	ret = mm81x_mac_set_sband(mors);
+	if (ret)
+		return ret;
+
 	mm81x_mac_hw_scan_init(mors);
 	mm81x_mac_stale_tx_status_timer_init(mors);
 

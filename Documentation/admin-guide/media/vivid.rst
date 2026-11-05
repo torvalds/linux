@@ -6,7 +6,7 @@ The Virtual Video Test Driver (vivid)
 This driver emulates video4linux hardware of various types: video capture, video
 output, vbi capture and output, metadata capture and output, radio receivers and
 transmitters, touch capture and a software defined radio receiver. In addition a
-simple framebuffer device is available for testing capture and output overlays.
+simple framebuffer device is available for testing output overlays.
 
 Up to 64 vivid instances can be created, each with up to 16 inputs and 16 outputs.
 
@@ -35,7 +35,7 @@ This document describes the features implemented by this driver:
 - Raw and Sliced VBI capture and output support
 - Radio receiver and transmitter support, including RDS support
 - Software defined radio (SDR) support
-- Capture and output overlay support
+- Output overlay support
 - Metadata capture and output support
 - Touch capture support
 

@@ -150,7 +150,7 @@ static u_long read_mdr(struct s_smc *smc, unsigned int addr)
 	CHECK_NPP() ;
 	MARR(addr) ;
 	outpw(FM_A(FM_CMDREG1),FM_IRMEMWO) ;
-	CHECK_NPP() ;	/* needed for PCI to prevent from timeing violations */
+	CHECK_NPP() ;	/* needed for PCI to prevent from timing violations */
 /*	p = MDRR() ; */	/* bad read values if the workaround */
 			/* smc->hw.mc_dummy = *((short volatile far *)(addr)))*/
 			/* is used */
@@ -572,7 +572,7 @@ Note	After any ring operational change the transmit complete
 	The operating system dependent module must enable
 	the transmit complete interrupt of a queue,
 		- when it queues the first frame,
-		  because of no transmit resources are beeing
+		  because of no transmit resources are being
 		  available and
 		- when it escapes from the function llc_restart_tx
 		  while some frames are still queued.

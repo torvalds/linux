@@ -333,11 +333,11 @@ quiet_cmd_ar = AR      $@
 quiet_cmd_objcopy = OBJCOPY $@
 cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
 
-# Gzip
+# Gzip, for the kernel image
 # ---------------------------------------------------------------------------
 
 quiet_cmd_gzip = GZIP    $@
-      cmd_gzip = cat $(real-prereqs) | $(KGZIP) -n -f -9 > $@
+      cmd_gzip = cat $(real-prereqs) | $(KPGZIP) -n -f -9 > $@
 
 # Bzip2
 # ---------------------------------------------------------------------------

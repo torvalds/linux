@@ -126,15 +126,23 @@ static int inv_icm42600_gyro_update_scan_mode(struct iio_dev *indio_dev,
 		fifo_en |= INV_ICM42600_SENSOR_GYRO;
 	}
 
+	/*
+	 * Sleep maximum stabilization time before enabling data in FIFO.
+	 * We need to release the driver lock to not block accel data processing.
+	 * There is no possible race here since we are under IIO mutex locked.
+	 */
+	sleep = max(sleep_gyro, sleep_temp);
+	if (sleep) {
+		mutex_unlock(&st->lock);
+		msleep(sleep);
+		mutex_lock(&st->lock);
+	}
+
 	/* update data FIFO write */
 	ret = inv_icm42600_buffer_set_fifo_en(st, fifo_en | st->fifo.en);
 
 out_unlock:
 	mutex_unlock(&st->lock);
-	/* sleep maximum required time */
-	sleep = max(sleep_gyro, sleep_temp);
-	if (sleep)
-		msleep(sleep);
 	return ret;
 }
 
@@ -808,14 +816,14 @@ int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev)
 		if (size <= 0)
 			return size;
 
-		/* skip packet if no gyro data or data is invalid */
-		if (gyro == NULL || !inv_icm42600_fifo_is_data_valid(gyro))
-			continue;
-
 		/* update odr */
 		if (odr & INV_ICM42600_SENSOR_GYRO)
 			inv_sensors_timestamp_apply_odr(ts, st->fifo.period,
 							st->fifo.nb.total, no);
+
+		/* skip packet if no gyro data or data is invalid */
+		if (gyro == NULL || !inv_icm42600_fifo_is_data_valid(gyro))
+			continue;
 
 		memcpy(&buffer.gyro, gyro, sizeof(buffer.gyro));
 		/* convert 8 bits FIFO temperature in high resolution format */

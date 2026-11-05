@@ -33,8 +33,14 @@ static int amdgpu_ras_sys_detect_fatal_event(struct ras_core_context *ras_core, 
 	uint64_t seq_no;
 
 	ret = amdgpu_ras_global_ras_isr(adev);
-	if (ret)
-		return ret;
+	if (ret) {
+		/* Another device of the hive already asked for the reset, this
+		 * one still has to record that it saw the error.
+		 */
+		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+		amdgpu_ras_set_fed(adev, true);
+		return ret == -EBUSY ? 0 : ret;
+	}
 
 	seq_no = amdgpu_ras_mgr_gen_ras_event_seqno(adev, RAS_SEQNO_TYPE_UE);
 	RAS_DEV_INFO(adev,
@@ -53,6 +59,8 @@ static int amdgpu_ras_sys_poison_consumption_event(struct ras_core_context *ras_
 
 	if (!req)
 		return -EINVAL;
+
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 
 	if (req->pasid_fn) {
 		pasid_fn = (pasid_notify)req->pasid_fn;
@@ -110,6 +118,25 @@ static int amdgpu_ras_sys_gen_seqno(struct ras_core_context *ras_core,
 
 }
 
+static int amdgpu_ras_early_init_reserve_badpage(struct ras_core_context *ras_core,
+			uint64_t pfn)
+{
+	struct amdgpu_bo *bo;
+	void *va;
+	int ret;
+
+	ret = amdgpu_bo_create_kernel_at(ras_core->dev, RAS_PFN_TO_ADDR(pfn),
+			AMDGPU_GPU_PAGE_SIZE, &bo, &va);
+	if (ret) {
+		ras_core->is_rma = true;
+		RAS_DEV_ERR(ras_core->dev,
+			"Early init: RAS failed to reserve: offset=0x%llx size=0x%x ret=%d\n",
+			RAS_PFN_TO_ADDR(pfn), AMDGPU_GPU_PAGE_SIZE, ret);
+	}
+
+	return ret;
+}
+
 static int amdgpu_ras_sys_event_notifier(struct ras_core_context *ras_core,
 				   enum ras_notify_event event_id, void *data)
 {
@@ -126,6 +153,9 @@ static int amdgpu_ras_sys_event_notifier(struct ras_core_context *ras_core,
 	case RAS_EVENT_ID__RESERVE_BAD_PAGE:
 		ret = amdgpu_ras_reserve_page(ras_core->dev, *(uint64_t *)data);
 		break;
+	case RAS_EVENT_ID__EARLY_INIT_RESERVE_PAGE:
+		ret = amdgpu_ras_early_init_reserve_badpage(ras_core, *(uint64_t *)data);
+		break;
 	case RAS_EVENT_ID__FATAL_ERROR_DETECTED:
 		ret = amdgpu_ras_sys_detect_fatal_event(ras_core, data);
 		break;
@@ -136,9 +166,8 @@ static int amdgpu_ras_sys_event_notifier(struct ras_core_context *ras_core,
 		ret = amdgpu_dpm_send_hbm_bad_channel_flag(ras_core->dev, *(uint32_t *)data);
 		break;
 	case RAS_EVENT_ID__DEVICE_RMA:
-		ras_log_ring_add_log_event(ras_core, RAS_LOG_EVENT_RMA, NULL, NULL);
-		if (!ras_fw_eeprom_supported(ras_core))
-			ret = amdgpu_dpm_send_rma_reason(ras_core->dev);
+		ras_log_ring_add_log_event(ras_core, RAS_LOG_EVENT_RMA, NULL, 0, NULL);
+		ret = amdgpu_dpm_send_rma_reason(ras_core->dev);
 		break;
 	case RAS_EVENT_ID__RESET_GPU:
 		ret = amdgpu_ras_mgr_reset_gpu(ras_core->dev, *(uint32_t *)data);
@@ -148,6 +177,10 @@ static int amdgpu_ras_sys_event_notifier(struct ras_core_context *ras_core,
 		break;
 	case RAS_EVENT_ID__RAS_EVENT_PROC_END:
 		ret = amdgpu_ras_process_end(ras_core->dev);
+		break;
+	case RAS_EVENT_ID__UPDATE_ACA_DATA:
+		/* TBD: ACA error detected */
+		ret = 0;
 		break;
 	default:
 		RAS_DEV_WARN(ras_core->dev, "Invalid ras notify event:%d\n", event_id);
@@ -187,6 +220,9 @@ static int amdgpu_ras_sys_get_device_system_info(struct ras_core_context *ras_co
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 
+	if (!adev->smuio.funcs || !adev->smuio.funcs->get_socket_id)
+		return -ENOENT;
+
 	dev_info->device_id = adev->pdev->device;
 	dev_info->vendor_id = adev->pdev->vendor;
 	dev_info->socket_id = adev->smuio.funcs->get_socket_id(adev);
@@ -222,6 +258,10 @@ static int amdgpu_ras_sys_get_gpu_mem(struct ras_core_context *ras_core,
 	struct psp_context *psp = &adev->psp;
 	struct psp_ring *psp_ring;
 	struct ta_mem_context *mem_ctx;
+	int ret;
+
+	if (!gpu_mem)
+		return -EINVAL;
 
 	if (mem_type == GPU_MEM_TYPE_RAS_PSP_RING) {
 		psp_ring = &psp->km_ring;
@@ -230,16 +270,16 @@ static int amdgpu_ras_sys_get_gpu_mem(struct ras_core_context *ras_core,
 		gpu_mem->mem_mc_addr = psp_ring->ring_mem_mc_addr;
 		gpu_mem->mem_cpu_addr = psp_ring->ring_mem;
 	} else if (mem_type == GPU_MEM_TYPE_RAS_PSP_CMD) {
-		gpu_mem->mem_bo = psp->cmd_buf_bo;
+		gpu_mem->mem_bo = psp->cmd_resp_buf_bo;
 		gpu_mem->mem_size = PSP_CMD_BUFFER_SIZE;
-		gpu_mem->mem_mc_addr = psp->cmd_buf_mc_addr;
-		gpu_mem->mem_cpu_addr = psp->cmd_buf_mem;
+		gpu_mem->mem_mc_addr = psp->cmd_resp_buf_mc_addr;
+		gpu_mem->mem_cpu_addr = psp->cmd_resp_buf_mem;
 	} else if (mem_type == GPU_MEM_TYPE_RAS_PSP_FENCE) {
 		gpu_mem->mem_bo = psp->fence_buf_bo;
 		gpu_mem->mem_size = PSP_FENCE_BUFFER_SIZE;
 		gpu_mem->mem_mc_addr = psp->fence_buf_mc_addr;
 		gpu_mem->mem_cpu_addr = psp->fence_buf;
-	} else if (mem_type == GPU_MEM_TYPE_RAS_TA_FW) {
+	} else if (mem_type == GPU_MEM_TYPE_RAS_FW_BIN) {
 		gpu_mem->mem_bo = psp->fw_pri_bo;
 		gpu_mem->mem_size = PSP_1_MEG;
 		gpu_mem->mem_mc_addr = psp->fw_pri_mc_addr;
@@ -250,6 +290,25 @@ static int amdgpu_ras_sys_get_gpu_mem(struct ras_core_context *ras_core,
 		gpu_mem->mem_size = mem_ctx->shared_mem_size;
 		gpu_mem->mem_mc_addr = mem_ctx->shared_mc_addr;
 		gpu_mem->mem_cpu_addr = mem_ctx->shared_buf;
+	} else if (mem_type == GPU_MEM_TYPE_ALLOC_MEM) {
+		struct amdgpu_bo *mem_bo = NULL;
+
+		if (!gpu_mem->mem_size)
+			return -EINVAL;
+
+		ret = amdgpu_bo_create_kernel(adev, gpu_mem->mem_size,
+				    PSP_1_MEG, AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &mem_bo,
+				    &gpu_mem->mem_mc_addr,
+				    &gpu_mem->mem_cpu_addr);
+		if (ret) {
+			RAS_DEV_ERR(ras_core->dev, "Failed to alloc shared memory. ret:%d\n", ret);
+			return ret;
+		}
+
+		gpu_mem->mem_bo = mem_bo;
+
 	} else {
 		return -EINVAL;
 	}
@@ -266,6 +325,13 @@ static int amdgpu_ras_sys_get_gpu_mem(struct ras_core_context *ras_core,
 static int amdgpu_ras_sys_put_gpu_mem(struct ras_core_context *ras_core,
 	enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem)
 {
+	if ((mem_type == GPU_MEM_TYPE_ALLOC_MEM) && gpu_mem &&
+		gpu_mem->mem_bo && gpu_mem->mem_cpu_addr && gpu_mem->mem_mc_addr) {
+		struct amdgpu_bo *mem_bo = gpu_mem->mem_bo;
+
+		amdgpu_bo_free_kernel(&mem_bo,
+			&gpu_mem->mem_mc_addr, &gpu_mem->mem_cpu_addr);
+	}
 
 	return 0;
 }
@@ -288,6 +354,20 @@ static int amdgpu_ras_sys_check_address_sanity(struct ras_core_context *ras_core
 	return 0;
 }
 
+static int amdgpu_ras_sys_get_nps_mode(struct ras_core_context *ras_core)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+
+	return amdgpu_gmc_query_memory_partition(adev);
+}
+
+static int amdgpu_ras_sys_get_vram_type(struct ras_core_context *ras_core)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+
+	return adev->gmc.vram_type;
+}
+
 const struct ras_sys_func amdgpu_ras_sys_fn = {
 	.ras_notifier = amdgpu_ras_sys_event_notifier,
 	.get_utc_second_timestamp = amdgpu_ras_sys_get_utc_second_timestamp,
@@ -299,4 +379,6 @@ const struct ras_sys_func amdgpu_ras_sys_fn = {
 	.get_gpu_mem = amdgpu_ras_sys_get_gpu_mem,
 	.put_gpu_mem = amdgpu_ras_sys_put_gpu_mem,
 	.check_address_sanity = amdgpu_ras_sys_check_address_sanity,
+	.get_nps_mode = amdgpu_ras_sys_get_nps_mode,
+	.get_vram_type = amdgpu_ras_sys_get_vram_type,
 };

@@ -270,7 +270,7 @@ static bool zfcp_sysfs_port_in_use(struct zfcp_port *const port)
 	if (atomic_read(&port->units) > 0)
 		goto unlock_port_units_mutex; /* zfcp_unit(s) under port */
 
-	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
+	spin_lock_irqsave(&adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host) {
 		const struct zfcp_scsi_dev *zsdev = sdev_to_zfcp(sdev);
 
@@ -288,7 +288,7 @@ static bool zfcp_sysfs_port_in_use(struct zfcp_port *const port)
 	in_use = false;
 
 unlock_host_lock:
-	spin_unlock_irqrestore(adapter->scsi_host->host_lock, flags);
+	spin_unlock_irqrestore(&adapter->scsi_host->host_lock, flags);
 unlock_port_units_mutex:
 	mutex_unlock(&zfcp_sysfs_port_units_mutex);
 	return in_use;

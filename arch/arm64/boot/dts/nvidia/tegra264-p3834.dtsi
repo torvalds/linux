@@ -38,5 +38,62 @@
 		cmdqv@6200000 {
 			status = "okay";
 		};
+
+		i2c@c640000 {
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+				label = "module";
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
+		};
+	};
+
+	bpmp {
+		i2c {
+			status = "okay";
+
+			thermal-sensor@4c {
+				compatible = "ti,tmp451";
+				reg = <0x4c>;
+			};
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <40>;
+			polling-delay = <1000>;
+			status = "okay";
+		};
+
+		gpu-thermal {
+			polling-delay-passive = <40>;
+			polling-delay = <1000>;
+			status = "okay";
+		};
+
+		soc012-thermal {
+			polling-delay-passive = <40>;
+			polling-delay = <1000>;
+			status = "okay";
+		};
+
+		soc345-thermal {
+			polling-delay-passive = <40>;
+			polling-delay = <1000>;
+			status = "okay";
+		};
+
+		tj-thermal {
+			polling-delay-passive = <40>;
+			polling-delay = <1000>;
+			status = "okay";
+		};
 	};
 };

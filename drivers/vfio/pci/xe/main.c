@@ -38,6 +38,9 @@ struct xe_vfio_pci_core_device {
 	struct xe_vfio_pci_migration_file *migf;
 };
 
+VFIO_PCI_CORE_DEFINE_CALLBACKS(xe_vfio, struct xe_vfio_pci_core_device,
+			       core_device)
+
 #define xe_vdev_to_dev(xe_vdev) (&(xe_vdev)->core_device.pdev->dev)
 
 static void xe_vfio_pci_disable_file(struct xe_vfio_pci_migration_file *migf)
@@ -140,7 +143,7 @@ static void xe_vfio_pci_reset_done(struct pci_dev *pdev)
 static const struct pci_error_handlers xe_vfio_pci_err_handlers = {
 	.reset_prepare = xe_vfio_pci_reset_prepare,
 	.reset_done = xe_vfio_pci_reset_done,
-	.error_detected = vfio_pci_core_aer_err_detected,
+	.error_detected = xe_vfio_aer_err_detected,
 };
 
 static int xe_vfio_pci_open_device(struct vfio_device *core_vdev)
@@ -550,7 +553,7 @@ static int xe_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (IS_ERR(xe_vdev))
 		return PTR_ERR(xe_vdev);
 
-	dev_set_drvdata(&pdev->dev, &xe_vdev->core_device);
+	dev_set_drvdata(&pdev->dev, xe_vdev);
 
 	ret = vfio_pci_core_register_device(&xe_vdev->core_device);
 	if (ret) {
@@ -574,9 +577,12 @@ static void xe_vfio_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id xe_vfio_pci_table[] = {
+	INTEL_BMG_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_CRI_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_NVLS_IDS(INTEL_PCI_VFIO_DEVICE),
+	INTEL_NVLP_IDS(INTEL_PCI_VFIO_DEVICE),
 	INTEL_PTL_IDS(INTEL_PCI_VFIO_DEVICE),
 	INTEL_WCL_IDS(INTEL_PCI_VFIO_DEVICE),
-	INTEL_BMG_IDS(INTEL_PCI_VFIO_DEVICE),
 	{}
 };
 MODULE_DEVICE_TABLE(pci, xe_vfio_pci_table);
@@ -586,6 +592,7 @@ static struct pci_driver xe_vfio_pci_driver = {
 	.id_table = xe_vfio_pci_table,
 	.probe = xe_vfio_pci_probe,
 	.remove = xe_vfio_pci_remove,
+	.driver = { .pm = pm_ptr(&xe_vfio_pm_ops) },
 	.err_handler = &xe_vfio_pci_err_handlers,
 	.driver_managed_dma = true,
 };

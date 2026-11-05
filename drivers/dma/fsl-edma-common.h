@@ -42,6 +42,7 @@
 #define EDMA_TCD_CSR_E_LINK		BIT(5)
 #define EDMA_TCD_CSR_ACTIVE		BIT(6)
 #define EDMA_TCD_CSR_DONE		BIT(7)
+#define EDMA_TCD_CSR_LINKCH		GENMASK(12, 8)
 
 #define EDMA_V3_TCD_NBYTES_MLOFF_NBYTES(x) ((x) & GENMASK(9, 0))
 #define EDMA_V3_TCD_NBYTES_MLOFF(x)        (x << 10)
@@ -169,6 +170,7 @@ struct fsl_edma_chan {
 	struct dma_slave_config		cfg;
 	u32				attr;
 	bool                            is_sw;
+	u8				link_sg_id;
 	struct dma_pool			*tcd_pool;
 	dma_addr_t			dma_dev_addr;
 	u32				dma_dev_size;
@@ -199,6 +201,7 @@ struct fsl_edma_desc {
 	struct virt_dma_desc		vdesc;
 	struct fsl_edma_chan		*echan;
 	bool				iscyclic;
+	u8				link_sg_id;
 	enum dma_transfer_direction	dirn;
 	unsigned int			n_tcds;
 	struct fsl_edma_sw_tcd		tcd[];
@@ -225,6 +228,8 @@ struct fsl_edma_desc {
 #define FSL_EDMA_DRV_TCD64		BIT(15)
 /* All channel ERR IRQ share one IRQ line */
 #define FSL_EDMA_DRV_ERRIRQ_SHARE       BIT(16)
+/* Major link channel in CSR used for linking SG descriptors */
+#define FSL_EDMA_DRV_CSR_LINKCH		BIT(17)
 
 
 #define FSL_EDMA_DRV_EDMA3	(FSL_EDMA_DRV_SPLIT_REG |	\
@@ -232,13 +237,15 @@ struct fsl_edma_desc {
 				 FSL_EDMA_DRV_DEV_TO_DEV |	\
 				 FSL_EDMA_DRV_ALIGN_64BYTE |	\
 				 FSL_EDMA_DRV_CLEAR_DONE_E_SG |	\
-				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK)
+				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK |	\
+				 FSL_EDMA_DRV_CSR_LINKCH)
 
 #define FSL_EDMA_DRV_EDMA4	(FSL_EDMA_DRV_SPLIT_REG |	\
 				 FSL_EDMA_DRV_BUS_8BYTE |	\
 				 FSL_EDMA_DRV_DEV_TO_DEV |	\
 				 FSL_EDMA_DRV_ALIGN_64BYTE |	\
-				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK)
+				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK |	\
+				 FSL_EDMA_DRV_CSR_LINKCH)
 
 struct fsl_edma_drvdata {
 	u32			dmamuxs; /* only used before v3 */
@@ -495,6 +502,10 @@ enum dma_status fsl_edma_tx_status(struct dma_chan *chan,
 struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
+		unsigned long flags);
+struct dma_async_tx_descriptor *fsl_edma_prep_peripheral_dma_vec(
+		struct dma_chan *chan, const struct dma_vec *vecs,
+		size_t nb, enum dma_transfer_direction direction,
 		unsigned long flags);
 struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,

@@ -400,11 +400,12 @@ struct quirk_entry {
 	u8 mailled;
 	s8 brightness;
 	u8 bluetooth;
-	u8 turbo;
+	bool turbo;
 	u8 cpu_fans;
 	u8 gpu_fans;
-	u8 predator_v4;
-	u8 pwm;
+	bool hwmon;
+	bool platform_profile;
+	bool pwm;
 };
 
 static struct quirk_entry *quirks;
@@ -421,9 +422,11 @@ static void __init set_quirks(void)
 		interface->capability |= ACER_CAP_TURBO_OC | ACER_CAP_TURBO_LED
 					 | ACER_CAP_TURBO_FAN;
 
-	if (quirks->predator_v4)
-		interface->capability |= ACER_CAP_PLATFORM_PROFILE |
-					 ACER_CAP_HWMON;
+	if (quirks->hwmon)
+		interface->capability |= ACER_CAP_HWMON;
+
+	if (quirks->platform_profile)
+		interface->capability |= ACER_CAP_PLATFORM_PROFILE;
 
 	if (quirks->pwm)
 		interface->capability |= ACER_CAP_PWM;
@@ -451,39 +454,55 @@ static struct quirk_entry quirk_acer_aspire_1520 = {
 	.brightness = -1,
 };
 
+static struct quirk_entry quirk_acer_aspire_a315_58g = {
+	.hwmon = true,
+};
+
 static struct quirk_entry quirk_acer_travelmate_2490 = {
 	.mailled = 1,
 };
 
 static struct quirk_entry quirk_acer_nitro_an515_58 = {
-	.predator_v4 = 1,
-	.pwm = 1,
+	.hwmon = true,
+	.platform_profile = true,
+	.pwm = true,
 };
 
 static struct quirk_entry quirk_acer_predator_ph315_53 = {
-	.turbo = 1,
+	.turbo = true,
 	.cpu_fans = 1,
 	.gpu_fans = 1,
+};
+
+static struct quirk_entry quirk_acer_nitro_anv15_51 = {
+	.cpu_fans = 1,
+	.gpu_fans = 1,
+	.hwmon = true,
+	.platform_profile = true,
+	.pwm = true,
 };
 
 static struct quirk_entry quirk_acer_predator_ph16_72 = {
-	.turbo = 1,
+	.turbo = true,
 	.cpu_fans = 1,
 	.gpu_fans = 1,
-	.predator_v4 = 1,
-	.pwm = 1,
+	.hwmon = true,
+	.platform_profile = true,
+	.pwm = true,
 };
 
 static struct quirk_entry quirk_acer_predator_pt14_51 = {
-	.turbo = 1,
+	.turbo = true,
 	.cpu_fans = 1,
 	.gpu_fans = 1,
-	.predator_v4 = 1,
-	.pwm = 1,
+	.hwmon = true,
+	.platform_profile = true,
+	.pwm = true,
 };
 
 static struct quirk_entry quirk_acer_predator_v4 = {
-	.predator_v4 = 1,
+	.hwmon = true,
+	.platform_profile = true,
 };
 
 /* This AMW0 laptop has no bluetooth */
@@ -637,6 +656,15 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Acer Aspire A315-58G",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire A315-58G"),
+		},
+		.driver_data = &quirk_acer_aspire_a315_58g,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Acer TravelMate 2490",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -655,12 +683,30 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Acer Nitro AN16-41",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN16-41"),
+		},
+		.driver_data = &quirk_acer_nitro_an515_58,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Acer Nitro AN515-58",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN515-58"),
 		},
 		.driver_data = &quirk_acer_nitro_an515_58,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Nitro ANV15-51",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro ANV15-51"),
+		},
+		.driver_data = &quirk_acer_nitro_anv15_51,
 	},
 	{
 		.callback = dmi_matched,
@@ -839,7 +885,6 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 };
 
 static struct device *platform_profile_device;
-static bool platform_profile_support;
 
 /*
  * The profile used before turbo mode. This variable is needed for
@@ -2194,13 +2239,11 @@ static const struct platform_profile_ops acer_predator_v4_platform_profile_ops =
 
 static int acer_platform_profile_setup(struct platform_device *device)
 {
-	if (quirks->predator_v4) {
+	if (quirks->platform_profile) {
 		platform_profile_device = devm_platform_profile_register(
 			&device->dev, "acer-wmi", NULL, &acer_predator_v4_platform_profile_ops);
 		if (IS_ERR(platform_profile_device))
 			return PTR_ERR(platform_profile_device);
-
-		platform_profile_support = true;
 	}
 	return 0;
 }
@@ -2211,7 +2254,7 @@ static int acer_thermal_profile_change(void)
 	 * This mode key will either cycle through each mode or toggle the
 	 * most performant profile.
 	 */
-	if (quirks->predator_v4) {
+	if (quirks->platform_profile) {
 		u8 current_tp;
 		int err, tp;
 
@@ -2530,8 +2573,13 @@ static void acer_wmi_notify(union acpi_object *obj, void *context)
 		acer_kbd_dock_event(&return_value);
 		break;
 	case WMID_GAMING_TURBO_KEY_EVENT:
-		if (return_value.key_num == 0x4)
-			acer_toggle_turbo();
+		if (return_value.key_num == 0x4) {
+			/* Models without a turbo button report their mode key as 0x4 */
+			if (has_cap(ACER_CAP_TURBO_LED))
+				acer_toggle_turbo();
+			else if (has_cap(ACER_CAP_PLATFORM_PROFILE))
+				acer_thermal_profile_change();
+		}
 		if (return_value.key_num == 0x5 && has_cap(ACER_CAP_PLATFORM_PROFILE))
 			acer_thermal_profile_change();
 		break;

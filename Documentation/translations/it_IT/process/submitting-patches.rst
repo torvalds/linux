@@ -691,16 +691,6 @@ un luogo pubblico, ma gli indirizzi email usati lì sono privati; quindi non
 esponeteli nelle etichette, a meno che la persona non li abbia già usati in
 contributi precedenti.
 
-Usare Assisted-by:
--------------------
-
-Se avete usato un qualsiasi tipo di strumento di assistenza avanzata alla
-scrittura del codice per la creazione della vostra patch, dovete darne atto
-aggiungendo un'etichetta Assisted-by.  Non farlo può ostacolare
-l'accettazione del vostro lavoro.  Fate riferimento a
-Documentation/process/coding-assistants.rst per i dettagli su come dare
-atto dell'uso di assistenti alla scrittura del codice.
-
 .. _it_the_canonical_patch_format:
 
 Il formato canonico delle patch

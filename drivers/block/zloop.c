@@ -318,22 +318,23 @@ static int zloop_update_seq_zone(struct zloop_device *zlo, unsigned int zone_no)
 
 	ret = vfs_getattr(&zone->file->f_path, &stat, STATX_SIZE, 0);
 	if (ret < 0) {
-		pr_err("Failed to get zone %u file stat (err=%d)\n",
-		       zone_no, ret);
+		pr_err("%pg: Failed to get zone %u file stat (err=%d)\n",
+		       zlo->disk->part0, zone_no, ret);
 		set_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
 		return ret;
 	}
 
 	file_sectors = stat.size >> SECTOR_SHIFT;
 	if (file_sectors > zlo->zone_capacity) {
-		pr_err("Zone %u file too large (%llu sectors > %llu)\n",
-		       zone_no, file_sectors, zlo->zone_capacity);
+		pr_err("%pg: Zone %u file too large (%llu sectors > %llu)\n",
+		       zlo->disk->part0, zone_no, file_sectors,
+		       zlo->zone_capacity);
 		return -EINVAL;
 	}
 
 	if (!IS_ALIGNED(stat.size, zlo->block_size)) {
-		pr_err("Zone %u file size (%llu) not aligned to block size %u\n",
-		       zone_no, stat.size, zlo->block_size);
+		pr_err("%pg: Zone %u file size (%llu) not aligned to block size %u\n",
+		       zlo->disk->part0, zone_no, stat.size, zlo->block_size);
 		return -EINVAL;
 	}
 
@@ -603,8 +604,15 @@ static int zloop_seq_write_prep(struct zloop_cmd *cmd)
 		}
 	} else {
 		if (cmd->sector != zone->wp) {
-			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
-			       zone_no, cmd->sector, zone->wp);
+			if (zone->wp == ULLONG_MAX)
+				pr_err("%pg: Zone %u: write to %s zone: sect %llu\n",
+				       zlo->disk->part0, zone_no,
+				       blk_zone_cond_str(zone->cond),
+				       cmd->sector);
+			else
+				pr_err("%pg: Zone %u: unaligned write: sect %llu, wp %llu\n",
+				       zlo->disk->part0, zone_no, cmd->sector,
+				       zone->wp);
 			ret = -EIO;
 			goto out_unlock;
 		}
@@ -832,8 +840,9 @@ static void zloop_complete_rq(struct request *rq)
 	switch (req_op(rq)) {
 	case REQ_OP_READ:
 		if (cmd->ret < 0)
-			pr_err("Zone %u: failed read sector %llu, %llu sectors\n",
-			       zone_no, cmd->sector, cmd->nr_sectors);
+			pr_err("%pg: Zone %u: failed read sector %llu, %llu sectors\n",
+			       zlo->disk->part0, zone_no, cmd->sector,
+			       cmd->nr_sectors);
 
 		/* Short read. Zero out the unread tail beyond cmd->ret. */
 		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq))
@@ -842,14 +851,15 @@ static void zloop_complete_rq(struct request *rq)
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_APPEND:
 		if (cmd->ret < 0)
-			pr_err("Zone %u: failed %swrite sector %llu, %llu sectors\n",
-			       zone_no,
+			pr_err("%pg: Zone %u: failed %swrite sector %llu, %llu sectors\n",
+			       zlo->disk->part0, zone_no,
 			       req_op(rq) == REQ_OP_WRITE ? "" : "append ",
 			       cmd->sector, cmd->nr_sectors);
 
 		if (cmd->ret >= 0 && cmd->ret != blk_rq_bytes(rq)) {
-			pr_err("Zone %u: partial write %ld/%u B\n",
-			       zone_no, cmd->ret, blk_rq_bytes(rq));
+			pr_err("%pg: Zone %u: partial write %ld/%u B\n",
+			       zlo->disk->part0, zone_no, cmd->ret,
+			       blk_rq_bytes(rq));
 			cmd->ret = -EIO;
 		}
 
@@ -1097,8 +1107,6 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 {
 	struct zloop_zone *zone = &zlo->zones[zone_no];
 	int oflags = O_RDWR;
-	struct kstat stat;
-	sector_t file_sectors;
 	int ret;
 
 	mutex_init(&zone->lock);
@@ -1112,38 +1120,49 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 	if (!opts->buffered_io)
 		oflags |= O_DIRECT;
 
+	zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/%s-%06u",
+				zlo->base_dir, zlo->id,
+				zone_no < zlo->nr_conv_zones ? "cnv" : "seq",
+				zone_no);
+	if (IS_ERR(zone->file)) {
+		pr_err("Failed to open zone %u file %s/%u/%s-%06u (err=%ld)",
+		       zone_no, zlo->base_dir, zlo->id,
+		       zone_no < zlo->nr_conv_zones ? "cnv" : "seq",
+		       zone_no, PTR_ERR(zone->file));
+		return PTR_ERR(zone->file);
+	}
+
+	if (!zone->file->f_op->read_iter || !zone->file->f_op->write_iter) {
+		ret = -EINVAL;
+		goto out_fput;
+	}
+
+	if (zlo->block_size) {
+		ret = zloop_get_block_size(zlo, zone);
+		if (ret)
+			goto out_fput;
+	}
+
 	if (zone_no < zlo->nr_conv_zones) {
+		sector_t file_sectors;
+		struct kstat stat;
+
 		/* Conventional zone file. */
 		set_bit(ZLOOP_ZONE_CONV, &zone->flags);
 		zone->cond = BLK_ZONE_COND_NOT_WP;
 		zone->wp = U64_MAX;
 
-		zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/cnv-%06u",
-					zlo->base_dir, zlo->id, zone_no);
-		if (IS_ERR(zone->file)) {
-			pr_err("Failed to open zone %u file %s/%u/cnv-%06u (err=%ld)",
-			       zone_no, zlo->base_dir, zlo->id, zone_no,
-			       PTR_ERR(zone->file));
-			return PTR_ERR(zone->file);
-		}
-
-		if (!zlo->block_size) {
-			ret = zloop_get_block_size(zlo, zone);
-			if (ret)
-				return ret;
-		}
-
 		ret = vfs_getattr(&zone->file->f_path, &stat, STATX_SIZE, 0);
 		if (ret < 0) {
 			pr_err("Failed to get zone %u file stat\n", zone_no);
-			return ret;
+			goto out_fput;
 		}
 		file_sectors = stat.size >> SECTOR_SHIFT;
 
 		if (restore && file_sectors != zlo->zone_size) {
 			pr_err("Invalid conventional zone %u file size (%llu sectors != %llu)\n",
 			       zone_no, file_sectors, zlo->zone_capacity);
-			return ret;
+			goto out_fput;
 		}
 
 		ret = vfs_truncate(&zone->file->f_path,
@@ -1151,34 +1170,21 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 		if (ret < 0) {
 			pr_err("Failed to truncate zone %u file (err=%d)\n",
 			       zone_no, ret);
-			return ret;
+			goto out_fput;
 		}
-
-		return 0;
-	}
-
-	/* Sequential zone file. */
-	zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/seq-%06u",
-					 zlo->base_dir, zlo->id, zone_no);
-	if (IS_ERR(zone->file)) {
-		pr_err("Failed to open zone %u file %s/%u/seq-%06u (err=%ld)",
-		       zone_no, zlo->base_dir, zlo->id, zone_no,
-		       PTR_ERR(zone->file));
-		return PTR_ERR(zone->file);
-	}
-
-	if (!zlo->block_size) {
-		ret = zloop_get_block_size(zlo, zone);
+	} else {
+		/* Sequential zone file. */
+		mutex_lock(&zone->lock);
+		ret = zloop_update_seq_zone(zlo, zone_no);
+		mutex_unlock(&zone->lock);
 		if (ret)
-			return ret;
+			goto out_fput;
 	}
 
-	zloop_get_block_size(zlo, zone);
+	return 0;
 
-	mutex_lock(&zone->lock);
-	ret = zloop_update_seq_zone(zlo, zone_no);
-	mutex_unlock(&zone->lock);
-
+out_fput:
+	fput(zone->file);
 	return ret;
 }
 

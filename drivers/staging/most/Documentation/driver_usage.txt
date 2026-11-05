@@ -109,7 +109,7 @@ following components are available
 	   driver via the V4L subsystem.
 
 	4) Advanced Linux Sound Architecture (ALSA)
-	   Standard sound applications (e.g. aplay, arecord, audacity) can by
+	   Standard sound applications (e.g. aplay, arecord, audacity) can be
 	   used to access the driver via the ALSA subsystem.
 
 

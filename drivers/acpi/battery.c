@@ -341,7 +341,9 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
-static const enum power_supply_property charge_battery_props[] = {
+/* For devices supporting the _BIX ACPI control method */
+
+static const enum power_supply_property charge_battery_extended_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -359,7 +361,7 @@ static const enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static const enum power_supply_property charge_battery_full_cap_broken_props[] = {
+static const enum power_supply_property charge_battery_full_cap_broken_extended_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -373,7 +375,7 @@ static const enum power_supply_property charge_battery_full_cap_broken_props[] =
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static const enum power_supply_property energy_battery_props[] = {
+static const enum power_supply_property energy_battery_extended_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -391,11 +393,73 @@ static const enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static const enum power_supply_property energy_battery_full_cap_broken_props[] = {
+static const enum power_supply_property energy_battery_full_cap_broken_extended_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+/* For devices supporting only the _BIF ACPI control method */
+
+static const enum power_supply_property charge_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+static const enum power_supply_property charge_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+static const enum power_supply_property energy_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
+	POWER_SUPPLY_PROP_ENERGY_FULL,
+	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+static const enum power_supply_property energy_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_POWER_NOW,
@@ -583,9 +647,8 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 		acpi_status status = AE_ERROR;
 
-		status = acpi_evaluate_object(battery->device->handle,
-					      use_bix ? "_BIX":"_BIF",
-					      NULL, &buffer);
+		status = acpi_evaluate_object_exclusive(battery->device->handle,
+							use_bix ? "_BIX" : "_BIF", NULL, &buffer);
 
 		if (ACPI_FAILURE(status)) {
 			acpi_handle_info(battery->device->handle,
@@ -624,8 +687,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 			msecs_to_jiffies(cache_time)))
 		return 0;
 
-	status = acpi_evaluate_object(battery->device->handle, "_BST",
-				      NULL, &buffer);
+	status = acpi_evaluate_object_exclusive(battery->device->handle, "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_info(battery->device->handle,
 				 "_BST evaluation failed: %s",
@@ -675,8 +737,8 @@ static int acpi_battery_set_alarm(struct acpi_battery *battery)
 	    !test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags))
 		return -ENODEV;
 
-	status = acpi_execute_simple_method(battery->device->handle, "_BTP",
-					    battery->alarm);
+	status = acpi_execute_simple_method_exclusive(battery->device->handle, "_BTP",
+						      battery->alarm);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -904,6 +966,7 @@ static void __exit battery_hook_exit(void)
 
 static int sysfs_add_battery(struct acpi_battery *battery)
 {
+	bool extended_info_available = test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
 	struct power_supply_config psy_cfg = {
 		.drv_data = battery,
 		.attr_grp = acpi_battery_groups,
@@ -922,25 +985,55 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 
 	if (power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
 		if (full_cap_broken) {
-			battery->bat_desc.properties =
-			    charge_battery_full_cap_broken_props;
-			battery->bat_desc.num_properties =
-			    ARRAY_SIZE(charge_battery_full_cap_broken_props);
+			if (extended_info_available) {
+				battery->bat_desc.properties =
+					charge_battery_full_cap_broken_extended_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(charge_battery_full_cap_broken_extended_props);
+			} else {
+				battery->bat_desc.properties =
+					charge_battery_full_cap_broken_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(charge_battery_full_cap_broken_props);
+			}
 		} else {
-			battery->bat_desc.properties = charge_battery_props;
-			battery->bat_desc.num_properties =
-			    ARRAY_SIZE(charge_battery_props);
+			if (extended_info_available) {
+				battery->bat_desc.properties =
+					charge_battery_extended_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(charge_battery_extended_props);
+			} else {
+				battery->bat_desc.properties =
+					charge_battery_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(charge_battery_props);
+			}
 		}
 	} else {
 		if (full_cap_broken) {
-			battery->bat_desc.properties =
-			    energy_battery_full_cap_broken_props;
-			battery->bat_desc.num_properties =
-			    ARRAY_SIZE(energy_battery_full_cap_broken_props);
+			if (extended_info_available) {
+				battery->bat_desc.properties =
+					energy_battery_full_cap_broken_extended_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(energy_battery_full_cap_broken_extended_props);
+			} else {
+				battery->bat_desc.properties =
+					energy_battery_full_cap_broken_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(energy_battery_full_cap_broken_props);
+			}
 		} else {
-			battery->bat_desc.properties = energy_battery_props;
-			battery->bat_desc.num_properties =
-			    ARRAY_SIZE(energy_battery_props);
+			if (extended_info_available) {
+				battery->bat_desc.properties =
+					energy_battery_extended_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(energy_battery_extended_props);
+			} else {
+				battery->bat_desc.properties =
+					energy_battery_props;
+				battery->bat_desc.num_properties =
+					ARRAY_SIZE(energy_battery_props);
+			}
 		}
 	}
 

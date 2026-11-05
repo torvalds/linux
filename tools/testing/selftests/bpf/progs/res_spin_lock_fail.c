@@ -24,7 +24,7 @@ struct bpf_spin_lock lock __hidden SEC(".data.A");
 struct bpf_res_spin_lock res_lock __hidden SEC(".data.B");
 
 SEC("?tc")
-__failure __msg("point to map value or allocated object")
+__failure __msg("R1 type=untrusted_ptr_ expected=map_value, ptr_")
 int res_spin_lock_arg(struct __sk_buff *ctx)
 {
 	struct arr_elem *elem;

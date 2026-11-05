@@ -1202,10 +1202,7 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata, bool set_mode)
 	xgbe_an_restart(pdata);
 
 out:
-	if (ret)
-		set_bit(XGBE_LINK_ERR, &pdata->dev_state);
-	else
-		clear_bit(XGBE_LINK_ERR, &pdata->dev_state);
+	assign_bit(XGBE_LINK_ERR, &pdata->dev_state, ret);
 
 	mutex_unlock(&pdata->an_mutex);
 

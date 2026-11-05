@@ -25,6 +25,7 @@ static const struct media_entity_operations rkcif_interface_media_ops = {
 };
 
 static int rkcif_interface_set_fmt(struct v4l2_subdev *sd,
+				   const struct v4l2_subdev_client_info *ci,
 				   struct v4l2_subdev_state *state,
 				   struct v4l2_subdev_format *format)
 {
@@ -77,6 +78,7 @@ static int rkcif_interface_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int rkcif_interface_get_sel(struct v4l2_subdev *sd,
+				   const struct v4l2_subdev_client_info *ci,
 				   struct v4l2_subdev_state *state,
 				   struct v4l2_subdev_selection *sel)
 {
@@ -115,6 +117,7 @@ static int rkcif_interface_get_sel(struct v4l2_subdev *sd,
 }
 
 static int rkcif_interface_set_sel(struct v4l2_subdev *sd,
+				   const struct v4l2_subdev_client_info *ci,
 				   struct v4l2_subdev_state *state,
 				   struct v4l2_subdev_selection *sel)
 {

@@ -31,9 +31,34 @@
 
 static int lsdma_v7_1_wait_pio_status(struct amdgpu_device *adev)
 {
-	return amdgpu_lsdma_wait_for(adev, SOC15_REG_OFFSET(LSDMA, 0, regLSDMA_PIO_STATUS),
+	u32 error_mask;
+	u32 reg;
+	int r;
+
+	r = amdgpu_lsdma_wait_for(adev, SOC15_REG_OFFSET(LSDMA, 0, regLSDMA_PIO_STATUS),
 			LSDMA_PIO_STATUS__PIO_IDLE_MASK | LSDMA_PIO_STATUS__PIO_FIFO_EMPTY_MASK,
 			LSDMA_PIO_STATUS__PIO_IDLE_MASK | LSDMA_PIO_STATUS__PIO_FIFO_EMPTY_MASK);
+	if (r)
+		return r;
+
+	error_mask = LSDMA_PIO_STATUS__ERROR_WRRET_NACK_GEN_ERR_MASK |
+		     LSDMA_PIO_STATUS__ERROR_RDRET_NACK_GEN_ERR_MASK |
+		     LSDMA_PIO_STATUS__ERROR_INVALID_ADDR_MASK |
+		     LSDMA_PIO_STATUS__ERROR_ZERO_COUNT_MASK |
+		     LSDMA_PIO_STATUS__ERROR_DRAM_ECC_MASK;
+
+	reg = RREG32(SOC15_REG_OFFSET(LSDMA, 0, regLSDMA_PIO_STATUS));
+	if (reg & error_mask) {
+		dev_warn(adev->dev, "LSDMA PIO error status bits 0x%x\n", reg & error_mask);
+
+		/*
+		 * write 1 to clear only the set lsdma error status bits
+		 */
+		WREG32(SOC15_REG_OFFSET(LSDMA, 0, regLSDMA_PIO_STATUS), reg & error_mask);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int lsdma_v7_1_copy_mem(struct amdgpu_device *adev,

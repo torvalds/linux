@@ -53,7 +53,7 @@ struct vdec_ap_ipi_cmd {
 /**
  * struct vdec_vpu_ipi_ack - generic VPU to AP ipi command format
  * @msg_id	: vdec_ipi_msgid
- * @status	: VPU exeuction result
+ * @status	: VPU execution result
  * @ap_inst_addr	: AP video decoder instance address
  */
 struct vdec_vpu_ipi_ack {
@@ -98,7 +98,7 @@ struct vdec_ap_ipi_dec_start {
 /**
  * struct vdec_vpu_ipi_init_ack - for VPU_IPIMSG_DEC_INIT_ACK
  * @msg_id	: VPU_IPIMSG_DEC_INIT_ACK
- * @status	: VPU exeuction result
+ * @status	: VPU execution result
  * @ap_inst_addr	: AP vcodec_vpu_inst instance address
  * @vpu_inst_addr	: VPU decoder instance address
  * @vdec_abi_version:	ABI version of the firmware. Kernel can use it to

@@ -141,9 +141,9 @@ static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
+	u8 old_addr[ETH_ALEN] __aligned(2);
 	struct batadv_meshif_vlan *vlan;
 	struct sockaddr *addr = p;
-	u8 old_addr[ETH_ALEN];
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
@@ -213,13 +213,18 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 				       struct net_device *mesh_iface)
 {
-	static const u8 ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00, 0x00, 0x00};
-	static const u8 stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x00};
 	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
 	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
 	enum batadv_forw_mode forw_mode = BATADV_FORW_BCAST;
+	static const u8 ectp_addr[ETH_ALEN] __aligned(2) = {
+		0xCF, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	static const u8 stp_addr[ETH_ALEN] __aligned(2) = {
+		0x01, 0x80, 0xC2, 0x00, 0x00, 0x00
+	};
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
+	u8 chaddr[ETH_ALEN] __aligned(2);
 	int network_offset = ETH_HLEN;
 	unsigned int header_len = 0;
 	unsigned long brd_delay = 0;
@@ -229,7 +234,6 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	struct ethhdr *ethhdr;
 	bool do_bcast = false;
 	u8 *dst_hint = NULL;
-	u8 chaddr[ETH_ALEN];
 	unsigned short vid;
 	bool client_added;
 	__be16 proto;
@@ -557,6 +561,8 @@ void batadv_meshif_vlan_release(struct kref *ref)
 	hlist_del_rcu(&vlan->list);
 	spin_unlock_bh(&vlan->bat_priv->meshif_vlan_list_lock);
 
+	batadv_tt_local_unreserve_vlan(vlan->bat_priv);
+
 	kfree_rcu(vlan, rcu);
 }
 
@@ -610,9 +616,15 @@ int batadv_meshif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 		return -EEXIST;
 	}
 
+	if (!batadv_tt_local_reserve_vlan(bat_priv, vid)) {
+		spin_unlock_bh(&bat_priv->meshif_vlan_list_lock);
+		return -EMSGSIZE;
+	}
+
 	vlan = kzalloc_obj(*vlan, GFP_ATOMIC);
 	if (!vlan) {
 		spin_unlock_bh(&bat_priv->meshif_vlan_list_lock);
+		batadv_tt_local_unreserve_vlan(bat_priv);
 		return -ENOMEM;
 	}
 

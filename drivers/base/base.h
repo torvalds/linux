@@ -27,6 +27,7 @@
  * @drivers_autoprobe: gate whether new devices are automatically attached to
  *		       registered drivers, or new drivers automatically attach
  *		       to existing devices.
+ * @no_drivers: gate whether drivers can be registered.
  * @bus: pointer back to the struct bus_type that this structure is associated
  *	 with.
  * @dev_root: Default device to use as the parent.
@@ -51,6 +52,7 @@ struct subsys_private {
 	struct klist klist_drivers;
 	struct blocking_notifier_head bus_notifier;
 	unsigned int drivers_autoprobe:1;
+	unsigned int no_drivers:1;
 	const struct bus_type *bus;
 	struct device *dev_root;
 
@@ -154,6 +156,7 @@ struct kobject *virtual_device_parent(void);
 
 int bus_add_device(struct device *dev);
 void bus_probe_device(struct device *dev);
+void bus_probe_device_deferred(struct device *dev);
 void bus_remove_device(struct device *dev);
 void bus_notify(struct device *dev, enum bus_notifier_event value);
 bool bus_is_registered(const struct bus_type *bus);

@@ -9,7 +9,7 @@
 #include "runtime.h"
 #include "dbg.h"
 #include "debugfs.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "pnvm.h"
@@ -309,7 +309,7 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 		return;
 	}
 
-	error = iwl_read_umac_prph(trans, error);
+	error = iwl_trans_read_umac_prph(trans, error);
 
 	IWL_ERR(trans, "IML/ROM dump:\n");
 
@@ -318,11 +318,11 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 
 	IWL_ERR(fwrt, "0x%08X | IML/ROM error/state\n", error);
 	IWL_ERR(fwrt, "0x%08X | IML/ROM data1\n",
-		iwl_read_umac_prph(trans, data1));
+		iwl_trans_read_umac_prph(trans, data1));
 
 	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 		IWL_ERR(fwrt, "0x%08X | IML/ROM WFPM_AUTH_KEY_0\n",
-			iwl_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
+			iwl_trans_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
 }
 
 #define FSEQ_REG(x) { .addr = (x), .str = #x, }
@@ -360,7 +360,7 @@ static void iwl_fwrt_dump_fseq_regs(struct iwl_fw_runtime *fwrt)
 
 	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
 		IWL_ERR(fwrt, "0x%08X | %s\n",
-			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
+			iwl_trans_read_prph_no_grab(trans, fseq_regs[i].addr),
 			fseq_regs[i].str);
 
 	iwl_trans_release_nic_access(trans);
@@ -398,13 +398,13 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		     count++, pc_data++)
 			IWL_ERR(fwrt, "%s: 0x%x\n",
 				pc_data->pc_name,
-				iwl_read_prph_no_grab(fwrt->trans,
-						      pc_data->pc_address));
+				iwl_trans_read_prph_no_grab(fwrt->trans,
+							    pc_data->pc_address));
 		iwl_trans_release_nic_access(fwrt->trans);
 	}
 
 	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		u32 scratch = iwl_read32(fwrt->trans, CSR_FUNC_SCRATCH);
+		u32 scratch = iwl_trans_read32(fwrt->trans, CSR_FUNC_SCRATCH);
 
 		IWL_ERR(fwrt, "Function Scratch status:\n");
 		IWL_ERR(fwrt, "0x%08X | Func Scratch\n", scratch);

@@ -594,7 +594,8 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
 	 * exporting for a long time so userspace might depend on it.
 	 */
 	if (badness != LONG_MIN)
-		points = (1000 + badness * 1000 / (long)totalpages) * 2 / 3;
+		points = (OOM_SCORE_ADJ_MAX +
+			  badness * OOM_SCORE_ADJ_MAX / (long)totalpages) * 2 / 3;
 
 	seq_printf(m, "%lu\n", points);
 
@@ -702,7 +703,7 @@ static int proc_pid_syscall(struct seq_file *m, struct pid_namespace *ns,
 /*                       Here the fs part begins                        */
 /************************************************************************/
 
-int proc_nochmod_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int proc_nochmod_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	int error;
@@ -743,7 +744,7 @@ static bool has_pid_permissions(struct proc_fs_info *fs_info,
 }
 
 
-static int proc_pid_permission(struct mnt_idmap *idmap,
+static int proc_pid_permission(const struct mnt_idmap *idmap,
 			       struct inode *inode, int mask)
 {
 	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
@@ -1994,7 +1995,7 @@ static struct inode *proc_pid_make_base_inode(struct super_block *sb,
 	return inode;
 }
 
-int pid_getattr(struct mnt_idmap *idmap, const struct path *path,
+int pid_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -2519,17 +2520,23 @@ static int show_timer(struct seq_file *m, void *v)
 	struct k_itimer *timer = hlist_entry((struct hlist_node *)v, struct k_itimer, list);
 	struct timers_private *tp = m->private;
 	int notify = timer->it_sigev_notify;
+	pid_t nr = 0;
 
 	guard(spinlock_irq)(&timer->it_lock);
 	if (!posixtimer_valid(timer))
 		return 0;
+
+	if (timer->it_pid && pid_has_task(timer->it_pid, timer->it_pid_type))
+		nr = pid_nr_ns(timer->it_pid, tp->ns);
+	else
+		notify = SIGEV_NONE;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
 	seq_printf(m, "signal: %d/%px\n", timer->sigq.info.si_signo,
 		   timer->sigq.info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n", nstr[notify & ~SIGEV_THREAD_ID],
 		   (notify & SIGEV_THREAD_ID) ? "tid" : "pid",
-		   pid_nr_ns(timer->it_pid, tp->ns));
+		   nr);
 	seq_printf(m, "ClockID: %d\n", timer->it_clock);
 
 	return 0;
@@ -3607,7 +3614,7 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
  * This function makes sure that the node is always accessible for members of
  * same thread group.
  */
-static int proc_tid_comm_permission(struct mnt_idmap *idmap,
+static int proc_tid_comm_permission(const struct mnt_idmap *idmap,
 				    struct inode *inode, int mask)
 {
 	bool is_same_tgroup;
@@ -3936,7 +3943,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static int proc_task_getattr(struct mnt_idmap *idmap,
+static int proc_task_getattr(const struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {

@@ -109,4 +109,11 @@ void iio_device_wakeup_eventset(struct iio_dev *indio_dev);
 struct iio_event_interface;
 bool iio_event_enabled(const struct iio_event_interface *ev_int);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+ssize_t __iio_chan_prefix_emit(struct device *dev,
+			       const struct iio_chan_spec *chan,
+			       enum iio_shared_by shared_by,
+			       char *buf, size_t len);
+#endif
+
 #endif

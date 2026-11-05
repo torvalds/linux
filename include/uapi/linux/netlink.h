@@ -330,6 +330,17 @@ enum netlink_attribute_type {
 };
 
 /**
+ * enum netlink_policy_byte_order - byte order of an integer attribute
+ * @NL_POLICY_BYTE_ORDER_BIG_ENDIAN: big endian (network byte order)
+ *
+ * Zero is left unassigned so that it keeps meaning host byte order,
+ * which is also what a missing byte order means.
+ */
+enum netlink_policy_byte_order {
+	NL_POLICY_BYTE_ORDER_BIG_ENDIAN = 1,
+};
+
+/**
  * enum netlink_policy_type_attr - policy type attributes
  * @NL_POLICY_TYPE_ATTR_UNSPEC: unused
  * @NL_POLICY_TYPE_ATTR_TYPE: type of the attribute,
@@ -356,6 +367,8 @@ enum netlink_attribute_type {
  *	bitfield32 type (U32)
  * @NL_POLICY_TYPE_ATTR_MASK: mask of valid bits for unsigned integers (U64)
  * @NL_POLICY_TYPE_ATTR_PAD: pad attribute for 64-bit alignment
+ * @NL_POLICY_TYPE_ATTR_BYTE_ORDER: byte order of an integer attribute,
+ *	&enum netlink_policy_byte_order, absent if host byte order (U32)
  *
  * @__NL_POLICY_TYPE_ATTR_MAX: number of attributes
  * @NL_POLICY_TYPE_ATTR_MAX: highest attribute number
@@ -374,6 +387,7 @@ enum netlink_policy_type_attr {
 	NL_POLICY_TYPE_ATTR_BITFIELD32_MASK,
 	NL_POLICY_TYPE_ATTR_PAD,
 	NL_POLICY_TYPE_ATTR_MASK,
+	NL_POLICY_TYPE_ATTR_BYTE_ORDER,
 
 	/* keep last */
 	__NL_POLICY_TYPE_ATTR_MAX,

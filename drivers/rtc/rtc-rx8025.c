@@ -180,10 +180,11 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	int status, xstp;
 
-	rtc_lock(rx8025->rtc);
+	guard(rtc_ops)(rx8025->rtc);
+
 	status = rx8025_read_reg(client, RX8025_REG_CTRL2);
 	if (status < 0)
-		goto out;
+		return IRQ_HANDLED;
 
 	xstp = rx8025_is_osc_stopped(rx8025->model, status);
 	if (xstp)
@@ -201,12 +202,9 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 		status &= RX8025_BIT_CTRL2_DAFG;
 		if (rx8025_write_reg(client, RX8025_REG_CTRL1,
 				     rx8025->ctrl1 & ~RX8025_BIT_CTRL1_DALE))
-			goto out;
+			return IRQ_HANDLED;
 		rtc_update_irq(rx8025->rtc, 1, RTC_AF | RTC_IRQF);
 	}
-
-out:
-	rtc_unlock(rx8025->rtc);
 
 	return IRQ_HANDLED;
 }
@@ -488,7 +486,7 @@ static ssize_t rx8025_sysfs_show_clock_adjust(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%ld\n", -adj);
+	return sysfs_emit(buf, "%ld\n", -adj);
 }
 
 static ssize_t rx8025_sysfs_store_clock_adjust(struct device *dev,

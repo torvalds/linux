@@ -11,28 +11,29 @@
 #include "dcn30/dcn30_dpp.h"
 #include "dcn32/dcn32_dpp.h"
 #include "dcn401/dcn401_dpp.h"
+#include "dcn42/dcn42_dpp.h"
 
 
 #define TO_DCN50_DPP(dpp)\
 	container_of(dpp, struct dcn50_dpp, base)
 
 #define DPP_REG_LIST_SH_MASK_DCN50_COMMON(mask_sh)\
-	DPP_REG_LIST_SH_MASK_DCN401_COMMON(mask_sh), \
+	DPP_REG_LIST_SH_MASK_DCN42_COMMON(mask_sh), \
 	TF_SF(CNVC_CFG0_PRE_GAM, PRE_GAM_MODE, mask_sh), \
 	TF_SF(CNVC_CFG0_PRE_GAM, PRE_DEGAM_SELECT, mask_sh), \
 	TF_SF(CNVC_CFG0_PRE_GAM, PRE_REGAM_SELECT, mask_sh)
 
 #define DPP_REG_FIELD_LIST_DCN50(type) \
-	DPP_REG_FIELD_LIST_DCN401(type); \
+	DPP_REG_FIELD_LIST_DCN42(type); \
 	type PRE_GAM_MODE; \
 	type PRE_REGAM_SELECT
 
 #define DPP_REG_VARIABLE_LIST_DCN50 \
-	DPP_REG_VARIABLE_LIST_DCN401; \
-	uint32_t PRE_GAM;
+	DPP_REG_VARIABLE_LIST_DCN42; \
+	uint32_t PRE_GAM
 
 struct dcn50_dpp_registers {
-	DPP_REG_VARIABLE_LIST_DCN50
+	DPP_REG_VARIABLE_LIST_DCN50;
 };
 
 struct dcn50_dpp_shift {
@@ -81,6 +82,7 @@ void dpp50_dpp_setup(
 void dpp50_set_pregam_state(
 	struct dpp *dpp_base,
 	enum dc_transfer_func_predefined tr,
-	enum dc_scaling_linearity scaling);
+	enum dc_scaling_linearity scaling,
+	bool source_is_linear);
 
 #endif /* __DCN50_DPP_H__ */

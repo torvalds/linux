@@ -83,7 +83,8 @@ Description:
 		idVendor idProduct.	After successfully
 		removing an ID, the driver will no longer support the
 		device.  This is useful to ensure auto probing won't
-		match the driver to the device.  For example:
+		match the driver to the device.  For example::
+
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
 
 		Reading from this file will list the dynamically added

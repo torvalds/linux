@@ -69,7 +69,7 @@ tool_$(CONFIG_KERNEL_ZSTD)    = zstd22_with_size
 targets += vmlinux.bin.z
 
 $(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,$(tool_y))
+	+$(call if_changed,$(tool_y))
 
 targets += piggy.o dummy.o
 

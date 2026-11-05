@@ -8,11 +8,22 @@
 #include <linux/nfs4.h>
 
 #include "nfsd.h"
+#include "nfserr.h"
 #include "blocklayoutxdr.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_PNFS
 
+static __be32
+nfsd4_decode_deviceid4(struct xdr_stream *xdr, struct nfsd4_deviceid *devid)
+{
+	__be32 *p = xdr_inline_decode(xdr, NFS4_DEVICEID4_SIZE);
+
+	if (unlikely(!p))
+		return nfserr_bad_xdr;
+	svcxdr_decode_deviceid4(p, devid);
+	return nfs_ok;
+}
 
 /**
  * nfsd4_block_encode_layoutget - encode block/scsi layout extent array

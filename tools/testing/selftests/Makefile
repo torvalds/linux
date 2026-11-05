@@ -34,10 +34,13 @@ TARGETS += exec
 TARGETS += fchmodat2
 TARGETS += filesystems
 TARGETS += filesystems/binderfs
+TARGETS += filesystems/configfs
 TARGETS += filesystems/epoll
 TARGETS += filesystems/eventfd
 TARGETS += filesystems/failfs
 TARGETS += filesystems/fat
+TARGETS += filesystems/file_stressor
+TARGETS += filesystems/freeze
 TARGETS += filesystems/openat2
 TARGETS += filesystems/open_tree_ns
 TARGETS += filesystems/overlayfs
@@ -96,6 +99,7 @@ TARGETS += net/packetdrill
 TARGETS += net/ppp
 TARGETS += net/rds
 TARGETS += net/tcp_ao
+TARGETS += nfsd
 TARGETS += nolibc
 TARGETS += pci_endpoint
 TARGETS += pcie_bwctrl
@@ -176,6 +180,10 @@ endif
 # of the targets gets built.
 FORCE_TARGETS ?=
 
+# Remember dry runs for the build report before MAKEFLAGS may be cleared.
+KSFT_BUILD_REPORT_DRY_RUN := $(strip $(foreach f,n t q,$(findstring $(f),$(firstword -$(MAKEFLAGS)))))
+export KSFT_BUILD_REPORT_DRY_RUN
+
 # Clear LDFLAGS and MAKEFLAGS when implicit rules are missing.  This provides
 # implicit rules to sub-test Makefiles which avoids build failures in test
 # Makefile that don't have explicit build rules.
@@ -220,6 +228,10 @@ ARCH           ?= $(SUBARCH)
 export BUILD
 export KHDR_INCLUDES
 
+# Version of the optional KSFT_BUILD_REPORT format written by these rules.
+KSFT_BUILD_REPORT_VERSION := 1
+include $(top_srcdir)/tools/testing/selftests/build_report.mk
+
 # set default goal to all, so make without a target runs all, even when
 # all isn't the first target in the file.
 .DEFAULT_GOAL := all
@@ -228,11 +240,13 @@ all:
 	@ret=1;							\
 	for TARGET in $(TARGETS) $(INSTALL_DEP_TARGETS); do	\
 		BUILD_TARGET=$$BUILD/$$TARGET;			\
-		mkdir $$BUILD_TARGET  -p;			\
+		mkdir -p $$BUILD_TARGET &&			\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET	\
-				O=$(abs_objtree)		\
-				$(if $(FORCE_TARGETS),|| exit);	\
-		ret=$$((ret * $$?));				\
+				O=$(abs_objtree);		\
+		status=$$?;					\
+		$(call ksft_record_build_status,all,$$TARGET);	\
+		$(if $(FORCE_TARGETS),[ $$status -eq 0 ] || exit $$status;) \
+		[ $$status -eq 0 ] && ret=0;			\
 	done; exit $$ret;
 
 run_tests: all
@@ -289,7 +303,7 @@ ifdef INSTALL_PATH
 	install -m 744 kselftest/ktap_helpers.sh $(INSTALL_PATH)/kselftest/
 	install -m 744 kselftest/ksft.py $(INSTALL_PATH)/kselftest/
 	install -m 744 run_kselftest.sh $(INSTALL_PATH)/
-	rm -f $(TEST_LIST)
+	: > $(TEST_LIST)
 	@ret=1;	\
 	for TARGET in $(TARGETS) $(INSTALL_DEP_TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
@@ -297,9 +311,11 @@ ifdef INSTALL_PATH
 				INSTALL_PATH=$(INSTALL_PATH)/$$TARGET \
 				SRC_PATH=$(shell readlink -e $$(pwd)) \
 				OBJ_PATH=$(INSTALL_PATH) \
-				O=$(abs_objtree)		\
-				$(if $(FORCE_TARGETS),|| exit);	\
-		ret=$$((ret * $$?));		\
+				O=$(abs_objtree);		\
+		status=$$?;				\
+		$(call ksft_record_build_status,install,$$TARGET); \
+		$(if $(FORCE_TARGETS),[ $$status -eq 0 ] || exit $$status;) \
+		[ $$status -eq 0 ] && ret=0;		\
 	done; exit $$ret;
 
 
@@ -313,6 +329,9 @@ ifdef INSTALL_PATH
 		printf "Emit Tests for $$TARGET\n"; \
 		$(MAKE) -s --no-print-directory OUTPUT=$$BUILD_TARGET COLLECTION=$$TARGET \
 			-C $$TARGET emit_tests >> $(TEST_LIST); \
+		status=$$?; \
+		$(call ksft_record_build_status,install,$$TARGET); \
+		(exit $$status); \
 	done;
 	@VERSION=$$(git describe HEAD 2>/dev/null); \
 	if [ -n "$$VERSION" ]; then \

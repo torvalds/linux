@@ -31,6 +31,7 @@ properties:
           - qcom,ipq9574-qfprom
           - qcom,ipq9650-qfprom
           - qcom,kaanapali-qfprom
+          - qcom,maili-qfprom
           - qcom,milos-qfprom
           - qcom,msm8226-qfprom
           - qcom,msm8916-qfprom

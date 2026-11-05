@@ -125,14 +125,7 @@ static void fbnic_mac_init_qm(struct fbnic_dev *fbd)
 	     FIELD_PREP(FBNIC_QM_TCQ_CTL0_COAL_WAIT,
 			clock_freq / 12500));
 
-	/* We will have the interrupt threshold timer tick once every
-	 * 1 usec and coalesce writes for up to 2 usecs.
-	 */
-	wr32(fbd, FBNIC_QM_RCQ_CTL0,
-	     FIELD_PREP(FBNIC_QM_RCQ_CTL0_TICK_CYCLES,
-			clock_freq / 1000000) |
-	     FIELD_PREP(FBNIC_QM_RCQ_CTL0_COAL_WAIT,
-			clock_freq / 500000));
+	fbnic_config_rx_cqe_nsecs(fbd);
 
 	/* Configure spacer control to 64 beats. */
 	wr32(fbd, FBNIC_FAB_AXI4_AR_SPACER_2_CFG,

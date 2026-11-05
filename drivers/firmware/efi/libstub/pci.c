@@ -15,7 +15,7 @@
 
 void efi_pci_disable_bridge_busmaster(void)
 {
-	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
+	static efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	efi_handle_t *pci_handle __free(efi_pool) = NULL;
 	unsigned long pci_handle_num;
 	efi_handle_t handle;

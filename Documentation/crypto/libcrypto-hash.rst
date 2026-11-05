@@ -80,6 +80,11 @@ SHA-3
 
 The SHA-3 API is documented in :ref:`sha3`.
 
+SipHash
+-------
+
+The SipHash API is documented in Documentation/security/siphash.rst.
+
 SM3
 ---
 

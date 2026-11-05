@@ -334,7 +334,7 @@ static int meson_ao_cec_g12a_setup_clk(struct meson_ao_cec_g12a_device *ao_cec)
 {
 	struct meson_ao_cec_g12a_dualdiv_clk *dualdiv_clk;
 	struct device *dev = &ao_cec->pdev->dev;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name;
 	struct clk *clk;
 	char *name;

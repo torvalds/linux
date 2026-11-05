@@ -31,7 +31,7 @@
 		};
 	};
 
-	sound_card {
+	sound-card {
 		compatible = "audio-graph-card";
 		label = "HDMI-Audio";
 		dais = <&i2s2_port>;

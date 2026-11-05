@@ -262,6 +262,34 @@ static int timer_cancel_async(struct timer *timer_skel)
 	return 0;
 }
 
+/*
+ * A timer callback which re-arms itself and reaches a loop through a call:
+ * the two entries into the callback meet at the loop, in a frame of its own.
+ */
+static int timer_loop_rearm(struct timer *timer_skel)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, prog_fd, i;
+
+	err = timer__attach(timer_skel);
+	if (!ASSERT_OK(err, "timer_attach"))
+		return err;
+
+	timer_skel->bss->loop_rearm = 1;
+
+	prog_fd = bpf_program__fd(timer_skel->progs.test_loop_rearm);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	if (!ASSERT_OK(err, "test_run"))
+		return err;
+
+	for (i = 0; i < 100 && timer_skel->bss->loop_sum < 120 * 2; i++)
+		usleep(1000);
+
+	timer__detach(timer_skel);
+	ASSERT_EQ(timer_skel->bss->loop_sum, 120 * 2, "loop_sum");
+	return 0;
+}
+
 static void test_timer(int (*timer_test_fn)(struct timer *timer_skel))
 {
 	struct timer *timer_skel = NULL;
@@ -285,6 +313,11 @@ void serial_test_timer(void)
 	test_timer(timer);
 
 	RUN_TESTS(timer_failure);
+}
+
+void serial_test_timer_loop_rearm(void)
+{
+	test_timer(timer_loop_rearm);
 }
 
 void serial_test_timer_stress(void)

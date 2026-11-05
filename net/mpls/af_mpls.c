@@ -2776,16 +2776,20 @@ static __net_init int mpls_net_init(struct net *net)
 	return 0;
 }
 
-static __net_exit void mpls_net_exit(struct net *net)
+static __net_exit void mpls_net_pre_exit(struct net *net)
 {
-	struct mpls_route __rcu **platform_label;
-	size_t platform_labels;
 	const struct ctl_table *table;
-	unsigned int index;
 
 	table = net->mpls.ctl->ctl_table_arg;
 	unregister_net_sysctl_table(net->mpls.ctl);
 	kfree(table);
+}
+
+static __net_exit void mpls_net_exit(struct net *net)
+{
+	struct mpls_route __rcu **platform_label;
+	size_t platform_labels;
+	unsigned int index;
 
 	/* An rcu grace period has passed since there was a device in
 	 * the network namespace (and thus the last in flight packet)
@@ -2816,6 +2820,7 @@ static __net_exit void mpls_net_exit(struct net *net)
 
 static struct pernet_operations mpls_net_ops = {
 	.init = mpls_net_init,
+	.pre_exit = mpls_net_pre_exit,
 	.exit = mpls_net_exit,
 };
 

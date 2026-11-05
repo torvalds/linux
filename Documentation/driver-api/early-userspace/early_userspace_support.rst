@@ -55,9 +55,9 @@ user root (0).  INITRAMFS_ROOT_GID can be set to a group ID that needs
 to be mapped to group root (0).
 
 A source file must be directives in the format required by the
-usr/gen_init_cpio utility (run 'usr/gen_init_cpio -h' to get the
+scripts/gen_init_cpio utility (run 'scripts/gen_init_cpio -h' to get the
 file format).  The directives in the file will be passed directly to
-usr/gen_init_cpio.
+scripts/gen_init_cpio.
 
 When a combination of directories and files are specified then the
 initramfs image will be an aggregate of all of them.  In this way a user
@@ -69,17 +69,17 @@ early userspace image can be built by an unprivileged user.
 
 As a technical note, when directories and files are specified, the
 entire CONFIG_INITRAMFS_SOURCE is passed to
-usr/gen_initramfs.sh.  This means that CONFIG_INITRAMFS_SOURCE
+scripts/gen_initramfs.sh.  This means that CONFIG_INITRAMFS_SOURCE
 can really be interpreted as any legal argument to
 gen_initramfs.sh.  If a directory is specified as an argument then
 the contents are scanned, uid/gid translation is performed, and
-usr/gen_init_cpio file directives are output.  If a file is
-specified as an argument to usr/gen_initramfs.sh then the
+scripts/gen_init_cpio file directives are output.  If a file is
+specified as an argument to scripts/gen_initramfs.sh then the
 contents of the file are simply copied to the output.  All of the output
 directives from directory scanning and file contents copying are
-processed by usr/gen_init_cpio.
+processed by scripts/gen_init_cpio.
 
-See also 'usr/gen_initramfs.sh -h'.
+See also 'scripts/gen_initramfs.sh -h'.
 
 Where's this all leading?
 =========================
@@ -142,7 +142,7 @@ b) some device and filesystem drivers built as modules and stored in an
 
 c) using initramfs.  The call to prepare_namespace() must be skipped.
    This means that a binary must do all the work.  Said binary can be stored
-   into initramfs either via modifying usr/gen_init_cpio.c or via the new
+   into initramfs either via modifying scripts/gen_init_cpio.c or via the new
    initrd format, an cpio archive.  It must be called "/init".  This binary
    is responsible to do all the things prepare_namespace() would do.
 

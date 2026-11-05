@@ -676,4 +676,38 @@ TEST(listns_error_cases)
 	}
 }
 
+/*
+ * A cursor at the largest possible namespace id must not wrap around and
+ * restart the listing from the beginning.
+ */
+TEST(listns_cursor_max)
+{
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.ns_id = ULLONG_MAX,
+	};
+	__u64 ns_ids[10];
+	ssize_t ret;
+
+	/* unified tree */
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	if (ret < 0 && errno == ENOSYS)
+		SKIP(return, "listns() not supported");
+	ASSERT_EQ(ret, -1);
+	ASSERT_EQ(errno, ENOENT);
+
+	/* type-specific tree */
+	req.ns_type = CLONE_NEWUSER;
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	ASSERT_EQ(ret, -1);
+	ASSERT_EQ(errno, ENOENT);
+
+	/* owner tree */
+	req.ns_type = 0;
+	req.user_ns_id = LISTNS_CURRENT_USER;
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	ASSERT_EQ(ret, -1);
+	ASSERT_EQ(errno, ENOENT);
+}
+
 TEST_HARNESS_MAIN

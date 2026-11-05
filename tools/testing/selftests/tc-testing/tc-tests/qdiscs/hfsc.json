@@ -181,7 +181,7 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "ip link set lo up",
+            "$IP link set lo up",
             "$TC qdisc add dev lo handle 1: root hfsc default 30",
             "$TC class add dev lo parent 1: classid 1:1 hfsc rt m2 100kbit",
             "$TC class add dev lo parent 1:1 classid 1:10 hfsc rt m2 50kbit",

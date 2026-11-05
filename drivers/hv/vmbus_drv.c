@@ -33,6 +33,7 @@
 #include <linux/sysfb.h>
 #include <linux/efi.h>
 #include <linux/kernel.h>
+#include <linux/kexec.h>
 #include <linux/syscore_ops.h>
 #include <linux/dma-map-ops.h>
 #include <linux/pci.h>
@@ -2571,10 +2572,14 @@ EXPORT_SYMBOL_GPL(vmbus_free_mmio);
 #ifdef CONFIG_ACPI
 static int vmbus_acpi_add(struct platform_device *pdev)
 {
+	struct acpi_device *ancestor;
+	struct acpi_device *device;
 	acpi_status result;
 	int ret_val = -ENODEV;
-	struct acpi_device *ancestor;
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	vmbus_root_device = &device->dev;
 
@@ -2904,6 +2909,12 @@ static void hv_kexec_handler(void)
 	cpuhp_remove_state(hyperv_cpuhp_online);
 };
 
+static void hv_vmbus_syscore_shutdown(void *data)
+{
+	if (kexec_is_in_progress())
+		hv_kexec_handler();
+}
+
 static void hv_crash_handler(struct pt_regs *regs)
 {
 	int cpu;
@@ -2923,23 +2934,19 @@ static void hv_crash_handler(struct pt_regs *regs)
 static int hv_synic_suspend(void *data)
 {
 	/*
-	 * When we reach here, all the non-boot CPUs have been offlined.
-	 * If we're in a legacy configuration where stimer Direct Mode is
-	 * not enabled, the stimers on the non-boot CPUs have been unbound
-	 * in hv_synic_cleanup() -> hv_stimer_legacy_cleanup() ->
-	 * hv_stimer_cleanup() -> clockevents_unbind_device().
+	 * When we reach here, all the non-boot CPUs have been offlined,
+	 * and their stimers have been cleaned up by the cpuhp teardown
+	 * callback hv_stimer_cleanup().
 	 *
 	 * hv_synic_suspend() only runs on CPU0 with interrupts disabled.
-	 * Here we do not call hv_stimer_legacy_cleanup() on CPU0 because:
-	 * 1) it's unnecessary as interrupts remain disabled between
-	 * syscore_suspend() and syscore_resume(): see create_image() and
+	 * The stimer on CPU0 is not explicitly cleaned up here because:
+	 * 1) it's harmless as interrupts remain disabled between
+	 * syscore_suspend() and syscore_resume(), so the stimer cannot
+	 * fire during this window: see create_image() and
 	 * resume_target_kernel()
 	 * 2) the stimer on CPU0 is automatically disabled later by
 	 * syscore_suspend() -> timekeeping_suspend() -> tick_suspend() -> ...
 	 * -> clockevents_shutdown() -> ... -> hv_ce_shutdown()
-	 * 3) a warning would be triggered if we call
-	 * clockevents_unbind_device(), which may sleep, in an
-	 * interrupts-disabled context.
 	 */
 
 	hv_hyp_synic_disable_regs(0);
@@ -2958,14 +2965,15 @@ static void hv_synic_resume(void *data)
 	 */
 }
 
-/* The callbacks run only on CPU0, with irqs_disabled. */
-static const struct syscore_ops hv_synic_syscore_ops = {
+/* The suspend and resume callbacks run only on CPU0, with irqs_disabled. */
+static const struct syscore_ops hv_vmbus_syscore_ops = {
 	.suspend = hv_synic_suspend,
 	.resume = hv_synic_resume,
+	.shutdown = hv_vmbus_syscore_shutdown,
 };
 
-static struct syscore hv_synic_syscore = {
-	.ops = &hv_synic_syscore_ops,
+static struct syscore hv_vmbus_syscore = {
+	.ops = &hv_vmbus_syscore_ops,
 };
 
 static int __init hv_acpi_init(void)
@@ -3014,10 +3022,9 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		goto cleanup;
 
-	hv_setup_kexec_handler(hv_kexec_handler);
 	hv_setup_crash_handler(hv_crash_handler);
 
-	register_syscore(&hv_synic_syscore);
+	register_syscore(&hv_vmbus_syscore);
 
 	return 0;
 
@@ -3039,11 +3046,9 @@ static void __exit vmbus_exit(void)
 		 */
 		return;
 
-	unregister_syscore(&hv_synic_syscore);
+	unregister_syscore(&hv_vmbus_syscore);
 
-	hv_remove_kexec_handler();
 	hv_remove_crash_handler();
-	vmbus_connection.conn_state = DISCONNECTED;
 	hv_stimer_global_cleanup();
 	vmbus_disconnect();
 	if (vmbus_irq == -1)

@@ -351,8 +351,6 @@ static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long pstate = PSR_AA32_MODE_USR;
 	if (pc & 1)
 		pstate |= PSR_AA32_T_BIT;
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
-		pstate |= PSR_AA32_E_BIT;
 
 	start_thread_common(regs, pc, pstate);
 	spectre_v4_enable_task_mitigation(current);

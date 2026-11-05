@@ -2,10 +2,13 @@
 
 #include <errno.h>
 #include <linux/limits.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -315,6 +318,159 @@ cleanup:
 	return ret;
 }
 
+static int sleep_forever(void *arg)
+{
+	for (;;)
+		pause();
+	return 0;
+}
+
+/*
+ * Start a thread and exit the main thread only, leaving behind a zombie
+ * thread group leader with a live thread.
+ */
+static int exit_leader_fn(const char *cgroup, void *arg)
+{
+	const size_t stack_size = 64 * 1024;
+	char *stack = malloc(stack_size);
+
+	if (!stack)
+		return EXIT_FAILURE;
+
+	if (clone(sleep_forever, stack + stack_size,
+		  CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND |
+		  CLONE_THREAD | CLONE_SYSVSEM, NULL) < 0)
+		return EXIT_FAILURE;
+
+	syscall(SYS_exit, 0);
+	return EXIT_FAILURE;
+}
+
+static int wait_for_zombie_leader(pid_t pid)
+{
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		if (!proc_read_strstr(pid, false, "stat", ") Z "))
+			return 0;
+		usleep(10000);
+	}
+
+	return -1;
+}
+
+/*
+ * Test that cgroup.kill kills a process whose thread group leader has
+ * already exited while its other threads are still running.
+ */
+static int test_cgkill_exited_leader(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *cgroup = NULL;
+	pid_t pid = -ESRCH;
+
+	cgroup = cg_name(root, "cg_test_exited_leader");
+	if (!cgroup)
+		goto cleanup;
+
+	if (cg_create(cgroup))
+		goto cleanup;
+
+	pid = cg_run_nowait(cgroup, exit_leader_fn, NULL);
+	if (pid < 0)
+		goto cleanup;
+
+	if (wait_for_zombie_leader(pid))
+		goto cleanup;
+
+	if (cg_read_strcmp(cgroup, "cgroup.events", "populated 1\n"))
+		goto cleanup;
+
+	if (cg_write(cgroup, "cgroup.kill", "1"))
+		goto cleanup;
+
+	if (cg_read_strcmp_wait(cgroup, "cgroup.events", "populated 0\n"))
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	if (pid > 0) {
+		kill(pid, SIGKILL);
+		wait_for_pid(pid);
+	}
+	if (cgroup)
+		cg_destroy(cgroup);
+	free(cgroup);
+	return ret;
+}
+
+/*
+ * Test that cgroup.kill kills the threads of a process that were migrated
+ * to the cgroup after their thread group leader had exited, and so are
+ * not listed in its cgroup.procs.
+ */
+static int test_cgkill_exited_leader_migrated(const char *root)
+{
+	char *parent = NULL, *src = NULL, *dst = NULL;
+	int ret = KSFT_FAIL;
+	pid_t pid = -ESRCH;
+
+	parent = cg_name(root, "cg_test_exited_leader_migrated");
+	if (!parent)
+		goto cleanup;
+
+	src = cg_name(parent, "src");
+	if (!src)
+		goto cleanup;
+
+	dst = cg_name(parent, "dst");
+	if (!dst)
+		goto cleanup;
+
+	if (cg_create(parent) || cg_create(src) || cg_create(dst))
+		goto cleanup;
+
+	pid = cg_run_nowait(src, exit_leader_fn, NULL);
+	if (pid < 0)
+		goto cleanup;
+
+	if (wait_for_zombie_leader(pid))
+		goto cleanup;
+
+	/* The exiting leader stays behind, only the live thread is moved. */
+	if (cg_enter(dst, pid))
+		goto cleanup;
+
+	if (cg_read_strcmp(dst, "cgroup.events", "populated 1\n") ||
+	    cg_read_strcmp(dst, "cgroup.procs", ""))
+		goto cleanup;
+
+	if (cg_write(dst, "cgroup.kill", "1"))
+		goto cleanup;
+
+	if (cg_read_strcmp_wait(dst, "cgroup.events", "populated 0\n"))
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	if (pid > 0) {
+		kill(pid, SIGKILL);
+		wait_for_pid(pid);
+	}
+	if (dst)
+		cg_destroy(dst);
+	if (src)
+		cg_destroy(src);
+	if (parent)
+		cg_destroy(parent);
+	free(dst);
+	free(src);
+	free(parent);
+	return ret;
+}
+
 #define T(x) { x, #x }
 struct cgkill_test {
 	int (*fn)(const char *root);
@@ -324,6 +480,8 @@ struct cgkill_test {
 	T(test_cgkill_tree),
 	T(test_cgkill_forkbomb),
 	T(test_cgkill_clone_into_killed),
+	T(test_cgkill_exited_leader),
+	T(test_cgkill_exited_leader_migrated),
 };
 #undef T
 

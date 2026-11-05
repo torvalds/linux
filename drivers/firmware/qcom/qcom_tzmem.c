@@ -50,7 +50,7 @@ static struct device *qcom_tzmem_dev;
 static RADIX_TREE(qcom_tzmem_chunks, GFP_ATOMIC);
 static DEFINE_SPINLOCK(qcom_tzmem_chunks_lock);
 
-#if IS_ENABLED(CONFIG_QCOM_TZMEM_MODE_GENERIC)
+#ifndef CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE
 
 static int qcom_tzmem_init(void)
 {
@@ -67,7 +67,7 @@ static void qcom_tzmem_cleanup_area(struct qcom_tzmem_area *area)
 
 }
 
-#elif IS_ENABLED(CONFIG_QCOM_TZMEM_MODE_SHMBRIDGE)
+#else
 
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/of.h>
@@ -82,6 +82,7 @@ static const char *const qcom_tzmem_blacklist[] = {
 	"qcom,sc8180x",
 	"qcom,sdm670", /* failure in GPU firmware loading */
 	"qcom,sdm845", /* reset in rmtfs memory assignment */
+	"qcom,sm7125", /* hang in rmtfs memory assignment */
 	"qcom,sm7150", /* reset in rmtfs memory assignment */
 	"qcom,sm8150", /* reset in rmtfs memory assignment */
 	NULL
@@ -516,7 +517,7 @@ int qcom_tzmem_enable(struct device *dev)
 	static int result;
 
 	qcom_tzmem_dev = dev;
-	DO_ONCE(qcom_tzmem_do_init, &result);
+	DO_ONCE_SLEEPABLE(qcom_tzmem_do_init, &result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(qcom_tzmem_enable);

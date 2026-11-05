@@ -1924,6 +1924,34 @@ TRACE_EVENT(drv_stop_ap,
 	)
 );
 
+TRACE_EVENT(drv_update_beacon,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_bss_conf *link_conf,
+		 u64 changed),
+
+	TP_ARGS(local, sdata, link_conf, changed),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u32, link_id)
+		__field(u64, changed)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->link_id = link_conf->link_id;
+		__entry->changed = changed;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " link id %u changed:%#llx",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, __entry->changed
+	)
+);
+
 TRACE_EVENT(drv_reconfig_complete,
 	TP_PROTO(struct ieee80211_local *local,
 		 enum ieee80211_reconfig_type reconfig_type),

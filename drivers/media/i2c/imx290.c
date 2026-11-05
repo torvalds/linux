@@ -1149,6 +1149,7 @@ static int imx290_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int imx290_set_fmt(struct v4l2_subdev *sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
@@ -1187,6 +1188,7 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx290_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -1246,7 +1248,7 @@ static int imx290_entity_init_state(struct v4l2_subdev *subdev,
 		},
 	};
 
-	imx290_set_fmt(subdev, sd_state, &fmt);
+	imx290_set_fmt(subdev, NULL, sd_state, &fmt);
 
 	return 0;
 }

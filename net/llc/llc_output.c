@@ -59,8 +59,7 @@ int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
 			      const unsigned char *dmac, unsigned char dsap)
 {
 	int rc;
-	llc_pdu_header_init(skb, LLC_PDU_TYPE_U, sap->laddr.lsap,
-			    dsap, LLC_PDU_CMD);
+	llc_pdu_header_init(skb, sap->lsap, dsap, LLC_PDU_CMD);
 	llc_pdu_init_as_ui_cmd(skb);
 	rc = llc_mac_hdr_init(skb, skb->dev->dev_addr, dmac);
 	if (likely(!rc))

@@ -93,7 +93,7 @@ int nf_ct_add_helper(struct nf_conn *ct, const char *name, u8 family,
 	if (!helper)
 		return -EINVAL;
 
-	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL_ACCOUNT);
 	if (!help) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;

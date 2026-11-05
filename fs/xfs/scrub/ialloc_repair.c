@@ -293,11 +293,7 @@ xrep_ibt_process_cluster(
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	xfs_agino_t		cluster_ag_base;
 	xfs_agino_t		irec_index;
-	unsigned int		nr_inodes;
 	int			error;
-
-	nr_inodes = min_t(unsigned int, igeo->inodes_per_cluster,
-			XFS_INODES_PER_CHUNK);
 
 	/*
 	 * Grab the inode cluster buffer.  This is safe to do with a broken
@@ -317,6 +313,10 @@ xrep_ibt_process_cluster(
 	for (irec_index = 0;
 	     irec_index < igeo->inodes_per_cluster;
 	     irec_index += XFS_INODES_PER_CHUNK) {
+		unsigned int	nr_inodes =
+			min_t(unsigned int, XFS_INODES_PER_CHUNK,
+					igeo->inodes_per_cluster - irec_index);
+
 		error = xrep_ibt_cluster_record(ri,
 				cluster_ag_base + irec_index, cluster_bp,
 				nr_inodes);
@@ -473,9 +473,9 @@ xrep_ibt_find_inodes(
 	ri->rie.ir_startino = NULLAGINO;
 
 	/* Collect all reverse mappings for inode blocks. */
-	xrep_ag_btcur_init(sc, &sc->sa);
+	xrep_ag_btcur_init(sc);
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_ibt_walk_rmap, ri);
-	xchk_ag_btcur_free(&sc->sa);
+	xchk_ag_btcur_free(sc);
 	if (error)
 		return error;
 

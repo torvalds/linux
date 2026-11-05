@@ -80,19 +80,15 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
 }
 
-static void mdp5_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *mdp5_plane_create_state(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *mdp5_state;
-
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-
-	kfree(to_mdp5_plane_state(plane->state));
-	plane->state = NULL;
 	mdp5_state = kzalloc_obj(*mdp5_state);
 	if (!mdp5_state)
-		return;
-	__drm_atomic_helper_plane_reset(plane, &mdp5_state->base);
+		return ERR_PTR(-ENOMEM);
+	__drm_atomic_helper_plane_state_init(&mdp5_state->base, plane);
+
+	return &mdp5_state->base;
 }
 
 static struct drm_plane_state *
@@ -126,7 +122,7 @@ static void mdp5_plane_destroy_state(struct drm_plane *plane,
 static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
-		.reset = mdp5_plane_reset,
+		.atomic_create_state = mdp5_plane_create_state,
 		.atomic_duplicate_state = mdp5_plane_duplicate_state,
 		.atomic_destroy_state = mdp5_plane_destroy_state,
 		.atomic_print_state = mdp5_plane_atomic_print_state,

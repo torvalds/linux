@@ -259,10 +259,48 @@ static int amdgpu_ras_translate_fb_address(struct ras_core_context *ras_core,
 	return RAS_CMD__SUCCESS;
 }
 
+static int amdgpu_ras_get_cper_records(struct ras_core_context *ras_core,
+			struct ras_cmd_ctx *cmd, void *data)
+{
+	struct ras_cmd_cper_record_req *req =
+		(struct ras_cmd_cper_record_req *)cmd->input_buff_raw;
+	uint64_t user_addr = 0;
+	uint8_t *buf_ptr = NULL;
+	int ret;
+
+	if (cmd->input_size != sizeof(struct ras_cmd_cper_record_req))
+		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
+
+	if (!req->buf_size || !req->buf_ptr || !req->cper_num)
+		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
+
+	buf_ptr = kzalloc(req->buf_size, GFP_KERNEL);
+	if (!buf_ptr)
+		return RAS_CMD__ERROR_GENERIC;
+
+	user_addr = req->buf_ptr;
+	req->buf_ptr = (uintptr_t)buf_ptr;
+
+	ret = rascore_handle_cmd(ras_core, cmd, data);
+	if (ret) {
+		kfree(buf_ptr);
+		return ret;
+	}
+
+	if (copy_to_user((void __user *)(uintptr_t)user_addr, buf_ptr, req->buf_size))
+		ret = RAS_CMD__ERROR_GENERIC;
+
+	req->buf_ptr = user_addr;
+	kfree(buf_ptr);
+
+	return ret;
+}
+
 static struct ras_cmd_func_map amdgpu_ras_cmd_maps[] = {
 	{RAS_CMD__INJECT_ERROR, amdgpu_ras_inject_error},
 	{RAS_CMD__GET_SAFE_FB_ADDRESS_RANGES, amdgpu_ras_get_ras_safe_fb_addr_ranges},
 	{RAS_CMD__TRANSLATE_FB_ADDRESS, amdgpu_ras_translate_fb_address},
+	{RAS_CMD__GET_CPER_RECORD, amdgpu_ras_get_cper_records},
 };
 
 int amdgpu_ras_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx *cmd, void *data)

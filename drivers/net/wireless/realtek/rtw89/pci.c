@@ -321,10 +321,10 @@ static u32 rtw89_pci_get_rx_skb_idx(struct rtw89_dev *rtwdev,
 static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 				       struct rtw89_pci_rx_ring *rx_ring)
 {
-	struct rtw89_rx_desc_info *desc_info = &rx_ring->diliver_desc;
+	struct rtw89_rx_desc_info *desc_info = &rx_ring->deliver_desc;
 	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
-	struct sk_buff *new = rx_ring->diliver_skb;
+	struct sk_buff *new = rx_ring->deliver_skb;
 	struct rtw89_pci_rx_info *rx_info;
 	struct sk_buff *skb;
 	u32 rxinfo_size = sizeof(struct rtw89_pci_rxbd_info);
@@ -370,7 +370,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 		if (!new)
 			goto err_sync_device;
 
-		rx_ring->diliver_skb = new;
+		rx_ring->deliver_skb = new;
 
 		/* first segment has RX desc */
 		offset = desc_info->offset + desc_info->rxd_len;
@@ -392,7 +392,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	}
 	if (ls) {
 		rtw89_core_rx(rtwdev, desc_info, new);
-		rx_ring->diliver_skb = NULL;
+		rx_ring->deliver_skb = NULL;
 		desc_info->ready = false;
 	}
 
@@ -404,7 +404,7 @@ err_sync_device:
 err_free_resource:
 	if (new)
 		dev_kfree_skb_any(new);
-	rx_ring->diliver_skb = NULL;
+	rx_ring->deliver_skb = NULL;
 	desc_info->ready = false;
 
 	return cnt;
@@ -1840,8 +1840,8 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 		else
 			bd_ring->wp = 0;
 		bd_ring->rp = 0;
-		rx_ring->diliver_skb = NULL;
-		rx_ring->diliver_desc.ready = false;
+		rx_ring->deliver_skb = NULL;
+		rx_ring->deliver_desc.ready = false;
 		rx_ring->target_rx_tag = 0;
 
 		if (info->group_bd_addr) {
@@ -3719,8 +3719,8 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 		rx_ring->bd_ring.wp = 0;
 	rx_ring->bd_ring.rp = 0;
 	rx_ring->buf_sz = buf_sz;
-	rx_ring->diliver_skb = NULL;
-	rx_ring->diliver_desc.ready = false;
+	rx_ring->deliver_skb = NULL;
+	rx_ring->deliver_desc.ready = false;
 	rx_ring->target_rx_tag = 0;
 
 	for (i = 0; i < len; i++) {
@@ -4766,6 +4766,49 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.rst_bdram	= rtw89_pci_reset_bdram,
 };
 
+static void rtw89_pci_d3cold_quirks(struct rtw89_dev *rtwdev, struct pci_dev *pdev)
+{
+	static const struct dmi_system_id d3cold_quirks[] = {
+		{
+			.ident = "ASUS EXPERTBOOK B3406CMA",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR, "ASUS"),
+				DMI_MATCH(DMI_BOARD_NAME, "B3406CMA"),
+			},
+		},
+		{
+			.ident = "ASUS EXPERTBOOK B3606CMA",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR, "ASUS"),
+				DMI_MATCH(DMI_BOARD_NAME, "B3606CMA"),
+			},
+		},
+		{
+			.ident = "ASUS EXPERTBOOK P3406CMA",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR, "ASUS"),
+				DMI_MATCH(DMI_BOARD_NAME, "P3406CMA"),
+			},
+		},
+		{
+			.ident = "ASUS EXPERTBOOK P3606CMA",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR, "ASUS"),
+				DMI_MATCH(DMI_BOARD_NAME, "P3606CMA"),
+			},
+		},
+		{},
+	};
+	const struct dmi_system_id *match;
+
+	match = dmi_first_match(d3cold_quirks);
+	if (!match)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Disable D3Cold on %s\n", match->ident);
+	pci_d3cold_disable(pdev);
+}
+
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct rtw89_dev *rtwdev;
@@ -4791,6 +4834,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rtwdev->hci.rpwm_addr = pci_info->rpwm_addr;
 	rtwdev->hci.cpwm_addr = pci_info->cpwm_addr;
 
+	rtw89_pci_d3cold_quirks(rtwdev, pdev);
 	rtw89_check_quirks(rtwdev, info->quirks);
 	rtw89_check_pci_ssid_quirks(rtwdev, pdev, pci_info->ssid_quirks);
 

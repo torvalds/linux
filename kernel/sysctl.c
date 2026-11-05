@@ -29,13 +29,11 @@ EXPORT_SYMBOL(sysctl_vals);
 const unsigned long sysctl_long_vals[] = { 0, 1, LONG_MAX };
 EXPORT_SYMBOL_GPL(sysctl_long_vals);
 
-#if defined(CONFIG_SYSCTL)
+#ifdef CONFIG_SYSCTL
 
 /* Constants used for minimum and maximum */
 static const int ngroups_max = NGROUPS_MAX;
 static const int cap_last_cap = CAP_LAST_CAP;
-
-#ifdef CONFIG_SYSCTL
 
 /**
  * enum sysctl_writes_mode - supported sysctl write modes
@@ -64,14 +62,6 @@ enum sysctl_writes_mode {
 };
 
 static enum sysctl_writes_mode sysctl_writes_strict = SYSCTL_WRITES_STRICT;
-#endif /* CONFIG_SYSCTL */
-#endif /* CONFIG_SYSCTL */
-
-/*
- * /proc/sys support
- */
-
-#ifdef CONFIG_SYSCTL
 
 static int _proc_do_string(char *data, int maxlen, int dir,
 		char *buffer, size_t *lenp, loff_t *ppos)
@@ -595,7 +585,7 @@ static int do_proc_int_conv_minmax(bool *negp, unsigned long *u_ptr, int *k_ptr,
 static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
 /*
- * Element type processed by do_proc_vec(). The tag selects the element size
+ * Element type processed by proc_vec(). The tag selects the element size
  * and signedness, and it selects which member of union proc_vec_conv is live.
  */
 enum proc_vec_type {
@@ -605,7 +595,7 @@ enum proc_vec_type {
 };
 
 /*
- * Converter passed to do_proc_vec(). Only the member matching the
+ * Converter passed to proc_vec(). Only the member matching the
  * enum proc_vec_type tag is ever read, so every dispatch stays fully typed and
  * no void * converter pointer is needed.
  */
@@ -637,33 +627,145 @@ static int proc_vec_conv(enum proc_vec_type type, union proc_vec_conv conv,
 	return -EINVAL;
 }
 
-/*
- * Read/write a vector of @type elements. The element size and signedness are
- * derived from @type, so a single runtime function replaces the per-type
- * variants. table->data is walked as raw bytes (@i) advanced by @size; the
- * converter performs the actual typed load/store.
- */
-static int do_proc_vec(const struct ctl_table *table, int dir,
-		       void *buffer, size_t *lenp, loff_t *ppos,
-		       enum proc_vec_type type, union proc_vec_conv conv)
+static int commit_conv_vec(const enum proc_vec_type data_type, void *dst,
+			    const void *src, size_t nr)
 {
-	int vleft, first = 1, err = 0;
-	size_t left, size;
-	bool is_unsigned;
-	char *i, *p;
+	size_t i;
+
+	switch (data_type) {
+	case PROC_VEC_INT:
+		for (i = 0; i < nr; i++)
+			WRITE_ONCE(((int *)dst)[i], ((const int *)src)[i]);
+		return 0;
+
+	case PROC_VEC_ULONG:
+		for (i = 0; i < nr; i++)
+			WRITE_ONCE(((ulong *)dst)[i], ((const ulong *)src)[i]);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * apply_conv_on_vec - Apply converter function on data vector
+ *
+ * @conv: The converter to be applied
+ * @table: The sysctl table
+ * @data_type: Type used in converter appliation (INT, UINT or ULONG)
+ * @data_size: Number of data elements.
+ * @conv_dir: %TRUE if this is a write to the sysctl file
+ * @buf_nbyte: Number of bytes for buf
+ * @buf: The user buffer
+ * @buf_left_final: Number of outstanding (non converted) bytes.
+ *
+ * Element signedness is derived from @data_type. table->data is walked
+ * as raw bytes (@data) advanced by @data_size; the converter performs
+ * the actual typed load/store. Sets buf_left_final to the number of
+ * bytes that where left outstanding after conversion. Can be > 0.
+ *
+ * Returns: %0 on success. Non-zero on error.
+ */
+static int apply_conv_on_vec(const union proc_vec_conv conv,
+			     const struct ctl_table *table,
+			     const enum proc_vec_type data_type,
+			     const size_t data_size, const int conv_dir,
+			     const size_t buf_nbyte, void *buf,
+			     size_t *buf_left_final)
+{
+	int vec_left, err = 0;
+	size_t buf_left, nr_conv = 0;
+	char *data, *data_stage = NULL, *p;
+	bool is_unsigned = data_type == PROC_VEC_UINT || data_type == PROC_VEC_ULONG;
+
+	buf_left = buf_nbyte;
+
+	data = table->data;
+	if (SYSCTL_USER_TO_KERN(conv_dir)) {
+		if (buf_left > PAGE_SIZE - 1)
+			buf_left = PAGE_SIZE - 1;
+		p = buf;
+
+		if (table->maxlen > data_size) {
+			data_stage = kmemdup(table->data, table->maxlen, GFP_KERNEL);
+			if (!data_stage) {
+				err = -ENOMEM;
+				goto out;
+			}
+			data = data_stage;
+		}
+	}
+
+	vec_left = table->maxlen / data_size;
+	for (; buf_left && vec_left--; data += data_size, nr_conv++) {
+		unsigned long lval;
+		bool neg = false;
+
+		if (SYSCTL_USER_TO_KERN(conv_dir)) {
+			proc_skip_spaces(&p, &buf_left);
+
+			if (!buf_left)
+				break;
+			err = proc_get_long(&p, &buf_left, &lval, &neg,
+					    proc_wspace_sep,
+					    sizeof(proc_wspace_sep), NULL);
+			if (!err && neg && is_unsigned)
+				err = -EINVAL;
+			if (err)
+				break;
+			if (proc_vec_conv(data_type, conv, &neg, &lval, data, conv_dir, table)) {
+				err = -EINVAL;
+				break;
+			}
+		} else {
+			if (proc_vec_conv(data_type, conv, &neg, &lval, data, conv_dir, table)) {
+				err = -EINVAL;
+				break;
+			}
+			if (nr_conv)
+				proc_put_char(&buf, &buf_left, '\t');
+			proc_put_long(&buf, &buf_left, lval, neg);
+		}
+	}
+
+	if (SYSCTL_USER_TO_KERN(conv_dir)) {
+		if (!err && buf_left)
+			proc_skip_spaces(&p, &buf_left);
+		if (!nr_conv) {
+			err = err ? : -EINVAL;
+			goto out;
+		}
+		if (!err && data_stage)
+			err = commit_conv_vec(data_type, table->data, data_stage, nr_conv);
+	} else {
+		if (nr_conv && buf_left && !err)
+			proc_put_char(&buf, &buf_left, '\n');
+	}
+
+	*buf_left_final = buf_left;
+
+out:
+	kfree(data_stage);
+	return err;
+}
+
+/* Read/write a vector of @type elements. */
+static int proc_vec(const struct ctl_table *table, int dir, void *buffer,
+		    size_t *lenp, loff_t *ppos, enum proc_vec_type type,
+		    union proc_vec_conv conv)
+{
+	int err = 0;
+	size_t data_size, left_nbyte = SIZE_MAX;
 
 	switch (type) {
 	case PROC_VEC_INT:
-		size = sizeof(int);
-		is_unsigned = false;
+		data_size = sizeof(int);
 		break;
 	case PROC_VEC_UINT:
-		size = sizeof(uint);
-		is_unsigned = true;
+		data_size = sizeof(uint);
 		break;
 	case PROC_VEC_ULONG:
-		size = sizeof(ulong);
-		is_unsigned = true;
+		data_size = sizeof(ulong);
 		break;
 	default:
 		return -EINVAL;
@@ -675,63 +777,27 @@ static int do_proc_vec(const struct ctl_table *table, int dir,
 		return 0;
 	}
 
-	i = table->data;
-	vleft = table->maxlen / size;
-	left = *lenp;
-
-	/* uint arrays are not supported, *Do not* add support for them. */
-	if (type == PROC_VEC_UINT && vleft != 1)
-		return -EINVAL;
-
 	if (SYSCTL_USER_TO_KERN(dir)) {
 		if (proc_first_pos_non_zero_ignore(ppos, table))
 			goto out;
-
-		if (left > PAGE_SIZE - 1)
-			left = PAGE_SIZE - 1;
-		p = buffer;
 	}
 
-	for (; left && vleft--; i += size, first = 0) {
-		unsigned long lval;
-		bool neg = false;
+	err = apply_conv_on_vec(conv, table, type, data_size, dir, *lenp, buffer,
+				&left_nbyte);
 
-		if (SYSCTL_USER_TO_KERN(dir)) {
-			proc_skip_spaces(&p, &left);
+	/*
+	 * An unchanged left_nbyte signals a write with no parsed element; which
+	 * is an error. Using SIZE_MAX to detect this error is possible because:
+	 * 1. lenp is bounded by KMALLOC_MAX_SIZE in proc_sys_call_handler
+	 * 2. lenp could never be SIZE_MAX as it is a "ridiculous" (exabyte) allocation.
+	 */
+	if (left_nbyte == SIZE_MAX)
+		return err;
 
-			if (!left)
-				break;
-			err = proc_get_long(&p, &left, &lval, &neg,
-					    proc_wspace_sep,
-					    sizeof(proc_wspace_sep), NULL);
-			if (!err && neg && is_unsigned)
-				err = -EINVAL;
-			if (err)
-				break;
-			if (proc_vec_conv(type, conv, &neg, &lval, i, dir, table)) {
-				err = -EINVAL;
-				break;
-			}
-		} else {
-			if (proc_vec_conv(type, conv, &neg, &lval, i, dir, table)) {
-				err = -EINVAL;
-				break;
-			}
-			if (!first)
-				proc_put_char(&buffer, &left, '\t');
-			proc_put_long(&buffer, &left, lval, neg);
-		}
-	}
-
-	if (SYSCTL_KERN_TO_USER(dir) && !first && left && !err)
-		proc_put_char(&buffer, &left, '\n');
-	if (SYSCTL_USER_TO_KERN(dir) && !err && left)
-		proc_skip_spaces(&p, &left);
-	if (SYSCTL_USER_TO_KERN(dir) && first)
-		return err ? : -EINVAL;
-	*lenp -= left;
+	*lenp -= left_nbyte;
 out:
 	*ppos += *lenp;
+
 	return err;
 }
 
@@ -756,12 +822,15 @@ int proc_douintvec_conv(const struct ctl_table *table, int dir, void *buffer,
 			int (*conv)(bool *negp, ulong *u_ptr, uint *k_ptr,
 				    int dir, const struct ctl_table *table))
 {
+	/* uint arrays are not supported, *Do not* add support for them. */
+	if (table->maxlen && (table->maxlen / sizeof(uint)) != 1)
+		return -EINVAL;
 
 	if (!conv)
 		conv = do_proc_uint_conv;
 
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_UINT,
-			   (union proc_vec_conv){ .uint_conv = conv });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_UINT,
+			(union proc_vec_conv){ .uint_conv = conv });
 }
 
 /**
@@ -820,8 +889,8 @@ int proc_dobool(const struct ctl_table *table, int dir, void *buffer,
 int proc_dointvec(const struct ctl_table *table, int dir, void *buffer,
 		  size_t *lenp, loff_t *ppos)
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
-			   (union proc_vec_conv){ .int_conv = do_proc_int_conv });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
+			(union proc_vec_conv){ .int_conv = do_proc_int_conv });
 }
 
 /**
@@ -840,8 +909,7 @@ int proc_dointvec(const struct ctl_table *table, int dir, void *buffer,
 int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_UINT,
-			   (union proc_vec_conv){ .uint_conv = do_proc_uint_conv });
+	return proc_douintvec_conv(table, dir, buffer, lenp, ppos, do_proc_uint_conv);
 }
 
 /**
@@ -864,8 +932,8 @@ int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 int proc_dointvec_minmax(const struct ctl_table *table, int dir,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
-			   (union proc_vec_conv){ .int_conv = do_proc_int_conv_minmax });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
+			(union proc_vec_conv){ .int_conv = do_proc_int_conv_minmax });
 }
 
 /**
@@ -891,8 +959,8 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
 int proc_douintvec_minmax(const struct ctl_table *table, int dir,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_UINT,
-			   (union proc_vec_conv){ .uint_conv = do_proc_uint_conv_minmax });
+	return proc_douintvec_conv(table, dir, buffer, lenp, ppos,
+				   do_proc_uint_conv_minmax);
 }
 
 /**
@@ -935,8 +1003,7 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int dir,
 		tmp.extra2 = (unsigned int *) &max;
 
 	val = READ_ONCE(*data);
-	res = do_proc_vec(&tmp, dir, buffer, lenp, ppos, PROC_VEC_UINT,
-			  (union proc_vec_conv){ .uint_conv = do_proc_uint_conv_minmax });
+	res = proc_douintvec_minmax(&tmp, dir, buffer, lenp, ppos);
 	if (res)
 		return res;
 	if (SYSCTL_USER_TO_KERN(dir))
@@ -1066,8 +1133,8 @@ int proc_doulongvec_conv(const struct ctl_table *table, int dir,
 				int (*conv)(bool *negp, ulong *u_ptr, ulong *k_ptr,
 					    int dir, const struct ctl_table *table))
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_ULONG,
-			   (union proc_vec_conv){ .ulong_conv = conv });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_ULONG,
+			(union proc_vec_conv){ .ulong_conv = conv });
 }
 
 /**
@@ -1087,10 +1154,10 @@ int proc_doulongvec_conv(const struct ctl_table *table, int dir,
  * Returns: %0 on success.
  */
 int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_ULONG,
-			   (union proc_vec_conv){ .ulong_conv = do_proc_ulong_conv });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_ULONG,
+			(union proc_vec_conv){ .ulong_conv = do_proc_ulong_conv });
 }
 
 /**
@@ -1114,8 +1181,8 @@ int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
 {
 	if (!conv)
 		conv = do_proc_int_conv;
-	return do_proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
-			   (union proc_vec_conv){ .int_conv = conv });
+	return proc_vec(table, dir, buffer, lenp, ppos, PROC_VEC_INT,
+			(union proc_vec_conv){ .int_conv = conv });
 }
 
 /**
@@ -1265,6 +1332,87 @@ int proc_do_large_bitmap(const struct ctl_table *table, int dir,
 	return err;
 }
 
+int proc_do_static_key(const struct ctl_table *table, int dir,
+		       void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct static_key *key = (struct static_key *)table->data;
+	static DEFINE_MUTEX(static_key_mutex);
+	int val, ret;
+	struct ctl_table tmp = {
+		.data   = &val,
+		.maxlen = sizeof(val),
+		.mode   = table->mode,
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = SYSCTL_ONE,
+	};
+
+	if (SYSCTL_USER_TO_KERN(dir) && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&static_key_mutex);
+	val = static_key_enabled(key);
+	ret = proc_dointvec_minmax(&tmp, dir, buffer, lenp, ppos);
+	if (SYSCTL_USER_TO_KERN(dir) && !ret) {
+		if (val)
+			static_key_enable(key);
+		else
+			static_key_disable(key);
+	}
+	mutex_unlock(&static_key_mutex);
+	return ret;
+}
+
+static const struct ctl_table sysctl_subsys_table[] = {
+	{
+		.procname	= "sysctl_writes_strict",
+		.data		= &sysctl_writes_strict,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_NEG_ONE,
+		.extra2		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "ngroups_max",
+		.data		= (void *)&ngroups_max,
+		.maxlen		= sizeof (int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "cap_last_cap",
+		.data		= (void *)&cap_last_cap,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW
+	{
+		.procname	= "unaligned-trap",
+		.data		= &unaligned_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
+	{
+		.procname	= "ignore-unaligned-usertrap",
+		.data		= &no_unaligned_warning,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+};
+
+int __init sysctl_init_bases(void)
+{
+	register_sysctl_init("kernel", sysctl_subsys_table);
+
+	return 0;
+}
+
 #else /* CONFIG_SYSCTL */
 
 int proc_dostring(const struct ctl_table *table, int dir,
@@ -1364,91 +1512,12 @@ int proc_do_large_bitmap(const struct ctl_table *table, int dir,
 	return -ENOSYS;
 }
 
-#endif /* CONFIG_SYSCTL */
-
-#if defined(CONFIG_SYSCTL)
 int proc_do_static_key(const struct ctl_table *table, int dir,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct static_key *key = (struct static_key *)table->data;
-	static DEFINE_MUTEX(static_key_mutex);
-	int val, ret;
-	struct ctl_table tmp = {
-		.data   = &val,
-		.maxlen = sizeof(val),
-		.mode   = table->mode,
-		.extra1 = SYSCTL_ZERO,
-		.extra2 = SYSCTL_ONE,
-	};
-
-	if (SYSCTL_USER_TO_KERN(dir) && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	mutex_lock(&static_key_mutex);
-	val = static_key_enabled(key);
-	ret = proc_dointvec_minmax(&tmp, dir, buffer, lenp, ppos);
-	if (SYSCTL_USER_TO_KERN(dir) && !ret) {
-		if (val)
-			static_key_enable(key);
-		else
-			static_key_disable(key);
-	}
-	mutex_unlock(&static_key_mutex);
-	return ret;
+	return -ENOSYS;
 }
 
-static const struct ctl_table sysctl_subsys_table[] = {
-#ifdef CONFIG_SYSCTL
-	{
-		.procname	= "sysctl_writes_strict",
-		.data		= &sysctl_writes_strict,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_NEG_ONE,
-		.extra2		= SYSCTL_ONE,
-	},
-#endif
-	{
-		.procname	= "ngroups_max",
-		.data		= (void *)&ngroups_max,
-		.maxlen		= sizeof (int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "cap_last_cap",
-		.data		= (void *)&cap_last_cap,
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW
-	{
-		.procname	= "unaligned-trap",
-		.data		= &unaligned_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
-	{
-		.procname	= "ignore-unaligned-usertrap",
-		.data		= &no_unaligned_warning,
-		.maxlen		= sizeof (int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
-};
-
-int __init sysctl_init_bases(void)
-{
-	register_sysctl_init("kernel", sysctl_subsys_table);
-
-	return 0;
-}
 #endif /* CONFIG_SYSCTL */
 /*
  * No sense putting this after each symbol definition, twice,

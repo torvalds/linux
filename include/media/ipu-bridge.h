@@ -17,12 +17,27 @@
 #define IPU_SENSOR_ROTATION_NORMAL		0
 #define IPU_SENSOR_ROTATION_INVERTED		1
 
-#define IPU_SENSOR_CONFIG(_HID, _NR, ...)	\
-	(const struct ipu_sensor_config) {	\
-		.hid = _HID,			\
-		.nr_link_freqs = _NR,		\
-		.link_freqs = { __VA_ARGS__ }	\
+/* Flags for struct ipu_sensor_config */
+/* The sensor's CSI-2 transmitter needs a non-continuous clock */
+#define IPU_BR_FL_CSI2_CLK_NONCONTINUOUS	BIT(0)
+
+/*
+ * Sensor config specific to one or more IPUs, identified by their PCI product
+ * IDs, with flags describing what the sensor needs there. Entries for one HID
+ * must be adjacent in ipu_supported_sensors[], with the IPU-specific ones
+ * before the generic one.
+ */
+#define IPU_SENSOR_CONFIG_MATCH_FL(_HID, _IDS, _FLAGS, _NR, ...)	\
+	(const struct ipu_sensor_config) {				\
+		.hid = _HID,						\
+		.pci_ids = _IDS,					\
+		.flags = _FLAGS,					\
+		.nr_link_freqs = _NR,					\
+		.link_freqs = { __VA_ARGS__ }				\
 	}
+
+#define IPU_SENSOR_CONFIG(_HID, _NR, ...)				\
+	IPU_SENSOR_CONFIG_MATCH_FL(_HID, NULL, 0, _NR, __VA_ARGS__)
 
 #define NODE_SENSOR(_HID, _PROPS)		\
 	(const struct software_node) {		\
@@ -64,6 +79,24 @@ enum ipu_sensor_swnodes {
 	SWNODE_COUNT
 };
 
+enum ipu_bridge_ep_props {
+	IPU_BRIDGE_EP_BUS_TYPE,
+	IPU_BRIDGE_EP_DATA_LANES,
+	IPU_BRIDGE_EP_REMOTE_EP,
+	IPU_BRIDGE_EP_LINK_FREQUENCIES,
+	IPU_BRIDGE_EP_CLOCK_NONCONTINUOUS,
+	IPU_BRIDGE_EP_NUM_OF,
+	IPU_BRIDGE_EP_NUM_ENTRIES
+};
+
+/*
+ * Get the index of the next property in a property array, with a given maximum
+ * value.
+ */
+#define IPU_BRIDGE_NEXT_PROPERTY(index, max)		\
+	(WARN_ON((index) > IPU_BRIDGE_##max) ?		\
+	 IPU_BRIDGE_##max : (index)++)
+
 /* Data representation as it is in ACPI SSDB buffer */
 struct ipu_sensor_ssdb {
 	u8 version;
@@ -102,6 +135,7 @@ struct ipu_property_names {
 	char data_lanes[11];
 	char remote_endpoint[16];
 	char link_frequencies[17];
+	char clock_noncontinuous[20];
 };
 
 struct ipu_node_names {
@@ -115,6 +149,9 @@ struct ipu_node_names {
 
 struct ipu_sensor_config {
 	const char *hid;
+	/* Zero-terminated list of IPU PCI product IDs, NULL for any IPU */
+	const u16 *pci_ids;
+	const u32 flags;
 	const u8 nr_link_freqs;
 	const u64 link_freqs[MAX_NUM_LINK_FREQS];
 };
@@ -141,7 +178,7 @@ struct ipu_sensor {
 	const char *vcm_type;
 
 	struct ipu_property_names prop_names;
-	struct property_entry ep_properties[5];
+	struct property_entry ep_properties[IPU_BRIDGE_EP_NUM_ENTRIES];
 	struct property_entry dev_properties[5];
 	struct property_entry ipu_properties[3];
 	struct property_entry ivsc_properties[1];
@@ -160,6 +197,8 @@ typedef int (*ipu_parse_sensor_fwnode_t)(struct acpi_device *adev,
 
 struct ipu_bridge {
 	struct device *dev;
+	/* PCI product ID of the IPU, 0 if it is not a PCI device */
+	u16 pci_id;
 	ipu_parse_sensor_fwnode_t parse_sensor_fwnode;
 	char ipu_node_name[ACPI_ID_LEN];
 	struct software_node ipu_hid_node;
@@ -169,11 +208,13 @@ struct ipu_bridge {
 };
 
 #if IS_ENABLED(CONFIG_IPU_BRIDGE)
+struct pci_dev *ipu_bridge_get_ipu6(void);
 int ipu_bridge_init(struct device *dev,
 		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode);
 int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor);
 int ipu_bridge_instantiate_vcm(struct device *sensor);
 #else
+static inline struct pci_dev *ipu_bridge_get_ipu6(void) { return NULL; }
 /* Use a define to avoid the @parse_sensor_fwnode argument getting evaluated */
 #define ipu_bridge_init(dev, parse_sensor_fwnode)	(0)
 static inline int ipu_bridge_instantiate_vcm(struct device *s) { return 0; }

@@ -66,9 +66,8 @@
 	ld.d	t0, a2, KVM_ARCH_KVMPGD
 	csrwr	t0, LOONGARCH_CSR_PGDL
 
-	/* Mix GID and RID */
-	csrrd		t1, LOONGARCH_CSR_GSTAT
-	bstrpick.w	t1, t1, CSR_GSTAT_GID_SHIFT_END, CSR_GSTAT_GID_SHIFT
+	/* Set VMID for gpa --> hpa mapping */
+	ld.d		t1, a2, KVM_ARCH_TGID
 	csrrd		t0, LOONGARCH_CSR_GTLBC
 	bstrins.w	t0, t1, CSR_GTLBC_TGID_SHIFT_END, CSR_GTLBC_TGID_SHIFT
 	csrwr		t0, LOONGARCH_CSR_GTLBC

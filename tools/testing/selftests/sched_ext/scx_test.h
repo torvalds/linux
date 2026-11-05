@@ -18,8 +18,6 @@ enum scx_test_status {
 	SCX_TEST_FAIL,
 };
 
-#define EXIT_KIND(__ent) __COMPAT_ENUM_OR_ZERO("scx_exit_kind", #__ent)
-
 struct scx_test {
 	/**
 	 * name - The name of the testcase.
@@ -110,6 +108,41 @@ void scx_test_register(struct scx_test *test);
 #define SCX_ASSERT(_x) SCX_FAIL_IF(!(_x), "Expected %s to be true (%lu)",		\
 				   #_x, (u64)(_x))
 
+/*
+ * SCX_ASSERT_ALIVE - Fail the test if the scheduler under test exited
+ * on its own between attach and this check, e.g. from a runtime error.
+ * A scheduler that dies mid-test freezes whatever state the test is
+ * about to assert on, which can make the assertions pass vacuously.
+ * uei.msg carries the actual error text, so print it alongside the
+ * recorded kind and exit code.
+ */
+#define SCX_ASSERT_ALIVE(__skel, __uei)						\
+	do {									\
+		if (UEI_EXITED(__skel, __uei))					\
+			SCX_FAIL("Scheduler exited unexpectedly"		\
+				 " (kind=%llu code=%lld msg='%s')",		\
+				 (unsigned long long)(__skel)->data->__uei.kind, \
+				 (long long)(__skel)->data->__uei.exit_code,	\
+				 (__skel)->data->__uei.msg);			\
+	} while (0)
+
+/*
+ * SCX_TIMED_WAIT_UEI - Wait for the scheduler under test to exit, i.e.
+ * its uei to be filled in, for up to @__ms iterations at ~1ms each.
+ * Returns true if the scheduler exited and false on timeout, so a
+ * scheduler that never exits fails the test instead of hanging it.
+ * The bound is iteration-based rather than wall-clock and stretches
+ * on a loaded system instead of failing early.
+ */
+#define SCX_TIMED_WAIT_UEI(__skel, __uei, __ms)					\
+	({									\
+		s64 __left = (__ms);						\
+										\
+		while (__left-- > 0 && !UEI_EXITED(__skel, __uei))		\
+			usleep(1000);						\
+		UEI_EXITED(__skel, __uei) != 0;					\
+	})
+
 #define SCX_ECODE_VAL(__ecode) ({						\
         u64 __val = 0;								\
 	bool __found = false;							\
@@ -119,13 +152,25 @@ void scx_test_register(struct scx_test *test);
 	(s64)__val;								\
 })
 
+/*
+ * SCX_KIND_VAL - Resolve an scx_exit_kind enumerator from kernel BTF.
+ *
+ * Unlike __COMPAT_ENUM_OR_ZERO(), a missing enumerator fails the test
+ * loudly instead of silently resolving to 0 (== SCX_EXIT_NONE), which
+ * would make the comparison vacuous.
+ */
 #define SCX_KIND_VAL(__kind) ({							\
-        u64 __val = 0;								\
-	bool __found = false;							\
+	u64 __val = 0;								\
 										\
-	__found = __COMPAT_read_enum("scx_exit_kind", #__kind, &__val);		\
-	SCX_ASSERT(__found);							\
+	if (!__COMPAT_read_enum("scx_exit_kind", #__kind, &__val))		\
+		SCX_FAIL("scx_exit_kind.%s not found in kernel BTF", #__kind);	\
 	__val;									\
 })
+
+/*
+ * EXIT_KIND - Alias of SCX_KIND_VAL() for resolving scx_exit_kind
+ * enumerator values, kept for readability at the EXIT_KIND() call sites.
+ */
+#define EXIT_KIND(__ent) SCX_KIND_VAL(__ent)
 
 #endif  // # __SCX_TEST_H__

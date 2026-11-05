@@ -55,25 +55,25 @@ static void l1_vmx_code(struct vmx_pages *vmx, u64 expected_fault_gpa,
 	u64 exit_qual;
 
 	GUEST_ASSERT(vmx->vmcs_gpa);
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
-	GUEST_ASSERT(load_vmcs(vmx));
+	prepare_for_vmx_operation(vmx);
+	load_vmcs(vmx);
 
 	prepare_vmcs(vmx, l2_entry);
 
-	GUEST_ASSERT(!vmlaunch());
+	vmlaunch();
 
 	/* Verify we got an EPT violation exit */
-	__GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_EPT_VIOLATION,
+	__GUEST_ASSERT(vmread(VM_EXIT_REASON) == EXIT_REASON_EPT_VIOLATION,
 		       "Expected EPT violation (0x%x), got 0x%lx",
 		       EXIT_REASON_EPT_VIOLATION,
-		       vmreadz(VM_EXIT_REASON));
+		       vmread(VM_EXIT_REASON));
 
-	__GUEST_ASSERT(vmreadz(GUEST_PHYSICAL_ADDRESS) == expected_fault_gpa,
+	__GUEST_ASSERT(vmread(GUEST_PHYSICAL_ADDRESS) == expected_fault_gpa,
 		       "Expected guest_physical_address = 0x%lx, got 0x%lx",
 		       expected_fault_gpa,
-		       vmreadz(GUEST_PHYSICAL_ADDRESS));
+		       vmread(GUEST_PHYSICAL_ADDRESS));
 
-	exit_qual = vmreadz(EXIT_QUALIFICATION);
+	exit_qual = vmread(EXIT_QUALIFICATION);
 
 	/*
 	 * Note, EPT page table accesses are always read+write, e.g. so that

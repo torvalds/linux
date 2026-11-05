@@ -6,6 +6,19 @@
 #include <asm/pal.h>
 #include <vdso/page.h>
 
+#ifdef CONFIG_HUGETLB_PAGE
+/*
+ * The default huge page is the largest granularity hint block, 4MB. All
+ * three hint sizes are registered as hstates, hence HUGE_MAX_HSTATE, which
+ * linux/hugetlb.h needs before it includes asm/hugetlb.h.
+ */
+#define HPAGE_SHIFT		22
+#define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define HUGE_MAX_HSTATE		3
+#endif
+
 #ifndef __ASSEMBLER__
 
 #define STRICT_MM_TYPECHECKS

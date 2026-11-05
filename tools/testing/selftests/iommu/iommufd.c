@@ -2175,9 +2175,9 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 	test_ioctl_ioas_alloc(&self->ioas_id);
 
 	/*
-	 * For dirty testing it is important that the page size fed into
-	 * the iommu page tables matches the size the dirty logic
-	 * expects, or set_dirty can touch too much stuff.
+	 * Disabling huge pages maps in PAGE_SIZE units, which can span
+	 * multiple contiguous MOCK_PAGE_SIZE entries. The dirty tests must
+	 * expect the entire mapping to be reported dirty.
 	 */
 	cmd.object_id = self->ioas_id;
 	if (!variant->hugepages)
@@ -2335,7 +2335,7 @@ TEST_F(iommufd_dirty_tracking, device_dirty_capability)
 
 TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 {
-	uint32_t page_size = MOCK_PAGE_SIZE;
+	uint32_t page_size = PAGE_SIZE;
 	uint32_t ioas_id = self->ioas_id;
 	uint32_t hwpt_id;
 
@@ -2377,7 +2377,7 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 
 TEST_F(iommufd_dirty_tracking, get_dirty_bitmap_no_clear)
 {
-	uint32_t page_size = MOCK_PAGE_SIZE;
+	uint32_t page_size = PAGE_SIZE;
 	uint32_t ioas_id = self->ioas_id;
 	uint32_t hwpt_id;
 
@@ -3613,4 +3613,16 @@ TEST_F(iommufd_device_pasid, pasid_attach)
 	test_cmd_mock_domain_replace(self->stdev_id, self->ioas_id);
 }
 
-TEST_HARNESS_MAIN
+static bool iommufd_mock_available(void)
+{
+	return access("/sys/bus/iommufd_mock", F_OK) == 0;
+}
+
+int main(int argc, char **argv)
+{
+	if (!iommufd_mock_available())
+		ksft_exit_skip(
+			"no iommufd mock device, the tests need CONFIG_IOMMUFD_TEST=y and the iommufd module loaded\n");
+
+	return test_harness_run(argc, argv);
+}

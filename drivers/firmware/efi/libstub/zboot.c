@@ -34,6 +34,7 @@ struct sysfb_display_info *alloc_primary_display(void)
 asmlinkage efi_status_t __efiapi
 efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 {
+	static efi_guid_t loaded_image_guid = LOADED_IMAGE_PROTOCOL_GUID;
 	char *cmdline_ptr __free(efi_pool) = NULL;
 	unsigned long image_base, alloc_size;
 	efi_loaded_image_t *image;
@@ -42,7 +43,7 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	WRITE_ONCE(efi_system_table, systab);
 
 	status = efi_bs_call(handle_protocol, handle,
-			     &LOADED_IMAGE_PROTOCOL_GUID, (void **)&image);
+			     &loaded_image_guid, (void **)&image);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to locate parent's loaded image protocol\n");
 		return status;

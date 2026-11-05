@@ -43,7 +43,7 @@
 
 #endif
 
-/**
+/*
  * This is the definition of the Ethernet driver's private
  * driver state stored in netdev_priv(dev).
  */

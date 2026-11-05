@@ -25,6 +25,7 @@
 
 #include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_smu.h"
 #include "smu_v13_0_12_pmfw.h"
 #include "smu_v13_0_6_ppt.h"
@@ -152,6 +153,7 @@ const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GetStaticMetricsTable,               PPSMC_MSG_GetStaticMetricsTable,           1),
 	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           1),
 	MSG_MAP(GetRASTableVersion,                  PPSMC_MSG_GetRasTableVersion,              0),
+	MSG_MAP(GetRmaStatus,                        PPSMC_MSG_GetRmaStatus,                    0),
 	MSG_MAP(GetBadPageCount,                     PPSMC_MSG_GetBadPageCount,                 0),
 	MSG_MAP(GetBadPageMcaAddr,                   PPSMC_MSG_GetBadPageMcaAddress,            0),
 	MSG_MAP(SetTimestamp,                        PPSMC_MSG_SetTimestamp,                    0),
@@ -683,6 +685,9 @@ int smu_v13_0_12_get_npm_data(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_NODEPOWER:
 		*value = SMUQ10_ROUND(metrics->NodePower);
 		break;
+	case AMDGPU_PP_SENSOR_NPMSTATUS:
+		*value = !!SMUQ10_ROUND(metrics->NodePower);
+		break;
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
 		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
 		break;
@@ -691,6 +696,25 @@ int smu_v13_0_12_get_npm_data(struct smu_context *smu,
 	}
 
 	return ret;
+}
+
+u64 smu_v13_0_12_get_npm_cap(struct smu_context *smu)
+{
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu->smu_table.driver_pptable;
+	u64 cap = 0;
+
+	if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(NPM_METRICS)) ||
+	    !pptable->MaxNodePowerLimit)
+		return 0;
+
+	cap |= AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_CUR_NODE_POWER_LIMIT);
+	cap |= AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_NODE_POWER);
+	cap |= AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_GLOBAL_PPT_RESID);
+	cap |= AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_MAX_NODE_POWER_LIMIT);
+	cap |= AMDGPU_NPM_CAP_R(AMDGPU_NPM_CAP_NPM_STATUS);
+
+	return cap;
 }
 
 static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,

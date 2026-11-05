@@ -59,6 +59,183 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "LBR record is inserted [This event is alias to MISC_RETIRED.LBR_INSERTS]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe4",
+        "EventName": "LBR_INSERTS.ANY",
+        "PublicDescription": "LBR record is inserted [This event is alias to MISC_RETIRED.LBR_INSERTS] Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Any memory transaction that reached the SQ.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x21",
+        "EventName": "OFFMODULE_REQUESTS.ALL_REQUESTS",
+        "PublicDescription": "Counts memory transactions reached the super queue including requests initiated by the core, all L3 prefetches, page walks, etc..",
+        "SampleAfterValue": "100003",
+        "UMask": "0x80",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Demand and prefetch data reads",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x21",
+        "EventName": "OFFMODULE_REQUESTS.DATA_RD",
+        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Demand Data Read requests sent to uncore",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x21",
+        "EventName": "OFFMODULE_REQUESTS.DEMAND_DATA_RD",
+        "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFMODULE_REQUESTS_OUTSTANDING to determine average latency in the uncore.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles when offmodule outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0x20",
+        "EventName": "OFFMODULE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
+        "PublicDescription": "Counts cycles when offmodule outstanding cacheable Core Data Read transactions are present in the super queue. A transaction is considered to be in the Offmodule outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFMODULE_REQUESTS.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles with offmodule outstanding Code Reads transactions in the SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0x20",
+        "EventName": "OFFMODULE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_CODE_RD",
+        "PublicDescription": "Counts the number of offmodule outstanding Code Reads transactions in the super queue every cycle. The 'Offmodule outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles with offmodule outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0x20",
+        "EventName": "OFFMODULE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
+        "PublicDescription": "Counts the number of offmodule outstanding demand rfo Reads transactions in the super queue every cycle. The 'Offmodule outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFMODULE_REQUESTS.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Offmodule outstanding cacheable Core Data Read transactions in SuperQueue (SQ), queue to uncore",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "OFFMODULE_REQUESTS_OUTSTANDING.DATA_RD",
+        "PublicDescription": "Counts the number of offmodule outstanding cacheable Core Data Read transactions in the super queue every cycle. A transaction is considered to be in the Offmodule outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFMODULE_REQUESTS.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "OFFMODULE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
+        "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.DEMAND_DATA_RD.ANY_MEMORY",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.DEMAND_DATA_RD.ANY_MEMORY",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xF5030000000001",
+        "PublicDescription": "OMR.DEMAND_DATA_RD.ANY_MEMORY Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x4000000000000001",
+        "PublicDescription": "OMR.DEMAND_DATA_RD.ANY_RESPONSE Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.DEMAND_DATA_RD.MEM_REGION_0",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.DEMAND_DATA_RD.MEM_REGION_0",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xF5010000000001",
+        "PublicDescription": "OMR.DEMAND_DATA_RD.MEM_REGION_0 Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.DEMAND_DATA_RD.MEM_REGION_1",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.DEMAND_DATA_RD.MEM_REGION_1",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xF5020000000001",
+        "PublicDescription": "OMR.DEMAND_DATA_RD.MEM_REGION_1 Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.READS_TO_CORE.ANY_MEMORY",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.READS_TO_CORE.ANY_MEMORY",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xF5030000004477",
+        "PublicDescription": "OMR.READS_TO_CORE.ANY_MEMORY Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.READS_TO_CORE.ANY_RESPONSE",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.READS_TO_CORE.ANY_RESPONSE",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x4000000000004477",
+        "PublicDescription": "OMR.READS_TO_CORE.ANY_RESPONSE Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.STREAMING_WR.ANY_RESPONSE",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.STREAMING_WR.ANY_RESPONSE",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0x4000000000000800",
+        "PublicDescription": "OMR.STREAMING_WR.ANY_RESPONSE Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "number of port pushouts of integer ports (ready uop was delayed due to port being used by another uop) including integer STD.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xab",
@@ -68,12 +245,39 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "number of port pushouts of memory exec ports (ready uop was delayed due to port being used by another uop)",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xab",
+        "EventName": "PORT_PUSHOUT.MEM_ADDRESS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "number of port pushouts of vector ports (ready uop was delayed due to port being used by another uop)",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xab",
         "EventName": "PORT_PUSHOUT.VECTOR",
         "SampleAfterValue": "1000003",
         "UMask": "0x2",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Number of integer uops scheduled for execution (no cancel) including integer STD uops - ports with ready uops",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xaa",
+        "EventName": "PORT_READY.INTEGER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Number of memory AGU uops scheduled for execution (no cancel) - ports with ready uops",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xaa",
+        "EventName": "PORT_READY.MEM_ADDRESS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
         "Unit": "cpu_core"
     },
     {
@@ -92,6 +296,15 @@
         "EventName": "STALL_CORE_BOUND.GENERAL",
         "SampleAfterValue": "1000003",
         "UMask": "0x20",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Alloc Stall cycles when stall is due to integer stack resource and is not MEMORY_BOUND stall",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa9",
+        "EventName": "STALL_CORE_BOUND.INTEGER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {

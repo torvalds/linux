@@ -338,13 +338,6 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 #define pte_pfn(x)		((unsigned long)(((x).pte)) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)  __pte((((pfn) << PAGE_SHIFT)) | pgprot_val(prot))
 
-#define pte_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pte %p(%08lx).\n", \
-	       __FILE__, __LINE__, &(e), pte_val(e))
-#define pgd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pgd %p(%08lx).\n", \
-	       __FILE__, __LINE__, &(e), pgd_val(e))
-
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
 
 struct vm_area_struct;

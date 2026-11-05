@@ -327,7 +327,7 @@ int hws_video_init_channel(struct hws_pcie_dev *pdev, int ch)
 	vid->pix.sizeimage = vid->pix.bytesperline * vid->pix.height;
 	vid->pix.field = V4L2_FIELD_NONE;
 	vid->pix.colorspace = V4L2_COLORSPACE_REC709;
-	vid->pix.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	vid->pix.ycbcr_enc = V4L2_YCBCR_ENC_601;
 	vid->pix.quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	vid->pix.xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	vid->pix.interlaced = false;
@@ -895,6 +895,8 @@ static void hws_video_apply_mode_change(struct hws_pcie_dev *pdx,
 	v->pix.width = w;
 	v->pix.height = h;
 	v->pix.interlaced = interlaced;
+	v->pix.colorspace = h <= 576 ? V4L2_COLORSPACE_SMPTE170M :
+					 V4L2_COLORSPACE_REC709;
 	hws_set_current_dv_timings(v, w, h, interlaced);
 	v->current_fps = fps;
 
@@ -1292,6 +1294,8 @@ static void hws_stop_streaming(struct vb2_queue *q)
 	WRITE_ONCE(v->stop_requested, true);
 
 	hws_enable_video_capture(v->parent, v->channel_index, false);
+	if (hws->irq >= 0)
+		synchronize_irq(hws->irq);
 
 	/* 2) Collect in-flight + queued under the IRQ lock */
 	spin_lock_irqsave(&v->irq_lock, flags);

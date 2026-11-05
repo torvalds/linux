@@ -20,8 +20,8 @@
 #define HWC_INIT_DATA_MAX_NUM_CQS	7
 #define HWC_INIT_DATA_PDID		8
 #define HWC_INIT_DATA_GPA_MKEY		9
-#define HWC_INIT_DATA_PF_DEST_RQ_ID	10
-#define HWC_INIT_DATA_PF_DEST_CQ_ID	11
+#define HWC_INIT_DATA_DEST_RQ_ID	10
+#define HWC_INIT_DATA_DEST_CQ_ID	11
 
 #define HWC_DATA_CFG_HWC_TIMEOUT 1
 #define HWC_DATA_HW_LINK_CONNECT 2
@@ -195,8 +195,8 @@ struct hw_channel_context {
 	struct semaphore sema;
 	struct gdma_resource inflight_msg_res;
 
-	u32 pf_dest_vrq_id;
-	u32 pf_dest_vrcq_id;
+	u32 dest_vrq_id;
+	u32 dest_vrcq_id;
 	u32 hwc_timeout;
 
 	struct hwc_caller_ctx *caller_ctx;

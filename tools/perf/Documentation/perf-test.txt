@@ -8,7 +8,7 @@ perf-test - Runs sanity tests.
 SYNOPSIS
 --------
 [verse]
-'perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]'
+'perf test [<options>] [{list|requisites} [<test-name-fragment>]|[<test-name-fragments>|<test-numbers>]]'
 
 DESCRIPTION
 -----------
@@ -18,8 +18,38 @@ also will look for a directory with more tests in the form of scripts.
 To get a list of available tests use 'perf test list', specifying a test name
 fragment will show all tests that have it.
 
+To get a list of what the tests need, i.e. of their requisites (see below), use
+'perf test requisites', that takes the same test name fragments and numbers as
+'list'.
+
 To run just specific tests, inform test name fragments or the numbers obtained
 from 'perf test list'.
+
+REQUISITES
+----------
+Shell tests run perf, that maps ring buffers, so they are taken to need room
+in the per user budget set in kernel.perf_event_mlock_kb, shared by the tests
+running at the same time, that take turns using it.  Tests state what they
+need, or waive, in a comma separated list in the parens ending their
+description line, e.g.:
+
+	# perf stat tests (no_mlock)
+
+Each requisite is named in that list, "mlock" being room in the budget set in
+kernel.perf_event_mlock_kb, and takes a "no_" prefix to waive it: "(mlock)"
+states the default, "(no_mlock)" waives it, for tests that don't map ring
+buffers.  Leaving a requisite out states nothing about it, so what happens
+then is up to each kind of test: shell ones run perf, that maps ring buffers,
+so they are taken to need room in the budget unless they waive it, while C
+suites say which ones map, see DEFINE_SUITE_NEEDS_MLOCK() in tests.h.
+"exclusive" is a catch-all: the test can't run alongside any other one, so
+it runs alone, in sequence, and implies every other requisite; it can't be
+waived.  More requisites are to come, each stating what a test needs, till
+the catch-all isn't needed anymore.
+
+Use 'perf test requisites' to list what each test needs.  That listing states
+the needs, not the requisites form used in the scripts: a test listed as
+needing "mlock" is one whose script doesn't say "(no_mlock)".
 
 OPTIONS
 -------
@@ -36,8 +66,8 @@ OPTIONS
 
 -S::
 --sequential::
-	Run all tests one after the other. By default "exclusive"
-	tests are run sequentially, but other tests are run in
+	Run all tests one after the other. By default the tests asking to be
+	"exclusive" (see REQUISITES) run sequentially, but other tests run in
 	parallel to speed execution.
 
 -r::

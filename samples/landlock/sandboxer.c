@@ -12,8 +12,11 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/landlock.h>
+#include <linux/sched.h>
 #include <linux/socket.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +25,10 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <stdbool.h>
+
+#ifdef USE_LIBCAP
+#include <sys/capability.h>
+#endif
 
 #if defined(__GLIBC__)
 #include <linux/prctl.h>
@@ -62,12 +68,28 @@ static inline int landlock_restrict_self(const int ruleset_fd,
 #define ENV_TCP_BIND_NAME "LL_TCP_BIND"
 #define ENV_TCP_CONNECT_NAME "LL_TCP_CONNECT"
 #define ENV_NET_QUIET_NAME "LL_NET_QUIET"
+#define ENV_NS_NAME "LL_NS"
+#define ENV_NS_QUIET_NAME "LL_NS_QUIET"
+#define ENV_CAP_NAME "LL_CAP"
+#define ENV_CAP_QUIET_NAME "LL_CAP_QUIET"
 #define ENV_SCOPED_NAME "LL_SCOPED"
 #define ENV_QUIET_ACCESS_NAME "LL_QUIET_ACCESS"
 #define ENV_FORCE_LOG_NAME "LL_FORCE_LOG"
 #define ENV_UDP_BIND_NAME "LL_UDP_BIND"
 #define ENV_UDP_CONNECT_SEND_NAME "LL_UDP_CONNECT_SEND"
 #define ENV_DELIMITER ":"
+
+#ifdef USE_LIBCAP
+#define CAP_VALUE_DESCRIPTION "names or numbers"
+#define CAP_VALUE_EXAMPLES "cap_net_bind_service, cap_sys_admin, 18"
+#define CAP_VALUE_EXAMPLE "cap_sys_admin"
+#else
+#define CAP_VALUE_DESCRIPTION "numbers"
+#define CAP_VALUE_EXAMPLES "10, 18, 21"
+#define CAP_VALUE_EXAMPLE "21"
+#endif
+
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 
 static int str2num(const char *numstr, __u64 *num_dst)
 {
@@ -232,6 +254,185 @@ out_free_name:
 	return ret;
 }
 
+static __u64 str2ns(const char *const name)
+{
+	static const struct {
+		const char *name;
+		__u64 value;
+	} ns_map[] = {
+		/* clang-format off */
+		{ "cgroup",	CLONE_NEWCGROUP },
+		{ "ipc",	CLONE_NEWIPC },
+		{ "mnt",	CLONE_NEWNS },
+		{ "net",	CLONE_NEWNET },
+		{ "pid",	CLONE_NEWPID },
+		{ "time",	CLONE_NEWTIME },
+		{ "user",	CLONE_NEWUSER },
+		{ "uts",	CLONE_NEWUTS },
+		/* clang-format on */
+	};
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(ns_map); i++) {
+		if (strcmp(name, ns_map[i].name) == 0)
+			return ns_map[i].value;
+	}
+	return 0;
+}
+
+/*
+ * Parses a colon-delimited list of namespace type names into a bitmask.
+ * Returns 0 on success (mask 0 when the variable is unset or empty), or 1 on a
+ * parse error.
+ */
+static int parse_ns_list(const char *const env_var, __u64 *const mask)
+{
+	int ret = 1;
+	char *env_ns_name, *env_ns_name_next, *strns;
+
+	*mask = 0;
+	env_ns_name = getenv(env_var);
+	if (!env_ns_name)
+		return 0;
+	env_ns_name = strdup(env_ns_name);
+	unsetenv(env_var);
+
+	env_ns_name_next = env_ns_name;
+	while ((strns = strsep(&env_ns_name_next, ENV_DELIMITER))) {
+		__u64 ns_type;
+
+		if (strcmp(strns, "") == 0)
+			continue;
+
+		ns_type = str2ns(strns);
+		if (!ns_type) {
+			fprintf(stderr, "Unknown namespace type \"%s\"\n",
+				strns);
+			goto out_free_name;
+		}
+		*mask |= ns_type;
+	}
+	ret = 0;
+
+out_free_name:
+	free(env_ns_name);
+	return ret;
+}
+
+static int populate_ruleset_ns(const char *const allowed_env,
+			       const char *const quiet_env,
+			       const int ruleset_fd)
+{
+	struct landlock_namespace_attr ns_attr = {
+		.permissions = LANDLOCK_PERMISSION_NAMESPACE_USE,
+	};
+
+	if (parse_ns_list(allowed_env, &ns_attr.allowed_namespace_types))
+		return 1;
+	if (parse_ns_list(quiet_env, &ns_attr.quiet_namespace_types))
+		return 1;
+
+	if (!ns_attr.allowed_namespace_types && !ns_attr.quiet_namespace_types)
+		return 0;
+
+	if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NAMESPACE, &ns_attr,
+			      0)) {
+		fprintf(stderr,
+			"Failed to update the ruleset with namespace types: %s\n",
+			strerror(errno));
+		return 1;
+	}
+	return 0;
+}
+
+static int str2cap(const char *const strcap, __u64 *const cap)
+{
+#ifdef USE_LIBCAP
+	cap_value_t value;
+#endif
+
+	if (!str2num(strcap, cap))
+		return 0;
+
+#ifdef USE_LIBCAP
+	if (cap_from_name(strcap, &value))
+		return 1;
+	*cap = value;
+	return 0;
+#else
+	return 1;
+#endif
+}
+
+/*
+ * Parses a colon-delimited list of capability values into a bitmask.  Returns 0
+ * on success (mask 0 when the variable is unset or empty), or 1 on a parse
+ * error.
+ */
+static int parse_cap_list(const char *const env_var, __u64 *const mask)
+{
+	int ret = 1;
+	char *env_cap_name, *env_cap_name_next, *strcap;
+
+	*mask = 0;
+	env_cap_name = getenv(env_var);
+	if (!env_cap_name)
+		return 0;
+	env_cap_name = strdup(env_cap_name);
+	unsetenv(env_var);
+
+	env_cap_name_next = env_cap_name;
+	while ((strcap = strsep(&env_cap_name_next, ENV_DELIMITER))) {
+		__u64 cap;
+
+		if (strcmp(strcap, "") == 0)
+			continue;
+
+		if (str2cap(strcap, &cap)) {
+			fprintf(stderr, "Failed to parse capability \"%s\"\n",
+				strcap);
+			goto out_free_name;
+		}
+		if (cap >= sizeof(*mask) * CHAR_BIT) {
+			fprintf(stderr, "Capability \"%s\" is out of range\n",
+				strcap);
+			goto out_free_name;
+		}
+		*mask |= 1ULL << cap;
+	}
+	ret = 0;
+
+out_free_name:
+	free(env_cap_name);
+	return ret;
+}
+
+static int populate_ruleset_cap(const char *const allowed_env,
+				const char *const quiet_env,
+				const int ruleset_fd)
+{
+	struct landlock_capability_attr cap_attr = {
+		.permissions = LANDLOCK_PERMISSION_CAPABILITY_USE,
+	};
+
+	if (parse_cap_list(allowed_env, &cap_attr.allowed_capabilities))
+		return 1;
+	if (parse_cap_list(quiet_env, &cap_attr.quiet_capabilities))
+		return 1;
+
+	if (!cap_attr.allowed_capabilities && !cap_attr.quiet_capabilities)
+		return 0;
+
+	if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_CAPABILITY, &cap_attr,
+			      0)) {
+		fprintf(stderr,
+			"Failed to update the ruleset with capabilities: %s\n",
+			strerror(errno));
+		return 1;
+	}
+	return 0;
+}
+
 /* Returns true on error, false otherwise. */
 static bool check_ruleset_scope(const char *const env_var,
 				struct landlock_ruleset_attr *ruleset_attr)
@@ -369,7 +570,7 @@ static int add_quiet_access(const char *const env_var,
 	return 0;
 }
 
-#define LANDLOCK_ABI_LAST 11
+#define LANDLOCK_ABI_LAST 12
 
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -397,6 +598,23 @@ static const char help[] =
 	"* " ENV_UDP_CONNECT_SEND_NAME ": remote UDP ports allowed to connect "
 	"or send to (client: use as destination port / server: receive only from it)\n"
 	"(caution: sending requires being able to bind to a local source port)\n"
+	"* " ENV_NS_NAME ": namespace types allowed to use\n"
+	"  (cgroup, ipc, mnt, net, pid, time, user, uts)\n"
+	"* " ENV_NS_QUIET_NAME
+	": namespace types whose denial should not be audit logged\n"
+	"  (same value format as " ENV_NS_NAME
+	"; quieting an allowed member is inert,\n"
+	"  as an allowed member is never denied; setting it alone still\n"
+	"  restricts namespace use, denying every type)\n"
+	"* " ENV_CAP_NAME ": capabilities allowed to use, as "
+	CAP_VALUE_DESCRIPTION "\n"
+	"  (e.g. " CAP_VALUE_EXAMPLES ")\n"
+	"* " ENV_CAP_QUIET_NAME
+	": capabilities whose denial should not be audit logged\n"
+	"  (same value format as " ENV_CAP_NAME
+	"; quieting an allowed member is inert,\n"
+	"  as an allowed member is never denied; setting it alone still\n"
+	"  restricts capability use, denying every capability)\n"
 	"* " ENV_SCOPED_NAME ": actions denied on the outside of the landlock domain\n"
 	"  - \"a\" to restrict opening abstract unix sockets\n"
 	"  - \"s\" to restrict sending signals\n"
@@ -423,6 +641,8 @@ static const char help[] =
 	ENV_TCP_BIND_NAME "=\"9418\" "
 	ENV_TCP_CONNECT_NAME "=\"80:443\" "
 	ENV_UDP_CONNECT_SEND_NAME "=\"53\" "
+	ENV_NS_NAME "=\"user:uts:net\" "
+	ENV_CAP_NAME "=\"" CAP_VALUE_EXAMPLE "\" "
 	ENV_SCOPED_NAME "=\"a:s\" "
 	"%1$s bash -i\n"
 	"\n"
@@ -451,6 +671,8 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		.quiet_access_fs = 0,
 		.quiet_access_net = 0,
 		.quiet_scoped = 0,
+		.handled_permissions = LANDLOCK_PERMISSION_NAMESPACE_USE |
+				       LANDLOCK_PERMISSION_CAPABILITY_USE,
 	};
 	bool quiet_supported = true;
 	int supported_restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
@@ -552,7 +774,12 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		supported_restrict_flags &=
 			~LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
 		set_restrict_flags &= ~LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
-
+		__attribute__((fallthrough));
+	case 11:
+		/* Removes LANDLOCK_PERMISSION_* for ABI < 12 */
+		ruleset_attr.handled_permissions &=
+			~(LANDLOCK_PERMISSION_NAMESPACE_USE |
+			  LANDLOCK_PERMISSION_CAPABILITY_USE);
 		/* Must be printed for any ABI < LANDLOCK_ABI_LAST. */
 		fprintf(stderr,
 			"Hint: You should update the running kernel "
@@ -595,6 +822,32 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	if (!env_port_name) {
 		ruleset_attr.handled_access_net &=
 			~LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP;
+	}
+
+	/* Removes namespace handling if not set by a user. */
+	if (!getenv(ENV_NS_NAME) && !getenv(ENV_NS_QUIET_NAME))
+		ruleset_attr.handled_permissions &=
+			~LANDLOCK_PERMISSION_NAMESPACE_USE;
+	if (!(ruleset_attr.handled_permissions &
+	      LANDLOCK_PERMISSION_NAMESPACE_USE)) {
+		unsetenv(ENV_NS_NAME);
+		unsetenv(ENV_NS_QUIET_NAME);
+	}
+
+#ifndef USE_LIBCAP
+	if (getenv(ENV_CAP_NAME) || getenv(ENV_CAP_QUIET_NAME))
+		fprintf(stderr,
+			"Warning: Built without libcap; use capability numbers, not names.\n");
+#endif
+
+	/* Removes capability handling if not set by a user. */
+	if (!getenv(ENV_CAP_NAME) && !getenv(ENV_CAP_QUIET_NAME))
+		ruleset_attr.handled_permissions &=
+			~LANDLOCK_PERMISSION_CAPABILITY_USE;
+	if (!(ruleset_attr.handled_permissions &
+	      LANDLOCK_PERMISSION_CAPABILITY_USE)) {
+		unsetenv(ENV_CAP_NAME);
+		unsetenv(ENV_CAP_QUIET_NAME);
 	}
 
 	if (check_ruleset_scope(ENV_SCOPED_NAME, &ruleset_attr))
@@ -679,6 +932,16 @@ int main(const int argc, char *const argv[], char *const *const envp)
 			goto err_close_ruleset;
 		}
 	}
+
+	if ((ruleset_attr.handled_permissions &
+	     LANDLOCK_PERMISSION_NAMESPACE_USE) &&
+	    populate_ruleset_ns(ENV_NS_NAME, ENV_NS_QUIET_NAME, ruleset_fd))
+		goto err_close_ruleset;
+
+	if ((ruleset_attr.handled_permissions &
+	     LANDLOCK_PERMISSION_CAPABILITY_USE) &&
+	    populate_ruleset_cap(ENV_CAP_NAME, ENV_CAP_QUIET_NAME, ruleset_fd))
+		goto err_close_ruleset;
 
 	if (!(set_restrict_flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) &&
 	    prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {

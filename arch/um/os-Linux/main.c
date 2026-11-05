@@ -100,10 +100,11 @@ static void __init setup_env_path(void)
 	}
 }
 
+static char **new_argv;
+
 int __init main(int argc, char **argv, char **envp)
 {
-	char **new_argv;
-	int ret, i, err;
+	int ret, i;
 
 	/* Disable randomization and re-exec if it was changed successfully */
 	ret = personality(PER_LINUX | ADDR_NO_RANDOMIZE);
@@ -150,7 +151,12 @@ int __init main(int argc, char **argv, char **envp)
 	scan_elf_aux(envp);
 
 	change_sig(SIGPIPE, 0);
-	ret = linux_main(argc, argv, envp);
+	linux_main(argc, argv, envp);
+}
+
+void os_exit(bool reboot)
+{
+	int err;
 
 	/*
 	 * Disable SIGPROF - I have no idea why libc doesn't do this or turn
@@ -183,12 +189,11 @@ int __init main(int argc, char **argv, char **envp)
 
 	os_info("\n");
 	/* Reboot */
-	if (ret) {
+	if (reboot) {
 		execvp(new_argv[0], new_argv);
 		perror("Failed to exec kernel");
-		ret = 1;
 	}
-	return uml_exitcode;
+	exit(uml_exitcode);
 }
 
 extern void *__real_malloc(int);

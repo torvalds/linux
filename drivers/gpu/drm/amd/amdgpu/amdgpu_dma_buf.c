@@ -472,6 +472,15 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 					 AMDGPU_GEM_CREATE_COHERENT |
 					 AMDGPU_GEM_CREATE_EXT_COHERENT |
 					 AMDGPU_GEM_CREATE_UNCACHED);
+
+		/*
+		 * A VRAM-capable import is backed by the exporter's device
+		 * memory, not host pages of its own. Place it in the PREEMPT
+		 * domain (GTT-like, but with no host-page budget) so many such
+		 * imports cannot exhaust the GTT limit.
+		 */
+		if (other->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)
+			flags |= AMDGPU_GEM_CREATE_PREEMPTIBLE;
 	}
 
 	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
@@ -599,6 +608,11 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 			 */
 			drm_gem_object_get(obj);
 			return obj;
+		} else {
+			struct ttm_resource *mem = gem_to_amdgpu_bo(obj)->tbo.resource;
+			/* NPA DMA-buf can only be imported on the same device. */
+			if (mem && mem->mem_type == AMDGPU_PL_NPA)
+				return ERR_PTR(-EPERM);
 		}
 	}
 
@@ -612,6 +626,17 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 		drm_gem_object_put(obj);
 		return ERR_CAST(attach);
 	}
+
+	/*
+	 * The PREEMPT domain is only correct when the attachment actually
+	 * resolves to P2P access, in which case the import lives in the
+	 * exporter's VRAM and consumes no host GTT pages.  Without P2P the
+	 * import is staged in system memory and must count against the GTT
+	 * budget normally, so drop AMDGPU_GEM_CREATE_PREEMPTIBLE again.  The
+	 * BO is not published yet, so clearing the flag here is race-free.
+	 */
+	if (!attach->peer2peer)
+		gem_to_amdgpu_bo(obj)->flags &= ~AMDGPU_GEM_CREATE_PREEMPTIBLE;
 
 	get_dma_buf(dma_buf);
 	obj->import_attach = attach;

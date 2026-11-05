@@ -45,10 +45,10 @@ examples:
         #size-cells = <0>;
 
         dps: pressure-sensor@76 {
-          compatible = "infineon,dps310";
-          reg = <0x76>;
-          #io-channel-cells = <0>;
-          vdd-supply = <&vref1>;
-          vddio-supply = <&vref2>;
+            compatible = "infineon,dps310";
+            reg = <0x76>;
+            #io-channel-cells = <0>;
+            vdd-supply = <&vref1>;
+            vddio-supply = <&vref2>;
         };
     };

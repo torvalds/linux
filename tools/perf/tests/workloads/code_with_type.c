@@ -6,7 +6,7 @@
 #include <linux/compiler.h>
 #include "../tests.h"
 
-extern void test_rs(uint count);
+extern void test_rs(unsigned int count);
 
 static volatile sig_atomic_t done;
 

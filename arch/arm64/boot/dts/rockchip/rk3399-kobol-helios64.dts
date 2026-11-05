@@ -11,6 +11,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "rk3399.dtsi"
 
 / {
@@ -21,6 +22,20 @@
 		ethernet0 = &gmac;
 		mmc0 = &sdmmc;
 		mmc1 = &sdhci;
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		button-recovery {
+			label = "Recovery";
+			linux,code = <BTN_1>;
+			press-threshold-microvolt = <100000>;
+		};
 	};
 
 	avdd_0v9_s0: regulator-avdd-0v9-s0 {
@@ -59,6 +74,10 @@
 		compatible = "pwm-fan";
 		pwms = <&pwm0 0 40000 0>;
 		cooling-levels = <0 80 170 255>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC5 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan1_sense>;
 	};
 
 	fan2 {
@@ -66,6 +85,31 @@
 		compatible = "pwm-fan";
 		pwms = <&pwm1 0 40000 0>;
 		cooling-levels = <0 80 170 255>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PC7 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fan2_sense>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_btn &user1_btn>;
+
+		button-power {
+			debounce-interval = <100>;
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+			label = "Power";
+			linux,code = <KEY_POWER>;
+			wakeup-source;
+		};
+
+		button-user1 {
+			debounce-interval = <100>;
+			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_LOW>;
+			label = "User Button 1";
+			linux,code = <BTN_0>;
+		};
 	};
 
 	leds {
@@ -352,6 +396,19 @@
 				};
 			};
 
+			vcc1v8_s3: LDO_REG3 {
+				regulator-name = "vcc1v8_s3";
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
 			vcc_sdio_s0: LDO_REG4 {
 				regulator-name = "vcc_sdio_s0";
 				regulator-always-on;
@@ -434,6 +491,26 @@
 };
 
 &pinctrl {
+	buttons {
+		pwr_btn: pwr-btn {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		user1_btn: user1-btn {
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	fan {
+		fan1_sense: fan1-sense {
+			rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		fan2_sense: fan2-sense {
+			rockchip,pins = <4 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	gmac {
 		gphy_reset: gphy-reset {
 			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_output_low>;
@@ -500,6 +577,11 @@
 
 &pwm1 {
 	/* pwm-fan on P6 */
+	status = "okay";
+};
+
+&saradc {
+	vref-supply = <&vcc1v8_s3>;
 	status = "okay";
 };
 

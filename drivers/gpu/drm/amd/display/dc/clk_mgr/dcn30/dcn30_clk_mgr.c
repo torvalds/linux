@@ -26,8 +26,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 #include "dcn30_clk_mgr_smu_msg.h"
+#include "dcn10/dcn10_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
-#include "dce100/dce_clk_mgr.h"
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dml/dcn30/dcn30_fpu.h"
 #include "dcn30/dcn30m_clk_mgr.h"
@@ -493,7 +493,7 @@ static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct d
 }
 
 static struct clk_mgr_funcs dcn3_funcs = {
-		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+		.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 		.update_clocks = dcn3_update_clocks,
 		.init_clocks = dcn3_init_clocks,
 		.notify_wm_ranges = dcn3_notify_wm_ranges,
@@ -517,7 +517,7 @@ static void dcn3_init_clocks_fpga(struct clk_mgr *clk_mgr)
 }
 
 struct clk_mgr_funcs dcn3_fpga_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks_fpga,
 	.init_clocks = dcn3_init_clocks_fpga,
 };
@@ -567,7 +567,7 @@ void dcn3_clk_mgr_construct(
 
 	clk_mgr->smu_present = false;
 
-	dce_clock_read_ss_info(clk_mgr);
+	dcn10_clock_read_ss_info(clk_mgr);
 
 	clk_mgr->base.bw_params = kzalloc_obj(*clk_mgr->base.bw_params);
 	if (!clk_mgr->base.bw_params) {

@@ -316,15 +316,15 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	FD_PREPARE(fdf, O_CLOEXEC,
 		   anon_inode_getfile("request", &request_fops, NULL,
 				      O_CLOEXEC));
-	if (fdf.err) {
-		ret = fdf.err;
+	if (fdf->fd < 0) {
+		ret = fdf->fd;
 		goto err_free_req;
 	}
 
-	fd_prepare_file(fdf)->private_data = req;
+	fdf->file->private_data = req;
 
 	snprintf(req->debug_str, sizeof(req->debug_str), "%u:%d",
-		 atomic_inc_return(&mdev->request_id), fd_prepare_fd(fdf));
+		 atomic_inc_return(&mdev->request_id), fdf->fd);
 	atomic_inc(&mdev->num_requests);
 	dev_dbg(mdev->dev, "request: allocated %s\n", req->debug_str);
 

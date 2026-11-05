@@ -29,21 +29,6 @@ refactorings already and are an expert in the specific area
 Subsystem-wide refactorings
 ===========================
 
-Open-code drm_simple_encoder_init()
------------------------------------
-
-The helper drm_simple_encoder_init() was supposed to simplify encoder
-initialization. Instead it only added an intermediate layer between atomic
-modesetting and the DRM driver.
-
-The task here is to remove drm_simple_encoder_init(). Search for a driver
-that calls drm_simple_encoder_init() and inline the helper. The driver will
-also need its own instance of drm_encoder_funcs.
-
-Contact: Thomas Zimmermann, respective driver maintainer
-
-Level: Easy
-
 Replace struct drm_simple_display_pipe with regular atomic helpers
 ------------------------------------------------------------------
 
@@ -499,21 +484,30 @@ Contact: Douglas Anderson <dianders@chromium.org>
 
 Level: Starter
 
-Remove devm_drm_put_bridge()
-----------------------------
+Remove panel_bridge API functions
+---------------------------------
 
-Due to how the panel bridge handles the drm_bridge object lifetime, special
-care must be taken to dispose of the drm_bridge object when the
-panel_bridge is removed. This is currently managed using
-devm_drm_put_bridge(), but that is an unsafe, temporary workaround. To fix
-that, the DRM panel lifetime needs to be reworked. After the rework is
-done, remove devm_drm_put_bridge() and the TODO in
-drm_panel_bridge_remove().
+Now that a drm_bridge is embedded into every drm_panel, the panel_bridge is
+not needed anymore. Its APIs are just accessing the embedded drm_bridge
+transparently, and the are deprecated.
 
-Contact: Maxime Ripard <mripard@kernel.org>,
-         Luca Ceresoli <luca.ceresoli@bootlin.com>
+The funcions to remove are:
+ - drm_panel_bridge_add_typed()
+ - devm_drm_of_get_bridge()
+ - drmm_of_get_bridge()
+ - drm_panel_bridge_remove()
+ - drmm_drm_panel_bridge_release()
+ - devm_drm_panel_bridge_release()
+ - their direct or indirect callers
 
-Level: Intermediate
+Convert users of those functions and eventually remove them when unused, or
+make them static drm_panel.c functions when used internally by the
+``drm_panel.c`` code.
+
+Contact: Luca Ceresoli <luca.ceresoli@bootlin.com>
+         Maxime Ripard <mripard@kernel.org>,
+
+Level: Easy
 
 Convert users of of_drm_find_bridge() to of_drm_find_and_get_bridge()
 ---------------------------------------------------------------------

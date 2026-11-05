@@ -520,6 +520,7 @@ static int gc2235_startup(struct v4l2_subdev *sd)
 }
 
 static int gc2235_set_fmt(struct v4l2_subdev *sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
@@ -857,8 +858,8 @@ err_unregister_subdev:
 }
 
 static const struct acpi_device_id gc2235_acpi_match[] = {
-	{ "INT33F8" },
-	{},
+	{ .id = "INT33F8" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, gc2235_acpi_match);
 

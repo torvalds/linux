@@ -403,8 +403,8 @@ static int do_eventfd(unsigned int count, int flags)
 	FD_PREPARE(fdf, flags,
 		   anon_inode_getfile_fmode("[eventfd]", &eventfd_fops, ctx,
 					    flags, FMODE_NOWAIT));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	ctx->id = ida_alloc(&eventfd_ida, GFP_KERNEL);
 	retain_and_null_ptr(ctx);

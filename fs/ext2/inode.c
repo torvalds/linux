@@ -327,6 +327,7 @@ static ext2_fsblk_t ext2_find_near(struct inode *inode, Indirect *ind)
 
 static inline ext2_fsblk_t ext2_find_goal(struct inode *inode, long block,
 					  Indirect *partial)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	struct ext2_block_alloc_info *block_i;
 
@@ -397,6 +398,7 @@ ext2_blks_to_allocate(Indirect * branch, int k, unsigned long blks,
 static int ext2_alloc_blocks(struct inode *inode,
 			ext2_fsblk_t goal, int indirect_blks, int blks,
 			ext2_fsblk_t new_blocks[4], int *err)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	int target, i;
 	unsigned long count = 0;
@@ -477,6 +479,7 @@ failed_out:
 static int ext2_alloc_branch(struct inode *inode,
 			int indirect_blks, int *blks, ext2_fsblk_t goal,
 			int *offsets, Indirect *branch)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	int blocksize = inode->i_sb->s_blocksize;
 	int i, n = 0;
@@ -558,6 +561,7 @@ failed:
  */
 static void ext2_splice_branch(struct inode *inode,
 			long block, Indirect *where, int num, int blks)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	int i;
 	struct ext2_block_alloc_info *block_i;
@@ -1002,6 +1006,7 @@ static Indirect *ext2_find_shared(struct inode *inode,
 				int offsets[4],
 				Indirect chain[4],
 				__le32 *top)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	Indirect *partial, *p;
 	int k, err;
@@ -1057,6 +1062,7 @@ no_top:
  *	appropriately.
  */
 static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	ext2_fsblk_t block_to_free = 0, count = 0;
 	ext2_fsblk_t nr;
@@ -1097,6 +1103,7 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
  *	appropriately.
  */
 static void ext2_free_branches(struct inode *inode, __le32 *p, __le32 *q, int depth)
+	__must_hold(&EXT2_I(inode)->truncate_mutex)
 {
 	struct buffer_head * bh;
 	ext2_fsblk_t nr;
@@ -1591,7 +1598,7 @@ out:
 	return err;
 }
 
-int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ext2_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1617,7 +1624,7 @@ int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return 0;
 }
 
-int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ext2_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);

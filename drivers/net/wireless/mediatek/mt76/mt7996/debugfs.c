@@ -13,13 +13,6 @@
 
 /** global debugfs **/
 
-struct hw_queue_map {
-	const char *name;
-	u8 index;
-	u8 pid;
-	u8 qid;
-};
-
 static int
 mt7996_implicit_txbf_set(void *data, u64 val)
 {
@@ -604,35 +597,176 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(mt7996_tx_stats);
 
+enum {
+	MT_QUEUE_PORT_HIF,
+	MT_QUEUE_PORT_CPU,
+	MT_QUEUE_PORT_LMAC,
+	MT_QUEUE_PORT_PLE_CTRL,
+};
+
+struct mt7996_hw_queue {
+	const char *name;
+	u8 pid;
+	u8 qid;
+	u8 tgid;
+};
+
+#define MT7996_HW_QUEUE(_name, _pid, _qid, _tgid)	\
+	{ .name = _name, .pid = MT_QUEUE_PORT_##_pid, .qid = _qid, .tgid = _tgid }
+
+static const struct mt7996_hw_queue mt7996_ple_queues[32] = {
+	[0] = MT7996_HW_QUEUE("CPU Q0", CPU, 0, 0),
+	[1] = MT7996_HW_QUEUE("CPU Q1", CPU, 1, 0),
+	[2] = MT7996_HW_QUEUE("CPU Q2", CPU, 2, 0),
+	[3] = MT7996_HW_QUEUE("CPU Q3", CPU, 3, 0),
+	[4] = MT7996_HW_QUEUE("ALTX Q0", LMAC, 0x10, 0),
+	[5] = MT7996_HW_QUEUE("BMC Q0", LMAC, 0x11, 0),
+	[6] = MT7996_HW_QUEUE("BCN Q0", LMAC, 0x12, 0),
+	[7] = MT7996_HW_QUEUE("PSMP Q0", LMAC, 0x13, 0),
+	[8] = MT7996_HW_QUEUE("ALTX Q1", LMAC, 0x10, 1),
+	[9] = MT7996_HW_QUEUE("BMC Q1", LMAC, 0x11, 1),
+	[10] = MT7996_HW_QUEUE("BCN Q1", LMAC, 0x12, 1),
+	[11] = MT7996_HW_QUEUE("PSMP Q1", LMAC, 0x13, 1),
+	[12] = MT7996_HW_QUEUE("ALTX Q2", LMAC, 0x1c, 2),
+	[13] = MT7996_HW_QUEUE("BMC Q2", LMAC, 0x1d, 2),
+	[14] = MT7996_HW_QUEUE("BCN Q2", LMAC, 0x1e, 2),
+	[15] = MT7996_HW_QUEUE("PSMP Q2", LMAC, 0x1f, 2),
+	[16] = MT7996_HW_QUEUE("NAF Q", LMAC, 0x18, 0),
+	[17] = MT7996_HW_QUEUE("NBCN Q", LMAC, 0x19, 0),
+	[20] = MT7996_HW_QUEUE("FIXFID Q", LMAC, 0x1a, 0),
+	[28] = MT7996_HW_QUEUE("RLS4 Q", PLE_CTRL, 0x7c, 0),
+	[29] = MT7996_HW_QUEUE("RLS3 Q", PLE_CTRL, 0x7d, 0),
+	[30] = MT7996_HW_QUEUE("RLS2 Q", PLE_CTRL, 0x7e, 0),
+	[31] = MT7996_HW_QUEUE("RLS Q", PLE_CTRL, 0x7f, 0),
+};
+
+static const struct mt7996_hw_queue mt7996_pse_queues[32] = {
+	[0] = MT7996_HW_QUEUE("CPU Q0", CPU, 0, 0),
+	[1] = MT7996_HW_QUEUE("CPU Q1", CPU, 1, 0),
+	[2] = MT7996_HW_QUEUE("CPU Q2", CPU, 2, 0),
+	[3] = MT7996_HW_QUEUE("CPU Q3", CPU, 3, 0),
+	[16] = MT7996_HW_QUEUE("LMAC Q", LMAC, 0, 0),
+	[17] = MT7996_HW_QUEUE("MDP TX Q0", LMAC, 1, 0),
+	[18] = MT7996_HW_QUEUE("MDP RX Q", LMAC, 2, 0),
+	[19] = MT7996_HW_QUEUE("SEC TX Q0", LMAC, 3, 0),
+	[20] = MT7996_HW_QUEUE("SEC RX Q", LMAC, 4, 0),
+	[21] = MT7996_HW_QUEUE("SFD PARK Q", LMAC, 5, 0),
+	[22] = MT7996_HW_QUEUE("MDP TXIOC Q0", LMAC, 6, 0),
+	[23] = MT7996_HW_QUEUE("MDP RXIOC Q0", LMAC, 7, 0),
+	[24] = MT7996_HW_QUEUE("MDP TX Q1", LMAC, 0x11, 0),
+	[25] = MT7996_HW_QUEUE("SEC TX Q1", LMAC, 0x13, 0),
+	[26] = MT7996_HW_QUEUE("MDP TXIOC Q1", LMAC, 0x16, 0),
+	[27] = MT7996_HW_QUEUE("MDP RXIOC Q1", LMAC, 0x17, 0),
+	[28] = MT7996_HW_QUEUE("CPU Q4", CPU, 4, 0),
+	[31] = MT7996_HW_QUEUE("RLS Q", PLE_CTRL, 0x1f, 0),
+};
+
+static const struct mt7996_hw_queue mt7996_pse_queues_1[32] = {
+	[0] = MT7996_HW_QUEUE("MDP TDPIOC Q0", LMAC, 0x08, 0),
+	[1] = MT7996_HW_QUEUE("MDP RDPIOC Q0", LMAC, 0x09, 0),
+	[2] = MT7996_HW_QUEUE("MDP TDPIOC Q1", LMAC, 0x18, 0),
+	[3] = MT7996_HW_QUEUE("MDP RDPIOC Q1", LMAC, 0x19, 0),
+	[4] = MT7996_HW_QUEUE("MDP TDPIOC Q2", LMAC, 0x28, 0),
+	[5] = MT7996_HW_QUEUE("MDP RDPIOC Q2", LMAC, 0x29, 0),
+	[7] = MT7996_HW_QUEUE("MDP RDPIOC Q3", LMAC, 0x39, 0),
+	[8] = MT7996_HW_QUEUE("MDP TX Q2", LMAC, 0x21, 0),
+	[9] = MT7996_HW_QUEUE("SEC TX Q2", LMAC, 0x23, 0),
+	[10] = MT7996_HW_QUEUE("MDP TXIOC Q2", LMAC, 0x26, 0),
+	[11] = MT7996_HW_QUEUE("MDP RXIOC Q2", LMAC, 0x27, 0),
+	[15] = MT7996_HW_QUEUE("MDP RXIOC Q3", LMAC, 0x37, 0),
+	[16] = MT7996_HW_QUEUE("HIF Q0", HIF, 0, 0),
+	[17] = MT7996_HW_QUEUE("HIF Q1", HIF, 1, 0),
+	[18] = MT7996_HW_QUEUE("HIF Q2", HIF, 2, 0),
+	[19] = MT7996_HW_QUEUE("HIF Q3", HIF, 3, 0),
+	[20] = MT7996_HW_QUEUE("HIF Q4", HIF, 4, 0),
+	[21] = MT7996_HW_QUEUE("HIF Q5", HIF, 5, 0),
+	[22] = MT7996_HW_QUEUE("HIF Q6", HIF, 6, 0),
+	[23] = MT7996_HW_QUEUE("HIF Q7", HIF, 7, 0),
+	[24] = MT7996_HW_QUEUE("HIF Q8", HIF, 8, 0),
+	[25] = MT7996_HW_QUEUE("HIF Q9", HIF, 9, 0),
+	[26] = MT7996_HW_QUEUE("HIF Q10", HIF, 10, 0),
+	[27] = MT7996_HW_QUEUE("HIF Q11", HIF, 11, 0),
+	[28] = MT7996_HW_QUEUE("HIF Q12", HIF, 12, 0),
+	[29] = MT7996_HW_QUEUE("HIF Q13", HIF, 13, 0),
+};
+
 static void
-mt7996_hw_queue_read(struct seq_file *s, u32 size,
-		     const struct hw_queue_map *map)
+mt7996_fl_queue_show(struct seq_file *s, struct mt7996_dev *dev, bool pse,
+		     const struct mt7996_hw_queue *q, u16 wlan_idx)
 {
-	struct mt7996_phy *phy = s->private;
-	struct mt7996_dev *dev = phy->dev;
-	u32 i, val;
+	static DEFINE_SPINLOCK(lock);
+	u32 val, fid, num;
 
-	val = mt76_rr(dev, MT_FL_Q_EMPTY);
-	for (i = 0; i < size; i++) {
-		u32 ctrl, head, tail, queued;
+	val = MT_FL_Q0_CTRL_EXECUTE |
+	      u32_encode_bits(q->qid, MT_FL_Q0_CTRL_QID) |
+	      u32_encode_bits(q->tgid, MT_FL_Q0_CTRL_TGID) |
+	      u32_encode_bits(q->pid, MT_FL_Q0_CTRL_PID) |
+	      u32_encode_bits(wlan_idx, MT_FL_Q0_CTRL_WLAN_IDX);
 
-		if (val & BIT(map[i].index))
+	spin_lock(&lock);
+	mt76_wr(dev, pse ? MT_PSE_FL_Q0_CTRL : MT_FL_Q0_CTRL, val);
+	fid = mt76_rr(dev, pse ? MT_PSE_FL_Q2_CTRL : MT_FL_Q2_CTRL);
+	num = mt76_rr(dev, pse ? MT_PSE_FL_Q3_CTRL : MT_FL_Q3_CTRL);
+	spin_unlock(&lock);
+
+	seq_printf(s, "tail/head fid 0x%04x/0x%04x, packets %u",
+		   u32_get_bits(fid, MT_FL_Q2_CTRL_TAIL_FID),
+		   u32_get_bits(fid, MT_FL_Q2_CTRL_HEAD_FID),
+		   u32_get_bits(num, MT_FL_Q3_CTRL_PKT_NUM));
+}
+
+static void
+mt7996_fl_queues_show(struct seq_file *s, struct mt7996_dev *dev, bool pse,
+		      const struct mt7996_hw_queue *queues, unsigned long empty)
+{
+	unsigned int i;
+
+	for_each_clear_bit(i, &empty, 32) {
+		if (!queues[i].name)
 			continue;
 
-		ctrl = BIT(31) | (map[i].pid << 10) | ((u32)map[i].qid << 24);
-		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl);
-
-		head = mt76_get_field(dev, MT_FL_Q2_CTRL,
-				      GENMASK(11, 0));
-		tail = mt76_get_field(dev, MT_FL_Q2_CTRL,
-				      GENMASK(27, 16));
-		queued = mt76_get_field(dev, MT_FL_Q3_CTRL,
-					GENMASK(11, 0));
-
-		seq_printf(s, "\t%s: ", map[i].name);
-		seq_printf(s, "queued:0x%03x head:0x%03x tail:0x%03x\n",
-			   queued, head, tail);
+		seq_printf(s, "\t%s: ", queues[i].name);
+		mt7996_fl_queue_show(s, dev, pse, &queues[i], 0);
+		seq_puts(s, "\n");
 	}
+}
+
+static void
+mt7996_freepg_show(struct seq_file *s, u32 cnt, u32 head_tail)
+{
+	seq_printf(s, "\tfree pages 0x%04x, free for all 0x%04x, head/tail 0x%04x/0x%04x\n",
+		   u32_get_bits(cnt, MT_FREEPG_CNT_FREE),
+		   u32_get_bits(cnt, MT_FREEPG_CNT_FFA),
+		   u32_get_bits(head_tail, MT_FREEPG_HEAD_TAIL_HEAD),
+		   u32_get_bits(head_tail, MT_FREEPG_HEAD_TAIL_TAIL));
+}
+
+static void
+mt7996_pg_group_show(struct seq_file *s, const char *name, u32 group, u32 info)
+{
+	seq_printf(s, "\t%s group: max/min quota 0x%04x/0x%04x, used/reserved 0x%04x/0x%04x\n",
+		   name, u32_get_bits(group, MT_PG_GROUP_MAX_QUOTA),
+		   u32_get_bits(group, MT_PG_GROUP_MIN_QUOTA),
+		   u32_get_bits(info, MT_PG_INFO_SRC_CNT),
+		   u32_get_bits(info, MT_PG_INFO_RSV_CNT));
+}
+
+static unsigned int
+mt7996_ple_sta_cr_num(struct mt7996_dev *dev)
+{
+	return is_mt7996(&dev->mt76) ? 34 : 17;
+}
+
+static unsigned int
+mt7996_ple_sta_cr(struct mt7996_dev *dev, unsigned int n)
+{
+	/* MT7992 and MT7990 keep the last station group in the
+	 * extension register that follows the first 32 groups
+	 */
+	if (!is_mt7996(&dev->mt76) && n == mt7996_ple_sta_cr_num(dev) - 1)
+		return 32;
+
+	return n;
 }
 
 static void
@@ -640,51 +774,53 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct mt7996_vif *mvif = msta->vif;
-	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
 	struct ieee80211_link_sta *link_sta;
 	struct seq_file *s = data;
 	struct ieee80211_vif *vif;
-	struct mt7996_dev *dev;
 	unsigned int link_id;
 
-	if (!phy)
-		return;
-
 	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
-	dev = phy->dev;
 
 	rcu_read_lock();
 
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct mt7996_sta_link *msta_link;
 		struct mt76_vif_link *mlink;
+		struct mt7996_phy *phy;
+		unsigned int cr;
+		u16 wlan_idx;
 		u8 ac;
 
 		mlink = rcu_dereference(mvif->mt76.link[link_id]);
 		if (!mlink)
 			continue;
 
+		phy = mt7996_vif_link_phy(container_of(mlink,
+						       struct mt7996_vif_link,
+						       mt76));
+		if (!phy)
+			continue;
+
 		msta_link = mt7996_sta_link(msta, link_id);
 		if (!msta_link)
 			continue;
 
-		for (ac = 0; ac < 4; ac++) {
-			u32 idx = msta_link->wcid.idx >> 5, qlen, ctrl, val;
-			u8 offs = msta_link->wcid.idx & GENMASK(4, 0);
+		wlan_idx = msta_link->wcid.idx;
+		cr = mt7996_ple_sta_cr(phy->dev, wlan_idx / 32);
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+			struct mt7996_hw_queue q = {
+				.pid = MT_QUEUE_PORT_LMAC,
+				.qid = ac,
+			};
 
-			ctrl = BIT(31) | BIT(11) | (ac << 24);
-			val = mt76_rr(dev, MT_PLE_AC_QEMPTY(ac, idx));
-
-			if (val & BIT(offs))
+			if (mt76_rr(phy->dev, MT_PLE_AC_QEMPTY(ac, cr)) &
+			    BIT(wlan_idx % 32))
 				continue;
 
-			mt76_wr(dev,
-				MT_FL_Q0_CTRL, ctrl | msta_link->wcid.idx);
-			qlen = mt76_get_field(dev, MT_FL_Q3_CTRL,
-					      GENMASK(11, 0));
-			seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
-				   sta->addr, msta_link->wcid.idx,
-				   mlink->wmm_idx, ac, qlen);
+			seq_printf(s, "\tSTA %pM wcid %u AC%u%u: ", sta->addr,
+				   wlan_idx, mlink->wmm_idx, ac);
+			mt7996_fl_queue_show(s, phy->dev, false, &q, wlan_idx);
+			seq_puts(s, "\n");
 		}
 	}
 
@@ -692,78 +828,27 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 }
 
 static int
-mt7996_hw_queues_show(struct seq_file *file, void *data)
+mt7996_hw_queues_show(struct seq_file *s, void *data)
 {
-	struct mt7996_dev *dev = file->private;
-	struct mt7996_phy *phy = &dev->phy;
-	static const struct hw_queue_map ple_queue_map[] = {
-		{ "CPU_Q0",  0,  1, MT_CTX0	      },
-		{ "CPU_Q1",  1,  1, MT_CTX0 + 1	      },
-		{ "CPU_Q2",  2,  1, MT_CTX0 + 2	      },
-		{ "CPU_Q3",  3,  1, MT_CTX0 + 3	      },
-		{ "ALTX_Q0", 8,  2, MT_LMAC_ALTX0     },
-		{ "BMC_Q0",  9,  2, MT_LMAC_BMC0      },
-		{ "BCN_Q0",  10, 2, MT_LMAC_BCN0      },
-		{ "PSMP_Q0", 11, 2, MT_LMAC_PSMP0     },
-		{ "ALTX_Q1", 12, 2, MT_LMAC_ALTX0 + 4 },
-		{ "BMC_Q1",  13, 2, MT_LMAC_BMC0  + 4 },
-		{ "BCN_Q1",  14, 2, MT_LMAC_BCN0  + 4 },
-		{ "PSMP_Q1", 15, 2, MT_LMAC_PSMP0 + 4 },
-	};
-	static const struct hw_queue_map pse_queue_map[] = {
-		{ "CPU Q0",  0,  1, MT_CTX0	      },
-		{ "CPU Q1",  1,  1, MT_CTX0 + 1	      },
-		{ "CPU Q2",  2,  1, MT_CTX0 + 2	      },
-		{ "CPU Q3",  3,  1, MT_CTX0 + 3	      },
-		{ "HIF_Q0",  8,  0, MT_HIF0	      },
-		{ "HIF_Q1",  9,  0, MT_HIF0 + 1	      },
-		{ "HIF_Q2",  10, 0, MT_HIF0 + 2	      },
-		{ "HIF_Q3",  11, 0, MT_HIF0 + 3	      },
-		{ "HIF_Q4",  12, 0, MT_HIF0 + 4	      },
-		{ "HIF_Q5",  13, 0, MT_HIF0 + 5	      },
-		{ "LMAC_Q",  16, 2, 0		      },
-		{ "MDP_TXQ", 17, 2, 1		      },
-		{ "MDP_RXQ", 18, 2, 2		      },
-		{ "SEC_TXQ", 19, 2, 3		      },
-		{ "SEC_RXQ", 20, 2, 4		      },
-	};
-	u32 val, head, tail;
+	struct mt7996_dev *dev = s->private;
 
-	/* ple queue */
-	val = mt76_rr(dev, MT_PLE_FREEPG_CNT);
-	head = mt76_get_field(dev, MT_PLE_FREEPG_HEAD_TAIL, GENMASK(11, 0));
-	tail = mt76_get_field(dev, MT_PLE_FREEPG_HEAD_TAIL, GENMASK(27, 16));
-	seq_puts(file, "PLE page info:\n");
-	seq_printf(file,
-		   "\tTotal free page: 0x%08x head: 0x%03x tail: 0x%03x\n",
-		   val, head, tail);
+	seq_puts(s, "PLE page info:\n");
+	mt7996_freepg_show(s, mt76_rr(dev, MT_PLE_FREEPG_CNT),
+			   mt76_rr(dev, MT_PLE_FREEPG_HEAD_TAIL));
+	mt7996_pg_group_show(s, "HIF", mt76_rr(dev, MT_PLE_PG_HIF_GROUP),
+			     mt76_rr(dev, MT_PLE_HIF_PG_INFO));
 
-	val = mt76_rr(dev, MT_PLE_PG_HIF_GROUP);
-	head = mt76_get_field(dev, MT_PLE_HIF_PG_INFO, GENMASK(11, 0));
-	tail = mt76_get_field(dev, MT_PLE_HIF_PG_INFO, GENMASK(27, 16));
-	seq_printf(file, "\tHIF free page: 0x%03x res: 0x%03x used: 0x%03x\n",
-		   val, head, tail);
+	seq_puts(s, "PLE non-empty queue info:\n");
+	mt7996_fl_queues_show(s, dev, false, mt7996_ple_queues,
+			      mt76_rr(dev, MT_FL_Q_EMPTY));
+	ieee80211_iterate_stations_atomic(dev->mphy.hw,
+					  mt7996_sta_hw_queue_read, s);
 
-	seq_puts(file, "PLE non-empty queue info:\n");
-	mt7996_hw_queue_read(file, ARRAY_SIZE(ple_queue_map),
-			     &ple_queue_map[0]);
-
-	/* iterate per-sta ple queue */
-	ieee80211_iterate_stations_atomic(phy->mt76->hw,
-					  mt7996_sta_hw_queue_read, file);
-	phy = mt7996_phy2(dev);
-	if (phy)
-		ieee80211_iterate_stations_atomic(phy->mt76->hw,
-						  mt7996_sta_hw_queue_read, file);
-	phy = mt7996_phy3(dev);
-	if (phy)
-		ieee80211_iterate_stations_atomic(phy->mt76->hw,
-						  mt7996_sta_hw_queue_read, file);
-
-	/* pse queue */
-	seq_puts(file, "PSE non-empty queue info:\n");
-	mt7996_hw_queue_read(file, ARRAY_SIZE(pse_queue_map),
-			     &pse_queue_map[0]);
+	seq_puts(s, "PSE non-empty queue info:\n");
+	mt7996_fl_queues_show(s, dev, true, mt7996_pse_queues,
+			      mt76_rr(dev, MT_PSE_QUEUE_EMPTY));
+	mt7996_fl_queues_show(s, dev, true, mt7996_pse_queues_1,
+			      mt76_rr(dev, MT_PSE_QUEUE_EMPTY_1));
 
 	return 0;
 }

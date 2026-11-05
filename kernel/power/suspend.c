@@ -306,20 +306,24 @@ static void platform_resume_finish(suspend_state_t state)
 
 static int platform_suspend_begin(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->begin)
-		return s2idle_ops->begin();
-	else if (suspend_ops && suspend_ops->begin)
+	if (state == PM_SUSPEND_TO_IDLE) {
+		if (s2idle_ops && s2idle_ops->begin)
+			return s2idle_ops->begin();
+	} else if (suspend_ops && suspend_ops->begin) {
 		return suspend_ops->begin(state);
-	else
-		return 0;
+	}
+
+	return 0;
 }
 
 static void platform_resume_end(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->end)
-		s2idle_ops->end();
-	else if (suspend_ops && suspend_ops->end)
+	if (state == PM_SUSPEND_TO_IDLE) {
+		if (s2idle_ops && s2idle_ops->end)
+			s2idle_ops->end();
+	} else if (suspend_ops && suspend_ops->end) {
 		suspend_ops->end();
+	}
 }
 
 static void platform_recover(suspend_state_t state)

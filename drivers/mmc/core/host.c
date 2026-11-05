@@ -421,6 +421,9 @@ int mmc_of_parse(struct mmc_host *host)
 	device_property_read_u32(dev, "post-power-on-delay-ms",
 				 &host->ios.power_delay_ms);
 
+	device_property_read_u32(dev, "power-off-delay-us",
+				 &host->ios.power_off_delay_us);
+
 	return mmc_pwrseq_alloc(host);
 }
 
@@ -502,14 +505,7 @@ static int mmc_first_nonreserved_index(void)
 	return max + 1;
 }
 
-/**
- *	mmc_alloc_host - initialise the per-host structure.
- *	@extra: sizeof private data structure
- *	@dev: pointer to host device model structure
- *
- *	Initialise the per-host structure.
- */
-struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
+static struct mmc_host *mmc_alloc_host(struct device *dev, int extra)
 {
 	int index;
 	struct mmc_host *host;
@@ -574,12 +570,19 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	host->fixed_drv_type = -EINVAL;
 	host->ios.power_delay_ms = 10;
+	host->ios.power_off_delay_us = 1000;
 	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
 	return host;
 }
 
-EXPORT_SYMBOL(mmc_alloc_host);
+static void mmc_free_host(struct mmc_host *host)
+{
+	cancel_delayed_work_sync(&host->detect);
+	cancel_work_sync(&host->sdio_irq_work);
+	mmc_pwrseq_free(host);
+	put_device(&host->class_dev);
+}
 
 static void devm_mmc_host_release(struct device *dev, void *res)
 {
@@ -594,7 +597,7 @@ struct mmc_host *devm_mmc_alloc_host(struct device *dev, int extra)
 	if (!dr)
 		return NULL;
 
-	host = mmc_alloc_host(extra, dev);
+	host = mmc_alloc_host(dev, extra);
 	if (!host) {
 		devres_free(dr);
 		return NULL;
@@ -688,19 +691,3 @@ void mmc_remove_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_remove_host);
-
-/**
- *	mmc_free_host - free the host structure
- *	@host: mmc host
- *
- *	Free the host once all references to it have been dropped.
- */
-void mmc_free_host(struct mmc_host *host)
-{
-	cancel_delayed_work_sync(&host->detect);
-	cancel_work_sync(&host->sdio_irq_work);
-	mmc_pwrseq_free(host);
-	put_device(&host->class_dev);
-}
-
-EXPORT_SYMBOL(mmc_free_host);

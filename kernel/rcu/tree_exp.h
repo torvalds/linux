@@ -678,7 +678,7 @@ static void synchronize_rcu_expedited_wait(void)
 
 		nbcon_cpu_emergency_exit();
 
-		panic_on_rcu_stall(&rcu_exp_stall_cpumask);
+		panic_on_rcu_stall(&rcu_exp_stall_cpumask, NULL, 0);
 	}
 }
 

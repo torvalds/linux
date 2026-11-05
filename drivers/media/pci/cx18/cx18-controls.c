@@ -85,7 +85,7 @@ static int cx18_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 	fmt->width = cxhdl->width / (is_mpeg1 ? 2 : 1);
 	fmt->height = cxhdl->height;
 	fmt->code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
+	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, NULL, &format);
 	return 0;
 }
 

@@ -24,7 +24,7 @@
 
 /* Read and write the MII registers using software-generated serial
    MDIO protocol.  It is just different enough from the EEPROM protocol
-   to not share code.  The maxium data clock rate is 2.5 Mhz. */
+   to not share code.  The maximum data clock rate is 2.5 Mhz. */
 #define MDIO_SHIFT_CLK		0x10000
 #define MDIO_DATA_WRITE0	0x00000
 #define MDIO_DATA_WRITE1	0x20000

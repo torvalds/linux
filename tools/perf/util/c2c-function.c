@@ -305,8 +305,8 @@ symbol_view_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		char symbuf[32];
 
 		scnprintf(symbuf, sizeof(symbuf), "0x%" PRIx64, addr);
-		ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%-*.*s",
-				 text_width, text_width, symbuf);
+		ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%.*s",
+				 text_width, symbuf);
 	} else {
 		/* Level 1 and level 2 are both functions. */
 		size_t cell_size;
@@ -331,9 +331,6 @@ symbol_view_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			len = min_t(size_t, len, cell_size - 1);
 
 		ret += len;
-		if (len < text_width)
-			ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%*s",
-					 text_width - len, "");
 	}
 
 	return ret;
@@ -1519,7 +1516,7 @@ void c2c_function__reset(void)
 	symbol_conf.use_callchain = saved_use_callchain;
 }
 
-static bool c2c_function__has_iaddr(const char *cl_sort)
+bool c2c_function__has_iaddr(const char *cl_sort)
 {
 	const char *field = cl_sort;
 

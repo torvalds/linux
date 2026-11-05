@@ -415,7 +415,7 @@ resource_found:
  * @pages_mapped: The requested number of pages to be freed from the
  * I/O Pdir.
  *
- * This function frees the resouces allocated for the iova.
+ * This function frees the resources allocated for the iova.
  */
 static void
 ccio_free_range(struct ioc *ioc, dma_addr_t iova, unsigned long pages_mapped)

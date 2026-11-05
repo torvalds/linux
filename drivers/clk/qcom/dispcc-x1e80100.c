@@ -1637,7 +1637,18 @@ static const struct regmap_config disp_cc_x1e80100_regmap_config = {
 	.fast_io = true,
 };
 
+static const u32 disp_cc_x1e80100_critical_cbcrs[] = {
+	0xe074, /* DISP_CC_SLEEP_CLK */
+	0xe054, /* DISP_CC_XO_CLK */
+};
+
+static const struct qcom_cc_driver_data disp_cc_x1e80100_driver_data = {
+	.clk_cbcrs = disp_cc_x1e80100_critical_cbcrs,
+	.num_clk_cbcrs = ARRAY_SIZE(disp_cc_x1e80100_critical_cbcrs),
+};
+
 static const struct qcom_cc_desc disp_cc_x1e80100_desc = {
+	.driver_data = &disp_cc_x1e80100_driver_data,
 	.config = &disp_cc_x1e80100_regmap_config,
 	.clks = disp_cc_x1e80100_clocks,
 	.num_clks = ARRAY_SIZE(disp_cc_x1e80100_clocks),
@@ -1678,10 +1689,6 @@ static int disp_cc_x1e80100_probe(struct platform_device *pdev)
 	/* Enable clock gating for MDP clocks */
 	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
 
-	/* Keep clocks always enabled */
-	qcom_branch_set_clk_en(regmap, 0xe074); /* DISP_CC_SLEEP_CLK */
-	qcom_branch_set_clk_en(regmap, 0xe054); /* DISP_CC_XO_CLK */
-
 	ret = qcom_cc_really_probe(&pdev->dev, &disp_cc_x1e80100_desc, regmap);
 	if (ret)
 		goto err_put_rpm;
@@ -1704,17 +1711,7 @@ static struct platform_driver disp_cc_x1e80100_driver = {
 	},
 };
 
-static int __init disp_cc_x1e80100_init(void)
-{
-	return platform_driver_register(&disp_cc_x1e80100_driver);
-}
-subsys_initcall(disp_cc_x1e80100_init);
-
-static void __exit disp_cc_x1e80100_exit(void)
-{
-	platform_driver_unregister(&disp_cc_x1e80100_driver);
-}
-module_exit(disp_cc_x1e80100_exit);
+subsys_platform_driver(disp_cc_x1e80100_driver);
 
 MODULE_DESCRIPTION("QTI Display Clock Controller X1E80100 Driver");
 MODULE_LICENSE("GPL");

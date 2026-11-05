@@ -32,16 +32,6 @@ config GREYBUS_BOOTROM
 	  To compile this code as a module, chose M here: the module
 	  will be called gb-bootrom.ko
 
-config GREYBUS_CAMERA
-	tristate "Greybus Camera Class driver"
-	depends on MEDIA_SUPPORT && LEDS_CLASS_FLASH && BROKEN
-	help
-	  Select this option if you have a device that follows the
-	  Greybus Camera Class specification.
-
-	  To compile this code as a module, chose M here: the module
-	  will be called gb-camera.ko
-
 config GREYBUS_FIRMWARE
 	tristate "Greybus Firmware Download Class driver"
 	depends on SPI
@@ -203,14 +193,5 @@ config GREYBUS_USB
 	  will be called gb-usb.ko
 
 endif	# GREYBUS_BRIDGED_PHY
-
-config GREYBUS_ARCHE
-	tristate "Greybus Arche Platform driver"
-	depends on USB_HSIC_USB3613 || COMPILE_TEST
-	help
-	  Select this option if you have an Arche device.
-
-	  To compile this code as a module, chose M here: the module
-	  will be called gb-arche.ko
 
 endif	# GREYBUS

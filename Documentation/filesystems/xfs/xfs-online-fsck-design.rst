@@ -1973,8 +1973,7 @@ provide loading and storing of array elements at arbitrary array indices.
 Gaps are defined to be null records, and null records are defined to be a
 sequence of all zero bytes.
 Null records are detected by calling ``xfarray_element_is_null``.
-They are created either by calling ``xfarray_unset`` to null out an existing
-record or by never storing anything to an array index.
+They are created by never storing anything to an array index.
 
 The second type of caller handles records that are not indexed by position
 and do not require multiple updates to a record.
@@ -1991,9 +1990,7 @@ The typical use case here is constructing space extent reference counts from
 reverse mapping information.
 Records can be put in the bag in any order, they can be removed from the bag
 at any time, and uniqueness of records is left to callers.
-The ``xfarray_store_anywhere`` function is used to insert a record in any
-null record slot in the bag; and the ``xfarray_unset`` function removes a
-record from the bag.
+Note: Bags are now implemented with in-memory btrees for faster access.
 
 Iterating Array Elements
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2643,11 +2640,7 @@ generate refcount information from reverse mapping records.
       refcount record associating the block number range that we just walked to
       the size of the bag.
 
-The bag-like structure in this case is a type 2 xfarray as discussed in the
-:ref:`xfarray access patterns<xfarray_access_patterns>` section.
-Reverse mappings are added to the bag using ``xfarray_store_anywhere`` and
-removed via ``xfarray_unset``.
-Bag members are examined through ``xfarray_iter`` loops.
+The bag-like structure in this case is an in-memory btree.
 
 Case Study: Rebuilding File Fork Mapping Indices
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

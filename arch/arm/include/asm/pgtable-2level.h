@@ -96,13 +96,6 @@
 #define SECTION_SIZE		(1UL << SECTION_SHIFT)
 #define SECTION_MASK		(~(SECTION_SIZE-1))
 
-/*
- * ARMv6 supersection address mask and size definitions.
- */
-#define SUPERSECTION_SHIFT	24
-#define SUPERSECTION_SIZE	(1UL << SUPERSECTION_SHIFT)
-#define SUPERSECTION_MASK	(~(SUPERSECTION_SIZE-1))
-
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 
 /*

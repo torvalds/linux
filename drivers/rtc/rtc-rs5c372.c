@@ -52,6 +52,7 @@
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
 #	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2x2x */
+#	define R2223x_CTRL2_ECO		(1 << 7)	/* only if  R2223x */
 #	define R2x2x_CTRL2_VDET		(1 << 6)	/* only if  R2x2x */
 #	define R2x2x_CTRL2_XSTP		(1 << 5)	/* only if  R2x2x */
 #	define R2x2x_CTRL2_PON		(1 << 4)	/* only if  R2x2x */
@@ -68,6 +69,7 @@ enum rtc_type {
 	rtc_undef = 0,
 	rtc_r2025sd,
 	rtc_r2221tl,
+	rtc_r2223x,
 	rtc_rs5c372a,
 	rtc_rs5c372b,
 	rtc_rv5c386,
@@ -77,6 +79,7 @@ enum rtc_type {
 static const struct i2c_device_id rs5c372_id[] = {
 	{ .name = "r2025sd", .driver_data = rtc_r2025sd },
 	{ .name = "r2221tl", .driver_data = rtc_r2221tl },
+	{ .name = "r2223x", .driver_data = rtc_r2223x },
 	{ .name = "rs5c372a", .driver_data = rtc_rs5c372a },
 	{ .name = "rs5c372b", .driver_data = rtc_rs5c372b },
 	{ .name = "rv5c386", .driver_data = rtc_rv5c386 },
@@ -93,6 +96,10 @@ static const __maybe_unused struct of_device_id rs5c372_of_match[] = {
 	{
 		.compatible = "ricoh,r2221tl",
 		.data = (void *)rtc_r2221tl
+	},
+	{
+		.compatible = "ricoh,r2223x",
+		.data = (void *)rtc_r2223x
 	},
 	{
 		.compatible = "ricoh,rs5c372a",
@@ -221,8 +228,10 @@ static int rs5c372_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	switch (rs5c->type) {
 	case rtc_r2025sd:
 	case rtc_r2221tl:
+	case rtc_r2223x:
 		if ((rs5c->type == rtc_r2025sd && !(ctrl2 & R2x2x_CTRL2_XSTP)) ||
-		    (rs5c->type == rtc_r2221tl &&  (ctrl2 & R2x2x_CTRL2_XSTP))) {
+		    ((rs5c->type == rtc_r2221tl || rs5c->type == rtc_r2223x) &&
+		     (ctrl2 & R2x2x_CTRL2_XSTP))) {
 			dev_warn(&client->dev, "rtc oscillator interruption detected. Please reset the rtc clock.\n");
 			return -EINVAL;
 		}
@@ -292,6 +301,7 @@ static int rs5c372_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	switch (rs5c->type) {
 	case rtc_r2025sd:
 	case rtc_r2221tl:
+	case rtc_r2223x:
 		ctrl2 &= ~(R2x2x_CTRL2_VDET | R2x2x_CTRL2_PON);
 		if (rs5c->type == rtc_r2025sd)
 			ctrl2 |= R2x2x_CTRL2_XSTP;
@@ -511,8 +521,10 @@ static int rs5c372_ioctl(struct device *dev, unsigned int cmd, unsigned long arg
 		switch (rs5c->type) {
 		case rtc_r2025sd:
 		case rtc_r2221tl:
+		case rtc_r2223x:
 			if ((rs5c->type == rtc_r2025sd && !(ctrl2 & R2x2x_CTRL2_XSTP)) ||
-				(rs5c->type == rtc_r2221tl &&  (ctrl2 & R2x2x_CTRL2_XSTP))) {
+			    ((rs5c->type == rtc_r2221tl || rs5c->type == rtc_r2223x) &&
+			     (ctrl2 & R2x2x_CTRL2_XSTP))) {
 				flags |= RTC_VL_DATA_INVALID;
 			}
 			if (ctrl2 & R2x2x_CTRL2_VDET)
@@ -527,7 +539,8 @@ static int rs5c372_ioctl(struct device *dev, unsigned int cmd, unsigned long arg
 		return put_user(flags, (unsigned int __user *)arg);
 	case RTC_VL_CLR:
 		/* clear VDET bit */
-		if (rs5c->type == rtc_r2025sd || rs5c->type == rtc_r2221tl) {
+		if (rs5c->type == rtc_r2025sd || rs5c->type == rtc_r2221tl ||
+		    rs5c->type == rtc_r2223x) {
 			ctrl2 &= ~R2x2x_CTRL2_VDET;
 			if (i2c_smbus_write_byte_data(rs5c->client, addr, ctrl2) < 0) {
 				dev_dbg(&rs5c->client->dev, "%s: write error in line %i\n",
@@ -554,6 +567,7 @@ static int rs5c372_read_offset(struct device *dev, long *offset)
 
 	switch (rs5c->type) {
 	case rtc_r2221tl:
+	case rtc_r2223x:
 		ppb_per_step = val & R2221TL_TRIM_DEV ? 1017 : 3051;
 		break;
 	case rtc_rs5c372a:
@@ -600,6 +614,7 @@ static int rs5c372_set_offset(struct device *dev, long offset)
 		}
 		break;
 	case rtc_r2221tl:
+	case rtc_r2223x:
 		/*
 		 * Check if it is possible to use high resolution mode (DEV=1).
 		 * In this mode, the minimum resolution is 2 / (32768 * 20 * 3),
@@ -684,7 +699,7 @@ static ssize_t rs5c372_sysfs_show_trim(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", trim);
+	return sysfs_emit(buf, "%d\n", trim);
 }
 static DEVICE_ATTR(trim, S_IRUGO, rs5c372_sysfs_show_trim, NULL);
 
@@ -697,7 +712,7 @@ static ssize_t rs5c372_sysfs_show_osc(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
+	return sysfs_emit(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
 }
 static DEVICE_ATTR(osc, S_IRUGO, rs5c372_sysfs_show_osc, NULL);
 
@@ -750,6 +765,7 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 			return ret;
 		break;
 	case rtc_r2221tl:
+	case rtc_r2223x:
 		if (!(buf[1] & R2x2x_CTRL2_XSTP))
 			return ret;
 		break;
@@ -768,6 +784,7 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 		break;
 	case rtc_r2025sd:
 	case rtc_r2221tl:
+	case rtc_r2223x:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		buf[0] |= RV5C387_CTRL1_24;
@@ -789,6 +806,24 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	rs5c372->regs[RS5C_REG_CTRL2] = buf[1];
 
 	return 0;
+}
+
+static int rs5c372_set_eco_mode(struct rs5c372 *rs5c372, bool eco)
+{
+	struct i2c_client *client = rs5c372->client;
+	int ctrl2;
+
+	ctrl2 = i2c_smbus_read_byte_data(client, RS5C_ADDR(RS5C_REG_CTRL2));
+	if (ctrl2 < 0)
+		return ctrl2;
+
+	if (eco)
+		ctrl2 |= R2223x_CTRL2_ECO;
+	else
+		ctrl2 &= ~R2223x_CTRL2_ECO;
+
+	return i2c_smbus_write_byte_data(client, RS5C_ADDR(RS5C_REG_CTRL2),
+					 ctrl2);
 }
 
 static int rs5c372_probe(struct i2c_client *client)
@@ -847,6 +882,7 @@ static int rs5c372_probe(struct i2c_client *client)
 		break;
 	case rtc_r2025sd:
 	case rtc_r2221tl:
+	case rtc_r2223x:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		if (rs5c372->regs[RS5C_REG_CTRL1] & RV5C387_CTRL1_24)
@@ -876,6 +912,7 @@ static int rs5c372_probe(struct i2c_client *client)
 			({ char *s; switch (rs5c372->type) {
 			case rtc_r2025sd:	s = "r2025sd"; break;
 			case rtc_r2221tl:	s = "r2221tl"; break;
+			case rtc_r2223x:	s = "r2223x"; break;
 			case rtc_rs5c372a:	s = "rs5c372a"; break;
 			case rtc_rs5c372b:	s = "rs5c372b"; break;
 			case rtc_rv5c386:	s = "rv5c386"; break;
@@ -884,6 +921,15 @@ static int rs5c372_probe(struct i2c_client *client)
 			}; s;}),
 			rs5c372->time24 ? "24hr" : "am/pm"
 			);
+
+	if (rs5c372->type == rtc_r2223x) {
+		bool eco = device_property_read_bool(&client->dev,
+						     "ricoh,eco-mode");
+
+		err = rs5c372_set_eco_mode(rs5c372, eco);
+		if (err < 0)
+			goto exit;
+	}
 
 	/* REVISIT use client->irq to register alarm irq ... */
 	rs5c372->rtc = devm_rtc_device_register(&client->dev,

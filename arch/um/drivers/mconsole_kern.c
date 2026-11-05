@@ -106,9 +106,9 @@ void mconsole_version(struct mc_request *req)
 {
 	char version[256];
 
-	sprintf(version, "%s %s %s %s %s", utsname()->sysname,
-		utsname()->nodename, utsname()->release, utsname()->version,
-		utsname()->machine);
+	snprintf(version, sizeof(version), "%s %s %s %s %s",
+		 utsname()->sysname, utsname()->nodename, utsname()->release,
+		 utsname()->version, utsname()->machine);
 	mconsole_reply(req, version, 0, 0);
 }
 
@@ -117,10 +117,12 @@ void mconsole_log(struct mc_request *req)
 	int len;
 	char *ptr = req->request.data;
 
-	ptr += strlen("log ");
+	ptr += strlen(req->cmd->command);
+	ptr = skip_spaces(ptr);
 
-	len = req->len - (ptr - req->request.data);
-	printk(KERN_WARNING "%.*s", len, ptr);
+	len = req->request.len - (ptr - req->request.data);
+	if (len > 0)
+		printk(KERN_WARNING "%.*s", len, ptr);
 	mconsole_reply(req, "", 0, 0);
 }
 

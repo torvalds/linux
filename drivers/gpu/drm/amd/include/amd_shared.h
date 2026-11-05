@@ -90,6 +90,7 @@ enum amd_apu_flags {
 * @AMD_IP_BLOCK_TYPE_UMSCH_MM: User Mode Scheduler for Multimedia
 * @AMD_IP_BLOCK_TYPE_ISP: Image Signal Processor
 * @AMD_IP_BLOCK_TYPE_RAS: Reliability, Availability, Serviceability
+* @AMD_IP_BLOCK_TYPE_UALINK: Ultra Accelerator Link
 * @AMD_IP_BLOCK_TYPE_NUM: Total number of IP block types
 */
 enum amd_ip_block_type {
@@ -111,6 +112,7 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_UMSCH_MM,
 	AMD_IP_BLOCK_TYPE_ISP,
 	AMD_IP_BLOCK_TYPE_RAS,
+	AMD_IP_BLOCK_TYPE_UALINK,
 	AMD_IP_BLOCK_TYPE_NUM,
 };
 
@@ -287,7 +289,7 @@ enum DC_FEATURE_MASK {
 	 */
 	DC_REPLAY_MASK = (1 << 9),
 	/**
-	 * @DC_FRL_MASK: (0x400) disabled by default
+	 * @DC_FRL_MASK: (0x400) enabled by default
 	 */
 	DC_FRL_MASK = (1 << 10),
 };
@@ -437,7 +439,6 @@ enum amd_dpm_forced_level;
  * @suspend: handles IP specific hw/sw changes for suspend
  * @resume: handles IP specific hw/sw changes for resume
  * @complete: handles IP specific changes after resume
- * @is_idle: returns current IP block idle status
  * @wait_for_idle: poll for idle
  * @soft_reset: soft reset the IP block
  * @set_clockgating_state: enable/disable cg for the IP block
@@ -466,7 +467,6 @@ struct amd_ip_funcs {
 	int (*suspend)(struct amdgpu_ip_block *ip_block);
 	int (*resume)(struct amdgpu_ip_block *ip_block);
 	void (*complete)(struct amdgpu_ip_block *ip_block);
-	bool (*is_idle)(struct amdgpu_ip_block *ip_block);
 	int (*wait_for_idle)(struct amdgpu_ip_block *ip_block);
 	int (*soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*set_clockgating_state)(struct amdgpu_ip_block *ip_block,

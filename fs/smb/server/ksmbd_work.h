@@ -54,10 +54,7 @@ struct ksmbd_work {
 	/* Current cmd hdr in compound rsp buf*/
 	int                             curr_smb2_rsp_hdr_off;
 
-	/*
-	 * Current Local FID assigned compound response if SMB2 CREATE
-	 * command is present in compound request
-	 */
+	/* FileId generated or used by the previous operation in a compound. */
 	u64				compound_fid;
 	u64				compound_pfid;
 	u64				compound_sid;
@@ -91,11 +88,15 @@ struct ksmbd_work {
 	bool                            compress_response:1;
 	/* Is this SYNC or ASYNC ksmbd_work */
 	bool                            asynchronous:1;
-	/* Work owns a reference to @conn. */
-	bool				owns_conn_ref:1;
 	bool                            need_invalidate_rkey:1;
 	bool				request_open_chseq_tracked:1;
+	/* The previous command carries a FileId or is a CREATE. */
+	bool				compound_fid_present:1;
+	/* A related command failed because there was no FileId to inherit. */
+	bool				compound_fid_missing:1;
 	bool				session_setup_reauth:1;
+	/* Retain the binding decision for response signing and preauth hashing. */
+	bool				session_setup_binding:1;
 
 	unsigned int                    remote_key;
 	/* cancel works */
@@ -115,9 +116,8 @@ struct ksmbd_work {
 	struct list_head                request_entry;
 	/* List head at conn->async_requests */
 	struct list_head                async_request_entry;
+	/* List head at ksmbd_file->blocked_works */
 	struct list_head                fp_entry;
-	/* List head at ksmbd_file->notify_pendings */
-	struct list_head                notify_entry;
 };
 
 /**
@@ -156,6 +156,8 @@ int ksmbd_work_pool_init(void);
 int ksmbd_workqueue_init(void);
 void ksmbd_workqueue_destroy(void);
 bool ksmbd_queue_work(struct ksmbd_work *work);
+void ksmbd_queue_io_work(struct work_struct *work);
+void ksmbd_queue_break_work(struct work_struct *work);
 int ksmbd_iov_pin_rsp_read(struct ksmbd_work *work, void *ib, int len,
 			   void *aux_buf, unsigned int aux_size);
 int ksmbd_iov_pin_rsp(struct ksmbd_work *work, void *ib, int len);

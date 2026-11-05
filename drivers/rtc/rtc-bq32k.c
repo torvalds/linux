@@ -210,7 +210,7 @@ static ssize_t bq32k_sysfs_show_tricklecharge_bypass(struct device *dev,
 	if (error)
 		return error;
 
-	return sprintf(buf, "%d\n", (reg & BQ32K_TCFE) ? 1 : 0);
+	return sysfs_emit(buf, "%d\n", (reg & BQ32K_TCFE) ? 1 : 0);
 }
 
 static ssize_t bq32k_sysfs_store_tricklecharge_bypass(struct device *dev,

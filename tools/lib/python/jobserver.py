@@ -29,6 +29,10 @@ $claim child to do the actual work.
 The end goal here is to keep the total number of build tasks under the
 limit established by the initial ``make -j$n_proc`` call.
 
+A command that takes its thread count on the command line rather than from
+the environment can use the ``%PARALLELISM%`` token in its arguments, which
+is replaced by the count, or by 1 when there is no jobserver.
+
 See:
     https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html#POSIX-Jobserver
 """
@@ -37,6 +41,8 @@ import errno
 import os
 import subprocess
 import sys
+
+PARALLELISM_TOKEN = "%PARALLELISM%"
 
 def warn(text, *args):
     print(f'WARNING: {text}', *args, file = sys.stderr)
@@ -182,6 +188,9 @@ class JobserverExec:
         Run a command setting PARALLELISM env variable to the number of
         available job slots (claim) + 1, e.g. it will reserve claim slots
         to do the actual build work, plus one to monitor its children.
+
+        Any %PARALLELISM% in the command's arguments is replaced by the same
+        number, or by 1 when there is no jobserver.
         """
         self.open()             # Ensure that self.claim is set
 
@@ -191,5 +200,9 @@ class JobserverExec:
         # is best.
         if self.claim:
             os.environ["PARALLELISM"] = str(self.claim)
+
+        if not isinstance(cmd, str):
+            parallelism = str(self.claim or 1)
+            cmd = [arg.replace(PARALLELISM_TOKEN, parallelism) for arg in cmd]
 
         return subprocess.call(cmd, *args, **pwargs)

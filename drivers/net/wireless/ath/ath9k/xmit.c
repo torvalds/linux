@@ -168,7 +168,7 @@ static bool ath_merge_ratetbl(struct ieee80211_sta *sta, struct ath_buf *bf,
 	if (!sta)
 		return false;
 
-	ratetbl = rcu_dereference(sta->rates);
+	ratetbl = rcu_dereference_bh(sta->rates);
 	if (!ratetbl)
 		return false;
 

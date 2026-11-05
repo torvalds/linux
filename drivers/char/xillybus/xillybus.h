@@ -94,6 +94,9 @@ struct xilly_endpoint {
 	__iomem void *registers;
 	int fatal_error;
 
+	bool allow_isr;
+	spinlock_t allow_isr_lock;
+
 	struct mutex register_mutex;
 	wait_queue_head_t ep_wait;
 

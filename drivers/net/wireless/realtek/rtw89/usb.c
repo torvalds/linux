@@ -819,10 +819,15 @@ static void rtw89_usb_rx_agg_cfg_v2(struct rtw89_dev *rtwdev)
 
 static void rtw89_usb_rx_agg_cfg_v3(struct rtw89_dev *rtwdev)
 {
-	const u32 rxagg_0 = FIELD_PREP_CONST(B_BE_RXAGG_0_EN, 1) |
-			    FIELD_PREP_CONST(B_BE_RXAGG_0_NUM_TH, 255) |
-			    FIELD_PREP_CONST(B_BE_RXAGG_0_TIME_32US_TH, 32) |
-			    FIELD_PREP_CONST(B_BE_RXAGG_0_BUF_SZ_1K, 20);
+	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
+	u32 rxagg_0 = FIELD_PREP_CONST(B_BE_RXAGG_0_EN, 1) |
+		      FIELD_PREP_CONST(B_BE_RXAGG_0_NUM_TH, 255) |
+		      FIELD_PREP_CONST(B_BE_RXAGG_0_BUF_SZ_1K, 20);
+
+	if (rtwusb->udev->speed == USB_SPEED_SUPER)
+		rxagg_0 |= FIELD_PREP_CONST(B_BE_RXAGG_0_TIME_32US_TH, 1);
+	else
+		rxagg_0 |= FIELD_PREP_CONST(B_BE_RXAGG_0_TIME_32US_TH, 32);
 
 	rtw89_write32(rtwdev, R_BE_RXAGG_0_V1, rxagg_0);
 	rtw89_write32(rtwdev, R_BE_RXAGG_1_V1, 0x1F);
@@ -1201,7 +1206,8 @@ static const struct attribute_group rtw89_usb_group = {
 __ATTRIBUTE_GROUPS(rtw89_usb);
 
 int rtw89_usb_probe(struct usb_interface *intf,
-		    const struct usb_device_id *id)
+		    const struct usb_device_id *id,
+		    const struct rtw89_driver_info *default_info)
 {
 	const struct rtw89_driver_info *info;
 	struct rtw89_dev *rtwdev;
@@ -1209,6 +1215,8 @@ int rtw89_usb_probe(struct usb_interface *intf,
 	int ret;
 
 	info = (const struct rtw89_driver_info *)id->driver_info;
+	if (!info)
+		info = default_info;
 
 	rtwdev = rtw89_alloc_ieee80211_hw(&intf->dev,
 					  sizeof(struct rtw89_usb), info);

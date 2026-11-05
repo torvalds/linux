@@ -400,7 +400,7 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
  * This function is used in the regulator_ops for VRM type RPMh regulator
  * devices.
  *
- * Return: 0 on success, or a negative error number on failure
+ * Return: the regulator mode to use for the load
  */
 static unsigned int rpmh_regulator_vrm_get_optimum_mode(
 	struct regulator_dev *rdev, int input_uV, int output_uV, int load_uA)
@@ -1589,31 +1589,34 @@ static const struct rpmh_vreg_init_data pm6150l_vreg_data[] = {
 };
 
 static const struct rpmh_vreg_init_data pm6350_vreg_data[] = {
-	RPMH_VREG("smps1",  SMPS, 1,  &pmic5_ftsmps510, NULL),
-	RPMH_VREG("smps2",  SMPS, 2,  &pmic5_hfsmps510, NULL),
-	/* smps3 - smps5 not configured */
-	RPMH_VREG("ldo1",   LDO,  1,  &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo2",   LDO,  2,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo3",   LDO,  3,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo4",   LDO,  4,  &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo5",   LDO,  5,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo6",   LDO,  6,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo7",   LDO,  7,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo8",   LDO,  8,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo9",   LDO,  9,  &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo10",  LDO,  10, &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo11",  LDO,  11, &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo12",  LDO,  12, &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo13",  LDO,  13, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo14",  LDO,  14, &pmic5_pldo,      NULL),
-	RPMH_VREG("ldo15",  LDO,  15, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo16",  LDO,  16, &pmic5_nldo,      NULL),
-	/* ldo17 not configured */
-	RPMH_VREG("ldo18",  LDO,  18, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo19",  LDO,  19, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo20",  LDO,  20, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo21",  LDO,  21, &pmic5_nldo,      NULL),
-	RPMH_VREG("ldo22",  LDO,  22, &pmic5_nldo,      NULL),
+	RPMH_VREG("smps1",  SMPS, 1,  &pmic5_ftsmps510, "vdd-s1"),
+	RPMH_VREG("smps2",  SMPS, 2,  &pmic5_hfsmps510, "vdd-s2"),
+	RPMH_VREG("smps3",  SMPS, 3,  &pmic5_ftsmps510, "vdd-s3"),
+	RPMH_VREG("smps4",  SMPS, 4,  &pmic5_ftsmps510, "vdd-s4"),
+	RPMH_VREG("smps5",  SMPS, 5,  &pmic5_ftsmps510, "vdd-s5"),
+	RPMH_VREG("smps6",  SMPS, 6,  &pmic5_hfsmps510, "vdd-s6"),
+	RPMH_VREG("ldo1",   LDO,  1,  &pmic5_nldo,      "vdd-l1"),
+	RPMH_VREG("ldo2",   LDO,  2,  &pmic5_pldo,      "vdd-l2-l5-l7"),
+	RPMH_VREG("ldo3",   LDO,  3,  &pmic5_pldo,      "vdd-l3-l6-l8-l9-l10"),
+	RPMH_VREG("ldo4",   LDO,  4,  &pmic5_nldo,      "vdd-l4"),
+	RPMH_VREG("ldo5",   LDO,  5,  &pmic5_pldo,      "vdd-l2-l5-l7"),
+	RPMH_VREG("ldo6",   LDO,  6,  &pmic5_pldo,      "vdd-l3-l6-l8-l9-l10"),
+	RPMH_VREG("ldo7",   LDO,  7,  &pmic5_pldo,      "vdd-l2-l5-l7"),
+	RPMH_VREG("ldo8",   LDO,  8,  &pmic5_pldo,      "vdd-l3-l6-l8-l9-l10"),
+	RPMH_VREG("ldo9",   LDO,  9,  &pmic5_pldo,      "vdd-l3-l6-l8-l9-l10"),
+	RPMH_VREG("ldo10",  LDO,  10, &pmic5_pldo,      "vdd-l3-l6-l8-l9-l10"),
+	RPMH_VREG("ldo11",  LDO,  11, &pmic5_pldo,      "vdd-l11"),
+	RPMH_VREG("ldo12",  LDO,  12, &pmic5_pldo,      "vdd-l12-l14"),
+	RPMH_VREG("ldo13",  LDO,  13, &pmic5_nldo,      "vdd-l13"),
+	RPMH_VREG("ldo14",  LDO,  14, &pmic5_pldo,      "vdd-l12-l14"),
+	RPMH_VREG("ldo15",  LDO,  15, &pmic5_nldo,      "vdd-l15-l19-l22"),
+	RPMH_VREG("ldo16",  LDO,  16, &pmic5_nldo,      "vdd-l16"),
+	RPMH_VREG("ldo17",  LDO,  17, &pmic5_nldo,      "vdd-l17"),
+	RPMH_VREG("ldo18",  LDO,  18, &pmic5_nldo,      "vdd-l18-l20-l21"),
+	RPMH_VREG("ldo19",  LDO,  19, &pmic5_nldo,      "vdd-l15-l19-l22"),
+	RPMH_VREG("ldo20",  LDO,  20, &pmic5_nldo,      "vdd-l18-l20-l21"),
+	RPMH_VREG("ldo21",  LDO,  21, &pmic5_nldo,      "vdd-l18-l20-l21"),
+	RPMH_VREG("ldo22",  LDO,  22, &pmic5_nldo,      "vdd-l15-l19-l22"),
 };
 
 static const struct rpmh_vreg_init_data pmcx0102_vreg_data[] = {

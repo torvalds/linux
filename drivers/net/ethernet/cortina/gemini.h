@@ -726,7 +726,7 @@ union gmac_config0 {
 		unsigned int dis_rx:1;
 		/* 2: transmit data loopback enable */
 		unsigned int loop_back:1;
-		/* 3: flow control also trigged by Rx queues */
+		/* 3: flow control also triggered by Rx queues */
 		unsigned int flow_ctrl:1;
 		/* 4-7: adjust IFG from 96+/-56 */
 		unsigned int adj_ifg:4;

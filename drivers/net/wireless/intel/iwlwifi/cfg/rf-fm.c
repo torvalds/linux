@@ -5,6 +5,8 @@
  */
 #include "iwl-config.h"
 
+#define IWL_BZ_A_FM_C_FW_PRE		"iwlwifi-bz-a0-fm-c0"
+
 #define IWL_DEVICE_FM							\
 	.ht_params = {							\
 		.stbc = true,						\
@@ -48,3 +50,5 @@ const char iwl_be201_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
 const char iwl_be200_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";
 const char iwl_be202_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
 const char iwl_be401_name[] = "Intel(R) Wi-Fi 7 BE401 320MHz";
+
+IWL_CORE_FW(IWL_BZ_A_FM_C_FW_PRE, 107);

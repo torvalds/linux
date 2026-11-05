@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -20,7 +21,7 @@
 struct tegra_uart {
 	struct clk *clk;
 	struct reset_control *rst;
-	int line;
+	struct uart_8250_port *uport;
 };
 
 static void tegra_uart_handle_break(struct uart_port *p)
@@ -103,12 +104,13 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clkdisable;
 
-	ret = serial8250_register_8250_port(&port8250);
-	if (ret < 0)
+	uart->uport = serial8250_register_8250_port(&port8250);
+	if (IS_ERR(uart->uport)) {
+		ret = PTR_ERR(uart->uport);
 		goto err_ctrl_assert;
+	}
 
 	platform_set_drvdata(pdev, uart);
-	uart->line = ret;
 
 	return 0;
 
@@ -124,7 +126,7 @@ static void tegra_uart_remove(struct platform_device *pdev)
 {
 	struct tegra_uart *uart = platform_get_drvdata(pdev);
 
-	serial8250_unregister_port(uart->line);
+	serial8250_unregister_port(uart->uport);
 	reset_control_assert(uart->rst);
 	clk_disable_unprepare(uart->clk);
 }
@@ -133,10 +135,10 @@ static void tegra_uart_remove(struct platform_device *pdev)
 static int tegra_uart_suspend(struct device *dev)
 {
 	struct tegra_uart *uart = dev_get_drvdata(dev);
-	struct uart_8250_port *port8250 = serial8250_get_port(uart->line);
+	struct uart_8250_port *port8250 = uart->uport;
 	struct uart_port *port = &port8250->port;
 
-	serial8250_suspend_port(uart->line);
+	serial8250_suspend_port(port8250);
 
 	if (!uart_console(port) || console_suspend_enabled)
 		clk_disable_unprepare(uart->clk);
@@ -147,13 +149,13 @@ static int tegra_uart_suspend(struct device *dev)
 static int tegra_uart_resume(struct device *dev)
 {
 	struct tegra_uart *uart = dev_get_drvdata(dev);
-	struct uart_8250_port *port8250 = serial8250_get_port(uart->line);
+	struct uart_8250_port *port8250 = uart->uport;
 	struct uart_port *port = &port8250->port;
 
 	if (!uart_console(port) || console_suspend_enabled)
 		clk_prepare_enable(uart->clk);
 
-	serial8250_resume_port(uart->line);
+	serial8250_resume_port(port8250);
 
 	return 0;
 }

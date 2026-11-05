@@ -46,11 +46,11 @@
 # r4, r3,   r2,   r1,   r0  ;
 #
 #
-# poly1305_p10le_4blocks( uint8_t *k, uint32_t mlen, uint8_t *m)
-#  k = 32 bytes key
-#  r3 = k (r, s)
-#  r4 = mlen
-#  r5 = m
+# void poly1305_p10le_4blocks(struct poly1305_block_state *state, const u8 *m,
+#			      size_t mlen);
+#  r3 = state
+#  r4 = m
+#  r5 = mlen
 #
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
@@ -519,11 +519,11 @@ SYM_FUNC_END(do_mul)
 .endm
 
 #
-# poly1305_p10le_4blocks( uint8_t *k, uint32_t mlen, uint8_t *m)
-#  k = 32 bytes key
-#  r3 = k (r, s)
-#  r4 = mlen
-#  r5 = m
+# void poly1305_p10le_4blocks(struct poly1305_block_state *state, const u8 *m,
+#			      size_t mlen);
+#  r3 = state
+#  r4 = m
+#  r5 = mlen
 #
 SYM_FUNC_START(poly1305_p10le_4blocks)
 .align 5
@@ -919,7 +919,8 @@ SYM_FUNC_END(Carry_reduction)
 #       d2 = h0 * r0
 #
 #
-# unsigned int poly1305_test_64s(unisgned char *state, const byte *src, size_t len, highbit)
+# void poly1305_64s(struct poly1305_block_state *state, const u8 *m,
+#		    size_t mlen, int highbit);
 #   - no highbit if final leftover block (highbit = 0)
 #
 SYM_FUNC_START(poly1305_64s)

@@ -510,11 +510,16 @@ bool mali_c55_pipeline_ready(struct mali_c55 *mali_c55)
 	struct mali_c55_params *params = &mali_c55->params;
 	struct mali_c55_stats *stats = &mali_c55->stats;
 
-	return vb2_start_streaming_called(&fr->queue) &&
+	/* Only wait for queues connected through enabled media links. */
+	return (!media_pad_remote_pad_first(&fr->pad) ||
+		vb2_start_streaming_called(&fr->queue)) &&
 	       (!(mali_c55->capabilities & MALI_C55_GPS_DS_PIPE_FITTED) ||
+		!media_pad_remote_pad_first(&ds->pad) ||
 		vb2_start_streaming_called(&ds->queue)) &&
-	       vb2_start_streaming_called(&params->queue) &&
-	       vb2_start_streaming_called(&stats->queue);
+	       (!media_pad_remote_pad_first(&params->pad) ||
+		vb2_start_streaming_called(&params->queue)) &&
+	       (!media_pad_remote_pad_first(&stats->pad) ||
+		vb2_start_streaming_called(&stats->queue));
 }
 
 static int mali_c55_check_hwcfg(struct mali_c55 *mali_c55)
@@ -730,8 +735,13 @@ static int __mali_c55_power_on(struct mali_c55 *mali_c55)
 	/* Set safe stop to ensure we're in a non-streaming state */
 	mali_c55_write(mali_c55, MALI_C55_REG_INPUT_MODE_REQUEST,
 		       MALI_C55_INPUT_SAFE_STOP);
-	readl_poll_timeout(mali_c55->base + MALI_C55_REG_MODE_STATUS,
-			   val, !val, 10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
+	ret = readl_poll_timeout(mali_c55->base + MALI_C55_REG_MODE_STATUS,
+				 val, !val, 10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
+	if (ret) {
+		dev_err(mali_c55->dev, "safe stop timed out\n");
+		__mali_c55_power_off(mali_c55);
+		return ret;
+	}
 
 	return 0;
 }
@@ -803,14 +813,12 @@ static int mali_c55_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to acquire resets\n");
 
-	of_reserved_mem_device_init(dev);
+	devm_of_reserved_mem_device_init(dev);
 	vb2_dma_contig_set_max_seg_size(dev, UINT_MAX);
 
 	ret = __mali_c55_power_on(mali_c55);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to power on\n");
-		goto err_release_mem;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to power on\n");
 
 	ret = mali_c55_check_hwcfg(mali_c55);
 	if (ret)
@@ -849,9 +857,6 @@ err_pm_runtime_disable:
 	kfree(mali_c55->context.registers);
 err_power_off:
 	__mali_c55_power_off(mali_c55);
-err_release_mem:
-	of_reserved_mem_device_release(dev);
-
 	return ret;
 }
 
@@ -866,7 +871,6 @@ static void mali_c55_remove(struct platform_device *pdev)
 	}
 	pm_runtime_disable(&pdev->dev);
 	kfree(mali_c55->context.registers);
-	of_reserved_mem_device_release(&pdev->dev);
 }
 
 static const struct of_device_id mali_c55_of_match[] = {

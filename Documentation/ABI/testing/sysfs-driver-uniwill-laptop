@@ -29,25 +29,14 @@ Description:
 		Reading this file returns the current enable status of the touchpad toggle
 		functionality.
 
-What:		/sys/bus/platform/devices/INOU0000:XX/rainbow_animation
-Date:		November 2025
-KernelVersion:	6.19
-Contact:	Armin Wolf <W_Armin@gmx.de>
-Description:
-		Forces the integrated lightbar to display a rainbow animation when the machine
-		is not suspended. Writing "1"/"0" into this file enables/disables this
-		functionality.
-
-		Reading this file returns the current status of the rainbow animation functionality.
-
 What:		/sys/bus/platform/devices/INOU0000:XX/breathing_in_suspend
 Date:		November 2025
 KernelVersion:	6.19
 Contact:	Armin Wolf <W_Armin@gmx.de>
 Description:
 		Causes the integrated lightbar to display a breathing animation when the machine
-		has been suspended and is running on AC power. Writing "1"/"0" into this file
-		enables/disables this functionality.
+		has been suspended, is running on AC power and the lightbar brightness not zero.
+		Writing "1"/"0" into this file enables/disables this functionality.
 
 		Reading this file returns the current status of the breathing animation
 		functionality.

@@ -164,9 +164,10 @@ extern int ata_scsi_add_hosts(struct ata_host *host,
 			      const struct scsi_host_template *sht);
 extern void ata_scsi_scan_host(struct ata_port *ap, int sync);
 extern bool ata_scsi_offline_dev(struct ata_device *dev);
-extern bool ata_scsi_sense_is_valid(u8 sk, u8 asc, u8 ascq);
+extern bool ata_scsi_sense_is_valid(u8 sense_key, u16 sense_code);
 extern void ata_scsi_set_sense(struct ata_device *dev,
-			       struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq);
+			       struct scsi_cmnd *cmd, u8 sense_key,
+			       u16 sense_code);
 extern void ata_scsi_media_change_notify(struct ata_device *dev);
 extern void ata_scsi_hotplug(struct work_struct *work);
 extern void ata_scsi_dev_rescan(struct work_struct *work);

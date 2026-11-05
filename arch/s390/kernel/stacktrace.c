@@ -113,7 +113,7 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 	sf = (void __user *)user_stack_pointer(regs);
 	pagefault_disable();
 	while (1) {
-		if (__get_user(sp, &sf->back_chain))
+		if (get_user(sp, &sf->back_chain))
 			break;
 		/*
 		 * VDSO entry code has a non-standard stack frame layout.
@@ -121,15 +121,15 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 		 */
 		if (!sp && ip_within_vdso(ip)) {
 			sf_vdso = (void __user *)sf;
-			if (__get_user(ip, &sf_vdso->return_address))
+			if (get_user(ip, &sf_vdso->return_address))
 				break;
 			sp = (unsigned long)sf + STACK_FRAME_VDSO_OVERHEAD;
 			sf = (void __user *)sp;
-			if (__get_user(sp, &sf->back_chain))
+			if (get_user(sp, &sf->back_chain))
 				break;
 		} else {
 			sf = (void __user *)sp;
-			if (__get_user(ip, &sf->gprs[8]))
+			if (get_user(ip, &sf->gprs[8]))
 				break;
 		}
 		/* Validate SP and RA (ABI requires SP to be 8 byte aligned). */

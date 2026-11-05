@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
 				vcpu_regs_get(vcpu, &regs2);
 				TEST_ASSERT(!memcmp(&regs1, &regs2, sizeof(regs2)),
 					    "Unexpected register values after vcpu_load_state; rdi: %lx rsi: %lx",
-					    (ulong) regs2.rdi, (ulong) regs2.rsi);
+					    (unsigned long)regs2.rdi, (unsigned long)regs2.rsi);
 			}
 			break;
 		case UCALL_DONE:

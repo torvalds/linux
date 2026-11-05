@@ -22,7 +22,7 @@ static inline int br_vlan_tunid_cmp(struct rhashtable_compare_arg *arg,
 	const struct net_bridge_vlan *vle = ptr;
 	__be64 tunid = *(__be64 *)arg->key;
 
-	return vle->tinfo.tunnel_id != tunid;
+	return READ_ONCE(vle->tinfo.tunnel_id) != tunid;
 }
 
 static const struct rhashtable_params br_vlan_tunnel_rht_params = {

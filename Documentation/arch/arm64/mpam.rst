@@ -87,6 +87,32 @@ The supported features are:
   MBWU monitors can be exposed to the user after support for more monitoring
   scopes is added to resctrl.
 
+Command line parameters
+=======================
+
+arm64.nompam
+------------
+Firmware controls MPAM through two bits of MPAM3_EL3. MPAMEN enables
+it: while set, the PARTID and PMG in the MPAMn_ELx registers label the
+CPU's memory requests. TRAPLOWER, which resets to 1, traps accesses to
+the MPAM system registers from the lower exception levels to EL3.
+Firmware must clear it, or handle the trap and emulate MPAM as disabled.
+Where it does neither, the CPUs still advertise MPAM in the ID registers,
+the kernel's MPAM register accesses trap to EL3, and the boot fails.
+``arm64.nompam`` exists for that firmware: it makes the kernel treat the
+CPUs as not implementing MPAM, so no MPAM system register is accessed.
+Set it only on a machine that does not boot without it.
+
+It is not a way to turn MPAM off. Where firmware has cleared TRAPLOWER,
+the option leaves the trap controls in MPAM2_EL2 and MPAMHCR_EL2
+unwritten, and their reset values are UNKNOWN. KVM still hides MPAM from
+guests but no longer enables the traps that stop a guest from using it,
+so a guest may be able to read and write MPAM0_EL1, MPAM1_EL1 and
+MPAMSM_EL1. KVM does not save or restore them, so what one guest writes
+is still there when the next guest runs on that CPU, and when the host
+does. With MPAMEN set, EL0 and EL1 requests then carry that PARTID and
+PMG.
+
 Reporting Bugs
 ==============
 If you are not seeing the counters or controls you expect please share the

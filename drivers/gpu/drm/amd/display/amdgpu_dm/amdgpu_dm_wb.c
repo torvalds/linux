@@ -41,6 +41,52 @@ static const u32 amdgpu_dm_wb_formats[] = {
 	DRM_FORMAT_XRGB2101010,
 };
 
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+static const struct amdgpu_dm_wb_kunit_ops amdgpu_dm_wb_default_ops = {
+	.reserve = amdgpu_bo_reserve,
+	.reserve_fences = dma_resv_reserve_fences,
+	.pin = amdgpu_bo_pin,
+	.alloc_gart = amdgpu_ttm_alloc_gart,
+	.unreserve = amdgpu_bo_unreserve,
+	.gpu_offset = amdgpu_bo_gpu_offset,
+	.ref = amdgpu_bo_ref,
+	.unpin = amdgpu_bo_unpin,
+	.unref = amdgpu_bo_unref,
+};
+
+static const struct amdgpu_dm_wb_kunit_ops *amdgpu_dm_wb_ops =
+	&amdgpu_dm_wb_default_ops;
+
+void amdgpu_dm_wb_kunit_set_ops(const struct amdgpu_dm_wb_kunit_ops *ops)
+{
+	amdgpu_dm_wb_ops = ops ? ops : &amdgpu_dm_wb_default_ops;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_wb_kunit_set_ops);
+
+#define wb_bo_reserve			amdgpu_dm_wb_ops->reserve
+#define wb_dma_resv_reserve_fences	amdgpu_dm_wb_ops->reserve_fences
+#define wb_bo_pin			amdgpu_dm_wb_ops->pin
+#define wb_ttm_alloc_gart		amdgpu_dm_wb_ops->alloc_gart
+#define wb_bo_unreserve			amdgpu_dm_wb_ops->unreserve
+#define wb_bo_gpu_offset		amdgpu_dm_wb_ops->gpu_offset
+#define wb_bo_ref			amdgpu_dm_wb_ops->ref
+#define wb_bo_unpin			amdgpu_dm_wb_ops->unpin
+#define wb_bo_unref			amdgpu_dm_wb_ops->unref
+
+#else
+
+#define wb_bo_reserve			amdgpu_bo_reserve
+#define wb_dma_resv_reserve_fences	dma_resv_reserve_fences
+#define wb_bo_pin			amdgpu_bo_pin
+#define wb_ttm_alloc_gart		amdgpu_ttm_alloc_gart
+#define wb_bo_unreserve			amdgpu_bo_unreserve
+#define wb_bo_gpu_offset		amdgpu_bo_gpu_offset
+#define wb_bo_ref			amdgpu_bo_ref
+#define wb_bo_unpin			amdgpu_bo_unpin
+#define wb_bo_unref			amdgpu_bo_unref
+
+#endif
+
 STATIC_IFN_KUNIT int amdgpu_dm_wb_encoder_atomic_check(struct drm_encoder *encoder,
 					struct drm_crtc_state *crtc_state,
 					struct drm_connector_state *conn_state)
@@ -105,13 +151,13 @@ STATIC_IFN_KUNIT int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb
 	rbo = gem_to_amdgpu_bo(obj);
 	adev = amdgpu_ttm_adev(rbo->tbo.bdev);
 
-	r = amdgpu_bo_reserve(rbo, true);
+	r = wb_bo_reserve(rbo, true);
 	if (r) {
 		drm_err(adev_to_drm(adev), "fail to reserve bo: %pe\n", ERR_PTR(r));
 		return r;
 	}
 
-	r = dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
+	r = wb_dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
 	if (r) {
 		drm_err(adev_to_drm(adev), "reserving fence slot failed: %pe\n", ERR_PTR(r));
 		goto error_unlock;
@@ -120,32 +166,32 @@ STATIC_IFN_KUNIT int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb
 	domain = amdgpu_display_supported_domains(adev, rbo->flags);
 
 	rbo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-	r = amdgpu_bo_pin(rbo, domain);
+	r = wb_bo_pin(rbo, domain);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to pin framebuffer: %pe\n", ERR_PTR(r));
 		goto error_unlock;
 	}
 
-	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
+	r = wb_ttm_alloc_gart(&rbo->tbo);
 	if (unlikely(r != 0)) {
 		DRM_ERROR("%p bind failed: %pe\n", rbo, ERR_PTR(r));
 		goto error_unpin;
 	}
 
-	amdgpu_bo_unreserve(rbo);
+	wb_bo_unreserve(rbo);
 
-	afb->address = amdgpu_bo_gpu_offset(rbo);
+	afb->address = wb_bo_gpu_offset(rbo);
 
-	amdgpu_bo_ref(rbo);
+	wb_bo_ref(rbo);
 
 	return 0;
 
 error_unpin:
-	amdgpu_bo_unpin(rbo);
+	wb_bo_unpin(rbo);
 
 error_unlock:
-	amdgpu_bo_unreserve(rbo);
+	wb_bo_unreserve(rbo);
 	return r;
 }
 EXPORT_IF_KUNIT(amdgpu_dm_wb_prepare_job);
@@ -160,15 +206,15 @@ STATIC_IFN_KUNIT void amdgpu_dm_wb_cleanup_job(struct drm_writeback_connector *c
 		return;
 
 	rbo = gem_to_amdgpu_bo(job->fb->obj[0]);
-	r = amdgpu_bo_reserve(rbo, false);
+	r = wb_bo_reserve(rbo, false);
 	if (unlikely(r)) {
 		DRM_ERROR("failed to reserve rbo before unpin: %pe\n", ERR_PTR(r));
 		return;
 	}
 
-	amdgpu_bo_unpin(rbo);
-	amdgpu_bo_unreserve(rbo);
-	amdgpu_bo_unref(&rbo);
+	wb_bo_unpin(rbo);
+	wb_bo_unreserve(rbo);
+	wb_bo_unref(&rbo);
 }
 EXPORT_IF_KUNIT(amdgpu_dm_wb_cleanup_job);
 

@@ -8,6 +8,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_print.h>
 
 #include "i9xx_plane.h"
@@ -887,6 +888,7 @@ static const struct drm_plane_funcs i965_plane_funcs = {
 	.atomic_destroy_state = intel_plane_destroy_state,
 	.format_mod_supported = i965_plane_format_mod_supported,
 	.format_mod_supported_async = intel_plane_format_mod_supported_async,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static const struct drm_plane_funcs i8xx_plane_funcs = {
@@ -897,6 +899,7 @@ static const struct drm_plane_funcs i8xx_plane_funcs = {
 	.atomic_destroy_state = intel_plane_destroy_state,
 	.format_mod_supported = i8xx_plane_format_mod_supported,
 	.format_mod_supported_async = intel_plane_format_mod_supported_async,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static void i9xx_disable_tiling(struct intel_plane *plane)

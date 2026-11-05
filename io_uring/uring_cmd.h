@@ -14,7 +14,7 @@ void io_uring_cmd_sqe_copy(struct io_kiocb *req);
 void io_uring_cmd_cleanup(struct io_kiocb *req);
 
 bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
-				   struct io_uring_task *tctx, bool cancel_all);
+				   struct io_uring_task *tctx);
 
 bool io_uring_cmd_post_mshot_cqe32(struct io_uring_cmd *cmd,
 				   unsigned int issue_flags,

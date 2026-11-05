@@ -496,10 +496,7 @@ static void raid10_end_write_request(struct bio *bio)
 			 */
 			md_error(rdev->mddev, rdev);
 		else {
-			set_bit(WriteErrorSeen,	&rdev->flags);
-			if (!test_and_set_bit(WantReplacement, &rdev->flags))
-				set_bit(MD_RECOVERY_NEEDED,
-					&rdev->mddev->recovery);
+			rdev_record_write_error(rdev);
 
 			dec_rdev = 0;
 			if (test_bit(FailFast, &rdev->flags) &&
@@ -898,16 +895,7 @@ static void flush_pending_writes(struct r10conf *conf)
 		__set_current_state(TASK_RUNNING);
 
 		blk_start_plug(&plug);
-		raid1_prepare_flush_writes(conf->mddev);
-		wake_up(&conf->wait_barrier);
-
-		while (bio) { /* submit pending writes */
-			struct bio *next = bio->bi_next;
-
-			raid1_submit_write(bio);
-			bio = next;
-			cond_resched();
-		}
+		flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 		blk_finish_plug(&plug);
 	} else
 		spin_unlock_irq(&conf->device_lock);
@@ -1010,7 +998,8 @@ static bool wait_barrier_nolock(struct r10conf *conf)
 	if (!read_seqretry(&conf->resync_lock, seq))
 		return true;
 
-	if (atomic_dec_and_test(&conf->nr_pending))
+	if (atomic_dec_and_test(&conf->nr_pending) ||
+	    READ_ONCE(conf->array_freeze_pending))
 		wake_up_barrier(conf);
 
 	return false;
@@ -1037,7 +1026,7 @@ static void wait_barrier(struct r10conf *conf)
 static void allow_barrier(struct r10conf *conf)
 {
 	if ((atomic_dec_and_test(&conf->nr_pending)) ||
-			(conf->array_freeze_pending))
+	    READ_ONCE(conf->array_freeze_pending))
 		wake_up_barrier(conf);
 }
 
@@ -1056,12 +1045,12 @@ static void freeze_array(struct r10conf *conf, int extra)
 	 * we continue.
 	 */
 	write_seqlock_irq(&conf->resync_lock);
-	conf->array_freeze_pending++;
+	WRITE_ONCE(conf->array_freeze_pending, conf->array_freeze_pending + 1);
 	WRITE_ONCE(conf->barrier, conf->barrier + 1);
 	conf->nr_waiting++;
 	wait_event_barrier_cmd(conf, atomic_read(&conf->nr_pending) ==
 			conf->nr_queued + extra, flush_pending_writes(conf));
-	conf->array_freeze_pending--;
+	WRITE_ONCE(conf->array_freeze_pending, conf->array_freeze_pending - 1);
 	write_sequnlock_irq(&conf->resync_lock);
 }
 
@@ -1104,16 +1093,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	/* we aren't scheduling, so we can do the write-out directly. */
 	bio = bio_list_get(&plug->pending);
-	raid1_prepare_flush_writes(mddev);
-	wake_up_barrier(conf);
-
-	while (bio) { /* submit pending writes */
-		struct bio *next = bio->bi_next;
-
-		raid1_submit_write(bio);
-		bio = next;
-		cond_resched();
-	}
+	flush_bio_list(mddev, bio, &conf->wait_barrier);
 	kfree(plug);
 }
 
@@ -2299,10 +2279,7 @@ static void end_sync_write(struct bio *bio)
 		if (repl)
 			md_error(mddev, rdev);
 		else {
-			set_bit(WriteErrorSeen, &rdev->flags);
-			if (!test_and_set_bit(WantReplacement, &rdev->flags))
-				set_bit(MD_RECOVERY_NEEDED,
-					&rdev->mddev->recovery);
+			rdev_record_write_error(rdev);
 			set_bit(R10BIO_WriteError, &r10_bio->state);
 		}
 	} else if (rdev_has_badblock(rdev, r10_bio->devs[slot].addr,
@@ -2500,11 +2477,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 					  pages[idx],
 					  REQ_OP_WRITE, false);
 			if (!ok) {
-				set_bit(WriteErrorSeen, &rdev->flags);
-				if (!test_and_set_bit(WantReplacement,
-						      &rdev->flags))
-					set_bit(MD_RECOVERY_NEEDED,
-						&rdev->mddev->recovery);
+				rdev_record_write_error(rdev);
 			}
 		}
 		if (!ok) {
@@ -2585,10 +2558,7 @@ static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
 		/* success */
 		return 1;
 	if (op == REQ_OP_WRITE) {
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED,
-				&rdev->mddev->recovery);
+		rdev_record_write_error(rdev);
 	}
 	/* need to record an error - either for the block or the device */
 	rdev_set_badblocks(rdev, sector, sectors, 0);
@@ -2775,15 +2745,10 @@ static void narrow_write_error(struct r10bio *r10_bio, int i)
 	 * We currently own a reference to the rdev.
 	 */
 
-	int block_sectors, lbs = bdev_logical_block_size(rdev->bdev) >> 9;
+	int block_sectors = rdev_bb_block_sectors(rdev);
 	sector_t sector;
 	int sectors;
 	int sect_to_write = r10_bio->sectors;
-
-	if (rdev->badblocks.shift < 0)
-		block_sectors = lbs;
-	else
-		block_sectors = roundup(1 << rdev->badblocks.shift, lbs);
 
 	sector = r10_bio->sector;
 	sectors = ((r10_bio->sector + block_sectors)

@@ -714,10 +714,7 @@ static void lcd_backlight(struct charlcd *charlcd, enum charlcd_onoff on)
 
 	/* The backlight is activated by setting the AUTOFEED line to +5V  */
 	spin_lock_irq(&pprt_lock);
-	if (on)
-		set_bit(LCD_BIT_BL, bits);
-	else
-		clear_bit(LCD_BIT_BL, bits);
+	assign_bit(LCD_BIT_BL, bits, on);
 	panel_set_bits();
 	spin_unlock_irq(&pprt_lock);
 }

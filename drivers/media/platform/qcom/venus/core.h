@@ -8,6 +8,7 @@
 #define __VENUS_CORE_H_
 
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
@@ -29,6 +30,9 @@
 #define VIDC_MAX_HIER_CODING_LAYER 6
 
 #define VENUS_MAX_FPS			240
+
+#define VENUS_NP_RESERVE_IOVA_START	0x0
+#define VENUS_NP_RESERVE_IOVA_SIZE	0x25800000
 
 extern int venus_fw_debug;
 
@@ -189,6 +193,7 @@ struct venus_format {
  * @dump_core:	a flag indicating that a core dump is required
  * @ocs:	OF changeset pointer
  * @hwmode_dev:	a flag indicating that HW_CTRL_TRIGGER is used in clock driver
+ * @iova_state: a pointer to an array of dma_iova_state entries reserved for restricted IOVA region
  */
 struct venus_core {
 	void __iomem *base;
@@ -250,6 +255,7 @@ struct venus_core {
 	unsigned long dump_core;
 	struct of_changeset *ocs;
 	bool hwmode_dev;
+	struct dma_iova_state *iova_state;
 };
 
 struct vdec_controls {

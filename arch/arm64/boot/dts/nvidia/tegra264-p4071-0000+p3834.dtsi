@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/gpio-keys.h>
+
 / {
 	aliases {
 		serial0 = &{/bus@0/serial@c4e0000};
@@ -8,5 +11,108 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	bus@0 {
+		rtc@c2c0000 {
+			status = "okay";
+		};
+
+		pwm@c6a0000 {
+			status = "okay";
+		};
+	};
+
+	bus@8100000000 {
+		i2c@c640000 {
+			eeprom@56 {
+				compatible = "atmel,24c02";
+				reg = <0x56>;
+				label = "system";
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
+		};
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		cooling-levels = <77 102 140 192 255>;
+		pwms = <&pwm4 0 40000>;
+		#cooling-cells = <2>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-force-recovery {
+			label = "Force Recovery";
+			gpios = <&gpio_aon TEGRA264_AON_GPIO(EE, 1) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_SLEEP>;
+		};
+
+		key-power {
+			label = "Power";
+			gpios = <&gpio_aon TEGRA264_AON_GPIO(AA, 5) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_POWER>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
+	thermal-zones {
+		tj-thermal {
+			trips {
+				tj_trip_active0: active-0 {
+					temperature = <80000>;
+					hysteresis = <0>;
+					type = "active";
+				};
+
+				tj_trip_active1: active-1 {
+					temperature = <86000>;
+					hysteresis = <0>;
+					type = "active";
+				};
+
+				tj_trip_active2: active-2 {
+					temperature = <91000>;
+					hysteresis = <0>;
+					type = "active";
+				};
+
+				tj_trip_active3: active-3 {
+					temperature = <100000>;
+					hysteresis = <0>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map-active-0 {
+					cooling-device = <&fan 0 1>;
+					trip = <&tj_trip_active0>;
+				};
+
+				map-active-1 {
+					cooling-device = <&fan 1 2>;
+					trip = <&tj_trip_active1>;
+				};
+
+				map-active-2 {
+					cooling-device = <&fan 2 3>;
+					trip = <&tj_trip_active2>;
+				};
+
+				map-active-3 {
+					cooling-device = <&fan 3 4>;
+					trip = <&tj_trip_active3>;
+				};
+			};
+		};
 	};
 };

@@ -128,3 +128,47 @@ ENTRY(mte_get_pstate_tco)
 	ubfx	x0, x0, #MT_PSTATE_TCO_SHIFT, #1
 	ret
 ENDPROC(mte_get_pstate_tco)
+
+/*
+ * memset_safe: Fill memory with a constant byte
+ * Input:
+ *		x0 - destination pointer
+ *		x1 - constant byte
+ *		x2 - number of bytes to fill
+ * Return:
+ *		x0 - original destination pointer
+ */
+ENTRY(memset_safe)
+	cbz	x2, 2f
+	add	x4, x2, x0
+	mov	x3, x0
+1:
+	strb	w1, [x3]
+	add	x3, x3, #0x1
+	cmp	x3, x4
+	b.ne	1b
+2:
+	ret
+ENDPROC(memset_safe)
+
+/*
+ * memcpy_safe: Copy memory area
+ * Input:
+ *		x0 - destination pointer
+ *		x1 - source pointer
+ *		x2 - number of bytes to copy
+ * Return:
+ *		x0 - destination pointer
+ */
+ENTRY(memcpy_safe)
+	cbz	x2, 2f
+	mov	x3, #0x0
+1:
+	ldrb	w4, [x1, x3]
+	strb	w4, [x0, x3]
+	add	x3, x3, #0x1
+	cmp	x3, x2
+	b.ne	1b
+2:
+	ret
+ENDPROC(memcpy_safe)

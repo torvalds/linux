@@ -203,8 +203,11 @@ void __noreturn die(struct pt_regs *regs, const char *str)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
-	printk("%s: %04x ilc:%d [#%d]", str, regs->int_code & 0xffff,
-	       regs->int_code >> 17, ++die_counter);
+	if (test_pt_regs_flag(regs, PIF_WARN_TRAP_SKIPPED))
+		printk("%s: [#%d]", str, ++die_counter);
+	else
+		printk("%s: %04x ilc:%d [#%d]", str, regs->int_code & 0xffff,
+		       regs->int_code >> 17, ++die_counter);
 	pr_cont("SMP ");
 	if (debug_pagealloc_enabled())
 		pr_cont("DEBUG_PAGEALLOC");

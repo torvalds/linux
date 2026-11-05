@@ -714,7 +714,7 @@ static int sh_vou_set_fmt_vid_out(struct sh_vou_device *vou_dev,
 	mbfmt->width = geo.output.width;
 	mbfmt->height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
-					 set_fmt, NULL, &format);
+					 set_fmt, NULL, NULL, &format);
 	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
 	if (ret < 0)
 		return ret;
@@ -974,11 +974,11 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	 * final encoder configuration.
 	 */
 	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
-				   set_selection, NULL, &sd_sel);
+				   set_selection, NULL, NULL, &sd_sel);
 	format.format.width = geo.output.width;
 	format.format.height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
-					 set_fmt, NULL, &format);
+					 set_fmt, NULL, NULL, &format);
 	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
 	if (ret < 0)
 		return ret;
