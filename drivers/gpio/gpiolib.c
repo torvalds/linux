@@ -154,9 +154,12 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 		memcpy(new->str, label, len);
 	}
 
-	old = rcu_replace_pointer(desc->label, new, 1);
-	if (old)
-		call_srcu(&desc->gdev->desc_srcu, &old->rh, desc_free_label);
+	scoped_guard(spinlock, &desc->gdev->desc_lock) {
+		old = rcu_replace_pointer(desc->label, new,
+					  lockdep_is_held(&desc->gdev->desc_lock));
+		if (old)
+			call_srcu(&desc->gdev->desc_srcu, &old->rh, desc_free_label);
+	}
 
 	return 0;
 }
@@ -1206,6 +1209,8 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_free_ida;
 	rcu_assign_pointer(gdev->chip, gc);
+
+	spin_lock_init(&gdev->desc_lock);
 
 	ret = init_srcu_struct(&gdev->desc_srcu);
 	if (ret)
