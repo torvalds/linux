@@ -9205,7 +9205,6 @@ F:	drivers/gpu/drm/v3d/
 F:	include/uapi/drm/v3d_drm.h
 
 DRM DRIVERS FOR VC4
-M:	Maxime Ripard <mripard@kernel.org>
 M:	Dave Stevenson <dave.stevenson@raspberrypi.com>
 R:	Maíra Canal <mcanal@igalia.com>
 R:	Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
