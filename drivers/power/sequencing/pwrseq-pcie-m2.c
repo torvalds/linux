@@ -596,14 +596,17 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->pwrseq),
 				     "Failed to register the power sequencer\n");
 
-	mutex_init(&ctx->list_lock);
+	ret = devm_mutex_init(dev, &ctx->list_lock);
+	if (ret)
+		return ret;
+
 	INIT_LIST_HEAD(&ctx->pci_devices);
 	ctx->dev = dev;
 
 	/* Create serdev for available PCI devices (if required) */
 	ret = pwrseq_pcie_m2_create_serdev(ctx);
 	if (ret)
-		goto err_destroy_mutex;
+		return ret;
 
 	/*
 	 * Register a notifier for creating protocol devices for
@@ -611,14 +614,7 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
 	 */
 	ret = pwrseq_pcie_m2_register_notifier(ctx);
 	if (ret)
-		goto err_remove_serdev;
-
-	return 0;
-
-err_remove_serdev:
-	pwrseq_pcie_m2_remove_serdev(ctx, NULL);
-err_destroy_mutex:
-	mutex_destroy(&ctx->list_lock);
+		pwrseq_pcie_m2_remove_serdev(ctx, NULL);
 
 	return ret;
 }
@@ -629,7 +625,6 @@ static void pwrseq_pcie_m2_remove(struct platform_device *pdev)
 
 	bus_unregister_notifier(&pci_bus_type, &ctx->nb);
 	pwrseq_pcie_m2_remove_serdev(ctx, NULL);
-	mutex_destroy(&ctx->list_lock);
 }
 
 static const struct of_device_id pwrseq_pcie_m2_of_match[] = {
