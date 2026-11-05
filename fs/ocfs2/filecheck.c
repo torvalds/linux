@@ -189,6 +189,8 @@ int ocfs2_filecheck_create_sysfs(struct ocfs2_super *osb)
 		/* Mount failure still calls ocfs2_filecheck_remove_sysfs(). */
 		entry->fs_fcheck = NULL;
 		kobject_put(&entry->fs_kobj);
+		/* Keep ocfs2_super alive until the kobject is released. */
+		wait_for_completion(&entry->fs_kobj_unregister);
 		kfree(fcheck);
 		return ret;
 	}

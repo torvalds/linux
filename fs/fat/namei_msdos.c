@@ -333,12 +333,7 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	err = fat_remove_entries(dir, &sinfo);	/* and releases bh */
 	if (err)
 		goto out;
-	if (dir->i_nlink >= 3)
-		drop_nlink(dir);
-	else {
-		fat_fs_error(sb, "parent dir link count too low (%u)",
-			dir->i_nlink);
-	}
+	fat_dir_drop_nlink(dir);
 
 	clear_nlink(inode);
 	fat_detach(inode);
@@ -565,6 +560,8 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 		(void)sync_inode_metadata(old_dir, 1);
 
 	if (new_inode) {
+		if (is_dir && old_dir == new_dir)
+			fat_dir_drop_nlink(old_dir);
 		drop_nlink(new_inode);
 		if (is_dir)
 			drop_nlink(new_inode);
