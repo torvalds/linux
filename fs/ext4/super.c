@@ -372,6 +372,7 @@ __u32 ext4_free_group_clusters(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (__u32)le16_to_cpu(bg->bg_free_blocks_count_hi) << 16 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters);
 
 __u32 ext4_free_inodes_count(struct super_block *sb,
 			      struct ext4_group_desc *bg)
@@ -428,6 +429,7 @@ void ext4_free_group_clusters_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_free_blocks_count_hi = cpu_to_le16(count >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters_set);
 
 void ext4_free_inodes_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, __u32 count)
