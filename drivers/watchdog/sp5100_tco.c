@@ -407,16 +407,13 @@ static int sp5100_tco_setupdevice_mmio(struct device *dev,
 	struct sp5100_tco *tco = watchdog_get_drvdata(wdd);
 	const char *dev_name = SB800_DEVNAME;
 	u32 mmio_addr = 0, alt_mmio_addr = 0;
-	struct resource *res;
 	void __iomem *addr;
 	int ret;
 	u32 val;
 
-	res = request_mem_region_muxed(EFCH_PM_ACPI_MMIO_PM_ADDR,
-				       EFCH_PM_ACPI_MMIO_PM_SIZE,
-				       "sp5100_tco");
-
-	if (!res) {
+	if (!request_mem_region_muxed(EFCH_PM_ACPI_MMIO_PM_ADDR,
+				      EFCH_PM_ACPI_MMIO_PM_SIZE,
+				      "sp5100_tco")) {
 		dev_err(dev,
 			"Memory region 0x%08x already in use\n",
 			EFCH_PM_ACPI_MMIO_PM_ADDR);
@@ -467,8 +464,8 @@ out:
 	if (addr)
 		iounmap(addr);
 
-	release_resource(res);
-	kfree(res);
+	release_mem_region(EFCH_PM_ACPI_MMIO_PM_ADDR,
+			   EFCH_PM_ACPI_MMIO_PM_SIZE);
 
 	return ret;
 }
