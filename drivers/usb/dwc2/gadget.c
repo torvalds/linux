@@ -1582,7 +1582,7 @@ static struct dwc2_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 	if (windex >= 0x100)
 		return NULL;
 
-	if (idx > hsotg->num_of_eps)
+	if (idx >= hsotg->num_of_eps)
 		return NULL;
 
 	return index_to_ep(hsotg, idx, dir);
