@@ -713,11 +713,10 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		xe_gt_apply_ccs_mode(gt);
 	}
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
-		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
-
-	if (IS_SRIOV_PF(gt_to_xe(gt)))
+	if (IS_SRIOV_PF(gt_to_xe(gt))) {
+		xe_lmtt_init_hw(gt);
 		xe_gt_sriov_pf_init_hw(gt);
+	}
 
 	/* Last action registered here so devres drains resets before teardown */
 	err = devm_add_action_or_reset(xe->drm.dev, gt_worker_disable, gt);
@@ -917,11 +916,10 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
-		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
-
-	if (IS_SRIOV_PF(gt_to_xe(gt)))
+	if (IS_SRIOV_PF(gt_to_xe(gt))) {
+		xe_lmtt_init_hw(gt);
 		xe_gt_sriov_pf_init_hw(gt);
+	}
 
 	xe_mocs_init(gt);
 
