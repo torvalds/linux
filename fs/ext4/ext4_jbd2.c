@@ -10,6 +10,8 @@
 
 int ext4_inode_journal_mode(struct inode *inode)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_inode_journal_mode, inode);
+
 	if (EXT4_JOURNAL(inode) == NULL)
 		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
 	/* We do not support data journalling with delayed allocation */
@@ -127,6 +129,7 @@ handle_t *__ext4_journal_start_sb(struct inode *inode,
 	return jbd2__journal_start(journal, blocks, rsv_blocks, revoke_creds,
 				   GFP_NOFS, type, line);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_start_sb);
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 {
@@ -154,6 +157,7 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 		__ext4_std_error(sb, where, line, err);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_stop);
 
 handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 					int type)
@@ -441,5 +445,6 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 }
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_journal_mode);
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_handle_dirty_metadata);
 #endif

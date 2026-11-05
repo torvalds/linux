@@ -2171,6 +2171,9 @@ int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 	sector_t invalid_block = ~((sector_t) 0xffff);
 	int ret = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_da_get_block_prep, inode, iblock, bh,
+				   create);
+
 	BUG_ON(create == 0);
 	BUG_ON(bh->b_size != inode->i_sb->s_blocksize);
 
@@ -8020,6 +8023,7 @@ out:
 }
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_get_block_prep);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_update_reserve_space);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_release_space);
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_mark_inode_dirty);

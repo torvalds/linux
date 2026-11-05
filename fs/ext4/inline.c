@@ -9,6 +9,7 @@
 #include <linux/namei.h>
 #include <linux/iversion.h>
 #include <linux/sched/mm.h>
+#include <kunit/static_stub.h>
 
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -1112,6 +1113,13 @@ static void ext4_restore_inline_data(handle_t *handle, struct inode *inode,
 	ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 }
 
+struct buffer_head *ext4_inline_getblk(struct super_block *sb,
+				       ext4_fsblk_t block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_inline_getblk, sb, block);
+	return sb_getblk(sb, block);
+}
+
 static int ext4_convert_inline_data_nolock(handle_t *handle,
 					   struct inode *inode,
 					   struct ext4_iloc *iloc)
@@ -1160,7 +1168,7 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 		goto out_restore;
 	}
 
-	data_bh = sb_getblk(inode->i_sb, map.m_pblk);
+	data_bh = ext4_inline_getblk(inode->i_sb, map.m_pblk);
 	if (!data_bh) {
 		error = -ENOMEM;
 		goto out_restore;
@@ -2038,5 +2046,25 @@ out_free:
 }
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inline_getblk);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_max_inline_size);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_inline_data_nolock);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_readpage_inline);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_generic_write_inline_data);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_try_to_write_inline_data);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_write_inline_data_end);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_final_de);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_try_add_inline_entry);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inlinedir_to_tree);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_inline_dir);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_inline_link);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_first_inline_block);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_try_create_inline_dir);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_inline_entry);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_delete_inline_entry);
+EXPORT_SYMBOL_FOR_EXT4_TEST(empty_inline_dir);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_destroy_inline_data);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inline_data_iomap);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inline_data_truncate);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_convert_inline_data);
 #endif
