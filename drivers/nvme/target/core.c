@@ -806,6 +806,7 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 {
 	struct nvmet_ns *ns = req->ns;
 	struct nvmet_pr_per_ctrl_ref *pc_ref = req->pc_ref;
+	struct nvmet_passthru *passthru = nvmet_passthru_ref_held(req);
 
 	if (!req->sq->sqhd_disabled)
 		nvmet_update_sq_head(req);
@@ -824,7 +825,8 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 	if (ns)
 		nvmet_put_namespace(ns);
 
-	nvmet_put_passthru_ref(req);
+	if (passthru)
+		nvmet_put_passthru_ref(passthru);
 }
 
 void nvmet_req_complete(struct nvmet_req *req, u16 status)

@@ -832,6 +832,15 @@ static inline struct nvmet_passthru *nvmet_subsys_passthru(
 	return subsys->passthru;
 }
 
+static inline struct nvmet_passthru *nvmet_passthru_ref_held(
+		struct nvmet_req *req)
+{
+	if (req->p.ref_held)
+		return nvmet_req_subsys(req)->passthru;
+
+	return NULL;
+}
+
 static inline bool nvmet_get_passthru_ref(struct nvmet_req *req)
 {
 	if (!percpu_ref_tryget_live(&nvmet_req_subsys(req)->passthru->ref))
@@ -841,13 +850,9 @@ static inline bool nvmet_get_passthru_ref(struct nvmet_req *req)
 	return true;
 }
 
-static inline void nvmet_put_passthru_ref(struct nvmet_req *req)
+static inline void nvmet_put_passthru_ref(struct nvmet_passthru *passthru)
 {
-	if (!req->p.ref_held)
-		return;
-
-	req->p.ref_held = false;
-	percpu_ref_put(&nvmet_req_subsys(req)->passthru->ref);
+	percpu_ref_put(&passthru->ref);
 }
 #else /* CONFIG_NVME_TARGET_PASSTHRU */
 static inline void nvmet_passthru_subsys_free(struct nvmet_subsys *subsys)
@@ -873,11 +878,16 @@ static inline struct nvmet_passthru *nvmet_subsys_passthru(
 {
 	return NULL;
 }
+static inline struct nvmet_passthru *nvmet_passthru_ref_held(
+		struct nvmet_req *req)
+{
+	return NULL;
+}
 static inline bool nvmet_get_passthru_ref(struct nvmet_req *req)
 {
 	return false;
 }
-static inline void nvmet_put_passthru_ref(struct nvmet_req *req)
+static inline void nvmet_put_passthru_ref(struct nvmet_passthru *passthru)
 {
 }
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
