@@ -320,7 +320,7 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 	struct fuse_release_args *ra = &ff->args->release_args;
 
 	if (fuse_is_passthrough(ff))
-		fuse_passthrough_release(ff, fuse_inode_backing(fi));
+		fuse_passthrough_release(ff, fi ? fuse_inode_backing(fi) : NULL);
 
 	/* Inode is NULL on error path of fuse_create_open() */
 	if (likely(fi)) {
