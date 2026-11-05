@@ -8886,7 +8886,6 @@ F:	include/drm/drm
 F:	include/linux/vga*
 F:	include/uapi/drm/
 X:	drivers/gpu/drm/amd/
-X:	drivers/gpu/drm/armada/
 X:	drivers/gpu/drm/etnaviv/
 X:	drivers/gpu/drm/exynos/
 X:	drivers/gpu/drm/i915/
@@ -16147,8 +16146,6 @@ F:	drivers/tty/serial/mvebu-uart.c
 MARVELL ARMADA DRM SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
-T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-armada-devel
-T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-armada-fixes
 F:	Documentation/devicetree/bindings/display/armada/
 F:	drivers/gpu/drm/armada/
 F:	include/uapi/drm/armada_drm.h
