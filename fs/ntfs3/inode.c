@@ -788,7 +788,7 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 		ni_allocate_da_blocks(ni);
 	}
 
-	return iomap_bmap(mapping, block, &ntfs_iomap_ops);
+	return iomap_bmap(mapping, block, ntfs_iomap_next);
 }
 
 static void ntfs_iomap_read_end_io(struct bio *bio)
@@ -860,7 +860,7 @@ static int ntfs_read_folio(struct file *file, struct folio *folio)
 		return err;
 	}
 
-	iomap_read_folio(&ntfs_iomap_ops, &ctx, NULL);
+	iomap_read_folio(ntfs_iomap_next, &ctx, NULL);
 	return 0;
 }
 
@@ -884,7 +884,7 @@ static void ntfs_readahead(struct readahead_control *rac)
 		return;
 	}
 
-	iomap_readahead(&ntfs_iomap_ops, &ctx, NULL);
+	iomap_readahead(ntfs_iomap_next, &ctx, NULL);
 }
 
 int ntfs_set_size(struct inode *inode, u64 new_size)
@@ -2336,12 +2336,7 @@ const struct address_space_operations ntfs_aops_cmpr = {
 	.invalidate_folio = iomap_invalidate_folio,
 };
 
-static DEFINE_IOMAP_ITER_NEXT_END(ntfs_iomap_next, ntfs_iomap_begin,
-				  ntfs_iomap_end);
-
-const struct iomap_ops ntfs_iomap_ops = {
-	.iomap_next	= ntfs_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT_END(ntfs_iomap_next, ntfs_iomap_begin, ntfs_iomap_end);
 
 const struct iomap_write_ops ntfs_iomap_folio_ops = {
 	.put_folio = ntfs_iomap_put_folio,

@@ -923,10 +923,6 @@ static int fuse_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 
 static DEFINE_IOMAP_ITER_NEXT(fuse_iomap_next, fuse_iomap_begin);
 
-static const struct iomap_ops fuse_iomap_ops = {
-	.iomap_next	= fuse_iomap_next,
-};
-
 struct fuse_fill_read_data {
 	struct file *file;
 
@@ -1036,7 +1032,7 @@ static int fuse_read_folio(struct file *file, struct folio *folio)
 		return -EIO;
 	}
 
-	iomap_read_folio(&fuse_iomap_ops, &ctx, NULL);
+	iomap_read_folio(fuse_iomap_next, &ctx, NULL);
 	fuse_invalidate_atime(inode);
 	return 0;
 }
@@ -1146,7 +1142,7 @@ static void fuse_readahead(struct readahead_control *rac)
 	if (fuse_is_bad(inode))
 		return;
 
-	iomap_readahead(&fuse_iomap_ops, &ctx, NULL);
+	iomap_readahead(fuse_iomap_next, &ctx, NULL);
 	if (data.ia)
 		fuse_send_readpages(data.ia, data.file, data.nr_bytes,
 				    fc->async_read);
@@ -1570,7 +1566,7 @@ static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		 * and granular dirty tracking for large folios.
 		 */
 		written = iomap_file_buffered_write(iocb, from,
-						    &fuse_iomap_ops,
+						    fuse_iomap_next,
 						    &fuse_iomap_write_ops,
 						    file);
 	} else {

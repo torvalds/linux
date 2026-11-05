@@ -43,7 +43,7 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 	}
 }
 
-extern const struct iomap_ops gfs2_iomap_ops;
+DECLARE_IOMAP_ITER_NEXT(gfs2_iomap_next);
 extern const struct iomap_write_ops gfs2_iomap_write_ops;
 extern const struct iomap_writeback_ops gfs2_writeback_ops;
 

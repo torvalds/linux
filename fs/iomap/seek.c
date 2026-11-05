@@ -27,7 +27,7 @@ static int iomap_seek_hole_iter(struct iomap_iter *iter,
 }
 
 loff_t
-iomap_seek_hole(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
+iomap_seek_hole(struct inode *inode, loff_t pos, iomap_iter_next_fn next)
 {
 	loff_t size = i_size_read(inode);
 	struct iomap_iter iter = {
@@ -42,7 +42,7 @@ iomap_seek_hole(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
 		return -ENXIO;
 
 	iter.len = size - pos;
-	while ((ret = iomap_iter(&iter, ops)) > 0)
+	while ((ret = iomap_iter(&iter, next)) > 0)
 		iter.status = iomap_seek_hole_iter(&iter, &pos);
 	if (ret < 0)
 		return ret;
@@ -73,7 +73,7 @@ static int iomap_seek_data_iter(struct iomap_iter *iter,
 }
 
 loff_t
-iomap_seek_data(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
+iomap_seek_data(struct inode *inode, loff_t pos, iomap_iter_next_fn next)
 {
 	loff_t size = i_size_read(inode);
 	struct iomap_iter iter = {
@@ -88,7 +88,7 @@ iomap_seek_data(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
 		return -ENXIO;
 
 	iter.len = size - pos;
-	while ((ret = iomap_iter(&iter, ops)) > 0)
+	while ((ret = iomap_iter(&iter, next)) > 0)
 		iter.status = iomap_seek_data_iter(&iter, &pos);
 	if (ret < 0)
 		return ret;

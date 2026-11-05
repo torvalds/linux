@@ -149,7 +149,7 @@ static ssize_t nilfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		inode_lock_shared(inode);
-		ret = iomap_dio_rw(iocb, to, &nilfs_iomap_ops,
+		ret = iomap_dio_rw(iocb, to, nilfs_iomap_next,
 				   NULL, 0, NULL, 0);
 		inode_unlock_shared(inode);
 	} else

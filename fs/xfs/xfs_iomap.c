@@ -1037,12 +1037,8 @@ out_unlock:
 	return error;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_direct_write_iomap_next,
+DEFINE_IOMAP_ITER_NEXT(xfs_direct_write_iomap_next,
 		xfs_direct_write_iomap_begin);
-
-const struct iomap_ops xfs_direct_write_iomap_ops = {
-	.iomap_next		= xfs_direct_write_iomap_next,
-};
 
 #ifdef CONFIG_XFS_RT
 /*
@@ -1087,12 +1083,9 @@ xfs_zoned_direct_write_iomap_begin(
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_zoned_direct_write_iomap_next,
+DEFINE_IOMAP_ITER_NEXT(xfs_zoned_direct_write_iomap_next,
 		xfs_zoned_direct_write_iomap_begin);
 
-const struct iomap_ops xfs_zoned_direct_write_iomap_ops = {
-	.iomap_next		= xfs_zoned_direct_write_iomap_next,
-};
 #endif /* CONFIG_XFS_RT */
 
 #ifdef DEBUG
@@ -1275,12 +1268,8 @@ out_unlock:
 	return error;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_atomic_write_cow_iomap_next,
+DEFINE_IOMAP_ITER_NEXT(xfs_atomic_write_cow_iomap_next,
 		xfs_atomic_write_cow_iomap_begin);
-
-const struct iomap_ops xfs_atomic_write_cow_iomap_ops = {
-	.iomap_next		= xfs_atomic_write_cow_iomap_next,
-};
 
 static int
 xfs_dax_write_iomap_end(
@@ -1302,12 +1291,8 @@ xfs_dax_write_iomap_end(
 	return xfs_reflink_end_cow(ip, pos, written);
 }
 
-static DEFINE_IOMAP_ITER_NEXT_END(xfs_dax_write_iomap_next,
+DEFINE_IOMAP_ITER_NEXT_END(xfs_dax_write_iomap_next,
 		xfs_direct_write_iomap_begin, xfs_dax_write_iomap_end);
-
-const struct iomap_ops xfs_dax_write_iomap_ops = {
-	.iomap_next	= xfs_dax_write_iomap_next,
-};
 
 /*
  * Convert a hole to a delayed allocation.
@@ -2191,12 +2176,8 @@ xfs_buffered_write_iomap_end(
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT_END(xfs_buffered_write_iomap_next,
+DEFINE_IOMAP_ITER_NEXT_END(xfs_buffered_write_iomap_next,
 		xfs_buffered_write_iomap_begin, xfs_buffered_write_iomap_end);
-
-const struct iomap_ops xfs_buffered_write_iomap_ops = {
-	.iomap_next		= xfs_buffered_write_iomap_next,
-};
 
 int
 xfs_read_iomap_begin(
@@ -2239,11 +2220,7 @@ xfs_read_iomap_begin(
 				 shared ? IOMAP_F_SHARED : 0, seq);
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_read_iomap_next, xfs_read_iomap_begin);
-
-const struct iomap_ops xfs_read_iomap_ops = {
-	.iomap_next		= xfs_read_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(xfs_read_iomap_next, xfs_read_iomap_begin);
 
 static int
 xfs_seek_iomap_begin(
@@ -2329,11 +2306,7 @@ out_unlock:
 	return error;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_seek_iomap_next, xfs_seek_iomap_begin);
-
-const struct iomap_ops xfs_seek_iomap_ops = {
-	.iomap_next		= xfs_seek_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(xfs_seek_iomap_next, xfs_seek_iomap_begin);
 
 static int
 xfs_xattr_iomap_begin(
@@ -2378,11 +2351,7 @@ out_unlock:
 	return xfs_bmbt_to_iomap(ip, iomap, &imap, flags, IOMAP_F_XATTR, seq);
 }
 
-static DEFINE_IOMAP_ITER_NEXT(xfs_xattr_iomap_next, xfs_xattr_iomap_begin);
-
-const struct iomap_ops xfs_xattr_iomap_ops = {
-	.iomap_next		= xfs_xattr_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(xfs_xattr_iomap_next, xfs_xattr_iomap_begin);
 
 int
 xfs_zero_range(
@@ -2398,9 +2367,9 @@ xfs_zero_range(
 
 	if (IS_DAX(inode))
 		return dax_zero_range(inode, pos, len, did_zero,
-				      &xfs_dax_write_iomap_ops);
+				      xfs_dax_write_iomap_next);
 	return iomap_zero_range(inode, pos, len, did_zero,
-			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			xfs_buffered_write_iomap_next, &xfs_iomap_write_ops,
 			ac);
 }
 
@@ -2415,8 +2384,8 @@ xfs_truncate_page(
 
 	if (IS_DAX(inode))
 		return dax_truncate_page(inode, pos, did_zero,
-					&xfs_dax_write_iomap_ops);
+					xfs_dax_write_iomap_next);
 	return iomap_truncate_page(inode, pos, did_zero,
-			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			xfs_buffered_write_iomap_next, &xfs_iomap_write_ops,
 			ac);
 }

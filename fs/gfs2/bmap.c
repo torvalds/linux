@@ -1205,12 +1205,7 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT_END(gfs2_iomap_next, gfs2_iomap_begin,
-				  gfs2_iomap_end);
-
-const struct iomap_ops gfs2_iomap_ops = {
-	.iomap_next = gfs2_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT_END(gfs2_iomap_next, gfs2_iomap_begin, gfs2_iomap_end);
 
 /**
  * gfs2_block_map - Map one or more blocks of an inode to a disk block
@@ -1325,7 +1320,7 @@ static int gfs2_block_zero_range(struct inode *inode, loff_t from, loff_t length
 	if (from >= inode->i_size)
 		return 0;
 	length = min(length, inode->i_size - from);
-	return iomap_zero_range(inode, from, length, NULL, &gfs2_iomap_ops,
+	return iomap_zero_range(inode, from, length, NULL, gfs2_iomap_next,
 			&gfs2_iomap_write_ops, NULL);
 }
 
