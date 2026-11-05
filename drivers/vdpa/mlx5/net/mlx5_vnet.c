@@ -3059,7 +3059,15 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
 	bool teardown = !is_resumable(ndev);
 	int err;
 
-	suspend_vqs(ndev, 0, ndev->cur_num_vqs);
+	if ((mvdev->status & VIRTIO_CONFIG_S_DRIVER_OK) && !mvdev->suspended) {
+		err = suspend_vqs(ndev, 0, ndev->cur_num_vqs);
+		if (err && !teardown) {
+			for (int i = 0; i < ndev->cur_num_vqs; i++)
+				resume_vqs(ndev, i, 1);
+			mlx5_vdpa_put_mr(mvdev, new_mr);
+			return err;
+		}
+	}
 	if (teardown) {
 		err = save_channels_info(ndev);
 		if (err) {
