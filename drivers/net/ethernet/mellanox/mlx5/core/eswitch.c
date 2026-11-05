@@ -3051,12 +3051,36 @@ int mlx5_esw_lock(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+static void esw_mode_lock(struct mlx5_eswitch *esw)
+{
+	down_write(&esw->mode_lock);
+}
+
+static void esw_mode_unlock(struct mlx5_eswitch *esw)
+{
+	up_write(&esw->mode_lock);
+}
+
+/* Lock the eswitch and wait for an operation in progress to finish. */
+void mlx5_esw_lock_wait(struct mlx5_eswitch *esw)
+{
+	down_write(&esw->mode_lock);
+	wait_var_event_any_lock(&esw->eswitch_operation_in_progress,
+				!esw->eswitch_operation_in_progress,
+				esw, esw_mode, TASK_UNINTERRUPTIBLE);
+}
+
 /**
  * mlx5_esw_unlock() - Release write lock on esw mode lock
  * @esw: eswitch device.
+ *
+ * Also wakes up mlx5_esw_lock_wait() waiters, so it must be used to release
+ * mode_lock after clearing eswitch_operation_in_progress.
  */
 void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 {
+	wake_up_var_locked(&esw->eswitch_operation_in_progress,
+			   &esw->mode_lock);
 	up_write(&esw->mode_lock);
 }
 
