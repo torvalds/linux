@@ -3191,6 +3191,7 @@ static bool amd_iommu_is_attach_deferred(struct device *dev)
 
 static bool quirks_force_identity_mapping(struct pci_dev *pdev)
 {
+	struct pci_dev *bridge;
 	int class = pdev->class >> 8;
 
 	/* AMD GPU vendor ID */
@@ -3202,7 +3203,8 @@ static bool quirks_force_identity_mapping(struct pci_dev *pdev)
 	    class != PCI_CLASS_DISPLAY_OTHER)
 		return false;
 
-	if (pci_upstream_bridge(pdev)->vendor == PCI_VENDOR_ID_ATI)
+	bridge = pci_upstream_bridge(pdev);
+	if (bridge && bridge->vendor == PCI_VENDOR_ID_ATI)
 		return false;
 
 	/* It is the GPU in an APU, force identity domain */
