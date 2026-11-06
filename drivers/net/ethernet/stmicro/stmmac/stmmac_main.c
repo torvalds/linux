@@ -5587,7 +5587,7 @@ static void stmmac_dispatch_skb_zc(struct stmmac_priv *priv, u32 queue,
 	napi_gro_receive(&ch->rxtx_napi, skb);
 
 	u64_stats_update_begin(&rxq_stats->napi_syncp);
-	u64_stats_inc(&rxq_stats->napi.rx_pkt_n);
+	u64_stats_inc(&rxq_stats->napi.rx_packets);
 	u64_stats_add(&rxq_stats->napi.rx_bytes, len);
 	u64_stats_update_end(&rxq_stats->napi_syncp);
 }
