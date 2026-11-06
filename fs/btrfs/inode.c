@@ -4871,6 +4871,7 @@ out_undead:
 out_up_write:
 	up_write(&fs_info->subvol_sem);
 	if (!ret) {
+		drop_nlink(inode);
 		d_invalidate(dentry);
 		btrfs_prune_dentries(dest);
 		ASSERT(dest->send_in_progress == 0);
@@ -5628,6 +5629,14 @@ void btrfs_evict_inode(struct inode *inode)
 		goto out;
 
 	if (is_bad_inode(inode))
+		goto out;
+
+	/*
+	 * For a deleted subvolume we drop the link count to 0 and we don't need
+	 * to truncate items in its btree (which is dropped all at once).
+	 */
+	if (btrfs_ino(BTRFS_I(inode)) == BTRFS_FIRST_FREE_OBJECTID &&
+	    btrfs_root_refs(&root->root_item) == 0)
 		goto out;
 
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
