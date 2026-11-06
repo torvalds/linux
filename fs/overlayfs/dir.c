@@ -74,39 +74,34 @@ static struct dentry *ovl_start_creating_temp(struct ovl_fs *ofs,
 			      &QSTR(name));
 }
 
+/*
+ * The whiteout is the source of a rename, so it has to be hashed.
+ * ovl_create_temp() takes care of that for a casefolded workdir.
+ */
 static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 {
 	int err;
 	struct dentry *whiteout, *link;
 	struct dentry *workdir = ofs->workdir;
-	struct inode *wdir = workdir->d_inode;
-	char name[OVL_TEMPNAME_SIZE];
 
 	guard(mutex)(&ofs->whiteout_lock);
 
 	if (!ofs->whiteout) {
-		whiteout = ovl_start_creating_temp(ofs, workdir, name);
+		whiteout = ovl_create_temp(ofs, workdir, &(struct ovl_cattr) {
+					.mode = S_IFCHR | WHITEOUT_MODE,
+					.rdev = WHITEOUT_DEV });
 		if (IS_ERR(whiteout))
 			return whiteout;
-		err = ovl_do_whiteout(ofs, wdir, whiteout);
-		if (!err)
-			ofs->whiteout = dget(whiteout);
-		end_creating(whiteout);
-		if (err)
-			return ERR_PTR(err);
+		ofs->whiteout = whiteout;
 	}
 
 	if (!ofs->no_shared_whiteout) {
-		link = ovl_start_creating_temp(ofs, workdir, name);
-		if (IS_ERR(link))
+		link = ovl_create_temp(ofs, workdir, &(struct ovl_cattr) {
+					.hardlink = ofs->whiteout });
+		if (!IS_ERR(link))
 			return link;
-		err = ovl_do_link(ofs, ofs->whiteout, wdir, link);
-		if (!err)
-			whiteout = dget(link);
-		end_creating(link);
-		if (!err)
-			return whiteout;
 
+		err = PTR_ERR(link);
 		if (err != -EMLINK) {
 			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%u)\n",
 				ofs->whiteout->d_inode->i_nlink,
@@ -120,9 +115,10 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 }
 
 int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
-			     struct dentry *dentry)
+			     struct dentry *dentry, const struct qstr *name)
 {
 	struct dentry *whiteout;
+	struct qstr last = QSTR_LEN(name->name, name->len);
 	struct renamedata rd = {};
 	int err;
 	int flags = 0;
@@ -139,9 +135,17 @@ int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 	rd.old_parent = ofs->workdir;
 	rd.new_parent = dir;
 	rd.flags = flags;
-	err = start_renaming_two_dentries(&rd, whiteout, dentry);
+	/*
+	 * The caller looked up @dentry by @name without a lock on @dir, and a
+	 * casefolded directory leaves a negative dentry unhashed.  Nothing tells
+	 * if such a dentry is still valid, so look up @name again with @dir locked.
+	 */
+	err = start_renaming_dentry(&rd, 0, whiteout, &last);
 	if (!err) {
-		err = ovl_do_rename_rd(&rd);
+		if (d_inode(rd.new_dentry) != d_inode(dentry))
+			err = -ESTALE;
+		else
+			err = ovl_do_rename_rd(&rd);
 		end_renaming(&rd);
 	}
 	if (err)
@@ -847,7 +851,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper);
+	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper, &dentry->d_name);
 	if (!err)
 		ovl_dir_modified(dentry->d_parent, true);
 
