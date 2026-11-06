@@ -2436,6 +2436,17 @@ static int cxl_topo_init(void)
 	return cxl_type3_topo_init();
 }
 
+static void free_decoder_registry(void)
+{
+	unsigned long index;
+	void *entry;
+
+	xa_for_each(&decoder_registry, index, entry) {
+		xa_erase(&decoder_registry, index);
+		kfree(entry);
+	}
+}
+
 static __init int cxl_test_init(void)
 {
 	struct range mappable;
@@ -2525,18 +2536,9 @@ err_gen_pool_add:
 	gen_pool_destroy(cxl_mock_pool);
 err_gen_pool_create:
 	unregister_cxl_mock_ops(&cxl_mock_ops);
+	free_decoder_registry();
+	xa_destroy(&decoder_registry);
 	return rc;
-}
-
-static void free_decoder_registry(void)
-{
-	unsigned long index;
-	void *entry;
-
-	xa_for_each(&decoder_registry, index, entry) {
-		xa_erase(&decoder_registry, index);
-		kfree(entry);
-	}
 }
 
 static __exit void cxl_test_exit(void)
