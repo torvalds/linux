@@ -457,7 +457,7 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (retval) {
 		dev_err(&port->dev,
 			"usb_submit_urb(read) failed pipe 0x%x err %d\n",
-			port->read_urb->pipe, retval);
+			priv->read_urb->pipe, retval);
 		goto error;
 	}
 
