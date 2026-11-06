@@ -122,7 +122,7 @@ FIXTURE_SETUP(configfs)
 	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
 	ASSERT_EQ(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL), 0);
 
-	ASSERT_NE(mkdtemp(tmpl), NULL);
+	ASSERT_TRUE(mkdtemp(tmpl) != NULL);
 	strcpy(self->mnt, tmpl);
 
 	ASSERT_EQ(mount("configfs", self->mnt, "configfs", 0, NULL), 0);
