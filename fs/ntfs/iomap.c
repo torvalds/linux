@@ -499,7 +499,7 @@ remap_rl:
 				ntfs_error(vol->sb, "Failed to merge runlists");
 				up_write(&ni->runlist.lock);
 				mutex_unlock(&mrec_ni->mrec_lock);
-				kvfree(rlc);
+				kfree(rlc);
 				return PTR_ERR(rl);
 			}
 
