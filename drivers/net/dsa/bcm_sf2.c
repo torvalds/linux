@@ -1059,6 +1059,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port;
+	int ret;
 
 	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
@@ -1073,6 +1074,10 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 
 	b53_configure_vlan(ds);
 	bcm_sf2_enable_acb(ds);
+
+	ret = b53_enable_mcast_snooping(priv->dev);
+	if (ret)
+		return ret;
 
 	return b53_setup_devlink_resources(ds);
 }

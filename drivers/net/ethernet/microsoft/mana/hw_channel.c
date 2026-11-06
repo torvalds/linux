@@ -364,7 +364,7 @@ static void mana_hwc_comp_event(void *ctx, struct gdma_queue *q_self)
 
 	completions = hwc_cq->comp_buf;
 	comp_read = mana_gd_poll_cq(q_self, completions, hwc_cq->queue_depth);
-	WARN_ON_ONCE(comp_read <= 0 || comp_read > hwc_cq->queue_depth);
+	WARN_ON_ONCE(comp_read < 0 || comp_read > hwc_cq->queue_depth);
 
 	for (i = 0; i < comp_read; ++i) {
 		comp_data = *(struct hwc_rx_oob *)completions[i].cqe_data;
@@ -820,8 +820,13 @@ void mana_hwc_destroy_channel(struct gdma_context *gc)
 	 */
 	if (gc->max_num_cqs > 0) {
 		mana_smc_teardown_hwc(&gc->shm_channel, false);
-		gc->max_num_cqs = 0;
+		WRITE_ONCE(gc->max_num_cqs, 0);
 	}
+
+	if (hwc->cq)
+		mana_gd_detach_cq(gc, hwc->cq->gdma_cq);
+
+	synchronize_rcu();
 
 	if (hwc->txq)
 		mana_hwc_destroy_wq(hwc, hwc->txq);

@@ -353,6 +353,12 @@ static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 		if (!fdma_db_is_done(db))
 			continue;
 
+		/* XDP and page pool APIs can't be used with a budget of 0.
+		 * Leave these buffers for the next NAPI poll.
+		 */
+		if (!weight && !dcb_buf->use_skb)
+			continue;
+
 		dcb_buf->dev->stats.tx_packets++;
 		dcb_buf->dev->stats.tx_bytes += dcb_buf->len;
 

@@ -643,6 +643,14 @@ static int macvlan_open(struct net_device *dev)
 			if (err < 0)
 				goto out;
 		}
+		if (dev->flags & IFF_ALLMULTI) {
+			err = dev_set_allmulti(lowerdev, 1);
+			if (err < 0) {
+				if (!(vlan->flags & MACVLAN_FLAG_NOPROMISC))
+					dev_set_promiscuity(lowerdev, -1);
+				goto out;
+			}
+		}
 		goto hash_add;
 	}
 
@@ -713,6 +721,8 @@ static int macvlan_stop(struct net_device *dev)
 	dev_mc_unsync(lowerdev, dev);
 
 	if (macvlan_passthru(vlan->port)) {
+		if (dev->flags & IFF_ALLMULTI)
+			dev_set_allmulti(lowerdev, -1);
 		if (!(vlan->flags & MACVLAN_FLAG_NOPROMISC))
 			dev_set_promiscuity(lowerdev, -1);
 		goto hash_del;

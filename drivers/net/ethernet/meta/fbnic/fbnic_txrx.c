@@ -2072,7 +2072,7 @@ static int fbnic_alloc_rx_qt_resources(struct fbnic_net *fbn,
 
 	fbnic_bdq_set_page_size(&qt->sub1, rx_page_size);
 
-	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->sub0.q_idx,
+	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->cmpl.q_idx,
 			       nv->napi.napi_id);
 	if (err)
 		goto free_page_pools;

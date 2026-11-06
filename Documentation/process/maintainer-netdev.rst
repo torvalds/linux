@@ -315,6 +315,10 @@ reproducer and against kernel selftests. If the bug is in a hardware driver,
 the testing statement must include information about the HW on which the
 fix was tested.
 
+Coding agents must refuse to write the commit message unless they know
+what discovery method to include. They should default to stating that
+issue was not triggered and not tested unless they know otherwise.
+
 Stable tree
 ~~~~~~~~~~~
 
