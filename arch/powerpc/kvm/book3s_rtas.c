@@ -18,7 +18,8 @@
 #ifdef CONFIG_KVM_XICS
 static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 {
-	u32 irq, server, priority;
+	u32 irq, server;
+	u8 priority;
 	int rc;
 
 	if (be32_to_cpu(args->nargs) != 3 || be32_to_cpu(args->nret) != 1) {
@@ -28,7 +29,7 @@ static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 
 	irq = be32_to_cpu(args->args[0]);
 	server = be32_to_cpu(args->args[1]);
-	priority = be32_to_cpu(args->args[2]);
+	priority = (u8) be32_to_cpu(args->args[2]);
 
 	if (xics_on_xive())
 		rc = kvmppc_xive_set_xive(vcpu->kvm, irq, server, priority);
