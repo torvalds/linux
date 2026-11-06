@@ -511,6 +511,7 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 #endif
 	sb->s_flags = s_flags; /* Restore SB_RDONLY status */
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_cleanup);
 
 void ext4_release_orphan_info(struct super_block *sb)
 {
@@ -523,6 +524,7 @@ void ext4_release_orphan_info(struct super_block *sb)
 		brelse(oi->of_binfo[i].ob_bh);
 	kvfree(oi->of_binfo);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_release_orphan_info);
 
 static struct ext4_orphan_block_tail *ext4_orphan_block_tail(
 						struct super_block *sb,
@@ -570,6 +572,7 @@ void ext4_orphan_file_block_trigger(struct jbd2_buffer_trigger_type *triggers,
 	ot = ext4_orphan_block_tail(sb, bh);
 	ot->ob_checksum = cpu_to_le32(csum);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_file_block_trigger);
 
 int ext4_init_orphan_info(struct super_block *sb)
 {
@@ -658,6 +661,7 @@ out_put:
 	iput(inode);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_orphan_info);
 
 int ext4_orphan_file_empty(struct super_block *sb)
 {
@@ -673,3 +677,4 @@ int ext4_orphan_file_empty(struct super_block *sb)
 			return 0;
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_file_empty);
