@@ -24,6 +24,13 @@
 
 #ifdef CONFIG_SUSPEND
 
+/*
+ * First GPE armed for wake via an _Ixx method, U32_MAX if none.  On
+ * platforms without an ACPI-enumerated EC, this GPE plays the role of
+ * the EC GPE in acpi_ec_dispatch_gpe().
+ */
+static u32 acpi_s2idle_ixx_gpe = U32_MAX;
+
 static void acpi_setup_ixx_gpes(void)
 {
 	acpi_handle gpe_root;
@@ -47,9 +54,63 @@ static void acpi_setup_ixx_gpes(void)
 
 		acpi_mark_gpe_for_wake(NULL, i);
 		acpi_set_gpe_wake_mask(NULL, i, ACPI_GPE_ENABLE);
+		if (acpi_s2idle_ixx_gpe == U32_MAX)
+			acpi_s2idle_ixx_gpe = i;
 
 		pm_pr_dbg("ACPI: GPE0x%02x armed for wake via %s\n", i, gpe_nr_str);
 	}
+}
+
+/*
+ * acpi_x86_s2idle_check_ixx_gpes - Handle an SCI wakeup without an EC
+ *
+ * Called to decide whether or not to wake up the system when an SCI has
+ * triggered during suspend-to-idle on a platform without an EC instance,
+ * mirroring acpi_ec_dispatch_gpe() with the first GPE armed for wake via
+ * an _Ixx method playing the role of the EC GPE.
+ *
+ * Report a wakeup if the status bit is set for any enabled GPE other than
+ * the _Ixx one.  If no _Ixx GPE has been armed, acpi_s2idle_ixx_gpe is
+ * U32_MAX and this amounts to checking all of the GPEs, which is the
+ * previous behavior.
+ *
+ * Otherwise, cancel the pending SCI-related wakeup, so it does not cause
+ * the pm_wakeup_pending() check in the caller to succeed by itself, and
+ * dispatch the _Ixx GPE if it is active, so the events behind it can be
+ * processed.  If any of those events turn out to be genuine wake events,
+ * the drivers handling them are expected to call pm_wakeup_event() and
+ * the caller will catch that via pm_wakeup_pending() after synchronizing
+ * the event processing.
+ */
+bool acpi_x86_s2idle_check_ixx_gpes(void)
+{
+	acpi_event_status status = 0;
+
+	/*
+	 * Report wakeup if the status bit is set for any enabled GPE other
+	 * than the _Ixx one.
+	 */
+	if (acpi_any_gpe_status_set(acpi_s2idle_ixx_gpe))
+		return true;
+
+	if (acpi_s2idle_ixx_gpe == U32_MAX)
+		return false;
+
+	/*
+	 * Cancel the SCI wakeup and dispatch the _Ixx GPE in case there are
+	 * any wakeup events behind it.
+	 */
+	pm_system_cancel_wakeup();
+
+	acpi_get_gpe_status(NULL, acpi_s2idle_ixx_gpe, &status);
+	if (status & ACPI_EVENT_FLAG_STATUS_SET) {
+		pm_pr_dbg("ACPI _Ixx GPE 0x%02x dispatched\n",
+			  acpi_s2idle_ixx_gpe);
+
+		acpi_dispatch_gpe(NULL, acpi_s2idle_ixx_gpe);
+	}
+
+	return false;
 }
 
 static bool sleep_no_lps0 __read_mostly;
