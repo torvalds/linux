@@ -746,6 +746,7 @@ struct kvm_vcpu_arch {
 	pgd_t *pgdir;
 
 	u16 io_gpr; /* GPR used as IO source/target */
+	u8 mmio_len; /* kernel-private copy of mmio.len, immune to TOCTOU */
 	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
 	/* conversion between single and double precision */
