@@ -1543,12 +1543,18 @@ static void uniwill_lightbar_trigger_deactivate(struct led_classdev *led_cdev)
 		dev_err(led_cdev->dev, "Failed to stop rainbow animation: %d\n", ret);
 }
 
+static bool uniwill_lightbar_trigger_hw_offloaded(struct led_classdev *led_cdev)
+{
+	return true;
+}
+
 static struct led_hw_trigger_type uniwill_lightbar_trigger_type;
 
 static struct led_trigger uniwill_lightbar_trigger = {
 	.name = "uniwill-rainbow",
 	.activate = uniwill_lightbar_trigger_activate,
 	.deactivate = uniwill_lightbar_trigger_deactivate,
+	.hw_offloaded = uniwill_lightbar_trigger_hw_offloaded,
 	.trigger_type = &uniwill_lightbar_trigger_type,
 };
 
