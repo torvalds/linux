@@ -156,11 +156,12 @@ struct amdgpu_jpeg {
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
 int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev);
-int amdgpu_jpeg_suspend(struct amdgpu_device *adev);
+int amdgpu_jpeg_early_fini(struct amdgpu_ip_block *ip_block);
 int amdgpu_jpeg_resume(struct amdgpu_device *adev);
 
 void amdgpu_jpeg_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_jpeg_ring_end_use(struct amdgpu_ring *ring);
+void amdgpu_jpeg_cancel_idle_work(struct amdgpu_device *adev);
 
 int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
