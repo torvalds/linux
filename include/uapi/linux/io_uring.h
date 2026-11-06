@@ -646,6 +646,7 @@ struct io_uring_params {
 #define IORING_FEAT_MIN_TIMEOUT		(1U << 15)
 #define IORING_FEAT_RW_ATTR		(1U << 16)
 #define IORING_FEAT_NO_IOWAIT		(1U << 17)
+#define IORING_FEAT_REGBUF_TYPES	(1U << 18)
 
 /*
  * io_uring_register(2) opcodes and arguments

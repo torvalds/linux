@@ -166,6 +166,14 @@ static int __io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	int ret = 0;
 
 	/*
+	 * Don't arm a timer for a timeout that has already passed, it would
+	 * only fire to return -ETIME. NAPI busy polling gets here like that.
+	 */
+	if (iowq->timeout != KTIME_MAX &&
+	    ktime_compare(io_get_time(ctx), iowq->timeout) >= 0)
+		return -ETIME;
+
+	/*
 	 * Mark us as being in io_wait if we have pending requests, so cpufreq
 	 * can take into account that the task is waiting for IO - turns out
 	 * to be important for low QD IO.
