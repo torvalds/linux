@@ -589,10 +589,10 @@ static void intel_dsb_align_tail(struct intel_dsb *dsb)
 	tail = dsb->free_pos * 4;
 	aligned_tail = ALIGN(tail, CACHELINE_BYTES);
 
-	if (aligned_tail > tail)
+	if (aligned_tail > tail) {
 		dsb_buffer_fill(dsb, dsb->free_pos, 0, aligned_tail - tail);
-
-	dsb->free_pos = aligned_tail / 4;
+		dsb->free_pos = aligned_tail / 4;
+	}
 }
 
 static void intel_dsb_gosub_align(struct intel_dsb *dsb)
@@ -607,11 +607,15 @@ static void intel_dsb_gosub_align(struct intel_dsb *dsb)
 	/*
 	 * Wa_16024917128
 	 * "Ensure GOSUB is not placed in cacheline QW slot 6 or 7 (numbered 0-7)"
+	 *
+	 * Move to the next cacheline only for those two slots. The skipped
+	 * bytes stay in the programmed range, so fill them with NOPs. Any
+	 * other slot can take the GOSUB directly.
 	 */
-	if (aligned_tail - tail <= 2 * 8)
+	if (aligned_tail - tail <= 2 * 8) {
 		dsb_buffer_fill(dsb, dsb->free_pos, 0, aligned_tail - tail);
-
-	dsb->free_pos = aligned_tail / 4;
+		dsb->free_pos = aligned_tail / 4;
+	}
 }
 
 void intel_dsb_gosub(struct intel_dsb *dsb,
