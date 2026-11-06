@@ -524,7 +524,8 @@ enum hctx_type {
  * @tag_list:	   List of the request queues that use this tag set. See also
  *		   request_queue.tag_set_list.
  * @quiesce_lock:  Serializes blk_mq_[un]quiesce_tagset() against each other
- *		   and against a request queue being added to @tag_list.
+ *		   and against a request queue being added to or removed from
+ *		   @tag_list.
  * @quiesce_depth: How often blk_mq_quiesce_tagset() has been called without
  *		   blk_mq_unquiesce_tagset().
  * @srcu:	   Use as lock when type of the request queue is blocking
