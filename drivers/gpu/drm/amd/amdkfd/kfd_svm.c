@@ -4284,9 +4284,8 @@ int kfd_criu_restore_svm(struct kfd_process *p,
 		return -ENOMEM;
 	}
 
-	ret = copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,
-			     svm_priv_data_size);
-	if (ret) {
+	if (copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,
+			   svm_priv_data_size)) {
 		ret = -EFAULT;
 		goto exit;
 	}
