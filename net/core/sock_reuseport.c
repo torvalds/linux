@@ -6,6 +6,7 @@
  * selecting the socket index from the array of available sockets.
  */
 
+#include <net/inet_connection_sock.h>
 #include <net/ip.h>
 #include <net/sock_reuseport.h>
 #include <linux/bpf.h>
@@ -690,6 +691,14 @@ int reuseport_attach_prog(struct sock *sk, struct bpf_prog *prog)
 		int err;
 
 		if (!sk->sk_reuseport)
+			return -EINVAL;
+
+		/* Do not put a shutdown()ed TCP listener back into the
+		 * listening section of a reuseport group while it is in
+		 * TCP_CLOSE: requests can still migrate to it.
+		 */
+		if (sk_is_tcp(sk) &&
+		    inet_csk(sk)->unhashed_state == TCP_LISTEN)
 			return -EINVAL;
 
 		err = reuseport_alloc(sk, false);
