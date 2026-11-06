@@ -331,18 +331,25 @@ static inline u8 virtblk_vbr_status(struct virtblk_req *vbr)
 	return *((u8 *)&vbr->in_hdr + vbr->in_hdr_len - 1);
 }
 
-static inline void virtblk_request_done(struct request *req)
+static inline void virtblk_update_zone_append_sector(struct request *req,
+						     struct virtblk_req *vbr)
 {
-	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
-	blk_status_t status = virtblk_result(virtblk_vbr_status(vbr));
 	struct virtio_blk *vblk = req->mq_hctx->queue->queuedata;
-
-	virtblk_unmap_data(req, vbr);
-	virtblk_cleanup_cmd(req);
 
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = virtio64_to_cpu(vblk->vdev,
 						vbr->in_hdr.zone_append.sector);
+}
+
+static inline void virtblk_request_done(struct request *req)
+{
+	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
+	blk_status_t status = virtblk_result(virtblk_vbr_status(vbr));
+
+	virtblk_unmap_data(req, vbr);
+	virtblk_cleanup_cmd(req);
+
+	virtblk_update_zone_append_sector(req, vbr);
 
 	blk_mq_end_request(req, status);
 }
@@ -958,16 +965,13 @@ static void virtblk_config_changed(struct virtio_device *vdev)
 	queue_work(virtblk_wq, &vblk->config_work);
 }
 
-static int init_vq(struct virtio_blk *vblk)
+/* Keep the queue layout unchanged for the lifetime of the tag set. */
+static int virtblk_init_queue_layout(struct virtio_blk *vblk)
 {
-	int err;
-	unsigned short i;
-	struct virtqueue_info *vqs_info;
-	struct virtqueue **vqs;
+	struct virtio_device *vdev = vblk->vdev;
 	unsigned short num_vqs;
 	unsigned short num_poll_vqs;
-	struct virtio_device *vdev = vblk->vdev;
-	struct irq_affinity desc = { 0, };
+	int err;
 
 	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_MQ,
 				   struct virtio_blk_config, num_queues,
@@ -985,6 +989,7 @@ static int init_vq(struct virtio_blk *vblk)
 
 	num_poll_vqs = min_t(unsigned int, poll_queues, num_vqs - 1);
 
+	vblk->num_vqs = num_vqs;
 	vblk->io_queues[HCTX_TYPE_DEFAULT] = num_vqs - num_poll_vqs;
 	vblk->io_queues[HCTX_TYPE_READ] = 0;
 	vblk->io_queues[HCTX_TYPE_POLL] = num_poll_vqs;
@@ -993,6 +998,20 @@ static int init_vq(struct virtio_blk *vblk)
 				vblk->io_queues[HCTX_TYPE_DEFAULT],
 				vblk->io_queues[HCTX_TYPE_READ],
 				vblk->io_queues[HCTX_TYPE_POLL]);
+
+	return 0;
+}
+
+static int init_vq(struct virtio_blk *vblk)
+{
+	int err;
+	unsigned short i;
+	struct virtqueue_info *vqs_info;
+	struct virtqueue **vqs;
+	unsigned short num_vqs = vblk->num_vqs;
+	unsigned short num_poll_vqs = vblk->io_queues[HCTX_TYPE_POLL];
+	struct virtio_device *vdev = vblk->vdev;
+	struct irq_affinity desc = { 0, };
 
 	vblk->vqs = kmalloc_objs(*vblk->vqs, num_vqs);
 	if (!vblk->vqs)
@@ -1049,7 +1068,6 @@ static int init_vq(struct virtio_blk *vblk)
 		spin_lock_init(&vblk->vqs[i].lock);
 		vblk->vqs[i].vq = vqs[i];
 	}
-	vblk->num_vqs = num_vqs;
 
 out:
 	kfree(vqs);
@@ -1220,8 +1238,11 @@ static void virtblk_complete_batch(struct io_comp_batch *iob)
 	struct request *req;
 
 	rq_list_for_each(&iob->req_list, req) {
-		virtblk_unmap_data(req, blk_mq_rq_to_pdu(req));
+		struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
+
+		virtblk_unmap_data(req, vbr);
 		virtblk_cleanup_cmd(req);
+		virtblk_update_zone_append_sector(req, vbr);
 	}
 	blk_mq_end_request_batch(iob);
 }
@@ -1512,6 +1533,10 @@ static int virtblk_probe(struct virtio_device *vdev)
 
 	INIT_WORK(&vblk->config_work, virtblk_config_changed_work);
 
+	err = virtblk_init_queue_layout(vblk);
+	if (err)
+		goto out_free_vblk;
+
 	err = init_vq(vblk);
 	if (err)
 		goto out_free_vblk;
@@ -1639,7 +1664,7 @@ static int virtblk_freeze_priv(struct virtio_device *vdev)
 
 	/* Ensure no requests in virtqueues before deleting vqs. */
 	memflags = blk_mq_freeze_queue(q);
-	blk_mq_quiesce_queue_nowait(q);
+	blk_mq_quiesce_queue(q);
 	blk_mq_unfreeze_queue(q, memflags);
 
 	/* Ensure we don't receive any more interrupts */

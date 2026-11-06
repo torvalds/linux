@@ -2611,7 +2611,7 @@ static const struct pci_epf_device_id nvmet_pci_epf_ids[] = {
 	{},
 };
 
-static struct pci_epf_ops nvmet_pci_epf_ops = {
+static const struct pci_epf_ops nvmet_pci_epf_ops = {
 	.bind	= nvmet_pci_epf_bind,
 	.unbind	= nvmet_pci_epf_unbind,
 	.add_cfs = nvmet_pci_epf_add_cfs,

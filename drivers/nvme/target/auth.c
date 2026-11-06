@@ -135,6 +135,7 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 	int ret = 0;
 	struct nvmet_host_link *p;
 	struct nvmet_host *host = NULL;
+	struct nvme_dhchap_key *host_key, *ctrl_key = NULL;
 
 	down_read(&nvmet_config_sem);
 	if (nvmet_is_disc_subsys(ctrl->subsys))
@@ -172,55 +173,41 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 		goto out_unlock;
 	}
 
-	if (host->dhchap_hash_id == ctrl->shash_id) {
-		pr_debug("Re-use existing hash ID %d\n",
-			 ctrl->shash_id);
-	} else {
-		ctrl->shash_id = host->dhchap_hash_id;
-	}
-
-	/* Skip the 'DHHC-1:XX:' prefix */
-	nvme_auth_free_key(ctrl->host_key);
-	ctrl->host_key = nvme_auth_extract_key(host->dhchap_secret + 10,
-					       host->dhchap_key_hash);
-	if (IS_ERR(ctrl->host_key)) {
+	/*
+	 * Skip the 'DHHC-1:XX:' prefix. Keep the old keys until the new ones
+	 * are there: a controller without a host key needs no authentication.
+	 */
+	host_key = nvme_auth_extract_key(host->dhchap_secret + 10,
+					 host->dhchap_key_hash);
+	if (IS_ERR(host_key)) {
 		ret = NVME_AUTH_DHCHAP_FAILURE_NOT_USABLE;
-		ctrl->host_key = NULL;
-		goto out_free_hash;
+		goto out_unlock;
 	}
+	if (host->dhchap_ctrl_secret) {
+		ctrl_key = nvme_auth_extract_key(host->dhchap_ctrl_secret + 10,
+						 host->dhchap_ctrl_key_hash);
+		if (IS_ERR(ctrl_key)) {
+			nvme_auth_free_key(host_key);
+			ret = NVME_AUTH_DHCHAP_FAILURE_NOT_USABLE;
+			goto out_unlock;
+		}
+	}
+	nvme_auth_free_key(ctrl->host_key);
+	ctrl->host_key = host_key;
+	nvme_auth_free_key(ctrl->ctrl_key);
+	ctrl->ctrl_key = ctrl_key;
+	ctrl->shash_id = host->dhchap_hash_id;
 #ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
 	pr_debug("%s: using hash %s key %*ph\n", __func__,
 		 ctrl->host_key->hash > 0 ?
 		 nvme_auth_hmac_name(ctrl->host_key->hash) : "none",
 		 (int)ctrl->host_key->len, ctrl->host_key->key);
+	if (ctrl->ctrl_key)
+		pr_debug("%s: using ctrl hash %s key %*ph\n", __func__,
+			 ctrl->ctrl_key->hash > 0 ?
+			 nvme_auth_hmac_name(ctrl->ctrl_key->hash) : "none",
+			 (int)ctrl->ctrl_key->len, ctrl->ctrl_key->key);
 #endif
-	nvme_auth_free_key(ctrl->ctrl_key);
-	if (!host->dhchap_ctrl_secret) {
-		ctrl->ctrl_key = NULL;
-		goto out_unlock;
-	}
-
-	ctrl->ctrl_key = nvme_auth_extract_key(host->dhchap_ctrl_secret + 10,
-					       host->dhchap_ctrl_key_hash);
-	if (IS_ERR(ctrl->ctrl_key)) {
-		ret = NVME_AUTH_DHCHAP_FAILURE_NOT_USABLE;
-		ctrl->ctrl_key = NULL;
-		goto out_free_hash;
-	}
-#ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
-	pr_debug("%s: using ctrl hash %s key %*ph\n", __func__,
-		 ctrl->ctrl_key->hash > 0 ?
-		 nvme_auth_hmac_name(ctrl->ctrl_key->hash) : "none",
-		 (int)ctrl->ctrl_key->len, ctrl->ctrl_key->key);
-#endif
-out_free_hash:
-	if (ret) {
-		if (ctrl->host_key) {
-			nvme_auth_free_key(ctrl->host_key);
-			ctrl->host_key = NULL;
-		}
-		ctrl->shash_id = 0;
-	}
 out_unlock:
 	up_read(&nvmet_config_sem);
 
