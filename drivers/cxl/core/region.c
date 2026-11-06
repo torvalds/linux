@@ -2045,6 +2045,14 @@ static int cxl_region_sort_targets(struct cxl_region *cxlr)
 	sort(p->targets, p->nr_targets, sizeof(p->targets[0]),
 	     cmp_interleave_pos, NULL);
 
+	/*
+	 * Restore cxled->pos from its ->targets[] slot so that follow-on
+	 * code paths can reliably do p->targets[cxled->pos] to
+	 * self-reference their entry, whether or not the sort succeeded.
+	 */
+	for (i = 0; i < p->nr_targets; i++)
+		p->targets[i]->pos = i;
+
 	dev_dbg(&cxlr->dev, "region sort %s\n", rc ? "failed" : "successful");
 	return rc;
 }
