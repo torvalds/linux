@@ -7838,7 +7838,7 @@ W:	http://www.win.tue.nl/~aeb/linux/zip/zip-1.html
 W:	http://www.win.tue.nl/~aeb/partitions/partition_types-1.html
 
 DISKQUOTA
-M:	Jan Kara <jack@suse.com>
+M:	Jan Kara <jack@suse.cz>
 S:	Maintained
 F:	Documentation/filesystems/quota.rst
 F:	fs/quota/
@@ -10109,7 +10109,7 @@ F:	drivers/leds/leds-expresswire.c
 F:	include/linux/leds-expresswire.h
 
 EXT2 FILE SYSTEM
-M:	Jan Kara <jack@suse.com>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/ext2.rst
@@ -14324,7 +14324,7 @@ F:	include/uapi/linux/jffs2.h
 
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD2)
 M:	"Theodore Ts'o" <tytso@mit.edu>
-M:	Jan Kara <jack@suse.com>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	fs/jbd2/
@@ -28714,7 +28714,7 @@ F:	arch/m68k/coldfire/
 F:	arch/m68k/include/asm/*_no.*
 
 UDF FILESYSTEM
-M:	Jan Kara <jack@suse.com>
+M:	Jan Kara <jack@suse.cz>
 S:	Maintained
 F:	Documentation/filesystems/udf.rst
 F:	fs/udf/
