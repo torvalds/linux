@@ -112,6 +112,11 @@ struct rpc_rqst {
 
 	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
+	bool                    rq_disconnect_on_release;
+						/*
+						 * protected by rq_xprt->transport_lock
+						 * while the request is active
+						 */
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct lwq_node		rq_bc_list;	/* Callback service list */
