@@ -18,7 +18,7 @@ ext4-test-objs				+= inode-test.o mballoc-test.o \
 					   extents-test.o hash-test.o \
 					   extents_status-test.o xattr-test.o \
 					   namei-test.o inline-test.o \
-					   fast_commit-test.o
+					   fast_commit-test.o ialloc-test.o
 obj-$(CONFIG_EXT4_KUNIT_TESTS)		+= ext4-test.o
 ext4-$(CONFIG_FS_VERITY)		+= verity.o
 ext4-$(CONFIG_FS_ENCRYPTION)		+= crypto.o

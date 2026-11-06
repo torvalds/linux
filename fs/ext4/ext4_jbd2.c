@@ -252,6 +252,9 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 {
 	int err;
 
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_journal_get_write_access, where, line,
+				   handle, sb, bh, trigger_type);
+
 	might_sleep();
 
 	if (ext4_handle_valid(handle)) {
@@ -271,6 +274,7 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 		&EXT4_SB(sb)->s_journal_triggers[trigger_type].tr_triggers);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_get_write_access);
 
 /*
  * The ext4 forget function must perform a revoke if we are freeing data

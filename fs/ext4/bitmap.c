@@ -15,6 +15,7 @@ unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
 {
 	return numchars * BITS_PER_BYTE - memweight(bitmap, numchars);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_free);
 
 int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
@@ -39,6 +40,7 @@ int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 
 	return provided == calculated;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_bitmap_csum_verify);
 
 void ext4_inode_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
@@ -57,6 +59,7 @@ void ext4_inode_bitmap_csum_set(struct super_block *sb,
 	if (sbi->s_desc_size >= EXT4_BG_INODE_BITMAP_CSUM_HI_END)
 		gdp->bg_inode_bitmap_csum_hi = cpu_to_le16(csum >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_bitmap_csum_set);
 
 int ext4_block_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
@@ -80,6 +83,7 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb,
 
 	return provided == calculated;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_bitmap_csum_verify);
 
 void ext4_block_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
@@ -97,3 +101,4 @@ void ext4_block_bitmap_csum_set(struct super_block *sb,
 	if (sbi->s_desc_size >= EXT4_BG_BLOCK_BITMAP_CSUM_HI_END)
 		gdp->bg_block_bitmap_csum_hi = cpu_to_le16(csum >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_bitmap_csum_set);

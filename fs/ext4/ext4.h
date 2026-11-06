@@ -3089,9 +3089,30 @@ extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);
 extern unsigned long ext4_count_free_inodes(struct super_block *);
 extern unsigned long ext4_count_dirs(struct super_block *);
 extern void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap);
+int ext4_itable_zeroout(struct super_block *sb, ext4_fsblk_t blk, int num,
+			int barrier);
 extern int ext4_init_inode_table(struct super_block *sb,
 				 ext4_group_t group, int barrier);
 void ext4_end_bitmap_read(struct bio *bio);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_validate_inode_bitmap_test(struct super_block *sb,
+				    struct ext4_group_desc *desc,
+				    ext4_group_t block_group,
+				    struct buffer_head *bh);
+struct buffer_head *ext4_read_inode_bitmap_test(struct super_block *sb,
+						ext4_group_t block_group);
+int ext4_find_group_orlov_test(struct super_block *sb, struct inode *parent,
+			       ext4_group_t *group, umode_t mode,
+			       const struct qstr *qstr);
+int ext4_find_group_other_test(struct super_block *sb, struct inode *parent,
+			       ext4_group_t *group, umode_t mode);
+int ext4_recently_deleted_test(struct super_block *sb, ext4_group_t group,
+			       int ino);
+int ext4_find_inode_bit_test(struct super_block *sb, ext4_group_t group,
+			     struct buffer_head *bitmap, unsigned long *ino);
+int ext4_xattr_credits_for_new_inode_test(struct inode *dir, mode_t mode,
+					  bool encrypt);
+#endif
 
 /* fast_commit.c */
 int ext4_fc_get_buf(journal_t *journal, struct buffer_head **bh);

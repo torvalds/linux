@@ -66,6 +66,7 @@ void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 	if (i < end_bit)
 		memset(bitmap + (i >> 3), 0xff, (end_bit - i) >> 3);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_bitmap_end);
 
 void ext4_end_bitmap_read(struct bio *bio)
 {
@@ -78,6 +79,7 @@ void ext4_end_bitmap_read(struct bio *bio)
 	}
 	unlock_buffer(bh);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_end_bitmap_read);
 
 static int ext4_validate_inode_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *desc,
@@ -144,7 +146,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 					EXT4_GROUP_INFO_IBITMAP_CORRUPT);
 		return ERR_PTR(-EFSCORRUPTED);
 	}
-	bh = sb_getblk(sb, bitmap_blk);
+	bh = ext4_sb_getblk(sb, bitmap_blk);
 	if (unlikely(!bh)) {
 		ext4_warning(sb, "Cannot read inode bitmap - "
 			     "block_group = %u, inode_bitmap = %llu",
@@ -757,7 +759,7 @@ static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 	     ino >= EXT4_INODES_PER_GROUP(sb) - ext4_itable_unused_count(sb, gdp)))
 		return 0;
 
-	bh = sb_find_get_block(sb, ext4_inode_table(sb, gdp) +
+	bh = ext4_sb_find_get_block(sb, ext4_inode_table(sb, gdp) +
 		       (ino / inodes_per_block));
 	if (!bh || !buffer_uptodate(bh))
 		/*
@@ -937,6 +939,7 @@ out:
 	brelse(inode_bitmap_bh);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_inode_used);
 
 static int ext4_xattr_credits_for_new_inode(struct inode *dir, mode_t mode,
 					    bool encrypt)
@@ -1443,6 +1446,7 @@ out:
 	brelse(inode_bitmap_bh);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_new_inode);
 
 /* Verify that we are loading a valid orphan from disk */
 struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
@@ -1516,6 +1520,7 @@ bad_orphan:
 	brelse(bitmap_bh);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_get);
 
 unsigned long ext4_count_free_inodes(struct super_block *sb)
 {
@@ -1566,6 +1571,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 	return desc_count;
 #endif
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_free_inodes);
 
 /* Called at mount-time, super-block is locked */
 unsigned long ext4_count_dirs(struct super_block * sb)
@@ -1581,6 +1587,26 @@ unsigned long ext4_count_dirs(struct super_block * sb)
 	}
 	return count;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_dirs);
+
+int ext4_itable_zeroout(struct super_block *sb, ext4_fsblk_t blk, int num,
+			int barrier)
+{
+	int ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_itable_zeroout, sb, blk, num, barrier);
+
+	ret = sb_issue_zeroout(sb, blk, num, GFP_NOFS);
+	if (ret < 0)
+		return ret;
+	if (barrier) {
+		ret = blkdev_issue_flush(sb->s_bdev);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_itable_zeroout);
 
 /*
  * Zeroes not yet zeroed inode table - just write zeroes through the whole
@@ -1677,14 +1703,9 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 
 	ext4_debug("going to zero out inode table in group %d\n",
 		   group);
-	ret = sb_issue_zeroout(sb, blk, num, GFP_NOFS);
-	if (ret < 0)
+	ret = ext4_itable_zeroout(sb, blk, num, barrier);
+	if (ret)
 		goto err_out;
-	if (barrier) {
-		ret = blkdev_issue_flush(sb->s_bdev);
-		if (ret)
-			goto err_out;
-	}
 
 skip_zeroout:
 	ext4_lock_group(sb, group);
@@ -1703,8 +1724,58 @@ err_out:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_inode_table);
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
-EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_new_inode);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_inode_used);
+int ext4_validate_inode_bitmap_test(struct super_block *sb,
+				    struct ext4_group_desc *desc,
+				    ext4_group_t block_group,
+				    struct buffer_head *bh)
+{
+	return ext4_validate_inode_bitmap(sb, desc, block_group, bh);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_validate_inode_bitmap_test);
+
+struct buffer_head *ext4_read_inode_bitmap_test(struct super_block *sb,
+						ext4_group_t block_group)
+{
+	return ext4_read_inode_bitmap(sb, block_group);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_inode_bitmap_test);
+
+int ext4_find_group_orlov_test(struct super_block *sb, struct inode *parent,
+			       ext4_group_t *group, umode_t mode,
+			       const struct qstr *qstr)
+{
+	return find_group_orlov(sb, parent, group, mode, qstr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_group_orlov_test);
+
+int ext4_find_group_other_test(struct super_block *sb, struct inode *parent,
+			       ext4_group_t *group, umode_t mode)
+{
+	return find_group_other(sb, parent, group, mode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_group_other_test);
+
+int ext4_recently_deleted_test(struct super_block *sb, ext4_group_t group,
+			       int ino)
+{
+	return recently_deleted(sb, group, ino);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_recently_deleted_test);
+
+int ext4_find_inode_bit_test(struct super_block *sb, ext4_group_t group,
+			     struct buffer_head *bitmap, unsigned long *ino)
+{
+	return find_inode_bit(sb, group, bitmap, ino);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_inode_bit_test);
+
+int ext4_xattr_credits_for_new_inode_test(struct inode *dir, mode_t mode,
+					  bool encrypt)
+{
+	return ext4_xattr_credits_for_new_inode(dir, mode, encrypt);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_credits_for_new_inode_test);
 #endif
