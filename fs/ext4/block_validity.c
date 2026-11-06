@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include "ext4.h"
 
@@ -269,6 +270,7 @@ err:
 	kfree(system_blks);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_setup_system_zone);
 
 /*
  * Called when the filesystem is unmounted or when remounting it with
@@ -291,6 +293,7 @@ void ext4_release_system_zone(struct super_block *sb)
 	if (system_blks)
 		call_rcu(&system_blks->rcu, ext4_destroy_system_zone);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_release_system_zone);
 
 int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
 				ext4_fsblk_t start_blk, unsigned int count)
@@ -334,6 +337,7 @@ out_rcu:
 	rcu_read_unlock();
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_block_valid);
 
 /*
  * Returns 1 if the passed-in block region (start_blk,
@@ -345,6 +349,7 @@ int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
 {
 	return ext4_sb_block_valid(inode->i_sb, inode, start_blk, count);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_block_valid);
 
 int ext4_check_blockref(const char *function, unsigned int line,
 			struct inode *inode, __le32 *p, unsigned int max)
@@ -367,4 +372,5 @@ int ext4_check_blockref(const char *function, unsigned int line,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_blockref);
 
