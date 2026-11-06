@@ -2436,6 +2436,13 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	}
 }
 
+static int wacom_hid_wrapped_dist(int after, int before, int min, int max)
+{
+	if (after >= before)
+		return after - before;
+	return (max - before) + (after - min) + 1;
+}
+
 static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
@@ -2561,8 +2568,11 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	case WACOM_HID_WD_SEQUENCENUMBER:
 		if (wacom_wac->hid_data.sequence_number != value &&
 		    wacom_wac->hid_data.sequence_number >= 0) {
-			int sequence_size = field->logical_maximum - field->logical_minimum + 1;
-			int drop_count = (value - wacom_wac->hid_data.sequence_number) % sequence_size;
+			int drop_count = wacom_hid_wrapped_dist(
+				value,
+				wacom_wac->hid_data.sequence_number,
+				field->logical_minimum,
+				field->logical_maximum);
 			hid_warn(hdev, "Dropped %d packets", drop_count);
 		}
 		wacom_wac->hid_data.sequence_number = value + 1;
