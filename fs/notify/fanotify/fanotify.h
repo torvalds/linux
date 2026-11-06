@@ -444,7 +444,7 @@ struct fanotify_perm_event {
 	struct fanotify_event fae;
 	struct path path;
 	loff_t pos;			/* FANOTIFY_NO_RANGE if unavailable */
-	size_t count;
+	u64 count;
 	u32 response;			/* userspace answer to the event */
 	unsigned short state;		/* state of the event */
 	unsigned short watchdog_cnt;	/* already scanned by watchdog? */
