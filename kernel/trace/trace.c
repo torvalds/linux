@@ -4035,7 +4035,9 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		break;
 
 	case TRACE_ITER(COPY_MARKER):
-		update_marker_trace(tr, enabled);
+		/* Writers of the top level trace_marker may still be on this instance */
+		if (update_marker_trace(tr, enabled) && !enabled)
+			synchronize_rcu();
 		/* update_marker_trace updates the tr->trace_flags */
 		return 0;
 	}
