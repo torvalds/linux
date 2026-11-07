@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Test that a TCP_FASTOPEN_CONNECT socket in DEFER_CONNECT state
+// ignores inbound TCP segments and ICMP errors before SYN is sent.
+//
+`./defaults.sh
+ ./set_sysctls.py /proc/sys/net/ipv4/tcp_timestamps=0`
+
+// Cache warmup: send a Fast Open cookie request
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 sendto(3, ..., 0, MSG_FASTOPEN, ..., ...) = -1 EINPROGRESS (Operation is now in progress)
+   +0 > S 0:0(0) <mss 1460,nop,nop,sackOK,nop,wscale 8,FO,nop,nop>
+   +0 < S. 123:123(0) ack 1 win 14600 <mss 1460,nop,nop,sackOK,nop,wscale 6,FO abcd1234,nop,nop>
+   +0 > . 1:1(0) ack 1
+   +0 close(3) = 0
+   +0 > F. 1:1(0) ack 1
+   +0 < F. 1:1(0) ack 2 win 92
+   +0 > . 2:2(0) ack 2
+
+// Test 1: Forged SYN during DEFER_CONNECT
+// connect() + connect(AF_UNSPEC) to let packetdrill remember
+// IP, ports, ISN to inject a forged SYN
+   +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 4
+   +0 connect(4, ..., ...) = -1 EINPROGRESS (Operation is now in progress)
+   +0 > S 0:0(0) <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 connect(4, AF_UNSPEC, ...) = 0
+
+// set DEFER_CONNECT bit
+   +0 bind(4, ..., ...) = 0
+   +0 setsockopt(4, SOL_TCP, TCP_FASTOPEN_CONNECT, [1], 4) = 0
+   +0 connect(4, ..., ...) = 0
+
+// Forged SYN should not be accepted
+   +0 < 8080 > 8080 S 0:0(0) win 14600 <mss 1460,nop,nop,sackOK,nop,wscale 6>
+   +0 %{ assert tcpi_state == TCP_SYN_SENT, tcpi_state }%
+
+   +0 sendto(4, ..., 500, 0, ..., ...) = 500
+   +0 > S 0:500(500) <mss 1460,nop,nop,sackOK,nop,wscale 8,FO abcd1234,nop,nop>
+   +0 < S. 5678:5678(0) ack 501 win 14600 <mss 1460,nop,nop,sackOK,nop,wscale 6>
+   +0 > . 501:501(0) ack 1
+   +0 %{ assert tcpi_state == TCP_ESTABLISHED, tcpi_state }%
+   +0 close(4) = 0
+   +0 > F. 501:501(0) ack 1
+   +0 < R. 1:1(0) ack 502 win 0
+
+// Test 2: Forged ICMP error during DEFER_CONNECT
+   +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 5
+   +0 setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(5, ..., ...) = 0
+   +0 connect(5, ..., ...) = -1 EINPROGRESS (Operation is now in progress)
+   +0 > S 0:0(0) <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 connect(5, AF_UNSPEC, ...) = 0
+   +0 setsockopt(5, SOL_TCP, TCP_FASTOPEN_CONNECT, [1], 4) = 0
+   +0 connect(5, ..., ...) = 0
+
+   +0 < icmp unreachable [3:3(0)]
+   +0 %{ assert tcpi_state == TCP_SYN_SENT, tcpi_state }%
+   +0 sendto(5, ..., 500, 0, ..., ...) = 500
+   +0 close(5) = 0
+
+`/tmp/sysctl_restore_${PPID}.sh`
