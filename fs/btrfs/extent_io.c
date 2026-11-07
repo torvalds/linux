@@ -504,7 +504,7 @@ static bool btrfs_verify_folio(struct fsverity_info *vi, struct folio *folio,
 
 	if (!vi || btrfs_folio_test_uptodate(fs_info, folio, start, len))
 		return true;
-	return fsverity_verify_folio(vi, folio);
+	return fsverity_verify_blocks(vi, folio, len, offset_in_folio(folio, start));
 }
 
 static void end_folio_read(struct fsverity_info *vi, struct folio *folio,
