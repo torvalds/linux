@@ -66,7 +66,7 @@ static int drm_panic_type_set(const char *val, const struct kernel_param *kp)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(drm_panic_type_map); i++) {
-		if (!strcmp(val, drm_panic_type_map[i])) {
+		if (sysfs_streq(val, drm_panic_type_map[i])) {
 			drm_panic_type = i;
 			return 0;
 		}

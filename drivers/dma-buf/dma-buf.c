@@ -904,6 +904,10 @@ static int dma_buf_wrap_sg_table(struct sg_table **sg_table)
 		sg_assign_page(to_sg, NULL);
 		sg_dma_address(to_sg) = sg_dma_address(from_sg);
 		sg_dma_len(to_sg) = sg_dma_len(from_sg);
+#ifdef CONFIG_NEED_SG_DMA_FLAGS
+		/* the flags describe the DMA side, e.g. SG_DMA_BUS_ADDRESS */
+		to_sg->dma_flags = from_sg->dma_flags;
+#endif
 		to_sg = sg_next(to_sg);
 	}
 

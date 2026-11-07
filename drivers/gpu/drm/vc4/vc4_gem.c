@@ -652,12 +652,13 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	fence->seqno = exec->seqno;
 	exec->fence = &fence->base;
 
+	/* The job can complete and drop exec->fence as soon as job_lock is
+	 * released, so hold our own reference.
+	 */
 	if (out_sync)
-		drm_syncobj_replace_fence(out_sync, exec->fence);
+		dma_fence_get(&fence->base);
 
 	vc4_attach_fences(exec);
-
-	drm_exec_fini(exec_ctx);
 
 	list_add_tail(&exec->head, &vc4->bin_job_list);
 
@@ -674,6 +675,13 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	drm_exec_fini(exec_ctx);
+
+	if (out_sync) {
+		drm_syncobj_replace_fence(out_sync, &fence->base);
+		dma_fence_put(&fence->base);
+	}
 
 	return 0;
 }
