@@ -472,8 +472,10 @@ static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct in
 #ifdef CONFIG_NTFS_FS_POSIX_ACL
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
 		err = ntfs_init_acl(idmap, vi, dir);
-		if (err)
-			goto err_out;
+		if (err) {
+			iput(vi);
+			return ERR_PTR(err);
+		}
 	} else
 #endif
 	{

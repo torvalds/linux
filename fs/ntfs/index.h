@@ -98,6 +98,7 @@ int ntfs_index_block_inconsistent(struct ntfs_volume *vol,
 				  __le32 cr, u64 inum);
 int ntfs_index_entries_inconsistent(const struct ntfs_volume *vol,
 				    const struct index_header *ih,
+				    u32 block_size,
 				    __le32 collation_rule, u64 inum);
 struct ntfs_index_context *ntfs_index_ctx_get(struct ntfs_inode *ni, __le16 *name,
 		u32 name_len);

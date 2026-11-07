@@ -1034,6 +1034,7 @@ view_index_meta:
 				le16_to_cpu(a->data.resident.value_offset));
 		if (ntfs_index_root_inconsistent(ni->vol, a, ir, ni->mft_no) ||
 		    ntfs_index_entries_inconsistent(ni->vol, &ir->index,
+						    le32_to_cpu(ir->index_block_size),
 						    ir->collation_rule, ni->mft_no)) {
 			ntfs_error(vi->i_sb, "Directory index is corrupt.");
 			goto unm_err_out;
@@ -1684,6 +1685,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	ir = (struct index_root *)((u8 *)a + le16_to_cpu(a->data.resident.value_offset));
 	if (ntfs_index_root_inconsistent(vol, a, ir, ni->mft_no) ||
 	    ntfs_index_entries_inconsistent(vol, &ir->index,
+					    le32_to_cpu(ir->index_block_size),
 					    ir->collation_rule, ni->mft_no)) {
 		ntfs_error(vi->i_sb, "Index is corrupt.");
 		goto unm_err_out;
@@ -2554,8 +2556,12 @@ int ntfs_show_options(struct seq_file *sf, struct dentry *root)
 	return 0;
 }
 
-int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
-				 const loff_t new_size)
+/*
+ * The caller must hold @vi's mapping invalidate lock.
+ */
+static int __ntfs_extend_initialized_size(struct inode *vi,
+					  const loff_t offset,
+					  const loff_t new_size)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct ntfs_inode *mrec_ni = ntfs_base_inode(ni);
@@ -2563,10 +2569,11 @@ int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
 	unsigned long flags;
 	int err = 0;
 
+	lockdep_assert_held_write(&vi->i_mapping->invalidate_lock);
+
 	if (!NInoNonResident(ni))
 		return -EINVAL;
 
-	filemap_invalidate_lock(vi->i_mapping);
 	read_lock_irqsave(&ni->size_lock, flags);
 	old_init_size = ni->initialized_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
@@ -2599,9 +2606,17 @@ int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
 	mutex_lock(&mrec_ni->mrec_lock);
 	err = ntfs_attr_set_initialized_size(ni, new_size);
 	mutex_unlock(&mrec_ni->mrec_lock);
-	if (err)
-		truncate_setsize(vi, old_init_size);
 out:
+	return err;
+}
+
+int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
+				 const loff_t new_size)
+{
+	int err;
+
+	filemap_invalidate_lock(vi->i_mapping);
+	err = __ntfs_extend_initialized_size(vi, offset, new_size);
 	filemap_invalidate_unlock(vi->i_mapping);
 	return err;
 }
@@ -3715,11 +3730,11 @@ s64 ntfs_inode_attr_pread(struct inode *vi, s64 pos, s64 count, u8 *buf)
 		}
 	}
 	isize = i_size_read(vi);
-	if (pos > isize) {
+	if (pos < 0 || pos > isize) {
 		mutex_unlock(&mrec_ni->mrec_lock);
 		return -EINVAL;
 	}
-	if (pos + count > isize)
+	if (count > isize - pos)
 		count = isize - pos;
 
 	if (!NInoNonResident(ni)) {
@@ -4087,8 +4102,13 @@ s64 ntfs_inode_attr_pwrite(struct inode *vi, s64 pos, s64 count, u8 *buf, bool s
 	mutex_unlock(&mrec_ni->mrec_lock);
 	/* Attribute writes bypass iomap's delayed-allocation preparation. */
 	if (ntfs_inode_is_named_stream(ni)) {
-		/* A failed write must not expose any newly initialized data. */
-		ret = ntfs_extend_initialized_size(vi, pos + count, pos + count);
+		/*
+		 * A failed write must not expose any newly initialized
+		 * data.  The stream ioctl caller holds the mapping
+		 * invalidate lock.
+		 */
+		ret = __ntfs_extend_initialized_size(vi, pos + count,
+				pos + count);
 		modified |= ni->initialized_size != old_init_size;
 		if (!ret)
 			ret = ntfs_attr_fallocate(ni, pos, count, true);

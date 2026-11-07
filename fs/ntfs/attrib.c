@@ -704,17 +704,20 @@ static bool ntfs_resident_attr_value_get(const struct attr_record *a,
 					 struct ntfs_resident_attr_value *value)
 {
 	u32 attr_len;
+	u32 min_len;
 	u16 value_offset;
 
 	attr_len = le32_to_cpu(a->length);
-	if (attr_len < offsetof(struct attr_record, data.resident.reserved) +
-			sizeof(a->data.resident.reserved))
+	min_len = offsetof(struct attr_record, data.resident.reserved) +
+		  sizeof(a->data.resident.reserved);
+	if (attr_len < min_len)
 		return false;
 
 	value->len = le32_to_cpu(a->data.resident.value_length);
 	value_offset = le16_to_cpu(a->data.resident.value_offset);
 
-	if (value->len > attr_len || value_offset > attr_len - value->len)
+	if (value_offset < min_len || value->len > attr_len ||
+	    value_offset > attr_len - value->len)
 		return false;
 
 	value->data = (const u8 *)a + value_offset;
