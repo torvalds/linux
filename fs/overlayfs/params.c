@@ -107,6 +107,7 @@ static int ovl_xino_def(void)
 const struct constant_table ovl_parameter_redirect_dir[] = {
 	{ "off",	OVL_REDIRECT_OFF      },
 	{ "follow",	OVL_REDIRECT_FOLLOW   },
+	{ "followdata",	OVL_REDIRECT_FOLLOWDATA },
 	{ "nofollow",	OVL_REDIRECT_NOFOLLOW },
 	{ "on",		OVL_REDIRECT_ON       },
 	{}
@@ -117,21 +118,29 @@ static const char *ovl_redirect_mode_name(int redirect_mode)
 	return ovl_parameter_redirect_dir[redirect_mode].name;
 }
 
-static const char *ovl_redirect_mode(struct ovl_config *config)
+const char *ovl_redirect_mode(struct ovl_config *config)
 {
 	return ovl_redirect_mode_name(config->redirect_mode);
 }
 
-static int ovl_redirect_follow_mode(void)
+int ovl_redirect_follow_mode(bool follow_lower, size_t nr_data)
 {
-	return ovl_redirect_always_follow ? OVL_REDIRECT_FOLLOW :
-					    OVL_REDIRECT_NOFOLLOW;
+	if (ovl_redirect_always_follow && follow_lower)
+		return OVL_REDIRECT_FOLLOW;
+
+	/* Data-only layers cannot be used without following redirects to them */
+	return nr_data ? OVL_REDIRECT_FOLLOWDATA : OVL_REDIRECT_NOFOLLOW;
 }
 
+/*
+ * The default for show_options() is resolved as if there are no data-only layers,
+ * so that redirect_dir=followdata, which is auto selected with data-only layers,
+ * is displayed in mount options.
+ */
 static int ovl_redirect_mode_def(void)
 {
 	return ovl_redirect_dir_def ? OVL_REDIRECT_ON :
-				      ovl_redirect_follow_mode();
+				      ovl_redirect_follow_mode(true, 0);
 }
 
 static const struct constant_table ovl_parameter_verity[] = {
@@ -890,6 +899,9 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	struct ovl_opt_set set = ctx->set;
 	/* The requested redirect_dir=, for reporting conflicts with it */
 	int redirect_opt = config->redirect_mode;
+	/* The redirect follow mode for redirect_dir=off and for the default */
+	int follow_mode = ovl_redirect_follow_mode(!config->userxattr,
+						   ctx->nr_data);
 
 	/* Workdir/index are useless in non-upper mount */
 	if (!config->upperdir) {
@@ -916,9 +928,12 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		config->uuid = OVL_UUID_NULL;
 	}
 
-	/* Resolve redirect_dir=off to the default redirect follow mode */
+	/*
+	 * Resolve redirect_dir=off to the default redirect follow mode.
+	 * With userxattr, redirects are not followed to lower by default.
+	 */
 	if (config->redirect_mode == OVL_REDIRECT_OFF)
-		config->redirect_mode = ovl_redirect_follow_mode();
+		config->redirect_mode = follow_mode;
 
 	/*
 	 * This is to make the logic below simpler.  It doesn't make any other
@@ -1015,7 +1030,8 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	/* Resolve userxattr -> !redirect && !metacopy dependency */
 	if (config->userxattr) {
 		if (set.redirect &&
-		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
+		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW &&
+		    config->redirect_mode != OVL_REDIRECT_FOLLOWDATA) {
 			pr_err("conflicting options: userxattr,redirect_dir=%s\n",
 			       ovl_redirect_mode_name(redirect_opt));
 			return -EINVAL;
@@ -1030,8 +1046,19 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		 * options must be explicitly enabled if used together with
 		 * userxattr.
 		 */
-		config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
+		if (!set.redirect)
+			config->redirect_mode = follow_mode;
 		config->metacopy = false;
+	}
+
+	/* Data-only layers are reached through redirects */
+	if (ctx->nr_data && config->redirect_mode == OVL_REDIRECT_NOFOLLOW) {
+		pr_err("redirect_dir=nofollow is not supported with data-only layers\n");
+		return -EINVAL;
+	}
+	if (!ctx->nr_data && config->redirect_mode == OVL_REDIRECT_FOLLOWDATA) {
+		pr_err("redirect_dir=followdata requires data-only layers\n");
+		return -EINVAL;
 	}
 
 	/*
