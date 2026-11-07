@@ -1057,6 +1057,7 @@ int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *copied,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr *uaddr = msg->msg_name;
+	bool defer_connect = false;
 	int err, flags;
 
 	if (!(READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen) &
@@ -1076,6 +1077,9 @@ int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *copied,
 	tp->fastopen_req->uarg = uarg;
 
 	if (inet_test_bit(DEFER_CONNECT, sk)) {
+		inet_clear_bit(DEFER_CONNECT, sk);
+		defer_connect = true;
+
 		err = tcp_connect(sk);
 		/* Same failure procedure as in tcp_v4/6_connect */
 		if (err) {
@@ -1086,14 +1090,13 @@ int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *copied,
 	}
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, (struct sockaddr_unsized *)uaddr,
-				    msg->msg_namelen, flags, 1);
+				    msg->msg_namelen, flags, defer_connect);
 	/* fastopen_req could already be freed in __inet_stream_connect
 	 * if the connection times out or gets rst
 	 */
 	if (tp->fastopen_req) {
 		*copied = tp->fastopen_req->copied;
 		tcp_free_fastopen_req(tp);
-		inet_clear_bit(DEFER_CONNECT, sk);
 	}
 	return err;
 }
@@ -5149,6 +5152,8 @@ int tcp_abort(struct sock *sk, int err)
 	if (!has_current_bpf_ctx())
 		/* Don't race with userspace socket closes such as tcp_close. */
 		lock_sock(sk);
+
+	inet_clear_bit(DEFER_CONNECT, sk);
 
 	/* Avoid closing the same socket twice. */
 	if (sk->sk_state == TCP_CLOSE) {
