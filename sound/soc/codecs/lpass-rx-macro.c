@@ -3681,7 +3681,7 @@ static int swclk_gate_enable(struct clk_hw *hw)
 
 	ret = rx_macro_mclk_enable(rx, true);
 	if (ret) {
-		clk_disable_unprepare(rx->mclk);
+		pm_runtime_put_autosuspend(rx->dev);
 		return ret;
 	}
 

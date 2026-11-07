@@ -17,6 +17,8 @@
 #include <sound/cs35l41.h>
 
 #define CS35L41_FIRMWARE_OLD_VERSION 0x001C00 /* v0.28.0 */
+#define CS35L41_GLOBAL_BOOT_DONE_TIMEOUT_US 100000
+#define CS35L41_GLOBAL_BOOT_DONE_SLEEP_US 2000
 
 static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_PWR_CTRL1,			0x00000000 },
@@ -1585,6 +1587,71 @@ int cs35l41_exit_hibernate(struct device *dev, struct regmap *regmap)
 	return -ETIMEDOUT;
 }
 EXPORT_SYMBOL_GPL(cs35l41_exit_hibernate);
+
+int cs35l41_wait_boot_done(struct device *dev, struct regmap *regmap)
+{
+	ktime_t timeout;
+	unsigned int val = 0;
+	int ret = 0;
+
+	/*
+	 * The chip could NAK a read request while it is booting so ignore
+	 * errors from regmap_read.
+	 */
+	timeout = ktime_add_us(ktime_get(), CS35L41_GLOBAL_BOOT_DONE_TIMEOUT_US);
+	regmap_read(regmap, CS35L41_IRQ1_STATUS4, &val);
+	while (!(val & CS35L41_OTP_BOOT_DONE) && !ktime_after(ktime_get(), timeout)) {
+		usleep_range(CS35L41_GLOBAL_BOOT_DONE_SLEEP_US / 2,
+			     CS35L41_GLOBAL_BOOT_DONE_SLEEP_US);
+		regmap_read(regmap, CS35L41_IRQ1_STATUS4, &val);
+	}
+
+	if (!(val & CS35L41_OTP_BOOT_DONE)) {
+		dev_err(dev, "Timeout waiting for OTP_BOOT_DONE\n");
+		return -ETIMEDOUT;
+	}
+
+	ret = regmap_read(regmap, CS35L41_IRQ1_STATUS3, &val);
+	if (ret || (val & CS35L41_OTP_BOOT_ERR)) {
+		dev_err(dev, "OTP Boot status %x error\n",
+			val & CS35L41_OTP_BOOT_ERR);
+		if (!ret)
+			ret = -EIO;
+		return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l41_wait_boot_done);
+
+int cs35l41_reset_and_boot(struct device *dev, struct regmap *regmap)
+{
+	int ret;
+
+	ret = regmap_write(regmap, CS35L41_SFT_RESET, CS35L41_SOFTWARE_RESET);
+	if (ret) {
+		dev_warn(dev, "Failed to write software reset: %d\n", ret);
+
+		/*
+		 * If the write failed, it is likely because the chip is still booting after a
+		 * reset. Wait for boot, then retry the software reset. If the initial write failed
+		 * for another reason, then either waiting for boot, or the second write will fail,
+		 * So we can return the error then.
+		 */
+		ret = cs35l41_wait_boot_done(dev, regmap);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(regmap, CS35L41_SFT_RESET, CS35L41_SOFTWARE_RESET);
+		if (ret) {
+			dev_err(dev, "Failed to write software reset on retry: %d\n", ret);
+			return ret;
+		}
+	}
+	usleep_range(2000, 2100);
+
+	return cs35l41_wait_boot_done(dev, regmap);
+}
+EXPORT_SYMBOL_GPL(cs35l41_reset_and_boot);
 
 MODULE_DESCRIPTION("CS35L41 library");
 MODULE_AUTHOR("David Rhodes, Cirrus Logic Inc, <david.rhodes@cirrus.com>");

@@ -1759,9 +1759,10 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	if (strnlen(info->id.name, sizeof(info->id.name)) >= sizeof(info->id.name))
 		return -EINVAL;
 
+	info->id.numid = 0;
+
 	/* Delete a control to replace them if needed. */
 	if (replace) {
-		info->id.numid = 0;
 		err = snd_ctl_remove_user_ctl(file, &info->id);
 		if (err)
 			return err;

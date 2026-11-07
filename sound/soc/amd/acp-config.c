@@ -99,6 +99,41 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* HP Cashmere-A */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8EF5"),
+		},
+	},
+	{
+		/* HP Sundae */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8F6D"),
+		},
+	},
+	{
+		/* HP SundaeWhip UMA */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8FA4"),
+		},
+	},
+	{
+		/* HP SundaeWhip DSC */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8FA5"),
+		},
+	},
+	{
+		/* HP Kata-A */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "9056"),
+		},
+	},
+	{
 		/* Dell 14S DS14265 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),

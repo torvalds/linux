@@ -235,19 +235,28 @@ No %s for algorithm %x
   HDA driver did not find a .bin file that matches this hardware.
 
 Calibration disabled due to missing firmware controls
-  Driver was not able to write EFI calibration data to firmware registers.
-  This typically means that either:
+  This isn't necessarily an error, only informative. The amplifier can
+  operate without calibration, as the firmware contains a default
+  calibration for the speakers, but it will tend to over-protect the
+  speakers.
 
-    * The driver did not find a suitable wmfw for this hardware, or
+  This message typically means that either:
+    * The driver did not find a suitable firmware .wmfw file for this
+      hardware, or
     * The amplifier has already been patched with firmware by something
       previously, and the driver does not have control of a hard RESET line
       to be able to reset the amplifier and download the firmware files it
       found. This situation is indicated by the device identification
-      string in the kernel log shows "(patched=1)"
+      string in the kernel log showing "(patched=1)"
 
 Failed to write calibration
-  Same meaning and cause as "Calibration disabled due to missing firmware
-  controls"
+  If the error code is -2 (ENOENT):
+    * The driver has been unbound and rebound without reprobing.
+    * The wrong firmware .wmfw file was loaded for this hardware so the
+      algorithm IDs in the firmware do not match what the driver is
+      looking for.
+
+  Other error codes likely indicate a problem communicating with the hardware.
 
 Failed to read calibration data from EFI
   Factory calibration data in EFI is missing, empty or corrupt.

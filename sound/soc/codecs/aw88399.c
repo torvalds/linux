@@ -818,4 +818,5 @@ static struct i2c_driver aw88399_i2c_driver = {
 module_i2c_driver(aw88399_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC AW88399 Smart PA Driver");
+MODULE_IMPORT_NS("SND_SOC_AW88399_LIB");
 MODULE_LICENSE("GPL v2");

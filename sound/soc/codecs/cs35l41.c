@@ -1211,7 +1211,7 @@ err:
 
 int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *hw_cfg)
 {
-	u32 regid, reg_revid, i, mtl_revid, int_status, chipid_match;
+	u32 regid, reg_revid, i, mtl_revid, chipid_match;
 	int irq_pol = 0;
 	int ret;
 
@@ -1260,21 +1260,9 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 
 	usleep_range(2000, 2100);
 
-	ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS4,
-				       int_status, int_status & CS35L41_OTP_BOOT_DONE,
-				       1000, 100000);
-	if (ret) {
-		dev_err_probe(cs35l41->dev, ret,
-			      "Failed waiting for OTP_BOOT_DONE\n");
+	ret = cs35l41_reset_and_boot(cs35l41->dev, cs35l41->regmap);
+	if (ret)
 		goto err;
-	}
-
-	regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS3, &int_status);
-	if (int_status & CS35L41_OTP_BOOT_ERR) {
-		dev_err(cs35l41->dev, "OTP Boot error\n");
-		ret = -EINVAL;
-		goto err;
-	}
 
 	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID, &regid);
 	if (ret < 0) {

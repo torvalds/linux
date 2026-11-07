@@ -1669,7 +1669,7 @@ static struct snd_soc_dai_driver sn624x_sdca_dai[] = {
 		.capture = {
 			.stream_name = "DMic Capture",
 			.channels_min = 1,
-			.channels_max = 4,
+			.channels_max = 2,
 			.rates = SN624X_STEREO_RATES,
 			.formats = SN624X_FORMATS,
 		},

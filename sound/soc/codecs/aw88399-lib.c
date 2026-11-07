@@ -23,7 +23,7 @@ const struct regmap_config aw88399_remap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
-EXPORT_SYMBOL_GPL(aw88399_remap_config);
+EXPORT_SYMBOL_NS_GPL(aw88399_remap_config, "SND_SOC_AW88399_LIB");
 
 static void aw_dev_pwd(struct aw_device *aw_dev, bool pwd)
 {
@@ -165,7 +165,7 @@ int aw_dev_check_syspll(struct aw_device *aw_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(aw_dev_check_syspll);
+EXPORT_SYMBOL_NS_GPL(aw_dev_check_syspll, "SND_SOC_AW88399_LIB");
 
 static int aw_dev_check_sysst(struct aw_device *aw_dev)
 {
@@ -241,7 +241,7 @@ void aw_dev_dsp_enable(struct aw_device *aw_dev, bool is_enable)
 	if (ret)
 		dev_dbg(aw_dev->dev, "%s failed\n", __func__);
 }
-EXPORT_SYMBOL_GPL(aw_dev_dsp_enable);
+EXPORT_SYMBOL_NS_GPL(aw_dev_dsp_enable, "SND_SOC_AW88399_LIB");
 
 static int aw88399_dev_get_icalk(struct aw88399 *aw88399, int16_t *icalk)
 {
@@ -418,7 +418,7 @@ int aw_dev_update_cali_re(struct aw_cali_desc *cali_desc)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(aw_dev_update_cali_re);
+EXPORT_SYMBOL_NS_GPL(aw_dev_update_cali_re, "SND_SOC_AW88399_LIB");
 
 static int aw_dev_fw_crc_check(struct aw_device *aw_dev)
 {
@@ -572,7 +572,7 @@ int aw_dev_get_dsp_status(struct aw_device *aw_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(aw_dev_get_dsp_status);
+EXPORT_SYMBOL_NS_GPL(aw_dev_get_dsp_status, "SND_SOC_AW88399_LIB");
 
 static int aw_dev_dsp_check(struct aw_device *aw_dev)
 {
@@ -625,7 +625,7 @@ int aw_dev_set_volume(struct aw_device *aw_dev, unsigned int value)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(aw_dev_set_volume);
+EXPORT_SYMBOL_NS_GPL(aw_dev_set_volume, "SND_SOC_AW88399_LIB");
 
 static void aw_dev_fade_in(struct aw_device *aw_dev)
 {
@@ -682,7 +682,7 @@ void aw88399_dev_mute(struct aw_device *aw_dev, bool is_mute)
 		aw_dev_fade_in(aw_dev);
 	}
 }
-EXPORT_SYMBOL_GPL(aw88399_dev_mute);
+EXPORT_SYMBOL_NS_GPL(aw88399_dev_mute, "SND_SOC_AW88399_LIB");
 
 static void aw88399_dev_set_dither(struct aw88399 *aw88399, bool dither)
 {
@@ -1038,7 +1038,7 @@ int aw88399_dev_get_prof_name(struct aw_device *aw_dev, int index, char **prof_n
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(aw88399_dev_get_prof_name);
+EXPORT_SYMBOL_NS_GPL(aw88399_dev_get_prof_name, "SND_SOC_AW88399_LIB");
 
 static int aw88399_dev_get_prof_data(struct aw_device *aw_dev, int index,
 			struct aw_prof_desc **prof_desc)
@@ -1163,7 +1163,7 @@ void aw88399_startup_work(struct work_struct *work)
 	aw88399_start_pa(aw88399);
 	mutex_unlock(&aw88399->lock);
 }
-EXPORT_SYMBOL_GPL(aw88399_startup_work);
+EXPORT_SYMBOL_NS_GPL(aw88399_startup_work, "SND_SOC_AW88399_LIB");
 
 void aw88399_start(struct aw88399 *aw88399, bool sync_start)
 {
@@ -1191,7 +1191,7 @@ void aw88399_start(struct aw88399 *aw88399, bool sync_start)
 			&aw88399->start_work,
 			AW88399_START_WORK_DELAY_MS);
 }
-EXPORT_SYMBOL_GPL(aw88399_start);
+EXPORT_SYMBOL_NS_GPL(aw88399_start, "SND_SOC_AW88399_LIB");
 
 static int aw_dev_check_sysint(struct aw_device *aw_dev)
 {
@@ -1244,7 +1244,7 @@ int aw88399_stop(struct aw_device *aw_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(aw88399_stop);
+EXPORT_SYMBOL_NS_GPL(aw88399_stop, "SND_SOC_AW88399_LIB");
 
 static int aw88399_dev_init(struct aw88399 *aw88399, struct aw_container *aw_cfg)
 {
@@ -1323,7 +1323,7 @@ int aw88399_request_firmware_file(struct aw88399 *aw88399, const char *fw_name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(aw88399_request_firmware_file);
+EXPORT_SYMBOL_NS_GPL(aw88399_request_firmware_file, "SND_SOC_AW88399_LIB");
 
 void aw88399_hw_reset(struct aw88399 *aw88399)
 {
@@ -1336,7 +1336,7 @@ void aw88399_hw_reset(struct aw88399 *aw88399)
 		usleep_range(AW88399_1000_US, AW88399_1000_US + 10);
 	}
 }
-EXPORT_SYMBOL_GPL(aw88399_hw_reset);
+EXPORT_SYMBOL_NS_GPL(aw88399_hw_reset, "SND_SOC_AW88399_LIB");
 
 static void aw88399_parse_channel_dt(struct aw_device *aw_dev)
 {
@@ -1401,13 +1401,13 @@ int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct regmap 
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(aw88399_init);
+EXPORT_SYMBOL_NS_GPL(aw88399_init, "SND_SOC_AW88399_LIB");
 
 void aw88399_dev_set_channel(struct aw88399 *aw88399, int channel)
 {
 	aw88399->aw_pa->channel = channel;
 }
-EXPORT_SYMBOL_GPL(aw88399_dev_set_channel);
+EXPORT_SYMBOL_NS_GPL(aw88399_dev_set_channel, "SND_SOC_AW88399_LIB");
 
 MODULE_DESCRIPTION("AW88399 common device library");
 MODULE_LICENSE("GPL");

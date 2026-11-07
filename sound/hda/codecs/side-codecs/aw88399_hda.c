@@ -184,7 +184,6 @@ static const struct aw88399_prop_model aw88399_prop_model_table[] = {
 static int aw88399_hda_acpi_probe(struct aw88399_hda *aw88399)
 {
 	struct acpi_device *adev;
-	const char *sub;
 	const struct aw88399_prop_model *model;
 
 	aw88399->index = aw88399_hda_index_from_i2c(aw88399);
@@ -202,14 +201,13 @@ static int aw88399_hda_acpi_probe(struct aw88399_hda *aw88399)
 	if (!physdev)
 		return -ENODEV;
 
-	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
+	const char *sub __free(kfree) = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
 	if (IS_ERR_OR_NULL(sub)) {
 		dev_err(aw88399->dev, "ACPI subsystem ID not available\n");
 		return -ENODEV;
 	}
 
 	aw88399->acpi_subsystem_id = devm_kstrdup(aw88399->dev, sub, GFP_KERNEL);
-	kfree(sub);
 	if (!aw88399->acpi_subsystem_id)
 		return -ENOMEM;
 
@@ -356,6 +354,7 @@ const struct dev_pm_ops aw88399_hda_pm_ops = {
 EXPORT_SYMBOL_NS_GPL(aw88399_hda_pm_ops, "SND_HDA_SCODEC_AW88399");
 
 MODULE_DESCRIPTION("AW88399 HDA driver");
+MODULE_IMPORT_NS("SND_SOC_AW88399_LIB");
 MODULE_AUTHOR("Yakov Till <yakov.till@gmail.com>");
 MODULE_AUTHOR("Marco Giunta <marco_giunta@outlook.it>");
 MODULE_LICENSE("GPL");
