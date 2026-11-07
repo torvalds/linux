@@ -1112,6 +1112,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			atomic_long_read(&cfs_rq->tg->load_avg));
 	SEQ_printf(m, "  .%-30s: %lu\n", "h_load",
 			cfs_rq->h_load);
+	SEQ_printf(m, "  .%-30s: %d\n", "idle", cfs_rq->idle);
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 #ifdef CONFIG_CFS_BANDWIDTH
 	SEQ_printf(m, "  .%-30s: %d\n", "throttled",

@@ -445,8 +445,10 @@ static int cfs_rq_is_idle(struct cfs_rq *cfs_rq)
 
 static int se_is_idle(struct sched_entity *se)
 {
-	if (entity_is_task(se))
-		return task_has_idle_policy(task_of(se));
+	if (entity_is_task(se)) {
+		return task_has_idle_policy(task_of(se)) ||
+			cfs_rq_is_idle(cfs_rq_of(se));
+	}
 	return cfs_rq_is_idle(group_cfs_rq(se));
 }
 
@@ -15672,19 +15674,20 @@ err:
 
 void online_fair_sched_group(struct task_group *tg)
 {
-	struct sched_entity *se;
-	struct rq_flags rf;
-	struct rq *rq;
 	int i;
 
 	for_each_possible_cpu(i) {
-		rq = cpu_rq(i);
-		se = tg_se(tg, i);
-		rq_lock_irq(rq, &rf);
+		struct cfs_rq *cfs_rq = tg_cfs_rq(tg, i);
+		struct sched_entity *se = tg_se(tg, i);
+		struct rq *rq = cpu_rq(i);
+
+		guard(rq_lock_irq)(rq);
+
 		update_rq_clock(rq);
 		attach_entity_cfs_rq(se);
 		sync_throttle(tg, i);
-		rq_unlock_irq(rq, &rf);
+
+		cfs_rq->idle = tg_cfs_rq(tg->parent, i)->idle;
 	}
 }
 
@@ -15793,6 +15796,43 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	return ret;
 }
 
+struct tg_set_idle_struct {
+	long idle;
+	int cpu;
+};
+
+static int tg_set_idle_up(struct task_group *tg, void *data)
+{
+	struct tg_set_idle_struct *tsi = data;
+	struct cfs_rq *grp_cfs_rq = tg_cfs_rq(tg, tsi->cpu);
+	struct sched_entity *se = tg_se(tg, tsi->cpu);
+	int old_idle = grp_cfs_rq->idle;
+	int task_delta;
+
+	grp_cfs_rq->idle += tsi->idle;
+
+	if (!!old_idle == !!grp_cfs_rq->idle)
+		return 0;
+
+	task_delta = grp_cfs_rq->h_nr_queued - grp_cfs_rq->h_nr_idle;
+	if (!task_delta)
+		return 0;
+
+	task_delta *= tsi->idle;
+	for_each_sched_entity(se) {
+		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+		if (!se->on_rq)
+			break;
+
+		cfs_rq->h_nr_idle += task_delta;
+
+		if (cfs_rq_is_idle(cfs_rq))
+			break;
+	}
+	return 0;
+}
+
 int sched_group_set_idle(struct task_group *tg, long idle)
 {
 	int i;
@@ -15811,34 +15851,14 @@ int sched_group_set_idle(struct task_group *tg, long idle)
 
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
-		struct sched_entity *se = tg_se(tg, i);
-		struct cfs_rq *grp_cfs_rq = tg_cfs_rq(tg, i);
-		bool was_idle = cfs_rq_is_idle(grp_cfs_rq);
-		long idle_task_delta;
 
 		guard(rq_lock_irqsave)(rq);
 
-		grp_cfs_rq->idle = idle;
-		if (WARN_ON_ONCE(was_idle == cfs_rq_is_idle(grp_cfs_rq)))
-			continue;
-
-		idle_task_delta = grp_cfs_rq->h_nr_queued -
-				  grp_cfs_rq->h_nr_idle;
-		if (!cfs_rq_is_idle(grp_cfs_rq))
-			idle_task_delta *= -1;
-
-		for_each_sched_entity(se) {
-			struct cfs_rq *cfs_rq = cfs_rq_of(se);
-
-			if (!se->on_rq)
-				break;
-
-			cfs_rq->h_nr_idle += idle_task_delta;
-
-			/* Already accounted at parent level and above. */
-			if (cfs_rq_is_idle(cfs_rq))
-				break;
-		}
+		struct tg_set_idle_struct tsi = {
+			.idle = idle ? 1 : -1,
+			.cpu = i,
+		};
+		walk_tg_tree_from(tg, tg_nop, tg_set_idle_up, &tsi);
 	}
 
 	/* Idle groups have minimum weight. */
