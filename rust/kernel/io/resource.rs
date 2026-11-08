@@ -164,7 +164,7 @@ impl Resource {
         // SAFETY: Safe as per the invariants of `Resource`.
         let flags = unsafe { (*inner).flags };
 
-        Flags(flags)
+        Flags::from_raw(flags)
     }
 }
 
