@@ -497,7 +497,7 @@ asmlinkage void do_cpu_irq_mask(struct pt_regs *regs)
 #endif
 
 	old_regs = set_irq_regs(regs);
-	local_irq_disable();
+	trace_hardirqs_off();
 	irq_enter_rcu();
 
 	eirr_val = mfctl(23) & cpu_eiem & per_cpu(local_ack_eiem, cpu);
@@ -535,6 +535,8 @@ asmlinkage void do_cpu_irq_mask(struct pt_regs *regs)
  out:
 	irq_exit_rcu();
 	set_irq_regs(old_regs);
+	if (!irqs_disabled_flags(regs->gr[0]))
+		trace_hardirqs_on();
 	return;
 
  set_out:
