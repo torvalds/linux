@@ -514,13 +514,20 @@ endif
 bindgen_c_flags_final = $(bindgen_c_flags_lto) -fno-builtin -D__BINDGEN__
 
 # `--rust-target` points to our minimum supported Rust version.
+#
+# `bindgen` 0.73 emits the blob of some opaque types as a
+# `__BindgenOpaqueArray[<align>]` newtype, which the custom derives do not
+# reach. Derive `Zeroable` for those wrappers, so that a struct embedding such
+# an opaque type (e.g. `spinlock_t` with lockdep) is still `Zeroable`. The
+# pattern also matches the unformatted output used when `rustfmt` is missing.
 quiet_cmd_bindgen = BINDGEN $@
       cmd_bindgen = \
 	$(BINDGEN) $< $(bindgen_target_flags) --rust-target 1.85 \
 		--use-core --with-derive-default --ctypes-prefix ffi --no-layout-tests \
 		--no-debug '.*' --enable-function-attribute-detection \
 		-o $@ -- $(bindgen_c_flags_final) -DMODULE \
-		$(bindgen_target_cflags) $(bindgen_target_extra)
+		$(bindgen_target_cflags) $(bindgen_target_extra); \
+	sed -Ei 's/pub struct __BindgenOpaqueArray[0-9]* *< *T *> *\( *pub T *\) *;/$(pound)[derive(pin_init::Zeroable)] &/g' $@
 
 $(obj)/bindings/bindings_generated.rs: private bindgen_target_flags = \
     $(shell grep -Ev '^#|^$$' $(src)/bindgen_parameters)
