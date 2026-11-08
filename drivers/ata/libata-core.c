@@ -2059,6 +2059,10 @@ void ata_dev_power_set_standby(struct ata_device *dev)
 	struct ata_taskfile tf;
 	unsigned int err_mask;
 
+	/* Issue STANDBY IMMEDIATE command only if supported by the device */
+	if (!ata_dev_power_init_tf(dev, &tf, false))
+		return;
+
 	/* If the device is already sleeping or in standby, do nothing. */
 	if ((dev->flags & ATA_DFLAG_SLEEPING) ||
 	    !ata_dev_power_is_active(dev))
@@ -2075,10 +2079,6 @@ void ata_dev_power_set_standby(struct ata_device *dev)
 
 	if ((ap_flags & ATA_FLAG_NO_HIBERNATE_SPINDOWN) &&
 	    system_entering_hibernation())
-		return;
-
-	/* Issue STANDBY IMMEDIATE command only if supported by the device */
-	if (!ata_dev_power_init_tf(dev, &tf, false))
 		return;
 
 	ata_dev_notice(dev, "Entering standby power mode\n");
