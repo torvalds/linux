@@ -287,7 +287,7 @@ static int ktd2692_probe(struct platform_device *pdev)
 	struct ktd2692_led_config_data led_cfg;
 	int ret;
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&pdev->dev, *led);
 	if (!led)
 		return -ENOMEM;
 

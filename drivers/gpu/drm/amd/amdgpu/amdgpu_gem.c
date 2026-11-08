@@ -1163,7 +1163,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			goto out_exec;
 		}
 
-		vm_entries = kvcalloc(args->num_entries, sizeof(*vm_entries), GFP_KERNEL);
+		vm_entries = kvzalloc_objs(*vm_entries, args->num_entries);
 		if (!vm_entries) {
 			r = -ENOMEM;
 			goto out_exec;

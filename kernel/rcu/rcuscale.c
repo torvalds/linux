@@ -1188,7 +1188,7 @@ rcu_scale_init(void)
 		}
 	}
 	writer_tasks = kzalloc_objs(writer_tasks[0], nrealwriters);
-	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations), GFP_KERNEL);
+	writer_durations = kzalloc_objs(*writer_durations, nrealwriters);
 	writer_n_durations = kzalloc_objs(*writer_n_durations, nrealwriters);
 	writer_done = kzalloc_objs(writer_done[0], nrealwriters);
 	if (gp_async) {
@@ -1210,8 +1210,7 @@ rcu_scale_init(void)
 	}
 	for (i = 0; i < nrealwriters; i++) {
 		writer_durations[i] =
-			kcalloc(MAX_MEAS, sizeof(*writer_durations[i]),
-				GFP_KERNEL);
+			kzalloc_objs(*writer_durations[i], MAX_MEAS);
 		if (!writer_durations[i]) {
 			firsterr = -ENOMEM;
 			goto unwind;

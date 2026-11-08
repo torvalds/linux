@@ -1018,8 +1018,7 @@ static int cti_create_con_sysfs_attr(struct device *dev,
 	struct dev_ext_attribute *eattr;
 	char *name;
 
-	eattr = devm_kzalloc(dev, sizeof(struct dev_ext_attribute),
-				    GFP_KERNEL);
+	eattr = devm_kzalloc_obj(dev, struct dev_ext_attribute);
 	if (eattr) {
 		name = devm_kstrdup(dev, con_attr_names[attr_type],
 				    GFP_KERNEL);
@@ -1055,7 +1054,7 @@ cti_create_con_sysfs_group(struct device *dev, struct cti_device *ctidev,
 	struct attribute_group *group = NULL;
 	int grp_idx;
 
-	group = devm_kzalloc(dev, sizeof(struct attribute_group), GFP_KERNEL);
+	group = devm_kzalloc_obj(dev, struct attribute_group);
 	if (!group)
 		return NULL;
 
@@ -1083,8 +1082,8 @@ static int cti_create_con_attr_set(struct device *dev, int con_idx,
 		return -ENOMEM;
 
 	/* allocate NULL terminated array of attributes */
-	tc->con_attrs = devm_kcalloc(dev, CTI_CON_ATTR_MAX + 1,
-				     sizeof(struct attribute *), GFP_KERNEL);
+	tc->con_attrs = devm_kzalloc_objs(dev, struct attribute *,
+					  CTI_CON_ATTR_MAX + 1);
 	if (!tc->con_attrs)
 		return -ENOMEM;
 
@@ -1131,9 +1130,8 @@ static int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
 
 	/* nr groups = dynamic + static + NULL terminator */
 	nr_groups = ctidev->nr_trig_con + CORESIGHT_CTI_STATIC_GROUPS_MAX;
-	ctidev->con_groups = devm_kcalloc(dev, nr_groups,
-					  sizeof(*ctidev->con_groups),
-					  GFP_KERNEL);
+	ctidev->con_groups = devm_kzalloc_objs(dev, *ctidev->con_groups,
+					       nr_groups);
 	if (!ctidev->con_groups)
 		return -ENOMEM;
 	return 0;

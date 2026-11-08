@@ -23,7 +23,7 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 	struct clk *clk;
 	int idx;
 
-	v = devm_kzalloc(dev, sizeof(*v), GFP_KERNEL);
+	v = devm_kzalloc_obj(dev, *v);
 	if (!v)
 		return -ENOMEM;
 

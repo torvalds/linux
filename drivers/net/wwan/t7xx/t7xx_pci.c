@@ -840,7 +840,7 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem *iomem;
 	int ret;
 
-	t7xx_dev = devm_kzalloc(&pdev->dev, sizeof(*t7xx_dev), GFP_KERNEL);
+	t7xx_dev = devm_kzalloc_obj(&pdev->dev, *t7xx_dev);
 	if (!t7xx_dev)
 		return -ENOMEM;
 

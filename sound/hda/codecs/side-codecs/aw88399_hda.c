@@ -112,7 +112,7 @@ static int aw88399_hda_init(struct aw88399_hda *aw88399)
 	struct aw88399 *core;
 	int ret;
 
-	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(dev, *core);
 	if (!core)
 		return -ENOMEM;
 
@@ -228,7 +228,7 @@ int aw88399_hda_probe(struct device *dev, struct regmap *regmap)
 	struct aw88399_hda *aw88399;
 	int ret;
 
-	aw88399 = devm_kzalloc(dev, sizeof(*aw88399), GFP_KERNEL);
+	aw88399 = devm_kzalloc_obj(dev, *aw88399);
 	if (!aw88399)
 		return -ENOMEM;
 

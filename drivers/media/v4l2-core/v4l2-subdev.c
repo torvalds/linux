@@ -2174,8 +2174,7 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 
 	if (disallow & (V4L2_SUBDEV_ROUTING_NO_STREAM_MIX |
 			V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING)) {
-		remote_pads = kcalloc(sd->entity.num_pads, sizeof(*remote_pads),
-				      GFP_KERNEL);
+		remote_pads = kzalloc_objs(*remote_pads, sd->entity.num_pads);
 		if (!remote_pads)
 			return -ENOMEM;
 

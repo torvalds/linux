@@ -678,7 +678,7 @@ static int fme_dev_init(struct platform_device *pdev)
 	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(&pdev->dev);
 	struct dfl_fme *fme;
 
-	fme = devm_kzalloc(&pdev->dev, sizeof(*fme), GFP_KERNEL);
+	fme = devm_kzalloc_obj(&pdev->dev, *fme);
 	if (!fme)
 		return -ENOMEM;
 

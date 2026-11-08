@@ -451,8 +451,8 @@ __init int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 			goto err_domains;
 		}
 
-		bank->soc_priv = devm_kzalloc(d->dev,
-			sizeof(struct exynos_eint_gpio_save), GFP_KERNEL);
+		bank->soc_priv = devm_kzalloc_obj(d->dev,
+						  struct exynos_eint_gpio_save);
 		if (!bank->soc_priv) {
 			irq_domain_remove(bank->irq_domain);
 			ret = -ENOMEM;
@@ -817,9 +817,7 @@ __init int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			continue;
 		}
 
-		weint_data = devm_kcalloc(dev,
-					  bank->nr_pins, sizeof(*weint_data),
-					  GFP_KERNEL);
+		weint_data = devm_kzalloc_objs(dev, *weint_data, bank->nr_pins);
 		if (!weint_data)
 			return -ENOMEM;
 
@@ -1081,7 +1079,7 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 	struct regmap *pmu_regs;
 	int i;
 
-	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(drvdata->dev, *ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 

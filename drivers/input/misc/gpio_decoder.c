@@ -63,7 +63,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	u32 max;
 	int err;
 
-	decoder = devm_kzalloc(dev, sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc_obj(dev, *decoder);
 	if (!decoder)
 		return -ENOMEM;
 

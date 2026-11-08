@@ -73,7 +73,7 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	int result = 0;
 	struct int3403_sensor *obj;
 
-	obj = devm_kzalloc(&priv->pdev->dev, sizeof(*obj), GFP_KERNEL);
+	obj = devm_kzalloc_obj(&priv->pdev->dev, *obj);
 	if (!obj)
 		return -ENOMEM;
 
@@ -160,7 +160,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *p;
 
-	obj = devm_kzalloc(&priv->pdev->dev, sizeof(*obj), GFP_KERNEL);
+	obj = devm_kzalloc_obj(&priv->pdev->dev, *obj);
 	if (!obj)
 		return -ENOMEM;
 
@@ -204,8 +204,7 @@ static int int3403_add(struct platform_device *pdev)
 	unsigned long long tmp;
 	acpi_status status;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct int3403_priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct int3403_priv);
 	if (!priv)
 		return -ENOMEM;
 

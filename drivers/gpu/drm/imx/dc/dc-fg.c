@@ -308,7 +308,7 @@ static int dc_fg_bind(struct device *dev, struct device *master, void *data)
 	struct dc_fg *fg;
 	int id;
 
-	fg = devm_kzalloc(dev, sizeof(*fg), GFP_KERNEL);
+	fg = devm_kzalloc_obj(dev, *fg);
 	if (!fg)
 		return -ENOMEM;
 

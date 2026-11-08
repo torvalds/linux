@@ -312,7 +312,7 @@ static int cs42l42_sdw_read_prop(struct sdw_slave *peripheral)
 	struct sdw_slave_prop *prop = &peripheral->prop;
 	struct sdw_dpn_prop *ports;
 
-	ports = devm_kcalloc(cs42l42->dev, 2, sizeof(*ports), GFP_KERNEL);
+	ports = devm_kzalloc_objs(cs42l42->dev, *ports, 2);
 	if (!ports)
 		return -ENOMEM;
 
@@ -528,7 +528,7 @@ static int cs42l42_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	struct regmap *regmap;
 	int irq, ret;
 
-	cs42l42 = devm_kzalloc(dev, sizeof(*cs42l42), GFP_KERNEL);
+	cs42l42 = devm_kzalloc_obj(dev, *cs42l42);
 	if (!cs42l42)
 		return -ENOMEM;
 

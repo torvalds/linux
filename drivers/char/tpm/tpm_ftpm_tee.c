@@ -176,8 +176,7 @@ static int ftpm_tee_probe_generic(struct device *dev)
 	struct ftpm_tee_private *pvt_data = NULL;
 	struct tee_ioctl_open_session_arg sess_arg;
 
-	pvt_data = devm_kzalloc(dev, sizeof(struct ftpm_tee_private),
-				GFP_KERNEL);
+	pvt_data = devm_kzalloc_obj(dev, struct ftpm_tee_private);
 	if (!pvt_data)
 		return -ENOMEM;
 

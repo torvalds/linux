@@ -1196,7 +1196,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	pcf2127 = devm_kzalloc(dev, sizeof(*pcf2127), GFP_KERNEL);
+	pcf2127 = devm_kzalloc_obj(dev, *pcf2127);
 	if (!pcf2127)
 		return -ENOMEM;
 

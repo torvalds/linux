@@ -1562,8 +1562,8 @@ static int hclge_alloc_tqps(struct hclge_dev *hdev)
 	struct hclge_comm_tqp *tqp;
 	int i;
 
-	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
-				  sizeof(struct hclge_comm_tqp), GFP_KERNEL);
+	hdev->htqp = devm_kzalloc_objs(&hdev->pdev->dev, struct hclge_comm_tqp,
+				       hdev->num_tqps);
 	if (!hdev->htqp)
 		return -ENOMEM;
 
@@ -1674,8 +1674,8 @@ static int hclge_knic_setup(struct hclge_vport *vport, u16 num_tqps,
 	kinfo->rx_buf_len = hdev->rx_buf_len;
 	kinfo->tx_spare_buf_size = hdev->tx_spare_buf_size;
 
-	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, num_tqps,
-				  sizeof(struct hnae3_queue *), GFP_KERNEL);
+	kinfo->tqp = devm_kzalloc_objs(&hdev->pdev->dev, struct hnae3_queue *,
+				       num_tqps);
 	if (!kinfo->tqp)
 		return -ENOMEM;
 
@@ -1771,8 +1771,7 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	tqp_per_vport = hdev->num_tqps / num_vport;
 	tqp_main_vport = tqp_per_vport + hdev->num_tqps % num_vport;
 
-	vport = devm_kcalloc(&pdev->dev, num_vport, sizeof(struct hclge_vport),
-			     GFP_KERNEL);
+	vport = devm_kzalloc_objs(&pdev->dev, struct hclge_vport, num_vport);
 	if (!vport)
 		return -ENOMEM;
 
@@ -2459,8 +2458,7 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
 
-	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					   sizeof(u16), GFP_KERNEL);
+	hdev->vector_status = devm_kzalloc_objs(&pdev->dev, u16, hdev->num_msi);
 	if (!hdev->vector_status) {
 		pci_free_irq_vectors(pdev);
 		return -ENOMEM;
@@ -2469,8 +2467,7 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	for (i = 0; i < hdev->num_msi; i++)
 		hdev->vector_status[i] = HCLGE_INVALID_VPORT;
 
-	hdev->vector_irq = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					sizeof(int), GFP_KERNEL);
+	hdev->vector_irq = devm_kzalloc_objs(&pdev->dev, int, hdev->num_msi);
 	if (!hdev->vector_irq) {
 		pci_free_irq_vectors(pdev);
 		return -ENOMEM;
@@ -9500,7 +9497,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	struct hclge_dev *hdev;
 	int ret;
 
-	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(&pdev->dev, *hdev);
 	if (!hdev)
 		return -ENOMEM;
 
@@ -10232,8 +10229,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 		goto out;
 
 	/* Reinitializes the rss indirect table according to the new RSS size */
-	rss_indir = kcalloc(ae_dev->dev_specs.rss_ind_tbl_size, sizeof(u32),
-			    GFP_KERNEL);
+	rss_indir = kzalloc_objs(u32, ae_dev->dev_specs.rss_ind_tbl_size);
 	if (!rss_indir)
 		return -ENOMEM;
 

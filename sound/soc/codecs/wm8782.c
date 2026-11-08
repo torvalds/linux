@@ -133,7 +133,7 @@ static int wm8782_probe(struct platform_device *pdev)
 	struct wm8782_priv *priv;
 	int ret, i, fsampen;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

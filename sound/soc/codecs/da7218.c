@@ -2452,7 +2452,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct device *dev,
 	const char *of_str;
 	u32 of_val32;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -2520,8 +2520,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct device *dev,
 		if (!hpldet_np)
 			return pdata;
 
-		hpldet_pdata = devm_kzalloc(dev, sizeof(*hpldet_pdata),
-					    GFP_KERNEL);
+		hpldet_pdata = devm_kzalloc_obj(dev, *hpldet_pdata);
 		if (!hpldet_pdata) {
 			of_node_put(hpldet_np);
 			return pdata;
@@ -3240,7 +3239,7 @@ static int da7218_i2c_probe(struct i2c_client *i2c)
 	struct da7218_priv *da7218;
 	int i, ret;
 
-	da7218 = devm_kzalloc(&i2c->dev, sizeof(*da7218), GFP_KERNEL);
+	da7218 = devm_kzalloc_obj(&i2c->dev, *da7218);
 	if (!da7218)
 		return -ENOMEM;
 

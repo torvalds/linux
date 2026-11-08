@@ -334,8 +334,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	};
 	void __iomem *base;
 
-	data = devm_kzalloc(dev, sizeof(struct qoriq_tmu_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct qoriq_tmu_data);
 	if (!data)
 		return -ENOMEM;
 

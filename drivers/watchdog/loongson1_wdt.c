@@ -130,7 +130,7 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *ls1x_wdt;
 	unsigned long clk_rate;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);

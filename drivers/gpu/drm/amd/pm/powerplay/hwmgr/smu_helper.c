@@ -52,7 +52,7 @@ int phm_copy_clock_limits_array(
 	uint32_t i;
 	uint32_t *table;
 
-	table = kcalloc(power_saving_clock_count, sizeof(uint32_t), GFP_KERNEL);
+	table = kzalloc_objs(uint32_t, power_saving_clock_count);
 	if (NULL == table)
 		return -ENOMEM;
 
@@ -73,7 +73,7 @@ int phm_copy_overdrive_settings_limits_array(
 	uint32_t i;
 	uint32_t *table;
 
-	table = kcalloc(od_setting_count, sizeof(uint32_t), GFP_KERNEL);
+	table = kzalloc_objs(uint32_t, od_setting_count);
 	if (NULL == table)
 		return -ENOMEM;
 

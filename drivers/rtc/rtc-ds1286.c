@@ -325,7 +325,7 @@ static int ds1286_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct ds1286_priv *priv;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct ds1286_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct ds1286_priv);
 	if (!priv)
 		return -ENOMEM;
 

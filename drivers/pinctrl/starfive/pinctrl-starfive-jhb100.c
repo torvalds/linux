@@ -1245,7 +1245,7 @@ struct pinctrl_pin_desc *devm_create_pins_from_pld(struct device *dev,
 
 	dev_dbg(dev, "Total pins to create: %d\n", npins);
 
-	pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, npins);
 	if (!pins)
 		return ERR_PTR(-ENOMEM);
 
@@ -1327,7 +1327,7 @@ int jhb100_pinctrl_probe(struct platform_device *pdev)
 
 	pinctrl_regs = info->regs;
 
-	sfp = devm_kzalloc(dev, sizeof(*sfp), GFP_KERNEL);
+	sfp = devm_kzalloc_obj(dev, *sfp);
 	if (!sfp)
 		return -ENOMEM;
 
@@ -1361,9 +1361,7 @@ int jhb100_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(sfp->pins))
 		return PTR_ERR(sfp->pins);
 
-	jhb100_pinctrl_desc = devm_kzalloc(&pdev->dev,
-					   sizeof(*jhb100_pinctrl_desc),
-					   GFP_KERNEL);
+	jhb100_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *jhb100_pinctrl_desc);
 	if (!jhb100_pinctrl_desc)
 		return -ENOMEM;
 

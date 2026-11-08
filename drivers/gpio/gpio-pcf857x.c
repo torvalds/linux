@@ -297,7 +297,7 @@ static int pcf857x_probe(struct i2c_client *client)
 	int status;
 
 	/* Allocate, initialize, and register this gpio_chip. */
-	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&client->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

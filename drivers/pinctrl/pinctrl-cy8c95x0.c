@@ -1377,7 +1377,7 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	unsigned long driver_data;
 	int ret;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

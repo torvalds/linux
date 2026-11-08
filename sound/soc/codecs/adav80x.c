@@ -859,7 +859,7 @@ int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	adav80x = devm_kzalloc(dev, sizeof(*adav80x), GFP_KERNEL);
+	adav80x = devm_kzalloc_obj(dev, *adav80x);
 	if (!adav80x)
 		return -ENOMEM;
 

@@ -849,8 +849,7 @@ populate_numeric_sensor_from_wobj(struct device *dev,
 	if (err)
 		return err;
 
-	possible_states = devm_kcalloc(dev, size, sizeof(*possible_states),
-				       GFP_KERNEL);
+	possible_states = devm_kzalloc_objs(dev, *possible_states, size);
 	if (!possible_states)
 		return -ENOMEM;
 
@@ -1708,7 +1707,7 @@ static int init_platform_events(struct device *dev,
 		return 0;
 	}
 
-	pevents_arr = devm_kcalloc(dev, count, sizeof(*pevents), GFP_KERNEL);
+	pevents_arr = devm_kzalloc_objs(dev, *pevents, count);
 	if (!pevents_arr)
 		return -ENOMEM;
 
@@ -1760,7 +1759,7 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 	if (!icount)
 		return -ENODATA;
 
-	info_arr = devm_kcalloc(dev, icount, sizeof(*info), GFP_KERNEL);
+	info_arr = devm_kzalloc_objs(dev, *info, icount);
 	if (!info_arr)
 		return -ENOMEM;
 
@@ -1807,9 +1806,8 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 		c = channel_index[type]++;
 
 		if (!info_map[type]) {
-			info_map[type] = devm_kcalloc(dev, channel_count[type],
-						      sizeof(*info_map[type]),
-						      GFP_KERNEL);
+			info_map[type] = devm_kzalloc_objs(dev, *info_map[type],
+							   channel_count[type]);
 			if (!info_map[type])
 				return -ENOMEM;
 		}
@@ -1956,13 +1954,12 @@ static int make_chip_info(struct hp_wmi_sensors *state, bool has_events)
 		if (channel_count[type])
 			type_count++;
 
-	channel_info = devm_kcalloc(dev, type_count,
-				    sizeof(*channel_info), GFP_KERNEL);
+	channel_info = devm_kzalloc_objs(dev, *channel_info, type_count);
 	if (!channel_info)
 		return -ENOMEM;
 
-	ptr_channel_info = devm_kcalloc(dev, type_count + 1,
-					sizeof(*ptr_channel_info), GFP_KERNEL);
+	ptr_channel_info = devm_kzalloc_objs(dev, *ptr_channel_info,
+					     type_count + 1);
 	if (!ptr_channel_info)
 		return -ENOMEM;
 
@@ -1974,8 +1971,7 @@ static int make_chip_info(struct hp_wmi_sensors *state, bool has_events)
 		if (!count)
 			continue;
 
-		config = devm_kcalloc(dev, count + 1,
-				      sizeof(*config), GFP_KERNEL);
+		config = devm_kzalloc_objs(dev, *config, count + 1);
 		if (!config)
 			return -ENOMEM;
 
@@ -2068,7 +2064,7 @@ static int hp_wmi_sensors_probe(struct wmi_device *wdev, const void *context)
 	struct device *dev = &wdev->dev;
 	struct hp_wmi_sensors *state;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

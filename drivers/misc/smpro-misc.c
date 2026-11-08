@@ -115,7 +115,7 @@ static int smpro_misc_probe(struct platform_device *pdev)
 {
 	struct smpro_misc *misc;
 
-	misc = devm_kzalloc(&pdev->dev, sizeof(struct smpro_misc), GFP_KERNEL);
+	misc = devm_kzalloc_obj(&pdev->dev, struct smpro_misc);
 	if (!misc)
 		return -ENOMEM;
 

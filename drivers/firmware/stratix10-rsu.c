@@ -1092,7 +1092,7 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	struct stratix10_rsu_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

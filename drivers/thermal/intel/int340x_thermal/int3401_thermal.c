@@ -23,7 +23,7 @@ static int int3401_add(struct platform_device *pdev)
 	struct proc_thermal_device *proc_priv;
 	int ret;
 
-	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
+	proc_priv = devm_kzalloc_obj(&pdev->dev, *proc_priv);
 	if (!proc_priv)
 		return -ENOMEM;
 

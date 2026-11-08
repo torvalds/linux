@@ -3501,10 +3501,9 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
-			col_map = kcalloc(nr_lpis, sizeof(*col_map),
-					  GFP_KERNEL);
+			col_map = kzalloc_objs(*col_map, nr_lpis);
 	} else {
-		col_map = kcalloc(nr_ites, sizeof(*col_map), GFP_KERNEL);
+		col_map = kzalloc_objs(*col_map, nr_ites);
 		nr_lpis = 0;
 		lpi_base = 0;
 	}

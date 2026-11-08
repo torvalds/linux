@@ -1038,7 +1038,7 @@ static int lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
 	struct lpc_ich_info *info;
 	struct mfd_cell *cell = &lpc_ich_wdt_cell;
 
-	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&dev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -1320,7 +1320,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 	u32 spi_base, rcba;
 	int ret;
 
-	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&dev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 
@@ -1384,8 +1384,7 @@ static int lpc_ich_probe(struct pci_dev *dev,
 	int ret;
 	bool cell_added = false;
 
-	priv = devm_kzalloc(&dev->dev,
-			    sizeof(struct lpc_ich_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, struct lpc_ich_priv);
 	if (!priv)
 		return -ENOMEM;
 

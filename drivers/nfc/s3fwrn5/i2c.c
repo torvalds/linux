@@ -149,7 +149,7 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client)
 	struct s3fwrn5_i2c_phy *phy;
 	int ret;
 
-	phy = devm_kzalloc(&client->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(&client->dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

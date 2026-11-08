@@ -1225,7 +1225,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client)
 	unsigned int alpha_rev, metal_rev;
 	unsigned int reg;
 
-	cs42l56 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l56), GFP_KERNEL);
+	cs42l56 = devm_kzalloc_obj(&i2c_client->dev, *cs42l56);
 	if (cs42l56 == NULL)
 		return -ENOMEM;
 	cs42l56->dev = &i2c_client->dev;

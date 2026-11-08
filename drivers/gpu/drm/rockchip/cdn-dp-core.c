@@ -1125,7 +1125,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 		if (IS_ERR(extcon) || IS_ERR(phy))
 			continue;
 
-		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		port = devm_kzalloc_obj(dev, *port);
 		if (!port)
 			return -ENOMEM;
 

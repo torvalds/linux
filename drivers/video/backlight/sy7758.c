@@ -164,7 +164,7 @@ static int sy7758_probe(struct i2c_client *client)
 	unsigned int dev_id;
 	int ret;
 
-	sydev = devm_kzalloc(dev, sizeof(*sydev), GFP_KERNEL);
+	sydev = devm_kzalloc_obj(dev, *sydev);
 	if (!sydev)
 		return -ENOMEM;
 

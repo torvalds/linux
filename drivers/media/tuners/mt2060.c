@@ -458,7 +458,7 @@ static int mt2060_probe(struct i2c_client *client)
 		goto err;
 	}
 
-	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&client->dev, *dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

@@ -956,19 +956,19 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		if (!name)
 			return -ENOMEM;
 
-		cpus = devm_kcalloc(dev, num_cpus, sizeof(*cpus), GFP_KERNEL);
+		cpus = devm_kzalloc_objs(dev, *cpus, num_cpus);
 		if (!cpus)
 			return -ENOMEM;
 
-		codecs = devm_kcalloc(dev, num_codecs, sizeof(*codecs), GFP_KERNEL);
+		codecs = devm_kzalloc_objs(dev, *codecs, num_codecs);
 		if (!codecs)
 			return -ENOMEM;
 
-		platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+		platform = devm_kzalloc_obj(dev, *platform);
 		if (!platform)
 			return -ENOMEM;
 
-		codec_maps = devm_kcalloc(dev, num_codecs, sizeof(*codec_maps), GFP_KERNEL);
+		codec_maps = devm_kzalloc_objs(dev, *codec_maps, num_codecs);
 		if (!codec_maps)
 			return -ENOMEM;
 
@@ -1282,7 +1282,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_dai;
 	}
 
-	sof_aux = devm_kcalloc(dev, num_aux, sizeof(*sof_aux), GFP_KERNEL);
+	sof_aux = devm_kzalloc_objs(dev, *sof_aux, num_aux);
 	if (!sof_aux) {
 		ret = -ENOMEM;
 		goto err_dai;
@@ -1336,7 +1336,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		sdw_be_num, ssp_num, dmic_num,
 		intel_ctx->hdmi.idisp_codec ? hdmi_num : 0, bt_num);
 
-	codec_conf = devm_kcalloc(dev, num_confs, sizeof(*codec_conf), GFP_KERNEL);
+	codec_conf = devm_kzalloc_objs(dev, *codec_conf, num_confs);
 	if (!codec_conf) {
 		ret = -ENOMEM;
 		goto err_end;
@@ -1348,7 +1348,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	 * and functional SOF topologies to support echo reference.
 	 */
 	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num + 1;
-	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
+	dai_links = devm_kzalloc_objs(dev, *dai_links, num_links);
 	if (!dai_links) {
 		ret = -ENOMEM;
 		goto err_end;
@@ -1454,11 +1454,11 @@ static int mc_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Entry\n");
 
-	intel_ctx = devm_kzalloc(&pdev->dev, sizeof(*intel_ctx), GFP_KERNEL);
+	intel_ctx = devm_kzalloc_obj(&pdev->dev, *intel_ctx);
 	if (!intel_ctx)
 		return -ENOMEM;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

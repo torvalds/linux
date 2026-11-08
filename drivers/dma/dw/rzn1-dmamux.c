@@ -127,7 +127,7 @@ static int rzn1_dmamux_probe(struct platform_device *pdev)
 	struct device_node *dmac_node;
 	struct rzn1_dmamux_data *dmamux;
 
-	dmamux = devm_kzalloc(&pdev->dev, sizeof(*dmamux), GFP_KERNEL);
+	dmamux = devm_kzalloc_obj(&pdev->dev, *dmamux);
 	if (!dmamux)
 		return -ENOMEM;
 

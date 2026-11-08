@@ -1516,15 +1516,14 @@ static int damos_commit_dests(struct damos_migrate_dests *dst,
 		kfree(dst->node_id_arr);
 		kfree(dst->weight_arr);
 
-		dst->node_id_arr = kmalloc_array(src->nr_dests,
-			sizeof(*dst->node_id_arr), GFP_KERNEL);
+		dst->node_id_arr = kmalloc_objs(*dst->node_id_arr,
+						src->nr_dests);
 		if (!dst->node_id_arr) {
 			dst->weight_arr = NULL;
 			return -ENOMEM;
 		}
 
-		dst->weight_arr = kmalloc_array(src->nr_dests,
-			sizeof(*dst->weight_arr), GFP_KERNEL);
+		dst->weight_arr = kmalloc_objs(*dst->weight_arr, src->nr_dests);
 		if (!dst->weight_arr) {
 			/* ->node_id_arr will be freed by scheme destruction */
 			return -ENOMEM;
@@ -4038,8 +4037,8 @@ static int kdamond_fn(void *data)
 
 	if (ctx->ops.init)
 		ctx->ops.init(ctx);
-	ctx->regions_score_histogram = kmalloc_array(DAMOS_MAX_SCORE + 1,
-			sizeof(*ctx->regions_score_histogram), GFP_KERNEL);
+	ctx->regions_score_histogram = kmalloc_objs(*ctx->regions_score_histogram,
+						    DAMOS_MAX_SCORE + 1);
 	if (!ctx->regions_score_histogram)
 		goto done;
 

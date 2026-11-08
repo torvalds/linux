@@ -78,7 +78,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_scp_init(void *priv, enum mtk_vcodec_fw_use 
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	fw = devm_kzalloc(&plat_dev->dev, sizeof(*fw), GFP_KERNEL);
+	fw = devm_kzalloc_obj(&plat_dev->dev, *fw);
 	if (!fw) {
 		scp_put(scp);
 		return ERR_PTR(-ENOMEM);

@@ -206,7 +206,7 @@ static int st_nci_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(dev, sizeof(struct st_nci_i2c_phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, struct st_nci_i2c_phy);
 	if (!phy)
 		return -ENOMEM;
 

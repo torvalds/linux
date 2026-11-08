@@ -911,9 +911,9 @@ static int cygnus_mux_log_init(struct cygnus_pinctrl *pinctrl)
 	struct cygnus_mux_log *log;
 	unsigned int i, j;
 
-	pinctrl->mux_log = devm_kcalloc(pinctrl->dev, CYGNUS_NUM_IOMUX,
-					sizeof(struct cygnus_mux_log),
-					GFP_KERNEL);
+	pinctrl->mux_log = devm_kzalloc_objs(pinctrl->dev,
+					     struct cygnus_mux_log,
+					     CYGNUS_NUM_IOMUX);
 	if (!pinctrl->mux_log)
 		return -ENOMEM;
 
@@ -937,7 +937,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 	int i, ret;
 	struct pinctrl_pin_desc *pins;
 
-	pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pinctrl), GFP_KERNEL);
+	pinctrl = devm_kzalloc_obj(&pdev->dev, *pinctrl);
 	if (!pinctrl)
 		return -ENOMEM;
 
@@ -963,8 +963,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pins = devm_kcalloc(&pdev->dev, ARRAY_SIZE(cygnus_pins), sizeof(*pins),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, *pins, ARRAY_SIZE(cygnus_pins));
 	if (!pins)
 		return -ENOMEM;
 

@@ -923,7 +923,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c)
 	struct device *dev = &i2c->dev;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

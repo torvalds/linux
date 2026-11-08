@@ -679,7 +679,7 @@ static int msp_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&client->dev, *state);
 	if (!state)
 		return -ENOMEM;
 

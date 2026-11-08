@@ -68,7 +68,7 @@ static int dir685_tk_probe(struct i2c_client *client)
 	int err;
 	int i;
 
-	tk = devm_kzalloc(&client->dev, sizeof(*tk), GFP_KERNEL);
+	tk = devm_kzalloc_obj(&client->dev, *tk);
 	if (!tk)
 		return -ENOMEM;
 

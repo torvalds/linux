@@ -433,12 +433,11 @@ nct6683_create_attr_group(struct device *dev,
 	if (count == 0)
 		return ERR_PTR(-EINVAL);
 
-	group = devm_kzalloc(dev, sizeof(*group), GFP_KERNEL);
+	group = devm_kzalloc_obj(dev, *group);
 	if (group == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	attrs = devm_kcalloc(dev, repeat * count + 1, sizeof(*attrs),
-			     GFP_KERNEL);
+	attrs = devm_kzalloc_objs(dev, *attrs, repeat * count + 1);
 	if (attrs == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1209,7 +1208,7 @@ static int nct6683_probe(struct platform_device *pdev)
 	if (!devm_request_region(dev, res->start, IOREGION_LENGTH, DRVNAME))
 		return -EBUSY;
 
-	data = devm_kzalloc(dev, sizeof(struct nct6683_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct nct6683_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -590,7 +590,7 @@ mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	if (is_uplink_rep)
 		sqs_per_channel += 2;
 
-	sqs = kvcalloc(nch * sqs_per_channel, sizeof(*sqs), GFP_KERNEL);
+	sqs = kvzalloc_objs(*sqs, nch * sqs_per_channel);
 	if (!sqs)
 		goto out;
 

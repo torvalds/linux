@@ -966,7 +966,7 @@ static int compal_probe(struct platform_device *pdev)
 		return 0;
 
 	/* Fan control */
-	data = devm_kzalloc(&pdev->dev, sizeof(struct compal_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct compal_data);
 	if (!data)
 		return -ENOMEM;
 

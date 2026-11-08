@@ -48,7 +48,7 @@ static int mmp3_hsic_phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	struct phy *phy;
 
-	mmp3 = devm_kzalloc(dev, sizeof(*mmp3), GFP_KERNEL);
+	mmp3 = devm_kzalloc_obj(dev, *mmp3);
 	if (!mmp3)
 		return -ENOMEM;
 

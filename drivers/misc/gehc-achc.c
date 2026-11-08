@@ -510,7 +510,7 @@ static int gehc_achc_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi->mode = SPI_MODE_0;
 
-	achc = devm_kzalloc(&spi->dev, sizeof(*achc), GFP_KERNEL);
+	achc = devm_kzalloc_obj(&spi->dev, *achc);
 	if (!achc)
 		return -ENOMEM;
 	spi_set_drvdata(spi, achc);

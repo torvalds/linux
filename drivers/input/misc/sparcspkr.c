@@ -194,7 +194,7 @@ static int bbc_beep_probe(struct platform_device *op)
 	struct bbc_beep_info *info;
 	int err;
 
-	state = devm_kzalloc(&op->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&op->dev, *state);
 	if (!state)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int grover_beep_probe(struct platform_device *op)
 	struct grover_beep_info *info;
 	int err = -ENOMEM;
 
-	state = devm_kzalloc(&op->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&op->dev, *state);
 	if (!state)
 		return err;
 

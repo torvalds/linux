@@ -534,8 +534,7 @@ static int pru_handle_intrmap(struct rproc *rproc)
 		return -EINVAL;
 
 	pru->evt_count = rsc->num_evts;
-	pru->mapped_irq = kcalloc(pru->evt_count, sizeof(unsigned int),
-				  GFP_KERNEL);
+	pru->mapped_irq = kzalloc_objs(unsigned int, pru->evt_count);
 	if (!pru->mapped_irq) {
 		pru->evt_count = 0;
 		return -ENOMEM;

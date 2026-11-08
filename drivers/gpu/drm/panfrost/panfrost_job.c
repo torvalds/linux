@@ -869,7 +869,7 @@ int panfrost_jm_init(struct panfrost_device *pfdev)
 	if (!panfrost_has_hw_feature(pfdev, HW_FEATURE_JOBCHAIN_DISAMBIGUATION))
 		args.credit_limit = 1;
 
-	js = devm_kzalloc(pfdev->base.dev, sizeof(*js), GFP_KERNEL);
+	js = devm_kzalloc_obj(pfdev->base.dev, *js);
 	if (!js)
 		return -ENOMEM;
 	pfdev->js = js;

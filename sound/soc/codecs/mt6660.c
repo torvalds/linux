@@ -462,7 +462,7 @@ static int mt6660_i2c_probe(struct i2c_client *client)
 	int ret;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 	chip->i2c = client;

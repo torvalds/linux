@@ -197,7 +197,7 @@ lm73_probe(struct i2c_client *client)
 	struct lm73_data *data;
 	int ctrl;
 
-	data = devm_kzalloc(dev, sizeof(struct lm73_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm73_data);
 	if (!data)
 		return -ENOMEM;
 

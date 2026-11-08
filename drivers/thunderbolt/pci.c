@@ -570,7 +570,7 @@ static int nhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (res)
 		return dev_err_probe(dev, res, "cannot enable PCI device, aborting\n");
 
-	nhi_pci = devm_kzalloc(dev, sizeof(*nhi_pci), GFP_KERNEL);
+	nhi_pci = devm_kzalloc_obj(dev, *nhi_pci);
 	if (!nhi_pci)
 		return -ENOMEM;
 

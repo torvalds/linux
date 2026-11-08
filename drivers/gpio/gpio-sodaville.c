@@ -186,7 +186,7 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 	int ret;
 	u32 mux_val;
 
-	sd = devm_kzalloc(&pdev->dev, sizeof(*sd), GFP_KERNEL);
+	sd = devm_kzalloc_obj(&pdev->dev, *sd);
 	if (!sd)
 		return -ENOMEM;
 

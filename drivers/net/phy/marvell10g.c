@@ -507,7 +507,7 @@ static int mv3310_probe(struct phy_device *phydev)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

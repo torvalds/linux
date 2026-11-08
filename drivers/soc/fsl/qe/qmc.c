@@ -1301,7 +1301,7 @@ static int qmc_of_parse_chans(struct qmc *qmc, struct device_node *np)
 			return -EINVAL;
 		}
 
-		chan = devm_kzalloc(qmc->dev, sizeof(*chan), GFP_KERNEL);
+		chan = devm_kzalloc_obj(qmc->dev, *chan);
 		if (!chan)
 			return -ENOMEM;
 
@@ -1906,7 +1906,7 @@ static int qmc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	qmc = devm_kzalloc(&pdev->dev, sizeof(*qmc), GFP_KERNEL);
+	qmc = devm_kzalloc_obj(&pdev->dev, *qmc);
 	if (!qmc)
 		return -ENOMEM;
 

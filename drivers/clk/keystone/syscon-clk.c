@@ -71,7 +71,7 @@ static struct clk_hw
 	char *name = NULL;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
@@ -145,8 +145,7 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 				     "must specify a parent clock\n");
 	}
 
-	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, num_clks),
-			       GFP_KERNEL);
+	hw_data = devm_kzalloc_flex(dev, *hw_data, hws, num_clks);
 	if (!hw_data)
 		return -ENOMEM;
 

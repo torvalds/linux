@@ -1138,7 +1138,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
+	gmac = devm_kzalloc_obj(dev, *gmac);
 	if (!gmac)
 		return -ENOMEM;
 

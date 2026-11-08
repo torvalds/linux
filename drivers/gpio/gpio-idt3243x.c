@@ -136,7 +136,7 @@ static int idt_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 
-	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -177,9 +177,8 @@ static int idt_gpio_probe(struct platform_device *pdev)
 		girq->init_hw = idt_gpio_irq_init_hw;
 		girq->parent_handler = idt_gpio_dispatch;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(dev, girq->num_parents,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(dev, *girq->parents,
+						  girq->num_parents);
 		if (!girq->parents)
 			return -ENOMEM;
 

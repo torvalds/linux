@@ -1345,8 +1345,7 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 		return -ENOMEM;
 	}
 
-	tegra_phy->config = devm_kzalloc(&pdev->dev, sizeof(*config),
-					 GFP_KERNEL);
+	tegra_phy->config = devm_kzalloc_obj(&pdev->dev, *config);
 	if (!tegra_phy->config)
 		return -ENOMEM;
 
@@ -1497,7 +1496,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	struct usb_phy *phy;
 	int err;
 
-	tegra_phy = devm_kzalloc(&pdev->dev, sizeof(*tegra_phy), GFP_KERNEL);
+	tegra_phy = devm_kzalloc_obj(&pdev->dev, *tegra_phy);
 	if (!tegra_phy)
 		return -ENOMEM;
 

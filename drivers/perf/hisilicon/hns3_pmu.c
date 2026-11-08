@@ -1601,7 +1601,7 @@ static int hns3_pmu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct hns3_pmu *hns3_pmu;
 	int ret;
 
-	hns3_pmu = devm_kzalloc(&pdev->dev, sizeof(*hns3_pmu), GFP_KERNEL);
+	hns3_pmu = devm_kzalloc_obj(&pdev->dev, *hns3_pmu);
 	if (!hns3_pmu)
 		return -ENOMEM;
 

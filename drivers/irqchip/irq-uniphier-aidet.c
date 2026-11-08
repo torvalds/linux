@@ -175,7 +175,7 @@ static int uniphier_aidet_probe(struct platform_device *pdev)
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

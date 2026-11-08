@@ -468,7 +468,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client)
 	struct input_dev *input;
 	int error;
 
-	tsdata = devm_kzalloc(dev, sizeof(*tsdata), GFP_KERNEL);
+	tsdata = devm_kzalloc_obj(dev, *tsdata);
 	if (!tsdata)
 		return -ENOMEM;
 

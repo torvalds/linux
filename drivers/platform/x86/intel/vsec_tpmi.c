@@ -37,7 +37,7 @@ static int tpmi_probe(struct auxiliary_device *auxdev,
 	struct intel_vsec_device *vsec_dev = auxdev_to_ivdev(auxdev);
 	struct intel_tpmi_info *tpmi_info;
 
-	tpmi_info = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_info), GFP_KERNEL);
+	tpmi_info = devm_kzalloc_obj(&auxdev->dev, *tpmi_info);
 	if (!tpmi_info)
 		return -ENOMEM;
 

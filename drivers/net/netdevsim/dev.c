@@ -871,9 +871,8 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 		goto err_trap_data_free;
 	}
 
-	nsim_trap_data->trap_policers_cnt_arr = kcalloc(policers_count,
-							sizeof(u64),
-							GFP_KERNEL);
+	nsim_trap_data->trap_policers_cnt_arr = kzalloc_objs(u64,
+							     policers_count);
 	if (!nsim_trap_data->trap_policers_cnt_arr) {
 		err = -ENOMEM;
 		goto err_trap_items_free;

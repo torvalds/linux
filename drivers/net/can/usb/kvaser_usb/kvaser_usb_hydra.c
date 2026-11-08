@@ -1804,7 +1804,7 @@ static int kvaser_usb_hydra_init_channel(struct kvaser_usb_net_priv *priv)
 {
 	struct kvaser_usb_net_hydra_priv *hydra;
 
-	hydra = devm_kzalloc(&priv->dev->intf->dev, sizeof(*hydra), GFP_KERNEL);
+	hydra = devm_kzalloc_obj(&priv->dev->intf->dev, *hydra);
 	if (!hydra)
 		return -ENOMEM;
 

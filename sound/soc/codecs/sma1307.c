@@ -1956,8 +1956,7 @@ static int sma1307_i2c_probe(struct i2c_client *client)
 	int ret = 0;
 	unsigned int device_info;
 
-	sma1307 = devm_kzalloc(&client->dev,
-			       sizeof(*sma1307), GFP_KERNEL);
+	sma1307 = devm_kzalloc_obj(&client->dev, *sma1307);
 	if (!sma1307)
 		return -ENOMEM;
 

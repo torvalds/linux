@@ -584,7 +584,7 @@ of_at91_clk_pll_get_characteristics(struct device_node *np)
 	}
 
 	if (num_cells > 3) {
-		icpll = kcalloc(num_output, sizeof(*icpll), GFP_KERNEL);
+		icpll = kzalloc_objs(*icpll, num_output);
 		if (!icpll)
 			goto out_free_output;
 	}

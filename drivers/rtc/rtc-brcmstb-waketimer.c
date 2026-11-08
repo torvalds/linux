@@ -276,7 +276,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	struct brcmstb_waketmr *timer;
 	int ret;
 
-	timer = devm_kzalloc(dev, sizeof(*timer), GFP_KERNEL);
+	timer = devm_kzalloc_obj(dev, *timer);
 	if (!timer)
 		return -ENOMEM;
 

@@ -80,13 +80,11 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 		return 0;
 
 	/* allocate memory for both Tx and Rx ring pointers */
-	vsi->tx_rings = devm_kcalloc(dev, vsi->alloc_txq,
-				     sizeof(*vsi->tx_rings), GFP_KERNEL);
+	vsi->tx_rings = devm_kzalloc_objs(dev, *vsi->tx_rings, vsi->alloc_txq);
 	if (!vsi->tx_rings)
 		return -ENOMEM;
 
-	vsi->rx_rings = devm_kcalloc(dev, vsi->alloc_rxq,
-				     sizeof(*vsi->rx_rings), GFP_KERNEL);
+	vsi->rx_rings = devm_kzalloc_objs(dev, *vsi->rx_rings, vsi->alloc_rxq);
 	if (!vsi->rx_rings)
 		goto err_rings;
 
@@ -96,20 +94,19 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	 * per CPU, regardless of queue count settings from user that might
 	 * have come from ethtool's set_channels() callback;
 	 */
-	vsi->txq_map = devm_kcalloc(dev, (vsi->alloc_txq + num_possible_cpus()),
-				    sizeof(*vsi->txq_map), GFP_KERNEL);
+	vsi->txq_map = devm_kzalloc_objs(dev, *vsi->txq_map,
+					 (vsi->alloc_txq + num_possible_cpus()));
 
 	if (!vsi->txq_map)
 		goto err_txq_map;
 
-	vsi->rxq_map = devm_kcalloc(dev, vsi->alloc_rxq,
-				    sizeof(*vsi->rxq_map), GFP_KERNEL);
+	vsi->rxq_map = devm_kzalloc_objs(dev, *vsi->rxq_map, vsi->alloc_rxq);
 	if (!vsi->rxq_map)
 		goto err_rxq_map;
 
 	/* allocate memory for q_vector pointers */
-	vsi->q_vectors = devm_kcalloc(dev, vsi->num_q_vectors,
-				      sizeof(*vsi->q_vectors), GFP_KERNEL);
+	vsi->q_vectors = devm_kzalloc_objs(dev, *vsi->q_vectors,
+					   vsi->num_q_vectors);
 	if (!vsi->q_vectors)
 		goto err_vectors;
 
@@ -731,7 +728,7 @@ struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf)
 		goto unlock_pf;
 	}
 
-	vsi = devm_kzalloc(dev, sizeof(*vsi), GFP_KERNEL);
+	vsi = devm_kzalloc_obj(dev, *vsi);
 	if (!vsi)
 		goto unlock_pf;
 

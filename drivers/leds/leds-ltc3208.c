@@ -189,7 +189,7 @@ static int ltc3208_probe(struct i2c_client *client)
 			return dev_err_probe(&client->dev, -EINVAL, "%u is already registered",
 					     chan);
 
-		led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(&client->dev, *led);
 		if (!led)
 			return -ENOMEM;
 

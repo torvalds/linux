@@ -426,7 +426,7 @@ static int nsm_device_probe(struct virtio_device *vdev)
 	struct nsm *nsm;
 	int rc;
 
-	nsm = devm_kzalloc(&vdev->dev, sizeof(*nsm), GFP_KERNEL);
+	nsm = devm_kzalloc_obj(&vdev->dev, *nsm);
 	if (!nsm)
 		return -ENOMEM;
 

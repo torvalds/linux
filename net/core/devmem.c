@@ -289,9 +289,8 @@ net_devmem_bind_dmabuf(struct net_device *dev, void *vdev,
 		}
 	} else {
 		spin_lock_init(&binding->freelist_lock);
-		binding->freelist = kvmalloc_array(binding->area.num_niovs,
-						   sizeof(binding->freelist[0]),
-						   GFP_KERNEL);
+		binding->freelist = kvmalloc_objs(binding->freelist[0],
+						  binding->area.num_niovs);
 		if (!binding->freelist) {
 			err = -ENOMEM;
 			goto err_unmap;

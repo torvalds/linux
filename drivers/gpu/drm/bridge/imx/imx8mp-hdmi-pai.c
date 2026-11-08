@@ -110,7 +110,7 @@ static int imx8mp_hdmi_pai_bind(struct device *dev, struct device *master, void 
 	void __iomem *base;
 	int ret;
 
-	hdmi_pai = devm_kzalloc(dev, sizeof(*hdmi_pai), GFP_KERNEL);
+	hdmi_pai = devm_kzalloc_obj(dev, *hdmi_pai);
 	if (!hdmi_pai)
 		return -ENOMEM;
 

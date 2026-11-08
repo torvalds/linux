@@ -322,7 +322,7 @@ struct thc_dma_context *thc_dma_init(struct thc_device *dev)
 {
 	struct thc_dma_context *dma_ctx;
 
-	dma_ctx = devm_kzalloc(dev->dev, sizeof(*dma_ctx), GFP_KERNEL);
+	dma_ctx = devm_kzalloc_obj(dev->dev, *dma_ctx);
 	if (!dma_ctx)
 		return NULL;
 

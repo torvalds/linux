@@ -36,7 +36,7 @@ static int cs35l41_i2c_probe(struct i2c_client *client)
 	struct cs35l41_hw_cfg *hw_cfg = dev_get_platdata(dev);
 	const struct regmap_config *regmap_config = &cs35l41_regmap_i2c;
 
-	cs35l41 = devm_kzalloc(dev, sizeof(struct cs35l41_private), GFP_KERNEL);
+	cs35l41 = devm_kzalloc_obj(dev, struct cs35l41_private);
 
 	if (!cs35l41)
 		return -ENOMEM;

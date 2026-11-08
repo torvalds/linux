@@ -2513,7 +2513,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 	unsigned int reg;
 	int i, devid;
 
-	cs43130 = devm_kzalloc(&client->dev, sizeof(*cs43130), GFP_KERNEL);
+	cs43130 = devm_kzalloc_obj(&client->dev, *cs43130);
 	if (!cs43130)
 		return -ENOMEM;
 

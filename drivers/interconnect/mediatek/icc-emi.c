@@ -92,11 +92,11 @@ int mtk_emi_icc_probe(struct platform_device *pdev)
 
 	mnodes = desc->nodes;
 
-	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
+	provider = devm_kzalloc_obj(dev, *provider);
 	if (!provider)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, struct_size(data, nodes, desc->num_nodes), GFP_KERNEL);
+	data = devm_kzalloc_flex(dev, *data, nodes, desc->num_nodes);
 	if (!data)
 		return -ENOMEM;
 

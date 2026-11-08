@@ -349,7 +349,7 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	struct vsp1_sru *sru;
 	int ret;
 
-	sru = devm_kzalloc(vsp1->dev, sizeof(*sru), GFP_KERNEL);
+	sru = devm_kzalloc_obj(vsp1->dev, *sru);
 	if (sru == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -14,7 +14,7 @@ static int pcm3060_spi_probe(struct spi_device *spi)
 {
 	struct pcm3060_priv *priv;
 
-	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&spi->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -396,7 +396,7 @@ static int tegra_mphy_probe(struct platform_device *pdev)
 	struct tegra_mphy *mphy;
 	int err;
 
-	mphy = devm_kzalloc(dev, sizeof(*mphy), GFP_KERNEL);
+	mphy = devm_kzalloc_obj(dev, *mphy);
 	if (!mphy)
 		return -ENOMEM;
 

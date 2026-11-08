@@ -119,7 +119,7 @@ __must_check struct dc_memory_pool *dc_memory_pool_create(size_t size,
 	pool->unaligned_pool = unaligned_pool;
 	pool->unaligned_memory = kcalloc(lines + 1, PAGE_SIZE, GFP_KERNEL);
 	pool->memory = page_align_up(pool->unaligned_memory);
-	pool->free_list = kcalloc((uint32_t)capacity, sizeof(atomic_t), GFP_KERNEL);
+	pool->free_list = kzalloc_objs(atomic_t, (uint32_t)capacity);
 	pool->free_head = (atomic64_t)ATOMIC_INIT(0);
 
 	if (!pool->unaligned_memory || !pool->free_list) {

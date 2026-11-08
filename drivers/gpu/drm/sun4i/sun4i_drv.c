@@ -69,7 +69,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv) {
 		ret = -ENOMEM;
 		goto free_drm;

@@ -267,8 +267,7 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 	struct wm8994_pdata *pdata = dev_get_platdata(wm8994->dev);
 	struct wm8994_gpio *wm8994_gpio;
 
-	wm8994_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8994_gpio),
-				   GFP_KERNEL);
+	wm8994_gpio = devm_kzalloc_obj(&pdev->dev, *wm8994_gpio);
 	if (wm8994_gpio == NULL)
 		return -ENOMEM;
 

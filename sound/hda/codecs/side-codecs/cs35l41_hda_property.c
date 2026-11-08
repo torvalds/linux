@@ -189,16 +189,17 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 	/* must include termination entry */
 	num_entries++;
 
-	gpio_mapping = devm_kcalloc(physdev, num_entries, sizeof(struct acpi_gpio_mapping),
-				    GFP_KERNEL);
+	gpio_mapping = devm_kzalloc_objs(physdev, struct acpi_gpio_mapping,
+					 num_entries);
 
 	if (!gpio_mapping)
 		goto err;
 
 	if (reset_gpio >= 0) {
 		gpio_mapping[reset_index].name = "reset-gpios";
-		reset_gpio_params = devm_kcalloc(physdev, num_amps, sizeof(struct acpi_gpio_params),
-						 GFP_KERNEL);
+		reset_gpio_params = devm_kzalloc_objs(physdev,
+						      struct acpi_gpio_params,
+						      num_amps);
 		if (!reset_gpio_params)
 			goto err;
 
@@ -211,8 +212,9 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 
 	if (spkid_gpio >= 0) {
 		gpio_mapping[spkid_index].name = "spk-id-gpios";
-		spkid_gpio_params = devm_kcalloc(physdev, num_amps, sizeof(struct acpi_gpio_params),
-						 GFP_KERNEL);
+		spkid_gpio_params = devm_kzalloc_objs(physdev,
+						      struct acpi_gpio_params,
+						      num_amps);
 		if (!spkid_gpio_params)
 			goto err;
 
@@ -226,7 +228,8 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 	if ((cs_gpio_index >= 0) && (num_amps == 2)) {
 		gpio_mapping[csgpio_index].name = "cs-gpios";
 		/* only one GPIO CS is supported without using _DSD, obtained using index 0 */
-		cs_gpio_params = devm_kzalloc(physdev, sizeof(struct acpi_gpio_params), GFP_KERNEL);
+		cs_gpio_params = devm_kzalloc_obj(physdev,
+						  struct acpi_gpio_params);
 		if (!cs_gpio_params)
 			goto err;
 

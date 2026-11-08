@@ -251,7 +251,7 @@ static void free_srq_wqe_buf(struct hns_roce_dev *hr_dev,
 
 static int alloc_srq_wrid(struct hns_roce_srq *srq)
 {
-	srq->wrid = kvmalloc_array(srq->wqe_cnt, sizeof(u64), GFP_KERNEL);
+	srq->wrid = kvmalloc_objs(u64, srq->wqe_cnt);
 	if (!srq->wrid)
 		return -ENOMEM;
 

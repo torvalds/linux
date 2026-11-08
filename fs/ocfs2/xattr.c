@@ -7898,7 +7898,7 @@ static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array
 		for (xattr = xattr_array; xattr->name != NULL; xattr++)
 			count++;
 
-		xattrs = kcalloc(count, sizeof(*xattrs), GFP_NOFS);
+		xattrs = kzalloc_objs(*xattrs, count, GFP_NOFS);
 		if (!xattrs)
 			return -ENOMEM;
 

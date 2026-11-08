@@ -270,8 +270,7 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 	unsigned int i, first_ch;
 	int err;
 
-	spkr = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_spkr),
-			    GFP_KERNEL);
+	spkr = devm_kzalloc_obj(&oxfw->card->card_dev, struct fw_spkr);
 	if (!spkr)
 		return -ENOMEM;
 	oxfw->spec = spkr;

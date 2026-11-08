@@ -708,8 +708,7 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int rc;
 
-	acry_dev = devm_kzalloc(dev, sizeof(struct aspeed_acry_dev),
-				GFP_KERNEL);
+	acry_dev = devm_kzalloc_obj(dev, struct aspeed_acry_dev);
 	if (!acry_dev)
 		return -ENOMEM;
 

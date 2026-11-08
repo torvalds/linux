@@ -923,7 +923,7 @@ static int mcp9982_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct mcp9982_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct mcp9982_priv);
 	if (!priv)
 		return -ENOMEM;
 

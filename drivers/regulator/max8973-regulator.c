@@ -520,7 +520,7 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 	bool etr_enable;
 	bool etr_sensitivity_high;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -606,7 +606,7 @@ static int max8973_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
+	max = devm_kzalloc_obj(&client->dev, *max);
 	if (!max)
 		return -ENOMEM;
 

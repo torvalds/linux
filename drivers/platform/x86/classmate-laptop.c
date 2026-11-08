@@ -403,7 +403,7 @@ static int cmpc_accel_probe_v4(struct platform_device *pdev)
 	if (!acpi)
 		return -ENODEV;
 
-	accel = devm_kzalloc(&pdev->dev, sizeof(*accel), GFP_KERNEL);
+	accel = devm_kzalloc_obj(&pdev->dev, *accel);
 	if (!accel)
 		return -ENOMEM;
 
@@ -664,7 +664,7 @@ static int cmpc_accel_probe(struct platform_device *pdev)
 	if (!acpi)
 		return -ENODEV;
 
-	accel = devm_kzalloc(&pdev->dev, sizeof(*accel), GFP_KERNEL);
+	accel = devm_kzalloc_obj(&pdev->dev, *accel);
 	if (!accel)
 		return -ENOMEM;
 

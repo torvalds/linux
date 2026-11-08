@@ -2779,7 +2779,8 @@ static int msm_dp_ctrl_clk_init(struct msm_dp_ctrl *msm_dp_ctrl)
 	dev = ctrl->dev;
 
 	ctrl->num_core_clks = ARRAY_SIZE(core_clks);
-	ctrl->core_clks = devm_kcalloc(dev, ctrl->num_core_clks, sizeof(*ctrl->core_clks), GFP_KERNEL);
+	ctrl->core_clks = devm_kzalloc_objs(dev, *ctrl->core_clks,
+					    ctrl->num_core_clks);
 	if (!ctrl->core_clks)
 		return -ENOMEM;
 
@@ -2791,7 +2792,8 @@ static int msm_dp_ctrl_clk_init(struct msm_dp_ctrl *msm_dp_ctrl)
 		return rc;
 
 	ctrl->num_link_clks = ARRAY_SIZE(ctrl_clks);
-	ctrl->link_clks = devm_kcalloc(dev, ctrl->num_link_clks, sizeof(*ctrl->link_clks), GFP_KERNEL);
+	ctrl->link_clks = devm_kzalloc_objs(dev, *ctrl->link_clks,
+					    ctrl->num_link_clks);
 	if (!ctrl->link_clks)
 		return -ENOMEM;
 
@@ -2845,7 +2847,7 @@ struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link
 		return ERR_PTR(-EINVAL);
 	}
 
-	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(dev, *ctrl);
 	if (!ctrl) {
 		DRM_ERROR("Mem allocation failure\n");
 		return ERR_PTR(-ENOMEM);

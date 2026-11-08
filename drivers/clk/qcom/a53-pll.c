@@ -59,7 +59,7 @@ static struct pll_freq_tbl *qcom_a53pll_get_freq_tbl(struct device *dev)
 	if (count <= 0)
 		return NULL;
 
-	freq_tbl = devm_kcalloc(dev, count + 1, sizeof(*freq_tbl), GFP_KERNEL);
+	freq_tbl = devm_kzalloc_objs(dev, *freq_tbl, count + 1);
 	if (!freq_tbl)
 		return NULL;
 
@@ -94,7 +94,7 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 	struct clk_init_data init = { };
 	int ret;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return -ENOMEM;
 

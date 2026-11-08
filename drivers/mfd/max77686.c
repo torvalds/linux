@@ -167,8 +167,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	const struct mfd_cell *cells;
 	int n_devs;
 
-	max77686 = devm_kzalloc(&i2c->dev,
-				sizeof(struct max77686_dev), GFP_KERNEL);
+	max77686 = devm_kzalloc_obj(&i2c->dev, struct max77686_dev);
 	if (!max77686)
 		return -ENOMEM;
 

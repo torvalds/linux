@@ -167,7 +167,7 @@ static int gicv5_its_create_itt_linear(struct gicv5_its_chip_data *its,
 	unsigned int num_ents = BIT(event_id_bits);
 	__le64 *itt;
 
-	itt = kcalloc(num_ents, sizeof(*itt), GFP_KERNEL);
+	itt = kzalloc_objs(*itt, num_ents);
 	if (!itt)
 		return -ENOMEM;
 
@@ -211,11 +211,11 @@ static int gicv5_its_create_itt_two_level(struct gicv5_its_chip_data *its,
 
 	num_ents = BIT(l1_bits);
 
-	itt_l1 = kcalloc(num_ents, sizeof(*itt_l1), GFP_KERNEL);
+	itt_l1 = kzalloc_objs(*itt_l1, num_ents);
 	if (!itt_l1)
 		return -ENOMEM;
 
-	l2ptrs = kcalloc(num_ents, sizeof(*l2ptrs), GFP_KERNEL);
+	l2ptrs = kzalloc_objs(*l2ptrs, num_ents);
 	if (!l2ptrs) {
 		kfree(itt_l1);
 		return -ENOMEM;
@@ -242,7 +242,7 @@ static int gicv5_its_create_itt_two_level(struct gicv5_its_chip_data *its,
 
 		span = i == complete_tables ? final_span : l2_bits;
 
-		itt_l2 = kcalloc(BIT(span), sizeof(*itt_l2), GFP_KERNEL);
+		itt_l2 = kzalloc_objs(*itt_l2, BIT(span));
 		if (!itt_l2) {
 			ret = -ENOMEM;
 			goto out_free;
@@ -403,7 +403,7 @@ static int gicv5_its_alloc_l2_devtab(struct gicv5_its_chip_data *its,
 	if (span > l2_bits)
 		span = l2_bits;
 
-	l2devtab = kcalloc(BIT(span), sizeof(*l2devtab), GFP_KERNEL);
+	l2devtab = kzalloc_objs(*l2devtab, BIT(span));
 	if (!l2devtab)
 		return -ENOMEM;
 
@@ -593,7 +593,7 @@ static int gicv5_its_alloc_devtab_linear(struct gicv5_its_chip_data *its,
 		device_id_bits = device_id_cap;
 	}
 
-	devtab = kcalloc(BIT(device_id_bits), sizeof(*devtab), GFP_KERNEL);
+	devtab = kzalloc_objs(*devtab, BIT(device_id_bits));
 	if (!devtab)
 		return -ENOMEM;
 
@@ -649,11 +649,11 @@ static int gicv5_its_alloc_devtab_two_level(struct gicv5_its_chip_data *its,
 		l1_sz = KMALLOC_MAX_SIZE;
 	}
 
-	l1devtab = kcalloc(BIT(l1_bits), sizeof(*l1devtab), GFP_KERNEL);
+	l1devtab = kzalloc_objs(*l1devtab, BIT(l1_bits));
 	if (!l1devtab)
 		return -ENOMEM;
 
-	l2ptrs = kcalloc(BIT(l1_bits), sizeof(*l2ptrs), GFP_KERNEL);
+	l2ptrs = kzalloc_objs(*l2ptrs, BIT(l1_bits));
 	if (!l2ptrs) {
 		kfree(l1devtab);
 		return -ENOMEM;

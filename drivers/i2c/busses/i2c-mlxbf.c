@@ -1044,8 +1044,7 @@ static int mlxbf_i2c_init_resource(struct platform_device *pdev,
 	if (!res || *res || type >= MLXBF_I2C_END_RES)
 		return -EINVAL;
 
-	tmp_res = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource),
-			       GFP_KERNEL);
+	tmp_res = devm_kzalloc_obj(dev, struct mlxbf_i2c_resource);
 	if (!tmp_res)
 		return -ENOMEM;
 
@@ -2240,7 +2239,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	u32 resource_version;
 	int irq, ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct mlxbf_i2c_priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2259,15 +2258,15 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	priv->resource_version = resource_version;
 
 	if (priv->chip->type < MLXBF_I2C_CHIP_TYPE_3 && resource_version == 0) {
-		priv->timer = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
+		priv->timer = devm_kzalloc_obj(dev, struct mlxbf_i2c_resource);
 		if (!priv->timer)
 			return -ENOMEM;
 
-		priv->mst = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
+		priv->mst = devm_kzalloc_obj(dev, struct mlxbf_i2c_resource);
 		if (!priv->mst)
 			return -ENOMEM;
 
-		priv->slv = devm_kzalloc(dev, sizeof(struct mlxbf_i2c_resource), GFP_KERNEL);
+		priv->slv = devm_kzalloc_obj(dev, struct mlxbf_i2c_resource);
 		if (!priv->slv)
 			return -ENOMEM;
 

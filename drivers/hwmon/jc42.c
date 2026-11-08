@@ -478,7 +478,7 @@ static int jc42_probe(struct i2c_client *client)
 	struct jc42_data *data;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(struct jc42_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct jc42_data);
 	if (!data)
 		return -ENOMEM;
 

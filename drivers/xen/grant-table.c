@@ -1405,7 +1405,7 @@ static int gnttab_map_frames_v2(xen_pfn_t *frames, unsigned int nr_gframes)
 	/* No need for kzalloc as it is initialized in following hypercall
 	 * GNTTABOP_get_status_frames.
 	 */
-	sframes = kmalloc_array(nr_sframes, sizeof(*sframes), GFP_ATOMIC);
+	sframes = kmalloc_objs(*sframes, nr_sframes, GFP_ATOMIC);
 	if (!sframes)
 		return -ENOMEM;
 

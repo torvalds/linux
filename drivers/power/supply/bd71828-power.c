@@ -1174,7 +1174,7 @@ static int bd71828_power_probe(struct platform_device *pdev)
 	struct power_supply_config bat_cfg = {};
 	int ret;
 
-	pwr = devm_kzalloc(&pdev->dev, sizeof(*pwr), GFP_KERNEL);
+	pwr = devm_kzalloc_obj(&pdev->dev, *pwr);
 	if (!pwr)
 		return -ENOMEM;
 

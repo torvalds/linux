@@ -280,7 +280,7 @@ static int pv88060_i2c_probe(struct i2c_client *i2c)
 	struct regulator_config config = { };
 	int error, i, ret = 0;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(struct pv88060), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, struct pv88060);
 	if (!chip)
 		return -ENOMEM;
 

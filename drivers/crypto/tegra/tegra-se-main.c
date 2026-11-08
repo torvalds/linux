@@ -280,7 +280,7 @@ static int tegra_se_probe(struct platform_device *pdev)
 	struct tegra_se *se;
 	int ret;
 
-	se = devm_kzalloc(dev, sizeof(*se), GFP_KERNEL);
+	se = devm_kzalloc_obj(dev, *se);
 	if (!se)
 		return -ENOMEM;
 

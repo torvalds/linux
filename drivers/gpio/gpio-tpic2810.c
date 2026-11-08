@@ -97,7 +97,7 @@ static int tpic2810_probe(struct i2c_client *client)
 {
 	struct tpic2810 *gpio;
 
-	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&client->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

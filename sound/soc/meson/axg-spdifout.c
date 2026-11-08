@@ -405,7 +405,7 @@ static int axg_spdifout_probe(struct platform_device *pdev)
 	struct axg_spdifout *priv;
 	void __iomem *regs;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);

@@ -4700,7 +4700,7 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 		return 0;
 	}
 
-	bl = devm_kzalloc(panel->dev, sizeof(*bl), GFP_KERNEL);
+	bl = devm_kzalloc_obj(panel->dev, *bl);
 	if (!bl)
 		return -ENOMEM;
 

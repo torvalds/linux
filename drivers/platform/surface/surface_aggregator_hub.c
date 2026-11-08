@@ -164,7 +164,7 @@ static int ssam_hub_probe(struct ssam_device *sdev)
 		return -EINVAL;
 	}
 
-	hub = devm_kzalloc(&sdev->dev, sizeof(*hub), GFP_KERNEL);
+	hub = devm_kzalloc_obj(&sdev->dev, *hub);
 	if (!hub)
 		return -ENOMEM;
 

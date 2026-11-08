@@ -932,7 +932,7 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 		type	= RSND_MOD_AUDMA;
 	}
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma)
 		return -ENOMEM;
 
@@ -989,7 +989,7 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 	/*
 	 * for Gen2 or later
 	 */
-	dmac = devm_kzalloc(dev, sizeof(*dmac), GFP_KERNEL);
+	dmac = devm_kzalloc_obj(dev, *dmac);
 	if (!dmac) {
 		dev_err(dev, "dma allocate failed\n");
 		return 0; /* it will be PIO mode */

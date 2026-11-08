@@ -157,7 +157,7 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 	struct clk **clks;
 	int nr_clks, i, ret;
 
-	cd = devm_kzalloc(&pdev->dev, sizeof(*cd), GFP_KERNEL);
+	cd = devm_kzalloc_obj(&pdev->dev, *cd);
 	if (!cd)
 		return -ENOMEM;
 

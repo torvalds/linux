@@ -1373,7 +1373,7 @@ static int ep93xx_pmx_probe(struct auxiliary_device *adev,
 	struct ep93xx_pmx *pmx;
 
 	/* Create state holders etc for this driver */
-	pmx = devm_kzalloc(dev, sizeof(*pmx), GFP_KERNEL);
+	pmx = devm_kzalloc_obj(dev, *pmx);
 	if (!pmx)
 		return -ENOMEM;
 

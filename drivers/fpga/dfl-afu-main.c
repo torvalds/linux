@@ -860,7 +860,7 @@ static int afu_dev_init(struct platform_device *pdev)
 	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(&pdev->dev);
 	struct dfl_afu *afu;
 
-	afu = devm_kzalloc(&pdev->dev, sizeof(*afu), GFP_KERNEL);
+	afu = devm_kzalloc_obj(&pdev->dev, *afu);
 	if (!afu)
 		return -ENOMEM;
 

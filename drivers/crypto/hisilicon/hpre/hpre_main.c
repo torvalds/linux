@@ -1043,7 +1043,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
 
-	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(dev, *regset);
 	if (!regset)
 		return -ENOMEM;
 
@@ -1074,7 +1074,7 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 			return -EINVAL;
 		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
 
-		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+		regset = devm_kzalloc_obj(dev, *regset);
 		if (!regset)
 			return -ENOMEM;
 
@@ -1203,7 +1203,7 @@ static int hpre_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(hpre_cap_query_info);
-	hpre_cap = devm_kcalloc(dev, size, sizeof(*hpre_cap), GFP_KERNEL);
+	hpre_cap = devm_kzalloc_objs(dev, *hpre_cap, size);
 	if (!hpre_cap)
 		return -ENOMEM;
 
@@ -1581,7 +1581,7 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct hpre *hpre;
 	int ret;
 
-	hpre = devm_kzalloc(&pdev->dev, sizeof(*hpre), GFP_KERNEL);
+	hpre = devm_kzalloc_obj(&pdev->dev, *hpre);
 	if (!hpre)
 		return -ENOMEM;
 

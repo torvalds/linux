@@ -332,7 +332,7 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	struct yogabook_data *data;
 	int r;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -449,7 +449,7 @@ static int yogabook_pdev_probe(struct platform_device *pdev)
 	struct yogabook_data *data;
 	int r;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

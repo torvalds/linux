@@ -518,7 +518,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	struct hda_tegra *hda;
 	int err;
 
-	hda = devm_kzalloc(&pdev->dev, sizeof(*hda), GFP_KERNEL);
+	hda = devm_kzalloc_obj(&pdev->dev, *hda);
 	if (!hda)
 		return -ENOMEM;
 	hda->dev = &pdev->dev;

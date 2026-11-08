@@ -876,7 +876,7 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int err;
 
-	padctl = devm_kzalloc(&pdev->dev, sizeof(*padctl), GFP_KERNEL);
+	padctl = devm_kzalloc_obj(&pdev->dev, *padctl);
 	if (!padctl)
 		return -ENOMEM;
 

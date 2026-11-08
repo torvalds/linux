@@ -258,7 +258,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 		goto skip_init_ctx;
 	}
 
-	addrs = kcalloc(flen + 1, sizeof(*addrs), GFP_KERNEL);
+	addrs = kzalloc_objs(*addrs, flen + 1);
 	if (addrs == NULL)
 		goto out_err;
 
@@ -1104,7 +1104,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	}
 
 	if (fmod_ret->nr_nodes) {
-		branches = kcalloc(fmod_ret->nr_nodes, sizeof(u32), GFP_KERNEL);
+		branches = kzalloc_objs(u32, fmod_ret->nr_nodes);
 		if (!branches)
 			return -ENOMEM;
 

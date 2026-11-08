@@ -559,8 +559,7 @@ static struct fsl_qdma_queue
 		dev_err(&pdev->dev, "Get wrong status_size.\n");
 		return NULL;
 	}
-	status_head = devm_kzalloc(&pdev->dev,
-				   sizeof(*status_head), GFP_KERNEL);
+	status_head = devm_kzalloc_obj(&pdev->dev, *status_head);
 	if (!status_head)
 		return NULL;
 

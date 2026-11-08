@@ -1440,7 +1440,7 @@ static int intel_pinctrl_add_padgroups_by_gpps(struct intel_pinctrl *pctrl,
 	unsigned int padown_num = 0;
 	size_t i, ngpps = community->ngpps;
 
-	gpps = devm_kcalloc(pctrl->dev, ngpps, sizeof(*gpps), GFP_KERNEL);
+	gpps = devm_kzalloc_objs(pctrl->dev, *gpps, ngpps);
 	if (!gpps)
 		return -ENOMEM;
 
@@ -1484,7 +1484,7 @@ static int intel_pinctrl_add_padgroups_by_size(struct intel_pinctrl *pctrl,
 	if (community->gpp_size > INTEL_PINCTRL_MAX_GPP_SIZE)
 		return -EINVAL;
 
-	gpps = devm_kcalloc(pctrl->dev, ngpps, sizeof(*gpps), GFP_KERNEL);
+	gpps = devm_kzalloc_objs(pctrl->dev, *gpps, ngpps);
 	if (!gpps)
 		return -ENOMEM;
 
@@ -1516,12 +1516,12 @@ static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
 	struct intel_pad_context *pads;
 	int i;
 
-	pads = devm_kcalloc(pctrl->dev, soc->npins, sizeof(*pads), GFP_KERNEL);
+	pads = devm_kzalloc_objs(pctrl->dev, *pads, soc->npins);
 	if (!pads)
 		return -ENOMEM;
 
-	communities = devm_kcalloc(pctrl->dev, pctrl->ncommunities,
-				   sizeof(*communities), GFP_KERNEL);
+	communities = devm_kzalloc_objs(pctrl->dev, *communities,
+					pctrl->ncommunities);
 	if (!communities)
 		return -ENOMEM;
 
@@ -1530,15 +1530,15 @@ static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
 		struct intel_community *community = &pctrl->communities[i];
 		u32 *intmask, *hostown;
 
-		intmask = devm_kcalloc(pctrl->dev, community->ngpps,
-				       sizeof(*intmask), GFP_KERNEL);
+		intmask = devm_kzalloc_objs(pctrl->dev, *intmask,
+					    community->ngpps);
 		if (!intmask)
 			return -ENOMEM;
 
 		communities[i].intmask = intmask;
 
-		hostown = devm_kcalloc(pctrl->dev, community->ngpps,
-				       sizeof(*hostown), GFP_KERNEL);
+		hostown = devm_kzalloc_objs(pctrl->dev, *hostown,
+					    community->ngpps);
 		if (!hostown)
 			return -ENOMEM;
 
@@ -1582,7 +1582,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 	struct intel_pinctrl *pctrl;
 	int i, ret, irq;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -372,8 +372,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 
 	tps65910 = dev_get_drvdata(pdev->dev.parent);
 
-	tps_rtc = devm_kzalloc(&pdev->dev, sizeof(struct tps65910_rtc),
-			GFP_KERNEL);
+	tps_rtc = devm_kzalloc_obj(&pdev->dev, struct tps65910_rtc);
 	if (!tps_rtc)
 		return -ENOMEM;
 

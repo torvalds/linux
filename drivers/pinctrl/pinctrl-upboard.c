@@ -960,11 +960,11 @@ static int upboard_pinctrl_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	pctldesc = devm_kzalloc(dev, sizeof(*pctldesc), GFP_KERNEL);
+	pctldesc = devm_kzalloc_obj(dev, *pctldesc);
 	if (!pctldesc)
 		return -ENOMEM;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 
@@ -997,7 +997,7 @@ static int upboard_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl->dev = dev;
 
-	pins = devm_kcalloc(dev, pctldesc->npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, pctldesc->npins);
 	if (!pins)
 		return -ENOMEM;
 

@@ -308,7 +308,7 @@ static int pf530x_i2c_probe(struct i2c_client *client)
 	struct regulator_dev *rdev;
 	struct regulator_init_data *init_data;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

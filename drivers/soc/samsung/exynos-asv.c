@@ -125,7 +125,7 @@ int exynos_asv_init(struct device *dev, struct regmap *regmap)
 	u32 product_id = 0;
 	int ret, i;
 
-	asv = devm_kzalloc(dev, sizeof(*asv), GFP_KERNEL);
+	asv = devm_kzalloc_obj(dev, *asv);
 	if (!asv)
 		return -ENOMEM;
 

@@ -469,7 +469,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	omap = devm_kzalloc(dev, sizeof(*omap), GFP_KERNEL);
+	omap = devm_kzalloc_obj(dev, *omap);
 	if (!omap)
 		return -ENOMEM;
 

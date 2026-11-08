@@ -1067,7 +1067,7 @@ static int wdt87xx_ts_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENXIO;
 
-	wdt = devm_kzalloc(&client->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&client->dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

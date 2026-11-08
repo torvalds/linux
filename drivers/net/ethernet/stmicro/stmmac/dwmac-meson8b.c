@@ -158,7 +158,7 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	struct meson8b_dwmac_clk_configs *clk_configs;
 	struct clk_parent_data parent_data = { };
 
-	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);
+	clk_configs = devm_kzalloc_obj(dev, *clk_configs);
 	if (!clk_configs)
 		return -ENOMEM;
 
@@ -394,7 +394,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
-	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
+	dwmac = devm_kzalloc_obj(&pdev->dev, *dwmac);
 	if (!dwmac)
 		return -ENOMEM;
 

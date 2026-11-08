@@ -735,7 +735,7 @@ static int lm75_generic_probe(struct device *dev, const char *name,
 	struct lm75_data *data;
 	int status, err;
 
-	data = devm_kzalloc(dev, sizeof(struct lm75_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm75_data);
 	if (!data)
 		return -ENOMEM;
 

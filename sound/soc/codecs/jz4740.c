@@ -311,8 +311,7 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 	struct jz4740_codec *jz4740_codec;
 	void __iomem *base;
 
-	jz4740_codec = devm_kzalloc(&pdev->dev, sizeof(*jz4740_codec),
-				    GFP_KERNEL);
+	jz4740_codec = devm_kzalloc_obj(&pdev->dev, *jz4740_codec);
 	if (!jz4740_codec)
 		return -ENOMEM;
 

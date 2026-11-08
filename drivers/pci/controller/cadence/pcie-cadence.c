@@ -233,7 +233,7 @@ int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 		return 0;
 	}
 
-	phy = devm_kcalloc(dev, phy_count, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_objs(dev, *phy, phy_count);
 	if (!phy)
 		return -ENOMEM;
 

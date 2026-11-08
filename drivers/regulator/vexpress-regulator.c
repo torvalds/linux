@@ -45,7 +45,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 
-	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(&pdev->dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 

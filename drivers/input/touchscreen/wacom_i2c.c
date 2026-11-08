@@ -179,7 +179,7 @@ static int wacom_i2c_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	wac_i2c = devm_kzalloc(dev, sizeof(*wac_i2c), GFP_KERNEL);
+	wac_i2c = devm_kzalloc_obj(dev, *wac_i2c);
 	if (!wac_i2c)
 		return -ENOMEM;
 

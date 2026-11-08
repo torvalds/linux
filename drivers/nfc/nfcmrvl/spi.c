@@ -131,7 +131,7 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 	struct nfcmrvl_spi_drv_data *drv_data;
 	int ret = 0;
 
-	drv_data = devm_kzalloc(&spi->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&spi->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

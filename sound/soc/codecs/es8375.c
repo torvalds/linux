@@ -708,7 +708,7 @@ static int es8375_i2c_probe(struct i2c_client *i2c_client)
 	int ret;
 	unsigned int val;
 
-	es8375 = devm_kzalloc(&i2c_client->dev, sizeof(*es8375), GFP_KERNEL);
+	es8375 = devm_kzalloc_obj(&i2c_client->dev, *es8375);
 	if (!es8375)
 		return -ENOMEM;
 

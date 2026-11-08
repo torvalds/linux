@@ -75,7 +75,7 @@ static int gic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	chip_pm = devm_kzalloc(dev, sizeof(*chip_pm), GFP_KERNEL);
+	chip_pm = devm_kzalloc_obj(dev, *chip_pm);
 	if (!chip_pm)
 		return -ENOMEM;
 
@@ -85,8 +85,7 @@ static int gic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	chip_pm->clks = devm_kcalloc(dev, data->num_clocks,
-				     sizeof(*chip_pm->clks), GFP_KERNEL);
+	chip_pm->clks = devm_kzalloc_objs(dev, *chip_pm->clks, data->num_clocks);
 	if (!chip_pm->clks)
 		return -ENOMEM;
 

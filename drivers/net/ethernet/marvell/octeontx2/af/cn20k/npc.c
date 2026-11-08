@@ -2295,7 +2295,7 @@ process:
 	/* 'save' array stores available indexes temporarily before
 	 * marking it as allocated
 	 */
-	save = kcalloc(count, sizeof(u16), GFP_KERNEL);
+	save = kzalloc_objs(u16, count);
 	if (!save) {
 		rc = -ENOMEM;
 		goto err1;
@@ -3402,8 +3402,7 @@ static int npc_create_srch_order(int cnt)
 {
 	int val = 0;
 
-	subbank_srch_order = kcalloc(cnt, sizeof(u32),
-				     GFP_KERNEL);
+	subbank_srch_order = kzalloc_objs(u32, cnt);
 	if (!subbank_srch_order)
 		return -ENOMEM;
 
@@ -3869,7 +3868,7 @@ static int npc_defrag_process(struct rvu *rvu, struct list_head *lh)
 		/* Allocate an array to store newly allocated
 		 * free slots (mcam indexes)
 		 */
-		save = kcalloc(cnt, sizeof(*save), GFP_KERNEL);
+		save = kzalloc_objs(*save, cnt);
 		if (!save) {
 			rc = -ENOMEM;
 			goto err;
@@ -4094,9 +4093,8 @@ int npc_cn20k_defrag(struct rvu *rvu)
 		node[i].idx = i;
 		node[i].key_type = sb->key_type;
 		node[i].free_cnt = sb->free_cnt;
-		node[i].vidx = kcalloc(npc_priv->subbank_depth * 2,
-				       sizeof(*node[i].vidx),
-				       GFP_KERNEL);
+		node[i].vidx = kzalloc_objs(*node[i].vidx,
+					    npc_priv->subbank_depth * 2);
 		if (!node[i].vidx) {
 			rc = -ENOMEM;
 			goto free_vidx;

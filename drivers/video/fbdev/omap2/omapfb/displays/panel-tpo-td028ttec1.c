@@ -389,7 +389,7 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 		return r;
 	}
 
-	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&spi->dev, *ddata);
 	if (ddata == NULL)
 		return -ENOMEM;
 

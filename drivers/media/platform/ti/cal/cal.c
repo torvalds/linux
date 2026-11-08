@@ -1147,7 +1147,7 @@ static int cal_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	cal = devm_kzalloc(&pdev->dev, sizeof(*cal), GFP_KERNEL);
+	cal = devm_kzalloc_obj(&pdev->dev, *cal);
 	if (!cal)
 		return -ENOMEM;
 

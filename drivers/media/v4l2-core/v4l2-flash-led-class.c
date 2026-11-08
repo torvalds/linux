@@ -435,10 +435,9 @@ static int v4l2_flash_init_controls(struct v4l2_flash *v4l2_flash,
 	struct v4l2_ctrl_config *ctrl_cfg;
 	int i, ret, num_ctrls = 0;
 
-	v4l2_flash->ctrls = devm_kcalloc(v4l2_flash->sd.dev,
-					STROBE_SOURCE + 1,
-					sizeof(*v4l2_flash->ctrls),
-					GFP_KERNEL);
+	v4l2_flash->ctrls = devm_kzalloc_objs(v4l2_flash->sd.dev,
+					      *v4l2_flash->ctrls,
+					      STROBE_SOURCE + 1);
 	if (!v4l2_flash->ctrls)
 		return -ENOMEM;
 
@@ -661,7 +660,7 @@ static struct v4l2_flash *__v4l2_flash_init(
 	if (!config)
 		return ERR_PTR(-EINVAL);
 
-	v4l2_flash = devm_kzalloc(dev, sizeof(*v4l2_flash), GFP_KERNEL);
+	v4l2_flash = devm_kzalloc_obj(dev, *v4l2_flash);
 	if (!v4l2_flash)
 		return ERR_PTR(-ENOMEM);
 

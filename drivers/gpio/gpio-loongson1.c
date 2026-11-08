@@ -51,7 +51,7 @@ static int ls1x_gpio_probe(struct platform_device *pdev)
 	struct ls1x_gpio_chip *ls1x_gc;
 	int ret;
 
-	ls1x_gc = devm_kzalloc(dev, sizeof(*ls1x_gc), GFP_KERNEL);
+	ls1x_gc = devm_kzalloc_obj(dev, *ls1x_gc);
 	if (!ls1x_gc)
 		return -ENOMEM;
 

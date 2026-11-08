@@ -945,7 +945,7 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 	if (IS_ERR(ide_base))
 		return PTR_ERR(ide_base);
 
-	drv_data = devm_kzalloc(&pdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&pdev->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

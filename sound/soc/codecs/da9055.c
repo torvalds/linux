@@ -1487,8 +1487,7 @@ static int da9055_i2c_probe(struct i2c_client *i2c)
 	struct da9055_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
 
-	da9055 = devm_kzalloc(&i2c->dev, sizeof(struct da9055_priv),
-			      GFP_KERNEL);
+	da9055 = devm_kzalloc_obj(&i2c->dev, struct da9055_priv);
 	if (!da9055)
 		return -ENOMEM;
 

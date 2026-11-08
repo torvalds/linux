@@ -256,7 +256,7 @@ static void br_vlan_rebuild_port_array(struct net_bridge_vlan *masterv,
 	WARN_ON(!br_vlan_is_master(masterv));
 
 	if (count > BR_VLAN_PORT_ARRAY_THRESHOLD)
-		array = kvmalloc(struct_size(array, vlans, count), GFP_KERNEL);
+		array = kvmalloc_flex(*array, vlans, count);
 
 	if (array) {
 		struct net_bridge_vlan *pv;

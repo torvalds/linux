@@ -434,7 +434,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	adap = devm_kzalloc(&pdev->dev, sizeof(*adap), GFP_KERNEL);
+	adap = devm_kzalloc_obj(&pdev->dev, *adap);
 	if (!adap)
 		return -ENOMEM;
 

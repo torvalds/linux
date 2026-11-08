@@ -557,7 +557,7 @@ static int axiado_sgpio_probe(struct platform_device *pdev)
 	u32 sgpio_freq;
 	int irq, rc;
 
-	sgpio = devm_kzalloc(&pdev->dev, sizeof(*sgpio), GFP_KERNEL);
+	sgpio = devm_kzalloc_obj(&pdev->dev, *sgpio);
 	if (!sgpio)
 		return -ENOMEM;
 
@@ -592,10 +592,8 @@ static int axiado_sgpio_probe(struct platform_device *pdev)
 
 	sgpio->nsignals = ngpio / 2;
 
-	sgpio->din_shadow = devm_kcalloc(&pdev->dev,
-					 DIV_ROUND_UP(sgpio->nsignals,
-						      SGPIO_BANK_SIZE),
-					 sizeof(*sgpio->din_shadow), GFP_KERNEL);
+	sgpio->din_shadow = devm_kzalloc_objs(&pdev->dev, *sgpio->din_shadow,
+					      DIV_ROUND_UP(sgpio->nsignals, SGPIO_BANK_SIZE));
 	sgpio->irq_unmasked = devm_bitmap_zalloc(&pdev->dev, sgpio->nsignals,
 						 GFP_KERNEL);
 	sgpio->irq_rising = devm_bitmap_zalloc(&pdev->dev, sgpio->nsignals,

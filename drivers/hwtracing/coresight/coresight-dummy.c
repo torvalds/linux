@@ -117,7 +117,7 @@ static int dummy_probe(struct platform_device *pdev)
 	struct coresight_desc desc = { 0 };
 	int ret = 0, trace_id = 0;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

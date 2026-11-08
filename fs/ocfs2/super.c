@@ -2072,8 +2072,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	osb->slot_recovery_generations =
-		kcalloc(osb->max_slots, sizeof(*osb->slot_recovery_generations),
-			GFP_KERNEL);
+		kzalloc_objs(*osb->slot_recovery_generations, osb->max_slots);
 	if (!osb->slot_recovery_generations) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -2081,9 +2080,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	init_waitqueue_head(&osb->osb_wipe_event);
-	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
-					sizeof(*osb->osb_orphan_wipes),
-					GFP_KERNEL);
+	osb->osb_orphan_wipes = kzalloc_objs(*osb->osb_orphan_wipes,
+					     osb->max_slots);
 	if (!osb->osb_orphan_wipes) {
 		status = -ENOMEM;
 		mlog_errno(status);

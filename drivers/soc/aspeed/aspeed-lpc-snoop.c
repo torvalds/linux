@@ -314,7 +314,7 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	lpc_snoop = devm_kzalloc(dev, sizeof(*lpc_snoop), GFP_KERNEL);
+	lpc_snoop = devm_kzalloc_obj(dev, *lpc_snoop);
 	if (!lpc_snoop)
 		return -ENOMEM;
 

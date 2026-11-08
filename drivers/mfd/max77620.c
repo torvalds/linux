@@ -504,7 +504,7 @@ static int max77620_probe(struct i2c_client *client)
 	int n_mfd_cells;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -133,7 +133,7 @@ static int airoha_wdt_probe(struct platform_device *pdev)
 	struct clk *bus_clk;
 	int ret;
 
-	airoha_wdt = devm_kzalloc(dev, sizeof(*airoha_wdt), GFP_KERNEL);
+	airoha_wdt = devm_kzalloc_obj(dev, *airoha_wdt);
 	if (!airoha_wdt)
 		return -ENOMEM;
 

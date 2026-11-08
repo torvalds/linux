@@ -504,7 +504,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	    (!udc_enabled || !IS_ENABLED(CONFIG_USB_ISP1761_UDC)))
 		return -ENODEV;
 
-	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

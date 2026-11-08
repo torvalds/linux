@@ -487,8 +487,7 @@ static int max77686_pmic_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
-	max77686 = devm_kzalloc(&pdev->dev, sizeof(struct max77686_data),
-				GFP_KERNEL);
+	max77686 = devm_kzalloc_obj(&pdev->dev, struct max77686_data);
 	if (!max77686)
 		return -ENOMEM;
 

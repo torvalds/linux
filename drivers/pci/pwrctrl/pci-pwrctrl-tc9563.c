@@ -637,7 +637,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	struct i2c_client *client;
 	int ret, addr;
 
-	tc9563 = devm_kzalloc(dev, sizeof(*tc9563), GFP_KERNEL);
+	tc9563 = devm_kzalloc_obj(dev, *tc9563);
 	if (!tc9563)
 		return -ENOMEM;
 

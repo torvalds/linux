@@ -242,7 +242,7 @@ static int rt8092_probe(struct i2c_client *i2c)
 	bool vsel_high;
 	int ret;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 

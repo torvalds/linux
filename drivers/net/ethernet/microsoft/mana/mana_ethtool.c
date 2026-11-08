@@ -399,7 +399,7 @@ static int mana_set_rxfh(struct net_device *ndev,
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	save_table = kcalloc(apc->indir_table_sz, sizeof(u32), GFP_KERNEL);
+	save_table = kzalloc_objs(u32, apc->indir_table_sz);
 	if (!save_table)
 		return -ENOMEM;
 

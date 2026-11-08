@@ -463,7 +463,7 @@ static int mrvl_serdev_probe(struct serdev_device *serdev)
 	struct mrvl_serdev *mrvldev;
 	const struct hci_uart_proto *mrvl_proto = device_get_match_data(&serdev->dev);
 
-	mrvldev = devm_kzalloc(&serdev->dev, sizeof(*mrvldev), GFP_KERNEL);
+	mrvldev = devm_kzalloc_obj(&serdev->dev, *mrvldev);
 	if (!mrvldev)
 		return -ENOMEM;
 

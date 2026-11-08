@@ -712,7 +712,7 @@ static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
 
 	cmd_bo_hdl = (u32)args->cmd_handles;
 	if (args->arg_count) {
-		arg_bo_hdls = kcalloc(args->arg_count, sizeof(u32), GFP_KERNEL);
+		arg_bo_hdls = kzalloc_objs(u32, args->arg_count);
 		if (!arg_bo_hdls)
 			return -ENOMEM;
 		ret = copy_from_user(arg_bo_hdls, u64_to_user_ptr(args->args),

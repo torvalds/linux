@@ -372,8 +372,7 @@ static int ad1836_spi_probe(struct spi_device *spi)
 	struct ad1836_priv *ad1836;
 	int ret;
 
-	ad1836 = devm_kzalloc(&spi->dev, sizeof(struct ad1836_priv),
-			      GFP_KERNEL);
+	ad1836 = devm_kzalloc_obj(&spi->dev, struct ad1836_priv);
 	if (ad1836 == NULL)
 		return -ENOMEM;
 

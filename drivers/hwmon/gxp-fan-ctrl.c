@@ -111,8 +111,7 @@ static int gxp_fan_ctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device *hwmon_dev;
 
-	drvdata = devm_kzalloc(dev, sizeof(struct gxp_fan_ctrl_drvdata),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, struct gxp_fan_ctrl_drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

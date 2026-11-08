@@ -101,7 +101,7 @@ static int lenovo_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct lenovo_wmi_priv *priv;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

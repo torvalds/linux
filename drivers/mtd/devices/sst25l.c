@@ -356,7 +356,7 @@ static int sst25l_probe(struct spi_device *spi)
 	if (!flash_info)
 		return -ENODEV;
 
-	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc_obj(&spi->dev, *flash);
 	if (!flash)
 		return -ENOMEM;
 

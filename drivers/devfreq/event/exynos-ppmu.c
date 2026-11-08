@@ -517,7 +517,7 @@ static int of_get_devfreq_events(struct device_node *np,
 	}
 
 	count = of_get_child_count(events_np);
-	desc = devm_kcalloc(dev, count, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_objs(dev, *desc, count);
 	if (!desc) {
 		of_node_put(events_np);
 		return -ENOMEM;
@@ -648,7 +648,7 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	struct devfreq_event_desc *desc;
 	int i, ret = 0, size;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

@@ -354,7 +354,7 @@ static int adp5055_probe(struct i2c_client *client)
 	if (!init_data)
 		return -EINVAL;
 
-	adp5055 = devm_kzalloc(dev, sizeof(struct adp5055), GFP_KERNEL);
+	adp5055 = devm_kzalloc_obj(dev, struct adp5055);
 	if (!adp5055)
 		return -ENOMEM;
 

@@ -56,7 +56,7 @@ static int sysmon_platform_probe(struct platform_device *pdev)
 	struct sysmon_mmio *mmio;
 	struct regmap *regmap;
 
-	mmio = devm_kzalloc(dev, sizeof(*mmio), GFP_KERNEL);
+	mmio = devm_kzalloc_obj(dev, *mmio);
 	if (!mmio)
 		return -ENOMEM;
 

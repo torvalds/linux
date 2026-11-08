@@ -225,7 +225,7 @@ static int dwc3_ti_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int i, ret;
 
-	am62 = devm_kzalloc(dev, sizeof(*am62), GFP_KERNEL);
+	am62 = devm_kzalloc_obj(dev, *am62);
 	if (!am62)
 		return -ENOMEM;
 

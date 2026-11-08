@@ -125,7 +125,7 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

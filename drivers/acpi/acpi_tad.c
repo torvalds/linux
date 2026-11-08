@@ -853,7 +853,7 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	if (!(caps & ACPI_TAD_AC_WAKE))
 		caps &= ~ACPI_TAD_DC_WAKE;
 
-	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
+	dd = devm_kzalloc_obj(dev, *dd);
 	if (!dd)
 		return -ENOMEM;
 

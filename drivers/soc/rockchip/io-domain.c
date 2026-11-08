@@ -619,7 +619,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	iod = devm_kzalloc(&pdev->dev, sizeof(*iod), GFP_KERNEL);
+	iod = devm_kzalloc_obj(&pdev->dev, *iod);
 	if (!iod)
 		return -ENOMEM;
 

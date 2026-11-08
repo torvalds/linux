@@ -721,9 +721,7 @@ static int rzn1_pinctrl_parse_groups(struct device_node *np,
 	grp->pin_ids = devm_kmalloc_array(ipctl->dev,
 					  grp->npins, sizeof(grp->pin_ids[0]),
 					  GFP_KERNEL);
-	grp->pins = devm_kmalloc_array(ipctl->dev,
-				       grp->npins, sizeof(grp->pins[0]),
-				       GFP_KERNEL);
+	grp->pins = devm_kmalloc_objs(ipctl->dev, grp->pins[0], grp->npins);
 	if (!grp->pin_ids || !grp->pins)
 		return -ENOMEM;
 
@@ -821,9 +819,8 @@ static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 		return 0;
 
 	ipctl->nfunctions = nfuncs;
-	ipctl->functions = devm_kmalloc_array(&pdev->dev, nfuncs,
-					      sizeof(*ipctl->functions),
-					      GFP_KERNEL);
+	ipctl->functions = devm_kmalloc_objs(&pdev->dev, *ipctl->functions,
+					     nfuncs);
 	if (!ipctl->functions)
 		return -ENOMEM;
 
@@ -831,10 +828,7 @@ static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 	for_each_child_of_node_scoped(np, child)
 		maxgroups += rzn1_pinctrl_count_function_groups(child);
 
-	ipctl->groups = devm_kmalloc_array(&pdev->dev,
-					   maxgroups,
-					   sizeof(*ipctl->groups),
-					   GFP_KERNEL);
+	ipctl->groups = devm_kmalloc_objs(&pdev->dev, *ipctl->groups, maxgroups);
 	if (!ipctl->groups)
 		return -ENOMEM;
 
@@ -854,7 +848,7 @@ static int rzn1_pinctrl_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Create state holders etc for this driver */
-	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
+	ipctl = devm_kzalloc_obj(&pdev->dev, *ipctl);
 	if (!ipctl)
 		return -ENOMEM;
 

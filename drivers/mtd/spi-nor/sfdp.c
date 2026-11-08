@@ -951,8 +951,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	 * The regions will be freed when the driver detaches from the
 	 * device.
 	 */
-	region = devm_kcalloc(nor->dev, region_count, sizeof(*region),
-			      GFP_KERNEL);
+	region = devm_kzalloc_objs(nor->dev, *region, region_count);
 	if (!region)
 		return -ENOMEM;
 	map->regions = region;
@@ -1386,8 +1385,7 @@ static int spi_nor_parse_sccr(struct spi_nor *nor,
 
 	/* Address offset for volatile registers (die 0) */
 	if (!params->vreg_offset) {
-		params->vreg_offset = devm_kmalloc(nor->dev, sizeof(*dwords),
-						   GFP_KERNEL);
+		params->vreg_offset = devm_kmalloc_obj(nor->dev, *dwords);
 		if (!params->vreg_offset) {
 			ret = -ENOMEM;
 			goto out;
@@ -1628,7 +1626,7 @@ int spi_nor_parse_sfdp(struct spi_nor *nor)
 		sfdp_size = SFDP_MAX_SIZE;
 	}
 
-	sfdp = devm_kzalloc(dev, sizeof(*sfdp), GFP_KERNEL);
+	sfdp = devm_kzalloc_obj(dev, *sfdp);
 	if (!sfdp) {
 		err = -ENOMEM;
 		goto free_param_headers;
@@ -1641,8 +1639,7 @@ int spi_nor_parse_sfdp(struct spi_nor *nor)
 	 * the complete SFDP data.
 	 */
 	sfdp->num_dwords = DIV_ROUND_UP(sfdp_size, sizeof(*sfdp->dwords));
-	sfdp->dwords = devm_kcalloc(dev, sfdp->num_dwords,
-				    sizeof(*sfdp->dwords), GFP_KERNEL);
+	sfdp->dwords = devm_kzalloc_objs(dev, *sfdp->dwords, sfdp->num_dwords);
 	if (!sfdp->dwords) {
 		err = -ENOMEM;
 		goto free_sfdp;

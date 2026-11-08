@@ -1982,7 +1982,7 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	struct iwl_mei *mei;
 	int ret;
 
-	mei = devm_kzalloc(&cldev->dev, sizeof(*mei), GFP_KERNEL);
+	mei = devm_kzalloc_obj(&cldev->dev, *mei);
 	if (!mei)
 		return -ENOMEM;
 

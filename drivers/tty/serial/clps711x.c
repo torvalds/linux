@@ -443,7 +443,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	struct clk *uart_clk;
 	int irq, ret;
 
-	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc_obj(&pdev->dev, *s);
 	if (!s)
 		return -ENOMEM;
 

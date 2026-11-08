@@ -2023,7 +2023,7 @@ static int fsi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(&pdev->dev, *master);
 	if (!master)
 		return -ENOMEM;
 

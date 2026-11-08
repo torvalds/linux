@@ -491,7 +491,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct regmap *rmap;
 	int x;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);

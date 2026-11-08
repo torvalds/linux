@@ -285,7 +285,7 @@ static struct tps62360_regulator_platform_data *
 	struct tps62360_regulator_platform_data *pdata;
 	struct device_node *np = dev->of_node;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -329,7 +329,7 @@ static int tps62360_probe(struct i2c_client *client)
 
 	pdata = dev_get_platdata(&client->dev);
 
-	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&client->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

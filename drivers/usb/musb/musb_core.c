@@ -2144,7 +2144,7 @@ static struct musb *allocate_instance(struct device *dev,
 	int			epnum;
 	int			ret;
 
-	musb = devm_kzalloc(dev, sizeof(*musb), GFP_KERNEL);
+	musb = devm_kzalloc_obj(dev, *musb);
 	if (!musb)
 		return NULL;
 
@@ -2257,7 +2257,7 @@ int musb_queue_resume_work(struct musb *musb,
 	is_suspended = musb->is_runtime_suspended;
 
 	if (is_suspended) {
-		w = devm_kzalloc(musb->controller, sizeof(*w), GFP_ATOMIC);
+		w = devm_kzalloc_obj(musb->controller, *w, GFP_ATOMIC);
 		if (!w) {
 			error = -ENOMEM;
 			goto out_unlock;

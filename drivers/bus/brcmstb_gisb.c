@@ -422,7 +422,7 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	tea_irq = platform_get_irq(pdev, 1);
 	bp_irq = platform_get_irq(pdev, 2);
 
-	gdev = devm_kzalloc(&pdev->dev, sizeof(*gdev), GFP_KERNEL);
+	gdev = devm_kzalloc_obj(&pdev->dev, *gdev);
 	if (!gdev)
 		return -ENOMEM;
 

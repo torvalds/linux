@@ -551,7 +551,7 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap, struct cs42xx8_driv
 		return ret;
 	}
 
-	cs42xx8 = devm_kzalloc(dev, sizeof(*cs42xx8), GFP_KERNEL);
+	cs42xx8 = devm_kzalloc_obj(dev, *cs42xx8);
 	if (cs42xx8 == NULL)
 		return -ENOMEM;
 

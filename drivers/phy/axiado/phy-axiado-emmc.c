@@ -182,7 +182,7 @@ static int axiado_emmc_phy_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	ax_phy = devm_kzalloc(dev, sizeof(*ax_phy), GFP_KERNEL);
+	ax_phy = devm_kzalloc_obj(dev, *ax_phy);
 	if (!ax_phy)
 		return -ENOMEM;
 

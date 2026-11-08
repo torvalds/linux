@@ -132,7 +132,7 @@ static int stm32_rproc_of_memory_translations(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	p_mems = devm_kcalloc(dev, cnt, sizeof(*p_mems), GFP_KERNEL);
+	p_mems = devm_kzalloc_objs(dev, *p_mems, cnt);
 	if (!p_mems)
 		return -ENOMEM;
 	mem_range = kzalloc_objs(*mem_range, cnt);

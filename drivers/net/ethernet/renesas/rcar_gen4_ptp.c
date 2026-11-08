@@ -183,7 +183,7 @@ struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
 {
 	struct rcar_gen4_ptp_private *ptp;
 
-	ptp = devm_kzalloc(&pdev->dev, sizeof(*ptp), GFP_KERNEL);
+	ptp = devm_kzalloc_obj(&pdev->dev, *ptp);
 	if (!ptp)
 		return NULL;
 

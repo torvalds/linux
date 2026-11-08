@@ -676,7 +676,7 @@ static int owl_uart_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	owl_port = devm_kzalloc(&pdev->dev, sizeof(*owl_port), GFP_KERNEL);
+	owl_port = devm_kzalloc_obj(&pdev->dev, *owl_port);
 	if (!owl_port)
 		return -ENOMEM;
 

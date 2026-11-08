@@ -243,10 +243,8 @@ static int tc_rfs_init(struct stmmac_priv *priv)
 	for (i = 0; i < STMMAC_RFS_T_MAX; i++)
 		priv->rfs_entries_total += priv->rfs_entries_max[i];
 
-	priv->rfs_entries = devm_kcalloc(priv->device,
-					 priv->rfs_entries_total,
-					 sizeof(*priv->rfs_entries),
-					 GFP_KERNEL);
+	priv->rfs_entries = devm_kzalloc_objs(priv->device, *priv->rfs_entries,
+					      priv->rfs_entries_total);
 	if (!priv->rfs_entries)
 		return -ENOMEM;
 
@@ -264,10 +262,9 @@ static int tc_init(struct stmmac_priv *priv)
 
 	priv->flow_entries_max = dma_cap->l3l4fnum;
 	if (priv->flow_entries_max) {
-		priv->flow_entries = devm_kcalloc(priv->device,
-						  priv->flow_entries_max,
-						  sizeof(*priv->flow_entries),
-						  GFP_KERNEL);
+		priv->flow_entries = devm_kzalloc_objs(priv->device,
+						       *priv->flow_entries,
+						       priv->flow_entries_max);
 		if (!priv->flow_entries)
 			return -ENOMEM;
 
@@ -316,8 +313,8 @@ static int tc_init(struct stmmac_priv *priv)
 
 	/* Reserve one last filter which lets all pass */
 	priv->tc_entries_max = count;
-	priv->tc_entries = devm_kcalloc(priv->device,
-			count, sizeof(*priv->tc_entries), GFP_KERNEL);
+	priv->tc_entries = devm_kzalloc_objs(priv->device, *priv->tc_entries,
+					     count);
 	if (!priv->tc_entries)
 		return -ENOMEM;
 
@@ -1035,7 +1032,7 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 		goto error_unlock;
 	}
 
-	gcl = kcalloc(qopt->num_entries, sizeof(*gcl), GFP_KERNEL);
+	gcl = kzalloc_objs(*gcl, qopt->num_entries);
 	if (!gcl) {
 		ret = -ENOMEM;
 		goto error_unlock;
@@ -1073,8 +1070,7 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 	}
 
 	if (!priv->est) {
-		priv->est = devm_kzalloc(priv->device, sizeof(*priv->est),
-					 GFP_KERNEL);
+		priv->est = devm_kzalloc_obj(priv->device, *priv->est);
 		if (!priv->est) {
 			ret = -ENOMEM;
 			goto error_unlock;

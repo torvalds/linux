@@ -2084,7 +2084,7 @@ int mt8192_dai_i2s_register(struct mtk_base_afe *afe)
 
 	dev_dbg(afe->dev, "%s()\n", __func__);
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

@@ -115,8 +115,8 @@ static int gve_alloc_flow_rule_caches(struct gve_priv *priv)
 	}
 
 	flow_rules_cache->rule_ids_cache =
-		kvcalloc(GVE_FLOW_RULE_IDS_CACHE_SIZE, sizeof(*flow_rules_cache->rule_ids_cache),
-			 GFP_KERNEL);
+		kvzalloc_objs(*flow_rules_cache->rule_ids_cache,
+			      GVE_FLOW_RULE_IDS_CACHE_SIZE);
 	if (!flow_rules_cache->rule_ids_cache) {
 		dev_err(&priv->pdev->dev, "Cannot alloc flow rule ids cache\n");
 		err = -ENOMEM;
@@ -154,9 +154,8 @@ static int gve_alloc_rss_config_cache(struct gve_priv *priv)
 	if (!rss_config->hash_key)
 		return -ENOMEM;
 
-	rss_config->hash_lut = kcalloc(priv->rss_lut_size,
-				       sizeof(rss_config->hash_lut[0]),
-				       GFP_KERNEL);
+	rss_config->hash_lut = kzalloc_objs(rss_config->hash_lut[0],
+					    priv->rss_lut_size);
 	if (!rss_config->hash_lut)
 		goto free_rss_key_cache;
 
@@ -688,8 +687,7 @@ static int gve_alloc_control_plane_resources(struct gve_priv *priv)
 		goto abort;
 
 	if (!gve_is_gqi(priv)) {
-		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo,
-						   GFP_KERNEL);
+		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo);
 		if (!priv->ptype_lut_dqo) {
 			err = -ENOMEM;
 			goto abort;

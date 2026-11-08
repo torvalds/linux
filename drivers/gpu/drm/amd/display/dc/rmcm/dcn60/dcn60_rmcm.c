@@ -220,7 +220,7 @@ static const struct rmcm_funcs dcn60_rmcm_funcs = {
 
 struct rmcm *dcn60_rmcm_create(struct dc_context *ctx, int inst)
 {
-	struct dcn42_rmcm *rmcm42 = kzalloc(sizeof(struct dcn42_rmcm), GFP_KERNEL);
+	struct dcn42_rmcm *rmcm42 = kzalloc_obj(struct dcn42_rmcm);
 
 	if (!rmcm42)
 		return NULL;

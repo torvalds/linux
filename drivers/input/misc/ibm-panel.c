@@ -122,7 +122,7 @@ static int ibm_panel_probe(struct i2c_client *client)
 	int i;
 	int error;
 
-	panel = devm_kzalloc(&client->dev, sizeof(*panel), GFP_KERNEL);
+	panel = devm_kzalloc_obj(&client->dev, *panel);
 	if (!panel)
 		return -ENOMEM;
 

@@ -44,7 +44,7 @@ int sdma_pcm_platform_register(struct device *dev,
 		return devm_snd_dmaengine_pcm_register(dev,
 						&sdma_dmaengine_pcm_config, 0);
 
-	config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
+	config = devm_kzalloc_obj(dev, *config);
 	if (!config)
 		return -ENOMEM;
 

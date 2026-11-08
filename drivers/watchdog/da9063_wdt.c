@@ -225,7 +225,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	if (!da9063)
 		return -EINVAL;
 
-	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc_obj(dev, *wdd);
 	if (!wdd)
 		return -ENOMEM;
 

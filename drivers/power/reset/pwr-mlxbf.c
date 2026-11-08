@@ -48,7 +48,7 @@ static int pwr_mlxbf_probe(struct platform_device *pdev)
 	const char *hid;
 	int irq, err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

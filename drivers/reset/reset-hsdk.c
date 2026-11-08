@@ -93,7 +93,7 @@ static int hsdk_reset_probe(struct platform_device *pdev)
 {
 	struct hsdk_rst *rst;
 
-	rst = devm_kzalloc(&pdev->dev, sizeof(*rst), GFP_KERNEL);
+	rst = devm_kzalloc_obj(&pdev->dev, *rst);
 	if (!rst)
 		return -ENOMEM;
 

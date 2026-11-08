@@ -1054,8 +1054,7 @@ static int pc87427_probe(struct platform_device *pdev)
 	struct pc87427_data *data;
 	int i, err, res_count;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct pc87427_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct pc87427_data);
 	if (!data)
 		return -ENOMEM;
 

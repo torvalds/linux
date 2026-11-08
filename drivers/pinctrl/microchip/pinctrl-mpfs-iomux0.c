@@ -231,7 +231,7 @@ static int mpfs_iomux0_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mpfs_iomux0_pinctrl *pctrl;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -117,7 +117,7 @@ static int gxp_wdt_probe(struct platform_device *pdev)
 	int err;
 	u8 val;
 
-	drvdata = devm_kzalloc(dev, sizeof(struct gxp_wdt), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, struct gxp_wdt);
 	if (!drvdata)
 		return -ENOMEM;
 

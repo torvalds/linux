@@ -520,7 +520,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	u32 reg;
 	int ret;
 
-	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc_obj(dev, *hdmi);
 	if (!hdmi)
 		return -ENOMEM;
 	dev_set_drvdata(dev, hdmi);

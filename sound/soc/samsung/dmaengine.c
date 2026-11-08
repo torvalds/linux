@@ -20,7 +20,7 @@ int samsung_asoc_dma_platform_register(struct device *dev, dma_filter_fn filter,
 {
 	struct snd_dmaengine_pcm_config *pcm_conf;
 
-	pcm_conf = devm_kzalloc(dev, sizeof(*pcm_conf), GFP_KERNEL);
+	pcm_conf = devm_kzalloc_obj(dev, *pcm_conf);
 	if (!pcm_conf)
 		return -ENOMEM;
 

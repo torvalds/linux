@@ -884,7 +884,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
 	u32 foe_flow_size;
 	void *foe;
 
-	ppe = devm_kzalloc(dev, sizeof(*ppe), GFP_KERNEL);
+	ppe = devm_kzalloc_obj(dev, *ppe);
 	if (!ppe)
 		return NULL;
 

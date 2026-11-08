@@ -246,7 +246,7 @@ int mempolicy_set_node_perf(unsigned int node, struct access_coordinate *coords)
 	int i;
 
 	bw_val = min(coords->read_bandwidth, coords->write_bandwidth);
-	new_bw = kcalloc(nr_node_ids, sizeof(unsigned int), GFP_KERNEL);
+	new_bw = kzalloc_objs(unsigned int, nr_node_ids);
 	if (!new_bw)
 		return -ENOMEM;
 

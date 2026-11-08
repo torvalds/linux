@@ -227,8 +227,9 @@ ice_arfs_update_flow_rules(struct ice_vsi *vsi, u16 idx,
 		/* check if filter needs to be added to HW */
 		if (e->fltr_state == ICE_ARFS_INACTIVE) {
 			enum ice_fltr_ptype flow_type = e->fltr_info.flow_type;
-			struct ice_arfs_entry_ptr *ep =
-				devm_kzalloc(dev, sizeof(*ep), GFP_ATOMIC);
+			struct ice_arfs_entry_ptr *ep = devm_kzalloc_obj(dev,
+								         *ep,
+								         GFP_ATOMIC);
 
 			if (!ep)
 				continue;
@@ -305,9 +306,8 @@ ice_arfs_build_entry(struct ice_vsi *vsi, const struct flow_keys *fk,
 	struct ice_ntuple_fltr *fltr_info;
 	u8 ip_proto;
 
-	arfs_entry = devm_kzalloc(ice_pf_to_dev(vsi->back),
-				  sizeof(*arfs_entry),
-				  GFP_ATOMIC | __GFP_NOWARN);
+	arfs_entry = devm_kzalloc_obj(ice_pf_to_dev(vsi->back), *arfs_entry,
+				      GFP_ATOMIC | __GFP_NOWARN);
 	if (!arfs_entry)
 		return NULL;
 

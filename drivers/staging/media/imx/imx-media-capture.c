@@ -967,7 +967,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	struct vb2_queue *vq;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

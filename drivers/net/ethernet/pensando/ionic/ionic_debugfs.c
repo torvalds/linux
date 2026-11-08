@@ -147,7 +147,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	debugfs_create_file("tail", 0400, q_dentry, q, &q_tail_fops);
 	debugfs_create_file("head", 0400, q_dentry, q, &q_head_fops);
 
-	desc_blob = devm_kzalloc(dev, sizeof(*desc_blob), GFP_KERNEL);
+	desc_blob = devm_kzalloc_obj(dev, *desc_blob);
 	if (!desc_blob)
 		return;
 	desc_blob->data = q->base;
@@ -155,7 +155,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	debugfs_create_blob("desc_blob", 0400, q_dentry, desc_blob);
 
 	if (qcq->flags & IONIC_QCQ_F_SG) {
-		desc_blob = devm_kzalloc(dev, sizeof(*desc_blob), GFP_KERNEL);
+		desc_blob = devm_kzalloc_obj(dev, *desc_blob);
 		if (!desc_blob)
 			return;
 		desc_blob->data = q->sg_base;
@@ -173,7 +173,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 
 	debugfs_create_file("tail", 0400, cq_dentry, cq, &cq_tail_fops);
 
-	desc_blob = devm_kzalloc(dev, sizeof(*desc_blob), GFP_KERNEL);
+	desc_blob = devm_kzalloc_obj(dev, *desc_blob);
 	if (!desc_blob)
 		return;
 	desc_blob->data = cq->base;
@@ -190,8 +190,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 		debugfs_create_u32("dim_coal_hw", 0400, intr_dentry,
 				   &intr->dim_coal_hw);
 
-		intr_ctrl_regset = devm_kzalloc(dev, sizeof(*intr_ctrl_regset),
-						GFP_KERNEL);
+		intr_ctrl_regset = devm_kzalloc_obj(dev, *intr_ctrl_regset);
 		if (!intr_ctrl_regset)
 			return;
 		intr_ctrl_regset->regs = intr_ctrl_regs;

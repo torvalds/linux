@@ -213,7 +213,7 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	if (size < 0)
 		size = 0;
 
-	uphy = devm_kzalloc(&ulpi->dev, struct_size(uphy, init_seq, (size / 2) + 1), GFP_KERNEL);
+	uphy = devm_kzalloc_flex(&ulpi->dev, *uphy, init_seq, (size / 2) + 1);
 	if (!uphy)
 		return -ENOMEM;
 	ulpi_set_drvdata(ulpi, uphy);

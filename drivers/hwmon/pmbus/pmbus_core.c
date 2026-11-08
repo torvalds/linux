@@ -1458,7 +1458,7 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 	if (WARN((s1 && !s2) || (!s1 && s2), "Bad s1/s2 parameters\n"))
 		return -EINVAL;
 
-	boolean = devm_kzalloc(data->dev, sizeof(*boolean), GFP_KERNEL);
+	boolean = devm_kzalloc_obj(data->dev, *boolean);
 	if (!boolean)
 		return -ENOMEM;
 
@@ -1517,7 +1517,7 @@ static int pmbus_thermal_add_sensor(struct pmbus_data *pmbus_data,
 	struct pmbus_thermal_data *tdata;
 	struct thermal_zone_device *tzd;
 
-	tdata = devm_kzalloc(dev, sizeof(*tdata), GFP_KERNEL);
+	tdata = devm_kzalloc_obj(dev, *tdata);
 	if (!tdata)
 		return -ENOMEM;
 
@@ -1556,7 +1556,7 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 	struct pmbus_sensor *sensor;
 	int err;
 
-	sensor = devm_kzalloc(data->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(data->dev, *sensor);
 	if (!sensor)
 		return ERR_PTR(-ENOMEM);
 	a = &sensor->attribute;
@@ -1605,7 +1605,7 @@ static int pmbus_add_label(struct pmbus_data *data,
 	struct sensor_device_attribute *a;
 	struct pmbus_label *label;
 
-	label = devm_kzalloc(data->dev, sizeof(*label), GFP_KERNEL);
+	label = devm_kzalloc_obj(data->dev, *label);
 	if (!label)
 		return -ENOMEM;
 
@@ -2585,7 +2585,7 @@ static int pmbus_add_samples_attr(struct pmbus_data *data, int page,
 	struct sensor_device_attribute *a;
 	struct pmbus_samples_reg *reg;
 
-	reg = devm_kzalloc(data->dev, sizeof(*reg), GFP_KERNEL);
+	reg = devm_kzalloc_obj(data->dev, *reg);
 	if (!reg)
 		return -ENOMEM;
 
@@ -3818,10 +3818,8 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	 * page specific:
 	 *	ARRAY_SIZE(pmbus_debugfs_status_data) + 1
 	 */
-	entries = devm_kcalloc(data->dev,
-			       ARRAY_SIZE(pmbus_debugfs_block_data) + 2 +
-			       data->info->pages * (ARRAY_SIZE(pmbus_debugfs_status_data) + 1),
-			       sizeof(*entries), GFP_KERNEL);
+	entries = devm_kzalloc_objs(data->dev, *entries,
+				    ARRAY_SIZE(pmbus_debugfs_block_data) + 2 + data->info->pages * (ARRAY_SIZE(pmbus_debugfs_status_data) + 1));
 	if (!entries)
 		return;
 
@@ -3910,7 +3908,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 				     | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

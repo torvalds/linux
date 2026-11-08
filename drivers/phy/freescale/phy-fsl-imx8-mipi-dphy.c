@@ -670,7 +670,7 @@ static int mixel_dphy_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

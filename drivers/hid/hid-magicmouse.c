@@ -901,7 +901,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	struct hid_report *report;
 	int ret;
 
-	msc = devm_kzalloc(&hdev->dev, sizeof(*msc), GFP_KERNEL);
+	msc = devm_kzalloc_obj(&hdev->dev, *msc);
 	if (msc == NULL) {
 		hid_err(hdev, "can't alloc magicmouse descriptor\n");
 		return -ENOMEM;

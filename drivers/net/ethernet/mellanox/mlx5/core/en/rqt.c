@@ -157,13 +157,13 @@ int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 	u32 *rss_rqns, *rss_vhca_ids = NULL;
 	int err;
 
-	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
+	rss_rqns = kvmalloc_objs(*rss_rqns, indir->actual_table_size);
 	if (!rss_rqns)
 		return -ENOMEM;
 
 	if (vhca_ids) {
-		rss_vhca_ids = kvmalloc_array(indir->actual_table_size, sizeof(*rss_vhca_ids),
-					      GFP_KERNEL);
+		rss_vhca_ids = kvmalloc_objs(*rss_vhca_ids,
+					     indir->actual_table_size);
 		if (!rss_vhca_ids) {
 			kvfree(rss_rqns);
 			return -ENOMEM;
@@ -246,13 +246,13 @@ int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, u32 *vhca_ids,
 	if (WARN_ON(rqt->size != indir->max_table_size))
 		return -EINVAL;
 
-	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
+	rss_rqns = kvmalloc_objs(*rss_rqns, indir->actual_table_size);
 	if (!rss_rqns)
 		return -ENOMEM;
 
 	if (vhca_ids) {
-		rss_vhca_ids = kvmalloc_array(indir->actual_table_size, sizeof(*rss_vhca_ids),
-					      GFP_KERNEL);
+		rss_vhca_ids = kvmalloc_objs(*rss_vhca_ids,
+					     indir->actual_table_size);
 		if (!rss_vhca_ids) {
 			kvfree(rss_rqns);
 			return -ENOMEM;

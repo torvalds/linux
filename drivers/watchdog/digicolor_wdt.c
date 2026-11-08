@@ -120,7 +120,7 @@ static int dc_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dc_wdt *wdt;
 
-	wdt = devm_kzalloc(dev, sizeof(struct dc_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, struct dc_wdt);
 	if (!wdt)
 		return -ENOMEM;
 

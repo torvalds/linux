@@ -525,7 +525,8 @@ int octep_hw_caps_read(struct octep_hw *oct_hw, struct pci_dev *pdev)
 	}
 	oct_hw->nr_vring = vp_ioread16(&oct_hw->common_cfg->num_queues);
 
-	oct_hw->vqs = devm_kcalloc(&pdev->dev, oct_hw->nr_vring, sizeof(*oct_hw->vqs), GFP_KERNEL);
+	oct_hw->vqs = devm_kzalloc_objs(&pdev->dev, *oct_hw->vqs,
+					oct_hw->nr_vring);
 	if (!oct_hw->vqs)
 		return -ENOMEM;
 

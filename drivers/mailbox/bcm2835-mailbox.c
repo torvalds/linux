@@ -149,7 +149,7 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (mbox == NULL)
 		return -ENOMEM;
 
@@ -167,8 +167,7 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	mbox->controller.of_xlate = &bcm2835_mbox_index_xlate;
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = 1;
-	mbox->controller.chans = devm_kzalloc(dev,
-		sizeof(*mbox->controller.chans), GFP_KERNEL);
+	mbox->controller.chans = devm_kzalloc_obj(dev, *mbox->controller.chans);
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 

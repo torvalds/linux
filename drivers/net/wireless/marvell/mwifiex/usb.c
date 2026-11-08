@@ -392,7 +392,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	struct usb_card_rec *card;
 	u16 id_vendor, id_product, bcd_device;
 
-	card = devm_kzalloc(&intf->dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(&intf->dev, *card);
 	if (!card)
 		return -ENOMEM;
 

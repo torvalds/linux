@@ -1520,11 +1520,11 @@ static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int lmac, err = 0;
 	struct mcs *mcs;
 
-	mcs = devm_kzalloc(dev, sizeof(*mcs), GFP_KERNEL);
+	mcs = devm_kzalloc_obj(dev, *mcs);
 	if (!mcs)
 		return -ENOMEM;
 
-	mcs->hw = devm_kzalloc(dev, sizeof(struct hwinfo), GFP_KERNEL);
+	mcs->hw = devm_kzalloc_obj(dev, struct hwinfo);
 	if (!mcs->hw)
 		return -ENOMEM;
 

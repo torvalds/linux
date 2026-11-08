@@ -2922,7 +2922,7 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array *array,
 	 *     bpf_prog_array_copy_to_user(..., cnt);
 	 * so below kcalloc doesn't need extra cnt > 0 check.
 	 */
-	ids = kcalloc(cnt, sizeof(u32), GFP_USER | __GFP_NOWARN);
+	ids = kzalloc_objs(u32, cnt, GFP_USER | __GFP_NOWARN);
 	if (!ids)
 		return -ENOMEM;
 	nospc = bpf_prog_array_copy_core(array, ids, cnt);

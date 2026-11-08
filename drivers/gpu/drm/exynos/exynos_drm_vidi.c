@@ -491,7 +491,7 @@ static int vidi_probe(struct platform_device *pdev)
 	struct vidi_context *ctx;
 	struct device *dev = &pdev->dev;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

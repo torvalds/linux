@@ -357,7 +357,7 @@ int lynx_probe(struct platform_device *pdev, const struct lynx_info *info,
 	if (!info)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -368,8 +368,7 @@ int lynx_probe(struct platform_device *pdev, const struct lynx_info *info,
 	spin_lock_init(&priv->pcc_lock);
 	INIT_DELAYED_WORK(&priv->cdr_check, lynx_cdr_lock_check);
 
-	priv->lane = devm_kcalloc(dev, priv->info->num_lanes,
-				  sizeof(*priv->lane), GFP_KERNEL);
+	priv->lane = devm_kzalloc_objs(dev, *priv->lane, priv->info->num_lanes);
 	if (!priv->lane)
 		return -ENOMEM;
 

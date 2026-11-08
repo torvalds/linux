@@ -444,7 +444,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	dmi_check_system(dmi_sfh_table);
 
-	privdata = devm_kzalloc(&pdev->dev, sizeof(*privdata), GFP_KERNEL);
+	privdata = devm_kzalloc_obj(&pdev->dev, *privdata);
 	if (!privdata)
 		return -ENOMEM;
 
@@ -477,7 +477,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		return rc;
 	}
 
-	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
+	privdata->cl_data = devm_kzalloc_obj(&pdev->dev, struct amdtp_cl_data);
 	if (!privdata->cl_data)
 		return -ENOMEM;
 

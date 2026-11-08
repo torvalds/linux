@@ -366,7 +366,7 @@ static int msg2638_ts_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	msg2638 = devm_kzalloc(dev, sizeof(*msg2638), GFP_KERNEL);
+	msg2638 = devm_kzalloc_obj(dev, *msg2638);
 	if (!msg2638)
 		return -ENOMEM;
 

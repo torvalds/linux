@@ -928,7 +928,7 @@ static int lm87_probe(struct i2c_client *client)
 	int err;
 	unsigned int group_tail = 0;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct lm87_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct lm87_data);
 	if (!data)
 		return -ENOMEM;
 

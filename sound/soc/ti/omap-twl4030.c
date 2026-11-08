@@ -212,7 +212,7 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct omap_twl4030), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct omap_twl4030);
 	if (priv == NULL)
 		return -ENOMEM;
 

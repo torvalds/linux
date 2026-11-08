@@ -524,7 +524,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	driver = &xhci_mtk_hc_driver;
-	mtk = devm_kzalloc(dev, sizeof(*mtk), GFP_KERNEL);
+	mtk = devm_kzalloc_obj(dev, *mtk);
 	if (!mtk)
 		return -ENOMEM;
 

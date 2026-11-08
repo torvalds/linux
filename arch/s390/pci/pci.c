@@ -1079,8 +1079,8 @@ static int zpci_mem_init(void)
 	if (!zpci_iomap_start)
 		goto error_iomap;
 
-	zpci_iomap_bitmap = kcalloc(BITS_TO_LONGS(ZPCI_IOMAP_ENTRIES),
-				    sizeof(*zpci_iomap_bitmap), GFP_KERNEL);
+	zpci_iomap_bitmap = kzalloc_objs(*zpci_iomap_bitmap,
+					 BITS_TO_LONGS(ZPCI_IOMAP_ENTRIES));
 	if (!zpci_iomap_bitmap)
 		goto error_iomap_bitmap;
 

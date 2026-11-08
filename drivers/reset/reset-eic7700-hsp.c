@@ -78,7 +78,7 @@ static int eic7700_hsp_reset_probe(struct auxiliary_device *adev,
 	struct eic7700_hsp_reset_data *data;
 	struct device *dev = &adev->dev;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

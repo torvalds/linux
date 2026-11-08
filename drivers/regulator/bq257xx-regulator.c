@@ -147,7 +147,7 @@ static int bq257xx_regulator_probe(struct platform_device *pdev)
 
 	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(struct bq257xx_reg_data), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, struct bq257xx_reg_data);
 	if (!pdata)
 		return -ENOMEM;
 

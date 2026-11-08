@@ -201,7 +201,7 @@ static int rmi_f03_probe(struct rmi_function *fn)
 	struct f03_data *f03;
 	int error;
 
-	f03 = devm_kzalloc(dev, sizeof(struct f03_data), GFP_KERNEL);
+	f03 = devm_kzalloc_obj(dev, struct f03_data);
 	if (!f03)
 		return -ENOMEM;
 

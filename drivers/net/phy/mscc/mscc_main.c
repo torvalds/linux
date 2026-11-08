@@ -2246,7 +2246,7 @@ static int vsc85xx_probe_common(struct phy_device *phydev,
 	struct device_node *np;
 	int ret;
 
-	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
+	vsc8531 = devm_kzalloc_obj(&phydev->mdio.dev, *vsc8531);
 	if (!vsc8531)
 		return -ENOMEM;
 
@@ -2278,8 +2278,8 @@ static int vsc85xx_probe_common(struct phy_device *phydev,
 	/* Configure hardware stats */
 	vsc8531->hw_stats = cfg->hw_stats;
 	vsc8531->nstats = cfg->nstats;
-	vsc8531->stats = devm_kcalloc(&phydev->mdio.dev, vsc8531->nstats,
-				      sizeof(u64), GFP_KERNEL);
+	vsc8531->stats = devm_kzalloc_objs(&phydev->mdio.dev, u64,
+					   vsc8531->nstats);
 	if (!vsc8531->stats)
 		return -ENOMEM;
 

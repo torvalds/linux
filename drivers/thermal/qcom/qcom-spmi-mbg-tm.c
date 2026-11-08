@@ -202,7 +202,7 @@ static int mbg_tm_probe(struct platform_device *pdev)
 	u32 res;
 	int ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

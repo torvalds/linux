@@ -413,7 +413,7 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(&pdev->dev, struct tegra20_i2s);
 	if (!i2s) {
 		ret = -ENOMEM;
 		goto err;

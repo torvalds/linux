@@ -376,7 +376,7 @@ static int peci_dimmtemp_probe(struct auxiliary_device *adev, const struct auxil
 	struct peci_dimmtemp *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

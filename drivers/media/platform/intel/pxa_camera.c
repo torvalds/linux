@@ -2277,7 +2277,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
-	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
+	pcdev = devm_kzalloc_obj(&pdev->dev, *pcdev);
 	if (!pcdev) {
 		dev_err(&pdev->dev, "Could not allocate pcdev\n");
 		return -ENOMEM;

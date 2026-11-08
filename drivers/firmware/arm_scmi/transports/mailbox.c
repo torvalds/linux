@@ -200,7 +200,7 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!tx && !p2a_chan)
 		return -ENODEV;
 
-	smbox = devm_kzalloc(dev, sizeof(*smbox), GFP_KERNEL);
+	smbox = devm_kzalloc_obj(dev, *smbox);
 	if (!smbox)
 		return -ENOMEM;
 

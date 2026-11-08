@@ -299,7 +299,7 @@ static int sigma_fw_load_samplerates(struct sigmadsp *sigmadsp,
 	if (sigmadsp->rate_constraints.count)
 		return -EINVAL;
 
-	rates = kcalloc(num_rates, sizeof(*rates), GFP_KERNEL);
+	rates = kzalloc_objs(*rates, num_rates);
 	if (!rates)
 		return -ENOMEM;
 

@@ -394,7 +394,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 	struct mtk_mmsys *mmsys;
 	int ret;
 
-	mmsys = devm_kzalloc(dev, sizeof(*mmsys), GFP_KERNEL);
+	mmsys = devm_kzalloc_obj(dev, *mmsys);
 	if (!mmsys)
 		return -ENOMEM;
 

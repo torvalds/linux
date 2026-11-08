@@ -128,7 +128,7 @@ hsp_clk_register_gate(struct device *dev, unsigned int id, const char *name,
 	struct clk_hw *hw;
 	int ret;
 
-	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
+	gate = devm_kzalloc_obj(dev, *gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

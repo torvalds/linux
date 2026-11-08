@@ -354,7 +354,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 		regmap_write(grf, RK3288_GRF_SOC_CON2, BIT(1) << 16);
 	}
 
-	spdif = devm_kzalloc(&pdev->dev, sizeof(*spdif), GFP_KERNEL);
+	spdif = devm_kzalloc_obj(&pdev->dev, *spdif);
 	if (!spdif)
 		return -ENOMEM;
 

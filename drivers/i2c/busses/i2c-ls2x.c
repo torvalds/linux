@@ -291,7 +291,7 @@ static int ls2x_i2c_probe(struct platform_device *pdev)
 	struct ls2x_i2c_priv *priv;
 	struct device *dev = &pdev->dev;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

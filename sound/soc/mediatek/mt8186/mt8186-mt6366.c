@@ -1214,7 +1214,7 @@ static int mt8186_mt6366_soc_card_probe(struct mtk_soc_card_data *soc_card_data,
 	struct device *dev = card->dev;
 	int i, ret;
 
-	mach_priv = devm_kzalloc(dev, sizeof(*mach_priv), GFP_KERNEL);
+	mach_priv = devm_kzalloc_obj(dev, *mach_priv);
 	if (!mach_priv)
 		return -ENOMEM;
 

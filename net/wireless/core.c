@@ -328,8 +328,7 @@ int cfg80211_nan_set_local_schedule(struct cfg80211_registered_device *rdev,
 	 * schedule on allocation failure.
 	 */
 	if (sched->n_channels) {
-		chandefs = kcalloc(sched->n_channels, sizeof(*chandefs),
-				   GFP_KERNEL);
+		chandefs = kzalloc_objs(*chandefs, sched->n_channels);
 		if (!chandefs)
 			return -ENOMEM;
 

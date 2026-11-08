@@ -1170,7 +1170,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			n_chans += wiphy->bands[bandid]->n_channels;
 	}
 
-	expired = kvcalloc(n_chans, sizeof(*expired), GFP_KERNEL);
+	expired = kvzalloc_objs(*expired, n_chans);
 	if (!expired) {
 		/* hmm - retry later */
 		queue_delayed_work(cfg80211_wq,

@@ -283,8 +283,7 @@ static int psci_dt_cpu_init_idle(struct device *dev, struct cpuidle_driver *drv,
 	struct psci_cpuidle_data *data = per_cpu_ptr(&psci_cpuidle_data, cpu);
 
 	state_count++; /* Add WFI state too */
-	psci_states = devm_kcalloc(dev, state_count, sizeof(*psci_states),
-				   GFP_KERNEL);
+	psci_states = devm_kzalloc_objs(dev, *psci_states, state_count);
 	if (!psci_states)
 		return -ENOMEM;
 
@@ -370,7 +369,7 @@ static int psci_idle_init_cpu(struct device *dev, int cpu)
 	if (ret)
 		return ret;
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

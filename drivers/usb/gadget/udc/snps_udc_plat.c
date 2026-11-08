@@ -104,7 +104,7 @@ static int udc_plat_probe(struct platform_device *pdev)
 	struct udc *udc;
 	int ret;
 
-	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 

@@ -188,7 +188,7 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	struct device_node *parent;
 	int ret;
 
-	wdev = devm_kzalloc(dev, sizeof(*wdev), GFP_KERNEL);
+	wdev = devm_kzalloc_obj(dev, *wdev);
 	if (!wdev)
 		return -ENOMEM;
 

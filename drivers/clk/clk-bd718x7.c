@@ -92,7 +92,7 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 	};
 	enum rohm_chip_type chip = platform_get_device_id(pdev)->driver_data;
 
-	c = devm_kzalloc(&pdev->dev, sizeof(*c), GFP_KERNEL);
+	c = devm_kzalloc_obj(&pdev->dev, *c);
 	if (!c)
 		return -ENOMEM;
 

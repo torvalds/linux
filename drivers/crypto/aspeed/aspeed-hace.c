@@ -103,8 +103,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	struct aspeed_hace_dev *hace_dev;
 	int rc;
 
-	hace_dev = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_hace_dev),
-				GFP_KERNEL);
+	hace_dev = devm_kzalloc_obj(&pdev->dev, struct aspeed_hace_dev);
 	if (!hace_dev)
 		return -ENOMEM;
 

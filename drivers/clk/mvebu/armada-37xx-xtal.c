@@ -27,7 +27,7 @@ static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 	u32 reg;
 	int ret;
 
-	xtal_hw = devm_kzalloc(&pdev->dev, sizeof(*xtal_hw), GFP_KERNEL);
+	xtal_hw = devm_kzalloc_obj(&pdev->dev, *xtal_hw);
 	if (!xtal_hw)
 		return -ENOMEM;
 

@@ -9,8 +9,8 @@ int mlx5_fs_bulk_bitmap_alloc(struct mlx5_core_dev *dev,
 {
 	int i;
 
-	fs_bulk->bitmask = kvcalloc(BITS_TO_LONGS(fs_bulk->bulk_len),
-				    sizeof(unsigned long), GFP_KERNEL);
+	fs_bulk->bitmask = kvzalloc_objs(unsigned long,
+					 BITS_TO_LONGS(fs_bulk->bulk_len));
 	if (!fs_bulk->bitmask)
 		return -ENOMEM;
 

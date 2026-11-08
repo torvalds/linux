@@ -2217,9 +2217,8 @@ static void wm8904_handle_pdata(struct snd_soc_component *component)
 				     wm8904_get_drc_enum, wm8904_put_drc_enum);
 
 		/* We need an array of texts for the enum API */
-		wm8904->drc_texts = kmalloc_array(pdata->num_drc_cfgs,
-						  sizeof(*wm8904->drc_texts),
-						  GFP_KERNEL);
+		wm8904->drc_texts = kmalloc_objs(*wm8904->drc_texts,
+						 pdata->num_drc_cfgs);
 		if (!wm8904->drc_texts)
 			return;
 
@@ -2462,7 +2461,7 @@ static int wm8904_set_pdata_from_of(struct i2c_client *i2c,
 	struct wm8904_pdata *pdata;
 	int ret, i;
 
-	pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&i2c->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -2502,8 +2501,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 	unsigned int val;
 	int ret, i;
 
-	wm8904 = devm_kzalloc(&i2c->dev, sizeof(struct wm8904_priv),
-			      GFP_KERNEL);
+	wm8904 = devm_kzalloc_obj(&i2c->dev, struct wm8904_priv);
 	if (wm8904 == NULL)
 		return -ENOMEM;
 

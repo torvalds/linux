@@ -1595,8 +1595,8 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return 0;
 
-	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
-	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);
+	rdrv = devm_kzalloc_objs(dev, *rdrv, nr);
+	rdai = devm_kzalloc_objs(dev, *rdai, nr);
 	if (!rdrv || !rdai)
 		return -ENOMEM;
 
@@ -2062,7 +2062,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	init priv data
 	 */
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENODEV;
 

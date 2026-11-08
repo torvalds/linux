@@ -641,7 +641,7 @@ static int cdce706_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	cdce = devm_kzalloc(&client->dev, sizeof(*cdce), GFP_KERNEL);
+	cdce = devm_kzalloc_obj(&client->dev, *cdce);
 	if (!cdce)
 		return -ENOMEM;
 

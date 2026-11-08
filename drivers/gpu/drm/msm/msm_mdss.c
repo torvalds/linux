@@ -360,7 +360,8 @@ static int mdp5_mdss_parse_clock(struct platform_device *pdev, struct clk_bulk_d
 	if (!pdev)
 		return -EINVAL;
 
-	bulk = devm_kcalloc(&pdev->dev, MDP5_MDSS_NUM_CLOCKS, sizeof(struct clk_bulk_data), GFP_KERNEL);
+	bulk = devm_kzalloc_objs(&pdev->dev, struct clk_bulk_data,
+				 MDP5_MDSS_NUM_CLOCKS);
 	if (!bulk)
 		return -ENOMEM;
 
@@ -388,7 +389,7 @@ static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5
 	if (ret)
 		return ERR_PTR(ret);
 
-	msm_mdss = devm_kzalloc(&pdev->dev, sizeof(*msm_mdss), GFP_KERNEL);
+	msm_mdss = devm_kzalloc_obj(&pdev->dev, *msm_mdss);
 	if (!msm_mdss)
 		return ERR_PTR(-ENOMEM);
 

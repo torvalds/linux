@@ -1162,7 +1162,7 @@ static int es8389_i2c_probe(struct i2c_client *i2c_client)
 	struct es8389_private *es8389;
 	int ret, i;
 
-	es8389 = devm_kzalloc(&i2c_client->dev, sizeof(*es8389), GFP_KERNEL);
+	es8389 = devm_kzalloc_obj(&i2c_client->dev, *es8389);
 	if (es8389 == NULL)
 		return -ENOMEM;
 

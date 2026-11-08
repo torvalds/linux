@@ -1613,7 +1613,7 @@ static int stm32_dfsdm_audio_init(struct device *dev, struct iio_dev *indio_dev)
 	if (num_ch == 1)
 		legacy = true;
 
-	ch = devm_kzalloc(&indio_dev->dev, sizeof(*ch), GFP_KERNEL);
+	ch = devm_kzalloc_obj(&indio_dev->dev, *ch);
 	if (!ch)
 		return -ENOMEM;
 
@@ -1679,13 +1679,13 @@ static int stm32_dfsdm_adc_init(struct device *dev, struct iio_dev *indio_dev)
 		/* Generic binding. SD modulator IIO device not used. Use SD modulator backend. */
 		adc->hwc = NULL;
 
-		adc->backend = devm_kcalloc(&indio_dev->dev, num_ch, sizeof(*adc->backend),
-					    GFP_KERNEL);
+		adc->backend = devm_kzalloc_objs(&indio_dev->dev, *adc->backend,
+						 num_ch);
 		if (!adc->backend)
 			return -ENOMEM;
 	}
 
-	ch = devm_kcalloc(&indio_dev->dev, num_ch, sizeof(*ch), GFP_KERNEL);
+	ch = devm_kzalloc_objs(&indio_dev->dev, *ch, num_ch);
 	if (!ch)
 		return -ENOMEM;
 	indio_dev->channels = ch;

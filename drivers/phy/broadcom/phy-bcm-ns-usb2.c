@@ -88,7 +88,7 @@ static int bcm_ns_usb2_probe(struct platform_device *pdev)
 	struct bcm_ns_usb2 *usb2;
 	struct phy_provider *phy_provider;
 
-	usb2 = devm_kzalloc(&pdev->dev, sizeof(*usb2), GFP_KERNEL);
+	usb2 = devm_kzalloc_obj(&pdev->dev, *usb2);
 	if (!usb2)
 		return -ENOMEM;
 	usb2->dev = dev;

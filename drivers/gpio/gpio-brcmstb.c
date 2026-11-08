@@ -638,7 +638,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	unsigned long flags = 0;
 	bool need_wakeup_event = false;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);
@@ -690,7 +690,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		bank = devm_kzalloc(dev, sizeof(*bank), GFP_KERNEL);
+		bank = devm_kzalloc_obj(dev, *bank);
 		if (!bank) {
 			err = -ENOMEM;
 			goto fail;

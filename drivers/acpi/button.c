@@ -687,7 +687,7 @@ static int acpi_button_probe(struct platform_device *pdev)
 	    lid_init_state == ACPI_BUTTON_LID_INIT_DISABLED)
 		return -ENODEV;
 
-	button = devm_kzalloc(dev, sizeof(*button), GFP_KERNEL);
+	button = devm_kzalloc_obj(dev, *button);
 	if (!button)
 		return -ENOMEM;
 

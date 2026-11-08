@@ -335,7 +335,7 @@ static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l
 	int num_channels;
 	u8 i;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

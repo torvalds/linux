@@ -363,8 +363,8 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 	if (!count)
 		return 0;
 
-	par->regulators = devm_kcalloc(&pdev->dev, count,
-				       sizeof(struct regulator *), GFP_KERNEL);
+	par->regulators = devm_kzalloc_objs(&pdev->dev, struct regulator *,
+					    count);
 	if (!par->regulators)
 		return -ENOMEM;
 
@@ -479,14 +479,11 @@ static int simplefb_attach_genpds(struct simplefb_par *par,
 		return 0;
 	}
 
-	par->genpds = devm_kcalloc(dev, num_genpds, sizeof(*par->genpds),
-				   GFP_KERNEL);
+	par->genpds = devm_kzalloc_objs(dev, *par->genpds, num_genpds);
 	if (!par->genpds)
 		return -ENOMEM;
 
-	par->genpd_links = devm_kcalloc(dev, num_genpds,
-					sizeof(*par->genpd_links),
-					GFP_KERNEL);
+	par->genpd_links = devm_kzalloc_objs(dev, *par->genpd_links, num_genpds);
 	if (!par->genpd_links)
 		return -ENOMEM;
 

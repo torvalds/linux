@@ -953,7 +953,7 @@ static u32 *nwl_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 		return NULL;
 	}
 
-	input_fmts = kcalloc(1, sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kzalloc_objs(*input_fmts, 1);
 	if (!input_fmts)
 		return NULL;
 	input_fmts[0] = input_fmt;

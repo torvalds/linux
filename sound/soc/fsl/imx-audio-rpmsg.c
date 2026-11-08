@@ -79,7 +79,7 @@ static int imx_audio_rpmsg_probe(struct rpmsg_device *rpdev)
 	dev_info(&rpdev->dev, "new channel: 0x%x -> 0x%x!\n",
 		 rpdev->src, rpdev->dst);
 
-	data = devm_kzalloc(&rpdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&rpdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

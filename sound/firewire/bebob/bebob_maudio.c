@@ -112,7 +112,7 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 		return -ENXIO;
 	}
 
-	cues = kmalloc_array(3, sizeof(*cues), GFP_KERNEL);
+	cues = kmalloc_objs(*cues, 3);
 	if (!cues)
 		return -ENOMEM;
 
@@ -260,8 +260,7 @@ snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814)
 	struct special_params *params;
 	int err;
 
-	params = devm_kzalloc(&bebob->card->card_dev,
-			      sizeof(struct special_params), GFP_KERNEL);
+	params = devm_kzalloc_obj(&bebob->card->card_dev, struct special_params);
 	if (!params)
 		return -ENOMEM;
 

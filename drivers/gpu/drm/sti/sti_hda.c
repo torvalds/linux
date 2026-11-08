@@ -697,7 +697,7 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 	if (!encoder)
 		return -ENOMEM;
 
-	connector = devm_kzalloc(dev, sizeof(*connector), GFP_KERNEL);
+	connector = devm_kzalloc_obj(dev, *connector);
 	if (!connector)
 		return -ENOMEM;
 

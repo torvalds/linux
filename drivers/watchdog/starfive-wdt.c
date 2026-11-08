@@ -431,7 +431,7 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 	struct starfive_wdt *wdt;
 	int ret;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&pdev->dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

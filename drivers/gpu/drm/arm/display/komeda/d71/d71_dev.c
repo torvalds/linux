@@ -355,7 +355,7 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 	u32 i, value, offset;
 	int err;
 
-	d71 = devm_kzalloc(mdev->dev, sizeof(*d71), GFP_KERNEL);
+	d71 = devm_kzalloc_obj(mdev->dev, *d71);
 	if (!d71)
 		return -ENOMEM;
 

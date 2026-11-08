@@ -459,7 +459,7 @@ static int fintek_wdt_probe(struct platform_device *pdev)
 
 	sioaddr = res->start;
 
-	wd = devm_kzalloc(dev, sizeof(*wd), GFP_KERNEL);
+	wd = devm_kzalloc_obj(dev, *wd);
 	if (!wd)
 		return -ENOMEM;
 

@@ -107,7 +107,7 @@ static int lmh_probe(struct platform_device *pdev)
 	if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	lmh_data = devm_kzalloc(dev, sizeof(*lmh_data), GFP_KERNEL);
+	lmh_data = devm_kzalloc_obj(dev, *lmh_data);
 	if (!lmh_data)
 		return -ENOMEM;
 

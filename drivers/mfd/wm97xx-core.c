@@ -257,8 +257,7 @@ static int wm97xx_ac97_probe(struct ac97_codec_device *adev)
 	int ret = -ENODEV, nb_cells, i;
 	struct wm97xx_pdata *pdata = snd_ac97_codec_get_platdata(adev);
 
-	wm97xx = devm_kzalloc(ac97_codec_dev2dev(adev),
-			      sizeof(*wm97xx), GFP_KERNEL);
+	wm97xx = devm_kzalloc_obj(ac97_codec_dev2dev(adev), *wm97xx);
 	if (!wm97xx)
 		return -ENOMEM;
 

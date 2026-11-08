@@ -711,7 +711,7 @@ static int act8865_pmic_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	act8865 = devm_kzalloc(dev, sizeof(struct act8865), GFP_KERNEL);
+	act8865 = devm_kzalloc_obj(dev, struct act8865);
 	if (!act8865)
 		return -ENOMEM;
 

@@ -3042,7 +3042,7 @@ static int idpf_vport_params_buf_alloc(struct idpf_adapter *adapter)
 	if (!adapter->vport_params_recvd)
 		return -ENOMEM;
 
-	adapter->vport_ids = kcalloc(num_max_vports, sizeof(u32), GFP_KERNEL);
+	adapter->vport_ids = kzalloc_objs(u32, num_max_vports);
 	if (!adapter->vport_ids)
 		goto err_mem;
 
@@ -3586,7 +3586,7 @@ int idpf_vport_queue_ids_init(struct idpf_vport *vport,
 	u16 q_type;
 	u32 *qids;
 
-	qids = kcalloc(IDPF_MAX_QIDS, sizeof(u32), GFP_KERNEL);
+	qids = kzalloc_objs(u32, IDPF_MAX_QIDS);
 	if (!qids)
 		return -ENOMEM;
 

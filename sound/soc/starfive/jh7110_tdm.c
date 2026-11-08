@@ -576,7 +576,7 @@ static int jh7110_tdm_probe(struct platform_device *pdev)
 	struct jh7110_tdm_dev *tdm;
 	int ret;
 
-	tdm = devm_kzalloc(&pdev->dev, sizeof(*tdm), GFP_KERNEL);
+	tdm = devm_kzalloc_obj(&pdev->dev, *tdm);
 	if (!tdm)
 		return -ENOMEM;
 

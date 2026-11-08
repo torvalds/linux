@@ -104,7 +104,7 @@ static int smccc_trng_probe(struct arm_smccc_device *sdev)
 	if (!smccc_probe_trng())
 		return -ENODEV;
 
-	trng = devm_kzalloc(&sdev->dev, sizeof(*trng), GFP_KERNEL);
+	trng = devm_kzalloc_obj(&sdev->dev, *trng);
 	if (!trng)
 		return -ENOMEM;
 

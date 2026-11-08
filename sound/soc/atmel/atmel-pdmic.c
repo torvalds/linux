@@ -57,7 +57,7 @@ static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -492,11 +492,11 @@ static int atmel_pdmic_asoc_card_init(struct device *dev,
 	struct atmel_pdmic *dd = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link_component *comp;
 
-	dai_link = devm_kzalloc(dev, sizeof(*dai_link), GFP_KERNEL);
+	dai_link = devm_kzalloc_obj(dev, *dai_link);
 	if (!dai_link)
 		return -ENOMEM;
 
-	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
+	comp = devm_kzalloc_obj(dev, *comp);
 	if (!comp)
 		return -ENOMEM;
 
@@ -581,7 +581,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
-	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
+	dd = devm_kzalloc_obj(dev, *dd);
 	if (!dd)
 		return -ENOMEM;
 
@@ -661,7 +661,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	}
 
 	/* register sound card */
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card) {
 		ret = -ENOMEM;
 		goto unregister_codec;

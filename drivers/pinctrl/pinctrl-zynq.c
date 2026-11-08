@@ -1164,7 +1164,7 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct zynq_pinctrl *pctrl;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

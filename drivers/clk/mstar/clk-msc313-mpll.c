@@ -79,7 +79,7 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 	struct clk_hw *divhw;
 	int ret, i;
 
-	mpll = devm_kzalloc(dev, sizeof(*mpll), GFP_KERNEL);
+	mpll = devm_kzalloc_obj(dev, *mpll);
 	if (!mpll)
 		return -ENOMEM;
 
@@ -104,8 +104,8 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 	if (IS_ERR(mpll->loop_div_second))
 		return PTR_ERR(mpll->loop_div_second);
 
-	mpll->clk_data = devm_kzalloc(dev, struct_size(mpll->clk_data, hws,
-				NUMOUTPUTS), GFP_KERNEL);
+	mpll->clk_data = devm_kzalloc_flex(dev, *mpll->clk_data, hws,
+					   NUMOUTPUTS);
 	if (!mpll->clk_data)
 		return -ENOMEM;
 

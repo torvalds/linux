@@ -2944,7 +2944,7 @@ int dispc_init(struct tidss_device *tidss)
 
 	dma_set_max_seg_size(dev, UINT_MAX);
 
-	dispc = devm_kzalloc(dev, sizeof(*dispc), GFP_KERNEL);
+	dispc = devm_kzalloc_obj(dev, *dispc);
 	if (!dispc)
 		return -ENOMEM;
 
@@ -2954,8 +2954,8 @@ int dispc_init(struct tidss_device *tidss)
 
 	dispc_init_errata(dispc);
 
-	dispc->fourccs = devm_kcalloc(dev, ARRAY_SIZE(dispc_color_formats),
-				      sizeof(*dispc->fourccs), GFP_KERNEL);
+	dispc->fourccs = devm_kzalloc_objs(dev, *dispc->fourccs,
+					   ARRAY_SIZE(dispc_color_formats));
 	if (!dispc->fourccs)
 		return -ENOMEM;
 
@@ -3007,9 +3007,7 @@ int dispc_init(struct tidss_device *tidss)
 		}
 		dispc->vp_clk[i] = clk;
 
-		gamma_table = devm_kmalloc_array(dev, gamma_size,
-						 sizeof(*gamma_table),
-						 GFP_KERNEL);
+		gamma_table = devm_kmalloc_objs(dev, *gamma_table, gamma_size);
 		if (!gamma_table)
 			return -ENOMEM;
 		dispc->vp_data[i].gamma_table = gamma_table;

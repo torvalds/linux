@@ -581,7 +581,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	struct pxa3xx_gcu_priv *priv;
 	struct device *dev = &pdev->dev;
 
-	priv = devm_kzalloc(dev, sizeof(struct pxa3xx_gcu_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct pxa3xx_gcu_priv);
 	if (!priv)
 		return -ENOMEM;
 

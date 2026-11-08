@@ -1046,7 +1046,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	if (seq_ports <= 0)
 		return 0;
 
-	hw = devm_kzalloc(card->dev, sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc_obj(card->dev, *hw);
 	if (hw == NULL)
 		return -ENOMEM;
 	spin_lock_init(&hw->reg_lock);

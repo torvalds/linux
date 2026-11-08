@@ -734,7 +734,7 @@ static int intel_hid_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&device->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);

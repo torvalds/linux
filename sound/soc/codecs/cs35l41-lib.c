@@ -823,7 +823,7 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 	u32 otp_val, otp_id_reg;
 	u32 *otp_mem;
 
-	otp_mem = kmalloc_array(CS35L41_OTP_SIZE_WORDS, sizeof(*otp_mem), GFP_KERNEL);
+	otp_mem = kmalloc_objs(*otp_mem, CS35L41_OTP_SIZE_WORDS);
 	if (!otp_mem)
 		return -ENOMEM;
 

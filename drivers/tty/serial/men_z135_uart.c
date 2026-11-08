@@ -808,7 +808,7 @@ static int men_z135_probe(struct mcb_device *mdev,
 
 	dev = &mdev->dev;
 
-	uart = devm_kzalloc(dev, sizeof(struct men_z135_port), GFP_KERNEL);
+	uart = devm_kzalloc_obj(dev, struct men_z135_port);
 	if (!uart)
 		return -ENOMEM;
 

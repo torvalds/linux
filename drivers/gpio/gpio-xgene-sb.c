@@ -245,7 +245,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	struct irq_domain *parent_domain = NULL;
 	u32 val32;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

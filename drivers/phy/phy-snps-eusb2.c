@@ -533,7 +533,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 	int ret, i;
 	int num;
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 
@@ -549,8 +549,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->phy_reset))
 		return PTR_ERR(phy->phy_reset);
 
-	phy->clks = devm_kcalloc(dev, phy->data->num_clks, sizeof(*phy->clks),
-				 GFP_KERNEL);
+	phy->clks = devm_kzalloc_objs(dev, *phy->clks, phy->data->num_clks);
 	if (!phy->clks)
 		return -ENOMEM;
 

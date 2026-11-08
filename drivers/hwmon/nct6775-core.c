@@ -1130,12 +1130,11 @@ static int nct6775_add_template_attr_group(struct device *dev, struct nct6775_da
 	if (count == 0)
 		return -EINVAL;
 
-	group = devm_kzalloc(dev, sizeof(*group), GFP_KERNEL);
+	group = devm_kzalloc_obj(dev, *group);
 	if (group == NULL)
 		return -ENOMEM;
 
-	attrs = devm_kcalloc(dev, repeat * count + 1, sizeof(*attrs),
-			     GFP_KERNEL);
+	attrs = devm_kzalloc_objs(dev, *attrs, repeat * count + 1);
 	if (attrs == NULL)
 		return -ENOMEM;
 

@@ -411,7 +411,7 @@ static int rbtn_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rbtn_data = devm_kzalloc(&pdev->dev, sizeof(*rbtn_data), GFP_KERNEL);
+	rbtn_data = devm_kzalloc_obj(&pdev->dev, *rbtn_data);
 	if (!rbtn_data)
 		return -ENOMEM;
 

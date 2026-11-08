@@ -995,8 +995,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 	for (i = 0; i < num_total; i++) {
 		struct sof_intel_hda_stream *hda_stream;
 
-		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
-					  GFP_KERNEL);
+		hda_stream = devm_kzalloc_obj(sdev->dev, *hda_stream);
 		if (!hda_stream)
 			return -ENOMEM;
 

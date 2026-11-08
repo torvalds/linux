@@ -1330,20 +1330,16 @@ static int rzg3s_pcie_resets_prepare_and_get(struct rzg3s_pcie_host *host)
 	unsigned int i;
 	int ret;
 
-	host->power_resets = devm_kmalloc_array(host->dev,
-						data->num_power_resets,
-						sizeof(*host->power_resets),
-						GFP_KERNEL);
+	host->power_resets = devm_kmalloc_objs(host->dev, *host->power_resets,
+					       data->num_power_resets);
 	if (!host->power_resets)
 		return -ENOMEM;
 
 	for (i = 0; i < data->num_power_resets; i++)
 		host->power_resets[i].id = data->power_resets[i];
 
-	host->cfg_resets = devm_kmalloc_array(host->dev,
-					      data->num_cfg_resets,
-					      sizeof(*host->cfg_resets),
-					      GFP_KERNEL);
+	host->cfg_resets = devm_kmalloc_objs(host->dev, *host->cfg_resets,
+					     data->num_cfg_resets);
 	if (!host->cfg_resets)
 		return -ENOMEM;
 
@@ -1837,7 +1833,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	host->data = device_get_match_data(dev);
 	platform_set_drvdata(pdev, host);
 
-	host->sysc = devm_kzalloc(dev, sizeof(*host->sysc), GFP_KERNEL);
+	host->sysc = devm_kzalloc_obj(dev, *host->sysc);
 	if (!host->sysc)
 		return -ENOMEM;
 

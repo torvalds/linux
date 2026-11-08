@@ -76,7 +76,7 @@ static int dwi_bl_probe(struct platform_device *dev)
 	struct backlight_properties props;
 	struct resource *res;
 
-	dwi_bl = devm_kzalloc(&dev->dev, sizeof(*dwi_bl), GFP_KERNEL);
+	dwi_bl = devm_kzalloc_obj(&dev->dev, *dwi_bl);
 	if (!dwi_bl)
 		return -ENOMEM;
 

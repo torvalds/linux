@@ -195,7 +195,7 @@ int dbc_dev_init(struct psp_device *psp)
 	struct psp_dbc_device *dbc_dev;
 	int ret;
 
-	dbc_dev = devm_kzalloc(dev, sizeof(*dbc_dev), GFP_KERNEL);
+	dbc_dev = devm_kzalloc_obj(dev, *dbc_dev);
 	if (!dbc_dev)
 		return -ENOMEM;
 

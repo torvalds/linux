@@ -114,9 +114,7 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	aat2870_bl = devm_kzalloc(&pdev->dev,
-				  sizeof(struct aat2870_bl_driver_data),
-				  GFP_KERNEL);
+	aat2870_bl = devm_kzalloc_obj(&pdev->dev, struct aat2870_bl_driver_data);
 	if (!aat2870_bl) {
 		ret = -ENOMEM;
 		goto out;

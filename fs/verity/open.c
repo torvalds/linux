@@ -236,9 +236,8 @@ struct fsverity_info *fsverity_create_info(struct inode *inode,
 			vi->tree_params.tree_pages <<
 			vi->tree_params.log_blocks_per_page;
 
-		vi->hash_block_verified = kvcalloc(BITS_TO_LONGS(num_bits),
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		vi->hash_block_verified = kvzalloc_objs(unsigned long,
+							BITS_TO_LONGS(num_bits));
 		if (!vi->hash_block_verified) {
 			err = -ENOMEM;
 			goto fail;

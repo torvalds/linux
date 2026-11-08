@@ -3488,8 +3488,8 @@ static int rt5645_probe(struct snd_soc_component *component)
 	if (rt5645->pdata.long_name)
 		component->card->long_name = rt5645->pdata.long_name;
 
-	rt5645->eq_param = kcalloc(RT5645_HWEQ_NUM,
-				   sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
+	rt5645->eq_param = kzalloc_objs(struct rt5645_eq_param_s,
+					RT5645_HWEQ_NUM);
 	if (!rt5645->eq_param)
 		return -ENOMEM;
 
@@ -4023,8 +4023,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	unsigned int val;
 	struct regmap *regmap;
 
-	rt5645 = devm_kzalloc(&i2c->dev, sizeof(struct rt5645_priv),
-				GFP_KERNEL);
+	rt5645 = devm_kzalloc_obj(&i2c->dev, struct rt5645_priv);
 	if (rt5645 == NULL)
 		return -ENOMEM;
 

@@ -1952,7 +1952,7 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 	}
 
 	for_each_available_child_of_node_scoped(dev->of_node, node) {
-		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
+		vreg = devm_kzalloc_obj(dev, *vreg);
 		if (!vreg)
 			return -ENOMEM;
 

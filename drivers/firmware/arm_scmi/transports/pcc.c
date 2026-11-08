@@ -266,7 +266,7 @@ acpi_scmi_dsd_parse_transport_package(struct pcc_transport_map *map,
 			}
 		}
 
-		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		p = kzalloc_obj(*p);
 		if (!p)
 			return -ENOMEM;
 
@@ -580,7 +580,7 @@ struct pcc_transport_map *pcc_transport_map_get(struct fwnode_handle *fwnode)
 	if (map)
 		return map;
 
-	map = kzalloc_obj(*map, GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
@@ -727,7 +727,7 @@ static int pcc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct mbox_client *cl;
 	int ret, ss_id;
 
-	smbox = devm_kzalloc(dev, sizeof(*smbox), GFP_KERNEL);
+	smbox = devm_kzalloc_obj(dev, *smbox);
 	if (!smbox)
 		return -ENOMEM;
 

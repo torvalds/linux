@@ -648,7 +648,7 @@ static int lm3533_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&pdev->dev, *led);
 	if (!led)
 		return -ENOMEM;
 

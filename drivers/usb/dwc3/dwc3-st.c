@@ -203,7 +203,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	dwc3_data = devm_kzalloc(dev, sizeof(*dwc3_data), GFP_KERNEL);
+	dwc3_data = devm_kzalloc_obj(dev, *dwc3_data);
 	if (!dwc3_data)
 		return -ENOMEM;
 

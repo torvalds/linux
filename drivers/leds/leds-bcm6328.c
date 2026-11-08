@@ -335,7 +335,7 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 	void __iomem *mode;
 	int rc;
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led)
 		return -ENOMEM;
 
@@ -400,17 +400,17 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
-	lock = devm_kzalloc(dev, sizeof(*lock), GFP_KERNEL);
+	lock = devm_kzalloc_obj(dev, *lock);
 	if (!lock)
 		return -ENOMEM;
 
-	blink_leds = devm_kcalloc(dev, BCM6328_LED_BLINK_DELAYS,
-				  sizeof(*blink_leds), GFP_KERNEL);
+	blink_leds = devm_kzalloc_objs(dev, *blink_leds,
+				       BCM6328_LED_BLINK_DELAYS);
 	if (!blink_leds)
 		return -ENOMEM;
 
-	blink_delay = devm_kcalloc(dev, BCM6328_LED_BLINK_DELAYS,
-				   sizeof(*blink_delay), GFP_KERNEL);
+	blink_delay = devm_kzalloc_objs(dev, *blink_delay,
+					BCM6328_LED_BLINK_DELAYS);
 	if (!blink_delay)
 		return -ENOMEM;
 

@@ -408,8 +408,7 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_ctrl_domain *
 	struct msr_param m;
 	u32 *dc;
 
-	dc = kmalloc_array(hw_res->num_closid, sizeof(*hw_dom->ctrl_val),
-			   GFP_KERNEL);
+	dc = kmalloc_objs(*hw_dom->ctrl_val, hw_res->num_closid);
 	if (!dc)
 		return -ENOMEM;
 

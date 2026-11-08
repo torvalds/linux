@@ -825,7 +825,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	hisi_l3c_pmu = devm_kzalloc(&pdev->dev, sizeof(*hisi_l3c_pmu), GFP_KERNEL);
+	hisi_l3c_pmu = devm_kzalloc_obj(&pdev->dev, *hisi_l3c_pmu);
 	if (!hisi_l3c_pmu)
 		return -ENOMEM;
 

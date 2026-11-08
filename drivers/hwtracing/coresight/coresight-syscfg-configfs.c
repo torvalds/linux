@@ -14,7 +14,7 @@ static struct config_item_type *cscfg_create_ci_type(void)
 {
 	struct config_item_type *ci_type;
 
-	ci_type = devm_kzalloc(cscfg_device(), sizeof(*ci_type), GFP_KERNEL);
+	ci_type = devm_kzalloc_obj(cscfg_device(), *ci_type);
 	if (ci_type)
 		ci_type->ct_owner = THIS_MODULE;
 
@@ -186,8 +186,8 @@ static int cscfg_add_preset_groups(struct cscfg_fs_config *cfg_view)
 		return 0;
 
 	for (preset_num = 1; preset_num <= config_desc->nr_presets; preset_num++) {
-		cfg_fs_preset = devm_kzalloc(cscfg_device(),
-					     sizeof(struct cscfg_fs_preset), GFP_KERNEL);
+		cfg_fs_preset = devm_kzalloc_obj(cscfg_device(),
+						 struct cscfg_fs_preset);
 
 		if (!cfg_fs_preset)
 			return -ENOMEM;
@@ -211,7 +211,7 @@ static struct config_group *cscfg_create_config_group(struct cscfg_config_desc *
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	cfg_view = devm_kzalloc(dev, sizeof(struct cscfg_fs_config), GFP_KERNEL);
+	cfg_view = devm_kzalloc_obj(dev, struct cscfg_fs_config);
 	if (!cfg_view)
 		return ERR_PTR(-ENOMEM);
 
@@ -328,7 +328,7 @@ static int cscfg_create_params_group_items(struct cscfg_feature_desc *feat_desc,
 
 	/* parameter items - as groups with default_value attribute */
 	for (i = 0; i < feat_desc->nr_params; i++) {
-		param_item = devm_kzalloc(dev, sizeof(struct cscfg_fs_param), GFP_KERNEL);
+		param_item = devm_kzalloc_obj(dev, struct cscfg_fs_param);
 		if (!param_item)
 			return -ENOMEM;
 		param_item->feat_desc = feat_desc;
@@ -352,12 +352,12 @@ static struct config_group *cscfg_create_feature_group(struct cscfg_feature_desc
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	feat_view = devm_kzalloc(dev, sizeof(struct cscfg_fs_feature), GFP_KERNEL);
+	feat_view = devm_kzalloc_obj(dev, struct cscfg_fs_feature);
 	if (!feat_view)
 		return ERR_PTR(-ENOMEM);
 
 	if (feat_desc->nr_params) {
-		params_group = devm_kzalloc(dev, sizeof(struct config_group), GFP_KERNEL);
+		params_group = devm_kzalloc_obj(dev, struct config_group);
 		if (!params_group)
 			return ERR_PTR(-ENOMEM);
 

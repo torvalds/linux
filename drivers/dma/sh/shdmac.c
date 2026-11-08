@@ -532,8 +532,7 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 	struct shdma_chan *schan;
 	int err;
 
-	sh_chan = devm_kzalloc(sdev->dma_dev.dev, sizeof(struct sh_dmae_chan),
-			       GFP_KERNEL);
+	sh_chan = devm_kzalloc_obj(sdev->dma_dev.dev, struct sh_dmae_chan);
 	if (!sh_chan)
 		return -ENOMEM;
 
@@ -719,8 +718,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	if (!errirq_res)
 		return -ENODEV;
 
-	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
-			     GFP_KERNEL);
+	shdev = devm_kzalloc_obj(&pdev->dev, struct sh_dmae_device);
 	if (!shdev)
 		return -ENOMEM;
 

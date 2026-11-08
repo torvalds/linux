@@ -529,8 +529,7 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 		vq->indirect = kmalloc_objs(*vq->indirect, UIO_MAXIOV);
 		vq->log = kmalloc_objs(*vq->log, dev->iov_limit);
 		vq->heads = kmalloc_objs(*vq->heads, dev->iov_limit);
-		vq->nheads = kmalloc_array(dev->iov_limit, sizeof(*vq->nheads),
-					   GFP_KERNEL);
+		vq->nheads = kmalloc_objs(*vq->nheads, dev->iov_limit);
 		if (!vq->indirect || !vq->log || !vq->heads || !vq->nheads)
 			goto err_nomem;
 	}

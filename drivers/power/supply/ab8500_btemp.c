@@ -692,7 +692,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	int irq, i, ret = 0;
 	u8 val;
 
-	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(dev, *di);
 	if (!di)
 		return -ENOMEM;
 

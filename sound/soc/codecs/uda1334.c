@@ -254,8 +254,7 @@ static int uda1334_codec_probe(struct platform_device *pdev)
 	struct uda1334_priv *uda1334;
 	int ret;
 
-	uda1334 = devm_kzalloc(&pdev->dev, sizeof(struct uda1334_priv),
-			       GFP_KERNEL);
+	uda1334 = devm_kzalloc_obj(&pdev->dev, struct uda1334_priv);
 	if (!uda1334)
 		return -ENOMEM;
 

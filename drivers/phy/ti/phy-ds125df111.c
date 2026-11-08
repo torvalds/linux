@@ -244,7 +244,7 @@ static int ds125df111_probe(struct i2c_client *client)
 	struct ds125df111_priv *priv;
 	int i, err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->client = client;

@@ -435,7 +435,7 @@ static int via_port_start(struct ata_port *ap)
 	if (ret < 0)
 		return ret;
 
-	vp = devm_kzalloc(&pdev->dev, sizeof(struct via_port), GFP_KERNEL);
+	vp = devm_kzalloc_obj(&pdev->dev, struct via_port);
 	if (vp == NULL)
 		return -ENOMEM;
 	ap->private_data = vp;

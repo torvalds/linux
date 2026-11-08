@@ -131,7 +131,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 	struct pwm_state state;
 	int err;
 
-	vibrator = devm_kzalloc(&pdev->dev, sizeof(*vibrator), GFP_KERNEL);
+	vibrator = devm_kzalloc_obj(&pdev->dev, *vibrator);
 	if (!vibrator)
 		return -ENOMEM;
 

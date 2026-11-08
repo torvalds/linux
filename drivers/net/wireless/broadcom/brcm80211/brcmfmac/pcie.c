@@ -2107,7 +2107,7 @@ static int brcmf_pcie_read_otp(struct brcmf_pciedev_info *devinfo)
 			  sromctl | BCMA_CC_SROM_CONTROL_OTPSEL);
 	}
 
-	otp = kcalloc(words, sizeof(u16), GFP_KERNEL);
+	otp = kzalloc_objs(u16, words);
 	if (!otp)
 		return -ENOMEM;
 

@@ -2506,7 +2506,7 @@ static int rk_hdptx_phy_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret, id;
 
-	hdptx = devm_kzalloc(dev, sizeof(*hdptx), GFP_KERNEL);
+	hdptx = devm_kzalloc_obj(dev, *hdptx);
 	if (!hdptx)
 		return -ENOMEM;
 

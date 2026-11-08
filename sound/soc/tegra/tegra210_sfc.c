@@ -3586,7 +3586,7 @@ static int tegra210_sfc_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err;
 
-	sfc = devm_kzalloc(dev, sizeof(*sfc), GFP_KERNEL);
+	sfc = devm_kzalloc_obj(dev, *sfc);
 	if (!sfc)
 		return -ENOMEM;
 

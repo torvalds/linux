@@ -58,7 +58,7 @@ int rohm_register_pwrbutton(struct device *dev, int irq, const char *name,
 	if (irq <= 0)
 		return -EINVAL;
 
-	nodes = devm_kcalloc(dev, 2, sizeof(*nodes), GFP_KERNEL);
+	nodes = devm_kzalloc_objs(dev, *nodes, 2);
 	if (!nodes)
 		return -ENOMEM;
 
@@ -66,7 +66,7 @@ int rohm_register_pwrbutton(struct device *dev, int irq, const char *name,
 	if (!nodes[GPIO_KEYS].name)
 		return -ENOMEM;
 
-	parent_props = devm_kcalloc(dev, 2, sizeof(*parent_props), GFP_KERNEL);
+	parent_props = devm_kzalloc_objs(dev, *parent_props, 2);
 	if (!parent_props)
 		return -ENOMEM;
 
@@ -77,7 +77,7 @@ int rohm_register_pwrbutton(struct device *dev, int irq, const char *name,
 	if (wakeup)
 		n_props++;
 
-	child_props = devm_kcalloc(dev, n_props, sizeof(*child_props), GFP_KERNEL);
+	child_props = devm_kzalloc_objs(dev, *child_props, n_props);
 	if (!child_props)
 		return -ENOMEM;
 

@@ -177,7 +177,7 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 	unsigned long end;
 	int r;
 
-	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
+	pfns = kvmalloc_objs(*pfns, npages);
 	if (unlikely(!pfns)) {
 		r = -ENOMEM;
 		goto out_free_range;

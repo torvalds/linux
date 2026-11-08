@@ -114,7 +114,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc_dev;
 	int ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (unlikely(!rtc))
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);

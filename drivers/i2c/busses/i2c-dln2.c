@@ -191,7 +191,7 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dln2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
-	dln2 = devm_kzalloc(dev, sizeof(*dln2), GFP_KERNEL);
+	dln2 = devm_kzalloc_obj(dev, *dln2);
 	if (!dln2)
 		return -ENOMEM;
 

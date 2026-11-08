@@ -1039,7 +1039,7 @@ static int amc6821_probe(struct i2c_client *client)
 	struct device_node *fan_np __free(device_node) = NULL;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct amc6821_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct amc6821_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -303,8 +303,7 @@ i2c_au1550_probe(struct platform_device *pdev)
 	struct i2c_au1550_data *priv;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct i2c_au1550_data),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct i2c_au1550_data);
 	if (!priv)
 		return -ENOMEM;
 

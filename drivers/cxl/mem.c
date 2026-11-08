@@ -237,8 +237,7 @@ EXPORT_SYMBOL_NS_GPL(devm_cxl_add_classdev, "CXL");
 struct cxl_memdev *devm_cxl_probe_mem(struct cxl_dev_state *cxlds,
 				      struct range *hpa_range)
 {
-	struct cxl_attach_region *attach =
-		devm_kmalloc(cxlds->dev, sizeof(*attach), GFP_KERNEL);
+	struct cxl_attach_region *attach = devm_kmalloc_obj(cxlds->dev, *attach);
 	struct cxl_memdev *cxlmd;
 
 	if (!attach)

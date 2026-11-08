@@ -187,7 +187,7 @@ static int msc313_cpupll_probe(struct platform_device *pdev)
 	struct msc313_cpupll *cpupll;
 	int ret;
 
-	cpupll = devm_kzalloc(&pdev->dev, sizeof(*cpupll), GFP_KERNEL);
+	cpupll = devm_kzalloc_obj(&pdev->dev, *cpupll);
 	if (!cpupll)
 		return -ENOMEM;
 

@@ -245,7 +245,7 @@ static int s2m_chgr_probe(struct platform_device *pdev)
 	work_func_t extcon_work_func;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

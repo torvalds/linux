@@ -389,7 +389,7 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 	struct quicki2c_device *qcdev;
 	int ret;
 
-	qcdev = devm_kzalloc(dev, sizeof(struct quicki2c_device), GFP_KERNEL);
+	qcdev = devm_kzalloc_obj(dev, struct quicki2c_device);
 	if (!qcdev)
 		return ERR_PTR(-ENOMEM);
 

@@ -58,7 +58,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c)
 		return -EINVAL;
 	}
 
-	arizona = devm_kzalloc(&i2c->dev, sizeof(*arizona), GFP_KERNEL);
+	arizona = devm_kzalloc_obj(&i2c->dev, *arizona);
 	if (arizona == NULL)
 		return -ENOMEM;
 

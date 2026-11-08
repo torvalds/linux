@@ -300,8 +300,7 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 
-	tmu = devm_kzalloc(&pdev->dev, struct_size(tmu, sensors,
-			   data->num_sensors), GFP_KERNEL);
+	tmu = devm_kzalloc_flex(&pdev->dev, *tmu, sensors, data->num_sensors);
 	if (!tmu)
 		return -ENOMEM;
 

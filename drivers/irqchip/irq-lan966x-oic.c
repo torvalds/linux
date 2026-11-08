@@ -231,7 +231,7 @@ static int lan966x_oic_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct irq_domain *domain;
 
-	lan966x_oic = devm_kmalloc(dev, sizeof(*lan966x_oic), GFP_KERNEL);
+	lan966x_oic = devm_kmalloc_obj(dev, *lan966x_oic);
 	if (!lan966x_oic)
 		return -ENOMEM;
 

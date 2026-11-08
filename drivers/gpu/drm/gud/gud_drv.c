@@ -512,7 +512,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Format init */
 	formats_dev = devm_kmalloc(dev, GUD_FORMATS_MAX_NUM, GFP_KERNEL);
 	/* Add room for emulated XRGB8888 */
-	formats = devm_kmalloc_array(dev, GUD_FORMATS_MAX_NUM + 1, sizeof(*formats), GFP_KERNEL);
+	formats = devm_kmalloc_objs(dev, *formats, GUD_FORMATS_MAX_NUM + 1);
 	if (!formats_dev || !formats)
 		return -ENOMEM;
 

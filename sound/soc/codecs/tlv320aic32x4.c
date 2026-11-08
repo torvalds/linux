@@ -1299,7 +1299,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	aic32x4 = devm_kzalloc(dev, sizeof(struct aic32x4_priv), GFP_KERNEL);
+	aic32x4 = devm_kzalloc_obj(dev, struct aic32x4_priv);
 	if (!aic32x4)
 		return -ENOMEM;
 

@@ -1959,7 +1959,7 @@ static int peb2466_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	peb2466 = devm_kzalloc(&spi->dev, sizeof(*peb2466), GFP_KERNEL);
+	peb2466 = devm_kzalloc_obj(&spi->dev, *peb2466);
 	if (!peb2466)
 		return -ENOMEM;
 

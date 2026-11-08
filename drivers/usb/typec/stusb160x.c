@@ -638,7 +638,7 @@ static int stusb160x_probe(struct i2c_client *client)
 	struct fwnode_handle *fwnode;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(struct stusb160x), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, struct stusb160x);
 	if (!chip)
 		return -ENOMEM;
 

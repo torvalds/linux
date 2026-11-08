@@ -1107,7 +1107,7 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto failed_mount;
 	}
 	bgl_lock_init(sbi->s_blockgroup_lock);
-	sbi->s_debts = kcalloc(sbi->s_groups_count, sizeof(*sbi->s_debts), GFP_KERNEL);
+	sbi->s_debts = kzalloc_objs(*sbi->s_debts, sbi->s_groups_count);
 	if (!sbi->s_debts) {
 		ret = -ENOMEM;
 		ext2_msg(sb, KERN_ERR, "error: not enough memory");

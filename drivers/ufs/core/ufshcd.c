@@ -11192,8 +11192,7 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 		err = PTR_ERR(hba->tmf_queue);
 		goto free_tmf_tag_set;
 	}
-	hba->tmf_rqs = devm_kcalloc(hba->dev, hba->nutmrs,
-				    sizeof(*hba->tmf_rqs), GFP_KERNEL);
+	hba->tmf_rqs = devm_kzalloc_objs(hba->dev, *hba->tmf_rqs, hba->nutmrs);
 	if (!hba->tmf_rqs) {
 		err = -ENOMEM;
 		goto free_tmf_queue;

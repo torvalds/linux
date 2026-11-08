@@ -343,7 +343,7 @@ static int hisi_mn_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	mn_pmu = devm_kzalloc(&pdev->dev, sizeof(*mn_pmu), GFP_KERNEL);
+	mn_pmu = devm_kzalloc_obj(&pdev->dev, *mn_pmu);
 	if (!mn_pmu)
 		return -ENOMEM;
 

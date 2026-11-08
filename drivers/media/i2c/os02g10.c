@@ -778,7 +778,7 @@ static int os02g10_probe(struct i2c_client *client)
 	unsigned int xclk_freq;
 	int ret;
 
-	os02g10 = devm_kzalloc(&client->dev, sizeof(*os02g10), GFP_KERNEL);
+	os02g10 = devm_kzalloc_obj(&client->dev, *os02g10);
 	if (!os02g10)
 		return -ENOMEM;
 

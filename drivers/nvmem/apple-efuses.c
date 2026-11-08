@@ -45,7 +45,7 @@ static int apple_efuses_probe(struct platform_device *pdev)
 		.root_only = true,
 	};
 
-	priv = devm_kzalloc(config.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(config.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

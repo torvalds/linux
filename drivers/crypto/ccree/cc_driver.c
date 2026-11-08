@@ -316,7 +316,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	int irq;
 	int rc = 0;
 
-	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
+	new_drvdata = devm_kzalloc_obj(dev, *new_drvdata);
 	if (!new_drvdata)
 		return -ENOMEM;
 

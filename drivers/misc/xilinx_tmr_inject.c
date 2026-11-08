@@ -113,8 +113,7 @@ static int xtmr_inject_probe(struct platform_device *pdev)
 	struct xtmr_inject_dev *xtmr_inject;
 	int err;
 
-	xtmr_inject = devm_kzalloc(&pdev->dev, sizeof(*xtmr_inject),
-				   GFP_KERNEL);
+	xtmr_inject = devm_kzalloc_obj(&pdev->dev, *xtmr_inject);
 	if (!xtmr_inject)
 		return -ENOMEM;
 

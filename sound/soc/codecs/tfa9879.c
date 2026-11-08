@@ -285,7 +285,7 @@ static int tfa9879_i2c_probe(struct i2c_client *i2c)
 	struct tfa9879_priv *tfa9879;
 	int i;
 
-	tfa9879 = devm_kzalloc(&i2c->dev, sizeof(*tfa9879), GFP_KERNEL);
+	tfa9879 = devm_kzalloc_obj(&i2c->dev, *tfa9879);
 	if (!tfa9879)
 		return -ENOMEM;
 

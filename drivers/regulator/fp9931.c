@@ -407,7 +407,7 @@ static int fp9931_probe(struct i2c_client *client)
 	int ret = 0;
 	int i;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -206,7 +206,7 @@ static int aspeed_reset_probe(struct auxiliary_device *adev,
 	struct aspeed_reset *reset;
 	struct device *dev = &adev->dev;
 
-	reset = devm_kzalloc(dev, sizeof(*reset), GFP_KERNEL);
+	reset = devm_kzalloc_obj(dev, *reset);
 	if (!reset)
 		return -ENOMEM;
 

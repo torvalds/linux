@@ -276,7 +276,7 @@ static int m31usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct m31usb_phy *qphy;
 
-	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
+	qphy = devm_kzalloc_obj(dev, *qphy);
 	if (!qphy)
 		return -ENOMEM;
 

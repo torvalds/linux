@@ -144,12 +144,12 @@ static int armada_37xx_mbox_probe(struct platform_device *pdev)
 	struct mbox_chan *chans;
 	int ret;
 
-	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(&pdev->dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 
 	/* Allocated one channel */
-	chans = devm_kzalloc(&pdev->dev, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_obj(&pdev->dev, *chans);
 	if (!chans)
 		return -ENOMEM;
 

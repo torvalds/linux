@@ -181,8 +181,7 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	struct tps65218 *tps65218 = dev_get_drvdata(pdev->dev.parent);
 	struct tps65218_gpio *tps65218_gpio;
 
-	tps65218_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps65218_gpio),
-				     GFP_KERNEL);
+	tps65218_gpio = devm_kzalloc_obj(&pdev->dev, *tps65218_gpio);
 	if (!tps65218_gpio)
 		return -ENOMEM;
 

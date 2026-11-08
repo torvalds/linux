@@ -201,7 +201,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	struct sun4i_rgb *rgb;
 	int ret;
 
-	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
+	rgb = devm_kzalloc_obj(drm->dev, *rgb);
 	if (!rgb)
 		return -ENOMEM;
 	rgb->tcon = tcon;

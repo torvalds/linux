@@ -522,7 +522,7 @@ static int lm3560_probe(struct i2c_client *client)
 	u32 peak_ua;
 	int rval;
 
-	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc_obj(&client->dev, *flash);
 	if (flash == NULL)
 		return -ENOMEM;
 

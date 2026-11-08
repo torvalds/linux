@@ -236,7 +236,7 @@ struct cpsw_sl *cpsw_sl_get(const char *device_id, struct device *dev,
 	const struct cpsw_sl_dev_id *sl_dev_id;
 	struct cpsw_sl *sl;
 
-	sl = devm_kzalloc(dev, sizeof(struct cpsw_sl), GFP_KERNEL);
+	sl = devm_kzalloc_obj(dev, struct cpsw_sl);
 	if (!sl)
 		return ERR_PTR(-ENOMEM);
 	sl->dev = dev;

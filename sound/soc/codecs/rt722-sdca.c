@@ -1617,7 +1617,7 @@ int rt722_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 {
 	struct rt722_sdca_priv *rt722;
 
-	rt722 = devm_kzalloc(dev, sizeof(*rt722), GFP_KERNEL);
+	rt722 = devm_kzalloc_obj(dev, *rt722);
 	if (!rt722)
 		return -ENOMEM;
 

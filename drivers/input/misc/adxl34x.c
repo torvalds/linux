@@ -695,7 +695,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 		return ERR_PTR(-ENODEV);
 	}
 
-	ac = devm_kzalloc(dev, sizeof(*ac), GFP_KERNEL);
+	ac = devm_kzalloc_obj(dev, *ac);
 	if (!ac)
 		return ERR_PTR(-ENOMEM);
 

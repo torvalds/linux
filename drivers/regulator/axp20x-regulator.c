@@ -1652,8 +1652,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		    (regulators == axp803_regulators && i == AXP803_DC1SW) ||
 		    (regulators == axp809_regulators && i == AXP809_DC1SW) ||
 		    (regulators == axp15060_regulators && i == AXP15060_SW)) {
-			new_desc = devm_kzalloc(&pdev->dev, sizeof(*new_desc),
-						GFP_KERNEL);
+			new_desc = devm_kzalloc_obj(&pdev->dev, *new_desc);
 			if (!new_desc)
 				return -ENOMEM;
 
@@ -1665,8 +1664,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		if ((regulators == axp22x_regulators && i == AXP22X_DC5LDO) ||
 		    (regulators == axp809_regulators && i == AXP809_DC5LDO) ||
 		    (regulators == axp15060_regulators && i == AXP15060_CPUSLDO)) {
-			new_desc = devm_kzalloc(&pdev->dev, sizeof(*new_desc),
-						GFP_KERNEL);
+			new_desc = devm_kzalloc_obj(&pdev->dev, *new_desc);
 			if (!new_desc)
 				return -ENOMEM;
 
@@ -1677,8 +1675,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 
 
 		if (regulators == axp15060_regulators && i == AXP15060_RTC_LDO) {
-			new_desc = devm_kzalloc(&pdev->dev, sizeof(*new_desc),
-						GFP_KERNEL);
+			new_desc = devm_kzalloc_obj(&pdev->dev, *new_desc);
 			if (!new_desc)
 				return -ENOMEM;
 

@@ -1293,7 +1293,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (!encoder)
 		return -EINVAL;
 
-	connector = devm_kzalloc(dev, sizeof(*connector), GFP_KERNEL);
+	connector = devm_kzalloc_obj(dev, *connector);
 	if (!connector)
 		return -EINVAL;
 

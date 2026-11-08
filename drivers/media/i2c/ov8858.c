@@ -1874,7 +1874,7 @@ static int ov8858_probe(struct i2c_client *client)
 	struct ov8858 *ov8858;
 	int ret;
 
-	ov8858 = devm_kzalloc(dev, sizeof(*ov8858), GFP_KERNEL);
+	ov8858 = devm_kzalloc_obj(dev, *ov8858);
 	if (!ov8858)
 		return -ENOMEM;
 

@@ -686,7 +686,7 @@ static int goodix_spi_probe(struct spi_device *spi)
 	if (error)
 		return error;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

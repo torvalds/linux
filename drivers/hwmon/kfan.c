@@ -192,7 +192,7 @@ static int kfan_probe(struct auxiliary_device *auxdev,
 	struct kfan *kfan;
 	u8 status;
 
-	kfan = devm_kzalloc(dev, sizeof(*kfan), GFP_KERNEL);
+	kfan = devm_kzalloc_obj(dev, *kfan);
 	if (!kfan)
 		return -ENOMEM;
 

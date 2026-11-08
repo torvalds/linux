@@ -648,9 +648,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 		/* Initialize heavy-hitter filter arrays. */
 		for (i = 0; i < HHF_ARRAYS_CNT; i++) {
-			q->hhf_arrays[i] = kvcalloc(HHF_ARRAYS_LEN,
-						    sizeof(u32),
-						    GFP_KERNEL);
+			q->hhf_arrays[i] = kvzalloc_objs(u32, HHF_ARRAYS_LEN);
 			if (!q->hhf_arrays[i]) {
 				/* Note: hhf_destroy() will be called
 				 * by our caller.

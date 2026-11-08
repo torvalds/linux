@@ -393,7 +393,7 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 	if (IS_ERR(data->clk))
 		return dev_err_probe(dev, PTR_ERR(data->clk), "failed to get thermal clk\n");
 
-	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor), GFP_KERNEL);
+	data->sensor = devm_kzalloc_obj(dev, *data->sensor);
 	if (!data->sensor)
 		return -ENOMEM;
 
@@ -412,8 +412,7 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 
 	data->nr_sensors = 1;
 
-	data->sensor = devm_kcalloc(dev, data->nr_sensors,
-				    sizeof(*data->sensor), GFP_KERNEL);
+	data->sensor = devm_kzalloc_objs(dev, *data->sensor, data->nr_sensors);
 	if (!data->sensor)
 		return -ENOMEM;
 
@@ -544,7 +543,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

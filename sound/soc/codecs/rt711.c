@@ -1172,7 +1172,7 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	struct rt711_priv *rt711;
 	int ret;
 
-	rt711 = devm_kzalloc(dev, sizeof(*rt711), GFP_KERNEL);
+	rt711 = devm_kzalloc_obj(dev, *rt711);
 	if (!rt711)
 		return -ENOMEM;
 

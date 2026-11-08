@@ -2394,8 +2394,7 @@ static int rp1_clk_probe(struct platform_device *pdev)
 	struct clk_hw **hws;
 	unsigned int i;
 
-	clockman = devm_kzalloc(dev, struct_size(clockman, onecell.hws, asize),
-				GFP_KERNEL);
+	clockman = devm_kzalloc_flex(dev, *clockman, onecell.hws, asize);
 	if (!clockman)
 		return -ENOMEM;
 

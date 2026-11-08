@@ -90,7 +90,7 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	if (ret)
 		return ret;
 
-	dws = devm_kzalloc(&pdev->dev, sizeof(*dws), GFP_KERNEL);
+	dws = devm_kzalloc_obj(&pdev->dev, *dws);
 	if (!dws)
 		return -ENOMEM;
 

@@ -449,7 +449,7 @@ static int tmp108_common_probe(struct device *dev, struct regmap *regmap, char *
 	if (err)
 		return dev_err_probe(dev, err, "Failed to enable regulator\n");
 
-	tmp108 = devm_kzalloc(dev, sizeof(*tmp108), GFP_KERNEL);
+	tmp108 = devm_kzalloc_obj(dev, *tmp108);
 	if (!tmp108)
 		return -ENOMEM;
 

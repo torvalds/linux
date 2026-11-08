@@ -582,15 +582,13 @@ static int tpdm_datasets_setup(struct tpdm_drvdata *drvdata)
 	drvdata->datasets |= pidr & GENMASK(TPDM_DATASETS - 1, 0);
 
 	if (tpdm_has_dsb_dataset(drvdata) && (!drvdata->dsb)) {
-		drvdata->dsb = devm_kzalloc(drvdata->dev,
-						sizeof(*drvdata->dsb), GFP_KERNEL);
+		drvdata->dsb = devm_kzalloc_obj(drvdata->dev, *drvdata->dsb);
 		if (!drvdata->dsb)
 			return -ENOMEM;
 	}
 	if ((tpdm_has_cmb_dataset(drvdata) || tpdm_has_mcmb_dataset(drvdata))
 			&& (!drvdata->cmb)) {
-		drvdata->cmb = devm_kzalloc(drvdata->dev,
-						sizeof(*drvdata->cmb), GFP_KERNEL);
+		drvdata->cmb = devm_kzalloc_obj(drvdata->dev, *drvdata->cmb);
 		if (!drvdata->cmb)
 			return -ENOMEM;
 	}
@@ -605,8 +603,7 @@ static int static_tpdm_datasets_setup(struct tpdm_drvdata *drvdata, struct devic
 	/* setup datasets for static TPDM */
 	if (fwnode_property_present(dev->fwnode, "qcom,dsb-element-bits") &&
 	    (!drvdata->dsb)) {
-		drvdata->dsb = devm_kzalloc(drvdata->dev,
-						sizeof(*drvdata->dsb), GFP_KERNEL);
+		drvdata->dsb = devm_kzalloc_obj(drvdata->dev, *drvdata->dsb);
 
 		if (!drvdata->dsb)
 			return -ENOMEM;
@@ -614,8 +611,7 @@ static int static_tpdm_datasets_setup(struct tpdm_drvdata *drvdata, struct devic
 
 	if (fwnode_property_present(dev->fwnode, "qcom,cmb-element-bits") &&
 	    (!drvdata->cmb)) {
-		drvdata->cmb = devm_kzalloc(drvdata->dev,
-						sizeof(*drvdata->cmb), GFP_KERNEL);
+		drvdata->cmb = devm_kzalloc_obj(drvdata->dev, *drvdata->cmb);
 
 		if (!drvdata->cmb)
 			return -ENOMEM;
@@ -1414,7 +1410,7 @@ static int tpdm_probe(struct device *dev, struct resource *res)
 	dev->platform_data = pdata;
 
 	/* driver data*/
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 	drvdata->dev = dev;

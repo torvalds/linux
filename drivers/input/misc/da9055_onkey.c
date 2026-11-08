@@ -79,7 +79,7 @@ static int da9055_onkey_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -EINVAL;
 
-	onkey = devm_kzalloc(&pdev->dev, sizeof(*onkey), GFP_KERNEL);
+	onkey = devm_kzalloc_obj(&pdev->dev, *onkey);
 	if (!onkey) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
 		return -ENOMEM;

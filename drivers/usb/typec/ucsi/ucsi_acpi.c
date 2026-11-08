@@ -233,7 +233,7 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 	if (adev->dep_unmet)
 		return -EPROBE_DEFER;
 
-	ua = devm_kzalloc(&pdev->dev, sizeof(*ua), GFP_KERNEL);
+	ua = devm_kzalloc_obj(&pdev->dev, *ua);
 	if (!ua)
 		return -ENOMEM;
 

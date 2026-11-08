@@ -352,7 +352,7 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 	if (!phy_dev)
 		return -ENODEV;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

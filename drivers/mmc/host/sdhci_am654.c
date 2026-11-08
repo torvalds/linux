@@ -718,8 +718,7 @@ static int sdhci_am654_cqe_add_host(struct sdhci_host *host)
 {
 	struct cqhci_host *cq_host;
 
-	cq_host = devm_kzalloc(mmc_dev(host->mmc), sizeof(struct cqhci_host),
-			       GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(mmc_dev(host->mmc), struct cqhci_host);
 	if (!cq_host)
 		return -ENOMEM;
 

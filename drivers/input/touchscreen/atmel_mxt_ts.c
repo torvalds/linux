@@ -2717,8 +2717,8 @@ static void mxt_debug_init(struct mxt_data *data)
 					      sizeof(u16),
 					      sizeof(dbg->t37_buf->data));
 
-	dbg->t37_buf = devm_kmalloc_array(&data->client->dev, dbg->t37_pages,
-					  sizeof(struct t37_debug), GFP_KERNEL);
+	dbg->t37_buf = devm_kmalloc_objs(&data->client->dev, struct t37_debug,
+					 dbg->t37_pages);
 	if (!dbg->t37_buf)
 		goto error;
 
@@ -3139,8 +3139,7 @@ static int mxt_parse_device_properties(struct mxt_data *data)
 			return error;
 		}
 
-		keymap = devm_kmalloc_array(dev, n_keys, sizeof(*keymap),
-					    GFP_KERNEL);
+		keymap = devm_kmalloc_objs(dev, *keymap, n_keys);
 		if (!keymap)
 			return -ENOMEM;
 
@@ -3165,8 +3164,7 @@ static int mxt_parse_device_properties(struct mxt_data *data)
 			return error;
 		}
 
-		buttonmap = devm_kmalloc_array(dev, n_keys, sizeof(*buttonmap),
-					       GFP_KERNEL);
+		buttonmap = devm_kmalloc_objs(dev, *buttonmap, n_keys);
 		if (!buttonmap)
 			return -ENOMEM;
 
@@ -3230,7 +3228,7 @@ static int mxt_probe(struct i2c_client *client)
 	if (ACPI_COMPANION(&client->dev) && client->addr < 0x40)
 		return -ENXIO;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mxt_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mxt_data);
 	if (!data)
 		return -ENOMEM;
 

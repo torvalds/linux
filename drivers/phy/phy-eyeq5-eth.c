@@ -236,7 +236,7 @@ static int eq5_phy_probe(struct auxiliary_device *adev,
 	void __iomem *base;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

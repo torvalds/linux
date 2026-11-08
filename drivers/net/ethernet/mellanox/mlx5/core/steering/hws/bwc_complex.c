@@ -459,7 +459,7 @@ static int hws_submatcher_init(struct mlx5hws_bwc_matcher *cmatcher, int idx,
 		goto destroy_tbl;
 	}
 
-	subm->bwc_matcher = kzalloc(sizeof(*subm->bwc_matcher), GFP_KERNEL);
+	subm->bwc_matcher = kzalloc_obj(*subm->bwc_matcher);
 	if (!subm->bwc_matcher) {
 		ret = -ENOMEM;
 		goto destroy_action;
@@ -612,7 +612,7 @@ int mlx5hws_bwc_matcher_create_complex(struct mlx5hws_bwc_matcher *bwc_matcher,
 	if (ret)
 		goto free_submasks;
 
-	cdata = kzalloc(sizeof(*cdata), GFP_KERNEL);
+	cdata = kzalloc_obj(*cdata);
 	if (!cdata) {
 		ret = -ENOMEM;
 		goto free_submasks;

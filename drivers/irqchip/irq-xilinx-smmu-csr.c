@@ -187,7 +187,7 @@ static int __init xilinx_smmu_csr_init(struct device_node *node, struct device_n
 	if (irq_find_matching_fwnode(of_fwnode_handle(node), DOMAIN_BUS_ANY))
 		return -ENODEV;
 
-	csr = kzalloc(sizeof(*csr), GFP_KERNEL);
+	csr = kzalloc_obj(*csr);
 	if (!csr)
 		return -ENOMEM;
 

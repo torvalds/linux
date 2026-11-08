@@ -178,7 +178,7 @@ static int cmodio_pci_probe(struct pci_dev *dev,
 	struct cmodio_device *priv;
 	int ret;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

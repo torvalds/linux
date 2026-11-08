@@ -3249,7 +3249,7 @@ static int usbf_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, udc);

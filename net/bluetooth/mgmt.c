@@ -10966,7 +10966,7 @@ void mgmt_security_level_changed(struct hci_conn *conn)
 		return;
 
 	tlv_len = 2 * (sizeof(*tlv) + sizeof(__u8));
-	ev = kzalloc_flex(*ev, tlv_data, tlv_len, GFP_KERNEL);
+	ev = kzalloc_flex(*ev, tlv_data, tlv_len);
 	if (!ev)
 		return;
 

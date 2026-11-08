@@ -291,7 +291,7 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

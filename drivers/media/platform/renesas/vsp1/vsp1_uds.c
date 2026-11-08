@@ -387,7 +387,7 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 	char name[6];
 	int ret;
 
-	uds = devm_kzalloc(vsp1->dev, sizeof(*uds), GFP_KERNEL);
+	uds = devm_kzalloc_obj(vsp1->dev, *uds);
 	if (uds == NULL)
 		return ERR_PTR(-ENOMEM);
 

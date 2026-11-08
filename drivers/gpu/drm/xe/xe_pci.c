@@ -637,7 +637,7 @@ static int read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u
 			return 0;
 		}
 
-		gt = kzalloc(sizeof(*gt), GFP_KERNEL);
+		gt = kzalloc_obj(*gt);
 		if (!gt)
 			return -ENOMEM;
 

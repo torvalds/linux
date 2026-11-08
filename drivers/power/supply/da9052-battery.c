@@ -590,8 +590,7 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	bat = devm_kzalloc(&pdev->dev, sizeof(struct da9052_battery),
-				GFP_KERNEL);
+	bat = devm_kzalloc_obj(&pdev->dev, struct da9052_battery);
 	if (!bat)
 		return -ENOMEM;
 

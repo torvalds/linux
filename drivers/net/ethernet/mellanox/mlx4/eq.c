@@ -994,7 +994,7 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	for (i = 0; i < npages; ++i)
 		eq->page_list[i].buf = NULL;
 
-	dma_list = kmalloc_array(npages, sizeof(*dma_list), GFP_KERNEL);
+	dma_list = kmalloc_objs(*dma_list, npages);
 	if (!dma_list)
 		goto err_out_free;
 

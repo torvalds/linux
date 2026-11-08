@@ -71,9 +71,8 @@ int rvu_sdp_init(struct rvu *rvu)
 		sdp_pf_num[i] = pdev->bus->number - 1;
 		pfvf = &rvu->pf[sdp_pf_num[i]];
 
-		pfvf->sdp_info = devm_kzalloc(rvu->dev,
-					      sizeof(struct sdp_node_info),
-					      GFP_KERNEL);
+		pfvf->sdp_info = devm_kzalloc_obj(rvu->dev,
+						  struct sdp_node_info);
 		if (!pfvf->sdp_info) {
 			pci_dev_put(pdev);
 			return -ENOMEM;

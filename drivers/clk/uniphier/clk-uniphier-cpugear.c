@@ -82,7 +82,7 @@ struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	gear = devm_kzalloc(dev, sizeof(*gear), GFP_KERNEL);
+	gear = devm_kzalloc_obj(dev, *gear);
 	if (!gear)
 		return ERR_PTR(-ENOMEM);
 

@@ -255,7 +255,7 @@ int ndlc_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 {
 	struct llt_ndlc *ndlc;
 
-	ndlc = devm_kzalloc(dev, sizeof(struct llt_ndlc), GFP_KERNEL);
+	ndlc = devm_kzalloc_obj(dev, struct llt_ndlc);
 	if (!ndlc)
 		return -ENOMEM;
 

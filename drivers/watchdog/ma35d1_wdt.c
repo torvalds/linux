@@ -197,7 +197,7 @@ static int ma35d1_wdt_probe(struct platform_device *pdev)
 	unsigned long clk_rate, val;
 	int ret;
 
-	ma35d1_wdt = devm_kzalloc(dev, sizeof(*ma35d1_wdt), GFP_KERNEL);
+	ma35d1_wdt = devm_kzalloc_obj(dev, *ma35d1_wdt);
 	if (!ma35d1_wdt)
 		return -ENOMEM;
 

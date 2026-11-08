@@ -244,7 +244,7 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
 		return -EFAULT;
 
-	page_pfns = kcalloc(nr_page_pfns, sizeof(*page_pfns), GFP_KERNEL);
+	page_pfns = kzalloc_objs(*page_pfns, nr_page_pfns);
 	if (!page_pfns)
 		return -ENOMEM;
 

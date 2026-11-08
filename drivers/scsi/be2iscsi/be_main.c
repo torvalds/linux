@@ -4007,9 +4007,8 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 
 			/* Allocate memory for CID array */
 			ptr_cid_info->cid_array =
-				kcalloc(BEISCSI_GET_CID_COUNT(phba, ulp_num),
-					sizeof(*ptr_cid_info->cid_array),
-					GFP_KERNEL);
+				kzalloc_objs(*ptr_cid_info->cid_array,
+					     BEISCSI_GET_CID_COUNT(phba, ulp_num));
 			if (!ptr_cid_info->cid_array) {
 				kfree(ptr_cid_info);
 				ptr_cid_info = NULL;

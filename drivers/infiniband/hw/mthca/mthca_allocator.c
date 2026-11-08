@@ -213,8 +213,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 			npages *= 2;
 		}
 
-		dma_list = kmalloc_array(npages, sizeof(*dma_list),
-					 GFP_KERNEL);
+		dma_list = kmalloc_objs(*dma_list, npages);
 		if (!dma_list)
 			goto err_free;
 
@@ -225,8 +224,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 		npages     = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 		shift      = PAGE_SHIFT;
 
-		dma_list = kmalloc_array(npages, sizeof(*dma_list),
-					 GFP_KERNEL);
+		dma_list = kmalloc_objs(*dma_list, npages);
 		if (!dma_list)
 			return -ENOMEM;
 

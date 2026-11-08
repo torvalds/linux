@@ -309,8 +309,7 @@ static int regulator_virtual_probe(struct platform_device *pdev)
 		pr_warn("**********************************************************\n");
 	}
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct virtual_consumer_data),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct virtual_consumer_data);
 	if (drvdata == NULL)
 		return -ENOMEM;
 

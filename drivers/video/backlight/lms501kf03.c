@@ -313,7 +313,7 @@ static int lms501kf03_probe(struct spi_device *spi)
 	struct lcd_device *ld = NULL;
 	int ret = 0;
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct lms501kf03), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(&spi->dev, struct lms501kf03);
 	if (!lcd)
 		return -ENOMEM;
 

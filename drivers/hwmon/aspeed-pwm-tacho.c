@@ -822,7 +822,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 	int ret;
 	struct aspeed_cooling_device *cdev;
 
-	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
+	cdev = devm_kzalloc_obj(dev, *cdev);
 
 	if (!cdev)
 		return -ENOMEM;
@@ -919,7 +919,7 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	mutex_init(&priv->tach_lock);

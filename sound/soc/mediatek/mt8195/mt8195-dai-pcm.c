@@ -338,8 +338,7 @@ static int init_pcmif_priv_data(struct mtk_base_afe *afe)
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_dai_pcmif_priv *pcmif_priv;
 
-	pcmif_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_pcmif_priv),
-				  GFP_KERNEL);
+	pcmif_priv = devm_kzalloc_obj(afe->dev, struct mtk_dai_pcmif_priv);
 	if (!pcmif_priv)
 		return -ENOMEM;
 
@@ -351,7 +350,7 @@ int mt8195_dai_pcm_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

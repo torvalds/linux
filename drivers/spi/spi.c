@@ -3587,8 +3587,7 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 
 	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
 
-	cs = devm_kcalloc(dev, ctlr->num_chipselect, sizeof(*cs),
-			  GFP_KERNEL);
+	cs = devm_kzalloc_objs(dev, *cs, ctlr->num_chipselect);
 	if (!cs)
 		return -ENOMEM;
 	ctlr->cs_gpiods = cs;

@@ -1516,7 +1516,7 @@ static int epf_ntb_epc_create_interface(struct epf_ntb *ntb,
 
 	dev = &ntb->epf->dev;
 
-	ntb_epc = devm_kzalloc(dev, sizeof(*ntb_epc), GFP_KERNEL);
+	ntb_epc = devm_kzalloc_obj(dev, *ntb_epc);
 	if (!ntb_epc)
 		return -ENOMEM;
 
@@ -2037,7 +2037,7 @@ static int epf_ntb_probe(struct pci_epf *epf,
 
 	dev = &epf->dev;
 
-	ntb = devm_kzalloc(dev, sizeof(*ntb), GFP_KERNEL);
+	ntb = devm_kzalloc_obj(dev, *ntb);
 	if (!ntb)
 		return -ENOMEM;
 

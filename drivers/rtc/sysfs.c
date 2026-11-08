@@ -326,7 +326,7 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 			old_cnt++;
 
 	new_cnt = old_cnt + add_cnt + 1;
-	groups = devm_kcalloc(&rtc->dev, new_cnt, sizeof(*groups), GFP_KERNEL);
+	groups = devm_kzalloc_objs(&rtc->dev, *groups, new_cnt);
 	if (!groups)
 		return -ENOMEM;
 	memcpy(groups, rtc->dev.groups, old_cnt * sizeof(*groups));

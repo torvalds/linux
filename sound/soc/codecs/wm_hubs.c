@@ -178,7 +178,7 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_component *component, u16 dcs_c
 	if (hubs->no_cache_dac_hp_direct)
 		return;
 
-	cache = devm_kzalloc(component->dev, sizeof(*cache), GFP_KERNEL);
+	cache = devm_kzalloc_obj(component->dev, *cache);
 	if (!cache)
 		return;
 

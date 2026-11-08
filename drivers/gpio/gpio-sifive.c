@@ -184,7 +184,7 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 	struct sifive_gpio *chip;
 	int ret, ngpio;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -105,7 +105,7 @@ static int pistachio_reset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 
-	rd = devm_kzalloc(dev, sizeof(*rd), GFP_KERNEL);
+	rd = devm_kzalloc_obj(dev, *rd);
 	if (!rd)
 		return -ENOMEM;
 

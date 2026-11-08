@@ -116,7 +116,7 @@ static int apple_pmgr_misc_probe(struct platform_device *pdev)
 	struct apple_pmgr_misc *misc;
 	int ret;
 
-	misc = devm_kzalloc(dev, sizeof(*misc), GFP_KERNEL);
+	misc = devm_kzalloc_obj(dev, *misc);
 	if (!misc)
 		return -ENOMEM;
 

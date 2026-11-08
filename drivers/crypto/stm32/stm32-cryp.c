@@ -2567,7 +2567,7 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	int irq, ret;
 
-	cryp = devm_kzalloc(dev, sizeof(*cryp), GFP_KERNEL);
+	cryp = devm_kzalloc_obj(dev, *cryp);
 	if (!cryp)
 		return -ENOMEM;
 

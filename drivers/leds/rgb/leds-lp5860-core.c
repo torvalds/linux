@@ -159,7 +159,7 @@ static int lp5860_init_dt(struct lp5860 *lp)
 
 		led->mc_cdev.num_colors = chan;
 
-		mc_led_info = devm_kcalloc(lp->dev, chan, sizeof(*mc_led_info), GFP_KERNEL);
+		mc_led_info = devm_kzalloc_objs(lp->dev, *mc_led_info, chan);
 		if (!mc_led_info)
 			return -ENOMEM;
 

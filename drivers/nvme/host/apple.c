@@ -1437,13 +1437,11 @@ static int apple_nvme_attach_genpd(struct apple_nvme *anv)
 	if (anv->pd_count <= 1)
 		return 0;
 
-	anv->pd_dev = devm_kcalloc(dev, anv->pd_count, sizeof(*anv->pd_dev),
-				   GFP_KERNEL);
+	anv->pd_dev = devm_kzalloc_objs(dev, *anv->pd_dev, anv->pd_count);
 	if (!anv->pd_dev)
 		return -ENOMEM;
 
-	anv->pd_link = devm_kcalloc(dev, anv->pd_count, sizeof(*anv->pd_link),
-				    GFP_KERNEL);
+	anv->pd_link = devm_kzalloc_objs(dev, *anv->pd_link, anv->pd_count);
 	if (!anv->pd_link)
 		return -ENOMEM;
 
@@ -1478,7 +1476,7 @@ static struct apple_nvme *apple_nvme_alloc(struct platform_device *pdev)
 	struct apple_nvme *anv;
 	int ret;
 
-	anv = devm_kzalloc(dev, sizeof(*anv), GFP_KERNEL);
+	anv = devm_kzalloc_obj(dev, *anv);
 	if (!anv)
 		return ERR_PTR(-ENOMEM);
 

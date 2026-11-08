@@ -289,7 +289,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	unsigned int data;
 	int ret;
 
-	state = devm_kzalloc(&i2c->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&i2c->dev, *state);
 	if (!state)
 		return -ENOMEM;
 

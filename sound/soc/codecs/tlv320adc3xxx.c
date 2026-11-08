@@ -1417,7 +1417,7 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 	struct adc3xxx *adc3xxx = NULL;
 	int ret;
 
-	adc3xxx = devm_kzalloc(dev, sizeof(struct adc3xxx), GFP_KERNEL);
+	adc3xxx = devm_kzalloc_obj(dev, struct adc3xxx);
 	if (!adc3xxx)
 		return -ENOMEM;
 	adc3xxx->dev = dev;

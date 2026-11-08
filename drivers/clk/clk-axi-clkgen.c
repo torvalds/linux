@@ -579,7 +579,7 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	if (!dflt_limits)
 		return -ENODEV;
 
-	axi_clkgen = devm_kzalloc(&pdev->dev, sizeof(*axi_clkgen), GFP_KERNEL);
+	axi_clkgen = devm_kzalloc_obj(&pdev->dev, *axi_clkgen);
 	if (!axi_clkgen)
 		return -ENOMEM;
 

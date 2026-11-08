@@ -265,7 +265,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 		return NETCP_MOD_PROBE_SKIPPED;
 	}
 
-	inst_modpriv = devm_kzalloc(dev, sizeof(*inst_modpriv), GFP_KERNEL);
+	inst_modpriv = devm_kzalloc_obj(dev, *inst_modpriv);
 	if (!inst_modpriv) {
 		of_node_put(child);
 		return -ENOMEM;
@@ -300,8 +300,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 			    interface_list) {
 		struct netcp_intf_modpriv *intf_modpriv;
 
-		intf_modpriv = devm_kzalloc(dev, sizeof(*intf_modpriv),
-					    GFP_KERNEL);
+		intf_modpriv = devm_kzalloc_obj(dev, *intf_modpriv);
 		if (!intf_modpriv)
 			return -ENOMEM;
 
@@ -474,7 +473,7 @@ int netcp_register_txhook(struct netcp_intf *netcp_priv, int order,
 	struct netcp_hook_list *next;
 	unsigned long flags;
 
-	entry = devm_kzalloc(netcp_priv->dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(netcp_priv->dev, *entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -523,7 +522,7 @@ int netcp_register_rxhook(struct netcp_intf *netcp_priv, int order,
 	struct netcp_hook_list *next;
 	unsigned long flags;
 
-	entry = devm_kzalloc(netcp_priv->dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(netcp_priv->dev, *entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1401,7 +1400,7 @@ static struct netcp_addr *netcp_addr_add(struct netcp_intf *netcp,
 {
 	struct netcp_addr *naddr;
 
-	naddr = devm_kmalloc(netcp->dev, sizeof(*naddr), GFP_ATOMIC);
+	naddr = devm_kmalloc_obj(netcp->dev, *naddr, GFP_ATOMIC);
 	if (!naddr)
 		return NULL;
 
@@ -2220,7 +2219,7 @@ static int netcp_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate a new NETCP device instance */
-	netcp_device = devm_kzalloc(dev, sizeof(*netcp_device), GFP_KERNEL);
+	netcp_device = devm_kzalloc_obj(dev, *netcp_device);
 	if (!netcp_device)
 		return -ENOMEM;
 

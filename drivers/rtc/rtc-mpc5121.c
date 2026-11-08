@@ -293,7 +293,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
 
-	rtc = devm_kzalloc(&op->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&op->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

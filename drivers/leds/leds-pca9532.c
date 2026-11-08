@@ -522,7 +522,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	devid = (int)(uintptr_t)of_device_get_match_data(dev);
 	maxleds = pca9532_chip_info_tbl[devid].num_leds;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -581,7 +581,7 @@ static int pca9532_probe(struct i2c_client *client)
 		I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -776,7 +776,7 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 	struct corsairpsu_data *priv;
 	int ret;
 
-	priv = devm_kzalloc(&hdev->dev, sizeof(struct corsairpsu_data), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&hdev->dev, struct corsairpsu_data);
 	if (!priv)
 		return -ENOMEM;
 

@@ -112,7 +112,7 @@ static int ntxec_rtc_probe(struct platform_device *pdev)
 
 	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

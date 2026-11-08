@@ -2518,7 +2518,7 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	int ret, lenp;
 	struct list_head *vreg_list;
 
-	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
+	vreg_list = devm_kzalloc_obj(dev, *vreg_list);
 	if (!vreg_list)
 		return -ENOMEM;
 	INIT_LIST_HEAD(vreg_list);
@@ -2561,7 +2561,7 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 				continue;
 		}
 
-		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
+		vreg = devm_kzalloc_obj(dev, *vreg);
 		if (!vreg)
 			return -ENOMEM;
 

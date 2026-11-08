@@ -327,10 +327,8 @@ static int mlxcpld_led_config(struct device *dev,
 	int i;
 	int err;
 
-	cpld->pled = devm_kcalloc(dev,
-				  cpld->num_led_instances,
-				  sizeof(struct mlxcpld_led_priv),
-				  GFP_KERNEL);
+	cpld->pled = devm_kzalloc_objs(dev, struct mlxcpld_led_priv,
+				       cpld->num_led_instances);
 	if (!cpld->pled)
 		return -ENOMEM;
 
@@ -363,8 +361,7 @@ static int __init mlxcpld_led_probe(struct platform_device *pdev)
 	enum mlxcpld_led_platform_types mlxcpld_led_plat =
 					mlxcpld_led_platform_check_sys_type();
 
-	mlxcpld_led = devm_kzalloc(&pdev->dev, sizeof(*mlxcpld_led),
-				   GFP_KERNEL);
+	mlxcpld_led = devm_kzalloc_obj(&pdev->dev, *mlxcpld_led);
 	if (!mlxcpld_led)
 		return -ENOMEM;
 

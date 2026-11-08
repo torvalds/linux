@@ -324,7 +324,7 @@ static int sky1_reset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct sky1_src_variant *variant;
 
-	sky1src = devm_kzalloc(dev, sizeof(*sky1src), GFP_KERNEL);
+	sky1src = devm_kzalloc_obj(dev, *sky1src);
 	if (!sky1src)
 		return -ENOMEM;
 

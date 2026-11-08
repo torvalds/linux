@@ -49,8 +49,7 @@ int devm_iio_adc_device_alloc_chaninfo_se(struct device *dev,
 	if (!num_chan)
 		return -ENOENT;
 
-	chan_array = devm_kcalloc(dev, num_chan, sizeof(*chan_array),
-				  GFP_KERNEL);
+	chan_array = devm_kzalloc_objs(dev, *chan_array, num_chan);
 	if (!chan_array)
 		return -ENOMEM;
 

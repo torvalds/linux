@@ -5969,7 +5969,7 @@ static int qmp_pcie_vreg_init(struct qmp_pcie *qmp)
 	int num = cfg->num_vregs;
 	int i;
 
-	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
+	qmp->vregs = devm_kzalloc_objs(dev, *qmp->vregs, num);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
@@ -5986,8 +5986,7 @@ static int qmp_pcie_reset_init(struct qmp_pcie *qmp)
 	int i;
 	int ret;
 
-	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
-				   sizeof(*qmp->resets), GFP_KERNEL);
+	qmp->resets = devm_kzalloc_objs(dev, *qmp->resets, cfg->num_resets);
 	if (!qmp->resets)
 		return -ENOMEM;
 
@@ -6012,7 +6011,7 @@ static int qmp_pcie_clk_init(struct qmp_pcie *qmp)
 	int num = ARRAY_SIZE(qmp_pciephy_clk_l);
 	int i;
 
-	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
+	qmp->clks = devm_kzalloc_objs(dev, *qmp->clks, num);
 	if (!qmp->clks)
 		return -ENOMEM;
 
@@ -6332,7 +6331,7 @@ static int qmp_pcie_probe(struct platform_device *pdev)
 	struct qmp_pcie *qmp;
 	int ret;
 
-	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
+	qmp = devm_kzalloc_obj(dev, *qmp);
 	if (!qmp)
 		return -ENOMEM;
 

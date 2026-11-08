@@ -3866,9 +3866,8 @@ static int dpaa2_eth_setup_dpni(struct fsl_mc_device *ls_dev)
 	if (err && err != -EOPNOTSUPP)
 		goto close;
 
-	priv->cls_rules = devm_kcalloc(dev, dpaa2_eth_fs_count(priv),
-				       sizeof(struct dpaa2_eth_cls_rule),
-				       GFP_KERNEL);
+	priv->cls_rules = devm_kzalloc_objs(dev, struct dpaa2_eth_cls_rule,
+					    dpaa2_eth_fs_count(priv));
 	if (!priv->cls_rules) {
 		err = -ENOMEM;
 		goto close;

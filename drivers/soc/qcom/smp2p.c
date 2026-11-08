@@ -627,7 +627,7 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	smp2p = devm_kzalloc(&pdev->dev, sizeof(*smp2p), GFP_KERNEL);
+	smp2p = devm_kzalloc_obj(&pdev->dev, *smp2p);
 	if (!smp2p)
 		return -ENOMEM;
 
@@ -676,7 +676,7 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 		goto release_mbox;
 
 	for_each_available_child_of_node_scoped(pdev->dev.of_node, node) {
-		entry = devm_kzalloc(&pdev->dev, sizeof(*entry), GFP_KERNEL);
+		entry = devm_kzalloc_obj(&pdev->dev, *entry);
 		if (!entry) {
 			ret = -ENOMEM;
 			goto unwind_interfaces;

@@ -115,8 +115,7 @@ static int altr_a10sr_spi_probe(struct spi_device *spi)
 	int ret;
 	struct altr_a10sr *a10sr;
 
-	a10sr = devm_kzalloc(&spi->dev, sizeof(*a10sr),
-			     GFP_KERNEL);
+	a10sr = devm_kzalloc_obj(&spi->dev, *a10sr);
 	if (!a10sr)
 		return -ENOMEM;
 

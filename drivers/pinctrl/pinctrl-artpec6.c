@@ -937,7 +937,7 @@ static int artpec6_pmx_probe(struct platform_device *pdev)
 {
 	struct artpec6_pmx *pmx;
 
-	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
+	pmx = devm_kzalloc_obj(&pdev->dev, *pmx);
 	if (!pmx)
 		return -ENOMEM;
 

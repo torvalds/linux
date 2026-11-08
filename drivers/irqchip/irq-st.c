@@ -140,7 +140,7 @@ static int st_irq_syscfg_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct st_irq_syscfg *ddata;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

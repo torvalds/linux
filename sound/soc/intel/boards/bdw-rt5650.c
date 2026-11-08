@@ -291,8 +291,7 @@ static int bdw_rt5650_probe(struct platform_device *pdev)
 	bdw_rt5650_card.dev = &pdev->dev;
 
 	/* Allocate driver private struct */
-	bdw_rt5650 = devm_kzalloc(&pdev->dev, sizeof(struct bdw_rt5650_priv),
-		GFP_KERNEL);
+	bdw_rt5650 = devm_kzalloc_obj(&pdev->dev, struct bdw_rt5650_priv);
 	if (!bdw_rt5650)
 		return -ENOMEM;
 

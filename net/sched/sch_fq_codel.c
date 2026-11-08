@@ -542,7 +542,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 			err = -ENOMEM;
 			goto init_failure;
 		}
-		q->backlogs = kvcalloc(q->flows_cnt, sizeof(u32), GFP_KERNEL);
+		q->backlogs = kvzalloc_objs(u32, q->flows_cnt);
 		if (!q->backlogs) {
 			err = -ENOMEM;
 			goto alloc_failure;

@@ -330,7 +330,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 	int err;
 	struct at91wdt *wdt;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&pdev->dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

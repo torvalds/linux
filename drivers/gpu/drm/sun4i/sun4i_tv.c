@@ -437,7 +437,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 	void __iomem *regs;
 	int ret;
 
-	tv = devm_kzalloc(dev, sizeof(*tv), GFP_KERNEL);
+	tv = devm_kzalloc_obj(dev, *tv);
 	if (!tv)
 		return -ENOMEM;
 	tv->drv = drv;

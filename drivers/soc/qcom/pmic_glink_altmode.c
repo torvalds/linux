@@ -577,7 +577,7 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 	u32 port;
 	int ret;
 
-	altmode = devm_kzalloc(dev, sizeof(*altmode), GFP_KERNEL);
+	altmode = devm_kzalloc_obj(dev, *altmode);
 	if (!altmode)
 		return -ENOMEM;
 

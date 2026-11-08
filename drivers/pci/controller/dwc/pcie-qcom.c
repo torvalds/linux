@@ -2007,7 +2007,7 @@ static int qcom_pcie_ecam_host_init(struct pci_config_window *cfg)
 	struct dw_pcie *pci;
 	int ret;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 
@@ -2116,7 +2116,7 @@ static int qcom_pcie_parse_perst(struct qcom_pcie *pcie,
 	}
 
 skip_perst_parsing:
-	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	perst = devm_kzalloc_obj(dev, *perst);
 	if (!perst)
 		return -ENOMEM;
 
@@ -2148,7 +2148,7 @@ static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 
@@ -2223,11 +2223,11 @@ static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 	if (ret)
 		return ret;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 
-	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	perst = devm_kzalloc_obj(dev, *perst);
 	if (!perst)
 		return -ENOMEM;
 
@@ -2300,13 +2300,13 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie) {
 		ret = -ENOMEM;
 		goto err_pm_runtime_put;
 	}
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci) {
 		ret = -ENOMEM;
 		goto err_pm_runtime_put;

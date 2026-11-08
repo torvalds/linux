@@ -1103,7 +1103,7 @@ static int idt821034_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	idt821034 = devm_kzalloc(&spi->dev, sizeof(*idt821034), GFP_KERNEL);
+	idt821034 = devm_kzalloc_obj(&spi->dev, *idt821034);
 	if (!idt821034)
 		return -ENOMEM;
 

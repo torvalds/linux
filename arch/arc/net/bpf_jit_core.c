@@ -1101,8 +1101,7 @@ static void fill_ill_insn(void *area, unsigned int size)
 /* Piece of memory that can be allocated at the beginning of jit_prepare(). */
 static int jit_prepare_early_mem_alloc(struct jit_context *ctx)
 {
-	ctx->bpf2insn = kcalloc(ctx->prog->len, sizeof(ctx->jit.len),
-				GFP_KERNEL);
+	ctx->bpf2insn = kzalloc_objs(ctx->jit.len, ctx->prog->len);
 
 	if (!ctx->bpf2insn) {
 		pr_err("bpf-jit: could not allocate memory for "

@@ -862,8 +862,8 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	int ret = 0;
 
 	/* Enumerate sub device formats and enable all matching local formats */
-	ctx->active_fmt = devm_kcalloc(ctx->cal->dev, cal_num_formats,
-				       sizeof(*ctx->active_fmt), GFP_KERNEL);
+	ctx->active_fmt = devm_kzalloc_objs(ctx->cal->dev, *ctx->active_fmt,
+					    cal_num_formats);
 	if (!ctx->active_fmt)
 		return -ENOMEM;
 

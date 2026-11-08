@@ -8376,22 +8376,22 @@ static int tcpm_fw_get_caps(struct tcpm_port *port, struct fwnode_handle *fwnode
 		}
 	}
 
-	port->pds = devm_kcalloc(port->dev, port->pd_count, sizeof(struct usb_power_delivery *),
-				 GFP_KERNEL);
+	port->pds = devm_kzalloc_objs(port->dev, struct usb_power_delivery *,
+				      port->pd_count);
 	if (!port->pds) {
 		ret = -ENOMEM;
 		goto put_capabilities;
 	}
 
-	port->pd_list = devm_kcalloc(port->dev, port->pd_count, sizeof(struct pd_data *),
-				     GFP_KERNEL);
+	port->pd_list = devm_kzalloc_objs(port->dev, struct pd_data *,
+					  port->pd_count);
 	if (!port->pd_list) {
 		ret = -ENOMEM;
 		goto put_capabilities;
 	}
 
 	for (i = 0; i < port->pd_count; i++) {
-		port->pd_list[i] = devm_kzalloc(port->dev, sizeof(struct pd_data), GFP_KERNEL);
+		port->pd_list[i] = devm_kzalloc_obj(port->dev, struct pd_data);
 		if (!port->pd_list[i]) {
 			ret = -ENOMEM;
 			goto put_capabilities;
@@ -8873,7 +8873,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	    !tcpc->set_pd_rx || !tcpc->set_roles || !tcpc->pd_transmit)
 		return ERR_PTR(-EINVAL);
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 

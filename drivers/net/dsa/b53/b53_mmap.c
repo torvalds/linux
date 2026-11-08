@@ -371,8 +371,7 @@ static int b53_mmap_probe_of(struct platform_device *pdev,
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
-	pdata = devm_kzalloc(dev, sizeof(struct b53_platform_data),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, struct b53_platform_data);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -421,7 +420,7 @@ static int b53_mmap_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

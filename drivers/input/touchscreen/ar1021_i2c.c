@@ -98,7 +98,7 @@ static int ar1021_i2c_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	ar1021 = devm_kzalloc(&client->dev, sizeof(*ar1021), GFP_KERNEL);
+	ar1021 = devm_kzalloc_obj(&client->dev, *ar1021);
 	if (!ar1021)
 		return -ENOMEM;
 

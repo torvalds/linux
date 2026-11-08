@@ -403,7 +403,7 @@ static int starfive_pcie_probe(struct platform_device *pdev)
 	struct plda_pcie_rp *plda;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 

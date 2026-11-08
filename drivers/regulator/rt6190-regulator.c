@@ -389,7 +389,7 @@ static int rt6190_probe(struct i2c_client *i2c)
 	unsigned int vid;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

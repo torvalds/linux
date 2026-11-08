@@ -678,7 +678,7 @@ static int max31335_probe(struct i2c_client *client)
 	const struct chip_desc *match;
 	int ret;
 
-	max31335 = devm_kzalloc(&client->dev, sizeof(*max31335), GFP_KERNEL);
+	max31335 = devm_kzalloc_obj(&client->dev, *max31335);
 	if (!max31335)
 		return -ENOMEM;
 

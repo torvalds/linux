@@ -378,7 +378,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	ddrc_pmu = devm_kzalloc(&pdev->dev, sizeof(*ddrc_pmu), GFP_KERNEL);
+	ddrc_pmu = devm_kzalloc_obj(&pdev->dev, *ddrc_pmu);
 	if (!ddrc_pmu)
 		return -ENOMEM;
 

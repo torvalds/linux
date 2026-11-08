@@ -254,7 +254,7 @@ void *uv_alloc_stor_var(unsigned long size)
 	area = get_vm_area(size, VM_SPARSE);
 	if (!area)
 		return NULL;
-	pages = kvcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
+	pages = kvzalloc_objs(struct page *, nr_pages, GFP_KERNEL_ACCOUNT);
 	if (!pages)
 		goto free_area;
 	for (i = 0; i < nr_pages; i++) {

@@ -441,7 +441,7 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 {
 	struct ssp_data *data;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return NULL;
 

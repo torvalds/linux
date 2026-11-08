@@ -826,7 +826,7 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	int ret;
 
-	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

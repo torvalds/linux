@@ -589,7 +589,7 @@ static int rog_ryujin_probe(struct hid_device *hdev, const struct hid_device_id 
 	if (!id->driver_data)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&hdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -748,14 +748,13 @@ static int rockchip_pcie_ep_init_ob_mem(struct rockchip_pcie_ep *ep)
 	struct pci_epc_mem_window *windows = NULL;
 	int err, i;
 
-	ep->ob_addr = devm_kcalloc(dev, ep->max_regions, sizeof(*ep->ob_addr),
-				   GFP_KERNEL);
+	ep->ob_addr = devm_kzalloc_objs(dev, *ep->ob_addr, ep->max_regions);
 
 	if (!ep->ob_addr)
 		return -ENOMEM;
 
-	windows = devm_kcalloc(dev, ep->max_regions,
-			       sizeof(struct pci_epc_mem_window), GFP_KERNEL);
+	windows = devm_kzalloc_objs(dev, struct pci_epc_mem_window,
+				    ep->max_regions);
 	if (!windows)
 		return -ENOMEM;
 
@@ -831,7 +830,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	struct pci_epc *epc;
 	int err;
 
-	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
+	ep = devm_kzalloc_obj(dev, *ep);
 	if (!ep)
 		return -ENOMEM;
 

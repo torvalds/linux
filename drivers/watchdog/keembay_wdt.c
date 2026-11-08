@@ -191,7 +191,7 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 	struct keembay_wdt *wdt;
 	int ret;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

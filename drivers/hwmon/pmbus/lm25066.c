@@ -475,8 +475,7 @@ static int lm25066_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct lm25066_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct lm25066_data);
 	if (!data)
 		return -ENOMEM;
 

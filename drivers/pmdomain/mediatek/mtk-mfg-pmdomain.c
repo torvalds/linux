@@ -537,14 +537,14 @@ static int mtk_mfg_read_opp_tables(struct mtk_mfg *mfg)
 		return -EINVAL;
 	}
 
-	mfg->gpu_opps = devm_kcalloc(dev, mfg->num_gpu_opps,
-				     sizeof(struct dev_pm_opp_data), GFP_KERNEL);
+	mfg->gpu_opps = devm_kzalloc_objs(dev, struct dev_pm_opp_data,
+					  mfg->num_gpu_opps);
 	if (!mfg->gpu_opps)
 		return -ENOMEM;
 
 	if (mfg->num_stack_opps) {
-		mfg->stack_opps = devm_kcalloc(dev, mfg->num_stack_opps,
-					       sizeof(struct dev_pm_opp_data), GFP_KERNEL);
+		mfg->stack_opps = devm_kzalloc_objs(dev, struct dev_pm_opp_data,
+						    mfg->num_stack_opps);
 		if (!mfg->stack_opps)
 			return -ENOMEM;
 	}
@@ -782,7 +782,7 @@ static int mtk_mfg_init_mbox(struct mtk_mfg *mfg)
 	struct mtk_mfg_mbox *gf;
 	struct mtk_mfg_mbox *slp;
 
-	gf = devm_kzalloc(dev, sizeof(*gf), GFP_KERNEL);
+	gf = devm_kzalloc_obj(dev, *gf);
 	if (!gf)
 		return -ENOMEM;
 
@@ -801,7 +801,7 @@ static int mtk_mfg_init_mbox(struct mtk_mfg *mfg)
 
 	mfg->gf_mbox = gf;
 
-	slp = devm_kzalloc(dev, sizeof(*slp), GFP_KERNEL);
+	slp = devm_kzalloc_obj(dev, *slp);
 	if (!slp)
 		return -ENOMEM;
 
@@ -827,7 +827,7 @@ static int mtk_mfg_init_clk_provider(struct mtk_mfg *mfg)
 	struct clk_hw_onecell_data *clk_data;
 	int ret;
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, 2), GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, 2);
 	if (!clk_data)
 		return -ENOMEM;
 
@@ -916,7 +916,7 @@ static int mtk_mfg_probe(struct platform_device *pdev)
 	struct resource res;
 	int ret, i;
 
-	mfg = devm_kzalloc(dev, sizeof(*mfg), GFP_KERNEL);
+	mfg = devm_kzalloc_obj(dev, *mfg);
 	if (!mfg)
 		return -ENOMEM;
 
@@ -940,8 +940,7 @@ static int mtk_mfg_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(mfg->clk_eb),
 				     "Couldn't get 'eb' clock\n");
 
-	mfg->gpu_clks = devm_kcalloc(dev, data->num_clks, sizeof(*mfg->gpu_clks),
-				     GFP_KERNEL);
+	mfg->gpu_clks = devm_kzalloc_objs(dev, *mfg->gpu_clks, data->num_clks);
 	if (!mfg->gpu_clks)
 		return -ENOMEM;
 
@@ -952,8 +951,8 @@ static int mtk_mfg_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Couldn't get GPU clocks\n");
 
-	mfg->gpu_regs = devm_kcalloc(dev, data->num_regulators,
-				     sizeof(*mfg->gpu_regs), GFP_KERNEL);
+	mfg->gpu_regs = devm_kzalloc_objs(dev, *mfg->gpu_regs,
+					  data->num_regulators);
 	if (!mfg->gpu_regs)
 		return -ENOMEM;
 

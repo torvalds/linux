@@ -404,7 +404,7 @@ static int mshv_region_range_fault(struct mshv_mem_region *region,
 	int ret;
 	u64 i;
 
-	pfns = kmalloc_array(page_count, sizeof(*pfns), GFP_KERNEL);
+	pfns = kmalloc_objs(*pfns, page_count);
 	if (!pfns)
 		return -ENOMEM;
 

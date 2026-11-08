@@ -447,7 +447,7 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 	if (!mode_field)
 		return -ENODEV;
 
-	kbd = devm_kzalloc(dev, sizeof(*kbd), GFP_KERNEL);
+	kbd = devm_kzalloc_obj(dev, *kbd);
 	if (!kbd)
 		return -ENOMEM;
 

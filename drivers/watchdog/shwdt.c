@@ -226,7 +226,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	if (pdev->id != -1)
 		return -EINVAL;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(struct sh_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&pdev->dev, struct sh_wdt);
 	if (unlikely(!wdt))
 		return -ENOMEM;
 

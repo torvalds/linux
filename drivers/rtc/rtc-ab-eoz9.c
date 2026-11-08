@@ -485,7 +485,7 @@ static int abeoz9_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

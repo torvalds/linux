@@ -1384,11 +1384,11 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	u32 reg, rev;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(&pdev->dev, *ops);
 	if (!ops)
 		return -ENOMEM;
 
@@ -1396,7 +1396,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

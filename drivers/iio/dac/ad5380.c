@@ -345,8 +345,8 @@ static int ad5380_alloc_channels(struct device *dev, struct iio_dev *indio_dev)
 	struct iio_chan_spec *channels;
 	unsigned int i;
 
-	channels = devm_kcalloc(dev, st->chip_info->num_channels,
-				sizeof(struct iio_chan_spec), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, struct iio_chan_spec,
+				     st->chip_info->num_channels);
 
 	if (!channels)
 		return -ENOMEM;

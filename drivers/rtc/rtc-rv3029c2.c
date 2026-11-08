@@ -715,7 +715,7 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	};
 	int rc = 0;
 
-	rv3029 = devm_kzalloc(dev, sizeof(*rv3029), GFP_KERNEL);
+	rv3029 = devm_kzalloc_obj(dev, *rv3029);
 	if (!rv3029)
 		return -ENOMEM;
 

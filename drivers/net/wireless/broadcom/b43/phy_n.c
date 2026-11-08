@@ -1506,7 +1506,7 @@ static int b43_nphy_load_samples(struct b43_wldev *dev,
 	u16 i;
 	u32 *data;
 
-	data = kcalloc(len, sizeof(u32), GFP_KERNEL);
+	data = kzalloc_objs(u32, len);
 	if (!data) {
 		b43err(dev->wl, "allocation for samples loading failed\n");
 		return -ENOMEM;

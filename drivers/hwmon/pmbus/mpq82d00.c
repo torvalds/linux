@@ -211,7 +211,7 @@ static int mpq82d00_probe(struct i2c_client *client)
 {
 	struct mpq82d00_data *data;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mpq82d00_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mpq82d00_data);
 	if (!data)
 		return -ENOMEM;
 

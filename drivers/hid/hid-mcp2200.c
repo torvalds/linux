@@ -329,7 +329,7 @@ static int mcp2200_probe(struct hid_device *hdev, const struct hid_device_id *id
 	int ret;
 	struct mcp2200 *mcp;
 
-	mcp = devm_kzalloc(&hdev->dev, sizeof(*mcp), GFP_KERNEL);
+	mcp = devm_kzalloc_obj(&hdev->dev, *mcp);
 	if (!mcp)
 		return -ENOMEM;
 

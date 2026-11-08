@@ -695,7 +695,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN;
 	struct octeon_ethernet_platform *plat;
 
-	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	plat = devm_kzalloc_obj(&pdev->dev, *plat);
 	if (!plat)
 		return -ENOMEM;
 

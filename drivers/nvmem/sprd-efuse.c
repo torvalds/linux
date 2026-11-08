@@ -373,7 +373,7 @@ static int sprd_efuse_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	efuse = devm_kzalloc(&pdev->dev, sizeof(*efuse), GFP_KERNEL);
+	efuse = devm_kzalloc_obj(&pdev->dev, *efuse);
 	if (!efuse)
 		return -ENOMEM;
 

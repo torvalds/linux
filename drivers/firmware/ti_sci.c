@@ -3693,13 +3693,12 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 	bool valid_set = false;
 	int i, ret, res_count;
 
-	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
+	res = devm_kzalloc_obj(dev, *res);
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
 	res->sets = sets;
-	res->desc = devm_kcalloc(dev, res->sets, sizeof(*res->desc),
-				 GFP_KERNEL);
+	res->desc = devm_kzalloc_objs(dev, *res->desc, res->sets);
 	if (!res->desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -3759,7 +3758,7 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 		return ERR_PTR(sets);
 	}
 
-	sub_types = kcalloc(sets, sizeof(*sub_types), GFP_KERNEL);
+	sub_types = kzalloc_objs(*sub_types, sets);
 	if (!sub_types)
 		return ERR_PTR(-ENOMEM);
 
@@ -4086,7 +4085,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 
 	desc = device_get_match_data(dev);
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 
@@ -4117,10 +4116,8 @@ static int ti_sci_probe(struct platform_device *pdev)
 		    1 << 8 * sizeof(((struct ti_sci_msg_hdr *)0)->seq)))
 		return -EINVAL;
 
-	minfo->xfer_block = devm_kcalloc(dev,
-					 desc->max_msgs,
-					 sizeof(*minfo->xfer_block),
-					 GFP_KERNEL);
+	minfo->xfer_block = devm_kzalloc_objs(dev, *minfo->xfer_block,
+					      desc->max_msgs);
 	if (!minfo->xfer_block)
 		return -ENOMEM;
 

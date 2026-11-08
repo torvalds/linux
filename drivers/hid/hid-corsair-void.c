@@ -649,8 +649,7 @@ static int corsair_void_probe(struct hid_device *hid_dev,
 	if (!hid_is_usb(hid_dev))
 		return -EINVAL;
 
-	drvdata = devm_kzalloc(&hid_dev->dev, sizeof(*drvdata),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hid_dev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

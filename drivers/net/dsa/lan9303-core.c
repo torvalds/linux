@@ -1403,7 +1403,7 @@ static const struct dsa_switch_ops lan9303_switch_ops = {
 
 static int lan9303_register_switch(struct lan9303 *chip)
 {
-	chip->ds = devm_kzalloc(chip->dev, sizeof(*chip->ds), GFP_KERNEL);
+	chip->ds = devm_kzalloc_obj(chip->dev, *chip->ds);
 	if (!chip->ds)
 		return -ENOMEM;
 

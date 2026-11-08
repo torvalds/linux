@@ -113,7 +113,7 @@ static int tc74_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EOPNOTSUPP;
 
-	data = devm_kzalloc(dev, sizeof(struct tc74_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct tc74_data);
 	if (!data)
 		return -ENOMEM;
 

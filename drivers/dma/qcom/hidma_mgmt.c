@@ -183,7 +183,7 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mgmtdev = devm_kzalloc(&pdev->dev, sizeof(*mgmtdev), GFP_KERNEL);
+	mgmtdev = devm_kzalloc_obj(&pdev->dev, *mgmtdev);
 	if (!mgmtdev) {
 		rc = -ENOMEM;
 		goto out;
@@ -265,18 +265,15 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 	} else
 		max_rd_xactions = mgmtdev->max_rd_xactions;
 
-	mgmtdev->priority = devm_kcalloc(&pdev->dev,
-					 mgmtdev->dma_channels,
-					 sizeof(*mgmtdev->priority),
-					 GFP_KERNEL);
+	mgmtdev->priority = devm_kzalloc_objs(&pdev->dev, *mgmtdev->priority,
+					      mgmtdev->dma_channels);
 	if (!mgmtdev->priority) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	mgmtdev->weight = devm_kcalloc(&pdev->dev,
-				       mgmtdev->dma_channels,
-				       sizeof(*mgmtdev->weight), GFP_KERNEL);
+	mgmtdev->weight = devm_kzalloc_objs(&pdev->dev, *mgmtdev->weight,
+					    mgmtdev->dma_channels);
 	if (!mgmtdev->weight) {
 		rc = -ENOMEM;
 		goto out;

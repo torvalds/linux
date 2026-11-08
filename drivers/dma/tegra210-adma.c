@@ -1044,9 +1044,8 @@ static int tegra_adma_probe(struct platform_device *pdev)
 				     "device match data not found\n");
 	}
 
-	tdma = devm_kzalloc(&pdev->dev,
-			    struct_size(tdma, channels, cdata->nr_channels),
-			    GFP_KERNEL);
+	tdma = devm_kzalloc_flex(&pdev->dev, *tdma, channels,
+				 cdata->nr_channels);
 	if (!tdma)
 		return -ENOMEM;
 

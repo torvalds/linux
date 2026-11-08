@@ -209,7 +209,7 @@ static void omapdss_walk_device(struct device *dev, struct device_node *node,
 	if (ret < 0)
 		return;
 
-	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
+	comp = devm_kzalloc_obj(dev, *comp);
 	if (comp) {
 		comp->node = node;
 		comp->dss_core_component = dss_core;

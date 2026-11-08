@@ -201,12 +201,12 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 	struct fsl_rpmsg *rpmsg;
 	int ret;
 
-	dai_drv = devm_kzalloc(&pdev->dev, sizeof(struct snd_soc_dai_driver), GFP_KERNEL);
+	dai_drv = devm_kzalloc_obj(&pdev->dev, struct snd_soc_dai_driver);
 	if (!dai_drv)
 		return -ENOMEM;
 	memcpy(dai_drv, &fsl_rpmsg_dai, sizeof(fsl_rpmsg_dai));
 
-	rpmsg = devm_kzalloc(&pdev->dev, sizeof(struct fsl_rpmsg), GFP_KERNEL);
+	rpmsg = devm_kzalloc_obj(&pdev->dev, struct fsl_rpmsg);
 	if (!rpmsg)
 		return -ENOMEM;
 

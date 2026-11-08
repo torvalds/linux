@@ -285,7 +285,7 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 	struct lp8788_rtc *rtc;
 	struct device *dev = &pdev->dev;
 
-	rtc = devm_kzalloc(dev, sizeof(struct lp8788_rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(dev, struct lp8788_rtc);
 	if (!rtc)
 		return -ENOMEM;
 

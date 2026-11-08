@@ -3776,7 +3776,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 
 	flags = (kernel_ulong_t)device_get_match_data(dev);
 
-	rx = devm_kzalloc(dev, sizeof(*rx), GFP_KERNEL);
+	rx = devm_kzalloc_obj(dev, *rx);
 	if (!rx)
 		return -ENOMEM;
 

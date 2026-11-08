@@ -184,7 +184,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	palmas_usb = devm_kzalloc(&pdev->dev, sizeof(*palmas_usb), GFP_KERNEL);
+	palmas_usb = devm_kzalloc_obj(&pdev->dev, *palmas_usb);
 	if (!palmas_usb)
 		return -ENOMEM;
 

@@ -305,7 +305,7 @@ static struct i915_vma *__xe_pin_fb_vma(struct drm_gem_object *obj, bool is_dpt,
 					const struct intel_fb_pin_params *pin_params)
 {
 	struct xe_device *xe = to_xe_device(obj->dev);
-	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	struct i915_vma *vma = kzalloc_obj(*vma);
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_validation_ctx ctx;
 	struct drm_exec exec;

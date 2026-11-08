@@ -506,7 +506,7 @@ static struct i2c_adapter *dw_hdmi_qp_i2c_adapter(struct dw_hdmi_qp *hdmi)
 	struct i2c_adapter *adap;
 	int ret;
 
-	i2c = devm_kzalloc(hdmi->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(hdmi->dev, *i2c);
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 
@@ -1187,7 +1187,7 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 		hdmi->bridge.hdmi_cec_dev = dev;
 		hdmi->bridge.hdmi_cec_adapter_name = dev_name(dev);
 
-		hdmi->cec = devm_kzalloc(hdmi->dev, sizeof(*hdmi->cec), GFP_KERNEL);
+		hdmi->cec = devm_kzalloc_obj(hdmi->dev, *hdmi->cec);
 		if (!hdmi->cec)
 			return ERR_PTR(-ENOMEM);
 

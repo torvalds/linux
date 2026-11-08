@@ -569,7 +569,7 @@ static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 		return 0;
 	}
 
-	rasdes_info = devm_kzalloc(dev, sizeof(*rasdes_info), GFP_KERNEL);
+	rasdes_info = devm_kzalloc_obj(dev, *rasdes_info);
 	if (!rasdes_info)
 		return -ENOMEM;
 
@@ -588,7 +588,7 @@ static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 
 	/* Create debugfs files for Error Injection subdirectory. */
 	for (i = 0; i < ARRAY_SIZE(err_inj_list); i++) {
-		priv_tmp = devm_kzalloc(dev, sizeof(*priv_tmp), GFP_KERNEL);
+		priv_tmp = devm_kzalloc_obj(dev, *priv_tmp);
 		if (!priv_tmp) {
 			ret = -ENOMEM;
 			goto err_deinit;
@@ -602,7 +602,7 @@ static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 
 	/* Create debugfs files for Statistical Counter subdirectory. */
 	for (i = 0; i < ARRAY_SIZE(event_list); i++) {
-		priv_tmp = devm_kzalloc(dev, sizeof(*priv_tmp), GFP_KERNEL);
+		priv_tmp = devm_kzalloc_obj(dev, *priv_tmp);
 		if (!priv_tmp) {
 			ret = -ENOMEM;
 			goto err_deinit;
@@ -900,7 +900,7 @@ void dwc_pcie_debugfs_init(struct dw_pcie *pci, enum dw_pcie_device_mode mode)
 	/* Create main directory for each platform driver. */
 	snprintf(dirname, DWC_DEBUGFS_BUF_MAX, "dwc_pcie_%s", dev_name(dev));
 	dir = debugfs_create_dir(dirname, NULL);
-	debugfs = devm_kzalloc(dev, sizeof(*debugfs), GFP_KERNEL);
+	debugfs = devm_kzalloc_obj(dev, *debugfs);
 	if (!debugfs)
 		return;
 

@@ -502,7 +502,7 @@ static struct iommu_domain *hv_iommu_domain_alloc_paging(struct device *dev)
 		},
 	};
 
-	hv_domain = kzalloc_obj(*hv_domain, GFP_KERNEL);
+	hv_domain = kzalloc_obj(*hv_domain);
 	if (!hv_domain)
 		return ERR_PTR(-ENOMEM);
 
@@ -645,7 +645,7 @@ int __init hv_iommu_init(void)
 	iommu_detected = 1;
 	pci_request_acs();
 
-	hv_iommu = kzalloc_obj(*hv_iommu, GFP_KERNEL);
+	hv_iommu = kzalloc_obj(*hv_iommu);
 	if (!hv_iommu)
 		return -ENOMEM;
 

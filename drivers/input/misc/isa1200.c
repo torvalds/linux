@@ -435,7 +435,7 @@ static int isa1200_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int err;
 
-	isa = devm_kzalloc(dev, sizeof(*isa), GFP_KERNEL);
+	isa = devm_kzalloc_obj(dev, *isa);
 	if (!isa)
 		return -ENOMEM;
 

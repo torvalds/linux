@@ -518,7 +518,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		if (!res)
 			break;
 
-		tsc = devm_kzalloc(dev, sizeof(*tsc), GFP_KERNEL);
+		tsc = devm_kzalloc_obj(dev, *tsc);
 		if (!tsc) {
 			ret = -ENOMEM;
 			goto error_unregister;

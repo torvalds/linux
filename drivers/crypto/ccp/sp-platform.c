@@ -107,7 +107,7 @@ static int sp_platform_probe(struct platform_device *pdev)
 	if (!sp)
 		goto e_err;
 
-	sp_platform = devm_kzalloc(dev, sizeof(*sp_platform), GFP_KERNEL);
+	sp_platform = devm_kzalloc_obj(dev, *sp_platform);
 	if (!sp_platform)
 		goto e_err;
 

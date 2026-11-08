@@ -288,7 +288,7 @@ static int exynos_bus_profile_init(struct exynos_bus *bus,
 	profile->get_dev_status = exynos_bus_get_dev_status;
 	profile->exit = exynos_bus_exit;
 
-	ondemand_data = devm_kzalloc(dev, sizeof(*ondemand_data), GFP_KERNEL);
+	ondemand_data = devm_kzalloc_obj(dev, *ondemand_data);
 	if (!ondemand_data)
 		return -ENOMEM;
 
@@ -352,7 +352,7 @@ static int exynos_bus_profile_init_passive(struct exynos_bus *bus,
 	if (IS_ERR(parent_devfreq))
 		return -EPROBE_DEFER;
 
-	passive_data = devm_kzalloc(dev, sizeof(*passive_data), GFP_KERNEL);
+	passive_data = devm_kzalloc_obj(dev, *passive_data);
 	if (!passive_data)
 		return -ENOMEM;
 
@@ -385,14 +385,14 @@ static int exynos_bus_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(&pdev->dev, *bus);
 	if (!bus)
 		return -ENOMEM;
 	mutex_init(&bus->lock);
 	bus->dev = &pdev->dev;
 	platform_set_drvdata(pdev, bus);
 
-	profile = devm_kzalloc(dev, sizeof(*profile), GFP_KERNEL);
+	profile = devm_kzalloc_obj(dev, *profile);
 	if (!profile)
 		return -ENOMEM;
 

@@ -916,7 +916,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 	}
 
 	for (i = 0; i <= is_aql; i++) {
-		attachment[i] = kzalloc(sizeof(*attachment[i]), GFP_KERNEL);
+		attachment[i] = kzalloc_obj(*attachment[i]);
 		if (unlikely(!attachment[i])) {
 			ret = -ENOMEM;
 			goto unwind;

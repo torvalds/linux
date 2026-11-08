@@ -158,7 +158,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	gchip = devm_kzalloc(&pdev->dev, sizeof(*gchip), GFP_KERNEL);
+	gchip = devm_kzalloc_obj(&pdev->dev, *gchip);
 	if (gchip == NULL)
 		return -ENOMEM;
 

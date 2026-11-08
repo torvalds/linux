@@ -389,7 +389,7 @@ int brcmstb_pinctrl_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(dev);
 
-	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
+	pc = devm_kzalloc_obj(dev, *pc);
 	if (!pc)
 		return -ENOMEM;
 

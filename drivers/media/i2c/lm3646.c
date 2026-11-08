@@ -340,7 +340,7 @@ static int lm3646_probe(struct i2c_client *client)
 	struct lm3646_platform_data *pdata = dev_get_platdata(&client->dev);
 	int rval;
 
-	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc_obj(&client->dev, *flash);
 	if (flash == NULL)
 		return -ENOMEM;
 
@@ -350,9 +350,8 @@ static int lm3646_probe(struct i2c_client *client)
 
 	/* check device tree if there is no platform data */
 	if (pdata == NULL) {
-		pdata = devm_kzalloc(&client->dev,
-				     sizeof(struct lm3646_platform_data),
-				     GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&client->dev,
+					 struct lm3646_platform_data);
 		if (pdata == NULL)
 			return -ENOMEM;
 		/* use default data in case of no platform data */

@@ -930,7 +930,7 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int ret;
 
-	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
+	adg = devm_kzalloc_obj(dev, *adg);
 	if (!adg)
 		return -ENOMEM;
 

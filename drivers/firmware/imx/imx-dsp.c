@@ -146,7 +146,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 
 	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
-	dsp_ipc = devm_kzalloc(dev, sizeof(*dsp_ipc), GFP_KERNEL);
+	dsp_ipc = devm_kzalloc_obj(dev, *dsp_ipc);
 	if (!dsp_ipc)
 		return -ENOMEM;
 

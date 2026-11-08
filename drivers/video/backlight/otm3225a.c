@@ -216,7 +216,7 @@ static int otm3225a_probe(struct spi_device *spi)
 	struct lcd_device *ld;
 	struct device *dev = &spi->dev;
 
-	dd = devm_kzalloc(dev, sizeof(struct otm3225a_data), GFP_KERNEL);
+	dd = devm_kzalloc_obj(dev, struct otm3225a_data);
 	if (dd == NULL)
 		return -ENOMEM;
 

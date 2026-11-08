@@ -91,7 +91,7 @@ th1520_add_pm_domain(struct device *dev, const struct th1520_power_info *pi)
 	struct th1520_power_domain *pd;
 	int ret;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
@@ -152,7 +152,7 @@ static int th1520_pd_pwrseq_gpu_init(struct device *dev)
 		 */
 		return 0;
 
-	adev = devm_kzalloc(dev, sizeof(*adev), GFP_KERNEL);
+	adev = devm_kzalloc_obj(dev, *adev);
 	if (!adev)
 		return -ENOMEM;
 
@@ -198,14 +198,13 @@ static int th1520_pd_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(aon_chan),
 				     "Failed to get AON channel\n");
 
-	domains = devm_kcalloc(dev, ARRAY_SIZE(th1520_pd_ranges),
-			       sizeof(*domains), GFP_KERNEL);
+	domains = devm_kzalloc_objs(dev, *domains, ARRAY_SIZE(th1520_pd_ranges));
 	if (!domains) {
 		ret = -ENOMEM;
 		goto err_clean_aon;
 	}
 
-	pd_data = devm_kzalloc(dev, sizeof(*pd_data), GFP_KERNEL);
+	pd_data = devm_kzalloc_obj(dev, *pd_data);
 	if (!pd_data) {
 		ret = -ENOMEM;
 		goto err_clean_aon;

@@ -169,7 +169,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	if (!cpu_dev)
 		return -EPROBE_DEFER;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

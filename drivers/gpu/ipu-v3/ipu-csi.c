@@ -683,7 +683,7 @@ int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 	if (id > 1)
 		return -ENODEV;
 
-	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 

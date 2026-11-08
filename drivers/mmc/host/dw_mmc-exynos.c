@@ -380,7 +380,7 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	int idx;
 	int ret;
 
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(host->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

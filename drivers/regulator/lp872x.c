@@ -611,7 +611,7 @@ static int lp872x_probe(struct i2c_client *cl)
 	struct lp872x *lp;
 	int ret;
 
-	lp = devm_kzalloc(dev, sizeof(*lp), GFP_KERNEL);
+	lp = devm_kzalloc_obj(dev, *lp);
 	if (!lp)
 		return -ENOMEM;
 

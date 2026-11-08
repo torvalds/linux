@@ -28,7 +28,7 @@ int __io_register_dmabuf(struct io_ring_ctx *ctx,
 	if (desc->uaddr || desc->size)
 		return -EINVAL;
 
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	bd = kzalloc_obj(*bd);
 	if (!bd)
 		return -ENOMEM;
 

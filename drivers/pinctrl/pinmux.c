@@ -944,7 +944,7 @@ int pinmux_generic_add_pinfunction(struct pinctrl_dev *pctldev,
 
 	selector = pctldev->num_functions;
 
-	function = devm_kzalloc(pctldev->dev, sizeof(*function), GFP_KERNEL);
+	function = devm_kzalloc_obj(pctldev->dev, *function);
 	if (!function)
 		return -ENOMEM;
 

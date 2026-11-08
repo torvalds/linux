@@ -7420,8 +7420,7 @@ static int smb2_add_stream_info(struct smb2_stream_info_buffer *buf,
 	    buf->capacity - offset < sizeof(*file_info))
 		return -ENOSPC;
 
-	utf16_name = kmalloc_array(name_len + 1, sizeof(*utf16_name),
-				   KSMBD_DEFAULT_GFP);
+	utf16_name = kmalloc_objs(*utf16_name, name_len + 1, KSMBD_DEFAULT_GFP);
 	if (!utf16_name)
 		return -ENOMEM;
 
@@ -7744,8 +7743,8 @@ static int find_file_posix_info(struct ksmbd_work *work,
 	if (filename[0] == '\\')
 		memmove(filename, filename + 1, strlen(filename));
 	name_bytes = strlen(filename);
-	utf16_name = kmalloc_array(name_bytes + 1, sizeof(*utf16_name),
-				    KSMBD_DEFAULT_GFP);
+	utf16_name = kmalloc_objs(*utf16_name, name_bytes + 1,
+				  KSMBD_DEFAULT_GFP);
 	if (!utf16_name) {
 		kfree(filename);
 		return -ENOMEM;

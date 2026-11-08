@@ -63,7 +63,7 @@ static int komeda_platform_probe(struct platform_device *pdev)
 	if (err)
 		return dev_err_probe(dev, err, "DMA mask error\n");
 
-	mdrv = devm_kzalloc(dev, sizeof(*mdrv), GFP_KERNEL);
+	mdrv = devm_kzalloc_obj(dev, *mdrv);
 	if (!mdrv)
 		return -ENOMEM;
 

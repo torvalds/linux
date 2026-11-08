@@ -117,9 +117,8 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 	int i;
 	int err;
 
-	apu_led->pled = devm_kcalloc(dev,
-		ARRAY_SIZE(apu1_led_profile), sizeof(struct apu_led_priv),
-		GFP_KERNEL);
+	apu_led->pled = devm_kzalloc_objs(dev, struct apu_led_priv,
+					  ARRAY_SIZE(apu1_led_profile));
 
 	if (!apu_led->pled)
 		return -ENOMEM;
@@ -159,7 +158,7 @@ error:
 
 static int __init apu_led_probe(struct platform_device *pdev)
 {
-	apu_led = devm_kzalloc(&pdev->dev, sizeof(*apu_led), GFP_KERNEL);
+	apu_led = devm_kzalloc_obj(&pdev->dev, *apu_led);
 
 	if (!apu_led)
 		return -ENOMEM;

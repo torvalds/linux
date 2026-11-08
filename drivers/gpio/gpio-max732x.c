@@ -604,7 +604,7 @@ static struct max732x_platform_data *of_gpio_max732x(struct device *dev)
 {
 	struct max732x_platform_data *pdata;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -634,7 +634,7 @@ static int max732x_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->client = client;

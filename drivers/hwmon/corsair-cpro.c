@@ -590,7 +590,7 @@ static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	bool fw_valid, bl_valid;
 	int ret;
 
-	ccp = devm_kzalloc(&hdev->dev, sizeof(*ccp), GFP_KERNEL);
+	ccp = devm_kzalloc_obj(&hdev->dev, *ccp);
 	if (!ccp)
 		return -ENOMEM;
 

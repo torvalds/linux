@@ -597,7 +597,7 @@ static int lm80_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	struct lm80_data *data;
 
-	data = devm_kzalloc(dev, sizeof(struct lm80_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm80_data);
 	if (!data)
 		return -ENOMEM;
 

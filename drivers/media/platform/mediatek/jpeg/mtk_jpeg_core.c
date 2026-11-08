@@ -1296,7 +1296,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	int num_child = 0;
 	int ret;
 
-	jpeg = devm_kzalloc(&pdev->dev, sizeof(*jpeg), GFP_KERNEL);
+	jpeg = devm_kzalloc_obj(&pdev->dev, *jpeg);
 	if (!jpeg)
 		return -ENOMEM;
 

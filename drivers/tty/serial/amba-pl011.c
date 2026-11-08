@@ -3120,8 +3120,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	if (portnr < 0)
 		return portnr;
 
-	uap = devm_kzalloc(&dev->dev, sizeof(struct uart_amba_port),
-			   GFP_KERNEL);
+	uap = devm_kzalloc_obj(&dev->dev, struct uart_amba_port);
 	if (!uap)
 		return -ENOMEM;
 
@@ -3266,8 +3265,7 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	if (portnr < 0)
 		return portnr;
 
-	uap = devm_kzalloc(&pdev->dev, sizeof(struct uart_amba_port),
-			   GFP_KERNEL);
+	uap = devm_kzalloc_obj(&pdev->dev, struct uart_amba_port);
 	if (!uap)
 		return -ENOMEM;
 

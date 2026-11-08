@@ -199,7 +199,7 @@ static int rsmu_spi_probe(struct spi_device *client)
 	struct rsmu_ddata *rsmu;
 	int ret;
 
-	rsmu = devm_kzalloc(&client->dev, sizeof(*rsmu), GFP_KERNEL);
+	rsmu = devm_kzalloc_obj(&client->dev, *rsmu);
 	if (!rsmu)
 		return -ENOMEM;
 

@@ -546,9 +546,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 	}
 	pr_info("PMIC revision 2: %02X\n", val);
 
-	chip = devm_kzalloc(&pdev->dev,
-			    struct_size(chip, config, data->num_irqs),
-			    GFP_KERNEL);
+	chip = devm_kzalloc_flex(&pdev->dev, *chip, config, data->num_irqs);
 	if (!chip)
 		return -ENOMEM;
 

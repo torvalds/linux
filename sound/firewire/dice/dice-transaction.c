@@ -275,8 +275,7 @@ static int get_subaddrs(struct snd_dice *dice)
 	unsigned int i;
 	int err;
 
-	pointers = kmalloc_array(ARRAY_SIZE(min_values), sizeof(__be32),
-				 GFP_KERNEL);
+	pointers = kmalloc_objs(__be32, ARRAY_SIZE(min_values));
 	if (pointers == NULL)
 		return -ENOMEM;
 

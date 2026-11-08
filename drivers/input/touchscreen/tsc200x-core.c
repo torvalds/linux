@@ -452,7 +452,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return -ENODEV;
 	}
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

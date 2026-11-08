@@ -118,7 +118,7 @@ static int stm32_dbg_bus_plat_probe(struct platform_device *pdev)
 	if (!stm32_dbg_bus_priv)
 		return -EPROBE_DEFER;
 
-	dbg_controller = devm_kzalloc(&pdev->dev, sizeof(*dbg_controller), GFP_KERNEL);
+	dbg_controller = devm_kzalloc_obj(&pdev->dev, *dbg_controller);
 	if (!dbg_controller)
 		return dev_err_probe(&pdev->dev, -ENOMEM, "Couldn't allocate debug controller\n");
 
@@ -192,7 +192,7 @@ static int stm32_dbg_bus_probe(struct tee_client_device *tee_dev)
 		return dev_err_probe(dev, -EBUSY,
 				     "A STM32 debug bus device is already initialized\n");
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -430,7 +430,7 @@ static int avs_parse_nhlt_config_size(struct snd_soc_component *comp, void *elem
 	u32 size;
 
 	size = le32_to_cpu(tuple->value);
-	*blob = devm_kzalloc(comp->card->dev, struct_size(*blob, capabilities, size), GFP_KERNEL);
+	*blob = devm_kzalloc_flex(comp->card->dev, **blob, capabilities, size);
 	if (!*blob)
 		return -ENOMEM;
 
@@ -984,7 +984,7 @@ static int avs_tplg_parse_modcfg_ext(struct snd_soc_component *comp,
 		if (!num_pins)
 			return -EINVAL;
 
-		pins = devm_kcalloc(comp->card->dev, num_pins, sizeof(*pins), GFP_KERNEL);
+		pins = devm_kzalloc_objs(comp->card->dev, *pins, num_pins);
 		if (!pins)
 			return -ENOMEM;
 
@@ -1229,7 +1229,8 @@ static int avs_tplg_module_init_configs(struct snd_soc_component *comp,
 	if (!module->num_init_configs)
 		return -EINVAL;
 
-	cfgs = devm_kcalloc(comp->card->dev, module->num_init_configs, sizeof(*cfgs), GFP_KERNEL);
+	cfgs = devm_kzalloc_objs(comp->card->dev, *cfgs,
+				 module->num_init_configs);
 	if (!cfgs)
 		return -ENOMEM;
 
@@ -1255,7 +1256,7 @@ avs_tplg_module_create(struct snd_soc_component *comp, struct avs_tplg_pipeline 
 	if (ret)
 		return ERR_PTR(ret);
 
-	module = devm_kzalloc(comp->card->dev, sizeof(*module), GFP_KERNEL);
+	module = devm_kzalloc_obj(comp->card->dev, *module);
 	if (!module)
 		return ERR_PTR(-ENOMEM);
 
@@ -1318,7 +1319,7 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 	u32 modblk_size, offset;
 	int ret;
 
-	pipeline = devm_kzalloc(comp->card->dev, sizeof(*pipeline), GFP_KERNEL);
+	pipeline = devm_kzalloc_obj(comp->card->dev, *pipeline);
 	if (!pipeline)
 		return ERR_PTR(-ENOMEM);
 
@@ -1355,8 +1356,9 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 
 		modblk_size = block_size;
 	} else {
-		pipeline->bindings = devm_kcalloc(comp->card->dev, pipeline->num_bindings,
-						  sizeof(*pipeline->bindings), GFP_KERNEL);
+		pipeline->bindings = devm_kzalloc_objs(comp->card->dev,
+						       *pipeline->bindings,
+						       pipeline->num_bindings);
 		if (!pipeline->bindings)
 			return ERR_PTR(-ENOMEM);
 
@@ -1448,7 +1450,7 @@ avs_tplg_path_create(struct snd_soc_component *comp, struct avs_tplg_path_templa
 	u32 offset;
 	int ret;
 
-	path = devm_kzalloc(comp->card->dev, sizeof(*path), GFP_KERNEL);
+	path = devm_kzalloc_obj(comp->card->dev, *path);
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
@@ -1591,7 +1593,7 @@ avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *o
 	struct avs_tplg_path_template *template;
 	int ret;
 
-	template = devm_kzalloc(comp->card->dev, sizeof(*template), GFP_KERNEL);
+	template = devm_kzalloc_obj(comp->card->dev, *template);
 	if (!template)
 		return ERR_PTR(-ENOMEM);
 
@@ -2187,7 +2189,7 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	tuples = tmc->priv.array;
 	block_size = le32_to_cpu(tmc->priv.size);
 
-	ctl_data = devm_kzalloc(comp->card->dev, sizeof(*ctl_data), GFP_KERNEL);
+	ctl_data = devm_kzalloc_obj(comp->card->dev, *ctl_data);
 	if (!ctl_data)
 		return -ENOMEM;
 
@@ -2223,7 +2225,7 @@ struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp)
 {
 	struct avs_tplg *tplg;
 
-	tplg = devm_kzalloc(comp->card->dev, sizeof(*tplg), GFP_KERNEL);
+	tplg = devm_kzalloc_obj(comp->card->dev, *tplg);
 	if (!tplg)
 		return NULL;
 

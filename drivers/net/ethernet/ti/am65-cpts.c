@@ -1177,7 +1177,7 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 	struct am65_cpts *cpts;
 	int ret, i;
 
-	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
+	cpts = devm_kzalloc_obj(dev, *cpts);
 	if (!cpts)
 		return ERR_PTR(-ENOMEM);
 

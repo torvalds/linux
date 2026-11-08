@@ -745,14 +745,12 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 	while (data[num_periph].name)
 		num_periph++;
 
-	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
+	driver_data = devm_kzalloc_obj(dev, *driver_data);
 	if (!driver_data)
 		return -ENOMEM;
 
-	driver_data->hw_data = devm_kzalloc(dev,
-					    struct_size(driver_data->hw_data,
-							hws, num_periph),
-					    GFP_KERNEL);
+	driver_data->hw_data = devm_kzalloc_flex(dev, *driver_data->hw_data,
+						 hws, num_periph);
 	if (!driver_data->hw_data)
 		return -ENOMEM;
 	driver_data->hw_data->num = num_periph;

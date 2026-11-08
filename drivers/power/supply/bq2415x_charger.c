@@ -1584,7 +1584,7 @@ static int bq2415x_probe(struct i2c_client *client)
 		goto error_1;
 	}
 
-	bq = devm_kzalloc(&client->dev, sizeof(*bq), GFP_KERNEL);
+	bq = devm_kzalloc_obj(&client->dev, *bq);
 	if (!bq) {
 		ret = -ENOMEM;
 		goto error_2;

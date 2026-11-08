@@ -1385,7 +1385,7 @@ static int qcom_edp_clks_register(struct qcom_edp *edp, struct device_node *np)
 	char name[64];
 	int ret;
 
-	data = devm_kzalloc(edp->dev, struct_size(data, hws, 2), GFP_KERNEL);
+	data = devm_kzalloc_flex(edp->dev, *data, hws, 2);
 	if (!data)
 		return -ENOMEM;
 	data->num = 2;
@@ -1419,7 +1419,7 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 	struct qcom_edp *edp;
 	int ret;
 
-	edp = devm_kzalloc(dev, sizeof(*edp), GFP_KERNEL);
+	edp = devm_kzalloc_obj(dev, *edp);
 	if (!edp)
 		return -ENOMEM;
 

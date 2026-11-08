@@ -745,7 +745,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	int norm_irq, sec_irq;
 	int rc;
 
-	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
+	imxdi = devm_kzalloc_obj(&pdev->dev, *imxdi);
 	if (!imxdi)
 		return -ENOMEM;
 

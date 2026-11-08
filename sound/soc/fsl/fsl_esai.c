@@ -954,7 +954,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int irq, ret;
 
-	esai_priv = devm_kzalloc(&pdev->dev, sizeof(*esai_priv), GFP_KERNEL);
+	esai_priv = devm_kzalloc_obj(&pdev->dev, *esai_priv);
 	if (!esai_priv)
 		return -ENOMEM;
 

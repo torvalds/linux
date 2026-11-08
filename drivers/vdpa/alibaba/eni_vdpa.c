@@ -503,9 +503,8 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	eni_vdpa->vdpa.vmap.dma_dev = &pdev->dev;
 	eni_vdpa->queues = eni_vdpa_get_num_queues(eni_vdpa);
 
-	eni_vdpa->vring = devm_kcalloc(&pdev->dev, eni_vdpa->queues,
-				      sizeof(*eni_vdpa->vring),
-				      GFP_KERNEL);
+	eni_vdpa->vring = devm_kzalloc_objs(&pdev->dev, *eni_vdpa->vring,
+					    eni_vdpa->queues);
 	if (!eni_vdpa->vring) {
 		ret = -ENOMEM;
 		ENI_ERR(pdev, "failed to allocate virtqueues\n");

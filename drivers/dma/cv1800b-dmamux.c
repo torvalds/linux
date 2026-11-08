@@ -200,7 +200,7 @@ static int cv1800_dmamux_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -209,7 +209,7 @@ static int cv1800_dmamux_probe(struct platform_device *pdev)
 	init_llist_head(&data->reserve_maps);
 
 	for (i = 0; i <= MAX_DMA_CH_ID; i++) {
-		tmp = devm_kmalloc(dev, sizeof(*tmp), GFP_KERNEL);
+		tmp = devm_kmalloc_obj(dev, *tmp);
 		if (!tmp) {
 			/* It is OK for not allocating all channel */
 			dev_warn(dev, "can not allocate channel %u\n", i);

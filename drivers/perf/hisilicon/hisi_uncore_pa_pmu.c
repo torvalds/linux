@@ -454,7 +454,7 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	pa_pmu = devm_kzalloc(&pdev->dev, sizeof(*pa_pmu), GFP_KERNEL);
+	pa_pmu = devm_kzalloc_obj(&pdev->dev, *pa_pmu);
 	if (!pa_pmu)
 		return -ENOMEM;
 

@@ -108,7 +108,7 @@ static int dmic_component_probe(struct snd_soc_component *component)
 {
 	struct dmic *dmic;
 
-	dmic = devm_kzalloc(component->dev, sizeof(*dmic), GFP_KERNEL);
+	dmic = devm_kzalloc_obj(component->dev, *dmic);
 	if (!dmic)
 		return -ENOMEM;
 
@@ -179,7 +179,7 @@ static int dmic_dev_probe(struct platform_device *pdev)
 			if (chans < 1 || chans > 8)
 				return -EINVAL;
 
-			dai_drv = devm_kzalloc(&pdev->dev, sizeof(*dai_drv), GFP_KERNEL);
+			dai_drv = devm_kzalloc_obj(&pdev->dev, *dai_drv);
 			if (!dai_drv)
 				return -ENOMEM;
 

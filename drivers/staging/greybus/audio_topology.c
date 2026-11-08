@@ -642,7 +642,7 @@ static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
 	struct gb_audio_enumerated *gb_enum;
 	int i;
 
-	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
+	gbe = devm_kzalloc_obj(gb->dev, *gbe);
 	if (!gbe)
 		return -ENOMEM;
 
@@ -680,9 +680,8 @@ static int gbaudio_tplg_create_kcontrol(struct gbaudio_module_info *gb,
 			ret = gbaudio_tplg_create_enum_kctl(gb, kctl, ctl);
 			break;
 		default:
-			ctldata = devm_kzalloc(gb->dev,
-					       sizeof(struct gbaudio_ctl_pvt),
-					       GFP_KERNEL);
+			ctldata = devm_kzalloc_obj(gb->dev,
+						   struct gbaudio_ctl_pvt);
 			if (!ctldata)
 				return -ENOMEM;
 			ctldata->ctl_id = ctl->id;
@@ -848,7 +847,7 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 	struct gb_audio_enumerated *gb_enum;
 	int i;
 
-	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
+	gbe = devm_kzalloc_obj(gb->dev, *gbe);
 	if (!gbe)
 		return -ENOMEM;
 
@@ -878,8 +877,7 @@ static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
 {
 	struct gbaudio_ctl_pvt *ctldata;
 
-	ctldata = devm_kzalloc(gb->dev, sizeof(struct gbaudio_ctl_pvt),
-			       GFP_KERNEL);
+	ctldata = devm_kzalloc_obj(gb->dev, struct gbaudio_ctl_pvt);
 	if (!ctldata)
 		return -ENOMEM;
 	ctldata->ctl_id = ctl->id;
@@ -1048,9 +1046,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 				curr->name, curr->iface);
 			goto error;
 		}
-		control = devm_kzalloc(module->dev,
-				       sizeof(struct gbaudio_control),
-				       GFP_KERNEL);
+		control = devm_kzalloc_obj(module->dev, struct gbaudio_control);
 		if (!control) {
 			ret = -ENOMEM;
 			goto error;
@@ -1159,9 +1155,7 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 				curr->name, curr->iface);
 			goto error;
 		}
-		control = devm_kzalloc(module->dev, sizeof(struct
-							   gbaudio_control),
-				      GFP_KERNEL);
+		control = devm_kzalloc_obj(module->dev, struct gbaudio_control);
 		if (!control) {
 			ret = -ENOMEM;
 			goto error;
@@ -1232,9 +1226,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 				curr->name, curr->type);
 			goto error;
 		}
-		widget = devm_kzalloc(module->dev, sizeof(struct
-							   gbaudio_widget),
-				      GFP_KERNEL);
+		widget = devm_kzalloc_obj(module->dev, struct gbaudio_widget);
 		if (!widget) {
 			ret = -ENOMEM;
 			goto error;

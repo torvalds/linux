@@ -51,8 +51,7 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	int error;
 	int irq_num;
 
-	data = devm_kzalloc(dev, sizeof(struct pasemi_platform_i2c_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct pasemi_platform_i2c_data);
 	if (!data)
 		return -ENOMEM;
 

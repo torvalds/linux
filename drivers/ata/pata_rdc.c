@@ -326,7 +326,7 @@ static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(dev, *hpriv);
 	if (!hpriv)
 		return -ENOMEM;
 

@@ -1731,8 +1731,8 @@ static int vt_do_kdgkbdiacr(void __user *udp)
 	struct kbdiacrs __user *a = udp;
 	int i, asize;
 
-	struct kbdiacr __free(kfree) *dia = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacr),
-							  GFP_KERNEL);
+	struct kbdiacr __free(kfree) *dia = kmalloc_objs(struct kbdiacr,
+							 MAX_DIACR);
 	if (!dia)
 		return -ENOMEM;
 
@@ -1759,8 +1759,7 @@ static int vt_do_kdgkbdiacruc(void __user *udp)
 	struct kbdiacrsuc __user *a = udp;
 	int asize;
 
-	void __free(kfree) *buf = kmalloc_array(MAX_DIACR, sizeof(struct kbdiacruc),
-						GFP_KERNEL);
+	void __free(kfree) *buf = kmalloc_objs(struct kbdiacruc, MAX_DIACR);
 	if (buf == NULL)
 		return -ENOMEM;
 

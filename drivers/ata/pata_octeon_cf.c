@@ -821,7 +821,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	if (node == NULL)
 		return -EINVAL;
 
-	cf_port = devm_kzalloc(&pdev->dev, sizeof(*cf_port), GFP_KERNEL);
+	cf_port = devm_kzalloc_obj(&pdev->dev, *cf_port);
 	if (!cf_port)
 		return -ENOMEM;
 

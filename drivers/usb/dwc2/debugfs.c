@@ -788,7 +788,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	/* Add gadget debugfs nodes */
 	dwc2_hsotg_create_debug(hsotg);
 
-	hsotg->regset = kzalloc_obj(*hsotg->regset, GFP_KERNEL);
+	hsotg->regset = kzalloc_obj(*hsotg->regset);
 	if (!hsotg->regset) {
 		ret = -ENOMEM;
 		goto err;

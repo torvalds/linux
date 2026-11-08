@@ -440,7 +440,7 @@ static int npcm_rc_probe(struct platform_device *pdev)
 	struct npcm_rc_data *rc;
 	int ret;
 
-	rc = devm_kzalloc(&pdev->dev, sizeof(*rc), GFP_KERNEL);
+	rc = devm_kzalloc_obj(&pdev->dev, *rc);
 	if (!rc)
 		return -ENOMEM;
 

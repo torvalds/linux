@@ -217,7 +217,7 @@ static int prm_probe(gpr_device_t *gdev)
 	struct device *dev = &gdev->dev;
 	struct q6prm *cc;
 
-	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
+	cc = devm_kzalloc_obj(dev, *cc);
 	if (!cc)
 		return -ENOMEM;
 

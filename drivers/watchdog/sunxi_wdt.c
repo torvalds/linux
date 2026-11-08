@@ -295,7 +295,7 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	unsigned int running_timeout;
 	int err;
 
-	sunxi_wdt = devm_kzalloc(dev, sizeof(*sunxi_wdt), GFP_KERNEL);
+	sunxi_wdt = devm_kzalloc_obj(dev, *sunxi_wdt);
 	if (!sunxi_wdt)
 		return -ENOMEM;
 

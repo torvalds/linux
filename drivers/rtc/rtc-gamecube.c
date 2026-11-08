@@ -323,7 +323,7 @@ static int gamecube_rtc_probe(struct platform_device *pdev)
 	struct priv *d;
 	int ret;
 
-	d = devm_kzalloc(dev, sizeof(struct priv), GFP_KERNEL);
+	d = devm_kzalloc_obj(dev, struct priv);
 	if (!d)
 		return -ENOMEM;
 

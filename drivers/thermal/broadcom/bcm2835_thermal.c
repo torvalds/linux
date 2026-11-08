@@ -120,7 +120,7 @@ static void bcm2835_thermal_debugfs(struct platform_device *pdev)
 
 	data->debugfsdir = debugfs_create_dir("bcm2835_thermal", NULL);
 
-	regset = devm_kzalloc(&pdev->dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(&pdev->dev, *regset);
 	if (!regset)
 		return;
 
@@ -167,7 +167,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	u32 val;
 	unsigned long rate;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

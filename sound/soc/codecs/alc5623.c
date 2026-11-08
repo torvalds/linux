@@ -997,8 +997,7 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 	int ret;
 	u32 val32;
 
-	alc5623 = devm_kzalloc(&client->dev, sizeof(struct alc5623_priv),
-			       GFP_KERNEL);
+	alc5623 = devm_kzalloc_obj(&client->dev, struct alc5623_priv);
 	if (alc5623 == NULL)
 		return -ENOMEM;
 

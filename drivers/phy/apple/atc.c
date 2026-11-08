@@ -2297,7 +2297,7 @@ static int atcphy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	atcphy = devm_kzalloc(&pdev->dev, sizeof(*atcphy), GFP_KERNEL);
+	atcphy = devm_kzalloc_obj(&pdev->dev, *atcphy);
 	if (!atcphy)
 		return -ENOMEM;
 

@@ -987,8 +987,7 @@ u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
 		return NULL;
 	}
 
-	formats = kcalloc(layer->info->num_formats, sizeof(*formats),
-			  GFP_KERNEL);
+	formats = kzalloc_objs(*formats, layer->info->num_formats);
 	if (!formats) {
 		*num_formats = 0;
 		return NULL;
@@ -1024,8 +1023,7 @@ u32 *zynqmp_disp_live_layer_formats(struct zynqmp_disp_layer *layer,
 		return NULL;
 	}
 
-	formats = kcalloc(layer->info->num_formats, sizeof(*formats),
-			  GFP_KERNEL);
+	formats = kzalloc_objs(*formats, layer->info->num_formats);
 	if (!formats) {
 		*num_formats = 0;
 		return NULL;

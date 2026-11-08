@@ -347,7 +347,7 @@ static int adc_tm5_probe(struct auxiliary_device *aux_dev,
 	struct device *dev = &aux_dev->dev;
 	int ret;
 
-	adc_tm5 = devm_kzalloc(dev, sizeof(*adc_tm5), GFP_KERNEL);
+	adc_tm5 = devm_kzalloc_obj(dev, *adc_tm5);
 	if (!adc_tm5)
 		return -ENOMEM;
 
@@ -356,8 +356,8 @@ static int adc_tm5_probe(struct auxiliary_device *aux_dev,
 	adc_tm5->dev = dev;
 	adc_tm5->dev_data = aux_dev_wrapper->dev_data;
 	adc_tm5->nchannels = aux_dev_wrapper->n_tm_channels;
-	adc_tm5->chan_props = devm_kcalloc(dev, aux_dev_wrapper->n_tm_channels,
-					   sizeof(*adc_tm5->chan_props), GFP_KERNEL);
+	adc_tm5->chan_props = devm_kzalloc_objs(dev, *adc_tm5->chan_props,
+						aux_dev_wrapper->n_tm_channels);
 	if (!adc_tm5->chan_props)
 		return -ENOMEM;
 

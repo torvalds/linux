@@ -731,7 +731,7 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 	if (!acpi_dev)
 		return -ENODEV;
 
-	l3pmu = devm_kzalloc(&pdev->dev, sizeof(*l3pmu), GFP_KERNEL);
+	l3pmu = devm_kzalloc_obj(&pdev->dev, *l3pmu);
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "l3cache_%s_%s",
 		      acpi_device_uid(acpi_dev_parent(acpi_dev)),
 		      acpi_device_uid(acpi_dev));

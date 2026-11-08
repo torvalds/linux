@@ -133,7 +133,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	int irq, err;
 	u32 freq_hz;
 
-	priv = devm_kzalloc(&ofdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&ofdev->dev, *priv);
 	if (!priv) {
 		dev_err(&ofdev->dev, "memory allocation failed\n");
 		return -ENOMEM;

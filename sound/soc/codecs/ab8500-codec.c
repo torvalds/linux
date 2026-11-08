@@ -2132,8 +2132,7 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s: Enter.\n", __func__);
 
 	/* Create driver private-data struct */
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_codec_drvdata),
-			GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct ab8500_codec_drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, drvdata);

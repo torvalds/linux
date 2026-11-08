@@ -436,7 +436,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 	unsigned int max_i2s_chan_pow_2;
 	struct device *dev = &pdev->dev;
 
-	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(dev, *i2s);
 	if (!i2s)
 		return -ENOMEM;
 
@@ -515,8 +515,8 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	i2s->suspend_ch_ctl = devm_kcalloc(dev,
-		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
+	i2s->suspend_ch_ctl = devm_kzalloc_objs(dev, *i2s->suspend_ch_ctl,
+						i2s->max_i2s_chan);
 	if (!i2s->suspend_ch_ctl) {
 		ret = -ENOMEM;
 		goto err_suspend;

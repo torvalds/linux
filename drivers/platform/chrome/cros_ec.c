@@ -43,7 +43,7 @@ struct cros_ec_device *cros_ec_device_alloc(struct device *dev)
 {
 	struct cros_ec_device *ec_dev;
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = devm_kzalloc_obj(dev, *ec_dev);
 	if (!ec_dev)
 		return NULL;
 

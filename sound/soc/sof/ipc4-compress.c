@@ -474,7 +474,7 @@ static int sof_ipc4_compr_set_params(struct snd_soc_component *component,
 		goto free_list;
 	}
 
-	compr_data = kzalloc(sizeof(*compr_data), GFP_KERNEL);
+	compr_data = kzalloc_obj(*compr_data);
 	if (!compr_data) {
 		ret = -ENOMEM;
 		goto free_list;

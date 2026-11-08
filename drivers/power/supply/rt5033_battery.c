@@ -147,7 +147,7 @@ static int rt5033_battery_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	battery = devm_kzalloc(&client->dev, sizeof(*battery), GFP_KERNEL);
+	battery = devm_kzalloc_obj(&client->dev, *battery);
 	if (!battery)
 		return -ENOMEM;
 

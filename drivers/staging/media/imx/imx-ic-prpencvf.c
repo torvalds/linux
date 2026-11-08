@@ -1345,7 +1345,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	struct prp_priv *priv;
 	int i, ret;
 
-	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(ic_priv->ipu_dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

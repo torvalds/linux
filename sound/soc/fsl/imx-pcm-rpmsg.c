@@ -698,7 +698,7 @@ static int imx_rpmsg_pcm_probe(struct platform_device *pdev)
 	struct rpmsg_info *info;
 	int ret, i;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

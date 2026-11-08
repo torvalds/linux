@@ -142,7 +142,7 @@ static struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
-	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
+	cxlhdm = devm_kzalloc_obj(dev, *cxlhdm);
 	if (!cxlhdm)
 		return ERR_PTR(-ENOMEM);
 	cxlhdm->port = port;

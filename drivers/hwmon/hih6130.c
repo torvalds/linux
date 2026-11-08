@@ -215,7 +215,7 @@ static int hih6130_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	hih6130 = devm_kzalloc(dev, sizeof(*hih6130), GFP_KERNEL);
+	hih6130 = devm_kzalloc_obj(dev, *hih6130);
 	if (!hih6130)
 		return -ENOMEM;
 

@@ -88,7 +88,7 @@ static int st7571_i2c_probe(struct i2c_client *client)
 	struct st7571_i2c_transport *t;
 	struct regmap *regmap;
 
-	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
+	t = devm_kzalloc_obj(&client->dev, *t);
 	if (!t)
 		return -ENOMEM;
 

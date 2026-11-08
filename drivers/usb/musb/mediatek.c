@@ -406,12 +406,12 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(dev, *glue);
 	if (!glue)
 		return -ENOMEM;
 
 	glue->dev = dev;
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

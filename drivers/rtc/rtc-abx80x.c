@@ -785,7 +785,7 @@ static int abx80x_probe(struct device *dev, struct regmap *regmap, int irq,
 	unsigned int wafer;
 	unsigned int uid;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (priv == NULL)
 		return -ENOMEM;
 

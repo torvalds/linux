@@ -1252,7 +1252,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	int ret;
 	struct mcp2221 *mcp;
 
-	mcp = devm_kzalloc(&hdev->dev, sizeof(*mcp), GFP_KERNEL);
+	mcp = devm_kzalloc_obj(&hdev->dev, *mcp);
 	if (!mcp)
 		return -ENOMEM;
 
@@ -1323,7 +1323,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 
 #if IS_REACHABLE(CONFIG_GPIOLIB)
 	/* Setup GPIO chip */
-	mcp->gc = devm_kzalloc(&hdev->dev, sizeof(*mcp->gc), GFP_KERNEL);
+	mcp->gc = devm_kzalloc_obj(&hdev->dev, *mcp->gc);
 	if (!mcp->gc)
 		return -ENOMEM;
 

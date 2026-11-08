@@ -704,8 +704,8 @@ static int hisi_ptt_config_trace_buf(struct hisi_ptt *hisi_ptt)
 	struct device *dev = &hisi_ptt->pdev->dev;
 	int i;
 
-	ctrl->trace_buf = devm_kcalloc(dev, HISI_PTT_TRACE_BUF_CNT,
-				       sizeof(*ctrl->trace_buf), GFP_KERNEL);
+	ctrl->trace_buf = devm_kzalloc_objs(dev, *ctrl->trace_buf,
+					    HISI_PTT_TRACE_BUF_CNT);
 	if (!ctrl->trace_buf)
 		return -ENOMEM;
 
@@ -1311,7 +1311,7 @@ static int hisi_ptt_probe(struct pci_dev *pdev,
 		return ret;
 	}
 
-	hisi_ptt = devm_kzalloc(&pdev->dev, sizeof(*hisi_ptt), GFP_KERNEL);
+	hisi_ptt = devm_kzalloc_obj(&pdev->dev, *hisi_ptt);
 	if (!hisi_ptt)
 		return -ENOMEM;
 

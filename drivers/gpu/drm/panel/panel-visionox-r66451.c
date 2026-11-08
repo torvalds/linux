@@ -261,7 +261,7 @@ static int visionox_r66451_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	dsc = devm_kzalloc(dev, sizeof(*dsc), GFP_KERNEL);
+	dsc = devm_kzalloc_obj(dev, *dsc);
 	if (!dsc)
 		return -ENOMEM;
 

@@ -599,7 +599,7 @@ static int host1x_probe(struct platform_device *pdev)
 	struct host1x *host;
 	int err, i;
 
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(&pdev->dev, *host);
 	if (!host)
 		return -ENOMEM;
 

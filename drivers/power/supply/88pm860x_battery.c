@@ -916,7 +916,7 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 	struct pm860x_power_pdata *pdata;
 	int ret;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

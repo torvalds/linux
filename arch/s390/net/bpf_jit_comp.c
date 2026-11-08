@@ -2397,7 +2397,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	}
 
 	memset(&jit, 0, sizeof(jit));
-	jit.addrs = kvcalloc(fp->len + 1, sizeof(*jit.addrs), GFP_KERNEL);
+	jit.addrs = kvzalloc_objs(*jit.addrs, fp->len + 1);
 	if (jit.addrs == NULL)
 		goto out_err;
 	/*

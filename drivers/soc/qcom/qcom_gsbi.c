@@ -133,7 +133,7 @@ static int gsbi_probe(struct platform_device *pdev)
 	u32 mask, gsbi_num;
 	const struct crci_config *config = NULL;
 
-	gsbi = devm_kzalloc(&pdev->dev, sizeof(*gsbi), GFP_KERNEL);
+	gsbi = devm_kzalloc_obj(&pdev->dev, *gsbi);
 
 	if (!gsbi)
 		return -ENOMEM;

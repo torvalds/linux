@@ -2185,8 +2185,7 @@ static int tc358743_probe(struct i2c_client *client)
 	v4l_dbg(1, debug, client, "chip found @ 0x%x (%s)\n",
 		client->addr << 1, client->adapter->name);
 
-	state = devm_kzalloc(&client->dev, sizeof(struct tc358743_state),
-			GFP_KERNEL);
+	state = devm_kzalloc_obj(&client->dev, struct tc358743_state);
 	if (!state)
 		return -ENOMEM;
 

@@ -300,7 +300,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	int ret = 0;
 	const char *map_name;
 
-	ir = devm_kzalloc(dev, sizeof(struct mtk_ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(dev, struct mtk_ir);
 	if (!ir)
 		return -ENOMEM;
 

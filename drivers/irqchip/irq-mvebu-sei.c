@@ -374,7 +374,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	u32 parent_irq;
 	int ret;
 
-	sei = devm_kzalloc(&pdev->dev, sizeof(*sei), GFP_KERNEL);
+	sei = devm_kzalloc_obj(&pdev->dev, *sei);
 	if (!sei)
 		return -ENOMEM;
 

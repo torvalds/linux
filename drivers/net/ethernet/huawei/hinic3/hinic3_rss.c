@@ -81,8 +81,7 @@ static int alloc_rss_resource(struct net_device *netdev)
 
 	netdev_rss_key_fill(nic_dev->rss_hkey, L2NIC_RSS_KEY_SIZE);
 
-	nic_dev->rss_indir = kcalloc(L2NIC_RSS_INDIR_SIZE, sizeof(u16),
-				     GFP_KERNEL);
+	nic_dev->rss_indir = kzalloc_objs(u16, L2NIC_RSS_INDIR_SIZE);
 	if (!nic_dev->rss_indir) {
 		kfree(nic_dev->rss_hkey);
 		nic_dev->rss_hkey = NULL;

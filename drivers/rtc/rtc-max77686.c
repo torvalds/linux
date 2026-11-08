@@ -753,8 +753,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int ret;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct max77686_rtc_info);
 	if (!info)
 		return -ENOMEM;
 

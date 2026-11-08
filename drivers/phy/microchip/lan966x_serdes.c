@@ -550,7 +550,7 @@ static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
 	if (IS_ERR(*phy))
 		return PTR_ERR(*phy);
 
-	macro = devm_kzalloc(ctrl->dev, sizeof(*macro), GFP_KERNEL);
+	macro = devm_kzalloc_obj(ctrl->dev, *macro);
 	if (!macro)
 		return -ENOMEM;
 
@@ -572,7 +572,7 @@ static int serdes_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(&pdev->dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 

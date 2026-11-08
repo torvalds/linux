@@ -838,7 +838,7 @@ static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_n
 	if (!parent_domain)
 		return dev_err_probe(dev, -ENODEV, "cannot find parent domain\n");
 
-	rzg2l_irqc_data = devm_kzalloc(dev, sizeof(*rzg2l_irqc_data), GFP_KERNEL);
+	rzg2l_irqc_data = devm_kzalloc_obj(dev, *rzg2l_irqc_data);
 	if (!rzg2l_irqc_data)
 		return -ENOMEM;
 
@@ -851,8 +851,9 @@ static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_n
 
 	rzg2l_irqc_data->info = info;
 
-	rzg2l_irqc_data->fwspec = devm_kcalloc(&pdev->dev, info.num_irq,
-					       sizeof(*rzg2l_irqc_data->fwspec), GFP_KERNEL);
+	rzg2l_irqc_data->fwspec = devm_kzalloc_objs(&pdev->dev,
+						    *rzg2l_irqc_data->fwspec,
+						    info.num_irq);
 	if (!rzg2l_irqc_data->fwspec)
 		return -ENOMEM;
 

@@ -633,9 +633,8 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 	int i, ret;
 
-	st->trig = devm_kcalloc(&idev->dev,
-				st->caps->trigger_number, sizeof(*st->trig),
-				GFP_KERNEL);
+	st->trig = devm_kzalloc_objs(&idev->dev, *st->trig,
+				     st->caps->trigger_number);
 
 	if (st->trig == NULL) {
 		ret = -ENOMEM;

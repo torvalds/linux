@@ -556,7 +556,7 @@ static int d350_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(aw));
 	coherent = device_get_dma_attr(dev) == DEV_DMA_COHERENT;
 
-	dmac = devm_kzalloc(dev, struct_size(dmac, channels, nchan), GFP_KERNEL);
+	dmac = devm_kzalloc_flex(dev, *dmac, channels, nchan);
 	if (!dmac)
 		return -ENOMEM;
 

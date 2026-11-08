@@ -1051,7 +1051,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 		lockdep_assert_none_held_once();
 	}
 
-	points = kmalloc_array(count, sizeof(*points), GFP_KERNEL);
+	points = kmalloc_objs(*points, count);
 	if (points == NULL)
 		return -ENOMEM;
 
@@ -1238,7 +1238,7 @@ static int drm_syncobj_array_find(struct drm_file *file_private,
 	struct drm_syncobj **syncobjs;
 	int ret;
 
-	handles = kmalloc_array(count_handles, sizeof(*handles), GFP_KERNEL);
+	handles = kmalloc_objs(*handles, count_handles);
 	if (handles == NULL)
 		return -ENOMEM;
 
@@ -1572,8 +1572,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 	if (ret < 0)
 		return ret;
 
-	points = kmalloc_array(args->count_handles, sizeof(*points),
-			       GFP_KERNEL);
+	points = kmalloc_objs(*points, args->count_handles);
 	if (!points) {
 		ret = -ENOMEM;
 		goto out;

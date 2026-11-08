@@ -95,7 +95,7 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 	if (irq <= 0)
 		return irq < 0 ? irq : -EINVAL;
 
-	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(*jornadakbd), GFP_KERNEL);
+	jornadakbd = devm_kzalloc_obj(&pdev->dev, *jornadakbd);
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!jornadakbd || !input_dev)
 		return -ENOMEM;

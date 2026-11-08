@@ -194,7 +194,7 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *link, *codec_link;
 	int num_pcms, ret, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

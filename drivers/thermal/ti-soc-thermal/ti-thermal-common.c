@@ -144,7 +144,7 @@ static struct ti_thermal_data
 {
 	struct ti_thermal_data *data;
 
-	data = devm_kzalloc(bgp->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(bgp->dev, *data);
 	if (!data) {
 		dev_err(bgp->dev, "kzalloc fail\n");
 		return NULL;

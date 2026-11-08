@@ -91,11 +91,11 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	if (nr_chips <= 0)
 		return -ENODEV;
 
-	base_addr_arr = kcalloc(nr_chips, sizeof(*base_addr_arr), GFP_KERNEL);
+	base_addr_arr = kzalloc_objs(*base_addr_arr, nr_chips);
 	if (!base_addr_arr)
 		return -ENOMEM;
 
-	chipid_arr = kcalloc(nr_chips, sizeof(*chipid_arr), GFP_KERNEL);
+	chipid_arr = kzalloc_objs(*chipid_arr, nr_chips);
 	if (!chipid_arr) {
 		kfree(base_addr_arr);
 		return -ENOMEM;

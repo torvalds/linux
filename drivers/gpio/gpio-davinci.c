@@ -200,7 +200,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	chips = devm_kzalloc(dev, sizeof(*chips), GFP_KERNEL);
+	chips = devm_kzalloc_obj(dev, *chips);
 	if (!chips)
 		return -ENOMEM;
 
@@ -564,10 +564,8 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		 * gpio irqs. Pass the irq bank's corresponding controller to
 		 * the chained irq handler.
 		 */
-		irqdata = devm_kzalloc(&pdev->dev,
-				       sizeof(struct
-					      davinci_gpio_irq_data),
-					      GFP_KERNEL);
+		irqdata = devm_kzalloc_obj(&pdev->dev,
+					   struct davinci_gpio_irq_data);
 		if (!irqdata) {
 			irq_domain_remove(chips->irq_domain);
 			return -ENOMEM;

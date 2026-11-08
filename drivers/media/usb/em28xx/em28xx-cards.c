@@ -4202,9 +4202,8 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	/* compute alternate max packet sizes */
-	dev->alt_max_pkt_size_isoc = kcalloc(intf->num_altsetting,
-					     sizeof(dev->alt_max_pkt_size_isoc[0]),
-					     GFP_KERNEL);
+	dev->alt_max_pkt_size_isoc = kzalloc_objs(dev->alt_max_pkt_size_isoc[0],
+						  intf->num_altsetting);
 	if (!dev->alt_max_pkt_size_isoc) {
 		kfree(dev);
 		retval = -ENOMEM;

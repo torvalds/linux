@@ -565,8 +565,8 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -EPROBE_DEFER;
 
-	rdevs = devm_kcalloc(&i2c->dev, MAX5970_NUM_SWITCHES, sizeof(struct regulator_dev *),
-			     GFP_KERNEL);
+	rdevs = devm_kzalloc_objs(&i2c->dev, struct regulator_dev *,
+				  MAX5970_NUM_SWITCHES);
 	if (!rdevs)
 		return -ENOMEM;
 
@@ -579,8 +579,7 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 
 	for (i = 0; i < num_switches; i++) {
 		data =
-		    devm_kzalloc(&i2c->dev, sizeof(struct max5970_regulator),
-				 GFP_KERNEL);
+		    devm_kzalloc_obj(&i2c->dev, struct max5970_regulator);
 		if (!data)
 			return -ENOMEM;
 

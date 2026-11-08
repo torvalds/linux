@@ -710,7 +710,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 	}
 
-	pt3 = devm_kzalloc(&pdev->dev, sizeof(*pt3), GFP_KERNEL);
+	pt3 = devm_kzalloc_obj(&pdev->dev, *pt3);
 	if (!pt3)
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pt3);
@@ -736,7 +736,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pt3->num_bufs = clamp_val(num_bufs, MIN_DATA_BUFS, MAX_DATA_BUFS);
 
-	pt3->i2c_buf = devm_kmalloc(&pdev->dev, sizeof(*pt3->i2c_buf), GFP_KERNEL);
+	pt3->i2c_buf = devm_kmalloc_obj(&pdev->dev, *pt3->i2c_buf);
 	if (!pt3->i2c_buf)
 		return -ENOMEM;
 	i2c = &pt3->i2c_adap;

@@ -1674,7 +1674,7 @@ int aw88395_init(struct aw_device **aw_dev, struct i2c_client *i2c, struct regma
 	if (*aw_dev) {
 		dev_info(&i2c->dev, "it should be initialized here.\n");
 	} else {
-		*aw_dev = devm_kzalloc(&i2c->dev, sizeof(struct aw_device), GFP_KERNEL);
+		*aw_dev = devm_kzalloc_obj(&i2c->dev, struct aw_device);
 		if (!(*aw_dev))
 			return -ENOMEM;
 	}

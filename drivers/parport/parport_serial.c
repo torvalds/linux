@@ -726,7 +726,7 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 	struct parport_serial_private *priv;
 	int err;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

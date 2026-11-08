@@ -309,7 +309,7 @@ static int tmp102_probe(struct i2c_client *client)
 	if (err < 0 && err != -ENODEV)
 		return dev_err_probe(dev, err, "Failed to enable regulator\n");
 
-	tmp102 = devm_kzalloc(dev, sizeof(*tmp102), GFP_KERNEL);
+	tmp102 = devm_kzalloc_obj(dev, *tmp102);
 	if (!tmp102)
 		return -ENOMEM;
 

@@ -314,7 +314,7 @@ static int sx8654_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -ENXIO;
 
-	sx8654 = devm_kzalloc(&client->dev, sizeof(*sx8654), GFP_KERNEL);
+	sx8654 = devm_kzalloc_obj(&client->dev, *sx8654);
 	if (!sx8654)
 		return -ENOMEM;
 

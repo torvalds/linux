@@ -301,7 +301,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc_paging(struct device *dev)
 		return NULL;
 	}
 
-	as->count = kcalloc(SMMU_NUM_PDE, sizeof(u32), GFP_KERNEL);
+	as->count = kzalloc_objs(u32, SMMU_NUM_PDE);
 	if (!as->count) {
 		iommu_free_pages(as->pd);
 		kfree(as);
@@ -934,7 +934,7 @@ static struct iommu_group *tegra_smmu_device_group(struct device *dev)
 			return grp;
 		}
 
-	group = devm_kzalloc(smmu->dev, sizeof(*group), GFP_KERNEL);
+	group = devm_kzalloc_obj(smmu->dev, *group);
 	if (!group) {
 		mutex_unlock(&smmu->lock);
 		return NULL;
@@ -1110,7 +1110,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	u32 value;
 	int err;
 
-	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
+	smmu = devm_kzalloc_obj(dev, *smmu);
 	if (!smmu)
 		return ERR_PTR(-ENOMEM);
 

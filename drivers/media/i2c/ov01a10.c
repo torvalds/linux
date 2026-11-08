@@ -1003,7 +1003,7 @@ static int ov01a10_probe(struct i2c_client *client)
 	if (!cfg)
 		return -EINVAL;
 
-	ov01a10 = devm_kzalloc(&client->dev, sizeof(*ov01a10), GFP_KERNEL);
+	ov01a10 = devm_kzalloc_obj(&client->dev, *ov01a10);
 	if (!ov01a10)
 		return -ENOMEM;
 

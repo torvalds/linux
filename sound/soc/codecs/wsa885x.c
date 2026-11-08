@@ -1448,7 +1448,7 @@ static int wsa885x_probe(struct i2c_client *client)
 	int ret;
 	struct device *dev = &client->dev;
 
-	wsa885x = devm_kzalloc(dev, sizeof(*wsa885x), GFP_KERNEL);
+	wsa885x = devm_kzalloc_obj(dev, *wsa885x);
 	if (!wsa885x)
 		return -ENOMEM;
 

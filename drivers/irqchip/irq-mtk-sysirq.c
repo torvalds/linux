@@ -146,9 +146,8 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		goto out_free_chip;
 	}
 
-	chip_data->intpol_words = kcalloc(nr_intpol_bases,
-					  sizeof(*chip_data->intpol_words),
-					  GFP_KERNEL);
+	chip_data->intpol_words = kzalloc_objs(*chip_data->intpol_words,
+					       nr_intpol_bases);
 	if (!chip_data->intpol_words) {
 		ret = -ENOMEM;
 		goto out_free_chip;
@@ -184,9 +183,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		goto out_free_intpol;
 	}
 
-	chip_data->which_word = kcalloc(intpol_num,
-					sizeof(*chip_data->which_word),
-					GFP_KERNEL);
+	chip_data->which_word = kzalloc_objs(*chip_data->which_word, intpol_num);
 	if (!chip_data->which_word) {
 		ret = -ENOMEM;
 		goto out_free_intpol_idx;

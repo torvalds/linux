@@ -2332,7 +2332,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	struct resource *aes_res;
 	int err;
 
-	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
+	aes_dd = devm_kzalloc_obj(&pdev->dev, *aes_dd);
 	if (!aes_dd)
 		return -ENOMEM;
 

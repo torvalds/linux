@@ -321,7 +321,7 @@ static int xvtc_probe(struct platform_device *pdev)
 	struct xvtc_device *xvtc;
 	int ret;
 
-	xvtc = devm_kzalloc(&pdev->dev, sizeof(*xvtc), GFP_KERNEL);
+	xvtc = devm_kzalloc_obj(&pdev->dev, *xvtc);
 	if (!xvtc)
 		return -ENOMEM;
 

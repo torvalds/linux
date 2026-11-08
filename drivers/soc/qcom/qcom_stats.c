@@ -311,8 +311,7 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return -ENOMEM;
 
-	d = devm_kcalloc(&pdev->dev, config->num_records,
-			 sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_objs(&pdev->dev, *d, config->num_records);
 	if (!d)
 		return -ENOMEM;
 

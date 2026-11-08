@@ -196,7 +196,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	int ret, i = 0;
 	u32 phy_id;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -216,8 +216,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (priv->nphys == 0)
 		return -ENODEV;
 
-	priv->phys = devm_kcalloc(dev, priv->nphys, sizeof(*priv->phys),
-				  GFP_KERNEL);
+	priv->phys = devm_kzalloc_objs(dev, *priv->phys, priv->nphys);
 	if (!priv->phys)
 		return -ENOMEM;
 
@@ -245,7 +244,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 			goto put_child;
 		}
 
-		phy_desc = devm_kzalloc(dev, sizeof(*phy_desc), GFP_KERNEL);
+		phy_desc = devm_kzalloc_obj(dev, *phy_desc);
 		if (!phy_desc) {
 			ret = -ENOMEM;
 			goto put_child;

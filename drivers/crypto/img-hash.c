@@ -926,7 +926,7 @@ static int img_hash_probe(struct platform_device *pdev)
 	int	irq;
 	int err;
 
-	hdev = devm_kzalloc(dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(dev, *hdev);
 	if (hdev == NULL)
 		return -ENOMEM;
 

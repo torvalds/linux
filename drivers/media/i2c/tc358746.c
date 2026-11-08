@@ -1514,7 +1514,7 @@ static int tc358746_probe(struct i2c_client *client)
 	unsigned int i;
 	int err;
 
-	tc358746 = devm_kzalloc(&client->dev, sizeof(*tc358746), GFP_KERNEL);
+	tc358746 = devm_kzalloc_obj(&client->dev, *tc358746);
 	if (!tc358746)
 		return -ENOMEM;
 

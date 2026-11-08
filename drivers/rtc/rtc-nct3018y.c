@@ -593,8 +593,7 @@ static int nct3018y_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
 		return -ENODEV;
 
-	nct3018y = devm_kzalloc(&client->dev, sizeof(struct nct3018y),
-				GFP_KERNEL);
+	nct3018y = devm_kzalloc_obj(&client->dev, struct nct3018y);
 	if (!nct3018y)
 		return -ENOMEM;
 

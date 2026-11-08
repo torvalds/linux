@@ -3433,7 +3433,7 @@ static int of_phy_led(struct phy_device *phydev,
 	u32 index;
 	int err;
 
-	phyled = devm_kzalloc(dev, sizeof(*phyled), GFP_KERNEL);
+	phyled = devm_kzalloc_obj(dev, *phyled);
 	if (!phyled)
 		return -ENOMEM;
 

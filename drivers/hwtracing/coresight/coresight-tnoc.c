@@ -198,7 +198,7 @@ static int _tnoc_probe(struct device *dev, struct resource *res)
 		return PTR_ERR(pdata);
 	dev->platform_data = pdata;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

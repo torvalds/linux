@@ -2689,9 +2689,7 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
 	if (usb3->num_usb3_eps > USB3_MAX_NUM_PIPES(usb3))
 		usb3->num_usb3_eps = USB3_MAX_NUM_PIPES(usb3);
 
-	usb3->usb3_ep = devm_kcalloc(dev,
-				     usb3->num_usb3_eps, sizeof(*usb3_ep),
-				     GFP_KERNEL);
+	usb3->usb3_ep = devm_kzalloc_objs(dev, *usb3_ep, usb3->num_usb3_eps);
 	if (!usb3->usb3_ep)
 		return -ENOMEM;
 
@@ -2849,7 +2847,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	usb3 = devm_kzalloc(&pdev->dev, sizeof(*usb3), GFP_KERNEL);
+	usb3 = devm_kzalloc_obj(&pdev->dev, *usb3);
 	if (!usb3)
 		return -ENOMEM;
 

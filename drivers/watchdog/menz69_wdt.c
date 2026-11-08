@@ -105,7 +105,7 @@ static int men_z069_probe(struct mcb_device *dev,
 	struct men_z069_drv *drv;
 	struct resource *mem;
 
-	drv = devm_kzalloc(&dev->dev, sizeof(struct men_z069_drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&dev->dev, struct men_z069_drv);
 	if (!drv)
 		return -ENOMEM;
 

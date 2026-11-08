@@ -164,7 +164,7 @@ static int quickstart_probe(struct platform_device *pdev)
 	if (!handle)
 		return -ENODEV;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

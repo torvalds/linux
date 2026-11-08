@@ -130,7 +130,7 @@ static int ingenic_battery_probe(struct platform_device *pdev)
 	struct power_supply_desc *desc;
 	int ret;
 
-	bat = devm_kzalloc(dev, sizeof(*bat), GFP_KERNEL);
+	bat = devm_kzalloc_obj(dev, *bat);
 	if (!bat)
 		return -ENOMEM;
 

@@ -34,7 +34,7 @@ ice_fltr_add_entry_to_list(struct device *dev, struct ice_fltr_info *info,
 {
 	struct ice_fltr_list_entry *entry;
 
-	entry = devm_kzalloc(dev, sizeof(*entry), GFP_ATOMIC);
+	entry = devm_kzalloc_obj(dev, *entry, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 

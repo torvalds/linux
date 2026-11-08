@@ -1763,7 +1763,7 @@ rcu_torture_writer(void *arg)
 		return 0;
 	}
 	if (cur_ops->poll_active > 0) {
-		ulo = kcalloc(cur_ops->poll_active, sizeof(*ulo), GFP_KERNEL);
+		ulo = kzalloc_objs(*ulo, cur_ops->poll_active);
 		if (!WARN_ON(!ulo))
 			ulo_size = cur_ops->poll_active;
 	}
@@ -2791,8 +2791,8 @@ static void rcu_torture_nmi_init(void)
 
 	if (!nmi_calls || !cur_ops->nmi_capable || !cur_ops->call)
 		return;
-	rcu_torture_nmi_events = kcalloc(nr_cpu_ids, sizeof(*rcu_torture_nmi_events),
-					 GFP_KERNEL);
+	rcu_torture_nmi_events = kzalloc_objs(*rcu_torture_nmi_events,
+					      nr_cpu_ids);
 	if (!rcu_torture_nmi_events)
 		return;
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "rcutorture/nmi:online",

@@ -3845,7 +3845,7 @@ static int airoha_alloc_gdm_port(struct airoha_eth *eth,
 		return -EINVAL;
 	}
 
-	port = devm_kzalloc(eth->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(eth->dev, *port);
 	if (!port)
 		return -ENOMEM;
 
@@ -3934,7 +3934,7 @@ static int airoha_probe(struct platform_device *pdev)
 	struct airoha_eth *eth;
 	int i, err;
 
-	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
+	eth = devm_kzalloc_obj(&pdev->dev, *eth);
 	if (!eth)
 		return -ENOMEM;
 
@@ -3966,9 +3966,8 @@ static int airoha_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	xsi_rsts = devm_kcalloc(eth->dev,
-				eth->soc->num_xsi_rsts, sizeof(*xsi_rsts),
-				GFP_KERNEL);
+	xsi_rsts = devm_kzalloc_objs(eth->dev, *xsi_rsts,
+				     eth->soc->num_xsi_rsts);
 	if (!xsi_rsts)
 		return -ENOMEM;
 

@@ -135,7 +135,7 @@ static int mvebu_pic_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct mvebu_pic *pic;
 
-	pic = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pic), GFP_KERNEL);
+	pic = devm_kzalloc_obj(&pdev->dev, struct mvebu_pic);
 	if (!pic)
 		return -ENOMEM;
 

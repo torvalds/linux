@@ -231,7 +231,7 @@ static int sgm3804_probe(struct i2c_client *i2c)
 	struct sgm3804_data *ctx;
 	int ret, i;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

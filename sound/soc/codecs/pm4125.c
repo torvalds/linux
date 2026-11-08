@@ -1650,7 +1650,7 @@ static int pm4125_probe(struct platform_device *pdev)
 	struct wcd_mbhc_config *cfg;
 	int ret;
 
-	pm4125 = devm_kzalloc(dev, sizeof(*pm4125), GFP_KERNEL);
+	pm4125 = devm_kzalloc_obj(dev, *pm4125);
 	if (!pm4125)
 		return -ENOMEM;
 

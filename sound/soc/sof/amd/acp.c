@@ -1226,8 +1226,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "no such device supported, chip id:%x\n", pci->device);
 		return -EIO;
 	}
-	adata = devm_kzalloc(sdev->dev, sizeof(struct acp_dev_data),
-			     GFP_KERNEL);
+	adata = devm_kzalloc_obj(sdev->dev, struct acp_dev_data);
 	if (!adata)
 		return -ENOMEM;
 
@@ -1366,7 +1365,7 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "no such device supported, chip id:%x\n", pci->device);
 		return -EIO;
 	}
-	adata = devm_kzalloc(sdev->dev, sizeof(struct acp_dev_data), GFP_KERNEL);
+	adata = devm_kzalloc_obj(sdev->dev, struct acp_dev_data);
 	if (!adata)
 		return -ENOMEM;
 

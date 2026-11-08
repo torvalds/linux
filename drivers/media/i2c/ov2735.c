@@ -950,7 +950,7 @@ static int ov2735_probe(struct i2c_client *client)
 	unsigned int xclk_freq;
 	int ret;
 
-	ov2735 = devm_kzalloc(&client->dev, sizeof(*ov2735), GFP_KERNEL);
+	ov2735 = devm_kzalloc_obj(&client->dev, *ov2735);
 	if (!ov2735)
 		return -ENOMEM;
 

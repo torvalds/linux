@@ -366,7 +366,7 @@ static int at803x_probe(struct phy_device *phydev)
 	struct at803x_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1110,7 +1110,7 @@ static int ipq5018_probe(struct phy_device *phydev)
 	struct ipq5018_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

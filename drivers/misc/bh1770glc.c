@@ -1169,7 +1169,7 @@ static int bh1770_probe(struct i2c_client *client)
 	struct bh1770_chip *chip;
 	int err;
 
-	chip = devm_kzalloc(&client->dev, sizeof *chip, GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -501,7 +501,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct corgi_lcd), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(&spi->dev, struct corgi_lcd);
 	if (!lcd)
 		return -ENOMEM;
 

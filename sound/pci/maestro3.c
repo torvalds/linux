@@ -2545,8 +2545,8 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		chip->is_omnibook = 1;
 
 	chip->num_substreams = NR_DSPS;
-	chip->substreams = devm_kcalloc(&pci->dev, chip->num_substreams,
-					sizeof(struct m3_dma), GFP_KERNEL);
+	chip->substreams = devm_kzalloc_objs(&pci->dev, struct m3_dma,
+					     chip->num_substreams);
 	if (!chip->substreams)
 		return -ENOMEM;
 

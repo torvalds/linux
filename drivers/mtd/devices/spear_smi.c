@@ -805,9 +805,8 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 	of_property_read_u32(np, "clock-rate", &val);
 	pdata->clk_rate = val;
 
-	pdata->board_flash_info = devm_kzalloc(&pdev->dev,
-					       sizeof(*pdata->board_flash_info),
-					       GFP_KERNEL);
+	pdata->board_flash_info = devm_kzalloc_obj(&pdev->dev,
+						   *pdata->board_flash_info);
 	if (!pdata->board_flash_info)
 		return -ENOMEM;
 
@@ -858,7 +857,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 	if (!flash_info)
 		return -ENODEV;
 
-	flash = devm_kzalloc(&pdev->dev, sizeof(*flash), GFP_ATOMIC);
+	flash = devm_kzalloc_obj(&pdev->dev, *flash, GFP_ATOMIC);
 	if (!flash)
 		return -ENOMEM;
 	flash->bank = bank;
@@ -941,7 +940,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 	int i;
 
 	if (np) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 		if (!pdata) {
 			ret = -ENOMEM;
 			goto err;
@@ -968,7 +967,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

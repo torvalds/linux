@@ -73,7 +73,7 @@ struct vsp1_iif *vsp1_iif_create(struct vsp1_device *vsp1)
 	struct vsp1_iif *iif;
 	int ret;
 
-	iif = devm_kzalloc(vsp1->dev, sizeof(*iif), GFP_KERNEL);
+	iif = devm_kzalloc_obj(vsp1->dev, *iif);
 	if (!iif)
 		return ERR_PTR(-ENOMEM);
 

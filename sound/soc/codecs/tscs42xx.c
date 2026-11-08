@@ -1389,7 +1389,7 @@ static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 	int src;
 	int ret;
 
-	tscs42xx = devm_kzalloc(&i2c->dev, sizeof(*tscs42xx), GFP_KERNEL);
+	tscs42xx = devm_kzalloc_obj(&i2c->dev, *tscs42xx);
 	if (!tscs42xx) {
 		ret = -ENOMEM;
 		dev_err(&i2c->dev,

@@ -3371,7 +3371,7 @@ static int mana_rss_table_alloc(struct mana_port_context *apc)
 		return -EINVAL;
 	}
 
-	apc->indir_table = kcalloc(apc->indir_table_sz, sizeof(u32), GFP_KERNEL);
+	apc->indir_table = kzalloc_objs(u32, apc->indir_table_sz);
 	if (!apc->indir_table)
 		return -ENOMEM;
 

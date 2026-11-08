@@ -621,15 +621,11 @@ static int ux500_msp_dai_of_probe(struct snd_soc_dai *dai)
 	struct snd_dmaengine_dai_dma_data *playback_dma_data;
 	struct snd_dmaengine_dai_dma_data *capture_dma_data;
 
-	playback_dma_data = devm_kzalloc(dai->dev,
-					 sizeof(*playback_dma_data),
-					 GFP_KERNEL);
+	playback_dma_data = devm_kzalloc_obj(dai->dev, *playback_dma_data);
 	if (!playback_dma_data)
 		return -ENOMEM;
 
-	capture_dma_data = devm_kzalloc(dai->dev,
-					sizeof(*capture_dma_data),
-					GFP_KERNEL);
+	capture_dma_data = devm_kzalloc_obj(dai->dev, *capture_dma_data);
 	if (!capture_dma_data)
 		return -ENOMEM;
 
@@ -689,9 +685,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	struct reset_control *reset;
 	int ret = 0;
 
-	drvdata = devm_kzalloc(&pdev->dev,
-				sizeof(struct ux500_msp_i2s_drvdata),
-				GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct ux500_msp_i2s_drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

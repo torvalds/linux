@@ -287,7 +287,7 @@ static struct qcom_geni_serial_port *get_port_from_line(int line, bool console, 
 	} else {
 		int max_alias_num = of_alias_get_highest_id("serial");
 
-		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		port = devm_kzalloc_obj(dev, *port);
 		if (!port)
 			return ERR_PTR(-ENOMEM);
 

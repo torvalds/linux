@@ -1409,7 +1409,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 				of_device_get_match_data(dev);
 	int ret, i;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

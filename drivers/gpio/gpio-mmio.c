@@ -826,7 +826,7 @@ static int gpio_mmio_pdev_probe(struct platform_device *pdev)
 	if (IS_ERR(dirin))
 		return PTR_ERR(dirin);
 
-	gen_gc = devm_kzalloc(&pdev->dev, sizeof(*gen_gc), GFP_KERNEL);
+	gen_gc = devm_kzalloc_obj(&pdev->dev, *gen_gc);
 	if (!gen_gc)
 		return -ENOMEM;
 

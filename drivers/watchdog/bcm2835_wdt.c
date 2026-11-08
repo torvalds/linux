@@ -177,7 +177,7 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 	struct bcm2835_wdt *wdt;
 	int err;
 
-	wdt = devm_kzalloc(dev, sizeof(struct bcm2835_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, struct bcm2835_wdt);
 	if (!wdt)
 		return -ENOMEM;
 

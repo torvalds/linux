@@ -1688,8 +1688,8 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	nvmet_init_cap(ctrl);
 	WRITE_ONCE(ctrl->aen_enabled, NVMET_AEN_CFG_OPTIONAL);
 
-	ctrl->changed_ns_list = kmalloc_array(NVME_MAX_CHANGED_NAMESPACES,
-			sizeof(__le32), GFP_KERNEL);
+	ctrl->changed_ns_list = kmalloc_objs(__le32,
+					     NVME_MAX_CHANGED_NAMESPACES);
 	if (!ctrl->changed_ns_list)
 		goto out_free_ctrl;
 

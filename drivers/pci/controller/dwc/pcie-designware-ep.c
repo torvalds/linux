@@ -285,8 +285,7 @@ static int dw_pcie_ep_ib_atu_addr(struct dw_pcie_ep *ep, u8 func_no, int type,
 		return -EINVAL;
 	}
 
-	indexes = devm_kcalloc(dev, epf_bar->num_submap, sizeof(*indexes),
-			       GFP_KERNEL);
+	indexes = devm_kzalloc_objs(dev, *indexes, epf_bar->num_submap);
 	if (!indexes)
 		return -ENOMEM;
 
@@ -1363,8 +1362,7 @@ int dw_pcie_ep_init_registers(struct dw_pcie_ep *ep)
 	}
 
 	if (!ep->outbound_addr) {
-		addr = devm_kcalloc(dev, pci->num_ob_windows, sizeof(phys_addr_t),
-				    GFP_KERNEL);
+		addr = devm_kzalloc_objs(dev, phys_addr_t, pci->num_ob_windows);
 		if (!addr)
 			goto err_remove_edma;
 		ep->outbound_addr = addr;
@@ -1376,7 +1374,7 @@ int dw_pcie_ep_init_registers(struct dw_pcie_ep *ep)
 		if (ep_func)
 			continue;
 
-		ep_func = devm_kzalloc(dev, sizeof(*ep_func), GFP_KERNEL);
+		ep_func = devm_kzalloc_obj(dev, *ep_func);
 		if (!ep_func)
 			goto err_remove_edma;
 

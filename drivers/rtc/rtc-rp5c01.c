@@ -234,7 +234,7 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 	if (!res)
 		return -ENODEV;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

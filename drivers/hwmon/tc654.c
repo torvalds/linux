@@ -519,7 +519,7 @@ static int tc654_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(struct tc654_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct tc654_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -124,15 +124,14 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 	/* count the nodes inside the multi-led node */
 	count = fwnode_get_child_node_count(mcnode);
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, count),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, leds, count);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto release_mcnode;
 	}
 	mutex_init(&priv->lock);
 
-	subled = devm_kcalloc(&pdev->dev, count, sizeof(*subled), GFP_KERNEL);
+	subled = devm_kzalloc_objs(&pdev->dev, *subled, count);
 	if (!subled) {
 		ret = -ENOMEM;
 		goto release_mcnode;

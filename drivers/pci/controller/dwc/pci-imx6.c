@@ -1320,11 +1320,11 @@ static int imx_pcie_parse_legacy_binding(struct imx_pcie *pcie)
 	if (!reset)
 		return 0;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 
-	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	perst = devm_kzalloc_obj(dev, *perst);
 	if (!perst)
 		return -ENOMEM;
 
@@ -1843,11 +1843,11 @@ static int imx_pcie_probe(struct platform_device *pdev)
 	int i, ret, domain;
 	u16 val;
 
-	imx_pcie = devm_kzalloc(dev, sizeof(*imx_pcie), GFP_KERNEL);
+	imx_pcie = devm_kzalloc_obj(dev, *imx_pcie);
 	if (!imx_pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

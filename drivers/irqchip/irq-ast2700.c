@@ -39,10 +39,8 @@ int aspeed_intc_populate_ranges(struct device *dev,
 		return -EINVAL;
 
 	/* Over-estimate the range entry count for now */
-	ranges->ranges = devm_kmalloc_array(dev,
-					    len / (ASPEED_INTC_RANGE_FIXED_CELLS * sizeof(__be32)),
-					    sizeof(*ranges->ranges),
-					    GFP_KERNEL);
+	ranges->ranges = devm_kmalloc_objs(dev, *ranges->ranges,
+					   len / (ASPEED_INTC_RANGE_FIXED_CELLS * sizeof(__be32)));
 	if (!ranges->ranges)
 		return -ENOMEM;
 

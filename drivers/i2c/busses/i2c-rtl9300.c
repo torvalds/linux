@@ -474,7 +474,7 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 	u32 clock_freq, scl_num, sda_num;
 	int ret, i = 0;
 
-	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

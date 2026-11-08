@@ -329,7 +329,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	sch = devm_kzalloc(dev, sizeof(*sch), GFP_KERNEL);
+	sch = devm_kzalloc_obj(dev, *sch);
 	if (!sch)
 		return -ENOMEM;
 

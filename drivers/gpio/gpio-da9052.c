@@ -186,7 +186,7 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 	struct da9052_gpio *gpio;
 	struct da9052_pdata *pdata;
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&pdev->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

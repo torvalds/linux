@@ -723,7 +723,7 @@ w83l786ng_probe(struct i2c_client *client)
 	int i;
 	u8 reg_tmp;
 
-	data = devm_kzalloc(dev, sizeof(struct w83l786ng_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct w83l786ng_data);
 	if (!data)
 		return -ENOMEM;
 

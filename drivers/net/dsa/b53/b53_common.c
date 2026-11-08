@@ -3223,15 +3223,13 @@ static int b53_switch_init(struct b53_device *dev)
 		}
 	}
 
-	dev->ports = devm_kcalloc(dev->dev,
-				  dev->num_ports, sizeof(struct b53_port),
-				  GFP_KERNEL);
+	dev->ports = devm_kzalloc_objs(dev->dev, struct b53_port,
+				       dev->num_ports);
 	if (!dev->ports)
 		return -ENOMEM;
 
-	dev->vlans = devm_kcalloc(dev->dev,
-				  dev->num_vlans, sizeof(struct b53_vlan),
-				  GFP_KERNEL);
+	dev->vlans = devm_kzalloc_objs(dev->dev, struct b53_vlan,
+				       dev->num_vlans);
 	if (!dev->vlans)
 		return -ENOMEM;
 
@@ -3250,13 +3248,13 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	struct dsa_switch *ds;
 	struct b53_device *dev;
 
-	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(base, *ds);
 	if (!ds)
 		return NULL;
 
 	ds->dev = base;
 
-	dev = devm_kzalloc(base, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(base, *dev);
 	if (!dev)
 		return NULL;
 

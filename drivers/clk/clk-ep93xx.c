@@ -672,7 +672,7 @@ static int ep93xx_clk_probe(struct auxiliary_device *adev,
 	int ret;
 	u32 value;
 
-	priv = devm_kzalloc(dev, struct_size(priv, reg, 10), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, reg, 10);
 	if (!priv)
 		return -ENOMEM;
 

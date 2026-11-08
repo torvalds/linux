@@ -467,7 +467,7 @@ static struct clk *aic32x4_register_clk(struct device *dev,
 	init.num_parents = desc->num_parents;
 	init.flags = 0;
 
-	priv = devm_kzalloc(dev, sizeof(struct clk_aic32x4), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct clk_aic32x4);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

@@ -347,9 +347,9 @@ static int vctrl_init_vtable(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	vctrl->vtable = devm_kcalloc(&pdev->dev, rdesc->n_voltages,
-				     sizeof(struct vctrl_voltage_table),
-				     GFP_KERNEL);
+	vctrl->vtable = devm_kzalloc_objs(&pdev->dev,
+					  struct vctrl_voltage_table,
+					  rdesc->n_voltages);
 	if (!vctrl->vtable)
 		return -ENOMEM;
 
@@ -451,8 +451,7 @@ static int vctrl_probe(struct platform_device *pdev)
 	int ctrl_uV;
 	int ret;
 
-	vctrl = devm_kzalloc(&pdev->dev, sizeof(struct vctrl_data),
-			     GFP_KERNEL);
+	vctrl = devm_kzalloc_obj(&pdev->dev, struct vctrl_data);
 	if (!vctrl)
 		return -ENOMEM;
 

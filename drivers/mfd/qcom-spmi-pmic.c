@@ -260,7 +260,7 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ctx = devm_kzalloc(&sdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&sdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

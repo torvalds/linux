@@ -128,7 +128,7 @@ static int eusb2_repeater_init_vregs(struct eusb2_repeater *rptr)
 	struct device *dev = rptr->dev;
 	int i;
 
-	rptr->vregs = devm_kcalloc(dev, num, sizeof(*rptr->vregs), GFP_KERNEL);
+	rptr->vregs = devm_kzalloc_objs(dev, *rptr->vregs, num);
 	if (!rptr->vregs)
 		return -ENOMEM;
 
@@ -254,7 +254,7 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	rptr = devm_kzalloc(dev, sizeof(*rptr), GFP_KERNEL);
+	rptr = devm_kzalloc_obj(dev, *rptr);
 	if (!rptr)
 		return -ENOMEM;
 

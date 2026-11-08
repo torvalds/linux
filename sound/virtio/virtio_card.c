@@ -305,7 +305,7 @@ static int virtsnd_probe(struct virtio_device *vdev)
 	unsigned int i;
 	int rc;
 
-	snd = devm_kzalloc(&vdev->dev, sizeof(*snd), GFP_KERNEL);
+	snd = devm_kzalloc_obj(&vdev->dev, *snd);
 	if (!snd)
 		return -ENOMEM;
 

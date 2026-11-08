@@ -1602,7 +1602,7 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	struct tegra_dsi *dsi;
 	int err;
 
-	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(&pdev->dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

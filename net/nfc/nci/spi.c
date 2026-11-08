@@ -127,7 +127,7 @@ struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
 {
 	struct nci_spi *nspi;
 
-	nspi = devm_kzalloc(&spi->dev, sizeof(struct nci_spi), GFP_KERNEL);
+	nspi = devm_kzalloc_obj(&spi->dev, struct nci_spi);
 	if (!nspi)
 		return NULL;
 

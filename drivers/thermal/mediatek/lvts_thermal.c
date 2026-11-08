@@ -276,7 +276,7 @@ static int lvts_debugfs_init(struct device *dev, struct lvts_domain *lvts_td)
 		if (IS_ERR(dentry))
 			continue;
 
-		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+		regset = devm_kzalloc_obj(dev, *regset);
 		if (!regset)
 			continue;
 
@@ -1450,7 +1450,7 @@ static int lvts_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret;
 
-	lvts_td = devm_kzalloc(dev, sizeof(*lvts_td), GFP_KERNEL);
+	lvts_td = devm_kzalloc_obj(dev, *lvts_td);
 	if (!lvts_td)
 		return -ENOMEM;
 

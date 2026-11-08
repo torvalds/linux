@@ -322,7 +322,7 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	struct device *dev = &platform_dev->dev;
 	int ret;
 
-	csi_dev = devm_kzalloc(dev, sizeof(*csi_dev), GFP_KERNEL);
+	csi_dev = devm_kzalloc_obj(dev, *csi_dev);
 	if (!csi_dev)
 		return -ENOMEM;
 
