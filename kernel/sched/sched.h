@@ -3124,11 +3124,6 @@ static inline void __block_task(struct rq *rq, struct task_struct *p)
 	if (p->sched_contributes_to_load)
 		rq->nr_uninterruptible++;
 
-	if (p->in_iowait) {
-		atomic_inc(&rq->nr_iowait);
-		delayacct_blkio_start();
-	}
-
 	ASSERT_EXCLUSIVE_WRITER(p->on_rq);
 
 	/*
