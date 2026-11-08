@@ -1405,6 +1405,9 @@ yt921x_dsa_port_bridge_join(struct dsa_switch *ds, int port,
 			    struct netlink_ext_ack *extack)
 {
 	struct yt921x_priv *priv = dsa_to_yt921x_priv(ds);
+	struct yt921x_port *pp = &priv->ports[port];
+	struct net_device *brport_dev;
+	struct dsa_port *dp;
 	u16 ports_mask;
 	int res;
 
@@ -1414,7 +1417,12 @@ yt921x_dsa_port_bridge_join(struct dsa_switch *ds, int port,
 	ports_mask = dsa_bridge_ports(ds, bridge.dev);
 	ports_mask |= priv->cpu_ports_mask;
 
+	dp = dsa_to_port(ds, port);
+	brport_dev = dsa_port_to_bridge_port(dp);
+
 	mutex_lock(&priv->reg_lock);
+	pp->isolated = br_port_flag_is_set(brport_dev, BR_ISOLATED);
+	pp->hairpin = br_port_flag_is_set(brport_dev, BR_HAIRPIN_MODE);
 	res = yt921x_bridge_join(priv, port, ports_mask);
 	mutex_unlock(&priv->reg_lock);
 
