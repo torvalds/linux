@@ -630,7 +630,7 @@ static int ghl_init_urb(struct sony_sc *sc, struct usb_device *usbdev,
  * Sending HID_REQ_SET_REPORT enables the full report. Without this
  * Rock Band 3 Pro instruments only report navigation events
  */
-static int rb3_pro_instrument_enable_full_report(struct sony_sc *sc)
+static void rb3_pro_instrument_enable_full_report(struct sony_sc *sc)
 {
 	struct hid_device *hdev = sc->hdev;
 	static const u8 report[] = { 0x00, 0xE9, 0x00, 0x89, 0x1B,
@@ -647,14 +647,14 @@ static int rb3_pro_instrument_enable_full_report(struct sony_sc *sc)
 
 	buf = kmemdup(report, sizeof(report), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return;
 
 	ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(report),
 				  HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	if (ret < 0)
+		hid_dbg(hdev, "failed to enable full report: %d\n", ret);
 
 	kfree(buf);
-
-	return ret;
 }
 
 static int djh_turntable_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -1098,10 +1098,10 @@ static int rb3_pro_instrument_raw_event(struct sony_sc *sc, u8 *rd, int size)
 	if (size < 25 || rd[24] != 0x02)
 		return 0;
 
-	/* Only attempt to enable full report every 8 seconds */
+	/* Only attempt to enable full report every 8 seconds, from the worker */
 	if (time_after(jiffies, sc->rb3_pro_poke_jiffies)) {
 		sc->rb3_pro_poke_jiffies = jiffies + secs_to_jiffies(8);
-		rb3_pro_instrument_enable_full_report(sc);
+		sony_schedule_work(sc);
 	}
 
 	return 0;
@@ -2217,6 +2217,7 @@ static int sony_input_configured(struct hid_device *hdev,
 		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
 
 		sony_init_raw_event_handler(sc, rb3_pro_instrument_raw_event);
+		sony_init_output_report(sc, rb3_pro_instrument_enable_full_report);
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
 		/*
 		 * The Sony Sixaxis does not handle HID Output Reports on the
