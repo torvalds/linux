@@ -96,12 +96,20 @@ VMLINUZ_LOAD_ADDRESS = $(shell $(obj)/calc_vmlinuz_load_addr \
 endif
 UIMAGE_LOADADDR = $(VMLINUZ_LOAD_ADDRESS)
 
+# Like LINKER_LOAD_ADDRESS in arch/mips/Makefile: ld.lld cannot link a
+# 32-bit executable at a sign-extended address, so drop the upper 32 bits.
+ifdef CONFIG_64BIT
+VMLINUZ_LINK_ADDRESS = $(VMLINUZ_LOAD_ADDRESS)
+else
+VMLINUZ_LINK_ADDRESS = $(subst 0xffffffff,0x,$(VMLINUZ_LOAD_ADDRESS))
+endif
+
 vmlinuzobjs-y += $(obj)/piggy.o
 
 targets += ../../../../vmlinuz
 
 quiet_cmd_zld = LD      $@
-      cmd_zld = $(LD) $(KBUILD_LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
+      cmd_zld = $(LD) $(KBUILD_LDFLAGS) -Ttext $(VMLINUZ_LINK_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
 quiet_cmd_strip = STRIP   $@
       cmd_strip = $(STRIP) -s $@
 

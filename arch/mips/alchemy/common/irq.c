@@ -892,15 +892,21 @@ static void __init au1000_init_irq(struct alchemy_irqmap *map)
 	mips_cpu_irq_init();
 
 	/* register all 64 possible IC0+IC1 irq sources as type "none".
+	 * Register each chip with the IRQ core before setting its type so
+	 * the descriptors are included in interrupt enumeration.
 	 * Use set_irq_type() to set edge/level behaviour at runtime.
 	 */
 	for (irq_nr = AU1000_INTC0_INT_BASE;
-	     (irq_nr < AU1000_INTC0_INT_BASE + 32); irq_nr++)
+	     (irq_nr < AU1000_INTC0_INT_BASE + 32); irq_nr++) {
+		irq_set_chip(irq_nr, &au1x_ic0_chip);
 		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_NONE);
+	}
 
 	for (irq_nr = AU1000_INTC1_INT_BASE;
-	     (irq_nr < AU1000_INTC1_INT_BASE + 32); irq_nr++)
+	     (irq_nr < AU1000_INTC1_INT_BASE + 32); irq_nr++) {
+		irq_set_chip(irq_nr, &au1x_ic1_chip);
 		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_NONE);
+	}
 
 	/*
 	 * Initialize IC0, which is fixed per processor.
@@ -947,6 +953,7 @@ static void __init alchemy_gpic_init_irq(const struct alchemy_irqmap *dints)
 
 	/* register an irq_chip for them, with 2nd highest priority */
 	for (i = ALCHEMY_GPIC_INT_BASE; i <= ALCHEMY_GPIC_INT_LAST; i++) {
+		irq_set_chip(i, &au1300_gpic);
 		au1300_set_irq_priority(i, 1);
 		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
 	}
