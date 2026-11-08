@@ -3097,7 +3097,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 		drm_exec_fini(&exec);
 
 		if (!svm_range_restore_pages(adev, pasid, vmid,
-					     node_id, addr >> PAGE_SHIFT, ts, write_fault))
+					     node_id, addr, ts, write_fault))
 			return true;
 
 		/* Re-acquire the VM lock, could be that the VM was freed in between. */

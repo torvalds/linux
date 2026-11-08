@@ -3125,8 +3125,9 @@ svm_fault_allowed(struct vm_area_struct *vma, bool write_fault)
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			uint32_t vmid, uint32_t node_id,
-			uint64_t addr, uint64_t ts, bool write_fault)
+			uint64_t fault_addr, uint64_t ts, bool write_fault)
 {
+	uint64_t addr = fault_addr >> PAGE_SHIFT;
 	unsigned long start, last, size;
 	struct mm_struct *mm = NULL;
 	struct svm_range_list *svms;
@@ -3244,7 +3245,7 @@ retry_write_locked:
 	mutex_lock(&prange->migrate_mutex);
 
 	if (svm_range_skip_recover(prange)) {
-		amdgpu_gmc_filter_faults_remove(node->adev, addr, pasid);
+		amdgpu_gmc_filter_faults_remove(node->adev, fault_addr, pasid);
 		r = 0;
 		goto out_unlock_range;
 	}
@@ -3348,7 +3349,7 @@ out:
 
 	if (r == -EAGAIN) {
 		pr_debug("recover vm fault later\n");
-		amdgpu_gmc_filter_faults_remove(node->adev, addr, pasid);
+		amdgpu_gmc_filter_faults_remove(node->adev, fault_addr, pasid);
 		r = 0;
 	}
 	return r;
