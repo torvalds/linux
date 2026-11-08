@@ -277,6 +277,8 @@ static int omap_wdt_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(&wdev->wdog);
 	if (ret) {
+		if (wdev->omap_wdt_users)
+			omap_wdt_stop(&wdev->wdog);
 		pm_runtime_put(wdev->dev);
 		pm_runtime_disable(wdev->dev);
 		return ret;
@@ -285,9 +287,6 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	pr_info("OMAP Watchdog Timer Rev 0x%02x: initial timeout %d sec\n",
 		readl_relaxed(wdev->base + OMAP_WATCHDOG_REV) & 0xFF,
 		wdev->wdog.timeout);
-
-	if (early_enable)
-		omap_wdt_start(&wdev->wdog);
 
 	pm_runtime_put(wdev->dev);
 
