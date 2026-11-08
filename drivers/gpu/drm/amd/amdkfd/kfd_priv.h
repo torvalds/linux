@@ -906,6 +906,8 @@ struct svm_range_list {
 	struct list_head		deferred_range_list;
 	struct list_head                criu_svm_metadata_list;
 	spinlock_t			deferred_list_lock;
+	/* serializes XNACK-off evictions with the queue quiesce */
+	struct mutex			evict_lock;
 	atomic_t			evicted_ranges;
 	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;

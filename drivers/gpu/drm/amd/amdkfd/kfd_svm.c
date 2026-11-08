@@ -2116,21 +2116,30 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 		if (prange->start <= last && prange->last >= start)
 			atomic_inc(&prange->invalid);
 
+		/* The MMU notifier must not return before the GPU has stopped
+		 * accessing the invalidated pages. Only the first eviction stops
+		 * the queues, which takes milliseconds (HWS preemption on every
+		 * GPU of the process). Serialize all evictions of this process so
+		 * that a concurrent invalidation of another range waits until
+		 * that quiesce has completed instead of returning while queues
+		 * still run on stale PTEs.
+		 */
+		mutex_lock(&svms->evict_lock);
 		evicted_ranges = atomic_inc_return(&svms->evicted_ranges);
-		if (evicted_ranges != 1)
-			return r;
+		if (evicted_ranges == 1) {
+			pr_debug("evicting svms 0x%p range [0x%lx 0x%lx]\n",
+				 prange->svms, prange->start, prange->last);
 
-		pr_debug("evicting svms 0x%p range [0x%lx 0x%lx]\n",
-			 prange->svms, prange->start, prange->last);
+			/* First eviction, stop the queues */
+			r = kgd2kfd_quiesce_mm(mm, KFD_QUEUE_EVICTION_TRIGGER_SVM);
+			if (r)
+				pr_debug("failed to quiesce KFD\n");
 
-		/* First eviction, stop the queues */
-		r = kgd2kfd_quiesce_mm(mm, KFD_QUEUE_EVICTION_TRIGGER_SVM);
-		if (r)
-			pr_debug("failed to quiesce KFD\n");
-
-		pr_debug("schedule to restore svm %p ranges\n", svms);
-		queue_delayed_work(system_freezable_wq, &svms->restore_work,
-			msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
+			pr_debug("schedule to restore svm %p ranges\n", svms);
+			queue_delayed_work(system_freezable_wq, &svms->restore_work,
+					   msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
+		}
+		mutex_unlock(&svms->evict_lock);
 	} else {
 		unsigned long s, l;
 		uint32_t trigger;
@@ -3412,6 +3421,7 @@ void svm_range_list_fini(struct kfd_process *p)
 		svm_range_free(prange, true);
 	}
 
+	mutex_destroy(&p->svms.evict_lock);
 	mutex_destroy(&p->svms.lock);
 
 	pr_debug("process pid %d svms 0x%p done\n",
@@ -3425,6 +3435,7 @@ int svm_range_list_init(struct kfd_process *p)
 
 	svms->objects = RB_ROOT_CACHED;
 	mutex_init(&svms->lock);
+	mutex_init(&svms->evict_lock);
 	INIT_LIST_HEAD(&svms->list);
 	atomic_set(&svms->evicted_ranges, 0);
 	atomic_set(&svms->drain_pagefaults, 0);
