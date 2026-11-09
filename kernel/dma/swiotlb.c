@@ -665,6 +665,17 @@ void __init swiotlb_exit(void)
 		return;
 
 	pr_info("tearing down default memory pool\n");
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	io_tlb_default_mem.can_grow = false;
+	cancel_work_sync(&io_tlb_default_mem.dyn_alloc);
+	spin_lock(&io_tlb_default_mem.lock);
+	list_del_rcu(&mem->node);
+	io_tlb_default_mem.nslabs -= mem->nslabs;
+	spin_unlock(&io_tlb_default_mem.lock);
+	synchronize_rcu();
+#else
+	io_tlb_default_mem.nslabs = 0;
+#endif
 	tbl_vaddr = (unsigned long)phys_to_virt(mem->start);
 	tbl_size = PAGE_ALIGN(mem->end - mem->start);
 	slots_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), mem->nslabs));
