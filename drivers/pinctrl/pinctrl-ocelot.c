@@ -2367,8 +2367,9 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	gc->parent = &pdev->dev;
 	gc->base = -1;
 	gc->label = "ocelot-gpio";
+	gc->can_sleep = regmap_might_sleep(info->map);
 
-	irq = platform_get_irq_optional(pdev, 0);
+	irq = gc->can_sleep ? 0 : platform_get_irq_optional(pdev, 0);
 	if (irq > 0) {
 		girq = &gc->irq;
 		gpio_irq_chip_set_chip(girq, &ocelot_irqchip);
