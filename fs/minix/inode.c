@@ -702,24 +702,24 @@ static int minix_sync_inode_metadata(struct inode *inode,
 {
 	int err = 0;
 	struct buffer_head *bh;
-	void *raw_inode;
+	int block;
 
-	if (INODE_VERSION(inode) == MINIX_V1)
-		raw_inode = minix_V1_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	else
-		raw_inode = minix_V2_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	if (!raw_inode)
+	block = minix_inode_block(inode->i_sb, inode->i_ino);
+	if (!block)
 		return -EIO;
 	err = mmb_sync(&minix_i(inode)->i_metadata_bhs);
 	if (err)
-		goto out;
+		return err;
+	/* A block that isn't cached is neither dirty nor under writeback. */
+	bh = sb_find_get_block_nonatomic(inode->i_sb, block);
+	if (!bh)
+		return 0;
 	sync_dirty_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		printk("IO error syncing minix inode [%s:%08llx]\n",
 			inode->i_sb->s_id, inode->i_ino);
 		err = -EIO;
 	}
-out:
 	brelse(bh);
 	return err;
 }
