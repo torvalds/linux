@@ -38,6 +38,7 @@ struct hid_sensor_custom_field {
 
 struct hid_sensor_custom {
 	struct mutex mutex;
+	struct mutex read_mutex;
 	struct kref ref;
 	bool removed;
 	struct platform_device *pdev;
@@ -668,25 +669,39 @@ static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 	if (count < sizeof(struct hid_sensor_sample))
 		return -EINVAL;
 
+	if (file->f_flags & O_NONBLOCK) {
+		if (!mutex_trylock(&sensor_inst->read_mutex))
+			return -EAGAIN;
+	} else {
+		ret = mutex_lock_interruptible(&sensor_inst->read_mutex);
+		if (ret)
+			return ret;
+	}
+
 	for (;;) {
-		if (READ_ONCE(sensor_inst->removed))
-			return -ENODEV;
+		if (READ_ONCE(sensor_inst->removed)) {
+			ret = -ENODEV;
+			break;
+		}
 
 		ret = kfifo_to_user(&sensor_inst->data_fifo, buf, count,
 				    &copied);
 		if (ret || copied)
 			break;
 
-		if (file->f_flags & O_NONBLOCK)
-			return -EAGAIN;
+		if (file->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
 
 		ret = wait_event_interruptible(sensor_inst->wait,
 			READ_ONCE(sensor_inst->removed) ||
 			!kfifo_is_empty(&sensor_inst->data_fifo));
 		if (ret)
-			return ret;
+			break;
 	}
 
+	mutex_unlock(&sensor_inst->read_mutex);
 	if (ret)
 		return ret;
 
@@ -1014,6 +1029,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	sensor_inst->hsdev = hsdev;
 	sensor_inst->pdev = pdev;
 	mutex_init(&sensor_inst->mutex);
+	mutex_init(&sensor_inst->read_mutex);
 	kref_init(&sensor_inst->ref);
 	platform_set_drvdata(pdev, sensor_inst);
 
