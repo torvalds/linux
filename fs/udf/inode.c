@@ -152,8 +152,6 @@ void udf_evict_inode(struct inode *inode)
 		}
 	}
 	truncate_inode_pages_final(&inode->i_data);
-	if (!want_delete)
-		mmb_sync(&iinfo->i_metadata_bhs);
 	mmb_invalidate(&iinfo->i_metadata_bhs);
 	clear_inode(inode);
 	kfree(iinfo->i_data);
