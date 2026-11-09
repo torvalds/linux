@@ -91,8 +91,6 @@ void ext2_evict_inode(struct inode * inode)
 		if (inode->i_blocks)
 			ext2_truncate_blocks(inode, 0);
 		ext2_xattr_delete_inode(inode);
-	} else {
-		mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
 	}
 	mmb_invalidate(&EXT2_I(inode)->i_metadata_bhs);
 	clear_inode(inode);
