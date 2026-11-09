@@ -66,6 +66,13 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* Lenovo Legion 5 15AGP11 (ACP 7.0) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83Q6"),
+		},
+	},
+	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK COMPUTER INC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FA401EA"),
