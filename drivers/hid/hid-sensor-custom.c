@@ -1053,6 +1053,13 @@ static void hid_sensor_custom_remove(struct platform_device *pdev)
 	/* Remove enable_sensor first as it uses fields via power_state/report_state. */
 	sysfs_remove_group(&sensor_inst->pdev->dev.kobj,
 			   &enable_sensor_attr_group);
+	mutex_lock(&sensor_inst->mutex);
+	if (sensor_inst->enable) {
+		set_power_report_state(sensor_inst, false);
+		sensor_hub_device_close(hsdev);
+		sensor_inst->enable = false;
+	}
+	mutex_unlock(&sensor_inst->mutex);
 	hid_sensor_custom_remove_attributes(sensor_inst);
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
 }
