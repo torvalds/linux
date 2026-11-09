@@ -2440,6 +2440,7 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 		.reg_bits = 32,
 		.val_bits = 32,
 		.reg_stride = 4,
+		.use_raw_spinlock = true,
 	};
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
