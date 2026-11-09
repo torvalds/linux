@@ -341,7 +341,7 @@ static u16 nvmet_pr_update_reg_attr(struct nvmet_pr *pr,
 		return NVME_SC_SUCCESS;
 	}
 
-	new = kmalloc_obj(*new, GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_KERNEL);
 	if (!new)
 		return NVME_SC_INTERNAL;
 
@@ -1046,7 +1046,7 @@ static int nvmet_pr_alloc_and_insert_pc_ref(struct nvmet_ns *ns,
 	struct nvmet_pr_per_ctrl_ref *pc_ref;
 	int ret;
 
-	pc_ref = kmalloc_obj(*pc_ref, GFP_ATOMIC);
+	pc_ref = kmalloc_obj(*pc_ref, GFP_KERNEL);
 	if (!pc_ref)
 		return  -ENOMEM;
 
