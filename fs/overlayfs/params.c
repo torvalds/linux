@@ -931,6 +931,16 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		}
 	}
 
+	/* Resolve nfs_export -> !data-only layers dependency */
+	if (config->nfs_export && ctx->nr_data) {
+		if (set.nfs_export) {
+			pr_err("NFS export is not supported with data-only layers\n");
+			return -EINVAL;
+		}
+		pr_info("disabling nfs_export due to data-only layers\n");
+		config->nfs_export = false;
+	}
+
 	/* Resolve nfs_export -> index dependency */
 	if (config->nfs_export && !config->index) {
 		if (!config->upperdir &&
