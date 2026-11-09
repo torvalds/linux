@@ -325,6 +325,12 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		case ENERGY:
 			type = scmi_types[sensor->type];
 			idx = --nr_count[type];
+			ret = sensor_ops->config_set(ph, sensor->id, sensor_config);
+			if (ret) {
+				dev_err(dev, "Error enabling sensor %s. err=%d\n",
+					sensor->name, ret);
+				continue;
+			}
 			*(scmi_sensors->info[type] + idx) = sensor;
 			break;
 		}
@@ -340,13 +346,6 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		sensor = *(scmi_sensors->info[hwmon_temp] + i);
 		if (!sensor)
 			continue;
-
-		ret = sensor_ops->config_set(ph, sensor->id, sensor_config);
-		if (ret) {
-			dev_err(dev, "Error enabling sensor %s. err=%d\n",
-				sensor->name, ret);
-			continue;
-		}
 
 		/*
 		 * Warn on any misconfiguration related to thermal zones but
