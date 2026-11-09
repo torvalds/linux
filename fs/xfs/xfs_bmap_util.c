@@ -1567,9 +1567,9 @@ xfs_swap_extents(
 	 * page cache safely. Once we have done this we can take the ilocks and
 	 * do the rest of the checks.
 	 */
-	lock_two_nondirectories(VFS_I(ip), VFS_I(tip));
-	filemap_invalidate_lock_two(VFS_I(ip)->i_mapping,
-				    VFS_I(tip)->i_mapping);
+	error = xfs_ilock2_io_mmap(ip, tip);
+	if (error)
+		return error;
 
 	/* Verify that both files have the same format */
 	if ((VFS_I(ip)->i_mode & S_IFMT) != (VFS_I(tip)->i_mode & S_IFMT)) {
@@ -1775,9 +1775,7 @@ out_unlock_ilock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(tip, XFS_ILOCK_EXCL);
 out_unlock:
-	filemap_invalidate_unlock_two(VFS_I(ip)->i_mapping,
-				      VFS_I(tip)->i_mapping);
-	unlock_two_nondirectories(VFS_I(ip), VFS_I(tip));
+	xfs_iunlock2_io_mmap(ip, tip);
 	return error;
 
 out_trans_cancel:
