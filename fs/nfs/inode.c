@@ -652,8 +652,8 @@ static struct timespec64 nfs_delegated_stamp(struct inode *inode)
  * cached ctime to the server's so that the next delegated stamp lands
  * after it.
  */
-static void nfs_delegated_ctime_raise(struct inode *inode,
-				      const struct nfs_fattr *fattr)
+void nfs_delegated_ctime_raise(struct inode *inode,
+			       const struct nfs_fattr *fattr)
 {
 	struct timespec64 ctime = inode_get_ctime(inode);
 
@@ -661,6 +661,7 @@ static void nfs_delegated_ctime_raise(struct inode *inode,
 	    timespec64_compare(&fattr->ctime, &ctime) > 0)
 		inode_set_ctime_to_ts(inode, fattr->ctime);
 }
+EXPORT_SYMBOL_GPL(nfs_delegated_ctime_raise);
 
 static void nfs_set_timestamps_to_ts(struct inode *inode, struct iattr *attr)
 {
@@ -711,6 +712,7 @@ void nfs_update_delegated_mtime_locked(struct inode *inode)
 	    nfs_have_directory_delegation(inode))
 		nfs_update_mtime(inode);
 }
+EXPORT_SYMBOL_GPL(nfs_update_delegated_mtime_locked);
 
 void nfs_update_delegated_mtime(struct inode *inode)
 {

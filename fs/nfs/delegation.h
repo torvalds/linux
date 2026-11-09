@@ -95,6 +95,8 @@ void nfs4_inode_make_writeable(struct inode *inode);
 void nfs_update_delegated_atime(struct inode *inode);
 void nfs_update_delegated_mtime(struct inode *inode);
 void nfs_update_delegated_mtime_locked(struct inode *inode);
+void nfs_delegated_ctime_raise(struct inode *inode,
+			       const struct nfs_fattr *fattr);
 
 static inline int nfs_have_read_or_write_delegation(struct inode *inode)
 {
