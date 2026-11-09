@@ -957,6 +957,11 @@ struct gve_priv {
 	struct workqueue_struct *gve_wq;
 	struct work_struct service_task;
 	struct work_struct stats_report_task;
+	/* Protects the priv->tx/priv->rx arrays, the in-place rewrite of
+	 * priv->rx[idx] and the queue counts against stats readers that do
+	 * not hold the netdev instance lock.
+	 */
+	spinlock_t stats_lock;
 	unsigned long service_task_flags;
 	unsigned long state_flags;
 
