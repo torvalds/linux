@@ -2995,6 +2995,12 @@ static int wcd934x_comp_probe(struct snd_soc_component *component)
 	/* Default HPH Mode to Class-H Low HiFi */
 	wcd->hph_mode = CLS_H_LOHIFI;
 
+	/*
+	 * The digital core drops register writes while MCLK is off, but the
+	 * regmap cache still records them. Keep MCLK running so the init
+	 * sequence below and later mixer/DAPM writes actually reach the codec.
+	 */
+	__wcd934x_cdc_mclk_enable(wcd, true);
 	wcd934x_comp_init(component);
 
 	for (i = 0; i < NUM_CODEC_DAIS; i++)
