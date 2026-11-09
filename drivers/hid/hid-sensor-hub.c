@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
 #include <linux/list.h>
+#include <linux/platform_device.h>
 #include <linux/hid-sensor-ids.h>
 #include <linux/hid-sensor-hub.h>
 #include "hid-ids.h"
@@ -806,7 +807,14 @@ err_stop_hw:
 
 static int sensor_hub_finalize_pending_fn(struct device *dev, void *data)
 {
-	struct hid_sensor_hub_device *hsdev = dev->platform_data;
+	struct hid_sensor_hub_device *hsdev;
+
+	if (!dev_is_platform(dev))
+		return 0;
+
+	hsdev = to_platform_device(dev)->dev.platform_data;
+	if (!hsdev)
+		return 0;
 
 	if (hsdev->pending.status)
 		complete(&hsdev->pending.ready);
@@ -820,8 +828,6 @@ static void sensor_hub_remove(struct hid_device *hdev)
 	unsigned long flags;
 
 	hid_dbg(hdev, " hardware removed\n");
-	hid_hw_close(hdev);
-	hid_hw_stop(hdev);
 
 	spin_lock_irqsave(&data->lock, flags);
 	device_for_each_child(&hdev->dev, NULL,
@@ -829,6 +835,14 @@ static void sensor_hub_remove(struct hid_device *hdev)
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	mfd_remove_devices(&hdev->dev);
+	/* Clients share one HID open; release it if references remain. */
+	mutex_lock(&data->mutex);
+	if (data->ref_cnt) {
+		data->ref_cnt = 0;
+		hid_hw_close(hdev);
+	}
+	mutex_unlock(&data->mutex);
+	hid_hw_stop(hdev);
 	mutex_destroy(&data->mutex);
 }
 
