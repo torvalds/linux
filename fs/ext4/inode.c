@@ -250,8 +250,6 @@ void ext4_evict_inode(struct inode *inode)
 	if (EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL)
 		ext4_evict_ea_inode(inode);
 	if (inode->i_nlink) {
-		struct mapping_metadata_bhs *mmb;
-
 		/*
 		 * If there's dirty page will lead to data loss, user
 		 * could see stale data.
@@ -261,9 +259,6 @@ void ext4_evict_inode(struct inode *inode)
 			ext4_warning_inode(inode, "data will be lost");
 
 		truncate_inode_pages_final(&inode->i_data);
-		mmb = ext4_i_metadata_bhs(inode);
-		if (mmb)
-			mmb_sync(mmb);
 		goto no_delete;
 	}
 
