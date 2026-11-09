@@ -1059,20 +1059,19 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_remove_callback;
 
-	ret = sysfs_create_group(&sensor_inst->pdev->dev.kobj,
-				 &enable_sensor_attr_group);
+	ret = hid_sensor_custom_dev_if_add(sensor_inst);
 	if (ret)
 		goto err_remove_attributes;
 
-	ret = hid_sensor_custom_dev_if_add(sensor_inst);
+	ret = sysfs_create_group(&sensor_inst->pdev->dev.kobj,
+				 &enable_sensor_attr_group);
 	if (ret)
-		goto err_remove_group;
+		goto err_remove_dev_if;
 
 	return 0;
 
-err_remove_group:
-	sysfs_remove_group(&sensor_inst->pdev->dev.kobj,
-			   &enable_sensor_attr_group);
+err_remove_dev_if:
+	hid_sensor_custom_dev_if_remove(sensor_inst);
 err_remove_attributes:
 	hid_sensor_custom_remove_attributes(sensor_inst);
 err_remove_callback:
