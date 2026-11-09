@@ -19634,7 +19634,9 @@ M:	Steffen Klassert <steffen.klassert@secunet.com>
 M:	Herbert Xu <herbert@gondor.apana.org.au>
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
+L:	ipsec@lists.linux.dev
 S:	Maintained
+Q:	https://patchwork.kernel.org/project/ipsec/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/klassert/ipsec.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/klassert/ipsec-next.git
 F:	Documentation/networking/xfrm/
