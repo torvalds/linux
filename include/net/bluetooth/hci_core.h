@@ -2519,6 +2519,7 @@ void mgmt_index_removed(struct hci_dev *hdev);
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 void mgmt_power_on(struct hci_dev *hdev, int err);
 void __mgmt_power_off(struct hci_dev *hdev);
+void mgmt_mesh_flush(struct hci_dev *hdev);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,

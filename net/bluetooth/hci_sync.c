@@ -5885,6 +5885,11 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 
 	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
 
+	/* Nothing is going to send the mesh transmissions left, whether or not
+	 * mgmt is told about the controller being powered off.
+	 */
+	mgmt_mesh_flush(hdev);
+
 	if (!auto_off && !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    hci_dev_test_flag(hdev, HCI_MGMT))
 		__mgmt_power_off(hdev);
