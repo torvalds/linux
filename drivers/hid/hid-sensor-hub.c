@@ -173,7 +173,9 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 	struct sensor_hub_data *pdata = hid_get_drvdata(hsdev->hdev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
+	/* Serialize callback removal with raw-event callback execution. */
+	spin_lock_irqsave(&pdata->lock, flags);
+	spin_lock(&pdata->dyn_callback_lock);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 						callback->hsdev == hsdev) {
@@ -181,7 +183,8 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			kfree(callback);
 			break;
 		}
-	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
+	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->lock, flags);
 
 	return 0;
 }
