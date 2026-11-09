@@ -563,8 +563,8 @@ course, has no way to distinguish the deliberately injected faults
 from the accidental ones.  Don't drink and probe.
 
 Kprobes makes no attempt to prevent probe handlers from stepping on
-each other -- e.g., probing printk() and then calling printk() from a
-probe handler.  If a probe handler hits a probe, that second probe's
+each other -- e.g., probing trace_printk() and then calling trace_printk()
+from a probe handler.  If a probe handler hits a probe, that second probe's
 handlers won't be run in that instance, and the kprobe.nmissed member
 of the second probe will be incremented.
 
@@ -579,6 +579,13 @@ which depends on the architecture and optimization state.  (e.g.,
 kretprobe handlers and optimized kprobe handlers run without interrupt
 disabled on x86/x86-64).  In any case, your handler should not yield
 the CPU (e.g., by attempting to acquire a semaphore, or waiting I/O).
+Furthermore, probe handlers should avoid calling printk() or pr_*().
+Because probe handlers execute in atomic/non-preemptible contexts without
+being in NMI context (especially when jump-optimized or ftrace-based),
+calling printk() may attempt to synchronously acquire console driver locks
+or scheduler locks via console_unlock(), risking a deadlock if the probed
+or interrupted context already holds those locks. Use trace_printk()
+instead to safely output messages to the trace buffer.
 
 Since a return probe is implemented by replacing the return
 address with the trampoline's address, stack backtraces and calls
