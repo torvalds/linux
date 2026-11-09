@@ -980,7 +980,7 @@ xfs_prepare_shift(
 	 * Writeback and invalidate cache for the remainder of the file as we're
 	 * about to shift down every extent from offset to EOF.
 	 */
-	error = xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip));
+	error = xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip) - offset);
 	if (error)
 		return error;
 
