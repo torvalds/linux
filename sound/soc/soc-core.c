@@ -387,6 +387,12 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 		device_unregister(dev);
 		return NULL;
 	}
+	/*
+	 * devm_kzalloc_flex() presets the __counted_by() counter to the
+	 * allocated size when the compiler has __builtin_counted_by_ref(),
+	 * but snd_soc_rtd_add_component() expects it to start from zero.
+	 */
+	rtd->num_components = 0;
 
 	rtd->dev = dev;
 	INIT_LIST_HEAD(&rtd->list);
