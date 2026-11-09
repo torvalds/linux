@@ -418,7 +418,14 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
 		fuse_init_common(inode);
 		fuse_init_file_inode(inode, attr->flags);
 
-		if ((attr->flags & FUSE_ATTR_DAX) && !fuse_inode_vdax(inode)) {
+		/*
+		 * Without CONFIG_FS_DAX, S_DAX is zero and IS_DAX() is
+		 * constant false, so all the checks that keep DAX inodes away
+		 * from the page cache are compiled out.  Don't install address
+		 * space operations that have no ->read_folio in that case.
+		 */
+		if (IS_ENABLED(CONFIG_FS_DAX) && (attr->flags & FUSE_ATTR_DAX) &&
+		    !fuse_inode_vdax(inode)) {
 			inode->i_flags |= S_DAX;
 			inode->i_data.a_ops = &fuse_dax_aops;
 		}
