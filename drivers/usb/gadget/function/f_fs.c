@@ -884,8 +884,8 @@ static void ffs_user_copy_worker(struct work_struct *work)
 		} else {
 			ret = -EFAULT;
 		}
-		mmdrop(io_data->mm);
 	}
+	mmdrop(io_data->mm);
 
 	io_data->kiocb->ki_complete(io_data->kiocb, ret);
 
