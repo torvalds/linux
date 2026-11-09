@@ -629,25 +629,33 @@ nfs_fattr_fixup_delegated(struct inode *inode, struct nfs_fattr *fattr)
 	}
 }
 
+/*
+ * With delegated timestamps, the client's coarse clock can trail the
+ * server's fine-grained ctime cached from an OPEN or SETATTR reply. The
+ * server won't move ctime backward when the times are returned, so a
+ * new stamp must land after the cached ctime.
+ */
+static struct timespec64 nfs_delegated_stamp(struct inode *inode)
+{
+	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 now = current_time(inode);
+
+	if (timespec64_compare(&now, &ctime) <= 0) {
+		now = ctime;
+		timespec64_add_ns(&now, 1);
+	}
+	return now;
+}
+
 static void nfs_set_timestamps_to_ts(struct inode *inode, struct iattr *attr)
 {
 	unsigned int cache_flags = 0;
 
 	if (attr->ia_valid & ATTR_MTIME_SET) {
-		struct timespec64 ctime = inode_get_ctime(inode);
-		struct timespec64 mtime = inode_get_mtime(inode);
-		struct timespec64 now;
-		bool updated = false;
-
-		now = inode_set_ctime_current(inode);
-		if (!timespec64_equal(&now, &ctime))
-			updated = true;
-
+		/* The stamp is always after the old ctime */
+		inode_set_ctime_to_ts(inode, nfs_delegated_stamp(inode));
 		inode_set_mtime_to_ts(inode, attr->ia_mtime);
-		if (!timespec64_equal(&now, &mtime))
-			updated = true;
-
-		inode_maybe_inc_iversion(inode, updated);
+		inode_maybe_inc_iversion(inode, true);
 		cache_flags |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
 	}
 	if (attr->ia_valid & ATTR_ATIME) {
@@ -665,7 +673,11 @@ static void nfs_update_atime(struct inode *inode)
 
 static void nfs_update_mtime(struct inode *inode)
 {
-	inode_update_time(inode, FS_UPD_CMTIME, 0);
+	struct timespec64 now = nfs_delegated_stamp(inode);
+
+	/* Not inode_update_time(): lockless readers would see its stamp */
+	inode_set_ctime_to_ts(inode, now);
+	inode_set_mtime_to_ts(inode, now);
 	NFS_I(inode)->cache_validity &=
 		~(NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME);
 }
