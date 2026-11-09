@@ -373,11 +373,11 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (r || !fence)
 		goto out_tlb;
 
-	amdgpu_bo_fence(bo, fence, true);
+	dma_resv_add_fence(bo->tbo.base.resv, fence, DMA_RESV_USAGE_BOOKKEEP);
 	dma_fence_put(fence);
 
 out_tlb:
-	amdgpu_bo_fence(bo, vm->last_tlb_inv, true);
+	dma_resv_add_fence(bo->tbo.base.resv, vm->last_tlb_inv, DMA_RESV_USAGE_BOOKKEEP);
 
 out_unlock:
 	if (r && !drm_dev_is_unplugged(adev_to_drm(adev)))
