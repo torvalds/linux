@@ -1159,6 +1159,10 @@ static void update_borrow_mode_from_dsc_padding(struct dsc_padding_params *dsc_p
 	uint32_t h_blank = timing->h_total - h_active;
 	struct frl_borrow_params *borrow_params = &frl_link_settings->borrow_params;
 
+	if (dsc_padding_params->dsc_hactive_padding == 0 &&
+	    dsc_padding_params->dsc_htotal_padding == 0)
+		return;
+
 	borrow_params->borrow_mode = frl_modify_borrow_mode_for_dsc_padding(timing->pix_clk_100hz,
 		h_active,
 		h_active + dsc_padding_params->dsc_hactive_padding,
