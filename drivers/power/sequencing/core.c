@@ -270,6 +270,11 @@ static void pwrseq_device_put(struct pwrseq_device *pwrseq)
  * @target: Reference to the target this descriptor allows to control.
  * @powered_on: Power state set by the holder of the descriptor (not necessarily
  * corresponding to the actual power state of the device).
+ *
+ * Note: The user that requested the descriptor from the provider is
+ * responsible for the serialization of access to it. Concurrent threads must
+ * not access the descriptor structure without synchronization as power
+ * sequencing core does not provide any per-descriptor locking.
  */
 struct pwrseq_desc {
 	struct pwrseq_device *pwrseq;
