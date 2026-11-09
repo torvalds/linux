@@ -339,7 +339,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		if (!sensor)
 			continue;
 
-		ret = sensor_ops->config_set(ph, i, sensor_config);
+		ret = sensor_ops->config_set(ph, sensor->id, sensor_config);
 		if (ret) {
 			dev_err(dev, "Error enabling sensor %s. err=%d\n",
 				sensor->name, ret);
