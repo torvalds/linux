@@ -345,6 +345,13 @@ void drm_sched_rq_pop_entity(struct drm_sched_entity *entity)
 
 	lockdep_assert_held(&entity->lock);
 
+	/*
+	 * If entity is getting torn down via drm_sched_entity_kill() we need
+	 * to ensure it does not get re-added to the tree behind it's back.
+	 */
+	if (entity->stopped)
+		return;
+
 	spin_lock(&rq->lock);
 
 	/*
