@@ -5852,7 +5852,8 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 /*
  * ext4_get_inode_loc_noio() is a best-effort variant of ext4_get_inode_loc().
  * It looks up the inode table block in the buffer cache and returns -EAGAIN if
- * the block is not present or not uptodate, without starting any I/O.
+ * the block is not present or not uptodate, without starting any I/O. It may
+ * sleep on the folio lock of the block.
  */
 int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 {
@@ -5888,7 +5889,7 @@ int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 	}
 	block += inode_offset / inodes_per_block;
 
-	bh = sb_find_get_block(sb, block);
+	bh = sb_find_get_block_nonatomic(sb, block);
 	if (!bh)
 		return -EAGAIN;
 	if (!ext4_buffer_uptodate(bh)) {
