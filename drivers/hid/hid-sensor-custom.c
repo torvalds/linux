@@ -719,6 +719,7 @@ static __poll_t hid_sensor_custom_poll(struct file *file,
 }
 
 static const struct file_operations hid_sensor_custom_fops = {
+	.owner = THIS_MODULE,
 	.open =  hid_sensor_custom_open,
 	.read =  hid_sensor_custom_read,
 	.release = hid_sensor_custom_release,
