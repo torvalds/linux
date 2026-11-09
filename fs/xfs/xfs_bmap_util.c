@@ -863,8 +863,21 @@ xfs_flush_unmap_range(
 	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (error)
 		return error;
-	truncate_pagecache_range(inode, start, end);
-	return 0;
+
+	/*
+	 * The callers go on to change the block map, so no folio may stay over
+	 * the range.  The holder of a GUP pin can mark a folio dirty again
+	 * after the flush, with no lock of ours.  A truncate drops such a folio
+	 * if it lies inside the range.  If it is a large folio that straddles
+	 * the range, the truncate cannot split it, so it zeroes a part of the
+	 * folio, keeps it, and reports nothing.  The invalidation removes whole
+	 * folios, changes no data, and fails on a dirty folio.
+	 */
+	error = invalidate_inode_pages2_range(inode->i_mapping,
+			start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+	if (error == -EBUSY)
+		error = -EINVAL;
+	return error;
 }
 
 int
