@@ -147,6 +147,22 @@ void drm_crtc_vblank_helper_disable_vblank_timer(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_crtc_vblank_helper_disable_vblank_timer);
 
 /**
+ * drm_crtc_vblank_helper_sync_vblank_timer - Implements struct &drm_crtc_funcs.sync_vblank
+ * @crtc: The CRTC
+ *
+ * The helper drm_crtc_vblank_helper_sync_vblank_timer() implements
+ * sync_vblank of struct drm_crtc_funcs for CRTCs that require a
+ * VBLANK timer.
+ *
+ * See also struct &drm_crtc_funcs.sync_vblank.
+ */
+void drm_crtc_vblank_helper_sync_vblank_timer(struct drm_crtc *crtc)
+{
+	drm_crtc_vblank_stop_canceled_timer(crtc);
+}
+EXPORT_SYMBOL(drm_crtc_vblank_helper_sync_vblank_timer);
+
+/**
  * drm_crtc_vblank_helper_get_vblank_timestamp_from_timer -
  *	Implements struct &drm_crtc_funcs.get_vblank_timestamp
  * @crtc: The CRTC

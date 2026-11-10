@@ -1403,6 +1403,9 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 
 	spin_unlock_irq(&dev->event_lock);
 
+	if (crtc->funcs->sync_vblank)
+		crtc->funcs->sync_vblank(crtc);
+
 	/* Will be reset by the modeset helpers when re-enabling the crtc by
 	 * calling drm_calc_timestamping_constants(). */
 	vblank->hwmode.crtc_clock = 0;
@@ -2246,28 +2249,61 @@ EXPORT_SYMBOL(drm_crtc_vblank_start_timer);
  * @crtc: the CRTC
  *
  * Drivers should call this function from their CRTC's disable_vblank
- * function to stop a vblank timer.
+ * function to stop a vblank timer. Only signals the timer to stop at
+ * the next invocation. Non-blocking. To fully stop the vblank timer,
+ * drivers should invoke drm_crtc_vblank_stop_timer().
  */
 void drm_crtc_vblank_cancel_timer(struct drm_crtc *crtc)
 {
 	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	struct drm_vblank_crtc_timer *vtimer = &vblank->vblank_timer;
-	unsigned long flags;
+
+	if (!vtimer->crtc)
+		return;
 
 	/*
-	 * Calling hrtimer_cancel() can result in a deadlock with DRM's
-	 * vblank_time_lime_lock and hrtimers' softirq_expiry_lock. So
+	 * Calling hrtimer_cancel() here can result in a deadlock between
+	 * DRM's vblank_time_lock and hrtimers' softirq_expiry_lock. So
 	 * clear interval and indicate cancellation. The timer function
-	 * will cancel itself on the next invocation.
+	 * will cancel itself on the next invocation. Otherwise cancel it
+	 * in drm_crtc_vblank_stop_canceled_timer().
 	 */
-
-	spin_lock_irqsave(&vtimer->interval_lock, flags);
-	vtimer->interval = 0;
-	spin_unlock_irqrestore(&vtimer->interval_lock, flags);
-
-	hrtimer_try_to_cancel(&vtimer->timer);
+	scoped_guard(spinlock_irqsave, &vtimer->interval_lock)
+		vtimer->interval = 0;
 }
 EXPORT_SYMBOL(drm_crtc_vblank_cancel_timer);
+
+/**
+ * drm_crtc_vblank_stop_canceled_timer - Stops a CRTC's previously canceled vblank timer
+ * @crtc: the CRTC
+ *
+ * Drivers should call this function from their CRTC's sync_vblank
+ * function to fully stop a vblank timer. The timer must have been
+ * canceled before. Use drm_crtc_vblank_stop_timer() to stop a vblank
+ * timer unconditionally.
+ *
+ * The function blocks until a running timer function has returned.
+ */
+void drm_crtc_vblank_stop_canceled_timer(struct drm_crtc *crtc)
+{
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
+	struct drm_vblank_crtc_timer *vtimer = &vblank->vblank_timer;
+	ktime_t interval;
+
+	if (!vtimer->crtc)
+		return;
+
+	/*
+	 * The vblank timer is off if it has an interval of zero. Cancel
+	 * it before drm_crtc_vblank_start_timer() reprograms it.
+	 */
+	scoped_guard(spinlock_irqsave, &vtimer->interval_lock)
+		interval = vtimer->interval;
+
+	if (!interval)
+		hrtimer_cancel(&vtimer->timer);
+}
+EXPORT_SYMBOL(drm_crtc_vblank_stop_canceled_timer);
 
 /**
  * drm_crtc_vblank_get_vblank_timeout - Returns the vblank timeout
