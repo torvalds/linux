@@ -90,6 +90,7 @@ TEST_PROGS := \
 	run_afpackettests \
 	run_netsocktests \
 	rxtimestamp.sh \
+	sctp_ifwdtsn.sh \
 	sctp_vrf.sh \
 	skf_net_off.sh \
 	srv6_encap_lookup_l3vpn_test.sh \
@@ -163,6 +164,7 @@ TEST_GEN_FILES := \
 	reuseport_addr_any \
 	rxtimestamp \
 	sctp_hello \
+	sctp_ifwdtsn \
 	skf_net_off \
 	so_netns_cookie \
 	so_rcv_listener \

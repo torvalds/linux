@@ -34,6 +34,7 @@ reuseport_bpf_numa
 reuseport_dualstack
 rxtimestamp
 sctp_hello
+sctp_ifwdtsn
 sk_bind_sendto_listen
 sk_connect_zero_addr
 sk_so_peek_off
