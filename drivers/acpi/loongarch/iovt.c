@@ -184,7 +184,7 @@ void __init acpi_iovt_init(void)
 		return;
 	}
 
-	iovt = (struct acpi_table_iovt *)&hdr;
+	iovt = (struct acpi_table_iovt *)hdr;
 	iommu = ACPI_ADD_PTR(struct acpi_iovt_iommu, iovt, iovt->iommu_offset);
 	for (i = 0; i < iovt->iommu_count; i++) {
 		iovt_enable_acs(iommu);
