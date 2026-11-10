@@ -2905,9 +2905,6 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return false;
 
-	if (skb_linearize(skb))
-		return false;
-
 	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
 	if (tid_tx) {
@@ -2917,6 +2914,10 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 		if (tid_tx->timeout)
 			tid_tx->last_tx = jiffies;
 	}
+
+	/* this function must not fail after this */
+	if (skb_linearize(skb))
+		return false;
 
 	ieee80211_aggr_check(sdata, sta, skb);
 
