@@ -100,7 +100,6 @@ static void memstick_device_remove(struct device *dev)
 
 	if (dev->driver && drv->remove) {
 		drv->remove(card);
-		card->dev.driver = NULL;
 	}
 
 	put_device(dev);
