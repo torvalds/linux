@@ -406,10 +406,50 @@ fib_carrier_unicast_test()
 	cleanup
 }
 
+fib_carrier_gw_test()
+{
+	echo
+	echo "Gateway validation with carrier down"
+
+	setup
+
+	set -e
+	$NS_EXEC sysctl -qw net.ipv4.conf.dummy0.ignore_routes_with_linkdown=1
+	$NS_EXEC sysctl -qw net.ipv6.conf.dummy0.ignore_routes_with_linkdown=1
+	$IP link set dev dummy0 carrier off
+	sleep 1
+	set +e
+
+	$IP route add 203.0.113.0/25 via 198.51.100.2 dev dummy0 &> /dev/null
+	log_test $? 0 "IPv4 route in main table"
+	$IP -6 route add 2001:db8:10::/64 via 2001:db8:1::2 dev dummy0 &> /dev/null
+	log_test $? 0 "IPv6 route in main table"
+
+	$IP route add 203.0.113.0/25 table 100 via 198.51.100.2 dev dummy0 &> /dev/null
+	log_test $? 0 "IPv4 route in non-main table"
+	$IP -6 route add 2001:db8:10::/64 table 100 via 2001:db8:1::2 dev dummy0 &> /dev/null
+	log_test $? 0 "IPv6 route in non-main table"
+
+	$IP route add 203.0.113.128/25 table 100 via 198.51.100.2 &> /dev/null
+	log_test $? 0 "IPv4 route in non-main table without device"
+	$IP -6 route add 2001:db8:11::/64 table 100 via 2001:db8:1::2 &> /dev/null
+	log_test $? 0 "IPv6 route in non-main table without device"
+
+	$IP route show table 100 203.0.113.0/25 | \
+		grep -q "linkdown"
+	log_test $? 0 "IPv4 linkdown flag set"
+	$IP -6 route show table 100 2001:db8:10::/64 | \
+		grep -q "linkdown"
+	log_test $? 0 "IPv6 linkdown flag set"
+
+	cleanup
+}
+
 fib_carrier_test()
 {
 	fib_carrier_local_test
 	fib_carrier_unicast_test
+	fib_carrier_gw_test
 }
 
 fib_rp_filter_test()
