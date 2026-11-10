@@ -746,6 +746,7 @@ int ice_tspll_init(struct ice_hw *hw)
  *
  * Check if given port is selected as recovered clock source for given output.
  *
+ * Context: Called under pf->dplls.lock and adapter->cgu_synce_lock
  * Return:
  * * 0 - success
  * * negative - error
@@ -774,8 +775,7 @@ int ice_tspll_bypass_mux_active_e825c(struct ice_hw *hw, u8 port, bool *active,
 		return -EINVAL;
 	}
 
-	if (active_clk == port % hw->ptp.ports_per_phy +
-			  ICE_CGU_BYPASS_MUX_OFFSET_E825C)
+	if (active_clk == port + ICE_CGU_BYPASS_MUX_OFFSET_E825C)
 		*active = true;
 	else
 		*active = false;
