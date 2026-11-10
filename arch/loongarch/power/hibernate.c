@@ -59,6 +59,12 @@ extern int swsusp_asm_resume(void);
 
 int swsusp_arch_resume(void)
 {
+#ifdef CONFIG_KFENCE
+	struct pbe *pbe;
+
+	for (pbe = restore_pblist; pbe; pbe = pbe->next)
+		pbe->orig_address = __va(virt_to_phys(pbe->orig_address));
+#endif
 	/* Avoid TLB mismatch during and after kernel resume */
 	local_flush_tlb_all();
 	return swsusp_asm_resume();
