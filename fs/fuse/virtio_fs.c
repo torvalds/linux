@@ -1827,6 +1827,7 @@ static int virtio_fs_init_fs_context(struct fs_context *fsc)
 	ctx = kzalloc_obj(struct fuse_fs_context);
 	if (!ctx)
 		return -ENOMEM;
+	ctx->is_virtiofs = true;
 	fsc->fs_private = ctx;
 	fsc->ops = &virtio_fs_context_ops;
 	return 0;
