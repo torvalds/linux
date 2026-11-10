@@ -1950,7 +1950,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		break;
 	}
 
-	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, &hdr)) {
+	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, &hdr,
+				    (tun->flags & TUN_TYPE_MASK) == IFF_TAP)) {
 		atomic_long_inc(&tun->rx_frame_errors);
 		err = -EINVAL;
 		goto free_skb;
@@ -2627,7 +2628,11 @@ build:
 	tnl_hdr = (struct virtio_net_hdr_v1_hash_tunnel *)gso;
 	skb->dev = tun->dev;
 	skb_set_network_header(skb, ETH_HLEN);
-	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, tnl_hdr)) {
+	/* Frames always start with an Ethernet header here, as the
+	 * eth_type_trans() call below expects.
+	 */
+	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, tnl_hdr,
+				    true)) {
 		atomic_long_inc(&tun->rx_frame_errors);
 		kfree_skb(skb);
 		ret = -EINVAL;
