@@ -28,6 +28,7 @@
 #include <linux/srcu.h>
 #include <linux/string.h>
 #include <linux/string_choices.h>
+#include <linux/workqueue.h>
 
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
@@ -899,6 +900,9 @@ static void gpiodev_release(struct device *dev)
 	/* Call pending kfree()s for descriptor labels. */
 	synchronize_srcu(&gdev->desc_srcu);
 	cleanup_srcu_struct(&gdev->desc_srcu);
+
+	if (gdev->line_state_wq)
+		destroy_workqueue(gdev->line_state_wq);
 
 	ida_free(&gpio_ida, gdev->id);
 	kfree_const(gdev->label);

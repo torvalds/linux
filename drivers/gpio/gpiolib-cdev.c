@@ -2764,6 +2764,7 @@ int gpiolib_cdev_register(struct gpio_chip *gc, dev_t devt)
 	ret = cdev_device_add(&gdev->chrdev, &gdev->dev);
 	if (ret) {
 		destroy_workqueue(gdev->line_state_wq);
+		gdev->line_state_wq = NULL;
 		return ret;
 	}
 
@@ -2774,7 +2775,6 @@ int gpiolib_cdev_register(struct gpio_chip *gc, dev_t devt)
 
 void gpiolib_cdev_unregister(struct gpio_device *gdev)
 {
-	destroy_workqueue(gdev->line_state_wq);
 	cdev_device_del(&gdev->chrdev, &gdev->dev);
 	blocking_notifier_call_chain(&gdev->device_notifier, 0, NULL);
 }
