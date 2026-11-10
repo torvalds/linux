@@ -1019,6 +1019,8 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 		return 0;
 	if (hdr.fc.version == 0)
 		return -EINVAL;
+	if (hdr.sec.level == IEEE802154_SCF_SECLEVEL_NONE)
+		return -EINVAL;
 
 	read_lock_bh(&sec->lock);
 	if (!sec->params.enabled) {
