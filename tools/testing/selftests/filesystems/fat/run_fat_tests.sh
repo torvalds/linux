@@ -15,6 +15,8 @@ BASE_DIR="$(dirname $0)"
 TMP_DIR="$(mktemp -d /tmp/fat_tests_tmp.XXXXXX)"
 IMG_PATH="${TMP_DIR}/fat.img"
 MNT_PATH="${TMP_DIR}/mnt"
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 cleanup()
 {
@@ -22,6 +24,17 @@ cleanup()
     rm -rf "${TMP_DIR}"
 }
 trap cleanup SIGINT SIGTERM EXIT
+
+check_prereqs()
+{
+        local msg="skip all tests:"
+        local uid=$(id -u)
+
+        if [ $uid -ne 0 ]; then
+                echo $msg must be run as root >&2
+                exit $ksft_skip
+        fi
+}
 
 create_loopback()
 {
@@ -73,6 +86,7 @@ unmount_image()
     sudo umount "${MNT_PATH}" &> /dev/null
 }
 
+check_prereqs
 create_loopback
 mount_image
 rename_exchange_test
