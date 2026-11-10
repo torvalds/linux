@@ -736,7 +736,7 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 		return -ENODEV;
 	}
 
-	tx_list_empty = (likely(list_empty(&dev->tx_reqs)));
+	tx_list_empty = (likely(list_empty(&dev->tx_reqs_active)));
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (!tx_list_empty) {
