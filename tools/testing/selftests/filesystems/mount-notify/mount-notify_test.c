@@ -337,18 +337,18 @@ TEST_F(fanotify, fsmount)
 	fs = fsopen("tmpfs", 0);
 	ASSERT_GE(fs, 0);
 
-        ret = fsconfig(fs, FSCONFIG_CMD_CREATE, 0, 0, 0);
+	ret = fsconfig(fs, FSCONFIG_CMD_CREATE, 0, 0, 0);
 	ASSERT_EQ(ret, 0);
 
-        mnt = fsmount(fs, 0, 0);
+	mnt = fsmount(fs, 0, 0);
 	ASSERT_GE(mnt, 0);
 
-        close(fs);
+	close(fs);
 
 	ret = move_mount(mnt, "", AT_FDCWD, "/a", MOVE_MOUNT_F_EMPTY_PATH);
 	ASSERT_EQ(ret, 0);
 
-        close(mnt);
+	close(mnt);
 
 	mnts[1] = expect_notify_mask(_metadata, self, FAN_MNT_ATTACH);
 	ASSERT_NE(mnts[0], mnts[1]);

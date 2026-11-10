@@ -2596,7 +2596,7 @@ static int __ntfs_extend_initialized_size(struct inode *vi,
 		if (old_init_size < offset) {
 			err = iomap_zero_range(vi, old_init_size,
 					       offset - old_init_size,
-					       NULL, &ntfs_seek_iomap_ops,
+					       NULL, ntfs_seek_iomap_next,
 					       &ntfs_iomap_folio_ops, NULL);
 			if (err)
 				goto out;

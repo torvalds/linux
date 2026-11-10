@@ -1053,7 +1053,8 @@ static void virtio_fs_cleanup_vqs(struct virtio_device *vdev)
 }
 
 /* Map a window offset to a page frame number.  The window offset will have
- * been produced by .iomap_next(), which maps a file offset to a window offset.
+ * been produced by fuse_iomap_next(), which maps a file offset to a window
+ * offset.
  */
 static long virtio_fs_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 				    long nr_pages, enum dax_access_mode mode,

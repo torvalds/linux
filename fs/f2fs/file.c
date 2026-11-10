@@ -5245,7 +5245,7 @@ static ssize_t f2fs_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * F2FS_DIO_READ counter will be decremented correctly in all cases.
 	 */
 	inc_cache_count(sbi, F2FS_DIO_READ);
-	dio = __iomap_dio_rw(iocb, to, &f2fs_iomap_ops,
+	dio = __iomap_dio_rw(iocb, to, f2fs_iomap_next,
 			     &f2fs_iomap_dio_read_ops, 0, NULL, 0);
 	if (IS_ERR_OR_NULL(dio)) {
 		ret = PTR_ERR_OR_ZERO(dio);
@@ -5584,7 +5584,7 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	dio_flags = 0;
 	if (pos + count > inode->i_size)
 		dio_flags |= IOMAP_DIO_FORCE_WAIT;
-	dio = __iomap_dio_rw(iocb, from, &f2fs_iomap_ops,
+	dio = __iomap_dio_rw(iocb, from, f2fs_iomap_next,
 			     &f2fs_iomap_dio_write_ops, dio_flags, iocb, 0);
 	if (IS_ERR_OR_NULL(dio)) {
 		ret = PTR_ERR_OR_ZERO(dio);

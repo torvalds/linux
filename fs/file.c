@@ -1387,14 +1387,18 @@ static inline bool file_needs_f_pos_lock(struct file *file)
 
 bool file_seek_cur_needs_f_lock(struct file *file)
 {
-	if (!(file->f_mode & FMODE_ATOMIC_POS) && !file->f_op->iterate_shared)
-		return false;
-
 	/*
+	 * Files that go through f_pos_lock when they are shared, i.e.
+	 * FMODE_ATOMIC_POS files and directories, don't need f_lock for a
+	 * SEEK_CUR. Everything else does, since nothing else serializes
+	 * the f_pos update.
+	 *
 	 * Note that we are not guaranteed to be called after fdget_pos() on
 	 * this file obj, in which case the caller is expected to provide the
 	 * appropriate locking.
 	 */
+	if ((file->f_mode & FMODE_ATOMIC_POS) || file->f_op->iterate_shared)
+		return false;
 
 	return true;
 }

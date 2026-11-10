@@ -12,6 +12,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/iomap.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/hex.h>
@@ -814,7 +815,7 @@ int ntfs_create_inode(const struct mnt_idmap *idmap, struct inode *dir,
 int ntfs_link_inode(struct inode *inode, struct dentry *dentry);
 int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry);
 void ntfs_evict_inode(struct inode *inode);
-extern const struct iomap_ops ntfs_iomap_ops;
+DECLARE_IOMAP_ITER_NEXT(ntfs_iomap_next);
 extern const struct iomap_write_ops ntfs_iomap_folio_ops;
 extern const struct inode_operations ntfs_link_inode_operations;
 extern const struct address_space_operations ntfs_aops;

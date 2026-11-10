@@ -374,10 +374,6 @@ static int erofs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 static DEFINE_IOMAP_ITER_NEXT_END(erofs_iomap_next, erofs_iomap_begin,
 				  erofs_iomap_end);
 
-static const struct iomap_ops erofs_iomap_ops = {
-	.iomap_next = erofs_iomap_next,
-};
-
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len)
 {
@@ -385,9 +381,9 @@ int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
 			return -EOPNOTSUPP;
 		return iomap_fiemap(inode, fieinfo, start, len,
-				    &z_erofs_iomap_report_ops);
+				    z_erofs_iomap_next_report);
 	}
-	return iomap_fiemap(inode, fieinfo, start, len, &erofs_iomap_ops);
+	return iomap_fiemap(inode, fieinfo, start, len, erofs_iomap_next);
 }
 
 /*
@@ -408,7 +404,7 @@ static int erofs_read_folio(struct file *file, struct folio *folio)
 	};
 
 	trace_erofs_read_folio(iter_ctx.realinode, folio, true);
-	iomap_read_folio(&erofs_iomap_ops, &read_ctx, &iter_ctx);
+	iomap_read_folio(erofs_iomap_next, &read_ctx, &iter_ctx);
 	if (need_iput)
 		iput(iter_ctx.realinode);
 	return 0;
@@ -429,14 +425,14 @@ static void erofs_readahead(struct readahead_control *rac)
 
 	trace_erofs_readahead(iter_ctx.realinode, readahead_index(rac),
 			      readahead_count(rac), true);
-	iomap_readahead(&erofs_iomap_ops, &read_ctx, &iter_ctx);
+	iomap_readahead(erofs_iomap_next, &read_ctx, &iter_ctx);
 	if (need_iput)
 		iput(iter_ctx.realinode);
 }
 
 static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
 {
-	return iomap_bmap(mapping, block, &erofs_iomap_ops);
+	return iomap_bmap(mapping, block, erofs_iomap_next);
 }
 
 static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
@@ -448,14 +444,14 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		return 0;
 
 	if (IS_ENABLED(CONFIG_FS_DAX) && IS_DAX(inode))
-		return dax_iomap_rw(iocb, to, &erofs_iomap_ops);
+		return dax_iomap_rw(iocb, to, erofs_iomap_next);
 
 	if ((iocb->ki_flags & IOCB_DIRECT) && inode->i_sb->s_bdev) {
 		struct erofs_iomap_iter_ctx iter_ctx = {
 			.realinode = inode,
 		};
 
-		return iomap_dio_rw(iocb, to, &erofs_iomap_ops,
+		return iomap_dio_rw(iocb, to, erofs_iomap_next,
 				    NULL, 0, &iter_ctx, 0);
 	}
 	return filemap_read(iocb, to, 0);
@@ -474,7 +470,7 @@ const struct address_space_operations erofs_aops = {
 static vm_fault_t erofs_dax_huge_fault(struct vm_fault *vmf,
 		unsigned int order)
 {
-	return dax_iomap_fault(vmf, order, NULL, NULL, &erofs_iomap_ops);
+	return dax_iomap_fault(vmf, order, NULL, NULL, erofs_iomap_next);
 }
 
 static vm_fault_t erofs_dax_fault(struct vm_fault *vmf)
@@ -506,18 +502,18 @@ static int erofs_file_mmap_prepare(struct vm_area_desc *desc)
 loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
-	const struct iomap_ops *ops = &erofs_iomap_ops;
+	iomap_iter_next_fn next = erofs_iomap_next;
 
 	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
 		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
 			return generic_file_llseek(file, offset, whence);
-		ops = &z_erofs_iomap_report_ops;
+		next = z_erofs_iomap_next_report;
 	}
 
 	if (whence == SEEK_HOLE)
-		offset = iomap_seek_hole(inode, offset, ops);
+		offset = iomap_seek_hole(inode, offset, next);
 	else if (whence == SEEK_DATA)
-		offset = iomap_seek_data(inode, offset, ops);
+		offset = iomap_seek_data(inode, offset, next);
 	else
 		return generic_file_llseek(file, offset, whence);
 
