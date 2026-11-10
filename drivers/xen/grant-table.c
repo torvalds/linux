@@ -1064,6 +1064,9 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 	size_t size;
 	int i, ret;
 
+	if (WARN_ON(xen_pv_domain()))
+		return -EINVAL;
+
 	if (args->nr_pages < 0 || args->nr_pages > (INT_MAX >> PAGE_SHIFT))
 		return -ENOMEM;
 
@@ -1090,8 +1093,6 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 		args->frames[i] = xen_page_to_gfn(page);
 		xenmem_reservation_scrub_page(page);
 	}
-
-	xenmem_reservation_va_mapping_reset(args->nr_pages, args->pages);
 
 	ret = xenmem_reservation_decrease(args->nr_pages, args->frames);
 	if (ret != args->nr_pages) {
@@ -1121,6 +1122,9 @@ int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 	size_t size;
 	int i, ret;
 
+	if (WARN_ON(xen_pv_domain()))
+		return -EINVAL;
+
 	gnttab_pages_clear_private(args->nr_pages, args->pages);
 
 	for (i = 0; i < args->nr_pages; i++)
@@ -1133,9 +1137,6 @@ int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 	} else {
 		ret = 0;
 	}
-
-	xenmem_reservation_va_mapping_update(args->nr_pages, args->pages,
-					     args->frames);
 
 	size = args->nr_pages << PAGE_SHIFT;
 	if (args->coherent)
