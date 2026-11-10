@@ -302,8 +302,6 @@ void free_pipe_info(struct pipe_inode_info *);
 bool generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
-extern const struct pipe_buf_operations nosteal_pipe_buf_ops;
-
 unsigned long account_pipe_buffers(struct user_struct *user,
 				   unsigned long old, unsigned long new);
 bool too_many_pipe_buffers_soft(unsigned long user_bufs);
