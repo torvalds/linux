@@ -76,8 +76,11 @@ int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id)
 			return 0;
 		}
 		crypto_free_kpp(ctrl->dh_tfm);
+		kfree_sensitive(ctrl->dh_key);
 		ctrl->dh_tfm = NULL;
 		ctrl->dh_gid = 0;
+		ctrl->dh_key = NULL;
+		ctrl->dh_keysize = 0;
 	}
 
 	if (dhgroup_id == NVME_AUTH_DHGROUP_NULL)
@@ -95,38 +98,42 @@ int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id)
 			 __func__, ctrl->cntlid, dhgroup_id,
 			 PTR_ERR(ctrl->dh_tfm));
 		ret = PTR_ERR(ctrl->dh_tfm);
-		ctrl->dh_tfm = NULL;
-		ctrl->dh_gid = 0;
-	} else {
-		ctrl->dh_gid = dhgroup_id;
-		pr_debug("%s: ctrl %d setup DH group %d\n",
-			 __func__, ctrl->cntlid, ctrl->dh_gid);
-		ret = nvme_auth_gen_privkey(ctrl->dh_tfm, ctrl->dh_gid);
-		if (ret < 0) {
-			pr_debug("%s: ctrl %d failed to generate private key, err %d\n",
-				 __func__, ctrl->cntlid, ret);
-			kfree_sensitive(ctrl->dh_key);
-			ctrl->dh_key = NULL;
-			return ret;
-		}
-		ctrl->dh_keysize = crypto_kpp_maxsize(ctrl->dh_tfm);
-		kfree_sensitive(ctrl->dh_key);
-		ctrl->dh_key = kzalloc(ctrl->dh_keysize, GFP_KERNEL);
-		if (!ctrl->dh_key) {
-			pr_warn("ctrl %d failed to allocate public key\n",
-				ctrl->cntlid);
-			return -ENOMEM;
-		}
-		ret = nvme_auth_gen_pubkey(ctrl->dh_tfm, ctrl->dh_key,
-					   ctrl->dh_keysize);
-		if (ret < 0) {
-			pr_warn("ctrl %d failed to generate public key\n",
-				ctrl->cntlid);
-			kfree(ctrl->dh_key);
-			ctrl->dh_key = NULL;
-		}
+		goto err;
 	}
 
+	ctrl->dh_gid = dhgroup_id;
+	pr_debug("%s: ctrl %d setup DH group %d\n",
+		 __func__, ctrl->cntlid, ctrl->dh_gid);
+	ret = nvme_auth_gen_privkey(ctrl->dh_tfm, ctrl->dh_gid);
+	if (ret < 0) {
+		pr_debug("%s: ctrl %d failed to generate private key, err %d\n",
+			 __func__, ctrl->cntlid, ret);
+		goto err;
+	}
+	ctrl->dh_keysize = crypto_kpp_maxsize(ctrl->dh_tfm);
+	ctrl->dh_key = kzalloc(ctrl->dh_keysize, GFP_KERNEL);
+	if (!ctrl->dh_key) {
+		pr_warn("ctrl %d failed to allocate public key\n",
+			ctrl->cntlid);
+		ret = -ENOMEM;
+		goto err;
+	}
+	ret = nvme_auth_gen_pubkey(ctrl->dh_tfm, ctrl->dh_key,
+				   ctrl->dh_keysize);
+	if (ret < 0) {
+		pr_warn("ctrl %d failed to generate public key\n",
+			ctrl->cntlid);
+		goto err;
+	}
+
+	return 0;
+err:
+	kfree_sensitive(ctrl->dh_key);
+	ctrl->dh_key = NULL;
+	crypto_free_kpp(ctrl->dh_tfm);
+	ctrl->dh_tfm = NULL;
+	ctrl->dh_gid = 0;
+	ctrl->dh_keysize = 0;
 	return ret;
 }
 
