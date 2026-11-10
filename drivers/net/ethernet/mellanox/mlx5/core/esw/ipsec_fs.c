@@ -34,10 +34,21 @@ void mlx5_esw_ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 int mlx5_esw_ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 					   struct mlx5_flow_destination *dest)
 {
-	dest->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest->ft = mlx5_chains_get_table(esw_chains(ipsec->mdev->priv.eswitch), 0, 1, 0);
+	struct mlx5_flow_table *ft;
 
+	ft = mlx5_chains_get_table(esw_chains(ipsec->mdev->priv.eswitch),
+				   0, 1, 0);
+	if (IS_ERR(ft))
+		return PTR_ERR(ft);
+
+	dest->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest->ft = ft;
 	return 0;
+}
+
+void mlx5_esw_ipsec_rx_status_pass_dest_put(struct mlx5e_ipsec *ipsec)
+{
+	mlx5_chains_put_table(esw_chains(ipsec->mdev->priv.eswitch), 0, 1, 0);
 }
 
 int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,

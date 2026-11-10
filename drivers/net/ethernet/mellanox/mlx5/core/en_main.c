@@ -6385,7 +6385,7 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	node = dev_to_node(mlx5_core_dma_dev(mdev));
 
 	/* priv init */
-	priv->mdev        = mdev;
+	WRITE_ONCE(priv->mdev, mdev);
 	priv->netdev      = netdev;
 	priv->max_nch     = nch;
 	priv->max_opened_tc = 1;
@@ -6470,6 +6470,8 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 		mlx5e_mqprio_rl_free(priv->mqprio_rl);
 	}
 
+	/* Clear atomically before memset() for lockless XFRM readers. */
+	WRITE_ONCE(priv->mdev, NULL);
 	memset(priv, 0, sizeof(*priv));
 	if (destroying) /* restore destroying bit, to allow unload */
 		set_bit(MLX5E_STATE_DESTROYING, &priv->state);
