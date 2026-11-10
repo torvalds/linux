@@ -238,6 +238,14 @@ int skb_gro_receive_list(struct sk_buff *p, struct sk_buff *skb)
 		     NAPI_GRO_CB(skb)->flush))
 		return -E2BIG;
 
+	/* Fraglist members keep their own headers. Their checksum can not
+	 * be right both for a forwarded packet and for a decapsulated one,
+	 * if remote checksum offload adjusted it.
+	 */
+	if (unlikely(skb->remcsum_offload))
+		return -EINVAL;
+
+	skb_gro_frag0_invalidate(skb);
 	if (!pskb_may_pull(skb, skb_gro_offset(skb))) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return -ENOMEM;
@@ -450,12 +458,19 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
-static void gro_try_pull_from_frag0(struct sk_buff *skb)
+static bool gro_try_pull_from_frag0(struct sk_buff *skb)
 {
 	int grow = skb_gro_offset(skb) - skb_headlen(skb);
 
-	if (grow > 0)
+	if (grow <= 0)
+		return true;
+
+	/* frag0 can only be used if no pull happened. */
+	if (likely(NAPI_GRO_CB(skb)->frag0_len)) {
 		gro_pull_from_frag0(skb, grow);
+		return true;
+	}
+	return pskb_may_pull(skb, skb_gro_offset(skb));
 }
 
 static void gro_flush_oldest(struct gro_node *gro, struct list_head *head)
@@ -557,13 +572,17 @@ found_ptype:
 	if (NAPI_GRO_CB(skb)->flush)
 		goto normal;
 
+	/* Must be called before setting NAPI_GRO_CB(skb)->{age|last}.
+	 * A held packet must have its headers in the linear part.
+	 */
+	if (unlikely(!gro_try_pull_from_frag0(skb)))
+		goto normal;
+
 	if (unlikely(gro_list->count >= MAX_GRO_SKBS))
 		gro_flush_oldest(gro, &gro_list->list);
 	else
 		gro_list->count++;
 
-	/* Must be called before setting NAPI_GRO_CB(skb)->{age|last} */
-	gro_try_pull_from_frag0(skb);
 	NAPI_GRO_CB(skb)->age = jiffies;
 	NAPI_GRO_CB(skb)->last = skb;
 	if (!skb_is_gso(skb))
