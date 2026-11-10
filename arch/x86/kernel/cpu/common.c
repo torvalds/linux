@@ -1340,7 +1340,7 @@ static const struct x86_cpu_id cpu_vuln_blacklist[] __initconst = {
 	VULNBL_AMD(0x17, RETBLEED | SMT_RSB | SRSO | VMSCAPE),
 	VULNBL_HYGON(0x18, RETBLEED | SMT_RSB | SRSO | VMSCAPE),
 	VULNBL_AMD(0x19, SRSO | TSA | VMSCAPE),
-	VULNBL_AMD(0x1a, SRSO | VMSCAPE),
+	VULNBL_AMD(0x1a, SRSO | TSA | VMSCAPE),
 	{}
 };
 
@@ -1605,7 +1605,8 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		if (!cpu_has(c, X86_FEATURE_TSA_SQ_NO) ||
-		    !cpu_has(c, X86_FEATURE_TSA_L1_NO)) {
+		    !cpu_has(c, X86_FEATURE_TSA_L1_NO) ||
+		    !cpu_has(c, X86_FEATURE_TSA_FILL_NO)) {
 			if (cpu_matches(cpu_vuln_blacklist, TSA) ||
 			    /* Enable bug on Zen guests to allow for live migration. */
 			    (cpu_has(c, X86_FEATURE_HYPERVISOR) && cpu_has(c, X86_FEATURE_ZEN)))

@@ -1254,6 +1254,7 @@ void kvm_initialize_cpu_caps(void)
 	kvm_cpu_cap_init(CPUID_8000_0021_ECX,
 		SYNTHESIZED_F(TSA_SQ_NO),
 		SYNTHESIZED_F(TSA_L1_NO),
+		SYNTHESIZED_F(TSA_FILL_NO),
 	);
 
 	kvm_cpu_cap_init(CPUID_8000_0022_EAX,
