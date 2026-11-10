@@ -84,10 +84,43 @@ static int __init iovt_get_pci_iommu_fwnode(struct iovt_fwnode *np, u16 segment,
 	return 0;
 }
 
+static int __init iovt_validate_entries(struct acpi_iovt_iommu *iommu)
+{
+	int i, done = 1;
+	struct acpi_iovt_device_entry *ep;
+
+	ep = ACPI_ADD_PTR(struct acpi_iovt_device_entry, iommu, iommu->device_entry_offset);
+	for (i = 0; i < iommu->device_entry_num; i++) {
+		switch (ep->type) {
+		case ACPI_IOVT_DEVICE_ENTRY_START:
+			if (!done)
+				return -EINVAL;
+
+			done = 0;
+			break;
+		case ACPI_IOVT_DEVICE_ENTRY_END:
+			if (done)
+				return -EINVAL;
+
+			done = 1;
+			break;
+		case ACPI_IOVT_DEVICE_ENTRY_SINGLE:
+		default:  /* Reserved for future */
+			if (!done)
+				return -EINVAL;
+
+			done = 1;
+			break;
+		}
+		ep = ACPI_ADD_PTR(struct acpi_iovt_device_entry, ep, ep->length);
+	}
+
+	return done ? 0 : -EINVAL;
+}
+
 static int __init iovt_add_iommu(struct acpi_iovt_iommu *iommu)
 {
 	int i, ret;
-	bool is_start = false;
 	struct iovt_fwnode *np;
 	struct iovt_device_entry *entry;
 	struct acpi_iovt_device_entry *ep;
@@ -121,23 +154,24 @@ static int __init iovt_add_iommu(struct acpi_iovt_iommu *iommu)
 	if (np->flag & ACPI_IOVT_IOMMU_MAGAGE_BY_SEGMENT)
 		goto skip;
 
+	if (iovt_validate_entries(iommu) < 0) {
+		kfree(np);
+		return -EINVAL;
+	}
+
 	INIT_LIST_HEAD(&np->ep_list);
 	ep = ACPI_ADD_PTR(struct acpi_iovt_device_entry, iommu, iommu->device_entry_offset);
 	for (i = 0; i < iommu->device_entry_num; i++) {
 		switch (ep->type) {
 		case ACPI_IOVT_DEVICE_ENTRY_START:
-			is_start = true;
-			entry->start_devid = ep->device_id;
-			break;
-		case ACPI_IOVT_DEVICE_ENTRY_END:
-			if (!is_start)
-				break;
-
 			entry = kzalloc_obj(struct iovt_device_entry, GFP_ATOMIC);
 			if (!entry)
 				return -ENOMEM;
 
-			is_start = false;
+			entry->start_devid = ep->device_id;
+			break;
+		case ACPI_IOVT_DEVICE_ENTRY_END:
+			/* START & END are paired */
 			entry->end_devid = ep->device_id;
 			list_add_tail(&entry->list, &np->ep_list);
 			break;
@@ -146,7 +180,6 @@ static int __init iovt_add_iommu(struct acpi_iovt_iommu *iommu)
 			if (!entry)
 				return -ENOMEM;
 
-			is_start = false;
 			entry->start_devid = ep->device_id;
 			entry->end_devid = ep->device_id;
 			list_add_tail(&entry->list, &np->ep_list);
