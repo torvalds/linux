@@ -1455,10 +1455,10 @@ static int nct6775_update_pwm(struct device *dev)
 
 		if (!data->temp_tolerance[0][i] ||
 		    data->pwm_enable[i] != speed_cruise)
-			data->temp_tolerance[0][i] = fanmodecfg & 0x0f;
+			data->temp_tolerance[0][i] = fanmodecfg & data->tolerance_mask;
 		if (!data->target_speed_tolerance[i] ||
 		    data->pwm_enable[i] == speed_cruise) {
-			u8 t = fanmodecfg & 0x0f;
+			u8 t = fanmodecfg & data->tolerance_mask;
 
 			if (data->REG_TOLERANCE_H) {
 				err = nct6775_read_value(data, data->REG_TOLERANCE_H[i], &reg);
