@@ -2179,19 +2179,18 @@ static enum hrtimer_restart drm_vblank_timer_function(struct hrtimer *timer)
 	struct drm_crtc *crtc = vtimer->crtc;
 	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-	ktime_t interval;
-	u64 ret_overrun;
+	u64 ret_overrun = 1;
 	bool succ;
 
-	spin_lock_irqsave(&vtimer->interval_lock, flags);
-	interval = vtimer->interval;
-	spin_unlock_irqrestore(&vtimer->interval_lock, flags);
+	scoped_guard(spinlock_irqsave, &vtimer->interval_lock) {
+		ktime_t interval = vtimer->interval;
 
-	if (!interval)
-		return HRTIMER_NORESTART;
+		if (!interval || hrtimer_is_queued(timer))
+			return HRTIMER_NORESTART;
 
-	ret_overrun = hrtimer_forward_now(&vtimer->timer, interval);
+		ret_overrun = hrtimer_forward_now(timer, interval);
+	}
+
 	if (ret_overrun != 1)
 		drm_dbg_vbl(dev, "vblank timer overrun\n");
 
@@ -2220,7 +2219,6 @@ int drm_crtc_vblank_start_timer(struct drm_crtc *crtc)
 {
 	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	struct drm_vblank_crtc_timer *vtimer = &vblank->vblank_timer;
-	unsigned long flags;
 
 	if (!vtimer->crtc) {
 		/*
@@ -2230,22 +2228,14 @@ int drm_crtc_vblank_start_timer(struct drm_crtc *crtc)
 		spin_lock_init(&vtimer->interval_lock);
 		hrtimer_setup(&vtimer->timer, drm_vblank_timer_function,
 			      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	} else {
-		/*
-		 * Timer should not be active. If it is, wait for the
-		 * previous cancel operations to finish.
-		 */
-		while (hrtimer_active(&vtimer->timer))
-			hrtimer_try_to_cancel(&vtimer->timer);
 	}
 
 	drm_calc_timestamping_constants(crtc, &crtc->mode);
 
-	spin_lock_irqsave(&vtimer->interval_lock, flags);
-	vtimer->interval = ns_to_ktime(vblank->framedur_ns);
-	spin_unlock_irqrestore(&vtimer->interval_lock, flags);
-
-	hrtimer_start(&vtimer->timer, vtimer->interval, HRTIMER_MODE_REL);
+	scoped_guard(spinlock_irqsave, &vtimer->interval_lock) {
+		vtimer->interval = ns_to_ktime(vblank->framedur_ns);
+		hrtimer_start(&vtimer->timer, vtimer->interval, HRTIMER_MODE_REL);
+	}
 
 	return 0;
 }
