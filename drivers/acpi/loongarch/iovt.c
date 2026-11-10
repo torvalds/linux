@@ -18,8 +18,19 @@ struct iovt_fwnode {
 	struct list_head ep_list;
 };
 
+static bool checksum_valid;
 static LIST_HEAD(iovt_fwnode_list);
 static DEFINE_SPINLOCK(iovt_fwnode_lock);
+
+static u8 acpi_iovt_checksum(u8 *buffer, u32 len)
+{
+	u8 sum = 0, *end = buffer + len;
+
+	while (buffer < end)
+		sum += *buffer++;
+
+	return sum;
+}
 
 #ifdef CONFIG_PCI
 static void __init iovt_enable_acs(struct acpi_iovt_iommu *iommu)
@@ -184,6 +195,13 @@ void __init acpi_iovt_init(void)
 		return;
 	}
 
+	if (acpi_iovt_checksum((unsigned char *)hdr, hdr->length)) {
+		pr_err("IOVT invalid checksum\n");
+		acpi_put_table(hdr);
+		return;
+	}
+
+	checksum_valid = true;
 	iovt = (struct acpi_table_iovt *)hdr;
 	iommu = ACPI_ADD_PTR(struct acpi_iovt_iommu, iovt, iovt->iommu_offset);
 	for (i = 0; i < iovt->iommu_count; i++) {
@@ -198,6 +216,9 @@ void __init acpi_iovt_late_init(void)
 {
 	acpi_status status;
 	struct acpi_table_header *hdr;
+
+	if (!checksum_valid)
+		return;
 
 	status = acpi_get_table(ACPI_SIG_IOVT, 0, &hdr);
 	if (ACPI_FAILURE(status)) {
