@@ -53,6 +53,8 @@
 #define SYNCGEN_STATUS_EN	BIT(0)
 #define REG_SYNCGEN_MCLK_SEL	0x104
 #define SYNCGEN_MCLK_SEL	GENMASK(3, 0)
+#define SYNCGEN_MCLK_FE_CLK(n)	((n) + 1)
+#define SYNCGEN_MCLK_BE_CLK(n)	((n) + 7)
 #define REG_SYNCGEN_HI_PERIOD	0x108
 #define REG_SYNCGEN_LO_PERIOD	0x10c
 
@@ -313,7 +315,8 @@ static int mca_fe_enable_clocks(struct mca_cluster *cl)
 		return -EINVAL;
 	}
 
-	writel_relaxed(cl->no + 1, cl->base + REG_SYNCGEN_MCLK_SEL);
+	writel_relaxed(SYNCGEN_MCLK_FE_CLK(cl->no),
+		       cl->base + REG_SYNCGEN_MCLK_SEL);
 	mca_modify(cl, REG_SYNCGEN_STATUS, SYNCGEN_STATUS_EN,
 		   SYNCGEN_STATUS_EN);
 	mca_modify(cl, REG_STATUS, STATUS_MCLK_EN, STATUS_MCLK_EN);
@@ -390,7 +393,7 @@ static int mca_fe_prepare(struct snd_pcm_substream *substream,
 
 	/* Turn on the cluster power domain if not already in use */
 	if (!cl->syncgen_in_use) {
-		int port = ffs(mca_fe_get_portmask(substream));
+		int port = ffs(mca_fe_get_portmask(substream)) - 1;
 
 		cl->pd_link = device_link_add(mca->dev, cl->pd_dev,
 					      DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME |
@@ -401,7 +404,8 @@ static int mca_fe_prepare(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		mca_modify(cl, REG_SYNCGEN_MCLK_SEL, SYNCGEN_MCLK_SEL, BIT(port));
+		mca_modify(cl, REG_SYNCGEN_MCLK_SEL, SYNCGEN_MCLK_SEL,
+			   SYNCGEN_MCLK_BE_CLK(port));
 		mca_modify(cl, REG_SYNCGEN_STATUS, SYNCGEN_STATUS_EN,
 			   SYNCGEN_STATUS_EN);
 	}
