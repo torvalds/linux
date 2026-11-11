@@ -4752,19 +4752,25 @@ void max_lru_gen_memcg(struct mem_cgroup *memcg, int nid)
  * The same generation has different meanings in the parent and child memcg,
  * so this compromise method will cause the LRU inversion problem. But as the
  * system runs, this problem will be fixed automatically.
+ *
+ * Move all MAX_NR_GENS lists, not only the gens from min_seq to max_seq.
+ * An earlier reparenting can leave a folio whose gen is older than the list
+ * it is on. Once min_seq passes that gen, sort_folio() puts the folio on the
+ * list for max_seq + 1, where it stays until the next aging. If that list
+ * were skipped, the folio would stay behind on a memcg that is about to be
+ * freed. The parent has MAX_NR_GENS gens here, so every index is valid in it.
  */
 static void __lru_gen_reparent_memcg(struct lruvec *child_lruvec, struct lruvec *parent_lruvec,
 				     int zone, int type)
 {
 	struct lru_gen_folio *child_lrugen, *parent_lrugen;
 	enum lru_list lru = type * LRU_INACTIVE_FILE;
-	int i;
+	int gen;
 
 	child_lrugen = &child_lruvec->lrugen;
 	parent_lrugen = &parent_lruvec->lrugen;
 
-	for (i = 0; i < get_nr_gens(child_lruvec, type); i++) {
-		int gen = lru_gen_from_seq(child_lrugen->max_seq - i);
+	for (gen = 0; gen < MAX_NR_GENS; gen++) {
 		long nr_pages = child_lrugen->nr_pages[gen][type][zone];
 		int child_lru_active = lru_gen_is_active(child_lruvec, gen) ? LRU_ACTIVE : 0;
 		int parent_lru_active = lru_gen_is_active(parent_lruvec, gen) ? LRU_ACTIVE : 0;
