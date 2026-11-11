@@ -1263,6 +1263,19 @@ static void __init kprobe_sysctls_init(void)
 }
 #endif /* CONFIG_SYSCTL */
 
+/* Return true if the probe is queued on unoptimizing lists */
+static bool kprobe_queued_unopt(struct kprobe *p)
+{
+	struct optimized_kprobe *op;
+
+	if (kprobe_aggrprobe(p)) {
+		op = container_of(p, struct optimized_kprobe, kp);
+		if (optprobe_queued_unopt(op))
+			return true;
+	}
+	return false;
+}
+
 /* Put a breakpoint for a probe. */
 static void __arm_kprobe(struct kprobe *p)
 {
@@ -1276,21 +1289,11 @@ static void __arm_kprobe(struct kprobe *p)
 		/* Fallback to unoptimized kprobe */
 		unoptimize_kprobe(_p, true);
 
-	arch_arm_kprobe(p);
+	if (!kprobe_queued_unopt(p))
+		arch_arm_kprobe(p);
 	optimize_kprobe(p);	/* Try to optimize (add kprobe to a list) */
-}
-
-/* Return true if the probe is queued on unoptimizing lists */
-static bool kprobe_queued_unopt(struct kprobe *p)
-{
-	struct optimized_kprobe *op;
-
-	if (kprobe_aggrprobe(p)) {
-		op = container_of(p, struct optimized_kprobe, kp);
-		if (optprobe_queued_unopt(op))
-			return true;
-	}
-	return false;
+	if (unlikely(kprobe_queued_unopt(p)))
+		unoptimize_kprobe(p, true);
 }
 
 /* Remove the breakpoint of a probe. */
