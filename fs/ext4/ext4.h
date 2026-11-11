@@ -4250,6 +4250,14 @@ extern void ext4_double_up_write_data_sem(struct inode *orig_inode,
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_mext_check_validity_test(struct inode *orig_inode,
+					 struct inode *donor_inode);
+extern int ext4_mext_check_adjust_range_test(struct inode *orig_inode,
+					     struct inode *donor_inode,
+					     __u64 orig_start,
+					     __u64 donor_start, __u64 *len);
+#endif
 
 /* page-io.c */
 /*
