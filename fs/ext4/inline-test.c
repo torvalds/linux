@@ -66,7 +66,18 @@ struct inline_test_ctx {
 
 static struct inline_test_ctx *t_ctx;
 
-static const struct super_operations inline_test_sops = {};
+#ifdef CONFIG_QUOTA
+static struct dquot __rcu **inline_test_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+#endif
+
+static const struct super_operations inline_test_sops = {
+#ifdef CONFIG_QUOTA
+	.get_dquots	= inline_test_get_dquots,
+#endif
+};
 
 static bool test_release_folio(struct folio *folio, gfp_t wait)
 {
@@ -265,6 +276,9 @@ static int inline_test_init(struct kunit *test)
 	ctx->sb.s_bdi = &noop_backing_dev_info;
 	ctx->sb.s_fs_info = &ctx->sbi;
 	ctx->sb.s_op = &inline_test_sops;
+#ifdef CONFIG_FS_ENCRYPTION
+	ctx->sb.s_cop = &ext4_cryptops;
+#endif
 	snprintf(ctx->sb.s_id, sizeof(ctx->sb.s_id), "ext4-inline-test");
 	init_rwsem(&ctx->sb.s_umount);
 

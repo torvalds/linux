@@ -228,12 +228,22 @@ static void bv_test_free_inode_mem(struct inode *inode)
 	kfree(EXT4_I(inode));
 }
 
+#ifdef CONFIG_QUOTA
+static struct dquot __rcu **bv_test_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+#endif
+
 static const struct super_operations bv_test_sops = {
 	.alloc_inode	= bv_test_alloc_inode,
 	.evict_inode	= bv_test_evict_inode,
 	.destroy_inode	= bv_test_destroy_inode,
 	.free_inode	= bv_test_free_inode_mem,
 	.drop_inode	= inode_just_drop,
+#ifdef CONFIG_QUOTA
+	.get_dquots	= bv_test_get_dquots,
+#endif
 };
 
 static int bv_test_init_fs_context(struct fs_context *fc)

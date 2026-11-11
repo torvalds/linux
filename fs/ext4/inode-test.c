@@ -462,15 +462,12 @@ static void inode_test_free_inode(struct inode *inode)
 	kfree(EXT4_I(inode));
 }
 
-static const struct super_operations inode_test_sops = {
-	.alloc_inode	= inode_test_alloc_inode,
-	.evict_inode	= ext4_evict_inode,
-	.destroy_inode	= inode_test_destroy_inode,
-	.free_inode	= inode_test_free_inode,
-	.drop_inode	= inode_just_drop,
-};
-
 #ifdef CONFIG_QUOTA
+static struct dquot __rcu **inode_test_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+
 static qsize_t *inode_test_get_reserved_space(struct inode *inode)
 {
 	return &EXT4_I(inode)->i_reserved_quota;
@@ -480,6 +477,17 @@ static const struct dquot_operations inode_test_qops = {
 	.get_reserved_space = inode_test_get_reserved_space,
 };
 #endif
+
+static const struct super_operations inode_test_sops = {
+	.alloc_inode	= inode_test_alloc_inode,
+	.evict_inode	= ext4_evict_inode,
+	.destroy_inode	= inode_test_destroy_inode,
+	.free_inode	= inode_test_free_inode,
+	.drop_inode	= inode_just_drop,
+#ifdef CONFIG_QUOTA
+	.get_dquots	= inode_test_get_dquots,
+#endif
+};
 
 static int inode_test_init_fs_context(struct fs_context *fc)
 {
@@ -960,6 +968,9 @@ static struct inode_test_ctx *inode_test_setup(struct kunit *test)
 	sb->s_op = &inode_test_sops;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &inode_test_qops;
+#endif
+#ifdef CONFIG_FS_ENCRYPTION
+	sb->s_cop = &ext4_cryptops;
 #endif
 	sb->s_blocksize = INODE_TEST_BLK_SIZE;
 	sb->s_blocksize_bits = INODE_TEST_BLK_BITS;

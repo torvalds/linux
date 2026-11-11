@@ -79,9 +79,12 @@ struct xattr_test_ctx {
 	unsigned int dirty_metadata_calls;
 };
 
-static const struct super_operations xattr_test_sops = {};
-
 #ifdef CONFIG_QUOTA
+static struct dquot __rcu **xattr_test_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+
 static qsize_t *xattr_test_get_reserved_space(struct inode *inode)
 {
 	return &EXT4_I(inode)->i_reserved_quota;
@@ -91,6 +94,12 @@ static const struct dquot_operations xattr_test_qops = {
 	.get_reserved_space = xattr_test_get_reserved_space,
 };
 #endif
+
+static const struct super_operations xattr_test_sops = {
+#ifdef CONFIG_QUOTA
+	.get_dquots	= xattr_test_get_dquots,
+#endif
+};
 
 static void init_mock_inode_slot(struct xattr_test_ctx *ctx,
 				 struct mock_inode_slot *slot,
@@ -477,6 +486,9 @@ static int xattr_test_init(struct kunit *test)
 	sb->s_op = &xattr_test_sops;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &xattr_test_qops;
+#endif
+#ifdef CONFIG_FS_ENCRYPTION
+	sb->s_cop = &ext4_cryptops;
 #endif
 	sb->s_blocksize = TEST_BLK_SIZE;
 	sb->s_blocksize_bits = TEST_BLK_BITS;

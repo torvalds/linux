@@ -56,9 +56,19 @@ static void mbt_free_inode(struct inode *inode)
 	kfree(EXT4_I(inode));
 }
 
+#ifdef CONFIG_QUOTA
+static struct dquot __rcu **mbt_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+#endif
+
 static const struct super_operations mbt_sops = {
 	.alloc_inode	= mbt_alloc_inode,
 	.free_inode	= mbt_free_inode,
+#ifdef CONFIG_QUOTA
+	.get_dquots	= mbt_get_dquots,
+#endif
 };
 
 static int mbt_init_fs_context(struct fs_context *fc)
@@ -95,6 +105,9 @@ static int mbt_mb_init(struct super_block *sb)
 	 */
 	INIT_LIST_HEAD(&sb->s_inodes);
 	sb->s_op = &mbt_sops;
+#ifdef CONFIG_FS_ENCRYPTION
+	sb->s_cop = &ext4_cryptops;
+#endif
 
 	ret = ext4_mb_init(sb);
 	if (ret != 0)

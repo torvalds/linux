@@ -536,6 +536,9 @@ static int balloc_test_init(struct kunit *test)
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &balloc_test_qops;
 #endif
+#ifdef CONFIG_FS_ENCRYPTION
+	sb->s_cop = &ext4_cryptops;
+#endif
 	sb->s_flags |= SB_ACTIVE;
 	sb->s_blocksize = BALLOC_TEST_BLK_SIZE;
 	sb->s_blocksize_bits = BALLOC_TEST_BLK_BITS;

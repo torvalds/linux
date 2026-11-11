@@ -153,9 +153,12 @@ static unsigned long ext_dummy_shrinker_scan(struct shrinker *shrink,
 	return SHRINK_STOP;
 }
 
-static const struct super_operations ext_dummy_sops = {};
-
 #ifdef CONFIG_QUOTA
+static struct dquot __rcu **ext_get_dquots(struct inode *inode)
+{
+	return EXT4_I(inode)->i_dquot;
+}
+
 static qsize_t *ext_get_reserved_space(struct inode *inode)
 {
 	return &EXT4_I(inode)->i_reserved_quota;
@@ -165,6 +168,12 @@ static const struct dquot_operations ext_dummy_qops = {
 	.get_reserved_space = ext_get_reserved_space,
 };
 #endif
+
+static const struct super_operations ext_dummy_sops = {
+#ifdef CONFIG_QUOTA
+	.get_dquots	= ext_get_dquots,
+#endif
+};
 
 static int ext_init_fs_context(struct fs_context *fc)
 {
@@ -467,6 +476,9 @@ static int extents_kunit_init(struct kunit *test)
 	sb->s_op = &ext_dummy_sops;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &ext_dummy_qops;
+#endif
+#ifdef CONFIG_FS_ENCRYPTION
+	sb->s_cop = &ext4_cryptops;
 #endif
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = 12;
