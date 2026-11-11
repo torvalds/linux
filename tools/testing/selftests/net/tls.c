@@ -2894,6 +2894,130 @@ TEST_F(zero_len_splice, test)
 	close(p[1]);
 }
 
+FIXTURE(zero_len_run)
+{
+	int fd, cfd;
+	bool notls;
+};
+
+/* Before each of two reads, send n[i] empty records followed by a data
+ * record if data[i] is set. ret[i] is the result of the read.
+ */
+FIXTURE_VARIANT(zero_len_run)
+{
+	unsigned int n[2];
+	bool data[2];
+	int ret[2];
+};
+
+FIXTURE_VARIANT_ADD(zero_len_run, 128)
+{
+	.n = { 128, 0, },
+	.data = { true, false, },
+	.ret = { 4, -EAGAIN, },
+};
+
+/* More than 128 consecutive empty records break the connection */
+FIXTURE_VARIANT_ADD(zero_len_run, 129)
+{
+	.n = { 129, 0, },
+	.data = { true, false, },
+	.ret = { -EBADMSG, -EAGAIN, },
+};
+
+/* The count starts over on every read */
+FIXTURE_VARIANT_ADD(zero_len_run, 128_128)
+{
+	.n = { 128, 128, },
+	.data = { false, true, },
+	.ret = { -EAGAIN, 4, },
+};
+
+FIXTURE_SETUP(zero_len_run)
+{
+	struct tls_crypto_info_keys tls13;
+	int ret;
+
+	tls_crypto_info_init(TLS_1_3_VERSION, TLS_CIPHER_AES_GCM_128,
+			     &tls13, 0);
+
+	ulp_sock_pair(_metadata, &self->fd, &self->cfd, &self->notls);
+	if (self->notls)
+		return;
+
+	ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls13, tls13.len);
+	ASSERT_EQ(ret, 0);
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls13, tls13.len);
+	ASSERT_EQ(ret, 0);
+}
+
+FIXTURE_TEARDOWN(zero_len_run)
+{
+	close(self->fd);
+	close(self->cfd);
+}
+
+static void zero_len_run_send(struct __test_metadata *_metadata, int fd,
+			      const FIXTURE_VARIANT(zero_len_run) *variant,
+			      int i)
+{
+	/* kTLS cannot send an empty record. Send the data content type as
+	 * the only byte of a record of type 0 instead, the receiver strips
+	 * the 0 as padding and sees an empty data record.
+	 */
+	char data_type = 0x17;
+	unsigned int j;
+
+	for (j = 0; j < variant->n[i]; j++)
+		ASSERT_EQ(tls_send_cmsg(fd, 0, &data_type, 1, 0), 1);
+	if (variant->data[i])
+		ASSERT_EQ(send(fd, "data", 4, 0), 4);
+}
+
+static void zero_len_run_expect(struct __test_metadata *_metadata,
+				ssize_t ret, int expected)
+{
+	EXPECT_EQ(ret, expected >= 0 ? expected : -1);
+	if (expected < 0)
+		EXPECT_EQ(errno, -expected);
+}
+
+TEST_F(zero_len_run, recv)
+{
+	char buf[16];
+	int i;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	for (i = 0; i < 2; i++) {
+		zero_len_run_send(_metadata, self->fd, variant, i);
+		zero_len_run_expect(_metadata,
+				    recv(self->cfd, buf, sizeof(buf),
+					 MSG_DONTWAIT),
+				    variant->ret[i]);
+	}
+}
+
+TEST_F(zero_len_run, splice)
+{
+	int i, p[2];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	ASSERT_GE(pipe(p), 0);
+	for (i = 0; i < 2; i++) {
+		zero_len_run_send(_metadata, self->fd, variant, i);
+		zero_len_run_expect(_metadata,
+				    splice(self->cfd, NULL, p[1], NULL, 16,
+					   SPLICE_F_NONBLOCK),
+				    variant->ret[i]);
+	}
+	close(p[0]);
+	close(p[1]);
+}
+
 FIXTURE(tls_err)
 {
 	int fd, cfd;
