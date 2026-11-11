@@ -1047,6 +1047,14 @@ out:
 out_err:
 	pr_warn_ratelimited("lazy lowerdata lookup failed (%pd2, err=%i)\n",
 			    dentry, err);
+	/*
+	 * The data of a metacopy file is missing or is not a regular file in
+	 * the data-only layers: the layers are corrupted.  Do not return the
+	 * error of the lookup (e.g. ENOENT) to the caller, it would make the
+	 * file look like it does not exist.
+	 */
+	if (err != -ENOMEM)
+		err = -EIO;
 	goto out;
 }
 
