@@ -1116,6 +1116,8 @@ retry_multishot:
 		if (ret > 0 && io_net_retry(sock, flags) &&
 		    io_net_kbuf_can_retry(req, sel.buf_list, kmsg)) {
 			sr->done_io += ret;
+			/* msg_name and msg_namelen are filled in, leave them */
+			kmsg->uaddr = NULL;
 			return io_net_kbuf_recyle(req, sel.buf_list, kmsg, ret);
 		}
 		if (ret == -ERESTARTSYS)
