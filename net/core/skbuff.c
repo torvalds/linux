@@ -3281,7 +3281,7 @@ int skb_splice_bits(struct sk_buff *skb, struct sock *sk, unsigned int offset,
 		.pages = pages,
 		.partial = partial,
 		.nr_pages_max = MAX_SKB_FRAGS,
-		.ops = &nosteal_pipe_buf_ops,
+		.ops = &default_pipe_buf_ops,
 		.spd_release = sock_spd_release,
 	};
 	int ret = 0;
