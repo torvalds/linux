@@ -24,6 +24,9 @@ int omapdss_device_init_output(struct omap_dss_device *out,
 
 	bridge = of_drm_get_bridge_by_endpoint(out->dev->of_node, out->of_port, 0);
 	if (IS_ERR(bridge)) {
+		if (PTR_ERR(bridge) == -EPROBE_DEFER)
+			return PTR_ERR(bridge);
+
 		dev_dbg(out->dev, "failed to find video sink\n");
 		return 0;
 	}
