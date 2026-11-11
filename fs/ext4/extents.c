@@ -5106,6 +5106,7 @@ out_inode_lock:
 	inode_unlock(inode);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fallocate);
 
 /*
  * This function converts a range of blocks to written extents. The caller of
@@ -5201,6 +5202,7 @@ int ext4_convert_unwritten_extents_atomic(handle_t *handle, struct inode *inode,
 
 	return ret > 0 ? ret2 : ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_convert_unwritten_extents_atomic);
 
 /*
  * This function convert a range of blocks to written extents
@@ -5293,6 +5295,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_convert_unwritten_extents);
 
 int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 {
@@ -5324,6 +5327,7 @@ int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 
 	return ret < 0 ? ret : err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_convert_unwritten_io_end_vec);
 
 static int ext4_iomap_xattr_fiemap(struct inode *inode, struct iomap *iomap)
 {
@@ -5436,6 +5440,7 @@ unlock:
 	inode_unlock_shared(inode);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fiemap);
 
 int ext4_get_es_cache(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		      __u64 start, __u64 len)
@@ -5483,6 +5488,7 @@ int ext4_get_es_cache(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 */
 	return ext4_fill_es_cache_info(inode, start_blk, len_blks, fieinfo);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_es_cache);
 
 /*
  * ext4_ext_shift_path_extents:
