@@ -7151,6 +7151,9 @@ ext4_mballoc_query_range(
 	struct ext4_buddy		e4b;
 	int				error;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mballoc_query_range, sb, group, first,
+				   end, meta_formatter, formatter, priv);
+
 	error = ext4_mb_load_buddy(sb, group, &e4b);
 	if (error)
 		return error;
