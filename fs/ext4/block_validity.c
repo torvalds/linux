@@ -75,10 +75,13 @@ static int add_system_zone(struct ext4_system_blocks *system_blks,
 	struct rb_node **n = &system_blks->root.rb_node, *node;
 	struct rb_node *parent = NULL, *new_node;
 
+	if (!count || (start_blk + count < start_blk))
+		return -EFSCORRUPTED;
+
 	while (*n) {
 		parent = *n;
 		entry = rb_entry(parent, struct ext4_system_zone, node);
-		if (start_blk < entry->start_blk)
+		if (start_blk + count <= entry->start_blk)
 			n = &(*n)->rb_left;
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = &(*n)->rb_right;

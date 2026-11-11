@@ -1114,6 +1114,27 @@ static const struct bv_corrupt_meta_case bv_corrupt_meta_cases[] = {
 		.ibitmap = 2050,
 		.itable = 2051,
 	},
+	{
+		.desc = "itable_starts_before_and_overlaps_bbitmap",
+		.grp = 0,
+		.bbitmap = 20,
+		.ibitmap = 40,
+		.itable = 15,
+	},
+	{
+		.desc = "itable_starts_before_and_encloses_ibitmap",
+		.grp = 2,
+		.bbitmap = 50,
+		.ibitmap = 55,
+		.itable = 52,
+	},
+	{
+		.desc = "itable_u64_wrap_around_overflow",
+		.grp = 2,
+		.bbitmap = 2049,
+		.ibitmap = 2050,
+		.itable = U64_MAX - 2ULL,
+	},
 };
 
 KUNIT_ARRAY_PARAM_DESC(bv_corrupt_meta, bv_corrupt_meta_cases, desc);
@@ -1317,6 +1338,52 @@ static void test_journal_inode_overlap_sets_fs_error(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, rcu_access_pointer(ctx->sbi.s_system_blks));
 }
 
+static void test_journal_extent_left_overlap_rejected(struct kunit *test)
+{
+	struct bv_test_ctx *ctx = test->priv;
+	struct inode *j_inode;
+
+	/*
+	 * Place group 2's block bitmap at block 20 (ino = 0) and map a
+	 * multi-block journal extent at [18..21] that starts strictly before
+	 * block 20 and extends across it. During ext4_setup_system_zone(),
+	 * s_system_blks is still NULL when ext4_map_blocks() runs, so
+	 * add_system_zone() must catch this left-traversal overlap.
+	 */
+	bv_set_group_meta(ctx->sb, &ctx->gdps[2], 20ULL, 2050ULL, 2051ULL);
+	ext4_set_feature_journal(ctx->sb);
+	ctx->es.s_journal_inum = cpu_to_le32(EXT4_JOURNAL_INO);
+
+	j_inode = bv_create_inode(test, ctx, EXT4_JOURNAL_INO,
+				  S_IFREG | 0600, true);
+	i_size_write(j_inode, 4 * BV_TEST_BLK_SIZE);
+	bv_append_extent(test, j_inode, 0, 18ULL, 4);
+
+	KUNIT_EXPECT_EQ(test, ext4_setup_system_zone(ctx->sb), -EFSCORRUPTED);
+	KUNIT_EXPECT_TRUE(test,
+			  (bool)(ctx->sbi.s_mount_state & EXT4_ERROR_FS));
+	KUNIT_EXPECT_EQ(test, le32_to_cpu(ctx->es.s_last_error_ino),
+			(u32)EXT4_JOURNAL_INO);
+	KUNIT_EXPECT_EQ(test, ctx->es.s_last_error_errcode,
+			EXT4_ERR_EFSCORRUPTED);
+	KUNIT_EXPECT_NULL(test, rcu_access_pointer(ctx->sbi.s_system_blks));
+
+	/*
+	 * Also verify a journal extent [1020..1040] that completely encloses
+	 * group 1's entire metadata zone [1025..1038].
+	 */
+	bv_clear_fs_error(ctx);
+	ext4_es_remove_extent(j_inode, 0, EXT_MAX_BLOCKS);
+	ext_inode_hdr(j_inode)->eh_entries = 0;
+	i_size_write(j_inode, 21 * BV_TEST_BLK_SIZE);
+	bv_append_extent(test, j_inode, 0, 1020ULL, 21);
+
+	KUNIT_EXPECT_EQ(test, ext4_setup_system_zone(ctx->sb), -EFSCORRUPTED);
+	KUNIT_EXPECT_TRUE(test,
+			  (bool)(ctx->sbi.s_mount_state & EXT4_ERROR_FS));
+	KUNIT_EXPECT_NULL(test, rcu_access_pointer(ctx->sbi.s_system_blks));
+}
+
 /* --- Test 10: ext4_check_blockref and Indirect Macros --- */
 
 static void test_check_blockref_valid_and_sparse(struct kunit *test)
@@ -1501,6 +1568,7 @@ static struct kunit_case ext4_block_validity_test_cases[] = {
 	KUNIT_CASE(test_journal_inode_iget_error),
 	KUNIT_CASE(test_journal_inode_map_blocks_error),
 	KUNIT_CASE(test_journal_inode_overlap_sets_fs_error),
+	KUNIT_CASE(test_journal_extent_left_overlap_rejected),
 	KUNIT_CASE(test_check_blockref_valid_and_sparse),
 	KUNIT_CASE(test_check_blockref_corrupt_entries_and_journal_bypass),
 	KUNIT_CASE(test_ind_check_inode_and_indirect_blockref),
