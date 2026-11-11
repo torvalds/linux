@@ -237,15 +237,15 @@ static int onetouch_connect_input(struct us_data *ss)
 	onetouch->irq->transfer_dma = onetouch->data_dma;
 	onetouch->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
+	error = input_register_device(onetouch->dev);
+	if (error)
+		goto fail3;
+
 	ss->extra_destructor = onetouch_release_input;
 	ss->extra = onetouch;
 #ifdef CONFIG_PM
 	ss->suspend_resume_hook = usb_onetouch_pm_hook;
 #endif
-
-	error = input_register_device(onetouch->dev);
-	if (error)
-		goto fail3;
 
 	return 0;
 
