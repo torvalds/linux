@@ -712,3 +712,36 @@ const struct file_operations ext4_dir_operations = {
 	.release	= ext4_release_dir,
 	.setlease	= generic_setlease,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_operations);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_is_dx_dir_test(struct inode *inode)
+{
+	return is_dx_dir(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_is_dx_dir_test);
+
+loff_t ext4_dir_hash2pos_test(struct file *filp, __u32 major, __u32 minor)
+{
+	return hash2pos(filp, major, minor);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_hash2pos_test);
+
+__u32 ext4_dir_pos2maj_hash_test(struct file *filp, loff_t pos)
+{
+	return pos2maj_hash(filp, pos);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_pos2maj_hash_test);
+
+__u32 ext4_dir_pos2min_hash_test(struct file *filp, loff_t pos)
+{
+	return pos2min_hash(filp, pos);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_pos2min_hash_test);
+
+loff_t ext4_get_htree_eof_test(struct file *filp)
+{
+	return ext4_get_htree_eof(filp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_htree_eof_test);
+#endif

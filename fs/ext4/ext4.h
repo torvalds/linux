@@ -3069,6 +3069,14 @@ static inline  unsigned char get_dtype(struct super_block *sb, int filetype)
 }
 extern int ext4_check_all_de(struct inode *dir, struct buffer_head *bh,
 			     void *buf, int buf_size);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_is_dx_dir_test(struct inode *inode);
+extern loff_t ext4_dir_hash2pos_test(struct file *filp, __u32 major,
+				     __u32 minor);
+extern __u32 ext4_dir_pos2maj_hash_test(struct file *filp, loff_t pos);
+extern __u32 ext4_dir_pos2min_hash_test(struct file *filp, loff_t pos);
+extern loff_t ext4_get_htree_eof_test(struct file *filp);
+#endif
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);

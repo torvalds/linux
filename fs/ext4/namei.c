@@ -36,6 +36,7 @@
 #include <linux/bio.h>
 #include <linux/iversion.h>
 #include <linux/unicode.h>
+#include <kunit/static_stub.h>
 #include "ext4.h"
 #include "ext4_jbd2.h"
 
@@ -1001,6 +1002,9 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	int ret, err;
 	__u32 hashval;
 	struct fscrypt_str tmp_str;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_htree_fill_tree, dir_file, start_hash,
+				   start_minor_hash, next_hash);
 
 	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
