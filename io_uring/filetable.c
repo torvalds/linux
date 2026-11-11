@@ -67,6 +67,9 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 
 	if (io_is_uring_fops(file))
 		return -EBADF;
+	/* Registered files come from fget(), which refuses these too */
+	if (file->f_mode & FMODE_PATH)
+		return -EBADF;
 	if (!ctx->file_table.data.nr)
 		return -ENXIO;
 	if (slot_index >= ctx->file_table.data.nr)
