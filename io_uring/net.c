@@ -515,12 +515,10 @@ static inline bool io_send_finish(struct io_kiocb *req,
 	bool bundle_finished = sel->val <= 0;
 	unsigned int cflags;
 
-	if (!(sr->flags & IORING_RECVSEND_BUNDLE)) {
-		cflags = io_put_kbuf(req, sel->val, sel->buf_list);
+	/* Committed at selection time, so a bundle needs no buffer count */
+	cflags = io_put_kbuf(req, sel->val, sel->buf_list);
+	if (!(sr->flags & IORING_RECVSEND_BUNDLE))
 		goto finish;
-	}
-
-	cflags = io_put_kbufs(req, sel->val, sel->buf_list, io_bundle_nbufs(kmsg, sel->val));
 
 	/*
 	 * Don't start new bundles if the buffer list is empty, or if the
