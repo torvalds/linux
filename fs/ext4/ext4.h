@@ -4074,6 +4074,14 @@ extern int ext4_register_sysfs(struct super_block *sb);
 extern void ext4_unregister_sysfs(struct super_block *sb);
 extern int __init ext4_init_sysfs(void);
 extern void ext4_exit_sysfs(void);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern ssize_t ext4_sysfs_attr_show_test(struct ext4_sb_info *sbi,
+					 const char *name, char *buf);
+extern ssize_t ext4_sysfs_attr_store_test(struct ext4_sb_info *sbi,
+					  const char *name, const char *buf,
+					  size_t len);
+extern ssize_t ext4_sysfs_feat_show_test(const char *name, char *buf);
+#endif
 
 /* block_validity */
 extern void ext4_release_system_zone(struct super_block *sb);

@@ -602,6 +602,7 @@ void ext4_notify_error_sysfs(struct ext4_sb_info *sbi)
 		sysfs_notify(&sbi->s_kobj, NULL, "errors_count");
 	mutex_unlock(&sbi->s_error_notify_mutex);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_notify_error_sysfs);
 
 static struct kobject *ext4_root;
 
@@ -642,6 +643,7 @@ int ext4_register_sysfs(struct super_block *sb)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_register_sysfs);
 
 void ext4_unregister_sysfs(struct super_block *sb)
 {
@@ -654,6 +656,7 @@ void ext4_unregister_sysfs(struct super_block *sb)
 	kobject_del(&sbi->s_kobj);
 	mutex_unlock(&sbi->s_error_notify_mutex);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_unregister_sysfs);
 
 int __init ext4_init_sysfs(void)
 {
@@ -695,4 +698,56 @@ void ext4_exit_sysfs(void)
 	remove_proc_entry(proc_dirname, NULL);
 	ext4_proc_root = NULL;
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+static struct attribute *ext4_find_attr_test(struct attribute **list,
+					     const char *name)
+{
+	for (; *list; list++) {
+		if (strcmp((*list)->name, name) == 0)
+			return *list;
+	}
+	return NULL;
+}
+
+ssize_t ext4_sysfs_attr_show_test(struct ext4_sb_info *sbi, const char *name,
+				  char *buf)
+{
+	struct attribute *attr = ext4_find_attr_test(ext4_attrs, name);
+
+	if (!attr)
+		return -ENOENT;
+	return ext4_attr_show(&sbi->s_kobj, attr, buf);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sysfs_attr_show_test);
+
+ssize_t ext4_sysfs_attr_store_test(struct ext4_sb_info *sbi, const char *name,
+				   const char *buf, size_t len)
+{
+	struct attribute *attr = ext4_find_attr_test(ext4_attrs, name);
+
+	if (!attr)
+		return -ENOENT;
+	return ext4_attr_store(&sbi->s_kobj, attr, buf, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sysfs_attr_store_test);
+
+ssize_t ext4_sysfs_feat_show_test(const char *name, char *buf)
+{
+	struct attribute *attr = ext4_find_attr_test(ext4_feat_attrs, name);
+	struct ext4_sb_info *dummy_sbi;
+	ssize_t ret;
+
+	if (!attr)
+		return -ENOENT;
+	/* struct ext4_sb_info is too large to place on the stack */
+	dummy_sbi = kzalloc_obj(*dummy_sbi);
+	if (!dummy_sbi)
+		return -ENOMEM;
+	ret = ext4_attr_show(&dummy_sbi->s_kobj, attr, buf);
+	kfree(dummy_sbi);
+	return ret;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sysfs_feat_show_test);
+#endif
 
