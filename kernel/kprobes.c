@@ -729,10 +729,17 @@ static void optprobe_finalize_generation(struct optprobe_generation *gen)
 			list_move(&op->list, &optprobe_gens[optprobe_cur_gen].freeing_list);
 			kick_kprobe_optimizer();
 		} else {
+			struct kprobe *_p;
+
 			/* Still in use; now safely disarmed */
 			list_del_init(&op->list);
-			if (!kprobe_disabled(&op->kp))
+			if (!kprobe_disabled(&op->kp)) {
 				optimize_kprobe(&op->kp);
+			} else {
+				_p = get_optimized_kprobe(op->kp.addr);
+				if (unlikely(_p))
+					optimize_kprobe(_p);
+			}
 		}
 	}
 
