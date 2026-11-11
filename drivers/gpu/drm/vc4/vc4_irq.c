@@ -265,6 +265,8 @@ vc4_irq_enable(struct drm_device *dev)
 	/* Enable our set of interrupts, masking out any others. */
 	V3D_WRITE(V3D_INTDIS, ~mask);
 	V3D_WRITE(V3D_INTENA, mask);
+
+	enable_irq(vc4->irq);
 }
 
 void

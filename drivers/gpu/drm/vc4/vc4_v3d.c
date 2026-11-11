@@ -378,7 +378,6 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 	vc4_v3d_init_hw(&vc4->base);
 
 	vc4_irq_enable(&vc4->base);
-	enable_irq(vc4->irq);
 
 	return 0;
 }
