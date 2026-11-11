@@ -6369,13 +6369,6 @@ Kernel parameters
 			period to instead use normal non-expedited
 			grace-period processing.
 
-	rcupdate.rcu_task_collapse_debug= [KNL]
-			Enable debugging prints that record when RCU Tasks
-			and RCU Tasks Trace expand to per-CPU callback
-			queuing and collapse back to CPU-0 queuing.
-			This is default-disabled due to the fact that
-			some workloads can make it quite noisy.
-
 	rcupdate.rcu_task_collapse_lim= [KNL]
 			Set the maximum number of callbacks present
 			at the beginning of a grace period that allows
