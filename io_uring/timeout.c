@@ -392,11 +392,14 @@ static void io_req_task_link_timeout(struct io_tw_req tw_req, io_tw_token_t tw)
 	if (prev) {
 		/*
 		 * splice the linked timeout out of prev's chain if the regular
-		 * completion path didn't already do it.
+		 * completion path didn't already do it. io-wq cancellation
+		 * walks the chain with only ->timeout_lock held.
 		 */
+		raw_spin_lock_irq(&req->ctx->timeout_lock);
 		if (prev->link == req)
 			prev->link = req->link;
 		req->link = NULL;
+		raw_spin_unlock_irq(&req->ctx->timeout_lock);
 
 		if (!tw.cancel) {
 			struct io_cancel_data cd = {
