@@ -2051,32 +2051,40 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (err)
 		goto splice_read_end;
 
-	if (!skb_queue_empty(&ctx->rx_list)) {
-		skb = __skb_dequeue(&ctx->rx_list);
-	} else {
-		struct tls_decrypt_arg darg;
+	for (;;) {
+		if (!skb_queue_empty(&ctx->rx_list)) {
+			skb = __skb_dequeue(&ctx->rx_list);
+		} else {
+			struct tls_decrypt_arg darg;
 
-		err = tls_rx_rec_wait(sk, nonblock, true, false);
-		if (err <= 0)
-			goto splice_read_end;
+			err = tls_rx_rec_wait(sk, nonblock, true, false);
+			if (err <= 0)
+				goto splice_read_end;
 
-		memset(&darg.inargs, 0, sizeof(darg.inargs));
+			memset(&darg.inargs, 0, sizeof(darg.inargs));
 
-		err = tls_rx_one_record(sk, NULL, &darg);
-		if (err < 0)
-			goto splice_read_end;
+			err = tls_rx_one_record(sk, NULL, &darg);
+			if (err < 0)
+				goto splice_read_end;
 
-		tls_rx_rec_done(ctx);
-		skb = darg.skb;
-	}
+			tls_rx_rec_done(ctx);
+			skb = darg.skb;
+		}
 
-	rxm = strp_msg(skb);
-	tlm = tls_msg(skb);
+		rxm = strp_msg(skb);
+		tlm = tls_msg(skb);
 
-	/* splice does not support reading control messages */
-	if (tlm->control != TLS_RECORD_TYPE_DATA) {
-		err = -EINVAL;
-		goto splice_requeue;
+		/* splice does not support reading control messages */
+		if (tlm->control != TLS_RECORD_TYPE_DATA) {
+			err = -EINVAL;
+			goto splice_requeue;
+		}
+
+		/* Splicing zero bytes would read as EOF */
+		if (rxm->full_len)
+			break;
+
+		consume_skb(skb);
 	}
 
 	chunk = min_t(unsigned int, rxm->full_len, len);
