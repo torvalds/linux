@@ -428,6 +428,9 @@ unsigned int __io_put_kbufs(struct io_kiocb *req, struct io_buffer_list *bl,
 
 	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
 
+	/* only covers the buffer(s) being put, not a later selection */
+	req->flags &= ~REQ_F_BL_NO_RECYCLE;
+
 	if (unlikely(!(req->flags & REQ_F_BUFFER_RING))) {
 		io_kbuf_drop_legacy(req);
 		return ret;
