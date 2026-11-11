@@ -916,7 +916,14 @@ lock_and_cleanup_extent(struct btrfs_inode *inode, struct folio *folio,
 				    cached_state);
 		folio_unlock(folio);
 		folio_put(folio);
-		btrfs_start_ordered_extent(ordered);
+		/*
+		 * Waiting for the ordered extent blocks uninterruptibly, which
+		 * a nowait caller must not do.  Leave it alone and let the
+		 * caller retry where blocking is acceptable, like
+		 * btrfs_try_lock_ordered_range() does.
+		 */
+		if (!nowait)
+			btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		return -EAGAIN;
 	}
