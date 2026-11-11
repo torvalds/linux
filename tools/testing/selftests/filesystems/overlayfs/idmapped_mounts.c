@@ -498,4 +498,49 @@ TEST_F(idmapped_overlay, nfs_export_handles)
 	EXPECT_EQ(close(ovl), 0);
 }
 
+/* With index=on, same-superblock lower layers must not use different idmaps. */
+TEST_F(idmapped_overlay, reject_same_sb_mixed_idmaps)
+{
+	char lower1[PATH_MAX], lower2[PATH_MAX];
+	char upper[PATH_MAX], work[PATH_MAX];
+	int fd_lower1, fd_lower2, fsfd;
+
+	if (!ovl_supported())
+		SKIP(return, "overlayfs not supported");
+
+	snprintf(lower1, sizeof(lower1), "%s/l", self->base);
+	snprintf(lower2, sizeof(lower2), "%s/l2", self->base);
+	snprintf(upper, sizeof(upper), "%s/u", self->base);
+	snprintf(work, sizeof(work), "%s/w", self->base);
+	ASSERT_EQ(mkdir(lower2, 0755), 0);
+	ASSERT_EQ(chown(lower2, ID_HOST, ID_HOST), 0);
+
+	fd_lower1 = idmapped_layer_fd(lower1, ID_HOST, ID_NS, ID_RANGE);
+	ASSERT_GE(fd_lower1, 0);
+	fd_lower2 = sys_open_tree(AT_FDCWD, lower2,
+				  OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	ASSERT_GE(fd_lower2, 0);
+	fsfd = sys_fsopen("overlay", 0);
+	ASSERT_GE(fsfd, 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_STRING,
+			       "source", "test", 0), 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_STRING,
+			       "upperdir", upper, 0), 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_STRING,
+			       "workdir", work, 0), 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_STRING,
+			       "index", "on", 0), 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_FD,
+			       "lowerdir+", NULL, fd_lower1), 0);
+	ASSERT_EQ(sys_fsconfig(fsfd, FSCONFIG_SET_FD,
+			       "lowerdir+", NULL, fd_lower2), 0);
+
+	errno = 0;
+	EXPECT_EQ(sys_fsconfig(fsfd, FSCONFIG_CMD_CREATE, NULL, NULL, 0), -1);
+	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(close(fd_lower1), 0);
+	EXPECT_EQ(close(fd_lower2), 0);
+	EXPECT_EQ(close(fsfd), 0);
+}
+
 TEST_HARNESS_MAIN
