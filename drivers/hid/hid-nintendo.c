@@ -4292,6 +4292,7 @@ int switch2_controller_attach_cfg(const char *phys, struct switch2_cfg_intf *cfg
 	mutex_lock(&ns2->lock);
 	if (ns2->cfg) {
 		ret = -EBUSY;
+		mutex_unlock(&ns2->lock);
 		goto out;
 	}
 	cfg->parent = ns2;
@@ -4301,15 +4302,16 @@ int switch2_controller_attach_cfg(const char *phys, struct switch2_cfg_intf *cfg
 		ret = switch2_init_controller(ns2);
 
 	if (ret < 0) {
+		ns2->cfg = NULL;
+		mutex_unlock(&ns2->lock);
 		if (cfg->shutdown)
 			cfg->shutdown(cfg);
 		cfg->parent = NULL;
-		ns2->cfg = NULL;
+	} else {
+		mutex_unlock(&ns2->lock);
 	}
 
 out:
-	mutex_unlock(&ns2->lock);
-
 	if (ret < 0)
 		kref_put(&ns2->refcount, switch2_kref_put);
 	return ret;
