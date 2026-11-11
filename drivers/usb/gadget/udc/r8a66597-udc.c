@@ -1174,6 +1174,10 @@ __acquires(r8a66597->lock)
 		break;
 	case USB_RECIP_ENDPOINT:
 		ep = r8a66597->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
+		if (!ep) {
+			pipe_stall(r8a66597, 0);
+			return;		/* exit */
+		}
 		pid = control_reg_get_pid(r8a66597, ep->pipenum);
 		if (pid == PID_STALL)
 			status = 1 << USB_ENDPOINT_HALT;
@@ -1210,6 +1214,10 @@ static void clear_feature(struct r8a66597 *r8a66597,
 		u16 w_index = le16_to_cpu(ctrl->wIndex);
 
 		ep = r8a66597->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
+		if (!ep) {
+			pipe_stall(r8a66597, 0);
+			break;
+		}
 		if (!ep->wedge) {
 			pipe_stop(r8a66597, ep->pipenum);
 			control_reg_sqclr(r8a66597, ep->pipenum);
@@ -1270,6 +1278,10 @@ static void set_feature(struct r8a66597 *r8a66597, struct usb_ctrlrequest *ctrl)
 		u16 w_index = le16_to_cpu(ctrl->wIndex);
 
 		ep = r8a66597->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
+		if (!ep) {
+			pipe_stall(r8a66597, 0);
+			break;
+		}
 		pipe_stall(r8a66597, ep->pipenum);
 
 		control_end(r8a66597, 1);
