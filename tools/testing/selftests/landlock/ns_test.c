@@ -1899,8 +1899,9 @@ TEST(setns_inherited_fd)
 
 static int matches_log_ns_create(int audit_fd, __u64 ns_type)
 {
+	/* A denied creation logs the ID allocated for the new namespace. */
 	static const char log_template[] = REGEX_LANDLOCK_PREFIX
-		" blockers=namespace\\.use namespace_type=0x%x namespace_id=0$";
+		" blockers=namespace\\.use namespace_type=0x%x namespace_id=[1-9][0-9]*$";
 	char log_match[sizeof(log_template) + 10];
 	int log_match_len;
 
@@ -2538,7 +2539,9 @@ static void test_ns_trace_denial(struct __test_metadata *const _metadata,
 	ASSERT_EQ(0, tracefs_extract_field(
 			     buf, REGEX_DENY_PERMISSION_NAMESPACE(TRACE_TASK),
 			     "namespace_id", field, sizeof(field)));
-	EXPECT_EQ(use_setns ? expected_ns_id : 0, strtoull(field, NULL, 10));
+	EXPECT_STRNE("0", field);
+	if (use_setns)
+		EXPECT_EQ(expected_ns_id, strtoull(field, NULL, 10));
 
 	free(buf);
 }
