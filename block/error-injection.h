@@ -13,6 +13,7 @@ static inline bool blk_error_inject(struct bio *bio)
 {
 	if (IS_ENABLED(CONFIG_BLK_ERROR_INJECTION) &&
 	    static_branch_unlikely(&blk_error_injection_enabled) &&
+	    !bio_flagged(bio, BIO_ERROR_INJECTED) &&
 	    test_bit(GD_ERROR_INJECT, &bio->bi_bdev->bd_disk->state))
 		return __blk_error_inject(bio);
 	return false;
