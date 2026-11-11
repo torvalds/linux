@@ -3370,6 +3370,39 @@ int ext4_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 extern void ext4_reset_inode_seed(struct inode *inode);
 int ext4_update_overhead(struct super_block *sb, bool force);
 int ext4_force_shutdown(struct super_block *sb, u32 flags);
+int ext4_ioctl_sync_bh(struct buffer_head *bh);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+struct ext4_tune_sb_params;
+void ext4_sb_setlabel_test(struct ext4_sb_info *sbi,
+			   struct ext4_super_block *es, const void *arg);
+void ext4_sb_setuuid_test(struct ext4_sb_info *sbi,
+			  struct ext4_super_block *es, const void *arg);
+void ext4_sb_setparams_test(struct ext4_sb_info *sbi,
+			    struct ext4_super_block *es, const void *arg);
+int ext4_validate_tune_sb_params_test(struct super_block *sb,
+				      struct ext4_tune_sb_params *params);
+int ext4_update_primary_sb_test(struct super_block *sb, handle_t *handle,
+				void (*func)(struct ext4_sb_info *,
+					     struct ext4_super_block *,
+					     const void *),
+				const void *arg);
+int ext4_update_backup_sb_test(struct super_block *sb, handle_t *handle,
+			       ext4_group_t grp,
+			       void (*func)(struct ext4_sb_info *,
+					    struct ext4_super_block *,
+					    const void *),
+			       const void *arg);
+int ext4_update_superblocks_fn_test(struct super_block *sb,
+				    void (*func)(struct ext4_sb_info *,
+						 struct ext4_super_block *,
+						 const void *),
+				    const void *arg);
+void ext4_swap_inode_data_test(struct inode *inode1, struct inode *inode2);
+int ext4_ioctl_check_immutable_test(struct inode *inode, __u32 new_projid,
+				    unsigned int flags);
+bool ext4_dax_compatible_test(struct inode *inode, unsigned int oldflags,
+			      unsigned int flags);
+#endif
 
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
