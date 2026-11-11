@@ -5,7 +5,7 @@
 
   PIO data transfer
 
-  Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
+  Copyright (c) 2005-2008 Michael Buesch
 
 
 */

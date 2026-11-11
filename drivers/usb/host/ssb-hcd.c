@@ -6,7 +6,7 @@
  * Copyright 2011-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Based on ssb-ohci driver
- * Copyright 2007 Michael Buesch <m@bues.ch>
+ * Copyright 2007 Michael Buesch
  *
  * Derived from the OHCI-PCI driver
  * Copyright 1999 Roman Weissgaerber

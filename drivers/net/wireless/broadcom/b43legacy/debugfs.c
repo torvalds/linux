@@ -5,7 +5,7 @@
 
   debugfs driver debugging code
 
-  Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
+  Copyright (c) 2005-2007 Michael Buesch
 
 
 */

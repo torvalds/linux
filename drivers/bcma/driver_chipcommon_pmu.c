@@ -2,7 +2,7 @@
  * Broadcom specific AMBA
  * ChipCommon Power Management Unit driver
  *
- * Copyright 2009, Michael Buesch <m@bues.ch>
+ * Copyright 2009, Michael Buesch
  * Copyright 2007, 2011, Broadcom Corporation
  * Copyright 2011, 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *

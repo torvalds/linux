@@ -9,7 +9,7 @@
  * gpio interface, extbus, and support for serial and parallel flashes.
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, Michael Buesch <m@bues.ch>
+ * Copyright 2006, Michael Buesch
  */
 
 /** ChipCommon core registers. **/
