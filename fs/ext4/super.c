@@ -296,11 +296,16 @@ struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 struct buffer_head *ext4_sb_bread_nofail(struct super_block *sb,
 					 sector_t block)
 {
-	gfp_t gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
+	gfp_t gfp;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_bread_nofail, sb, block);
+
+	gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
 			~__GFP_FS) | __GFP_MOVABLE | __GFP_NOFAIL;
 
 	return __ext4_sb_bread_gfp(sb, block, 0, gfp);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_bread_nofail);
 
 void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
 {
