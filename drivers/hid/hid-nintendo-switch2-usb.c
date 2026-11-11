@@ -427,6 +427,8 @@ static int switch2_usb_probe(struct usb_interface *intf, const struct usb_device
 	ns2_usb->bulk_in[0].state = NS2_URB_OUT;
 	usb_anchor_urb(ns2_usb->bulk_in[0].urb, &ns2_usb->bulk_in_anchor);
 	ret = usb_submit_urb(ns2_usb->bulk_in[0].urb, GFP_ATOMIC);
+	if (ret < 0)
+		usb_unanchor_urb(ns2_usb->bulk_in[0].urb);
 	spin_unlock_irqrestore(&ns2_usb->bulk_in_lock, flags);
 
 	if (ret < 0)
