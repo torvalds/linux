@@ -2108,12 +2108,6 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	list_for_each_entry_safe(tmp, next, &removed, list) {
 		amdgpu_vm_it_remove(tmp, &vm->va);
 		list_del(&tmp->list);
-
-		if (tmp->start < saddr)
-		    tmp->start = saddr;
-		if (tmp->last > eaddr)
-		    tmp->last = eaddr;
-
 		tmp->bo_va = NULL;
 		list_add(&tmp->list, &vm->freed);
 		trace_amdgpu_vm_bo_unmap(NULL, tmp);
