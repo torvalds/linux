@@ -3437,6 +3437,51 @@ extern unsigned int ext4_num_base_meta_blocks(struct super_block *sb,
 					      ext4_group_t block_group);
 extern void print_daily_error_info(struct timer_list *t);
 
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_errno_to_code_test(int err);
+extern void ext4_save_error_info_test(struct super_block *sb, int error,
+				      __u32 ino, __u64 block,
+				      const char *func, unsigned int line);
+extern void ext4_update_super_test(struct super_block *sb);
+extern int ext4_check_descriptors_test(struct super_block *sb,
+				       ext4_fsblk_t sb_block,
+				       ext4_group_t *first_not_zeroed);
+extern loff_t ext4_max_size_test(int blkbits, int has_huge_files);
+extern loff_t ext4_max_bitmap_size_test(int bits, int has_huge_files);
+extern ext4_fsblk_t ext4_descriptor_loc_test(struct super_block *sb,
+					     ext4_fsblk_t logical_sb_block,
+					     int nr);
+extern unsigned long ext4_get_stripe_size_test(struct ext4_sb_info *sbi);
+extern int ext4_count_overhead_test(struct super_block *sb, ext4_group_t grp,
+				    char *buf);
+extern void ext4_set_resv_clusters_test(struct super_block *sb);
+extern void ext4_set_def_opts_test(struct super_block *sb,
+				   struct ext4_super_block *es);
+extern int ext4_handle_clustersize_test(struct super_block *sb);
+extern int ext4_inode_info_init_test(struct super_block *sb,
+				     struct ext4_super_block *es);
+extern int ext4_init_metadata_csum_test(struct super_block *sb,
+					struct ext4_super_block *es);
+extern int ext4_check_feature_compatibility_test(struct super_block *sb,
+						 struct ext4_super_block *es,
+						 int silent);
+extern int ext4_check_geometry_test(struct super_block *sb,
+				    struct ext4_super_block *es);
+extern int ext4_hash_info_init_test(struct super_block *sb);
+extern int ext4_block_group_meta_init_test(struct super_block *sb, int silent);
+extern int ext4_fill_flex_info_test(struct super_block *sb);
+extern void ext4_flex_groups_free_test(struct ext4_sb_info *sbi);
+extern int ext4_show_options_test(struct seq_file *seq, struct super_block *sb,
+				  int nodefs);
+extern int ext4_statfs_test(struct dentry *dentry, struct kstatfs *buf);
+extern int ext4_parse_and_apply_options_test(struct super_block *sb,
+					     const char *options,
+					     bool is_remount);
+extern int ext4_parse_sb_mount_options_test(struct super_block *sb,
+					    unsigned long *journal_devnum,
+					    unsigned int *journal_ioprio);
+#endif
+
 extern __printf(7, 8)
 void __ext4_error(struct super_block *, const char *, unsigned int, bool,
 		  int, __u64, const char *, ...);

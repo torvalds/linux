@@ -336,6 +336,7 @@ __le32 ext4_superblock_csum(struct ext4_super_block *es)
 
 	return cpu_to_le32(csum);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_superblock_csum);
 
 static int ext4_superblock_csum_verify(struct super_block *sb,
 				       struct ext4_super_block *es)
@@ -3199,6 +3200,7 @@ int ext4_seq_options_show(struct seq_file *seq, void *offset)
 	seq_putc(seq, '\n');
 	return rc;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_seq_options_show);
 
 static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			    int read_only)
@@ -3304,6 +3306,7 @@ int ext4_alloc_flex_bg_array(struct super_block *sb, ext4_group_t ngroup)
 		ext4_kvfree_array_rcu(old_groups);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_alloc_flex_bg_array);
 
 static int ext4_fill_flex_info(struct super_block *sb)
 {
@@ -3777,6 +3780,7 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
 #endif  /* CONFIG_QUOTA */
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_feature_set_ok);
 
 /*
  * This function is called once a day by default if we have errors logged
@@ -4388,6 +4392,7 @@ int ext4_calculate_overhead(struct super_block *sb)
 	kvfree(buf);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_calculate_overhead);
 
 static void ext4_set_resv_clusters(struct super_block *sb)
 {
@@ -7743,4 +7748,218 @@ module_exit(ext4_exit_fs)
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_bread);
+
+int ext4_errno_to_code_test(int err)
+{
+	return ext4_errno_to_code(err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_errno_to_code_test);
+
+void ext4_save_error_info_test(struct super_block *sb, int error,
+			       __u32 ino, __u64 block,
+			       const char *func, unsigned int line)
+{
+	save_error_info(sb, error, ino, block, func, line);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_save_error_info_test);
+
+void ext4_update_super_test(struct super_block *sb)
+{
+	ext4_update_super(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_super_test);
+
+int ext4_check_descriptors_test(struct super_block *sb,
+				ext4_fsblk_t sb_block,
+				ext4_group_t *first_not_zeroed)
+{
+	return ext4_check_descriptors(sb, sb_block, first_not_zeroed);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_descriptors_test);
+
+loff_t ext4_max_size_test(int blkbits, int has_huge_files)
+{
+	return ext4_max_size(blkbits, has_huge_files);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_max_size_test);
+
+loff_t ext4_max_bitmap_size_test(int bits, int has_huge_files)
+{
+	return ext4_max_bitmap_size(bits, has_huge_files);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_max_bitmap_size_test);
+
+ext4_fsblk_t ext4_descriptor_loc_test(struct super_block *sb,
+				      ext4_fsblk_t logical_sb_block, int nr)
+{
+	return descriptor_loc(sb, logical_sb_block, nr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_descriptor_loc_test);
+
+unsigned long ext4_get_stripe_size_test(struct ext4_sb_info *sbi)
+{
+	return ext4_get_stripe_size(sbi);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_stripe_size_test);
+
+int ext4_count_overhead_test(struct super_block *sb, ext4_group_t grp,
+			     char *buf)
+{
+	return count_overhead(sb, grp, buf);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_overhead_test);
+
+void ext4_set_resv_clusters_test(struct super_block *sb)
+{
+	ext4_set_resv_clusters(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_resv_clusters_test);
+
+void ext4_set_def_opts_test(struct super_block *sb,
+			    struct ext4_super_block *es)
+{
+	ext4_set_def_opts(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_def_opts_test);
+
+int ext4_handle_clustersize_test(struct super_block *sb)
+{
+	return ext4_handle_clustersize(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_handle_clustersize_test);
+
+int ext4_inode_info_init_test(struct super_block *sb,
+			      struct ext4_super_block *es)
+{
+	return ext4_inode_info_init(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_info_init_test);
+
+int ext4_init_metadata_csum_test(struct super_block *sb,
+				 struct ext4_super_block *es)
+{
+	return ext4_init_metadata_csum(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_metadata_csum_test);
+
+int ext4_check_feature_compatibility_test(struct super_block *sb,
+					  struct ext4_super_block *es,
+					  int silent)
+{
+	return ext4_check_feature_compatibility(sb, es, silent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_feature_compatibility_test);
+
+int ext4_check_geometry_test(struct super_block *sb,
+			     struct ext4_super_block *es)
+{
+	return ext4_check_geometry(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_geometry_test);
+
+int ext4_hash_info_init_test(struct super_block *sb)
+{
+	return ext4_hash_info_init(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_hash_info_init_test);
+
+int ext4_block_group_meta_init_test(struct super_block *sb, int silent)
+{
+	return ext4_block_group_meta_init(sb, silent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_group_meta_init_test);
+
+int ext4_fill_flex_info_test(struct super_block *sb)
+{
+	return ext4_fill_flex_info(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fill_flex_info_test);
+
+void ext4_flex_groups_free_test(struct ext4_sb_info *sbi)
+{
+	ext4_flex_groups_free(sbi);
+	rcu_assign_pointer(sbi->s_flex_groups, NULL);
+	sbi->s_flex_groups_allocated = 0;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_flex_groups_free_test);
+
+int ext4_show_options_test(struct seq_file *seq, struct super_block *sb,
+			   int nodefs)
+{
+	return _ext4_show_options(seq, sb, nodefs);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_show_options_test);
+
+int ext4_statfs_test(struct dentry *dentry, struct kstatfs *buf)
+{
+	return ext4_statfs(dentry, buf);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_statfs_test);
+
+int ext4_parse_and_apply_options_test(struct super_block *sb,
+				      const char *options, bool is_remount)
+{
+	struct ext4_fs_context *ctx;
+	struct fs_context *fc;
+	char *opts_copy = NULL;
+	int ret;
+
+	if (options) {
+		opts_copy = kstrdup(options, GFP_KERNEL);
+		if (!opts_copy)
+			return -ENOMEM;
+	}
+
+	fc = kzalloc_obj(*fc);
+	if (!fc) {
+		kfree(opts_copy);
+		return -ENOMEM;
+	}
+
+	ctx = kzalloc_obj(*ctx);
+	if (!ctx) {
+		kfree(fc);
+		kfree(opts_copy);
+		return -ENOMEM;
+	}
+
+	fc->fs_private = ctx;
+	fc->s_fs_info = EXT4_SB(sb);
+	fc->purpose = is_remount ? FS_CONTEXT_FOR_RECONFIGURE :
+				   FS_CONTEXT_FOR_MOUNT;
+
+	ret = parse_options(fc, opts_copy);
+	if (ret == 0) {
+		down_write(&sb->s_umount);
+		ret = ext4_check_opt_consistency(fc, sb);
+		if (ret == 0)
+			ext4_apply_options(fc, sb);
+		up_write(&sb->s_umount);
+	}
+
+	kfree(opts_copy);
+	ext4_fc_free(fc);
+	kfree(fc);
+	return ret;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_parse_and_apply_options_test);
+
+int ext4_parse_sb_mount_options_test(struct super_block *sb,
+				     unsigned long *journal_devnum,
+				     unsigned int *journal_ioprio)
+{
+	struct ext4_fs_context m_ctx = {};
+	int ret;
+
+	down_write(&sb->s_umount);
+	ret = parse_apply_sb_mount_options(sb, &m_ctx);
+	up_write(&sb->s_umount);
+
+	if (journal_devnum)
+		*journal_devnum = m_ctx.journal_devnum;
+	if (journal_ioprio)
+		*journal_ioprio = m_ctx.journal_ioprio;
+	return ret;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_parse_sb_mount_options_test);
 #endif
