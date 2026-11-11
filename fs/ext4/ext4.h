@@ -3418,6 +3418,10 @@ bool ext4_dax_compatible_test(struct inode *inode, unsigned int oldflags,
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
 extern int ext4_ind_migrate(struct inode *inode);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_ext_swap_inode_data_test(handle_t *handle, struct inode *inode,
+					 struct inode *tmp_inode);
+#endif
 
 /* namei.c */
 extern int ext4_init_new_dir(handle_t *handle, struct inode *dir,
@@ -3734,8 +3738,8 @@ static inline ext4_fsblk_t ext4_free_blocks_count(struct ext4_super_block *es)
 static inline void ext4_blocks_count_set(struct ext4_super_block *es,
 					 ext4_fsblk_t blk)
 {
-	es->s_blocks_count_lo = cpu_to_le32((u32)blk);
-	es->s_blocks_count_hi = cpu_to_le32(blk >> 32);
+	es->s_blocks_count_lo = cpu_to_le32(lower_32_bits(blk));
+	es->s_blocks_count_hi = cpu_to_le32(upper_32_bits(blk));
 }
 
 static inline void ext4_free_blocks_count_set(struct ext4_super_block *es,

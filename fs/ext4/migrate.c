@@ -615,6 +615,7 @@ out_unlock:
 	iput(tmp_inode);
 	return retval;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_migrate);
 
 /*
  * Migrate a simple extent-based inode to use the i_blocks[] array
@@ -703,3 +704,13 @@ out_unlock:
 	ext4_writepages_up_write(inode->i_sb, alloc_ctx);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ind_migrate);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_ext_swap_inode_data_test(handle_t *handle, struct inode *inode,
+				  struct inode *tmp_inode)
+{
+	return ext4_ext_swap_inode_data(handle, inode, tmp_inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_swap_inode_data_test);
+#endif

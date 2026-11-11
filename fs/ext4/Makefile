@@ -22,7 +22,7 @@ ext4-test-objs				+= inode-test.o mballoc-test.o \
 					   balloc-test.o orphan-test.o \
 					   block_validity-test.o super-test.o \
 					   sysfs-test.o ioctl-test.o \
-					   resize-test.o
+					   resize-test.o migrate-test.o
 obj-$(CONFIG_EXT4_KUNIT_TESTS)		+= ext4-test.o
 ext4-$(CONFIG_FS_VERITY)		+= verity.o
 ext4-$(CONFIG_FS_ENCRYPTION)		+= crypto.o
