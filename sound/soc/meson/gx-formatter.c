@@ -22,6 +22,8 @@ static int gx_formatter_enable(struct gx_formatter *formatter)
 {
 	int ret;
 
+	lockdep_assert_held(&formatter->stream->lock);
+
 	/* Do nothing if the formatter is already enabled */
 	if (formatter->enabled)
 		return 0;
@@ -46,6 +48,8 @@ static int gx_formatter_enable(struct gx_formatter *formatter)
 
 static void gx_formatter_disable(struct gx_formatter *formatter)
 {
+	lockdep_assert_held(&formatter->stream->lock);
+
 	/* Do nothing if the formatter is already disabled */
 	if (!formatter->enabled)
 		return;
