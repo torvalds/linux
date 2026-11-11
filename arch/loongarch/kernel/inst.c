@@ -428,6 +428,34 @@ u32 larch_insn_gen_bne(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 	return insn.word;
 }
 
+u32 larch_insn_gen_beqz(enum loongarch_gpr rj, int imm)
+{
+	union loongarch_instruction insn;
+
+	if ((imm & 3) || imm < -SZ_4M || imm >= SZ_4M) {
+		pr_warn("The generated beqz instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
+	emit_beqz(&insn, rj, imm >> 2);
+
+	return insn.word;
+}
+
+u32 larch_insn_gen_bnez(enum loongarch_gpr rj, int imm)
+{
+	union loongarch_instruction insn;
+
+	if ((imm & 3) || imm < -SZ_4M || imm >= SZ_4M) {
+		pr_warn("The generated bnez instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
+	emit_bnez(&insn, rj, imm >> 2);
+
+	return insn.word;
+}
+
 u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 {
 	union loongarch_instruction insn;
