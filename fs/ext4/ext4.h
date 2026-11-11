@@ -689,6 +689,17 @@ enum {
 };
 
 /*
+ * ext4_new_flex_group_data is used by 64bit-resize interface to add a flex
+ * group each time.
+ */
+struct ext4_new_flex_group_data {
+	struct ext4_new_group_data *groups;
+	__u16 *bg_flags;
+	ext4_group_t resize_bg;
+	ext4_group_t count;
+};
+
+/*
  * Flags used by ext4_map_blocks()
  */
 	/* Allocate any needed blocks and/or convert an unwritten
@@ -3432,6 +3443,8 @@ extern bool ext4_empty_dir(struct inode *inode);
 
 /* resize.c */
 extern void ext4_kvfree_array_rcu(void *to_free);
+extern int ext4_resize_issue_zeroout(struct super_block *sb, sector_t blk,
+				     sector_t nr_blks, gfp_t gfp_mask);
 extern int ext4_group_add(struct super_block *sb,
 				struct ext4_new_group_data *input);
 extern int ext4_group_extend(struct super_block *sb,
@@ -3441,6 +3454,25 @@ extern int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count);
 extern unsigned int ext4_list_backups(struct super_block *sb,
 				      unsigned int *three, unsigned int *five,
 				      unsigned int *seven);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_verify_group_input_test(struct super_block *sb,
+					struct ext4_new_group_data *input);
+extern struct ext4_new_flex_group_data *
+ext4_alloc_flex_gd_test(unsigned int flexbg_size, ext4_group_t o_group,
+			ext4_group_t n_group);
+extern void ext4_free_flex_gd_test(struct ext4_new_flex_group_data *flex_gd);
+extern int ext4_alloc_group_tables_test(struct super_block *sb,
+					struct ext4_new_flex_group_data *flex_gd,
+					unsigned int flexbg_size);
+extern int ext4_verify_reserved_gdb_test(struct super_block *sb,
+					 ext4_group_t end,
+					 struct buffer_head *primary);
+extern int ext4_setup_next_flex_gd_test(struct super_block *sb,
+					struct ext4_new_flex_group_data *flex_gd,
+					ext4_fsblk_t n_blocks_count);
+extern int ext4_convert_meta_bg_test(struct super_block *sb,
+				     struct inode *inode);
+#endif
 
 /* super.c */
 extern struct buffer_head *ext4_sb_bread(struct super_block *sb,
