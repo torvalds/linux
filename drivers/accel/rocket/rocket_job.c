@@ -201,12 +201,13 @@ static int rocket_acquire_object_fences(struct drm_gem_object **bos,
 
 static void rocket_attach_object_fences(struct drm_gem_object **bos,
 					int bo_count,
-					struct dma_fence *fence)
+					struct dma_fence *fence,
+					enum dma_resv_usage usage)
 {
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		dma_resv_add_fence(bos[i]->resv, fence, DMA_RESV_USAGE_WRITE);
+		dma_resv_add_fence(bos[i]->resv, fence, usage);
 }
 
 static int rocket_job_push(struct rocket_job *job)
@@ -248,7 +249,10 @@ static int rocket_job_push(struct rocket_job *job)
 		drm_sched_entity_push_job(&job->base);
 	}
 
-	rocket_attach_object_fences(job->out_bos, job->out_bo_count, job->inference_done_fence);
+	rocket_attach_object_fences(job->in_bos, job->in_bo_count,
+				    job->inference_done_fence, DMA_RESV_USAGE_READ);
+	rocket_attach_object_fences(job->out_bos, job->out_bo_count,
+				    job->inference_done_fence, DMA_RESV_USAGE_WRITE);
 
 err_unlock:
 	drm_gem_unlock_reservations(bos, bo_count, &acquire_ctx);
