@@ -2039,11 +2039,22 @@ __xfs_write_fault(
 		lock_mode = XFS_MMAPLOCK_EXCL;
 	}
 
-	if (IS_DAX(inode))
+	/*
+	 * The caller picked the zoned or the regular path with no lock held.
+	 * The realtime flag cannot change under the MMAPLOCK, so look at it
+	 * again, and start over if it has changed.
+	 */
+	if (xfs_is_zoned_inode(ip) != !!ac) {
+		xfs_warn_ratelimited(ip->i_mount,
+			"RT flag modifying during page fault for inode 0x%llx.",
+			inode->i_ino);
+		ret = VM_FAULT_NOPAGE;
+	} else if (IS_DAX(inode)) {
 		ret = xfs_dax_fault_locked(vmf, order, true);
-	else
+	} else {
 		ret = iomap_page_mkwrite(vmf, &xfs_buffered_write_iomap_ops,
 				ac);
+	}
 	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
