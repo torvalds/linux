@@ -1169,6 +1169,8 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 		return btrfs_grab_root(fs_info->stripe_root);
 	case BTRFS_REMAP_TREE_OBJECTID:
 		return btrfs_grab_root(fs_info->remap_root);
+	case BTRFS_DATA_RELOC_TREE_OBJECTID:
+		return btrfs_grab_root(fs_info->data_reloc_root);
 	default:
 		return NULL;
 	}
@@ -1304,8 +1306,15 @@ static struct btrfs_root *btrfs_get_root_ref(struct btrfs_fs_info *fs_info,
 	 *
 	 * This is namely for free-space-tree and quota tree, which can change
 	 * at runtime and should only be grabbed from fs_info.
+	 *
+	 * The data reloc tree is also such a tree.  It is loaded at mount time
+	 * by read_data_reloc_root() and never inserted into the radix tree, as
+	 * radix tree keys are of type `unsigned long`, which is 32 bits wide
+	 * on 32-bit platforms.
+	 * Casting the objectid to `unsigned long` can therefore result in a
+	 * conflict with a subvolume.
 	 */
-	if (!btrfs_is_fstree(objectid) && objectid != BTRFS_DATA_RELOC_TREE_OBJECTID)
+	if (!btrfs_is_fstree(objectid))
 		return ERR_PTR(-ENOENT);
 again:
 	root = btrfs_lookup_fs_root(fs_info, objectid);
@@ -1407,6 +1416,39 @@ struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
 					 u64 objectid, dev_t *anon_dev)
 {
 	return btrfs_get_root_ref(fs_info, objectid, anon_dev, true);
+}
+
+/* Read and initialize the data reloc tree. */
+static struct btrfs_root *read_data_reloc_root(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_key key = {
+		.objectid = BTRFS_DATA_RELOC_TREE_OBJECTID,
+		.type = BTRFS_ROOT_ITEM_KEY,
+		.offset = (u64)-1,
+	};
+	struct btrfs_root *root;
+	int ret;
+
+	root = btrfs_read_tree_root(fs_info->tree_root, &key);
+	if (IS_ERR(root))
+		return root;
+
+	if (btrfs_root_refs(&root->root_item) == 0) {
+		ret = -ENOENT;
+		goto fail;
+	}
+
+	/*
+	 * This tree can share blocks with some other fs tree during
+	 * relocation and we need a proper setup by btrfs_init_fs_root().
+	 */
+	ret = btrfs_init_fs_root(root, 0);
+	if (ret)
+		goto fail;
+	return root;
+fail:
+	btrfs_put_root(root);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -2275,12 +2317,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 				   PTR_ERR(root));
 		}
 	} else {
-		/*
-		 * This tree can share blocks with some other fs tree during
-		 * relocation and we need a proper setup by btrfs_get_fs_root().
-		 */
-		root = btrfs_get_fs_root(tree_root->fs_info,
-					 BTRFS_DATA_RELOC_TREE_OBJECTID, true);
+		root = read_data_reloc_root(fs_info);
 		if (IS_ERR(root)) {
 			if (!btrfs_test_opt(fs_info, IGNOREBADROOTS)) {
 				location.objectid = BTRFS_DATA_RELOC_TREE_OBJECTID;
@@ -3815,8 +3852,6 @@ fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
 
 fail_tree_roots:
-	if (fs_info->data_reloc_root)
-		btrfs_drop_and_free_fs_root(fs_info, fs_info->data_reloc_root);
 	free_root_pointers(fs_info, true);
 	invalidate_and_check_btree_folios(fs_info);
 
