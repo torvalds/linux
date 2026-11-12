@@ -6226,6 +6226,7 @@ static void append_skb_frag(struct sk_buff *skb, struct sk_buff *new_frag,
 static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb,
 				struct l2cap_ctrl *control)
 {
+	struct sk_buff *sdu;
 	int err = -EINVAL;
 
 	switch (control->sar) {
@@ -6286,15 +6287,25 @@ static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb,
 		if (chan->sdu->len != chan->sdu_len)
 			break;
 
-		err = chan->ops->recv(chan, chan->sdu);
+		/* Reassembly complete.  Hand the SDU over before the
+		 * callback, for the reason given in l2cap_ecred_data_rcv():
+		 * the callback takes ownership and may free it, while
+		 * l2cap_chan_rx_avail() -> l2cap_chan_le_send_credits() reads
+		 * chan->sdu->len on the way out - it does so before the mode
+		 * test that makes the rest of that function a no-op here.
+		 * Return directly, since the state this leaves is what the
+		 * trailing error block would otherwise set again.
+		 */
+		sdu = chan->sdu;
+		chan->sdu = NULL;
+		chan->sdu_last_frag = NULL;
+		chan->sdu_len = 0;
 
-		if (!err) {
-			/* Reassembly complete */
-			chan->sdu = NULL;
-			chan->sdu_last_frag = NULL;
-			chan->sdu_len = 0;
-		}
-		break;
+		err = chan->ops->recv(chan, sdu);
+		if (err)
+			kfree_skb(sdu);
+
+		return err;
 	}
 
 	if (err) {
@@ -7285,12 +7296,26 @@ static int l2cap_ecred_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 	skb = NULL;
 
 	if (chan->sdu->len == chan->sdu_len) {
-		err = l2cap_ecred_recv(chan, chan->sdu);
-		if (!err) {
-			chan->sdu = NULL;
-			chan->sdu_last_frag = NULL;
-			chan->sdu_len = 0;
-		}
+		struct sk_buff *sdu = chan->sdu;
+
+		/* The receive callback takes ownership of a reassembled SDU and
+		 * may free it, while l2cap_ecred_recv() goes on to update the
+		 * credits - which reads chan->sdu->len.  Drop the reassembly
+		 * state before handing the SDU over, and release it here if the
+		 * callback refused it, so that it is still freed exactly once.
+		 * The reassembly state is already clear at that point, so
+		 * return instead of falling into the failed: block, whose
+		 * kfree_skb(chan->sdu) would have nothing left to free.
+		 */
+		chan->sdu = NULL;
+		chan->sdu_last_frag = NULL;
+		chan->sdu_len = 0;
+
+		err = l2cap_ecred_recv(chan, sdu);
+		if (err)
+			kfree_skb(sdu);
+
+		return 0;
 	}
 
 failed:
