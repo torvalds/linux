@@ -707,6 +707,11 @@ REMOTE_TEST_MATRIX=(
 	"  C1-4:P1 C5-6   C1-2     .       C5      .  \
 	      .      P1    P1      .      O5=0     .     p1:3-4|p2:6|c11:1-2|c12:3-4|c21:6|c22:6 \
 							 p1:P1|p2:P1|c11:P1"
+	# Expanding a remote partition should check top cpuset, not its member
+	# parent, for the no CPU left for tasks error.
+	"  CX2-3:T  .   C2-3:X2:P1  .       .       .  \
+	      .      .     X2-3    .       .       .     p1:1,4-7|c11:2-3 \
+							 p1:P0|c11:P1"
 )
 
 #
