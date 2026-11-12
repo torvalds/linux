@@ -564,11 +564,13 @@ xfs_ioctl_setattr_xflags(
 
 		/*
 		 * If S_DAX is enabled on this file, we can only switch the
-		 * device if both support fsdax.  We can't update S_DAX because
-		 * there might be other threads walking down the access paths.
+		 * device if both support fsdax, and the zoned code does not.
+		 * We can't update S_DAX because there might be other threads
+		 * walking down the access paths.
 		 */
 		if (IS_DAX(VFS_I(ip)) &&
-		    (mp->m_ddev_targp->bt_daxdev == NULL ||
+		    (xfs_has_zoned(mp) ||
+		     mp->m_ddev_targp->bt_daxdev == NULL ||
 		     (mp->m_rtdev_targp &&
 		      mp->m_rtdev_targp->bt_daxdev == NULL)))
 			return -EINVAL;

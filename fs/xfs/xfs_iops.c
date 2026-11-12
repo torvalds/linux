@@ -1373,6 +1373,10 @@ xfs_inode_supports_dax(
 	if (mp->m_sb.sb_blocksize != PAGE_SIZE)
 		return false;
 
+	/* The zoned code does not support DAX. */
+	if (xfs_is_zoned_inode(ip))
+		return false;
+
 	/* Device has to support DAX too. */
 	return xfs_inode_buftarg(ip)->bt_daxdev != NULL;
 }
