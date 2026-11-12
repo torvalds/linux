@@ -77,6 +77,12 @@ MODULE_PARM_DESC(tls_handshake_timeout,
 /* TLS records read while waiting for the ICResp, the ICResp included */
 #define NVME_TCP_ICRESP_MAX_RECORDS 8
 
+/* control message buffer for the TLS record type */
+union nvme_tcp_tls_cmsg {
+	struct cmsghdr	cmsg;
+	u8		buf[CMSG_SPACE(sizeof(u8))];
+};
+
 static int nvme_tcp_cpu_queues[NR_CPUS];
 static DEFINE_SPINLOCK(nvme_tcp_cpu_queues_lock);
 
@@ -1653,11 +1659,11 @@ static int nvme_tcp_skip_tls_record(struct nvme_tcp_queue *queue,
 			.iov_base = buf,
 			.iov_len = sizeof(buf),
 		};
-		char cbuf[CMSG_LEN(sizeof(char))] = {};
+		union nvme_tcp_tls_cmsg u = {};
 		/* kTLS fails a control record read without a cmsg buffer */
 		struct msghdr drain = {
-			.msg_control = cbuf,
-			.msg_controllen = sizeof(cbuf),
+			.msg_control = &u,
+			.msg_controllen = sizeof(u),
 		};
 
 		ret = kernel_recvmsg(queue->sock, &drain, &iov, 1, sizeof(buf),
@@ -1682,7 +1688,7 @@ static int nvme_tcp_skip_tls_record(struct nvme_tcp_queue *queue,
 static int nvme_tcp_recv_icresp(struct nvme_tcp_queue *queue,
 				struct nvme_tcp_icresp_pdu *icresp)
 {
-	char cbuf[CMSG_LEN(sizeof(char))];
+	union nvme_tcp_tls_cmsg u;
 	struct msghdr msg;
 	struct kvec iov;
 	u8 ctype;
@@ -1690,12 +1696,12 @@ static int nvme_tcp_recv_icresp(struct nvme_tcp_queue *queue,
 
 	for (i = 0; i < NVME_TCP_ICRESP_MAX_RECORDS; i++) {
 		memset(&msg, 0, sizeof(msg));
-		memset(cbuf, 0, sizeof(cbuf));
+		memset(&u, 0, sizeof(u));
 		iov.iov_base = icresp;
 		iov.iov_len = sizeof(*icresp);
 		if (nvme_tcp_queue_tls(queue)) {
-			msg.msg_control = cbuf;
-			msg.msg_controllen = sizeof(cbuf);
+			msg.msg_control = &u;
+			msg.msg_controllen = sizeof(u);
 		}
 		msg.msg_flags = MSG_WAITALL;
 		ret = kernel_recvmsg(queue->sock, &msg, &iov, 1,
@@ -1703,8 +1709,7 @@ static int nvme_tcp_recv_icresp(struct nvme_tcp_queue *queue,
 		if (ret <= 0 || !nvme_tcp_queue_tls(queue))
 			return ret;
 
-		ctype = tls_get_record_type(queue->sock->sk,
-					    (struct cmsghdr *)cbuf);
+		ctype = tls_get_record_type(queue->sock->sk, &u.cmsg);
 		if (ctype == TLS_RECORD_TYPE_DATA)
 			return ret;
 
