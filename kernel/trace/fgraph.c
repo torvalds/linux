@@ -698,11 +698,7 @@ int function_graph_enter_regs(unsigned long ret, unsigned long func,
 	if (!bitmap)
 		goto out_ret;
 
-	/*
-	 * Since this function uses fgraph_idx = 0 as a tail-call checking
-	 * flag, set that bit always.
-	 */
-	set_bitmap(current, offset, bitmap | BIT(0));
+	set_bitmap(current, offset, bitmap);
 	ftrace_test_recursion_unlock(bit);
 	return 0;
  out_ret:
