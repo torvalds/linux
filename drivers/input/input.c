@@ -2265,10 +2265,9 @@ static void __input_unregister_device(struct input_dev *dev)
 		input_wakeup_procfs_readers();
 	}
 
-	if (dev->ff && dev->ff->stop)
-		dev->ff->stop(dev->ff);
-
 	device_del(&dev->dev);
+
+	input_ff_destroy(dev);
 }
 
 static void devm_input_device_unregister(struct device *dev, void *res)
