@@ -1629,6 +1629,43 @@ static int nvme_tcp_recv_tls_alert(struct nvme_tcp_queue *queue,
 }
 
 /*
+ * Read the rest of a TLS record whose first part was read into @msg.
+ *
+ * Returns the bytes read, or a negative errno.
+ */
+static int nvme_tcp_drain_tls_record(struct nvme_tcp_queue *queue,
+				     struct msghdr *msg, int flags)
+{
+	u8 buf[NVME_TCP_TLS_REC_CHUNK];
+	int ret, drained = 0;
+
+	while (!(msg->msg_flags & MSG_EOR)) {
+		struct kvec iov = {
+			.iov_base = buf,
+			.iov_len = sizeof(buf),
+		};
+		union nvme_tcp_tls_cmsg u = {};
+		/* kTLS fails a control record read without a cmsg buffer */
+		struct msghdr drain = {
+			.msg_control = &u,
+			.msg_controllen = sizeof(u),
+		};
+
+		ret = kernel_recvmsg(queue->sock, &drain, &iov, 1, sizeof(buf),
+				     flags);
+		if (ret <= 0) {
+			pr_warn("queue %d: failed to drain TLS record: %d\n",
+				nvme_tcp_queue_id(queue), ret);
+			return ret ? : -ECONNRESET;
+		}
+		drained += ret;
+		msg->msg_flags = drain.msg_flags;
+	}
+
+	return drained;
+}
+
+/*
  * Discard a TLS record that arrived in place of the ICResp. A peer may send
  * a NewSessionTicket as soon as the handshake completes.
  *
@@ -1638,7 +1675,6 @@ static int nvme_tcp_recv_tls_alert(struct nvme_tcp_queue *queue,
 static int nvme_tcp_skip_tls_record(struct nvme_tcp_queue *queue,
 				    struct msghdr *msg, u8 ctype, int len)
 {
-	u8 buf[NVME_TCP_TLS_REC_CHUNK];
 	int ret;
 
 	switch (ctype) {
@@ -1654,29 +1690,9 @@ static int nvme_tcp_skip_tls_record(struct nvme_tcp_queue *queue,
 	}
 
 	/* the ICResp is in a later record, drain this one first */
-	while (!(msg->msg_flags & MSG_EOR)) {
-		struct kvec iov = {
-			.iov_base = buf,
-			.iov_len = sizeof(buf),
-		};
-		union nvme_tcp_tls_cmsg u = {};
-		/* kTLS fails a control record read without a cmsg buffer */
-		struct msghdr drain = {
-			.msg_control = &u,
-			.msg_controllen = sizeof(u),
-		};
+	ret = nvme_tcp_drain_tls_record(queue, msg, 0);
 
-		ret = kernel_recvmsg(queue->sock, &drain, &iov, 1, sizeof(buf),
-				     0);
-		if (ret <= 0) {
-			pr_warn("queue %d: failed to drain TLS record: %d\n",
-				nvme_tcp_queue_id(queue), ret);
-			return ret ? : -ECONNRESET;
-		}
-		msg->msg_flags = drain.msg_flags;
-	}
-
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 /*
