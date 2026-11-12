@@ -708,14 +708,6 @@ xfs_file_dio_write_aligned(
 	unsigned int		dio_flags = 0;
 	ssize_t			ret;
 
-	/*
-	 * For always COW inodes, each bio must be aligned to the file system
-	 * block size and not just the device sector size because we need to
-	 * allocate a block-aligned amount of space for each write.
-	 */
-	if (xfs_is_always_cow_inode(ip))
-		dio_flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
-
 	ret = xfs_ilock_iocb_for_write(iocb, &iolock);
 	if (ret)
 		return ret;
@@ -732,6 +724,15 @@ xfs_file_dio_write_aligned(
 		xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		iolock = XFS_IOLOCK_SHARED;
 	}
+
+	/*
+	 * For always COW inodes, each bio must be aligned to the file system
+	 * block size and not just the device sector size because we need to
+	 * allocate a block-aligned amount of space for each write.  The
+	 * realtime flag can change until we hold the IOLOCK, so test only now.
+	 */
+	if (xfs_is_always_cow_inode(ip))
+		dio_flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 	if (mapping_stable_writes(iocb->ki_filp->f_mapping))
 		dio_flags |= IOMAP_DIO_BOUNCE;
 	trace_xfs_file_direct_write(iocb, from);
