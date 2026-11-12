@@ -152,9 +152,8 @@ static int max8925_probe(struct i2c_client *client)
 
 	if (node && !pdata) {
 		/* parse DT to get platform data */
-		pdata = devm_kzalloc(&client->dev,
-				     sizeof(struct max8925_platform_data),
-				     GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&client->dev,
+					 struct max8925_platform_data);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -165,8 +164,7 @@ static int max8925_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(&client->dev,
-			    sizeof(struct max8925_chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, struct max8925_chip);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->i2c = client;

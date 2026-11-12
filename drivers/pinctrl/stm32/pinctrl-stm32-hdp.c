@@ -613,7 +613,7 @@ static int stm32_hdp_probe(struct platform_device *pdev)
 	u8 version;
 	int err;
 
-	hdp = devm_kzalloc(dev, sizeof(*hdp), GFP_KERNEL);
+	hdp = devm_kzalloc_obj(dev, *hdp);
 	if (!hdp)
 		return -ENOMEM;
 	hdp->dev = dev;

@@ -174,7 +174,7 @@ static int nic7018_probe(struct platform_device *pdev)
 	struct resource *io_rc;
 	int ret;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

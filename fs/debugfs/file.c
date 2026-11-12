@@ -1362,7 +1362,7 @@ void debugfs_create_devm_seqfile(struct device *dev, const char *name,
 	if (IS_ERR(parent))
 		return;
 
-	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(dev, *entry);
 	if (!entry)
 		return;
 

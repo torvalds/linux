@@ -907,8 +907,7 @@ static void __init sam9x7_pmc_setup(struct device_node *np)
 		u8 num_parents = 4 + sam9x7_gck[i].pp_count;
 		u32 *mux_table;
 
-		mux_table = kmalloc_array(num_parents, sizeof(*mux_table),
-					  GFP_KERNEL);
+		mux_table = kmalloc_objs(*mux_table, num_parents);
 		if (!mux_table)
 			goto err_free;
 

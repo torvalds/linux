@@ -270,8 +270,7 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 {
 	struct omap_control_phy *control_phy;
 
-	control_phy = devm_kzalloc(&pdev->dev, sizeof(*control_phy),
-		GFP_KERNEL);
+	control_phy = devm_kzalloc_obj(&pdev->dev, *control_phy);
 	if (!control_phy)
 		return -ENOMEM;
 

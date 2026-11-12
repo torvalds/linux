@@ -567,7 +567,7 @@ static int sifive_prci_probe(struct platform_device *pdev)
 
 	desc = of_device_get_match_data(&pdev->dev);
 
-	pd = devm_kzalloc(dev, struct_size(pd, hw_clks.hws, desc->num_clks), GFP_KERNEL);
+	pd = devm_kzalloc_flex(dev, *pd, hw_clks.hws, desc->num_clks);
 	if (!pd)
 		return -ENOMEM;
 

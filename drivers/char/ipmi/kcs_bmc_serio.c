@@ -72,7 +72,7 @@ static int kcs_bmc_serio_add_device(struct kcs_bmc_device *kcs_bmc)
 	struct kcs_bmc_serio *priv;
 	struct serio *port;
 
-	priv = devm_kzalloc(kcs_bmc->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(kcs_bmc->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1210,7 +1210,8 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
-	if (prog->type == BPF_PROG_TYPE_LWT_XMIT) {
+	if (prog->type == BPF_PROG_TYPE_LWT_IN ||
+	    prog->type == BPF_PROG_TYPE_LWT_XMIT) {
 		if (!ipv6_mod_enabled()) {
 			pr_warn_once("Please test this program with IPv6 enabled kernel\n");
 			ret = -EOPNOTSUPP;

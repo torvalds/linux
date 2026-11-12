@@ -99,7 +99,7 @@ static struct smbus_block_data *stub_find_block(struct device *dev,
 		}
 	}
 	if (rb == NULL && create) {
-		rb = devm_kzalloc(dev, sizeof(*rb), GFP_KERNEL);
+		rb = devm_kzalloc_obj(dev, *rb);
 		if (rb == NULL)
 			return rb;
 		rb->command = command;
@@ -334,9 +334,7 @@ static int __init i2c_stub_allocate_banks(int i)
 		chip->bank_mask >>= 1;
 	}
 
-	chip->bank_words = kcalloc(chip->bank_mask * chip->bank_size,
-				   sizeof(u16),
-				   GFP_KERNEL);
+	chip->bank_words = kzalloc_objs(u16, chip->bank_mask * chip->bank_size);
 	if (!chip->bank_words)
 		return -ENOMEM;
 

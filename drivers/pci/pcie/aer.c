@@ -1812,7 +1812,7 @@ static int aer_probe(struct pcie_device *dev)
 	    (pci_pcie_type(port) != PCI_EXP_TYPE_ROOT_PORT))
 		return -ENODEV;
 
-	rpc = devm_kzalloc(device, sizeof(struct aer_rpc), GFP_KERNEL);
+	rpc = devm_kzalloc_obj(device, struct aer_rpc);
 	if (!rpc)
 		return -ENOMEM;
 

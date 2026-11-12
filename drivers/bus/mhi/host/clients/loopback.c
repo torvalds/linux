@@ -261,7 +261,7 @@ static int mhi_loopback_probe(struct mhi_device *mhi_dev,
 	struct mhi_loopback *loopback;
 	int ret;
 
-	loopback = devm_kzalloc(&mhi_dev->dev, sizeof(*loopback), GFP_KERNEL);
+	loopback = devm_kzalloc_obj(&mhi_dev->dev, *loopback);
 	if (!loopback)
 		return -ENOMEM;
 

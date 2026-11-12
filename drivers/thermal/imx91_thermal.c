@@ -239,7 +239,7 @@ static int imx91_tmu_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 div;
 
-	tmu = devm_kzalloc(dev, sizeof(struct imx91_tmu), GFP_KERNEL);
+	tmu = devm_kzalloc_obj(dev, struct imx91_tmu);
 	if (!tmu)
 		return -ENOMEM;
 

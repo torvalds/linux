@@ -649,7 +649,7 @@ static int ipu6_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	     id->device == PCI_DEVICE_ID_INTEL_IPU7P5) && force_no_probe_ipu7)
 		return -ENODEV;
 
-	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

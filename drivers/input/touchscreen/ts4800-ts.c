@@ -151,7 +151,7 @@ static int ts4800_ts_probe(struct platform_device *pdev)
 	struct ts4800_ts *ts;
 	int error;
 
-	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&pdev->dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

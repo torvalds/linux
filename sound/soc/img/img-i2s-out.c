@@ -443,7 +443,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	u32 reg;
 	struct device *dev = &pdev->dev;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(&pdev->dev, *i2s);
 	if (!i2s)
 		return -ENOMEM;
 
@@ -482,8 +482,8 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(i2s->clk_ref),
 				     "Failed to acquire clock 'ref'\n");
 
-	i2s->suspend_ch_ctl = devm_kcalloc(dev,
-		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
+	i2s->suspend_ch_ctl = devm_kzalloc_objs(dev, *i2s->suspend_ch_ctl,
+						i2s->max_i2s_chan);
 	if (!i2s->suspend_ch_ctl)
 		return -ENOMEM;
 

@@ -859,7 +859,7 @@ static int ov02a10_probe(struct i2c_client *client)
 	unsigned int rotation;
 	int ret;
 
-	ov02a10 = devm_kzalloc(dev, sizeof(*ov02a10), GFP_KERNEL);
+	ov02a10 = devm_kzalloc_obj(dev, *ov02a10);
 	if (!ov02a10)
 		return -ENOMEM;
 

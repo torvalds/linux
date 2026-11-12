@@ -1130,8 +1130,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client)
 	int ret, devid, i;
 	unsigned int reg;
 
-	cs35l33 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs35l33_private),
-			       GFP_KERNEL);
+	cs35l33 = devm_kzalloc_obj(&i2c_client->dev, struct cs35l33_private);
 	if (!cs35l33)
 		return -ENOMEM;
 

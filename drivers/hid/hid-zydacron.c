@@ -169,7 +169,7 @@ static int zc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	struct zc_device *zc;
 
-	zc = devm_kzalloc(&hdev->dev, sizeof(*zc), GFP_KERNEL);
+	zc = devm_kzalloc_obj(&hdev->dev, *zc);
 	if (zc == NULL) {
 		hid_err(hdev, "can't alloc descriptor\n");
 		return -ENOMEM;

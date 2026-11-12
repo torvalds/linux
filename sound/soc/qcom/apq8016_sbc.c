@@ -296,7 +296,7 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 	if (!add_ops)
 		return -EINVAL;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

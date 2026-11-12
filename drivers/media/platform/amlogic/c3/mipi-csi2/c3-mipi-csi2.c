@@ -751,7 +751,7 @@ static int c3_mipi_csi_probe(struct platform_device *pdev)
 	struct c3_csi_device *csi;
 	int ret;
 
-	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 

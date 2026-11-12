@@ -200,11 +200,11 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 	struct sun6i_msgbox *mbox;
 	int i, ret;
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 
-	chans = devm_kcalloc(dev, NUM_CHANS, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(dev, *chans, NUM_CHANS);
 	if (!chans)
 		return -ENOMEM;
 

@@ -836,7 +836,7 @@ static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
 	int ret;
 	u32 pval;
 
-	gp_data = devm_kzalloc(&pdev->dev, sizeof(*gp_data), GFP_KERNEL);
+	gp_data = devm_kzalloc_obj(&pdev->dev, *gp_data);
 	if (!gp_data)
 		return -ENOMEM;
 

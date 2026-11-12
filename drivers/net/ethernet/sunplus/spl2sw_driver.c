@@ -333,7 +333,7 @@ static int spl2sw_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Allocate memory for 'spl2sw_common' area. */
-	comm = devm_kzalloc(&pdev->dev, sizeof(*comm), GFP_KERNEL);
+	comm = devm_kzalloc_obj(&pdev->dev, *comm);
 	if (!comm)
 		return -ENOMEM;
 

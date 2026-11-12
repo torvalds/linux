@@ -303,8 +303,7 @@ static int rmi_smb_probe(struct i2c_client *client)
 		return client->irq ? client->irq : -ENODEV;
 	}
 
-	rmi_smb = devm_kzalloc(&client->dev, sizeof(struct rmi_smb_xport),
-				GFP_KERNEL);
+	rmi_smb = devm_kzalloc_obj(&client->dev, struct rmi_smb_xport);
 	if (!rmi_smb)
 		return -ENOMEM;
 

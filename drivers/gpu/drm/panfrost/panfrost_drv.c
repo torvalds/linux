@@ -260,7 +260,7 @@ panfrost_copy_in_sync(struct drm_device *dev,
 	if (!in_fence_count)
 		return 0;
 
-	handles = kvmalloc_array(in_fence_count, sizeof(u32), GFP_KERNEL);
+	handles = kvmalloc_objs(u32, in_fence_count);
 	if (!handles) {
 		ret = -ENOMEM;
 		DRM_DEBUG("Failed to allocate incoming syncobj handles\n");

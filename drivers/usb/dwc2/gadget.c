@@ -4964,9 +4964,7 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	/* Add ep0 */
 	hsotg->num_of_eps++;
 
-	hsotg->eps_in[0] = devm_kzalloc(hsotg->dev,
-					sizeof(struct dwc2_hsotg_ep),
-					GFP_KERNEL);
+	hsotg->eps_in[0] = devm_kzalloc_obj(hsotg->dev, struct dwc2_hsotg_ep);
 	if (!hsotg->eps_in[0])
 		return -ENOMEM;
 	/* Same dwc2_hsotg_ep is used in both directions for ep0 */
@@ -4977,15 +4975,15 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 		ep_type = cfg & 3;
 		/* Direction in or both */
 		if (!(ep_type & 2)) {
-			hsotg->eps_in[i] = devm_kzalloc(hsotg->dev,
-				sizeof(struct dwc2_hsotg_ep), GFP_KERNEL);
+			hsotg->eps_in[i] = devm_kzalloc_obj(hsotg->dev,
+							    struct dwc2_hsotg_ep);
 			if (!hsotg->eps_in[i])
 				return -ENOMEM;
 		}
 		/* Direction out or both */
 		if (!(ep_type & 1)) {
-			hsotg->eps_out[i] = devm_kzalloc(hsotg->dev,
-				sizeof(struct dwc2_hsotg_ep), GFP_KERNEL);
+			hsotg->eps_out[i] = devm_kzalloc_obj(hsotg->dev,
+							     struct dwc2_hsotg_ep);
 			if (!hsotg->eps_out[i])
 				return -ENOMEM;
 		}

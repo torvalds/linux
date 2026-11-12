@@ -458,7 +458,7 @@ static int fujitsu_uncore_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "unable to read ACPI uid\n");
 
-	uncorepmu = devm_kzalloc(dev, sizeof(*uncorepmu), GFP_KERNEL);
+	uncorepmu = devm_kzalloc_obj(dev, *uncorepmu);
 	if (!uncorepmu)
 		return -ENOMEM;
 	uncorepmu->dev = dev;

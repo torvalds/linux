@@ -4224,7 +4224,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	/* Allocate a driver data struct to hold useful info for both
 	 * SPH & OTG devices
 	 */
-	info = devm_kzalloc(&pdev->dev, sizeof(struct oxu_info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct oxu_info);
 	if (!info) {
 		ret = -EFAULT;
 		goto error;

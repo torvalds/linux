@@ -1389,7 +1389,7 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "missing platform data.\n");
 		return -EINVAL;
 	}
-	mcbsp = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcbsp), GFP_KERNEL);
+	mcbsp = devm_kzalloc_obj(&pdev->dev, struct omap_mcbsp);
 	if (!mcbsp)
 		return -ENOMEM;
 

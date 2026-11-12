@@ -86,7 +86,7 @@ static int mt7996_pci_hif2_probe(struct pci_dev *pdev)
 {
 	struct mt7996_hif *hif;
 
-	hif = devm_kzalloc(&pdev->dev, sizeof(*hif), GFP_KERNEL);
+	hif = devm_kzalloc_obj(&pdev->dev, *hif);
 	if (!hif)
 		return -ENOMEM;
 

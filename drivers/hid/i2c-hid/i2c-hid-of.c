@@ -83,7 +83,7 @@ static int i2c_hid_of_probe(struct i2c_client *client)
 	int ret;
 	u32 val;
 
-	ihid_of = devm_kzalloc(dev, sizeof(*ihid_of), GFP_KERNEL);
+	ihid_of = devm_kzalloc_obj(dev, *ihid_of);
 	if (!ihid_of)
 		return -ENOMEM;
 

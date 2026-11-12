@@ -535,6 +535,12 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SRI_ARR(OTG_CRC0_WINDOWA_Y_CONTROL, OTG, inst),                          \
 	SRI_ARR(OTG_CRC0_WINDOWB_X_CONTROL, OTG, inst),                          \
 	SRI_ARR(OTG_CRC0_WINDOWB_Y_CONTROL, OTG, inst),                          \
+	SRI_ARR(OTG_CRC1_DATA_RG, OTG, inst),                                    \
+	SRI_ARR(OTG_CRC1_DATA_B, OTG, inst),                                     \
+	SRI_ARR(OTG_CRC1_WINDOWA_X_CONTROL, OTG, inst),                          \
+	SRI_ARR(OTG_CRC1_WINDOWA_Y_CONTROL, OTG, inst),                          \
+	SRI_ARR(OTG_CRC1_WINDOWB_X_CONTROL, OTG, inst),                          \
+	SRI_ARR(OTG_CRC1_WINDOWB_Y_CONTROL, OTG, inst),                          \
 	SR_ARR(GSL_SOURCE_SELECT, inst),                                         \
 	SRI_ARR(OTG_TRIGA_MANUAL_TRIG, OTG, inst),                               \
 	SRI_ARR(OTG_GLOBAL_CONTROL1, OTG, inst),                                 \

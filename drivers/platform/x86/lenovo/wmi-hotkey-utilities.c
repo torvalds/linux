@@ -191,7 +191,7 @@ static int lenovo_super_hotkey_wmi_probe(struct wmi_device *wdev, const void *co
 {
 	struct lenovo_super_hotkey_wmi_private *wpriv;
 
-	wpriv = devm_kzalloc(&wdev->dev, sizeof(*wpriv), GFP_KERNEL);
+	wpriv = devm_kzalloc_obj(&wdev->dev, *wpriv);
 	if (!wpriv)
 		return -ENOMEM;
 

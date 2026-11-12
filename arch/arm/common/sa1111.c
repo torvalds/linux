@@ -800,7 +800,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if (!pd)
 		return -EINVAL;
 
-	sachip = devm_kzalloc(me, sizeof(struct sa1111), GFP_KERNEL);
+	sachip = devm_kzalloc_obj(me, struct sa1111);
 	if (!sachip)
 		return -ENOMEM;
 

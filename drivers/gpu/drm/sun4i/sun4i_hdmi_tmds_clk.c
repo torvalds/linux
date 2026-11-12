@@ -214,7 +214,7 @@ int sun4i_tmds_create(struct sun4i_hdmi *hdmi)
 	if (!parents[1])
 		return -ENODEV;
 
-	tmds = devm_kzalloc(hdmi->dev, sizeof(*tmds), GFP_KERNEL);
+	tmds = devm_kzalloc_obj(hdmi->dev, *tmds);
 	if (!tmds)
 		return -ENOMEM;
 

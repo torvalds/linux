@@ -491,7 +491,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 	struct pwrseq_config config;
 	int i, ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -502,8 +502,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -ENODEV,
 				     "Failed to obtain platform data\n");
 
-	ctx->regs = devm_kcalloc(dev, ctx->pdata->num_vregs,
-				 sizeof(*ctx->regs), GFP_KERNEL);
+	ctx->regs = devm_kzalloc_objs(dev, *ctx->regs, ctx->pdata->num_vregs);
 	if (!ctx->regs)
 		return -ENOMEM;
 

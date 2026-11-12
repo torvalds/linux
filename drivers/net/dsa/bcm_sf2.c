@@ -1059,6 +1059,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port;
+	int ret;
 
 	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
@@ -1073,6 +1074,10 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 
 	b53_configure_vlan(ds);
 	bcm_sf2_enable_acb(ds);
+
+	ret = b53_enable_mcast_snooping(priv->dev);
+	if (ret)
+		return ret;
 
 	return b53_setup_devlink_resources(ds);
 }
@@ -1379,11 +1384,11 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	u32 reg, rev;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(&pdev->dev, *ops);
 	if (!ops)
 		return -ENOMEM;
 
@@ -1391,7 +1396,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

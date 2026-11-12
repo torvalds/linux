@@ -2376,7 +2376,7 @@ static int ov8856_probe(struct i2c_client *client)
 	int ret;
 	bool full_power;
 
-	ov8856 = devm_kzalloc(&client->dev, sizeof(*ov8856), GFP_KERNEL);
+	ov8856 = devm_kzalloc_obj(&client->dev, *ov8856);
 	if (!ov8856)
 		return -ENOMEM;
 

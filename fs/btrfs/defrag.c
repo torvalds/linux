@@ -242,13 +242,22 @@ again:
 		goto cleanup;
 	}
 
+	/*
+	 * Clear the flag right away. On the first iteration (cur == 0) if the
+	 * inode happened to have been truncated to 0 after it was added to
+	 * autodefrag and before we were called, then we need to clear the flag,
+	 * otherwise if writes are done to the inode we won't be able to add it
+	 * to autodefrag again (unless the inode is evicted, loaded again, and
+	 * small writes to it happen again).
+	 */
+	clear_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
+
 	if (cur >= i_size_read(&inode->vfs_inode)) {
 		iput(&inode->vfs_inode);
 		goto cleanup;
 	}
 
 	/* Do a chunk of defrag */
-	clear_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
 	memset(&range, 0, sizeof(range));
 	range.len = (u64)-1;
 	range.start = cur;

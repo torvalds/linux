@@ -100,7 +100,7 @@ static int jornada720_ts_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int error, irq;
 
-	jornada_ts = devm_kzalloc(&pdev->dev, sizeof(*jornada_ts), GFP_KERNEL);
+	jornada_ts = devm_kzalloc_obj(&pdev->dev, *jornada_ts);
 	if (!jornada_ts)
 		return -ENOMEM;
 

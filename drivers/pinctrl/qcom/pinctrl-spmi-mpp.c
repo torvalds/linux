@@ -873,7 +873,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 
 	BUG_ON(npins > ARRAY_SIZE(pmic_mpp_groups));
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 
@@ -882,15 +882,15 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	state->dev = &pdev->dev;
 	state->map = dev_get_regmap(dev->parent, NULL);
 
-	pindesc = devm_kcalloc(dev, npins, sizeof(*pindesc), GFP_KERNEL);
+	pindesc = devm_kzalloc_objs(dev, *pindesc, npins);
 	if (!pindesc)
 		return -ENOMEM;
 
-	pads = devm_kcalloc(dev, npins, sizeof(*pads), GFP_KERNEL);
+	pads = devm_kzalloc_objs(dev, *pads, npins);
 	if (!pads)
 		return -ENOMEM;
 
-	pctrldesc = devm_kzalloc(dev, sizeof(*pctrldesc), GFP_KERNEL);
+	pctrldesc = devm_kzalloc_obj(dev, *pctrldesc);
 	if (!pctrldesc)
 		return -ENOMEM;
 

@@ -1093,7 +1093,7 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	ts = devm_kzalloc(dev, sizeof(struct rohm_ts_data), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, struct rohm_ts_data);
 	if (!ts)
 		return -ENOMEM;
 

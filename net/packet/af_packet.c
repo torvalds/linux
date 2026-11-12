@@ -2932,7 +2932,7 @@ tpacket_error:
 		if (has_vnet_hdr)
 			virtio_net_hdr_set_proto(skb, &vnet_hdr);
 
-		uarg = kmalloc(sizeof(*uarg), GFP_KERNEL);
+		uarg = kmalloc_obj(*uarg);
 		if (unlikely(!uarg)) {
 			if (likely(len_sum > 0))
 				err = len_sum;

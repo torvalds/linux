@@ -135,7 +135,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(&pdev->dev, *p);
 	if (!p)
 		return -ENOMEM;
 

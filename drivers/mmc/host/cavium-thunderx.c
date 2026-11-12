@@ -63,7 +63,7 @@ static int thunder_mmc_probe(struct pci_dev *pdev,
 	struct cvm_mmc_host *host;
 	int ret, i = 0;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 

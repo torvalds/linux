@@ -98,7 +98,7 @@ static int acp_sof_probe(struct platform_device *pdev)
 	if (!pdev->id_entry)
 		return -EINVAL;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

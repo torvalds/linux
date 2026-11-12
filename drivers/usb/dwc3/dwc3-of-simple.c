@@ -38,7 +38,7 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 
 	int			ret;
 
-	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
+	simple = devm_kzalloc_obj(dev, *simple);
 	if (!simple)
 		return -ENOMEM;
 

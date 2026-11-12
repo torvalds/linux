@@ -168,7 +168,7 @@ static int w83l785ts_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct w83l785ts_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct w83l785ts_data);
 	if (!data)
 		return -ENOMEM;
 

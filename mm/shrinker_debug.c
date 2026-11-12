@@ -53,7 +53,7 @@ static int shrinker_debugfs_count_show(struct seq_file *m, void *v)
 	bool memcg_aware;
 	int ret = 0, nid;
 
-	count_per_node = kcalloc(nr_node_ids, sizeof(unsigned long), GFP_KERNEL);
+	count_per_node = kzalloc_objs(unsigned long, nr_node_ids);
 	if (!count_per_node)
 		return -ENOMEM;
 

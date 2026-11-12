@@ -1693,9 +1693,8 @@ static int ef4_probe_filters(struct ef4_nic *efx)
 
 		ef4_for_each_channel(channel, efx) {
 			channel->rps_flow_id =
-				kcalloc(efx->type->max_rx_ip_filters,
-					sizeof(*channel->rps_flow_id),
-					GFP_KERNEL);
+				kzalloc_objs(*channel->rps_flow_id,
+					     efx->type->max_rx_ip_filters);
 			if (!channel->rps_flow_id)
 				success = 0;
 			else

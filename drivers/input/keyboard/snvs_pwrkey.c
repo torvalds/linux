@@ -163,7 +163,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	if (!np)
 		return dev_err_probe(dev, -ENODEV, "Device tree node not found\n");
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

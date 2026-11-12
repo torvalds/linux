@@ -122,7 +122,7 @@ mt7925_txpwr(struct seq_file *s, void *data)
 	u8 band_idx = dev->mphy.band_idx;
 	int ret = 0;
 
-	txpwr = devm_kmalloc(dev->mt76.dev, sizeof(*txpwr), GFP_KERNEL);
+	txpwr = devm_kmalloc_obj(dev->mt76.dev, *txpwr);
 
 	if (!txpwr)
 		return -ENOMEM;

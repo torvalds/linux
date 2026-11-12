@@ -330,7 +330,7 @@ static int qe_gpio_probe(struct platform_device *ofdev)
 	struct qe_gpio_chip *qe_gc;
 	struct gpio_chip *gc;
 
-	qe_gc = devm_kzalloc(dev, sizeof(*qe_gc), GFP_KERNEL);
+	qe_gc = devm_kzalloc_obj(dev, *qe_gc);
 	if (!qe_gc)
 		return -ENOMEM;
 	qe_gc->np = np;

@@ -522,8 +522,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	int build_code, build_id, hwmon_rev, val;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct sch5627_data);
 	if (!data)
 		return -ENOMEM;
 

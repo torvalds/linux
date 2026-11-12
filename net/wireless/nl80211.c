@@ -4679,9 +4679,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			return -EOPNOTSUPP;
 
 		if (rdev->wiphy.n_radio) {
-			old_radio_rts_threshold = kcalloc(rdev->wiphy.n_radio,
-							  sizeof(u32),
-							  GFP_KERNEL);
+			old_radio_rts_threshold = kzalloc_objs(u32,
+							       rdev->wiphy.n_radio);
 			if (!old_radio_rts_threshold)
 				return -ENOMEM;
 		}
@@ -18297,8 +18296,7 @@ nl80211_parse_non_evac_channel(struct cfg80211_registered_device *rdev,
 			       struct cfg80211_chan_def *chandef)
 {
 	struct nlattr **channel_parsed __free(kfree) =
-		kcalloc(NL80211_ATTR_MAX + 1, sizeof(*channel_parsed),
-			GFP_KERNEL);
+		kzalloc_objs(*channel_parsed, NL80211_ATTR_MAX + 1);
 	int ret;
 
 	if (!channel_parsed)
@@ -18333,8 +18331,7 @@ static int nl80211_nan_set_non_evac_channels(struct sk_buff *skb,
 		n_channels++;
 
 	struct cfg80211_nan_non_evac_channels *channels __free(kfree) =
-		kzalloc(struct_size(channels, chandefs, n_channels),
-			GFP_KERNEL);
+		kzalloc_flex(*channels, chandefs, n_channels);
 	if (!channels)
 		return -ENOMEM;
 

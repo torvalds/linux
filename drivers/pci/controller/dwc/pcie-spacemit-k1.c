@@ -281,7 +281,7 @@ static int k1_pcie_probe(struct platform_device *pdev)
 	struct k1_pcie *k1;
 	int ret;
 
-	k1 = devm_kzalloc(dev, sizeof(*k1), GFP_KERNEL);
+	k1 = devm_kzalloc_obj(dev, *k1);
 	if (!k1)
 		return -ENOMEM;
 

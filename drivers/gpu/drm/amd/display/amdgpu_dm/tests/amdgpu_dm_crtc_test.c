@@ -1628,7 +1628,7 @@ static void dm_test_crtc_destroy_cleans_up_and_frees(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane);
 
 	/* amdgpu_dm_crtc_destroy() kfree()s the CRTC, so use a plain alloc. */
-	acrtc = kzalloc_obj(*acrtc, GFP_KERNEL);
+	acrtc = kzalloc_obj(*acrtc);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
 
 	ret = drm_crtc_init_with_planes(&adev->ddev, &acrtc->base, plane,
@@ -1695,7 +1695,7 @@ static void dm_test_crtc_reset_state_replaces_existing(struct kunit *test)
 	kref_get(&stream->refcount);
 
 	/* reset_state kfree()s the old state, so use a plain (unmanaged) alloc. */
-	old = kzalloc_obj(*old, GFP_KERNEL);
+	old = kzalloc_obj(*old);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, old);
 	old->stream = stream;
 	crtc->state = &old->base;

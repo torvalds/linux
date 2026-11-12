@@ -340,7 +340,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	int num_dais;
 	int ret;
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 
@@ -378,7 +378,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	if (ndefaults < 0)
 		return ndefaults;
 
-	defaults = devm_kcalloc(dev, ndefaults, sizeof(*defaults), GFP_KERNEL);
+	defaults = devm_kzalloc_objs(dev, *defaults, ndefaults);
 	if (!defaults)
 		return -ENOMEM;
 

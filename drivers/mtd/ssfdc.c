@@ -329,8 +329,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	/* Allocate logical block map */
 	ssfdc->logic_block_map =
-		kmalloc_array(ssfdc->map_len,
-			      sizeof(ssfdc->logic_block_map[0]), GFP_KERNEL);
+		kmalloc_objs(ssfdc->logic_block_map[0], ssfdc->map_len);
 	if (!ssfdc->logic_block_map)
 		goto out_free_ssfdc;
 	memset(ssfdc->logic_block_map, 0xff, sizeof(ssfdc->logic_block_map[0]) *

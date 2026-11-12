@@ -194,10 +194,11 @@ static int snd_usbmidi_urb_error(const struct urb *urb)
 	case -ESHUTDOWN:
 	case -ENODEV:
 		return -ENODEV;
-	/* errors that might occur during unplugging */
+	/* errors that might occur during unplugging or switching off */
 	case -EPROTO:
 	case -ETIME:
 	case -EILSEQ:
+	case -EPIPE:
 		return -EIO;
 	default:
 		dev_err(&urb->dev->dev, "urb status %d\n", urb->status);

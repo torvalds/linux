@@ -491,7 +491,7 @@ static int is31fl319x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -EIO;
 
-	is31 = devm_kzalloc(&client->dev, sizeof(*is31), GFP_KERNEL);
+	is31 = devm_kzalloc_obj(&client->dev, *is31);
 	if (!is31)
 		return -ENOMEM;
 

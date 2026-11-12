@@ -326,7 +326,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	struct stm32_adfsdm_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1774,7 +1774,7 @@ static int sg2044_clk_probe(struct platform_device *pdev)
 
 	num_clks = desc->num_div + desc->num_gate + desc->num_mux;
 
-	ctrl = devm_kzalloc(dev, struct_size(ctrl, data.hws, num_clks), GFP_KERNEL);
+	ctrl = devm_kzalloc_flex(dev, *ctrl, data.hws, num_clks);
 	if (!ctrl)
 		return -ENOMEM;
 

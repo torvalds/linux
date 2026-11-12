@@ -520,7 +520,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 quirks;
 
-	ec_lpc = devm_kzalloc(dev, sizeof(*ec_lpc), GFP_KERNEL);
+	ec_lpc = devm_kzalloc_obj(dev, *ec_lpc);
 	if (!ec_lpc)
 		return -ENOMEM;
 

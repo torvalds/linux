@@ -27,10 +27,9 @@ int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
 
 	/* combine sub_dais */
 	afe->num_dai_drivers = num_dai_drivers;
-	afe->dai_drivers = devm_kcalloc(afe->dev,
-					num_dai_drivers,
-					sizeof(struct snd_soc_dai_driver),
-					GFP_KERNEL);
+	afe->dai_drivers = devm_kzalloc_objs(afe->dev,
+					     struct snd_soc_dai_driver,
+					     num_dai_drivers);
 	if (!afe->dai_drivers)
 		return -ENOMEM;
 

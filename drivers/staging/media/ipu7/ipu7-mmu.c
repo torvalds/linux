@@ -802,7 +802,7 @@ struct ipu7_mmu *ipu7_mmu_init(struct device *dev,
 	if (hw->nr_mmus > IPU_MMU_MAX_NUM)
 		return ERR_PTR(-EINVAL);
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -820,7 +820,7 @@ struct ipu7_mmu *ipu7_mmu_init(struct device *dev,
 		pdata_mmu->uao_base = base + src_mmu->uao_offset;
 	}
 
-	mmu = devm_kzalloc(dev, sizeof(*mmu), GFP_KERNEL);
+	mmu = devm_kzalloc_obj(dev, *mmu);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 

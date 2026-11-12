@@ -128,13 +128,12 @@ static int as3711_i2c_probe(struct i2c_client *client)
 		if (!pdata)
 			dev_dbg(&client->dev, "Platform data not found\n");
 	} else {
-		pdata = devm_kzalloc(&client->dev,
-				     sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&client->dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 	}
 
-	as3711 = devm_kzalloc(&client->dev, sizeof(struct as3711), GFP_KERNEL);
+	as3711 = devm_kzalloc_obj(&client->dev, struct as3711);
 	if (!as3711)
 		return -ENOMEM;
 

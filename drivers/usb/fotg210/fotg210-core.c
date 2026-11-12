@@ -184,7 +184,7 @@ static int fotg210_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	fotg = devm_kzalloc(dev, sizeof(*fotg), GFP_KERNEL);
+	fotg = devm_kzalloc_obj(dev, *fotg);
 	if (!fotg)
 		return -ENOMEM;
 	fotg->dev = dev;

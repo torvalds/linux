@@ -243,8 +243,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	ssusb->num_phys = of_count_phandle_with_args(node,
 			"phys", "#phy-cells");
 	if (ssusb->num_phys > 0) {
-		ssusb->phys = devm_kcalloc(dev, ssusb->num_phys,
-					sizeof(*ssusb->phys), GFP_KERNEL);
+		ssusb->phys = devm_kzalloc_objs(dev, *ssusb->phys,
+						ssusb->num_phys);
 		if (!ssusb->phys)
 			return -ENOMEM;
 	} else {
@@ -332,7 +332,7 @@ static int mtu3_probe(struct platform_device *pdev)
 	int ret = -ENOMEM;
 
 	/* all elements are set to ZERO as default value */
-	ssusb = devm_kzalloc(dev, sizeof(*ssusb), GFP_KERNEL);
+	ssusb = devm_kzalloc_obj(dev, *ssusb);
 	if (!ssusb)
 		return -ENOMEM;
 

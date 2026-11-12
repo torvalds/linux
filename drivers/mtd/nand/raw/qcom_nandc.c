@@ -1959,8 +1959,8 @@ static int qcom_nand_host_parse_boot_partitions(struct qcom_nand_controller *nan
 	}
 
 	host->nr_boot_partitions = partitions_count / 2;
-	host->boot_partitions = devm_kcalloc(dev, host->nr_boot_partitions,
-					     sizeof(*host->boot_partitions), GFP_KERNEL);
+	host->boot_partitions = devm_kzalloc_objs(dev, *host->boot_partitions,
+						  host->nr_boot_partitions);
 	if (!host->boot_partitions) {
 		host->nr_boot_partitions = 0;
 		return -ENOMEM;
@@ -2077,7 +2077,7 @@ static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
 	int ret = -ENODEV;
 
 	for_each_available_child_of_node_scoped(dn, child) {
-		host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+		host = devm_kzalloc_obj(dev, *host);
 		if (!host)
 			return -ENOMEM;
 
@@ -2127,7 +2127,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	nandc = devm_kzalloc(&pdev->dev, sizeof(*nandc), GFP_KERNEL);
+	nandc = devm_kzalloc_obj(&pdev->dev, *nandc);
 	if (!nandc)
 		return -ENOMEM;
 

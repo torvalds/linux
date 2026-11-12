@@ -955,10 +955,10 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	writel(CQSPI_REG_VERSAL_DMA_DST_CTRL_VAL,
 	       reg_base + CQSPI_REG_VERSAL_DMA_DST_CTRL);
 
+	reinit_completion(&cqspi->transfer_complete);
+
 	writel(CQSPI_REG_INDIRECTRD_START_MASK,
 	       reg_base + CQSPI_REG_INDIRECTRD);
-
-	reinit_completion(&cqspi->transfer_complete);
 
 	if (!wait_for_completion_timeout(&cqspi->transfer_complete,
 					 msecs_to_jiffies(max_t(size_t, bytes_to_dma, 500)))) {

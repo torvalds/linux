@@ -1861,7 +1861,7 @@ static int kvaser_usb_leaf_init_channel(struct kvaser_usb_net_priv *priv)
 {
 	struct kvaser_usb_net_leaf_priv *leaf;
 
-	leaf = devm_kzalloc(&priv->dev->intf->dev, sizeof(*leaf), GFP_KERNEL);
+	leaf = devm_kzalloc_obj(&priv->dev->intf->dev, *leaf);
 	if (!leaf)
 		return -ENOMEM;
 

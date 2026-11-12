@@ -320,7 +320,7 @@ static int wcnss_ctrl_probe(struct rpmsg_device *rpdev)
 {
 	struct wcnss_ctrl *wcnss;
 
-	wcnss = devm_kzalloc(&rpdev->dev, sizeof(*wcnss), GFP_KERNEL);
+	wcnss = devm_kzalloc_obj(&rpdev->dev, *wcnss);
 	if (!wcnss)
 		return -ENOMEM;
 

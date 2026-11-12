@@ -100,7 +100,7 @@ static int rtd119x_wdt_probe(struct platform_device *pdev)
 	struct rtd119x_watchdog_device *data;
 	unsigned long rate;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

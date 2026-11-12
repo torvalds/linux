@@ -521,7 +521,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 		return -EINVAL;
 	}
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

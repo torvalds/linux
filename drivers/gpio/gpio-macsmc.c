@@ -239,7 +239,7 @@ static int macsmc_gpio_probe(struct platform_device *pdev)
 	smc_key key;
 	int ret;
 
-	smcgp = devm_kzalloc(&pdev->dev, sizeof(*smcgp), GFP_KERNEL);
+	smcgp = devm_kzalloc_obj(&pdev->dev, *smcgp);
 	if (!smcgp)
 		return -ENOMEM;
 

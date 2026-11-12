@@ -67,8 +67,8 @@ static int avs_create_dai_links(struct device *dev, struct snd_soc_dai_link **li
 	struct snd_soc_dai_link *dl;
 	const int num_dl = 2;
 
-	dl = devm_kcalloc(dev, num_dl, sizeof(*dl), GFP_KERNEL);
-	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+	dl = devm_kzalloc_objs(dev, *dl, num_dl);
+	platform = devm_kzalloc_obj(dev, *platform);
 	if (!dl || !platform)
 		return -ENOMEM;
 
@@ -106,7 +106,7 @@ static int avs_pcm3168a_probe(struct platform_device *pdev)
 	mach = dev_get_platdata(dev);
 	pdata = mach->pdata;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

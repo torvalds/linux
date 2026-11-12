@@ -250,8 +250,7 @@ static int wm8524_codec_probe(struct platform_device *pdev)
 	struct wm8524_priv *wm8524;
 	int ret;
 
-	wm8524 = devm_kzalloc(&pdev->dev, sizeof(struct wm8524_priv),
-						  GFP_KERNEL);
+	wm8524 = devm_kzalloc_obj(&pdev->dev, struct wm8524_priv);
 	if (wm8524 == NULL)
 		return -ENOMEM;
 

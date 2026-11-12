@@ -3910,7 +3910,7 @@ static int cs48l32_spi_probe(struct spi_device *spi)
 	unsigned int hwid, rev, otp_rev;
 	int i, ret;
 
-	cs48l32_codec = devm_kzalloc(&spi->dev, sizeof(*cs48l32_codec), GFP_KERNEL);
+	cs48l32_codec = devm_kzalloc_obj(&spi->dev, *cs48l32_codec);
 	if (!cs48l32_codec)
 		return -ENOMEM;
 

@@ -69,7 +69,7 @@ int bcm63xx_pinctrl_probe(struct platform_device *pdev,
 	struct bcm63xx_pinctrl *pc;
 	int err;
 
-	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
+	pc = devm_kzalloc_obj(dev, *pc);
 	if (!pc)
 		return -ENOMEM;
 

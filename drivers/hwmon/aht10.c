@@ -340,7 +340,7 @@ static int aht10_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENOENT;
 
-	data = devm_kzalloc(device, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(device, *data);
 	if (!data)
 		return -ENOMEM;
 

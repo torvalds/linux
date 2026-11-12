@@ -208,7 +208,7 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ngpios, nirqs, ret;
 
-	mpfs_gpio = devm_kzalloc(dev, sizeof(*mpfs_gpio), GFP_KERNEL);
+	mpfs_gpio = devm_kzalloc_obj(dev, *mpfs_gpio);
 	if (!mpfs_gpio)
 		return -ENOMEM;
 
@@ -253,8 +253,8 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &mpfs_gpio_irqchip);
 
 		girq->num_parents = nirqs;
-		girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
-					     sizeof(*girq->parents), GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents,
+						  girq->num_parents);
 		if (!girq->parents)
 			return -ENOMEM;
 

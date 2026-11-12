@@ -186,7 +186,7 @@ static int icn8318_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

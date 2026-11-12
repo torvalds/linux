@@ -373,7 +373,7 @@ static int acpi_pfrt_log_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pfrt_log_dev = devm_kzalloc(&pdev->dev, sizeof(*pfrt_log_dev), GFP_KERNEL);
+	pfrt_log_dev = devm_kzalloc_obj(&pdev->dev, *pfrt_log_dev);
 	if (!pfrt_log_dev)
 		return -ENOMEM;
 

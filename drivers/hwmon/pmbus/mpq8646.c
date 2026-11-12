@@ -769,9 +769,8 @@ static void mpq8646_debugfs_register_unsafe(struct mpq8646_priv *priv,
 	debugfs_create_file_unsafe("restore_all", 0200, root, priv,
 				   &mpq8646_dbg_restore_all_fops);
 
-	ctx = devm_kcalloc(&priv->client->dev,
-			   ARRAY_SIZE(mpq8646_dbg_regs_unsafe),
-			   sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_objs(&priv->client->dev, *ctx,
+				ARRAY_SIZE(mpq8646_dbg_regs_unsafe));
 	if (!ctx)
 		return;
 	for (i = 0; i < ARRAY_SIZE(mpq8646_dbg_regs_unsafe); i++) {
@@ -830,10 +829,9 @@ static void mpq8646_debugfs_register(struct mpq8646_priv *priv)
 					   root, priv,
 					   &mpq8646_dbg_poll_interval_fops);
 
-	priv->dbg_reg_ctx = devm_kcalloc(&priv->client->dev,
-					 ARRAY_SIZE(mpq8646_dbg_regs),
-					 sizeof(*priv->dbg_reg_ctx),
-					 GFP_KERNEL);
+	priv->dbg_reg_ctx = devm_kzalloc_objs(&priv->client->dev,
+					      *priv->dbg_reg_ctx,
+					      ARRAY_SIZE(mpq8646_dbg_regs));
 	if (!priv->dbg_reg_ctx)
 		return;
 	for (i = 0; i < ARRAY_SIZE(mpq8646_dbg_regs); i++) {
@@ -882,7 +880,7 @@ static int mpq8646_probe(struct i2c_client *client)
 	u32 voltage_scale;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->client = client;

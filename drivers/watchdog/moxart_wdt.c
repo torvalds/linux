@@ -93,7 +93,7 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	unsigned int max_timeout;
 	bool nowayout = WATCHDOG_NOWAYOUT;
 
-	moxart_wdt = devm_kzalloc(dev, sizeof(*moxart_wdt), GFP_KERNEL);
+	moxart_wdt = devm_kzalloc_obj(dev, *moxart_wdt);
 	if (!moxart_wdt)
 		return -ENOMEM;
 

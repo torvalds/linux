@@ -575,7 +575,7 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 	struct sp5100_tco *tco;
 	int ret;
 
-	tco = devm_kzalloc(dev, sizeof(*tco), GFP_KERNEL);
+	tco = devm_kzalloc_obj(dev, *tco);
 	if (!tco)
 		return -ENOMEM;
 

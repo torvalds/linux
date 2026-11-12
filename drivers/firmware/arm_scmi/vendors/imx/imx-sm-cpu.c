@@ -238,7 +238,7 @@ static int scmi_imx_cpu_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_info(ph->dev, "NXP SM CPU Protocol Version %d.%d\n",
 		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	info = devm_kzalloc(ph->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(ph->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

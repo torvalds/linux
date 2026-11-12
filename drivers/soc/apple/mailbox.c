@@ -338,7 +338,7 @@ static int apple_mbox_probe(struct platform_device *pdev)
 	struct apple_mbox *mbox;
 	struct device *dev = &pdev->dev;
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 

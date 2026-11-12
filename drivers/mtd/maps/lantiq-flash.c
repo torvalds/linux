@@ -112,7 +112,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	struct cfi_private *cfi;
 	int err;
 
-	ltq_mtd = devm_kzalloc(&pdev->dev, sizeof(struct ltq_mtd), GFP_KERNEL);
+	ltq_mtd = devm_kzalloc_obj(&pdev->dev, struct ltq_mtd);
 	if (!ltq_mtd)
 		return -ENOMEM;
 
@@ -122,8 +122,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	if (IS_ERR(ltq_mtd->map->virt))
 		return PTR_ERR(ltq_mtd->map->virt);
 
-	ltq_mtd->map = devm_kzalloc(&pdev->dev, sizeof(struct map_info),
-				    GFP_KERNEL);
+	ltq_mtd->map = devm_kzalloc_obj(&pdev->dev, struct map_info);
 	if (!ltq_mtd->map)
 		return -ENOMEM;
 

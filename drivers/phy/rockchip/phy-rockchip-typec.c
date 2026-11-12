@@ -1106,7 +1106,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	const struct rockchip_usb3phy_port_cfg *phy_cfgs;
 	int index, ret;
 
-	tcphy = devm_kzalloc(dev, sizeof(*tcphy), GFP_KERNEL);
+	tcphy = devm_kzalloc_obj(dev, *tcphy);
 	if (!tcphy)
 		return -ENOMEM;
 

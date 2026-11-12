@@ -225,8 +225,7 @@ static int btintel_pcie_alloc_dbgc_buf(struct btintel_pcie_data *data,
 	struct data_buf *b;
 	int i;
 
-	*buf = devm_kcalloc(&data->pdev->dev, buf_count,
-			    sizeof(**buf), GFP_KERNEL);
+	*buf = devm_kzalloc_objs(&data->pdev->dev, **buf, buf_count);
 	if (!*buf) {
 		BT_ERR("Failed to allocate dbgc buf: %u", buf_index + 1);
 		return -ENOMEM;
@@ -793,7 +792,7 @@ static struct scatterlist *btintel_pcie_alloc_sgtable(ssize_t size)
 		return NULL;
 
 	nents = DIV_ROUND_UP(size, PAGE_SIZE);
-	result = kcalloc(nents, sizeof(*result), GFP_KERNEL);
+	result = kzalloc_objs(*result, nents);
 	if (!result)
 		return NULL;
 
@@ -4061,7 +4060,7 @@ static int btintel_pcie_probe(struct pci_dev *pdev,
 	if (!pdev)
 		return -ENODEV;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

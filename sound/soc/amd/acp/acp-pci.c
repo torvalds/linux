@@ -63,7 +63,7 @@ static int create_acp_platform_devs(struct pci_dev *pci, struct acp_chip_info *c
 	parent = &pci->dev;
 
 	if (chip->is_i2s_config || chip->is_pdm_dev) {
-		chip->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
+		chip->res = devm_kzalloc_obj(&pci->dev, struct resource);
 		if (!chip->res) {
 			ret = -ENOMEM;
 			goto err;
@@ -114,7 +114,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	if (flag != FLAG_AMD_LEGACY && flag != FLAG_AMD_LEGACY_ONLY_DMIC)
 		return -ENODEV;
 
-	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pci->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

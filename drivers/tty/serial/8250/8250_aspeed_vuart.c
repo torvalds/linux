@@ -426,7 +426,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 
-	vuart = devm_kzalloc(&pdev->dev, sizeof(*vuart), GFP_KERNEL);
+	vuart = devm_kzalloc_obj(&pdev->dev, *vuart);
 	if (!vuart)
 		return -ENOMEM;
 

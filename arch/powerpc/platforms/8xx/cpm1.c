@@ -491,7 +491,7 @@ int cpm1_gpiochip_add16(struct device *dev)
 	struct gpio_chip *gc;
 	u32 mask;
 
-	cpm1_gc = devm_kzalloc(dev, sizeof(*cpm1_gc), GFP_KERNEL);
+	cpm1_gc = devm_kzalloc_obj(dev, *cpm1_gc);
 	if (!cpm1_gc)
 		return -ENOMEM;
 
@@ -635,7 +635,7 @@ int cpm1_gpiochip_add32(struct device *dev)
 	struct cpm1_gpio32_chip *cpm1_gc;
 	struct gpio_chip *gc;
 
-	cpm1_gc = devm_kzalloc(dev, sizeof(*cpm1_gc), GFP_KERNEL);
+	cpm1_gc = devm_kzalloc_obj(dev, *cpm1_gc);
 	if (!cpm1_gc)
 		return -ENOMEM;
 

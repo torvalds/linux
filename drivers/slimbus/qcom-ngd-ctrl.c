@@ -456,7 +456,7 @@ static int qcom_slim_qmi_init(struct qcom_slim_ngd_ctrl *ctrl,
 	struct qmi_handle *handle;
 	int rc;
 
-	handle = devm_kzalloc(ctrl->dev, sizeof(*handle), GFP_KERNEL);
+	handle = devm_kzalloc_obj(ctrl->dev, *handle);
 	if (!handle)
 		return -ENOMEM;
 
@@ -1673,7 +1673,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	int ret;
 	struct pdr_service *pds;
 
-	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 

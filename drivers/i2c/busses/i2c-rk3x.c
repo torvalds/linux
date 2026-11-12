@@ -1244,7 +1244,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	int irq;
 	unsigned long clk_rate;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(struct rk3x_i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, struct rk3x_i2c);
 	if (!i2c)
 		return -ENOMEM;
 

@@ -168,8 +168,7 @@ of_get_fixed_voltage_config(struct device *dev,
 	struct device_node *np = dev->of_node;
 	struct regulator_init_data *init_data;
 
-	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
-								 GFP_KERNEL);
+	config = devm_kzalloc_obj(dev, struct fixed_voltage_config);
 	if (!config)
 		return ERR_PTR(-ENOMEM);
 
@@ -229,8 +228,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node && strcmp(pdev->name, "reg-fixed-voltage"))
 		return -ENODEV;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct fixed_voltage_data),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct fixed_voltage_data);
 	if (!drvdata)
 		return -ENOMEM;
 

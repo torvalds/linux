@@ -296,8 +296,7 @@ static int acp3x_dai_probe(struct platform_device *pdev)
 	struct i2s_dev_data *adata;
 	int ret;
 
-	adata = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dev_data),
-			GFP_KERNEL);
+	adata = devm_kzalloc_obj(&pdev->dev, struct i2s_dev_data);
 	if (!adata)
 		return -ENOMEM;
 

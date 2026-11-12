@@ -1650,7 +1650,7 @@ static int q6asm_probe(struct apr_device *adev)
 	struct device *dev = &adev->dev;
 	struct q6asm *q6asm;
 
-	q6asm = devm_kzalloc(dev, sizeof(*q6asm), GFP_KERNEL);
+	q6asm = devm_kzalloc_obj(dev, *q6asm);
 	if (!q6asm)
 		return -ENOMEM;
 

@@ -215,7 +215,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	int vidnr = -1;
 	int err;
 
-	dev = devm_kzalloc(&pci_dev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pci_dev->dev, *dev);
 	if (NULL == dev)
 		return -ENOMEM;
 

@@ -369,8 +369,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	} else if (res->flags & IORESOURCE_MEM) {
 		/* we are memory-mapped */
 		if (!pdata) {
-			pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata),
-						GFP_KERNEL);
+			pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 			if (!pdata)
 				return -ENOMEM;
 			/* Ensure we only kmalloc platform data once */
@@ -386,7 +385,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 			pdata->read_byte = m48t59_mem_readb;
 	}
 
-	m48t59 = devm_kzalloc(&pdev->dev, sizeof(*m48t59), GFP_KERNEL);
+	m48t59 = devm_kzalloc_obj(&pdev->dev, *m48t59);
 	if (!m48t59)
 		return -ENOMEM;
 

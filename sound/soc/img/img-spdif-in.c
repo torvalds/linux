@@ -689,7 +689,7 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 	u32 reg;
 	struct device *dev = &pdev->dev;
 
-	spdif = devm_kzalloc(&pdev->dev, sizeof(*spdif), GFP_KERNEL);
+	spdif = devm_kzalloc_obj(&pdev->dev, *spdif);
 	if (!spdif)
 		return -ENOMEM;
 

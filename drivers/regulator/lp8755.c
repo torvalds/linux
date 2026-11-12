@@ -367,8 +367,7 @@ static int lp8755_probe(struct i2c_client *client)
 		return -EOPNOTSUPP;
 	}
 
-	pchip = devm_kzalloc(&client->dev,
-			     sizeof(struct lp8755_chip), GFP_KERNEL);
+	pchip = devm_kzalloc_obj(&client->dev, struct lp8755_chip);
 	if (!pchip)
 		return -ENOMEM;
 
@@ -385,9 +384,8 @@ static int lp8755_probe(struct i2c_client *client)
 		pchip->pdata = pdata;
 		pchip->mphase = pdata->mphase;
 	} else {
-		pchip->pdata = devm_kzalloc(pchip->dev,
-					    sizeof(struct lp8755_platform_data),
-					    GFP_KERNEL);
+		pchip->pdata = devm_kzalloc_obj(pchip->dev,
+						struct lp8755_platform_data);
 		if (!pchip->pdata)
 			return -ENOMEM;
 		ret = lp8755_init_data(pchip);

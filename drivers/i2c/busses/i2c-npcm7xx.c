@@ -2500,7 +2500,7 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(&pdev->dev, *bus);
 	if (!bus)
 		return -ENOMEM;
 

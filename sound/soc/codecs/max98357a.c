@@ -124,7 +124,7 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 	struct max98357a_priv *max98357a;
 	int ret;
 
-	max98357a = devm_kzalloc(&pdev->dev, sizeof(*max98357a), GFP_KERNEL);
+	max98357a = devm_kzalloc_obj(&pdev->dev, *max98357a);
 	if (!max98357a)
 		return -ENOMEM;
 

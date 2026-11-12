@@ -215,7 +215,7 @@ static int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 	struct cpdma_desc_pool *pool;
 	int ret = -ENOMEM;
 
-	pool = devm_kzalloc(ctlr->dev, sizeof(*pool), GFP_KERNEL);
+	pool = devm_kzalloc_obj(ctlr->dev, *pool);
 	if (!pool)
 		goto gen_pool_create_fail;
 	ctlr->pool = pool;
@@ -511,7 +511,7 @@ struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
 {
 	struct cpdma_ctlr *ctlr;
 
-	ctlr = devm_kzalloc(params->dev, sizeof(*ctlr), GFP_KERNEL);
+	ctlr = devm_kzalloc_obj(params->dev, *ctlr);
 	if (!ctlr)
 		return NULL;
 
@@ -897,7 +897,7 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	if (__chan_linear(chan_num) >= ctlr->num_chan)
 		return ERR_PTR(-EINVAL);
 
-	chan = devm_kzalloc(ctlr->dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(ctlr->dev, *chan);
 	if (!chan)
 		return ERR_PTR(-ENOMEM);
 

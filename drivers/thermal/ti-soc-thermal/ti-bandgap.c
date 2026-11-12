@@ -830,7 +830,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
+	bgp = devm_kzalloc_obj(&pdev->dev, *bgp);
 	if (!bgp)
 		return ERR_PTR(-ENOMEM);
 
@@ -839,8 +839,8 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 		bgp->conf = of_id->data;
 
 	/* register shadow for context save and restore */
-	bgp->regval = devm_kcalloc(&pdev->dev, bgp->conf->sensor_count,
-				   sizeof(*bgp->regval), GFP_KERNEL);
+	bgp->regval = devm_kzalloc_objs(&pdev->dev, *bgp->regval,
+					bgp->conf->sensor_count);
 	if (!bgp->regval)
 		return ERR_PTR(-ENOMEM);
 

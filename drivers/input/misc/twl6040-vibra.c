@@ -241,7 +241,7 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info) {
 		dev_err(&pdev->dev, "couldn't allocate memory\n");
 		return -ENOMEM;

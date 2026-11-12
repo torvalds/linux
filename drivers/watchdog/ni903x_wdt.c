@@ -192,7 +192,7 @@ static int ni903x_acpi_probe(struct platform_device *pdev)
 	if (!handle)
 		return -ENODEV;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

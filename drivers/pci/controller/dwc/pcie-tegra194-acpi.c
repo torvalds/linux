@@ -24,7 +24,7 @@ static int tegra194_acpi_init(struct pci_config_window *cfg)
 	struct device *dev = cfg->parent;
 	struct tegra194_pcie_ecam *pcie_ecam;
 
-	pcie_ecam = devm_kzalloc(dev, sizeof(*pcie_ecam), GFP_KERNEL);
+	pcie_ecam = devm_kzalloc_obj(dev, *pcie_ecam);
 	if (!pcie_ecam)
 		return -ENOMEM;
 

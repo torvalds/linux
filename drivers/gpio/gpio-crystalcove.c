@@ -340,7 +340,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	cg = devm_kzalloc(&pdev->dev, sizeof(*cg), GFP_KERNEL);
+	cg = devm_kzalloc_obj(&pdev->dev, *cg);
 	if (!cg)
 		return -ENOMEM;
 

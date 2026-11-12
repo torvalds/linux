@@ -43,7 +43,7 @@ int mmc_gpio_alloc(struct mmc_host *host)
 	const char *devname = dev_name(host->parent);
 	struct mmc_gpio *ctx;
 
-	ctx = devm_kzalloc(host->parent, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(host->parent, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

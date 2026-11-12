@@ -255,7 +255,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bus = devm_kzalloc(dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(dev, *bus);
 	if (bus == NULL)
 		return -ENOMEM;
 

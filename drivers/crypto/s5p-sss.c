@@ -2139,7 +2139,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	if (s5p_dev)
 		return -EEXIST;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

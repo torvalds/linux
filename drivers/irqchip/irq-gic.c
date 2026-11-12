@@ -1419,7 +1419,7 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
 	if (!dev || !dev->of_node || !gic || !irq)
 		return -EINVAL;
 
-	*gic = devm_kzalloc(dev, sizeof(**gic), GFP_KERNEL);
+	*gic = devm_kzalloc_obj(dev, **gic);
 	if (!*gic)
 		return -ENOMEM;
 

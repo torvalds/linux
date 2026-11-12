@@ -1525,8 +1525,8 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 	gc->ngpio	= vg->soc->npins;
 
 #ifdef CONFIG_PM_SLEEP
-	vg->context.pads = devm_kcalloc(vg->dev, gc->ngpio, sizeof(*vg->context.pads),
-					GFP_KERNEL);
+	vg->context.pads = devm_kzalloc_objs(vg->dev, *vg->context.pads,
+					     gc->ngpio);
 	if (!vg->context.pads)
 		return -ENOMEM;
 #endif
@@ -1542,8 +1542,8 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 		girq->init_valid_mask = byt_init_irq_valid_mask;
 		girq->parent_handler = byt_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(vg->dev, girq->num_parents,
-					     sizeof(*girq->parents), GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(vg->dev, *girq->parents,
+						  girq->num_parents);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->parents[0] = irq;
@@ -1600,7 +1600,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(soc_data))
 		return PTR_ERR(soc_data);
 
-	vg = devm_kzalloc(dev, sizeof(*vg), GFP_KERNEL);
+	vg = devm_kzalloc_obj(dev, *vg);
 	if (!vg)
 		return -ENOMEM;
 

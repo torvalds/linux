@@ -90,7 +90,7 @@ static int adxl367_spi_probe(struct spi_device *spi)
 	struct adxl367_spi_state *st;
 	struct regmap *regmap;
 
-	st = devm_kzalloc(&spi->dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(&spi->dev, *st);
 	if (!st)
 		return -ENOMEM;
 

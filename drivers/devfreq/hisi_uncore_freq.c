@@ -563,7 +563,7 @@ static int hisi_uncore_devfreq_register(struct hisi_uncore_freq *uncore)
 	if (rc)
 		return dev_err_probe(dev, rc, "Failed to get plat init freq\n");
 
-	profile = devm_kzalloc(dev, sizeof(*profile), GFP_KERNEL);
+	profile = devm_kzalloc_obj(dev, *profile);
 	if (!profile)
 		return -ENOMEM;
 
@@ -601,7 +601,7 @@ static int hisi_uncore_freq_probe(struct platform_device *pdev)
 	u32 cap;
 	int rc;
 
-	uncore = devm_kzalloc(dev, sizeof(*uncore), GFP_KERNEL);
+	uncore = devm_kzalloc_obj(dev, *uncore);
 	if (!uncore)
 		return -ENOMEM;
 

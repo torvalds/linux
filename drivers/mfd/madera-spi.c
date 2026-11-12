@@ -76,7 +76,7 @@ static int madera_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	madera = devm_kzalloc(&spi->dev, sizeof(*madera), GFP_KERNEL);
+	madera = devm_kzalloc_obj(&spi->dev, *madera);
 	if (!madera)
 		return -ENOMEM;
 

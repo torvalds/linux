@@ -553,7 +553,7 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 	struct pf1550_charger *chg;
 	int i, irq, ret;
 
-	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
+	chg = devm_kzalloc_obj(&pdev->dev, *chg);
 	if (!chg)
 		return -ENOMEM;
 

@@ -520,12 +520,11 @@ static int dvfsrc_get_hw_opps_v4(struct mtk_dvfsrc *dvfsrc)
 		 num_opps, num_vcore, num_dram, num_emi);
 
 	/* Allocate everything now as anything else after that cannot fail */
-	desc = devm_kzalloc(dvfsrc->dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dvfsrc->dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 
-	dvfsrc_opps = devm_kcalloc(dvfsrc->dev, num_opps + 1,
-				   sizeof(*dvfsrc_opps), GFP_KERNEL);
+	dvfsrc_opps = devm_kzalloc_objs(dvfsrc->dev, *dvfsrc_opps, num_opps + 1);
 	if (!dvfsrc_opps)
 		return -ENOMEM;
 
@@ -653,7 +652,7 @@ static int mtk_dvfsrc_probe(struct platform_device *pdev)
 	struct mtk_dvfsrc *dvfsrc;
 	int ret;
 
-	dvfsrc = devm_kzalloc(&pdev->dev, sizeof(*dvfsrc), GFP_KERNEL);
+	dvfsrc = devm_kzalloc_obj(&pdev->dev, *dvfsrc);
 	if (!dvfsrc)
 		return -ENOMEM;
 

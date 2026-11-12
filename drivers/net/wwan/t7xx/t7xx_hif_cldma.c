@@ -1110,7 +1110,7 @@ int t7xx_cldma_alloc(enum cldma_id hif_id, struct t7xx_pci_dev *t7xx_dev)
 	struct cldma_ctrl *md_ctrl;
 	int qno;
 
-	md_ctrl = devm_kzalloc(dev, sizeof(*md_ctrl), GFP_KERNEL);
+	md_ctrl = devm_kzalloc_obj(dev, *md_ctrl);
 	if (!md_ctrl)
 		return -ENOMEM;
 

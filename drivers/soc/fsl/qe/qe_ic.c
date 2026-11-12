@@ -414,7 +414,7 @@ static int qe_ic_init(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	qe_ic = devm_kzalloc(dev, sizeof(*qe_ic), GFP_KERNEL);
+	qe_ic = devm_kzalloc_obj(dev, *qe_ic);
 	if (qe_ic == NULL)
 		return -ENOMEM;
 

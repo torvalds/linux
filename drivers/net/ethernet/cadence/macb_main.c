@@ -5854,7 +5854,7 @@ static int fu540_c000_clk_init(struct platform_device *pdev, struct clk **pclk,
 	if (err)
 		return err;
 
-	mgmt = devm_kzalloc(&pdev->dev, sizeof(*mgmt), GFP_KERNEL);
+	mgmt = devm_kzalloc_obj(&pdev->dev, *mgmt);
 	if (!mgmt) {
 		err = -ENOMEM;
 		goto err_disable_clks;

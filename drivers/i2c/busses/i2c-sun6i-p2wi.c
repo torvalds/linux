@@ -205,7 +205,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	if (of_get_child_count(np) > 1)
 		return dev_err_probe(dev, -EINVAL, "P2WI only supports one target device\n");
 
-	p2wi = devm_kzalloc(dev, sizeof(struct p2wi), GFP_KERNEL);
+	p2wi = devm_kzalloc_obj(dev, struct p2wi);
 	if (!p2wi)
 		return -ENOMEM;
 

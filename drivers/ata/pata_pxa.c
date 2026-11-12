@@ -244,8 +244,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	/*
 	 * Allocate and load driver's internal data structure
 	 */
-	data = devm_kzalloc(&pdev->dev, sizeof(struct pata_pxa_data),
-								GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct pata_pxa_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -2790,8 +2790,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	mutex_unlock(&ntfs_lock);
 
 	lcn_bit_pages = (((vol->nr_clusters + 7) >> 3) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	vol->lcn_empty_bits_per_page = kvmalloc_array(lcn_bit_pages, sizeof(unsigned int),
-						      GFP_KERNEL);
+	vol->lcn_empty_bits_per_page = kvmalloc_objs(unsigned int,
+						     lcn_bit_pages);
 	if (!vol->lcn_empty_bits_per_page) {
 		ntfs_error(sb,
 			   "Unable to allocate pages for storing LCN empty bit counts\n");

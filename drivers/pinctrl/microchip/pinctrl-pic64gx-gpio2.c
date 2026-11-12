@@ -301,7 +301,7 @@ static int pic64gx_gpio2_probe(struct platform_device *pdev)
 	struct pic64gx_gpio2_pinctrl *pctrl;
 	void __iomem *base;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

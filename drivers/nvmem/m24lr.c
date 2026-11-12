@@ -506,7 +506,7 @@ static int m24lr_probe(struct i2c_client *client)
 	if (!chip)
 		return -ENODEV;
 
-	m24lr = devm_kzalloc(dev, sizeof(struct m24lr), GFP_KERNEL);
+	m24lr = devm_kzalloc_obj(dev, struct m24lr);
 	if (!m24lr)
 		return -ENOMEM;
 

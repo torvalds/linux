@@ -773,7 +773,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
 				     "can't get the clock\n");
 
-	mxs_phy = devm_kzalloc(&pdev->dev, sizeof(*mxs_phy), GFP_KERNEL);
+	mxs_phy = devm_kzalloc_obj(&pdev->dev, *mxs_phy);
 	if (!mxs_phy)
 		return -ENOMEM;
 

@@ -644,7 +644,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	if (irq < 0)
 		return irq;
 
-	prv = devm_kzalloc(dev, sizeof(*prv), GFP_KERNEL);
+	prv = devm_kzalloc_obj(dev, *prv);
 	if (!prv)
 		return -ENOMEM;
 

@@ -232,7 +232,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 	struct img_ascii_lcd_ctx *ctx;
 	int err;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

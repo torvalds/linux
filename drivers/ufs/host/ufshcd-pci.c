@@ -365,7 +365,7 @@ static int ufs_intel_common_init(struct ufs_hba *hba)
 
 	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
 
-	host = devm_kzalloc(hba->dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(hba->dev, *host);
 	if (!host)
 		return -ENOMEM;
 	host->saved_spm_lvl = -1;

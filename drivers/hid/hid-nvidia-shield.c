@@ -864,7 +864,7 @@ static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 	struct thunderstrike *ts;
 	int ret;
 
-	ts = devm_kzalloc(&hdev->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&hdev->dev, *ts);
 	if (!ts)
 		return ERR_PTR(-ENOMEM);
 

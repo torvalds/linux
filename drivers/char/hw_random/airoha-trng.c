@@ -171,7 +171,7 @@ static int airoha_trng_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 val;
 
-	trng = devm_kzalloc(dev, sizeof(*trng), GFP_KERNEL);
+	trng = devm_kzalloc_obj(dev, *trng);
 	if (!trng)
 		return -ENOMEM;
 

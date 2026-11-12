@@ -899,7 +899,7 @@ static int ov9734_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ov9734 = devm_kzalloc(&client->dev, sizeof(*ov9734), GFP_KERNEL);
+	ov9734 = devm_kzalloc_obj(&client->dev, *ov9734);
 	if (!ov9734)
 		return -ENOMEM;
 

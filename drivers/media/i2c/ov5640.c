@@ -3850,7 +3850,7 @@ static int ov5640_probe(struct i2c_client *client)
 	struct ov5640_dev *sensor;
 	int ret;
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

@@ -9221,7 +9221,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 	unsigned long *nodes;
 	int len = 0;
 
-	nodes = kcalloc(nr_node_ids, sizeof(unsigned long), GFP_KERNEL);
+	nodes = kzalloc_objs(unsigned long, nr_node_ids);
 	if (!nodes)
 		return -ENOMEM;
 

@@ -1871,7 +1871,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 			return PTR_ERR(regmaps[i]);
 
 	/* Alloc port structure */
-	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr), GFP_KERNEL);
+	s = devm_kzalloc_flex(dev, *s, p, devtype->nr);
 	if (!s)
 		return -ENOMEM;
 

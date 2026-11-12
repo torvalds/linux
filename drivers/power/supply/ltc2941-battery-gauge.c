@@ -449,7 +449,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client)
 	s32 r_sense;
 	u8 status;
 
-	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, *info);
 	if (info == NULL)
 		return -ENOMEM;
 

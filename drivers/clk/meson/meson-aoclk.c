@@ -55,7 +55,7 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	data = container_of(clkc_data, struct meson_aoclk_data,
 			    clkc_data);
 
-	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
+	rstc = devm_kzalloc_obj(dev, *rstc);
 	if (!rstc)
 		return -ENOMEM;
 

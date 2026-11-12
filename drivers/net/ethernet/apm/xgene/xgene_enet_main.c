@@ -1225,8 +1225,7 @@ static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
 	if (size < 0)
 		return NULL;
 
-	ring = devm_kzalloc(dev, sizeof(struct xgene_enet_desc_ring),
-			    GFP_KERNEL);
+	ring = devm_kzalloc_obj(dev, struct xgene_enet_desc_ring);
 	if (!ring)
 		return NULL;
 
@@ -1347,9 +1346,8 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		rx_ring->nbufpool = NUM_BUFPOOL;
 		rx_ring->npagepool = NUM_NXTBUFPOOL;
 		rx_ring->irq = pdata->irqs[i];
-		buf_pool->rx_skb = devm_kcalloc(dev, buf_pool->slots,
-						sizeof(struct sk_buff *),
-						GFP_KERNEL);
+		buf_pool->rx_skb = devm_kzalloc_objs(dev, struct sk_buff *,
+						     buf_pool->slots);
 		if (!buf_pool->rx_skb) {
 			ret = -ENOMEM;
 			goto err;
@@ -1376,17 +1374,15 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		}
 
 		slots = page_pool->slots;
-		page_pool->frag_page = devm_kcalloc(dev, slots,
-						    sizeof(struct page *),
-						    GFP_KERNEL);
+		page_pool->frag_page = devm_kzalloc_objs(dev, struct page *,
+							 slots);
 		if (!page_pool->frag_page) {
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		page_pool->frag_dma_addr = devm_kcalloc(dev, slots,
-							sizeof(dma_addr_t),
-							GFP_KERNEL);
+		page_pool->frag_dma_addr = devm_kzalloc_objs(dev, dma_addr_t,
+							     slots);
 		if (!page_pool->frag_dma_addr) {
 			ret = -ENOMEM;
 			goto err;
@@ -1437,9 +1433,8 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 			cp_ring->index = i;
 		}
 
-		cp_ring->cp_skb = devm_kcalloc(dev, tx_ring->slots,
-					       sizeof(struct sk_buff *),
-					       GFP_KERNEL);
+		cp_ring->cp_skb = devm_kzalloc_objs(dev, struct sk_buff *,
+						    tx_ring->slots);
 		if (!cp_ring->cp_skb) {
 			ret = -ENOMEM;
 			goto err;

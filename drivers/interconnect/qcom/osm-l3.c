@@ -182,7 +182,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	hw_rate = clk_get_rate(clk) / CLK_HW_DIV;
 	clk_put(clk);
 
-	qp = devm_kzalloc(&pdev->dev, sizeof(*qp), GFP_KERNEL);
+	qp = devm_kzalloc_obj(&pdev->dev, *qp);
 	if (!qp)
 		return -ENOMEM;
 
@@ -226,7 +226,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	qnodes = desc->nodes;
 	num_nodes = desc->num_nodes;
 
-	data = devm_kzalloc(&pdev->dev, struct_size(data, nodes, num_nodes), GFP_KERNEL);
+	data = devm_kzalloc_flex(&pdev->dev, *data, nodes, num_nodes);
 	if (!data)
 		return -ENOMEM;
 	data->num_nodes = num_nodes;

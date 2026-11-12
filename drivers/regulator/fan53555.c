@@ -657,7 +657,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	int ret;
 	u32 tmp;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -711,8 +711,7 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	unsigned int val;
 	int ret;
 
-	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
-					GFP_KERNEL);
+	di = devm_kzalloc_obj(&client->dev, struct fan53555_device_info);
 	if (!di)
 		return -ENOMEM;
 

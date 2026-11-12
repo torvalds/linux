@@ -412,9 +412,7 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 		gpio_irq_chip_set_chip(girq, &apple_gpio_irqchip);
 		girq->parent_handler = apple_gpio_irq_handler;
 
-		girq->parents = kmalloc_array(girq->num_parents,
-					      sizeof(*girq->parents),
-					      GFP_KERNEL);
+		girq->parents = kmalloc_objs(*girq->parents, girq->num_parents);
 		irq_data = kmalloc_objs(*irq_data, girq->num_parents);
 		if (!girq->parents || !irq_data) {
 			ret = -ENOMEM;
@@ -465,8 +463,7 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 			nirqs = res;
 	}
 
-	pctl = devm_kzalloc(&pdev->dev, struct_size(pctl, irqgrps, nirqs),
-			    GFP_KERNEL);
+	pctl = devm_kzalloc_flex(&pdev->dev, *pctl, irqgrps, nirqs);
 	if (!pctl)
 		return -ENOMEM;
 	pctl->dev = &pdev->dev;
@@ -477,12 +474,9 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "apple,npins property not found\n");
 
-	pins = devm_kmalloc_array(&pdev->dev, npins, sizeof(pins[0]),
-				  GFP_KERNEL);
-	pin_names = devm_kmalloc_array(&pdev->dev, npins, sizeof(pin_names[0]),
-				       GFP_KERNEL);
-	pin_nums = devm_kmalloc_array(&pdev->dev, npins, sizeof(pin_nums[0]),
-				      GFP_KERNEL);
+	pins = devm_kmalloc_objs(&pdev->dev, pins[0], npins);
+	pin_names = devm_kmalloc_objs(&pdev->dev, pin_names[0], npins);
+	pin_nums = devm_kmalloc_objs(&pdev->dev, pin_nums[0], npins);
 	if (!pins || !pin_names || !pin_nums)
 		return -ENOMEM;
 

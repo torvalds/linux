@@ -257,7 +257,7 @@ static int mm8013_probe(struct i2c_client *client)
 		return dev_err_probe(dev, -EIO,
 				     "I2C_FUNC_SMBUS_WORD_DATA not supported\n");
 
-	chip = devm_kzalloc(dev, sizeof(struct mm8013_chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, struct mm8013_chip);
 	if (!chip)
 		return -ENOMEM;
 

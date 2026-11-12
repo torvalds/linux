@@ -1622,13 +1622,13 @@ static int ds3231_clks_register(struct ds1307 *ds1307)
 	struct clk_onecell_data	*onecell;
 	int i;
 
-	onecell = devm_kzalloc(ds1307->dev, sizeof(*onecell), GFP_KERNEL);
+	onecell = devm_kzalloc_obj(ds1307->dev, *onecell);
 	if (!onecell)
 		return -ENOMEM;
 
 	onecell->clk_num = ARRAY_SIZE(ds3231_clks_init);
-	onecell->clks = devm_kcalloc(ds1307->dev, onecell->clk_num,
-				     sizeof(onecell->clks[0]), GFP_KERNEL);
+	onecell->clks = devm_kzalloc_objs(ds1307->dev, onecell->clks[0],
+					  onecell->clk_num);
 	if (!onecell->clks)
 		return -ENOMEM;
 
@@ -1843,7 +1843,7 @@ static void ds1307_wdt_register(struct ds1307 *ds1307)
 	if (ds1307->type != ds_1388)
 		return;
 
-	wdt = devm_kzalloc(ds1307->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(ds1307->dev, *wdt);
 	if (!wdt)
 		return;
 
@@ -1886,7 +1886,7 @@ static int ds1307_probe(struct i2c_client *client)
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	u8			trickle_charger_setup = 0;
 
-	ds1307 = devm_kzalloc(&client->dev, sizeof(struct ds1307), GFP_KERNEL);
+	ds1307 = devm_kzalloc_obj(&client->dev, struct ds1307);
 	if (!ds1307)
 		return -ENOMEM;
 

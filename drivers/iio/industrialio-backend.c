@@ -543,7 +543,7 @@ int devm_iio_backend_request_buffer(struct device *dev,
 	struct iio_backend_buffer_pair *pair;
 	struct iio_buffer *buffer;
 
-	pair = devm_kzalloc(dev, sizeof(*pair), GFP_KERNEL);
+	pair = devm_kzalloc_obj(dev, *pair);
 	if (!pair)
 		return -ENOMEM;
 
@@ -1177,7 +1177,7 @@ int devm_iio_backend_register(struct device *dev,
 	 * the backend object lifetime with the device being passed since
 	 * removing it will tear the frontend/consumer down.
 	 */
-	back = devm_kzalloc(dev, sizeof(*back), GFP_KERNEL);
+	back = devm_kzalloc_obj(dev, *back);
 	if (!back)
 		return -ENOMEM;
 

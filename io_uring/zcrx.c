@@ -549,8 +549,8 @@ static int __zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (!area->nia.niovs)
 		goto err;
 
-	area->freelist = kvmalloc_array(nr_iovs, sizeof(area->freelist[0]),
-					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	area->freelist = kvmalloc_objs(area->freelist[0], nr_iovs,
+				       GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!area->freelist)
 		goto err;
 

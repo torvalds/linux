@@ -188,7 +188,7 @@ static int mlxbf3_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	int ret, irq;
 
-	gs = devm_kzalloc(dev, sizeof(*gs), GFP_KERNEL);
+	gs = devm_kzalloc_obj(dev, *gs);
 	if (!gs)
 		return -ENOMEM;
 

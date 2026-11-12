@@ -988,7 +988,7 @@ static int sgm4154x_probe(struct i2c_client *client)
 	struct sgm4154x_device *sgm;
 	int ret;
 
-	sgm = devm_kzalloc(dev, sizeof(*sgm), GFP_KERNEL);
+	sgm = devm_kzalloc_obj(dev, *sgm);
 	if (!sgm)
 		return -ENOMEM;
 

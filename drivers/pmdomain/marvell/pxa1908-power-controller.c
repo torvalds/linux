@@ -259,7 +259,7 @@ pxa1908_pd_probe(struct auxiliary_device *auxdev, const struct auxiliary_device_
 	struct device *dev = &auxdev->dev;
 	int ret;
 
-	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 

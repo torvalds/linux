@@ -129,7 +129,7 @@ static int irqc_probe(struct platform_device *pdev)
 	int ret;
 	int k;
 
-	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(dev, *p);
 	if (!p)
 		return -ENOMEM;
 

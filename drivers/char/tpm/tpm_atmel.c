@@ -242,7 +242,7 @@ static int __init init_atmel(void)
 		goto err_rel_reg;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv) {
 		rc = -ENOMEM;
 		goto err_unreg_dev;

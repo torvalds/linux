@@ -217,13 +217,62 @@ const struct file_operations fat_file_operations = {
 	.setlease	= generic_setlease,
 };
 
+static int fat_preallocate(struct inode *inode, loff_t new_size)
+{
+	int nr_cluster; /* Number of clusters to be allocated */
+	loff_t mm_bytes; /* Number of bytes to be allocated for file */
+	loff_t ondisksize; /* block aligned on-disk size in bytes*/
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+
+	ondisksize = inode->i_blocks << 9;
+	if (new_size <= ondisksize)
+		return 0;
+
+	/* First compute the number of clusters to be allocated */
+	mm_bytes = new_size - ondisksize;
+	nr_cluster = (mm_bytes + (sbi->cluster_size - 1)) >>
+		     sbi->cluster_bits;
+
+	/* Allocate the clusters. We are not zeroing them out */
+	return fat_add_clusters(inode, nr_cluster);
+}
+
+static int fat_cont_expand_simple(struct inode *inode, loff_t size)
+{
+	struct address_space *mapping = inode->i_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
+	struct folio *folio;
+	void *fsdata = NULL;
+	int err;
+
+	err = aops->write_begin(NULL, mapping, size, 0, &folio, &fsdata);
+	if (err)
+		goto out;
+
+	err = aops->write_end(NULL, mapping, size, 0, 0, folio, fsdata);
+
+out:
+	return err;
+}
+
 static int fat_cont_expand(struct inode *inode, loff_t size)
 {
 	struct address_space *mapping = inode->i_mapping;
 	loff_t start = inode->i_size, count = size - inode->i_size;
 	int err;
 
-	err = generic_cont_expand_simple(inode, size);
+	/*
+	 * Preallocating space here is more efficient than during
+	 * fat_cont_expand_simple() because of batching.
+	 */
+	err = inode_newsize_ok(inode, size);
+	if (err)
+		goto out;
+	err = fat_preallocate(inode, size);
+	if (err)
+		goto out;
+	err = fat_cont_expand_simple(inode, size);
 	if (err)
 		goto out;
 
@@ -263,12 +312,7 @@ out:
 static long fat_fallocate(struct file *file, int mode,
 			  loff_t offset, loff_t len)
 {
-	int nr_cluster; /* Number of clusters to be allocated */
-	loff_t mm_bytes; /* Number of bytes to be allocated for file */
-	loff_t ondisksize; /* block aligned on-disk size in bytes*/
 	struct inode *inode = file->f_mapping->host;
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	int err = 0;
 
 	/* No support for hole punch or other fallocate flags. */
@@ -281,19 +325,7 @@ static long fat_fallocate(struct file *file, int mode,
 
 	inode_lock(inode);
 	if (mode & FALLOC_FL_KEEP_SIZE) {
-		ondisksize = inode->i_blocks << 9;
-		if ((offset + len) <= ondisksize)
-			goto error;
-
-		/* First compute the number of clusters to be allocated */
-		mm_bytes = offset + len - ondisksize;
-		nr_cluster = (mm_bytes + (sbi->cluster_size - 1)) >>
-			sbi->cluster_bits;
-
-		/* Allocate the clusters. We are not zeroing them out */
-		err = fat_add_clusters(inode, nr_cluster);
-		if (err)
-			goto error;
+		err = fat_preallocate(inode, offset + len);
 	} else {
 		if ((offset + len) <= i_size_read(inode))
 			goto error;

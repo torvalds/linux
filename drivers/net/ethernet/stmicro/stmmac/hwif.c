@@ -328,7 +328,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	/* Save ID for later use */
 	priv->synopsys_id = version.snpsver;
 
-	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
+	mac = devm_kzalloc_obj(priv->device, *mac);
 	if (!mac)
 		return -ENOMEM;
 

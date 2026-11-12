@@ -425,7 +425,7 @@ static int intel_pmc_probe(struct platform_device *pdev)
 	struct intel_pmc_dev *pmc;
 	int ret;
 
-	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
+	pmc = devm_kzalloc_obj(&pdev->dev, *pmc);
 	if (!pmc)
 		return -ENOMEM;
 

@@ -427,7 +427,7 @@ static int yoga_c630_psy_probe(struct auxiliary_device *adev,
 	struct yoga_c630_psy *ecbat;
 	int ret;
 
-	ecbat = devm_kzalloc(&adev->dev, sizeof(*ecbat), GFP_KERNEL);
+	ecbat = devm_kzalloc_obj(&adev->dev, *ecbat);
 	if (!ecbat)
 		return -ENOMEM;
 

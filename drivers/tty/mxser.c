@@ -1742,8 +1742,7 @@ static int mxser_probe(struct pci_dev *pdev,
 		goto err;
 	}
 
-	brd = devm_kzalloc(&pdev->dev, struct_size(brd, ports, nports),
-			GFP_KERNEL);
+	brd = devm_kzalloc_flex(&pdev->dev, *brd, ports, nports);
 	if (!brd)
 		goto err;
 

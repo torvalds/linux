@@ -98,7 +98,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
-	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc_obj(dev, *wdd);
 	if (!wdd)
 		return -ENOMEM;
 

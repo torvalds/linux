@@ -453,7 +453,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	}
 
 	/* create the mux */
-	mux = devm_kzalloc(host->dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(host->dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 
@@ -474,7 +474,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 		return PTR_ERR(host->mux_clk);
 
 	/* create the divider */
-	div = devm_kzalloc(host->dev, sizeof(*div), GFP_KERNEL);
+	div = devm_kzalloc_obj(host->dev, *div);
 	if (!div)
 		return -ENOMEM;
 

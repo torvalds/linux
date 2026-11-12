@@ -117,7 +117,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	int ret;
 
-	mipi_tx = devm_kzalloc(dev, sizeof(*mipi_tx), GFP_KERNEL);
+	mipi_tx = devm_kzalloc_obj(dev, *mipi_tx);
 	if (!mipi_tx)
 		return -ENOMEM;
 

@@ -122,8 +122,7 @@ static int nand_ecc_sw_bch_init(struct nand_device *nand)
 		return -EINVAL;
 
 	engine_conf->eccmask = kzalloc(eccbytes, GFP_KERNEL);
-	engine_conf->errloc = kmalloc_array(t, sizeof(*engine_conf->errloc),
-					    GFP_KERNEL);
+	engine_conf->errloc = kmalloc_objs(*engine_conf->errloc, t);
 	if (!engine_conf->eccmask || !engine_conf->errloc) {
 		ret = -ENOMEM;
 		goto cleanup;

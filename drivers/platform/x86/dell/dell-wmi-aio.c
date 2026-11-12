@@ -106,7 +106,7 @@ static int dell_wmi_aio_probe(struct wmi_device *wdev, const void *context)
 	struct dell_wmi_aio_data *data;
 	int ret;
 
-	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

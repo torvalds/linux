@@ -3106,7 +3106,7 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 		rvu->rvu_dbg.cgx = debugfs_create_dir(dname,
 						      rvu->rvu_dbg.cgx_root);
 
-		ctx = devm_kzalloc(rvu->dev, sizeof(*ctx), GFP_KERNEL);
+		ctx = devm_kzalloc_obj(rvu->dev, *ctx);
 		if (!ctx)
 			continue;
 

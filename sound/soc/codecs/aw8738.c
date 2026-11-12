@@ -64,7 +64,7 @@ static int aw8738_probe(struct platform_device *pdev)
 	struct aw8738_priv *aw;
 	int ret;
 
-	aw = devm_kzalloc(dev, sizeof(*aw), GFP_KERNEL);
+	aw = devm_kzalloc_obj(dev, *aw);
 	if (!aw)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, aw);

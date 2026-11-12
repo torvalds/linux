@@ -354,7 +354,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int acc_reg;
 
-	ts3a227e = devm_kzalloc(&i2c->dev, sizeof(*ts3a227e), GFP_KERNEL);
+	ts3a227e = devm_kzalloc_obj(&i2c->dev, *ts3a227e);
 	if (ts3a227e == NULL)
 		return -ENOMEM;
 

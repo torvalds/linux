@@ -355,7 +355,7 @@ static int ds1343_probe(struct spi_device *spi)
 		.reg_write = ds1343_nvram_write,
 	};
 
-	priv = devm_kzalloc(&spi->dev, sizeof(struct ds1343_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&spi->dev, struct ds1343_priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -2697,8 +2697,8 @@ int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog,
 	int status, i;
 
 	dev = ice_pf_to_dev(pf);
-	vsi->xdp_rings = devm_kcalloc(dev, vsi->num_xdp_txq,
-				      sizeof(*vsi->xdp_rings), GFP_KERNEL);
+	vsi->xdp_rings = devm_kzalloc_objs(dev, *vsi->xdp_rings,
+					   vsi->num_xdp_txq);
 	if (!vsi->xdp_rings)
 		return -ENOMEM;
 
@@ -4912,13 +4912,12 @@ static int ice_alloc_vsis(struct ice_pf *pf)
 		pf->num_alloc_vsi = UDP_TUNNEL_NIC_MAX_SHARING_DEVICES;
 	}
 
-	pf->vsi = devm_kcalloc(dev, pf->num_alloc_vsi, sizeof(*pf->vsi),
-			       GFP_KERNEL);
+	pf->vsi = devm_kzalloc_objs(dev, *pf->vsi, pf->num_alloc_vsi);
 	if (!pf->vsi)
 		return -ENOMEM;
 
-	pf->vsi_stats = devm_kcalloc(dev, pf->num_alloc_vsi,
-				     sizeof(*pf->vsi_stats), GFP_KERNEL);
+	pf->vsi_stats = devm_kzalloc_objs(dev, *pf->vsi_stats,
+					  pf->num_alloc_vsi);
 	if (!pf->vsi_stats) {
 		devm_kfree(dev, pf->vsi);
 		return -ENOMEM;

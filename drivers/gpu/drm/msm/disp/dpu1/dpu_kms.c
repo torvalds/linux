@@ -258,7 +258,7 @@ void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 	if (WARN_ON(!name || !dpu_kms || !length))
 		return;
 
-	regset = devm_kzalloc(&dpu_kms->pdev->dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(&dpu_kms->pdev->dev, *regset);
 	if (!regset)
 		return;
 
@@ -1386,7 +1386,7 @@ static int dpu_dev_probe(struct platform_device *pdev)
 	if (!msm_disp_drv_should_bind(&pdev->dev, true))
 		return -ENODEV;
 
-	dpu_kms = devm_kzalloc(dev, sizeof(*dpu_kms), GFP_KERNEL);
+	dpu_kms = devm_kzalloc_obj(dev, *dpu_kms);
 	if (!dpu_kms)
 		return -ENOMEM;
 

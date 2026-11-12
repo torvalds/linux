@@ -109,7 +109,7 @@ static int ili9806e_spi_probe(struct spi_device *spi)
 	struct ili9806e_spi_panel *ctx;
 	int err;
 
-	ctx = devm_kzalloc(dev, sizeof(struct ili9806e_spi_panel), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, struct ili9806e_spi_panel);
 	if (!ctx)
 		return -ENOMEM;
 

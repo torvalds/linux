@@ -41,7 +41,7 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	am_phy = devm_kzalloc(dev, sizeof(*am_phy), GFP_KERNEL);
+	am_phy = devm_kzalloc_obj(dev, *am_phy);
 	if (!am_phy)
 		return -ENOMEM;
 

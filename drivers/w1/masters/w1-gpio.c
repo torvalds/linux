@@ -71,7 +71,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	enum gpiod_flags gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
 	int err;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 
@@ -84,7 +84,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	if (device_property_present(dev, "linux,open-drain"))
 		gflags = GPIOD_OUT_LOW;
 
-	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(dev, *master);
 	if (!master)
 		return -ENOMEM;
 

@@ -453,7 +453,7 @@ static int evea_probe(struct platform_device *pdev)
 	void __iomem *preg;
 	int ret;
 
-	evea = devm_kzalloc(&pdev->dev, sizeof(struct evea_priv), GFP_KERNEL);
+	evea = devm_kzalloc_obj(&pdev->dev, struct evea_priv);
 	if (!evea)
 		return -ENOMEM;
 

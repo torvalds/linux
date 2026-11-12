@@ -117,7 +117,7 @@ static int s2dos05_pmic_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	unsigned int rdev_num = ARRAY_SIZE(regulators);
 
-	s2dos05 = devm_kzalloc(dev, sizeof(*s2dos05), GFP_KERNEL);
+	s2dos05 = devm_kzalloc_obj(dev, *s2dos05);
 	if (!s2dos05)
 		return -ENOMEM;
 

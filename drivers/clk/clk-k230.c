@@ -2372,7 +2372,7 @@ static int k230_clk_init_plls(struct platform_device *pdev)
 	/* used for all the plls */
 	spinlock_t *lock;
 
-	lock = devm_kzalloc(&pdev->dev, sizeof(*lock), GFP_KERNEL);
+	lock = devm_kzalloc_obj(&pdev->dev, *lock);
 	if (!lock)
 		return -ENOMEM;
 
@@ -2401,7 +2401,7 @@ static int k230_clk_init_clks(struct platform_device *pdev,
 	/* used for all the clocks */
 	spinlock_t *lock;
 
-	lock = devm_kzalloc(&pdev->dev, sizeof(*lock), GFP_KERNEL);
+	lock = devm_kzalloc_obj(&pdev->dev, *lock);
 	if (!lock)
 		return -ENOMEM;
 
@@ -2425,8 +2425,7 @@ static int k230_clk_probe(struct platform_device *pdev)
 	int ret;
 	struct clk_hw_onecell_data *hw_data;
 
-	hw_data = devm_kzalloc(&pdev->dev, struct_size(hw_data, hws, K230_CLK_NUM),
-			       GFP_KERNEL);
+	hw_data = devm_kzalloc_flex(&pdev->dev, *hw_data, hws, K230_CLK_NUM);
 	if (!hw_data)
 		return -ENOMEM;
 

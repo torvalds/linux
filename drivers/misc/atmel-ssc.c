@@ -193,7 +193,7 @@ static int ssc_probe(struct platform_device *pdev)
 	struct ssc_device *ssc;
 	const struct atmel_ssc_platform_data *plat_dat;
 
-	ssc = devm_kzalloc(&pdev->dev, sizeof(struct ssc_device), GFP_KERNEL);
+	ssc = devm_kzalloc_obj(&pdev->dev, struct ssc_device);
 	if (!ssc) {
 		dev_dbg(&pdev->dev, "out of memory\n");
 		return -ENOMEM;

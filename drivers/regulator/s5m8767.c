@@ -507,15 +507,11 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 	/* count the number of regulators to be supported in pmic */
 	pdata->num_regulators = of_get_child_count(regulators_np);
 
-	rdata = devm_kcalloc(&pdev->dev,
-			     pdata->num_regulators, sizeof(*rdata),
-			     GFP_KERNEL);
+	rdata = devm_kzalloc_objs(&pdev->dev, *rdata, pdata->num_regulators);
 	if (!rdata)
 		return -ENOMEM;
 
-	rmode = devm_kcalloc(&pdev->dev,
-			     pdata->num_regulators, sizeof(*rmode),
-			     GFP_KERNEL);
+	rmode = devm_kzalloc_objs(&pdev->dev, *rmode, pdata->num_regulators);
 	if (!rmode)
 		return -ENOMEM;
 
@@ -675,8 +671,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	s5m8767 = devm_kzalloc(&pdev->dev, sizeof(struct s5m8767_info),
-				GFP_KERNEL);
+	s5m8767 = devm_kzalloc_obj(&pdev->dev, struct s5m8767_info);
 	if (!s5m8767)
 		return -ENOMEM;
 

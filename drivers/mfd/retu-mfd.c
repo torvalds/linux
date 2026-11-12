@@ -237,7 +237,7 @@ static int retu_probe(struct i2c_client *i2c)
 		return -ENODEV;
 	rdat = &retu_data[i2c->addr - 1];
 
-	rdev = devm_kzalloc(&i2c->dev, sizeof(*rdev), GFP_KERNEL);
+	rdev = devm_kzalloc_obj(&i2c->dev, *rdev);
 	if (rdev == NULL)
 		return -ENOMEM;
 

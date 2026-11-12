@@ -1248,15 +1248,13 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 
 	of_node_put(np);
 
-	core_dev = devm_kzalloc(
-		&ofdev->dev, sizeof(struct crypto4xx_core_device), GFP_KERNEL);
+	core_dev = devm_kzalloc_obj(&ofdev->dev, struct crypto4xx_core_device);
 	if (!core_dev)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, core_dev);
 	core_dev->ofdev = ofdev;
-	core_dev->dev = devm_kzalloc(
-		&ofdev->dev, sizeof(struct crypto4xx_device), GFP_KERNEL);
+	core_dev->dev = devm_kzalloc_obj(&ofdev->dev, struct crypto4xx_device);
 	if (!core_dev->dev)
 		return -ENOMEM;
 

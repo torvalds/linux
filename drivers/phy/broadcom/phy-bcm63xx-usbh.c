@@ -383,7 +383,7 @@ static int bcm63xx_usbh_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct phy_provider *phy_provider;
 
-	usbh = devm_kzalloc(dev, sizeof(*usbh), GFP_KERNEL);
+	usbh = devm_kzalloc_obj(dev, *usbh);
 	if (!usbh)
 		return -ENOMEM;
 

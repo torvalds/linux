@@ -70,8 +70,7 @@ static int max77650_led_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	leds = devm_kcalloc(dev, sizeof(*leds),
-			    MAX77650_LED_NUM_LEDS, GFP_KERNEL);
+	leds = devm_kzalloc_objs(dev, *leds, MAX77650_LED_NUM_LEDS);
 	if (!leds)
 		return -ENOMEM;
 

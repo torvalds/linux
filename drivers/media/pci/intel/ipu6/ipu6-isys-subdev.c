@@ -350,8 +350,8 @@ int ipu6_isys_subdev_init(struct ipu6_isys_subdev *asd,
 	asd->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	asd->sd.internal_ops = &ipu6_isys_subdev_internal_ops;
 
-	asd->pad = devm_kcalloc(&asd->isys->adev->auxdev.dev, num_pads,
-				sizeof(*asd->pad), GFP_KERNEL);
+	asd->pad = devm_kzalloc_objs(&asd->isys->adev->auxdev.dev, *asd->pad,
+				     num_pads);
 	if (!asd->pad)
 		return -ENOMEM;
 

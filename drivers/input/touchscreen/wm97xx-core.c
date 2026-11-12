@@ -686,7 +686,7 @@ static int wm97xx_probe(struct device *dev)
 	int ret;
 	struct wm97xx_pdata *pdata = dev_get_platdata(dev);
 
-	wm = devm_kzalloc(dev, sizeof(struct wm97xx), GFP_KERNEL);
+	wm = devm_kzalloc_obj(dev, struct wm97xx);
 	if (!wm)
 		return -ENOMEM;
 
@@ -724,7 +724,7 @@ static int wm97xx_mfd_probe(struct platform_device *pdev)
 	struct wm97xx_platform_data *mfd_pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
-	wm = devm_kzalloc(&pdev->dev, sizeof(struct wm97xx), GFP_KERNEL);
+	wm = devm_kzalloc_obj(&pdev->dev, struct wm97xx);
 	if (!wm)
 		return -ENOMEM;
 

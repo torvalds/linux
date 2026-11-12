@@ -1826,7 +1826,7 @@ static int saa711x_probe(struct i2c_client *client)
 
 	strscpy(client->name, name, sizeof(client->name));
 
-	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&client->dev, *state);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;

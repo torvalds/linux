@@ -172,7 +172,7 @@ static int cdns_imx_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -6355,8 +6355,8 @@ static int rtw89_init_he_eht_cap(struct rtw89_dev *rtwdev,
 	enum nl80211_iftype iftype;
 	int idx = 0;
 
-	iftype_data = devm_kcalloc(rtwdev->dev, RTW89_SBAND_IFTYPES_NR,
-				   sizeof(*iftype_data), GFP_KERNEL);
+	iftype_data = devm_kzalloc_objs(rtwdev->dev, *iftype_data,
+					RTW89_SBAND_IFTYPES_NR);
 	if (!iftype_data)
 		return -ENOMEM;
 

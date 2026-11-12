@@ -3000,9 +3000,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt5640 = devm_kzalloc(&i2c->dev,
-				sizeof(struct rt5640_priv),
-				GFP_KERNEL);
+	rt5640 = devm_kzalloc_obj(&i2c->dev, struct rt5640_priv);
 	if (NULL == rt5640)
 		return -ENOMEM;
 	i2c_set_clientdata(i2c, rt5640);

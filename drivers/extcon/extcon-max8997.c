@@ -639,8 +639,7 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	bool attached;
 	int ret, i;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct max8997_muic_info);
 	if (!info)
 		return -ENOMEM;
 

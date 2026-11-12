@@ -1047,9 +1047,8 @@ int mtk_crtc_create(struct drm_device *drm_dev, const unsigned int *path,
 		}
 	}
 
-	mtk_crtc = devm_kzalloc(dev,
-				struct_size(mtk_crtc, ddp_comp, path_len + (conn_routes ? 1 : 0)),
-				GFP_KERNEL);
+	mtk_crtc = devm_kzalloc_flex(dev, *mtk_crtc, ddp_comp,
+				     path_len + (conn_routes ? 1 : 0));
 	if (!mtk_crtc)
 		return -ENOMEM;
 
@@ -1089,8 +1088,8 @@ int mtk_crtc_create(struct drm_device *drm_dev, const unsigned int *path,
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
 		num_comp_planes += mtk_crtc_num_comp_planes(mtk_crtc, i);
 
-	mtk_crtc->planes = devm_kcalloc(dev, num_comp_planes,
-					sizeof(struct drm_plane), GFP_KERNEL);
+	mtk_crtc->planes = devm_kzalloc_objs(dev, struct drm_plane,
+					     num_comp_planes);
 	if (!mtk_crtc->planes)
 		return -ENOMEM;
 

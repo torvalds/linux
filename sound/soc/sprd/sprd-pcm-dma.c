@@ -74,7 +74,7 @@ static int sprd_pcm_open(struct snd_soc_component *component,
 	if (ret < 0)
 		return ret;
 
-	dma_private = devm_kzalloc(dev, sizeof(*dma_private), GFP_KERNEL);
+	dma_private = devm_kzalloc_obj(dev, *dma_private);
 	if (!dma_private)
 		return -ENOMEM;
 
@@ -219,7 +219,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 	sg_num = totsize / period;
 	dma_private->dma_addr_offset = totsize / channels;
 
-	sg = devm_kcalloc(component->dev, sg_num, sizeof(*sg), GFP_KERNEL);
+	sg = devm_kzalloc_objs(component->dev, *sg, sg_num);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto sg_err;

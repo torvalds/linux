@@ -125,11 +125,9 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 				break;
 			client_data->hid_dev_count = (unsigned int)*payload;
 			if (!client_data->hid_devices)
-				client_data->hid_devices = devm_kcalloc(
-						cl_data_to_dev(client_data),
-						client_data->hid_dev_count,
-						sizeof(struct device_info),
-						GFP_KERNEL);
+				client_data->hid_devices = devm_kzalloc_objs(cl_data_to_dev(client_data),
+									     struct device_info,
+									     client_data->hid_dev_count);
 			if (!client_data->hid_devices) {
 				dev_err(cl_data_to_dev(client_data),
 				"Mem alloc failed for hid device info\n");
@@ -793,9 +791,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	if (!cl_device)
 		return	-ENODEV;
 
-	client_data = devm_kzalloc(ishtp_device(cl_device),
-				   sizeof(*client_data),
-				   GFP_KERNEL);
+	client_data = devm_kzalloc_obj(ishtp_device(cl_device), *client_data);
 	if (!client_data)
 		return -ENOMEM;
 

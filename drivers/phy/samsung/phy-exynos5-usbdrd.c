@@ -1805,8 +1805,8 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 	struct clk *ref_clk;
 	unsigned long ref_rate;
 
-	phy_drd->clks = devm_kcalloc(phy_drd->dev, phy_drd->drv_data->n_clks,
-				     sizeof(*phy_drd->clks), GFP_KERNEL);
+	phy_drd->clks = devm_kzalloc_objs(phy_drd->dev, *phy_drd->clks,
+					  phy_drd->drv_data->n_clks);
 	if (!phy_drd->clks)
 		return -ENOMEM;
 
@@ -1819,10 +1819,9 @@ static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
 		return dev_err_probe(phy_drd->dev, ret,
 				     "failed to get phy clock(s)\n");
 
-	phy_drd->core_clks = devm_kcalloc(phy_drd->dev,
-					  phy_drd->drv_data->n_core_clks,
-					  sizeof(*phy_drd->core_clks),
-					  GFP_KERNEL);
+	phy_drd->core_clks = devm_kzalloc_objs(phy_drd->dev,
+					       *phy_drd->core_clks,
+					       phy_drd->drv_data->n_core_clks);
 	if (!phy_drd->core_clks)
 		return -ENOMEM;
 
@@ -2961,7 +2960,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	int i, ret;
 	int channel;
 
-	phy_drd = devm_kzalloc(dev, sizeof(*phy_drd), GFP_KERNEL);
+	phy_drd = devm_kzalloc_obj(dev, *phy_drd);
 	if (!phy_drd)
 		return -ENOMEM;
 
@@ -3032,10 +3031,8 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 		dev_dbg(dev, "Not a multi-controller usbdrd phy\n");
 
 	/* Get regulators */
-	phy_drd->regulators = devm_kcalloc(dev,
-					   drv_data->n_regulators,
-					   sizeof(*phy_drd->regulators),
-					   GFP_KERNEL);
+	phy_drd->regulators = devm_kzalloc_objs(dev, *phy_drd->regulators,
+						drv_data->n_regulators);
 	if (!phy_drd->regulators)
 		return -ENOMEM;
 	regulator_bulk_set_supply_names(phy_drd->regulators,

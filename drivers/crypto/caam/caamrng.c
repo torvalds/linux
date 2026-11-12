@@ -284,7 +284,7 @@ int caam_rng_init(struct device *ctrldev)
 	if (!devres_open_group(ctrldev, caam_rng_init, GFP_KERNEL))
 		return -ENOMEM;
 
-	ctx = devm_kzalloc(ctrldev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(ctrldev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

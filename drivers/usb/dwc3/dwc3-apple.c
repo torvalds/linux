@@ -438,7 +438,7 @@ static int dwc3_apple_probe(struct platform_device *pdev)
 	struct dwc3_apple *appledwc;
 	int ret;
 
-	appledwc = devm_kzalloc(&pdev->dev, sizeof(*appledwc), GFP_KERNEL);
+	appledwc = devm_kzalloc_obj(&pdev->dev, *appledwc);
 	if (!appledwc)
 		return -ENOMEM;
 

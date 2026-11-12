@@ -148,7 +148,7 @@ static int ublk_ctrl_get_affinity(struct ublk_dev *ctrl_dev, cpu_set_t **ptr_buf
 	for (i = 0; i < ctrl_dev->dev_info.nr_hw_queues; i++) {
 		data.data[0] = i;
 		data.len = sizeof(cpu_set_t);
-		data.addr = (__u64)&buf[i];
+		data.addr = (__u64)(uintptr_t)&buf[i];
 
 		ret = __ublk_ctrl_cmd(ctrl_dev, &data);
 		if (ret < 0) {

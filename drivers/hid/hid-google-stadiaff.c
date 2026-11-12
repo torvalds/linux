@@ -89,8 +89,7 @@ static int stadia_input_configured(struct hid_device *hid, struct hid_input *hid
 	if (!report)
 		return -ENODEV;
 
-	stadiaff = devm_kzalloc(&hid->dev, sizeof(struct stadiaff_device),
-				GFP_KERNEL);
+	stadiaff = devm_kzalloc_obj(&hid->dev, struct stadiaff_device);
 	if (!stadiaff)
 		return -ENOMEM;
 

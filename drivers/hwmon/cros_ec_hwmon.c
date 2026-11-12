@@ -538,7 +538,7 @@ static void cros_ec_hwmon_register_fan_cooling_devices(struct device *dev,
 		if (!(priv->usable_fans & BIT(i)))
 			continue;
 
-		cpriv = devm_kzalloc(dev, sizeof(*cpriv), GFP_KERNEL);
+		cpriv = devm_kzalloc_obj(dev, *cpriv);
 		if (!cpriv)
 			continue;
 
@@ -577,7 +577,7 @@ static int cros_ec_hwmon_probe(struct platform_device *pdev)
 	if (thermal_version == 0)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

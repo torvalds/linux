@@ -49,7 +49,7 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 	const char *name;
 	int i, ret, nr;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1027,7 +1027,7 @@ static int adm1031_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	struct adm1031_data *data;
 
-	data = devm_kzalloc(dev, sizeof(struct adm1031_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct adm1031_data);
 	if (!data)
 		return -ENOMEM;
 

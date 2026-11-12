@@ -261,7 +261,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	if (!spi->dev.of_node)
 		return -ENODEV;
 
-	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&spi->dev, *ddata);
 	if (ddata == NULL)
 		return -ENOMEM;
 

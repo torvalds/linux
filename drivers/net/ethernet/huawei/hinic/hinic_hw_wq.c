@@ -192,19 +192,19 @@ static int alloc_page_arrays(struct hinic_wqs *wqs)
 	struct hinic_hwif *hwif = wqs->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 
-	wqs->page_paddr = devm_kcalloc(&pdev->dev, wqs->num_pages,
-				       sizeof(*wqs->page_paddr), GFP_KERNEL);
+	wqs->page_paddr = devm_kzalloc_objs(&pdev->dev, *wqs->page_paddr,
+					    wqs->num_pages);
 	if (!wqs->page_paddr)
 		return -ENOMEM;
 
-	wqs->page_vaddr = devm_kcalloc(&pdev->dev, wqs->num_pages,
-				       sizeof(*wqs->page_vaddr), GFP_KERNEL);
+	wqs->page_vaddr = devm_kzalloc_objs(&pdev->dev, *wqs->page_vaddr,
+					    wqs->num_pages);
 	if (!wqs->page_vaddr)
 		goto err_page_vaddr;
 
-	wqs->shadow_page_vaddr = devm_kcalloc(&pdev->dev, wqs->num_pages,
-					      sizeof(*wqs->shadow_page_vaddr),
-					      GFP_KERNEL);
+	wqs->shadow_page_vaddr = devm_kzalloc_objs(&pdev->dev,
+						   *wqs->shadow_page_vaddr,
+						   wqs->num_pages);
 	if (!wqs->shadow_page_vaddr)
 		goto err_page_shadow_vaddr;
 
@@ -383,8 +383,8 @@ static int alloc_wqes_shadow(struct hinic_wq *wq)
 	if (!wq->shadow_wqe)
 		return -ENOMEM;
 
-	wq->shadow_idx = devm_kcalloc(&pdev->dev, wq->num_q_pages,
-				      sizeof(*wq->shadow_idx), GFP_KERNEL);
+	wq->shadow_idx = devm_kzalloc_objs(&pdev->dev, *wq->shadow_idx,
+					   wq->num_q_pages);
 	if (!wq->shadow_idx)
 		goto err_shadow_idx;
 

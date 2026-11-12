@@ -718,7 +718,7 @@ static int mt6370_assign_multicolor_info(struct device *dev, struct mt6370_led *
 	u32 num_color = 0;
 	int ret;
 
-	sub_led = devm_kcalloc(dev, MC_CHANNEL_NUM, sizeof(*sub_led), GFP_KERNEL);
+	sub_led = devm_kzalloc_objs(dev, *sub_led, MC_CHANNEL_NUM);
 	if (!sub_led)
 		return -ENOMEM;
 
@@ -914,7 +914,7 @@ static int mt6370_leds_probe(struct platform_device *pdev)
 				     "No child node or node count over max LED number %zu\n",
 				      count);
 
-	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, leds, count);
 	if (!priv)
 		return -ENOMEM;
 

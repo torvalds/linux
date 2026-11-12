@@ -539,7 +539,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	int irq_err;
 	int ret;
 
-	rpm = devm_kzalloc(&pdev->dev, sizeof(*rpm), GFP_KERNEL);
+	rpm = devm_kzalloc_obj(&pdev->dev, *rpm);
 	if (!rpm)
 		return -ENOMEM;
 

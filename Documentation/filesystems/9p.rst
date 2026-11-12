@@ -50,6 +50,14 @@ mount points. Each 9P export is seen by the client as a virtio device with an
 associated "mount_tag" property. Available mount tags can be
 seen by reading /sys/bus/virtio/drivers/9pnet_virtio/virtio<n>/mount_tag files.
 
+For server accessible over vsock (VM sockets)::
+
+	mount -t 9p -o trans=vsock[,port=<port>] <CID> /mnt/9
+
+where CID is the vsock Context ID of the remote endpoint (2 for host from
+a guest VM, 3+ for guest VMs from the host). The port to connect to can be
+specified with the port option (default: 564).
+
 USBG Usage
 ==========
 
@@ -117,6 +125,8 @@ Options
 			tcp	  specifying a normal TCP/IP connection
 			fd   	  used passed file descriptors for connection
                                   (see rfdno and wfdno)
+			vsock	  connect over VM sockets (vsock) using
+				  CID as the mount source
 			virtio	  connect to the next virtio channel available
 				  (from QEMU with trans_virtio module)
 			rdma	  connect to a specified RDMA channel
@@ -228,7 +238,7 @@ Options
 			any
 				v9fs does single attach and performs all
 				operations as one user
-			clien
+			client
 				 ACL based access check on the 9p client
 			         side for access validation
 

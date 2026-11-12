@@ -204,7 +204,7 @@ int ublk_ctrl_get_params(struct ublk_dev *dev,
 	struct ublk_ctrl_cmd_data data = {
 		.cmd_op	= UBLK_U_CMD_GET_PARAMS,
 		.flags	= CTRL_CMD_HAS_BUF,
-		.addr = (__u64)params,
+		.addr = (__u64)(uintptr_t)params,
 		.len = sizeof(*params),
 	};
 

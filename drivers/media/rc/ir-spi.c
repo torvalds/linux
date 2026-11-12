@@ -50,7 +50,7 @@ static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int coun
 		len += buffer[i];
 	}
 
-	tx_buf = kmalloc_array(len, sizeof(*tx_buf), GFP_KERNEL);
+	tx_buf = kmalloc_objs(*tx_buf, len);
 	if (!tx_buf)
 		return -ENOMEM;
 
@@ -131,7 +131,7 @@ static int ir_spi_probe(struct spi_device *spi)
 	u8 dc;
 	struct ir_spi_data *idata;
 
-	idata = devm_kzalloc(dev, sizeof(*idata), GFP_KERNEL);
+	idata = devm_kzalloc_obj(dev, *idata);
 	if (!idata)
 		return -ENOMEM;
 

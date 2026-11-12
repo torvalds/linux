@@ -2610,7 +2610,7 @@ static int copy_ctr_args(struct cache *cache, int argc, const char **argv)
 	unsigned int i;
 	const char **copy;
 
-	copy = kcalloc(argc, sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_objs(*copy, argc);
 	if (!copy)
 		return -ENOMEM;
 	for (i = 0; i < argc; i++) {

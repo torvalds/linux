@@ -402,7 +402,7 @@ int panfrost_perfcnt_init(struct panfrost_device *pfdev)
 		       COUNTERS_PER_BLOCK * BYTES_PER_COUNTER;
 	}
 
-	perfcnt = devm_kzalloc(pfdev->base.dev, sizeof(*perfcnt), GFP_KERNEL);
+	perfcnt = devm_kzalloc_obj(pfdev->base.dev, *perfcnt);
 	if (!perfcnt)
 		return -ENOMEM;
 

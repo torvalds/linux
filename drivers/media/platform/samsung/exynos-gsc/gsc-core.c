@@ -1110,7 +1110,7 @@ static int gsc_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
+	gsc = devm_kzalloc_obj(dev, struct gsc_dev);
 	if (!gsc)
 		return -ENOMEM;
 

@@ -789,7 +789,7 @@ static int mchp_spdiftx_probe(struct platform_device *pdev)
 	int err;
 
 	/* Get memory for driver data. */
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

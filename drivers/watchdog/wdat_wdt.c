@@ -351,14 +351,13 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	wdat = devm_kzalloc(dev, sizeof(*wdat), GFP_KERNEL);
+	wdat = devm_kzalloc_obj(dev, *wdat);
 	if (!wdat) {
 		ret = -ENOMEM;
 		goto out_put_table;
 	}
 
-	regs = devm_kcalloc(dev, pdev->num_resources, sizeof(*regs),
-			    GFP_KERNEL);
+	regs = devm_kzalloc_objs(dev, *regs, pdev->num_resources);
 	if (!regs) {
 		ret = -ENOMEM;
 		goto out_put_table;
@@ -423,7 +422,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		instr = devm_kzalloc(dev, sizeof(*instr), GFP_KERNEL);
+		instr = devm_kzalloc_obj(dev, *instr);
 		if (!instr) {
 			ret = -ENOMEM;
 			goto out_put_table;
@@ -464,9 +463,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		instructions = wdat->instructions[action];
 		if (!instructions) {
-			instructions = devm_kzalloc(dev,
-						    sizeof(*instructions),
-						    GFP_KERNEL);
+			instructions = devm_kzalloc_obj(dev, *instructions);
 			if (!instructions) {
 				ret = -ENOMEM;
 				goto out_put_table;

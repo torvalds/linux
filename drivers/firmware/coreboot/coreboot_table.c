@@ -114,6 +114,30 @@ void coreboot_driver_unregister(struct coreboot_driver *driver)
 }
 EXPORT_SYMBOL(coreboot_driver_unregister);
 
+/*
+ * Whether the memory of a CBMEM entry may be mapped: it must be exclusively
+ * System RAM, or exclusively Reserved memory, as CBMEM often is on x86, or
+ * memory that the kernel doesn't know about at all. coreboot leaves CBMEM out
+ * of the /memory node of the device tree that it passes to FIT payloads, e.g.
+ * on arm64, and only lists it in the memory reservation block.
+ *
+ * Anything else, such as no-map regions on arm64, which are IORESOURCE_MEM
+ * (see request_standard_resources() in arch/arm64/kernel/setup.c), must not
+ * be mapped.
+ */
+static bool cbmem_entry_is_mappable(const struct lb_cbmem_entry *entry)
+{
+	resource_size_t start = entry->address;
+	size_t size = entry->entry_size;
+
+	return region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+				 IORES_DESC_NONE) == REGION_INTERSECTS ||
+	       region_intersects(start, size, IORESOURCE_MEM,
+				 IORES_DESC_RESERVED) == REGION_INTERSECTS ||
+	       region_intersects(start, size, IORESOURCE_MEM,
+				 IORES_DESC_NONE) == REGION_DISJOINT;
+}
+
 static int coreboot_table_populate(struct device *dev, void *ptr, resource_size_t len)
 {
 	int i, ret;
@@ -149,23 +173,7 @@ static int coreboot_table_populate(struct device *dev, void *ptr, resource_size_
 
 		switch (device->entry.tag) {
 		case LB_TAG_CBMEM_ENTRY:
-			/*
-			 * Skip entries that are not exclusively System RAM or
-			 * Reserved memory.
-			 * On ARM64, no-map regions are filtered out as they are
-			 * IORESOURCE_MEM (see request_standard_resources() in
-			 * arch/arm64/kernel/setup.c).
-			 * On x86, CBMEM often resides in standard reserved regions
-			 * (IORES_DESC_RESERVED).
-			 */
-			if (region_intersects(device->cbmem_entry.address,
-					      device->cbmem_entry.entry_size,
-					      IORESOURCE_SYSTEM_RAM,
-					      IORES_DESC_NONE) != REGION_INTERSECTS &&
-			    region_intersects(device->cbmem_entry.address,
-					      device->cbmem_entry.entry_size,
-					      IORESOURCE_MEM,
-					      IORES_DESC_RESERVED) != REGION_INTERSECTS) {
+			if (!cbmem_entry_is_mappable(&device->cbmem_entry)) {
 				kfree(device);
 				continue;
 			}

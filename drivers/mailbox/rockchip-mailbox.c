@@ -165,14 +165,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	mb = devm_kzalloc(&pdev->dev,
-			  struct_size(mb, chans, ROCKCHIP_MAILBOX_NUM_CHANS),
-			  GFP_KERNEL);
+	mb = devm_kzalloc_flex(&pdev->dev, *mb, chans,
+			       ROCKCHIP_MAILBOX_NUM_CHANS);
 	if (!mb)
 		return -ENOMEM;
 
-	mb->mbox.chans = devm_kcalloc(&pdev->dev, ROCKCHIP_MAILBOX_NUM_CHANS,
-				      sizeof(*mb->mbox.chans), GFP_KERNEL);
+	mb->mbox.chans = devm_kzalloc_objs(&pdev->dev, *mb->mbox.chans,
+					   ROCKCHIP_MAILBOX_NUM_CHANS);
 	if (!mb->mbox.chans)
 		return -ENOMEM;
 

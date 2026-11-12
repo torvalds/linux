@@ -1816,8 +1816,8 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 		ar_snoc->num_vregs = 1;
 	}
 
-	ar_snoc->vregs = devm_kcalloc(&pdev->dev, ar_snoc->num_vregs,
-				      sizeof(*ar_snoc->vregs), GFP_KERNEL);
+	ar_snoc->vregs = devm_kzalloc_objs(&pdev->dev, *ar_snoc->vregs,
+					   ar_snoc->num_vregs);
 	if (!ar_snoc->vregs) {
 		ret = -ENOMEM;
 		goto err_free_irq;
@@ -1831,8 +1831,8 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 
 	ar_snoc->num_clks = ARRAY_SIZE(ath10k_clocks);
-	ar_snoc->clks = devm_kcalloc(&pdev->dev, ar_snoc->num_clks,
-				     sizeof(*ar_snoc->clks), GFP_KERNEL);
+	ar_snoc->clks = devm_kzalloc_objs(&pdev->dev, *ar_snoc->clks,
+					  ar_snoc->num_clks);
 	if (!ar_snoc->clks) {
 		ret = -ENOMEM;
 		goto err_free_irq;

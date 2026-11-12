@@ -304,7 +304,7 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 	struct mtk_rtc *hw;
 	int ret;
 
-	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc_obj(&pdev->dev, *hw);
 	if (!hw)
 		return -ENOMEM;
 

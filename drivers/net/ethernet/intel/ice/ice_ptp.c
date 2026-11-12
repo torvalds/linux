@@ -2549,9 +2549,9 @@ static void ice_ptp_set_funcs_e810(struct ice_pf *pf)
 		}
 		err = 0;
 	} else {
-		desc = devm_kcalloc(ice_pf_to_dev(pf), ICE_N_PINS_MAX,
-				    sizeof(struct ice_ptp_pin_desc),
-				    GFP_KERNEL);
+		desc = devm_kzalloc_objs(ice_pf_to_dev(pf),
+					 struct ice_ptp_pin_desc,
+					 ICE_N_PINS_MAX);
 		if (!desc)
 			goto err;
 

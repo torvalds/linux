@@ -106,7 +106,7 @@ static int qcom_rng_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
+	rng = devm_kzalloc_obj(&pdev->dev, *rng);
 	if (!rng)
 		return -ENOMEM;
 

@@ -507,8 +507,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	if (!ret)
 		return -ENOENT;
 
-	drv = devm_kzalloc(&pdev->dev, struct_size(drv, cpus, num_possible_cpus()),
-		           GFP_KERNEL);
+	drv = devm_kzalloc_flex(&pdev->dev, *drv, cpus, num_possible_cpus());
 	if (!drv)
 		return -ENOMEM;
 

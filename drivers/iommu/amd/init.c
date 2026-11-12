@@ -432,8 +432,41 @@ static void iommu_enable(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
+/*
+ * Program or clear the per-IOMMU PerfOpt enable bit.
+ * Gate on this IOMMU's own EFR, not the global AND-mask.
+ * Caller serializes access using iommu->lock or during init/suspend/resume.
+ */
+int amd_iommu_perfopt_set(struct amd_iommu *iommu, bool enable)
+{
+	u32 old, val, readback;
+
+	if (!(readq(iommu->mmio_base + MMIO_EXT_FEATURES) & FEATURE_PERF_OPT))
+		return enable ? -ENODEV : 0;
+
+	old = readl(iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
+	if (old == U32_MAX)
+		goto fail;
+
+	val = enable ? old | PERF_OPT_EN : old & ~PERF_OPT_EN;
+	if (val != old)
+		writel(val, iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
+	readback = readl(iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
+	if (readback == U32_MAX ||
+	    (readback & PERF_OPT_EN) != (val & PERF_OPT_EN))
+		goto fail;
+
+	iommu->perfopt_enabled = enable;
+	return 0;
+fail:
+	pr_err("IOMMU%d: failed to set PerfOpt to %d\n", iommu->index, enable);
+	return -EIO;
+}
+
 static void iommu_disable(struct amd_iommu *iommu)
 {
+	bool perfopt_enabled = iommu->perfopt_enabled;
+
 	if (!iommu->mmio_base)
 		return;
 
@@ -457,6 +490,10 @@ static void iommu_disable(struct amd_iommu *iommu)
 
 	/* Clear IRTE cache disabling bit */
 	iommu_feature_disable(iommu, CONTROL_IRTCACHEDIS);
+
+	/* Clear hardware while preserving the activation state for resume. */
+	amd_iommu_perfopt_set(iommu, false);
+	iommu->perfopt_enabled = perfopt_enabled;
 }
 
 /*
@@ -1888,6 +1925,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h,
 				 struct acpi_table_header *ivrs_base)
 {
 	struct amd_iommu_pci_seg *pci_seg;
+	int ret;
 
 	pci_seg = get_pci_segment(h->pci_seg, ivrs_base);
 	if (pci_seg == NULL)
@@ -1960,8 +1998,10 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h,
 	if (!iommu->mmio_base)
 		return -ENOMEM;
 
-	if (amd_iommu_perfopt_clear(iommu))
-		pr_err("IOMMU%d: failed to clear PerfOpt\n", iommu->index);
+	/* A crash kernel may reuse device tables with PerfOpt still enabled. */
+	ret = amd_iommu_perfopt_set(iommu, false);
+	if (ret)
+		return ret;
 
 	return init_iommu_from_acpi(iommu, h);
 }
@@ -2330,6 +2370,9 @@ static void print_iommu_info(void)
 
 		if (check_feature2(FEATURE_SEVSNPIO_SUP))
 			pr_cont(" SEV-TIO");
+
+		if (check_feature(FEATURE_PERF_OPT))
+			pr_cont(" PerfOpt");
 
 		pr_cont("\n");
 	}
@@ -2733,6 +2776,15 @@ static int __init init_unity_map_range(struct ivmd_header *m,
 	return 0;
 }
 
+static bool ivrs_block_type_ivmd(u8 type)
+{
+	if (type == ACPI_IVMD_TYPE ||
+	    type == ACPI_IVMD_TYPE_ALL ||
+	    type == ACPI_IVMD_TYPE_RANGE)
+		return true;
+	return false;
+}
+
 /* iterates over all memory definitions we find in the ACPI table */
 static int __init init_memory_definitions(struct acpi_table_header *table)
 {
@@ -2744,10 +2796,11 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 
 	while (p < end) {
 		m = (struct ivmd_header *)p;
+		p += m->length;
+		if (!ivrs_block_type_ivmd(m->type))
+			continue;
 		if (m->flags & (IVMD_FLAG_UNITY_MAP | IVMD_FLAG_EXCL_RANGE))
 			init_unity_map_range(m, table);
-
-		p += m->length;
 	}
 
 	return 0;
@@ -3067,45 +3120,9 @@ static void enable_iommus_vapic(void)
 #endif
 }
 
-static int clear_perfopt_all(void)
-{
-	struct amd_iommu *iommu;
-	int err, ret = 0;
-
-	for_each_iommu(iommu) {
-		err = amd_iommu_perfopt_clear(iommu);
-		if (err)
-			ret = err;
-	}
-
-	return ret;
-}
-
-static int restore_perfopt_all(void)
-{
-	struct amd_iommu *iommu;
-	int err, ret = 0;
-
-	for_each_iommu(iommu) {
-		err = amd_iommu_perfopt_restore(iommu);
-		if (err)
-			ret = err;
-	}
-
-	return ret;
-}
-
 static void disable_iommus(void)
 {
 	struct amd_iommu *iommu;
-
-	/*
-	 * PerfOpt is an optional performance bit, so a failure to clear it must
-	 * not skip the mandatory disable below. This also runs from the void
-	 * amd_iommu_disable() shutdown/kexec path, which cannot report an error.
-	 */
-	if (clear_perfopt_all())
-		pr_err("Failed to clear PerfOpt while disabling IOMMUs\n");
 
 	for_each_iommu(iommu)
 		iommu_disable(iommu);
@@ -3132,9 +3149,11 @@ static void amd_iommu_resume(void *data)
 	for_each_iommu(iommu)
 		early_enable_iommu(iommu);
 
-	/* early_enable_iommu() cleared PERF_OPT_EN; re-assert it from the refcount. */
-	if (restore_perfopt_all())
-		pr_err("Failed to restore PerfOpt after IOMMU resume\n");
+	/* Restore the activation state saved at suspend. */
+	for_each_iommu(iommu) {
+		if (iommu->perfopt_enabled)
+			amd_iommu_perfopt_set(iommu, true);
+	}
 
 	iommu_enable_event_buffer();
 	amd_iommu_enable_interrupts();
@@ -3505,6 +3524,7 @@ static __init void iommu_snp_enable(void)
 	return;
 
 disable_snp:
+	amd_iommu_snp_en = false;
 	cc_platform_clear(CC_ATTR_HOST_SEV_SNP);
 #endif
 }

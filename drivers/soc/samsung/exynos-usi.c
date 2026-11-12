@@ -275,7 +275,7 @@ static int exynos_usi_get_clocks(struct exynos_usi *usi)
 	if (num == 0)
 		return 0;
 
-	usi->clks = devm_kcalloc(dev, num, sizeof(*usi->clks), GFP_KERNEL);
+	usi->clks = devm_kzalloc_objs(dev, *usi->clks, num);
 	if (!usi->clks)
 		return -ENOMEM;
 
@@ -292,7 +292,7 @@ static int exynos_usi_probe(struct platform_device *pdev)
 	struct exynos_usi *usi;
 	int ret;
 
-	usi = devm_kzalloc(dev, sizeof(*usi), GFP_KERNEL);
+	usi = devm_kzalloc_obj(dev, *usi);
 	if (!usi)
 		return -ENOMEM;
 

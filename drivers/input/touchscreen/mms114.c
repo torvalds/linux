@@ -534,8 +534,7 @@ static int mms114_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mms114_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mms114_data);
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!data || !input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");

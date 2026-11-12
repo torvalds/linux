@@ -473,7 +473,7 @@ static int ds1374_probe(struct i2c_client *client)
 	struct ds1374 *ds1374;
 	int ret;
 
-	ds1374 = devm_kzalloc(&client->dev, sizeof(struct ds1374), GFP_KERNEL);
+	ds1374 = devm_kzalloc_obj(&client->dev, struct ds1374);
 	if (!ds1374)
 		return -ENOMEM;
 

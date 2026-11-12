@@ -182,7 +182,7 @@ static int tegra_tcu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	tcu = devm_kzalloc(dev, sizeof(*tcu), GFP_KERNEL);
+	tcu = devm_kzalloc_obj(dev, *tcu);
 	if (!tcu)
 		return -ENOMEM;
 

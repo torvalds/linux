@@ -260,8 +260,7 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 			phy_set_drvdata(phy_cfg[idx].phy, &phy_cfg[idx]);
 		}
 	} else if (version == BCM_SR_USB_HS_PHY) {
-		phy_cfg = devm_kzalloc(dev, sizeof(struct bcm_usb_phy_cfg),
-				       GFP_KERNEL);
+		phy_cfg = devm_kzalloc_obj(dev, struct bcm_usb_phy_cfg);
 		if (!phy_cfg)
 			return -ENOMEM;
 

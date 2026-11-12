@@ -732,7 +732,7 @@ static int brcm_pcie_enable_msi(struct brcm_pcie *pcie)
 		return -ENODEV;
 	}
 
-	msi = devm_kzalloc(dev, sizeof(struct brcm_msi), GFP_KERNEL);
+	msi = devm_kzalloc_obj(dev, struct brcm_msi);
 	if (!msi)
 		return -ENOMEM;
 

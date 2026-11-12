@@ -75,7 +75,7 @@ static int bcm2835_pm_probe(struct platform_device *pdev)
 	struct bcm2835_pm *pm;
 	int ret;
 
-	pm = devm_kzalloc(dev, sizeof(*pm), GFP_KERNEL);
+	pm = devm_kzalloc_obj(dev, *pm);
 	if (!pm)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pm);

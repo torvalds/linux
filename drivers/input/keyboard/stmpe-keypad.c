@@ -343,8 +343,7 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(struct stmpe_keypad),
-			      GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, struct stmpe_keypad);
 	if (!keypad)
 		return -ENOMEM;
 

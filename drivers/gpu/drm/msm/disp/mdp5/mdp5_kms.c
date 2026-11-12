@@ -685,7 +685,7 @@ static int interface_init(struct mdp5_kms *mdp5_kms)
 		if (intf_types[i] == INTF_DISABLED)
 			continue;
 
-		intf = devm_kzalloc(dev->dev, sizeof(*intf), GFP_KERNEL);
+		intf = devm_kzalloc_obj(dev->dev, *intf);
 		if (!intf) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct INTF%d\n", i);
 			return -ENOMEM;
@@ -817,7 +817,7 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 	if (!msm_disp_drv_should_bind(&pdev->dev, false))
 		return -ENODEV;
 
-	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
+	mdp5_kms = devm_kzalloc_obj(&pdev->dev, *mdp5_kms);
 	if (!mdp5_kms)
 		return -ENOMEM;
 

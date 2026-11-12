@@ -383,9 +383,8 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 	}
 
 	if (buffers) { /* Not the message buffer */
-		this_buffer = devm_kcalloc(dev, bufnum,
-					   sizeof(struct xilly_buffer),
-					   GFP_KERNEL);
+		this_buffer = devm_kzalloc_objs(dev, struct xilly_buffer,
+						bufnum);
 		if (!this_buffer)
 			return -ENOMEM;
 	}
@@ -485,14 +484,12 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 		.regdirection = 0x80000000,
 	};
 
-	channel = devm_kcalloc(dev, ep->num_channels,
-			       sizeof(struct xilly_channel), GFP_KERNEL);
+	channel = devm_kzalloc_objs(dev, struct xilly_channel, ep->num_channels);
 	if (!channel)
 		return -ENOMEM;
 
-	ep->channels = devm_kcalloc(dev, ep->num_channels + 1,
-				    sizeof(struct xilly_channel *),
-				    GFP_KERNEL);
+	ep->channels = devm_kzalloc_objs(dev, struct xilly_channel *,
+					 ep->num_channels + 1);
 	if (!ep->channels)
 		return -ENOMEM;
 
@@ -565,9 +562,8 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 
 			bytebufsize = bufsize << channel->log2_element_size;
 
-			buffers = devm_kcalloc(dev, bufnum,
-					       sizeof(struct xilly_buffer *),
-					       GFP_KERNEL);
+			buffers = devm_kzalloc_objs(dev, struct xilly_buffer *,
+						    bufnum);
 			if (!buffers)
 				return -ENOMEM;
 		} else {
@@ -1857,7 +1853,7 @@ struct xilly_endpoint *xillybus_init_endpoint(struct device *dev)
 {
 	struct xilly_endpoint *endpoint;
 
-	endpoint = devm_kzalloc(dev, sizeof(*endpoint), GFP_KERNEL);
+	endpoint = devm_kzalloc_obj(dev, *endpoint);
 	if (!endpoint)
 		return NULL;
 

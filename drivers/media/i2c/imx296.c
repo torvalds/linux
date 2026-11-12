@@ -1023,7 +1023,7 @@ static int imx296_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&client->dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

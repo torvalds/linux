@@ -227,11 +227,11 @@ static int mt6315_regulator_probe(struct spmi_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	chip = devm_kzalloc(dev, sizeof(struct mt6315_chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, struct mt6315_chip);
 	if (!chip)
 		return -ENOMEM;
 
-	init_data = devm_kzalloc(dev, sizeof(struct mt_regulator_init_data), GFP_KERNEL);
+	init_data = devm_kzalloc_obj(dev, struct mt_regulator_init_data);
 	if (!init_data)
 		return -ENOMEM;
 

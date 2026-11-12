@@ -252,7 +252,7 @@ static int pm8916_lbc_charger_probe(struct platform_device *pdev)
 	int ret, len, irq;
 	unsigned int tmp;
 
-	chg = devm_kzalloc(dev, sizeof(*chg), GFP_KERNEL);
+	chg = devm_kzalloc_obj(dev, *chg);
 	if (!chg)
 		return -ENOMEM;
 

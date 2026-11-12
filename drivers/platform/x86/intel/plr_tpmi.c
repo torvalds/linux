@@ -304,7 +304,7 @@ static int intel_plr_probe(struct auxiliary_device *auxdev, const struct auxilia
 	if (!num_resources)
 		return -EINVAL;
 
-	plr = devm_kzalloc(&auxdev->dev, sizeof(*plr), GFP_KERNEL);
+	plr = devm_kzalloc_obj(&auxdev->dev, *plr);
 	if (!plr)
 		return -ENOMEM;
 
@@ -314,8 +314,8 @@ static int intel_plr_probe(struct auxiliary_device *auxdev, const struct auxilia
 
 	intel_plr_register_notifier(&plr->nb);
 
-	plr->die_info = devm_kcalloc(&auxdev->dev, num_resources, sizeof(*plr->die_info),
-				     GFP_KERNEL);
+	plr->die_info = devm_kzalloc_objs(&auxdev->dev, *plr->die_info,
+					  num_resources);
 	if (!plr->die_info) {
 		err = -ENOMEM;
 		goto err_notify;

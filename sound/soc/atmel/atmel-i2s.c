@@ -631,7 +631,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 	unsigned int version;
 
 	/* Get memory for driver data. */
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

@@ -859,7 +859,7 @@ static int apple_backlight_init(struct hid_device *hdev)
 	hid_dbg(hdev, "backlight config: off=%u, on_min=%u, on_max=%u\n",
 		rep->backlight_off, rep->backlight_on_min, rep->backlight_on_max);
 
-	asc->backlight = devm_kzalloc(&hdev->dev, sizeof(*asc->backlight), GFP_KERNEL);
+	asc->backlight = devm_kzalloc_obj(&hdev->dev, *asc->backlight);
 	if (!asc->backlight) {
 		ret = -ENOMEM;
 		goto cleanup_and_exit;
@@ -930,7 +930,7 @@ static int apple_magic_backlight_init(struct hid_device *hdev)
 	if (hdev->collection[0].usage != HID_USAGE_MAGIC_BL)
 		return -ENODEV;
 
-	backlight = devm_kzalloc(&hdev->dev, sizeof(*backlight), GFP_KERNEL);
+	backlight = devm_kzalloc_obj(&hdev->dev, *backlight);
 	if (!backlight)
 		return -ENOMEM;
 
@@ -963,7 +963,7 @@ static int apple_probe(struct hid_device *hdev,
 	if (quirks & APPLE_IGNORE_MOUSE && hdev->type == HID_TYPE_USBMOUSE)
 		return -ENODEV;
 
-	asc = devm_kzalloc(&hdev->dev, sizeof(*asc), GFP_KERNEL);
+	asc = devm_kzalloc_obj(&hdev->dev, *asc);
 	if (asc == NULL) {
 		hid_err(hdev, "can't alloc apple descriptor\n");
 		return -ENOMEM;

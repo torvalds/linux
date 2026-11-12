@@ -339,7 +339,7 @@ static int meson_ao_cec_g12a_setup_clk(struct meson_ao_cec_g12a_device *ao_cec)
 	struct clk *clk;
 	char *name;
 
-	dualdiv_clk = devm_kzalloc(dev, sizeof(*dualdiv_clk), GFP_KERNEL);
+	dualdiv_clk = devm_kzalloc_obj(dev, *dualdiv_clk);
 	if (!dualdiv_clk)
 		return -ENOMEM;
 
@@ -641,7 +641,7 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
-	ao_cec = devm_kzalloc(&pdev->dev, sizeof(*ao_cec), GFP_KERNEL);
+	ao_cec = devm_kzalloc_obj(&pdev->dev, *ao_cec);
 	if (!ao_cec)
 		return -ENOMEM;
 

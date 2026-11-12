@@ -966,7 +966,7 @@ static void lg_g15_setup_led_rgb(struct lg_g15_data *g15, int index)
 	gled->mcdev.led_cdev.max_brightness = 255;
 	gled->mcdev.num_colors = 3;
 
-	subled_info = devm_kcalloc(&g15->hdev->dev, 3, sizeof(*subled_info), GFP_KERNEL);
+	subled_info = devm_kzalloc_objs(&g15->hdev->dev, *subled_info, 3);
 	if (!subled_info)
 		return;
 
@@ -1148,7 +1148,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!has_ff000000)
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
-	g15 = devm_kzalloc(&hdev->dev, sizeof(*g15), GFP_KERNEL);
+	g15 = devm_kzalloc_obj(&hdev->dev, *g15);
 	if (!g15)
 		return -ENOMEM;
 

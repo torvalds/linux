@@ -600,11 +600,11 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	}
 
 	grp->grp.npins = size / pin_size;
-	grp->data = devm_kcalloc(ipctl->dev, grp->grp.npins, sizeof(*pin), GFP_KERNEL);
+	grp->data = devm_kzalloc_objs(ipctl->dev, *pin, grp->grp.npins);
 	if (!grp->data)
 		return -ENOMEM;
 
-	pins = devm_kcalloc(ipctl->dev, grp->grp.npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(ipctl->dev, *pins, grp->grp.npins);
 	if (!pins)
 		return -ENOMEM;
 	grp->grp.pins = pins;
@@ -633,7 +633,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 
 	dev_dbg(pctl->dev, "parse function(%d): %pOFn\n", index, np);
 
-	func = devm_kzalloc(ipctl->dev, sizeof(*func), GFP_KERNEL);
+	func = devm_kzalloc_obj(ipctl->dev, *func);
 	if (!func)
 		return -ENOMEM;
 
@@ -645,8 +645,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 		return -EINVAL;
 	}
 
-	group_names = devm_kcalloc(ipctl->dev, func->ngroups,
-				   sizeof(*group_names), GFP_KERNEL);
+	group_names = devm_kzalloc_objs(ipctl->dev, *group_names, func->ngroups);
 	if (!group_names)
 		return -ENOMEM;
 	i = 0;
@@ -660,7 +659,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 
 	i = 0;
 	for_each_child_of_node_scoped(np, child) {
-		grp = devm_kzalloc(ipctl->dev, sizeof(*grp), GFP_KERNEL);
+		grp = devm_kzalloc_obj(ipctl->dev, *grp);
 		if (!grp)
 			return -ENOMEM;
 
@@ -766,14 +765,14 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	/* Create state holders etc for this driver */
-	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
+	ipctl = devm_kzalloc_obj(&pdev->dev, *ipctl);
 	if (!ipctl)
 		return -ENOMEM;
 
 	if (!(info->flags & IMX_USE_SCU)) {
-		ipctl->pin_regs = devm_kmalloc_array(&pdev->dev, info->npins,
-						     sizeof(*ipctl->pin_regs),
-						     GFP_KERNEL);
+		ipctl->pin_regs = devm_kmalloc_objs(&pdev->dev,
+						    *ipctl->pin_regs,
+						    info->npins);
 		if (!ipctl->pin_regs)
 			return -ENOMEM;
 
@@ -803,8 +802,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		}
 	}
 
-	imx_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*imx_pinctrl_desc),
-					GFP_KERNEL);
+	imx_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *imx_pinctrl_desc);
 	if (!imx_pinctrl_desc)
 		return -ENOMEM;
 

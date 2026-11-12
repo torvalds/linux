@@ -72,7 +72,7 @@ s5pv210_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 	struct device_node *np;
 	void __iomem *clk_base;
 
-	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(drvdata->dev, *ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 

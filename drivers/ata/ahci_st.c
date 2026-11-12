@@ -153,7 +153,7 @@ static int st_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	int err;
 
-	drv_data = devm_kzalloc(&pdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&pdev->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

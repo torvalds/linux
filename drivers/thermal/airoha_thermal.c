@@ -729,7 +729,7 @@ static int airoha_thermal_probe(struct platform_device *pdev)
 
 	soc_data = device_get_match_data(dev);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -751,7 +751,7 @@ static int airoha_thermal_probe(struct platform_device *pdev)
 		struct airoha_thermal_zone *zone;
 		struct thermal_zone_device *tz;
 
-		zone = devm_kzalloc(dev, sizeof(*zone), GFP_KERNEL);
+		zone = devm_kzalloc_obj(dev, *zone);
 		if (!zone)
 			return -ENOMEM;
 

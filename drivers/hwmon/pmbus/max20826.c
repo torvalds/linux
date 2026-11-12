@@ -909,7 +909,7 @@ static void max20826_init_debugfs(struct max20826 *st)
 		struct max20826_debugfs_entry *entry;
 		char name[32];
 
-		entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
+		entry = devm_kzalloc_obj(dev, *entry);
 		if (!entry)
 			return;
 
@@ -930,7 +930,7 @@ static int max20826_probe(struct i2c_client *client)
 	struct max20826 *st;
 	int ret;
 
-	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(&client->dev, *st);
 	if (!st)
 		return -ENOMEM;
 

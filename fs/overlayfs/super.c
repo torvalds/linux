@@ -100,17 +100,13 @@ static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 			dir = d_inode_rcu(parent);
 			if (!dir)
 				return -ECHILD;
-			/*
-			 * Nothing pins d in RCU walk: eviction of the overlay
-			 * inode may drop the last reference at any time.
-			 */
-			if (!try_take_dentry_name_snapshot(&n, d))
-				return -ECHILD;
 		} else {
 			parent = dget_parent(d);
 			dir = d_inode(parent);
-			take_dentry_name_snapshot(&n, d);
 		}
+		/* In RCU walk the dentry name may go away at any time */
+		if (!take_dentry_name_snapshot(&n, d))
+			return -ECHILD;
 		ret = d->d_op->d_revalidate(dir, &n.name, d, flags);
 		release_dentry_name_snapshot(&n);
 		if (!(flags & LOOKUP_RCU))
@@ -1391,7 +1387,6 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root);
 	ovl_set_upperdata(d_inode(root));
 	ovl_inode_init(d_inode(root), &oip, ino, fsid);
-	WARN_ON(!!IS_CASEFOLDED(d_inode(root)) != ofs->casefold);
 	ovl_dentry_init_flags(root, upperdentry, oe, DCACHE_OP_WEAK_REVALIDATE);
 	/* root keeps a reference of upperdentry */
 	dget(upperdentry);
@@ -1574,6 +1569,17 @@ static int ovl_fill_super_creds(struct fs_context *fc, struct super_block *sb)
 	sb->s_root = ovl_get_root(sb, ctx->upper.dentry, oe);
 	if (!sb->s_root)
 		goto out_free_oe;
+
+	/*
+	 * The casefold flag of an empty layer root may have changed since the
+	 * mount options were parsed.  The root inode owns oe by now.
+	 */
+	if (!!IS_CASEFOLDED(d_inode(sb->s_root)) != ofs->casefold) {
+		pr_err("casefold flag of the root directory has changed\n");
+		dput(sb->s_root);
+		sb->s_root = NULL;
+		return -EINVAL;
+	}
 
 	return 0;
 

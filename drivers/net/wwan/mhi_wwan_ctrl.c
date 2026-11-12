@@ -209,9 +209,17 @@ static void mhi_wwan_ctrl_dtr_work(struct work_struct *work)
 static void mhi_wwan_ctrl_dtr_rts(struct wwan_port *port, unsigned int mdmbits)
 {
 	struct mhi_wwan_dev *mhiwwan = wwan_port_get_drvdata(port);
+	bool drop = (READ_ONCE(mhiwwan->dtr_mdmbits) & TIOCM_DTR) &&
+		    !(mdmbits & TIOCM_DTR);
 
 	WRITE_ONCE(mhiwwan->dtr_mdmbits, mdmbits);
 	schedule_delayed_work(&mhiwwan->dtr_work, 0);
+
+	/* A DTR drop matters on its own, e.g. to hang up a modem set to AT&D2,
+	 * so send it now rather than let a following raise coalesce it away
+	 */
+	if (drop)
+		flush_delayed_work(&mhiwwan->dtr_work);
 }
 
 static int mhi_wwan_ctrl_start(struct wwan_port *port)
@@ -245,6 +253,9 @@ static void mhi_wwan_ctrl_stop(struct wwan_port *port)
 	spin_unlock_bh(&mhiwwan->rx_lock);
 
 	cancel_work_sync(&mhiwwan->rx_refill);
+
+	/* Send any pending DTR/RTS state before the channel stops */
+	flush_delayed_work(&mhiwwan->dtr_work);
 
 	mhi_unprepare_from_transfer(mhiwwan->mhi_dev);
 }

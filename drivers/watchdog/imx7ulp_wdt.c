@@ -317,7 +317,7 @@ static int imx7ulp_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdog;
 	int ret;
 
-	imx7ulp_wdt = devm_kzalloc(dev, sizeof(*imx7ulp_wdt), GFP_KERNEL);
+	imx7ulp_wdt = devm_kzalloc_obj(dev, *imx7ulp_wdt);
 	if (!imx7ulp_wdt)
 		return -ENOMEM;
 

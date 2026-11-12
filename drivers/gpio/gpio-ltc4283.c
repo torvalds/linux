@@ -173,7 +173,7 @@ static int ltc4283_gpio_probe(struct auxiliary_device *adev,
 	struct ltc4283_gpio *st;
 	struct gpio_chip *gc;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

@@ -486,7 +486,7 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 
 	pdev->id = of_alias_get_id(dev->of_node, "i2c");
 
-	i2c_dev = devm_kzalloc(dev, sizeof(struct sprd_i2c), GFP_KERNEL);
+	i2c_dev = devm_kzalloc_obj(dev, struct sprd_i2c);
 	if (!i2c_dev)
 		return -ENOMEM;
 

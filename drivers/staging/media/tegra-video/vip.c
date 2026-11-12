@@ -227,7 +227,7 @@ static int tegra_vip_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing VIP \"%s\" from %pOF\n", pdev->name, pdev->dev.of_node);
 
-	vip = devm_kzalloc(&pdev->dev, sizeof(*vip), GFP_KERNEL);
+	vip = devm_kzalloc_obj(&pdev->dev, *vip);
 	if (!vip)
 		return -ENOMEM;
 

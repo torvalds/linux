@@ -42,7 +42,7 @@ static int npcm_udc_probe(struct platform_device *pdev)
 	struct platform_device *plat_ci;
 	struct device *dev = &pdev->dev;
 
-	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
+	ci = devm_kzalloc_obj(&pdev->dev, *ci);
 	if (!ci)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, ci);

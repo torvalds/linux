@@ -877,7 +877,7 @@ static int pic32_uart_probe(struct platform_device *pdev)
 	if (!res_mem)
 		return -EINVAL;
 
-	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
+	sport = devm_kzalloc_obj(&pdev->dev, *sport);
 	if (!sport)
 		return -ENOMEM;
 

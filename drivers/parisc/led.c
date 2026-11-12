@@ -280,7 +280,7 @@ static int hppa_led_generic_probe(struct platform_device *pdev,
 	struct hppa_drvdata *p;
 	int i, err;
 
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(&pdev->dev, *p);
 	if (!p)
 		return -ENOMEM;
 

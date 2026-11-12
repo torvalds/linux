@@ -2113,7 +2113,7 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 	struct altr_arria10_edac *edac;
 	struct device_node *child;
 
-	edac = devm_kzalloc(&pdev->dev, sizeof(*edac), GFP_KERNEL);
+	edac = devm_kzalloc_obj(&pdev->dev, *edac);
 	if (!edac)
 		return -ENOMEM;
 

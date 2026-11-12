@@ -378,13 +378,13 @@ static int arch_timer_mmio_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 
-	at = devm_kmalloc(&pdev->dev, sizeof(*at), GFP_KERNEL | __GFP_ZERO);
+	at = devm_kmalloc_obj(&pdev->dev, *at, GFP_KERNEL | __GFP_ZERO);
 	if (!at)
 		return -ENOMEM;
 
 	if (np) {
-		at->gt_block = devm_kmalloc(&pdev->dev, sizeof(*at->gt_block),
-					    GFP_KERNEL | __GFP_ZERO);
+		at->gt_block = devm_kmalloc_obj(&pdev->dev, *at->gt_block,
+						GFP_KERNEL | __GFP_ZERO);
 		if (!at->gt_block)
 			return -ENOMEM;
 		ret = of_populate_gt_block(pdev, at);

@@ -793,8 +793,8 @@ static int init_cmdqs_ctxt(struct hinic_hwdev *hwdev,
 	struct hinic_pfhwdev *pfhwdev;
 	int err;
 
-	cmdq_ctxts = devm_kcalloc(&pdev->dev, HINIC_MAX_CMDQ_TYPES,
-				  sizeof(*cmdq_ctxts), GFP_KERNEL);
+	cmdq_ctxts = devm_kzalloc_objs(&pdev->dev, *cmdq_ctxts,
+				       HINIC_MAX_CMDQ_TYPES);
 	if (!cmdq_ctxts)
 		return -ENOMEM;
 
@@ -888,8 +888,8 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 	if (!cmdqs->cmdq_buf_pool)
 		return -ENOMEM;
 
-	cmdqs->saved_wqs = devm_kcalloc(&pdev->dev, HINIC_MAX_CMDQ_TYPES,
-					sizeof(*cmdqs->saved_wqs), GFP_KERNEL);
+	cmdqs->saved_wqs = devm_kzalloc_objs(&pdev->dev, *cmdqs->saved_wqs,
+					     HINIC_MAX_CMDQ_TYPES);
 	if (!cmdqs->saved_wqs) {
 		err = -ENOMEM;
 		goto err_saved_wqs;

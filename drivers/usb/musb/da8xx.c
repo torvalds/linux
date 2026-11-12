@@ -521,7 +521,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	struct device_node		*np = pdev->dev.of_node;
 	int				ret;
 
-	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(&pdev->dev, *glue);
 	if (!glue)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	glue->clk			= clk;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 

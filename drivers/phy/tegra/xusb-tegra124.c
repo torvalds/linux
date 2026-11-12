@@ -1693,7 +1693,7 @@ tegra124_xusb_padctl_probe(struct device *dev,
 	struct tegra124_xusb_padctl *padctl;
 	int err;
 
-	padctl = devm_kzalloc(dev, sizeof(*padctl), GFP_KERNEL);
+	padctl = devm_kzalloc_obj(dev, *padctl);
 	if (!padctl)
 		return ERR_PTR(-ENOMEM);
 

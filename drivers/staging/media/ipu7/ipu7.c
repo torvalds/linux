@@ -2424,7 +2424,7 @@ static int ipu7_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!fwnode || fwnode_property_read_u32(fwnode, "is_es", &is_es))
 		is_es = 0;
 
-	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

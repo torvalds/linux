@@ -209,7 +209,7 @@ static int i2c_opal_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
+	adapter = devm_kzalloc_obj(&pdev->dev, *adapter);
 	if (!adapter)
 		return -ENOMEM;
 

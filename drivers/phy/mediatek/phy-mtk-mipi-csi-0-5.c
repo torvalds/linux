@@ -216,7 +216,7 @@ static int mtk_mipi_cdphy_probe(struct platform_device *pdev)
 	int ret;
 	u32 phy_type;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

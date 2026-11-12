@@ -338,10 +338,8 @@ static int max8660_pdata_from_dt(struct device *dev,
 	if (matched <= 0)
 		return matched;
 
-	pdata->subdevs = devm_kcalloc(dev,
-				      matched,
-				      sizeof(struct max8660_subdev_data),
-				      GFP_KERNEL);
+	pdata->subdevs = devm_kzalloc_objs(dev, struct max8660_subdev_data,
+					   matched);
 	if (!pdata->subdevs)
 		return -ENOMEM;
 
@@ -401,7 +399,7 @@ static int max8660_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	max8660 = devm_kzalloc(dev, sizeof(struct max8660), GFP_KERNEL);
+	max8660 = devm_kzalloc_obj(dev, struct max8660);
 	if (!max8660)
 		return -ENOMEM;
 

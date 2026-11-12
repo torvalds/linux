@@ -89,7 +89,7 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 	struct crystal_cove_charger_data *charger;
 	int ret;
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

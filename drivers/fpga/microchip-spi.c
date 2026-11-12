@@ -373,7 +373,7 @@ static int mpf_probe(struct spi_device *spi)
 	struct fpga_manager *mgr;
 	struct mpf_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

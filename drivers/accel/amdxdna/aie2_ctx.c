@@ -566,7 +566,7 @@ static int aie2_hwctx_col_list(struct amdxdna_hwctx *hwctx)
 		return -EINVAL;
 	}
 
-	hwctx->col_list = kmalloc_array(entries, sizeof(*hwctx->col_list), GFP_KERNEL);
+	hwctx->col_list = kmalloc_objs(*hwctx->col_list, entries);
 	if (!hwctx->col_list)
 		return -ENOMEM;
 

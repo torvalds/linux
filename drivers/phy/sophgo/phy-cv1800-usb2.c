@@ -107,7 +107,7 @@ static int cv1800_usb_phy_probe(struct platform_device *pdev)
 	if (!parent)
 		return -ENODEV;
 
-	phy = devm_kmalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kmalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

@@ -90,7 +90,7 @@ static int vpu_probe(struct platform_device *pdev)
 	int ret;
 
 	dev_dbg(dev, "probe\n");
-	vpu = devm_kzalloc(dev, sizeof(*vpu), GFP_KERNEL);
+	vpu = devm_kzalloc_obj(dev, *vpu);
 	if (!vpu)
 		return -ENOMEM;
 

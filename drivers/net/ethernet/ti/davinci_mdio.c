@@ -544,7 +544,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	int autosuspend_delay_ms = -1;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -23,7 +23,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct da9052 *da9052;
 
-	da9052 = devm_kzalloc(&spi->dev, sizeof(struct da9052), GFP_KERNEL);
+	da9052 = devm_kzalloc_obj(&spi->dev, struct da9052);
 	if (!da9052)
 		return -ENOMEM;
 

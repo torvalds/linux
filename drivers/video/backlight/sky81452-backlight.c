@@ -193,7 +193,7 @@ static struct sky81452_bl_platform_data *sky81452_bl_parse_dt(
 		return ERR_PTR(-ENODATA);
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 

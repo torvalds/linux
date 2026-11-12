@@ -748,7 +748,7 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	struct mxs_dma_engine *mxs_dma;
 	int ret, i;
 
-	mxs_dma = devm_kzalloc(dev, sizeof(*mxs_dma), GFP_KERNEL);
+	mxs_dma = devm_kzalloc_obj(dev, *mxs_dma);
 	if (!mxs_dma)
 		return -ENOMEM;
 

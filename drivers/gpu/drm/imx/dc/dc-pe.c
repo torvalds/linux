@@ -22,7 +22,7 @@ static int dc_pe_bind(struct device *dev, struct device *master, void *data)
 	struct dc_pe *pe;
 	int ret;
 
-	pe = devm_kzalloc(dev, sizeof(*pe), GFP_KERNEL);
+	pe = devm_kzalloc_obj(dev, *pe);
 	if (!pe)
 		return -ENOMEM;
 

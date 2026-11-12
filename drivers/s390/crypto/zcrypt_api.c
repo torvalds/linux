@@ -1668,7 +1668,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	case ZCRYPT_PERDEV_REQCNT: {
 		u32 *reqcnt;
 
-		reqcnt = kcalloc(AP_DEVICES, sizeof(u32), GFP_KERNEL);
+		reqcnt = kzalloc_objs(u32, AP_DEVICES);
 		if (!reqcnt)
 			return -ENOMEM;
 		zcrypt_perdev_reqcnt(reqcnt, AP_DEVICES);

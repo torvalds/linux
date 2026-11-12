@@ -451,7 +451,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct meson_ir *ir;
 	int irq, ret;
 
-	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(dev, struct meson_ir);
 	if (!ir)
 		return -ENOMEM;
 

@@ -160,7 +160,7 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 	struct mii_bus *new_bus;
 	int ret, bus_id;
 
-	bitbang = devm_kzalloc(&pdev->dev, sizeof(*bitbang), GFP_KERNEL);
+	bitbang = devm_kzalloc_obj(&pdev->dev, *bitbang);
 	if (!bitbang)
 		return -ENOMEM;
 

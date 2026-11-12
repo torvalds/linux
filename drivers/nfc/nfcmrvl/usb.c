@@ -297,7 +297,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 
 	nfc_info(&udev->dev, "intf %p id %p\n", intf, id);
 
-	drv_data = devm_kzalloc(&intf->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&intf->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

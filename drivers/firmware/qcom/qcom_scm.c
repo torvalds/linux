@@ -2728,7 +2728,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	int irq, ret;
 	int i;
 
-	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
+	scm = devm_kzalloc_obj(&pdev->dev, *scm);
 	if (!scm)
 		return -ENOMEM;
 
@@ -2797,8 +2797,8 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	ret = qcom_scm_query_waitq_count(scm);
 	scm->wq_cnt = ret < 0 ? QCOM_SCM_DEFAULT_WAITQ_COUNT : ret;
-	scm->waitq_comps = devm_kcalloc(&pdev->dev, scm->wq_cnt, sizeof(*scm->waitq_comps),
-					GFP_KERNEL);
+	scm->waitq_comps = devm_kzalloc_objs(&pdev->dev, *scm->waitq_comps,
+					     scm->wq_cnt);
 	if (!scm->waitq_comps)
 		return -ENOMEM;
 

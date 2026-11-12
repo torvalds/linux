@@ -274,7 +274,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	int ret;
 	u32 val;
 
-	wdev = devm_kzalloc(dev, sizeof(*wdev), GFP_KERNEL);
+	wdev = devm_kzalloc_obj(dev, *wdev);
 	if (!wdev)
 		return -ENOMEM;
 

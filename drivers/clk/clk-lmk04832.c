@@ -1396,7 +1396,7 @@ static int lmk04832_probe(struct spi_device *spi)
 
 	info = &lmk04832_device_info;
 
-	lmk = devm_kzalloc(&spi->dev, sizeof(struct lmk04832), GFP_KERNEL);
+	lmk = devm_kzalloc_obj(&spi->dev, struct lmk04832);
 	if (!lmk)
 		return -ENOMEM;
 
@@ -1414,23 +1414,22 @@ static int lmk04832_probe(struct spi_device *spi)
 		return dev_err_probe(lmk->dev, PTR_ERR(lmk->reset_gpio),
 				     "failed to get reset GPIO\n");
 
-	lmk->dclk = devm_kcalloc(lmk->dev, info->num_channels >> 1,
-				 sizeof(struct lmk_dclk), GFP_KERNEL);
+	lmk->dclk = devm_kzalloc_objs(lmk->dev, struct lmk_dclk,
+				      info->num_channels >> 1);
 	if (!lmk->dclk) {
 		ret = -ENOMEM;
 		return ret;
 	}
 
-	lmk->clkout = devm_kcalloc(lmk->dev, info->num_channels,
-				   sizeof(*lmk->clkout), GFP_KERNEL);
+	lmk->clkout = devm_kzalloc_objs(lmk->dev, *lmk->clkout,
+					info->num_channels);
 	if (!lmk->clkout) {
 		ret = -ENOMEM;
 		return ret;
 	}
 
-	lmk->clk_data = devm_kzalloc(lmk->dev, struct_size(lmk->clk_data, hws,
-							   info->num_channels),
-				     GFP_KERNEL);
+	lmk->clk_data = devm_kzalloc_flex(lmk->dev, *lmk->clk_data, hws,
+					  info->num_channels);
 	if (!lmk->clk_data) {
 		ret = -ENOMEM;
 		return ret;

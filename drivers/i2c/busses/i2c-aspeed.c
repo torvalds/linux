@@ -1002,7 +1002,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	struct clk *parent_clk;
 	int irq, ret;
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(&pdev->dev, *bus);
 	if (!bus)
 		return -ENOMEM;
 

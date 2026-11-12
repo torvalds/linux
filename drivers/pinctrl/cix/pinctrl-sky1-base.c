@@ -479,14 +479,14 @@ static int sky1_pctrl_build_state(struct platform_device *pdev)
 	int i;
 
 	/* Allocate groups */
-	spctl->groups = devm_kcalloc(&pdev->dev, info->npins,
-				    sizeof(*spctl->groups), GFP_KERNEL);
+	spctl->groups = devm_kzalloc_objs(&pdev->dev, *spctl->groups,
+					  info->npins);
 	if (!spctl->groups)
 		return -ENOMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
-	spctl->grp_names = devm_kcalloc(&pdev->dev, info->npins,
-				       sizeof(*spctl->grp_names), GFP_KERNEL);
+	spctl->grp_names = devm_kzalloc_objs(&pdev->dev, *spctl->grp_names,
+					     info->npins);
 	if (!spctl->grp_names)
 		return -ENOMEM;
 
@@ -517,7 +517,7 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	/* Create state holders etc for this driver */
-	spctl = devm_kzalloc(&pdev->dev, sizeof(*spctl), GFP_KERNEL);
+	spctl = devm_kzalloc_obj(&pdev->dev, *spctl);
 	if (!spctl)
 		return -ENOMEM;
 
@@ -528,13 +528,11 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
 	if (IS_ERR(spctl->base))
 		return PTR_ERR(spctl->base);
 
-	sky1_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*sky1_pinctrl_desc),
-					GFP_KERNEL);
+	sky1_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *sky1_pinctrl_desc);
 	if (!sky1_pinctrl_desc)
 		return -ENOMEM;
 
-	pins = devm_kcalloc(&pdev->dev, info->npins, sizeof(*pins),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, *pins, info->npins);
 	if (!pins)
 		return -ENOMEM;
 	for (i = 0; i < info->npins; i++)

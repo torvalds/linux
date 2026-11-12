@@ -1264,7 +1264,7 @@ static int dw_edma_irq_request(struct dw_edma *dw,
 	if (chip->nr_irqs < 1 || !chip->ops->irq_vector)
 		return -EINVAL;
 
-	dw->irq = devm_kcalloc(dev, chip->nr_irqs, sizeof(*dw->irq), GFP_KERNEL);
+	dw->irq = devm_kzalloc_objs(dev, *dw->irq, chip->nr_irqs);
 	if (!dw->irq)
 		return -ENOMEM;
 
@@ -1370,7 +1370,7 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 		}
 	}
 
-	dw = devm_kzalloc(dev, sizeof(*dw), GFP_KERNEL);
+	dw = devm_kzalloc_obj(dev, *dw);
 	if (!dw)
 		return -ENOMEM;
 
@@ -1411,8 +1411,8 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 		 dw->wr_ch_cnt, dw->rd_ch_cnt);
 
 	/* Allocate channels */
-	dw->chan = devm_kcalloc(dev, dw->wr_ch_cnt + dw->rd_ch_cnt,
-				sizeof(*dw->chan), GFP_KERNEL);
+	dw->chan = devm_kzalloc_objs(dev, *dw->chan,
+				     dw->wr_ch_cnt + dw->rd_ch_cnt);
 	if (!dw->chan)
 		return -ENOMEM;
 

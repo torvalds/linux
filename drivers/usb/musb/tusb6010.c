@@ -1228,7 +1228,7 @@ static int tusb_probe(struct platform_device *pdev)
 	struct platform_device_info	pinfo;
 	int				ret;
 
-	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(&pdev->dev, *glue);
 	if (!glue)
 		return -ENOMEM;
 

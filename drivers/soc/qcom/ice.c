@@ -573,7 +573,7 @@ static struct qcom_ice *qcom_ice_create(struct device *dev,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	engine = devm_kzalloc(dev, sizeof(*engine), GFP_KERNEL);
+	engine = devm_kzalloc_obj(dev, *engine);
 	if (!engine)
 		return ERR_PTR(-ENOMEM);
 

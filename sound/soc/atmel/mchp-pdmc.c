@@ -1022,7 +1022,7 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
+	dd = devm_kzalloc_obj(dev, *dd);
 	if (!dd)
 		return -ENOMEM;
 

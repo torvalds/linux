@@ -202,7 +202,7 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 	struct goldfish_battery_data *data;
 	struct power_supply_config psy_cfg = {};
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (data == NULL)
 		return -ENOMEM;
 

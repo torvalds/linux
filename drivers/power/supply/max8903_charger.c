@@ -498,7 +498,7 @@ static int max8903_parse_dc_current_limit(struct platform_device *pdev,
 	 * reason to keep the raw mirror around for the lifetime of the
 	 * device.
 	 */
-	map = kmalloc_array(map_size, sizeof(*map), GFP_KERNEL);
+	map = kmalloc_objs(*map, map_size);
 	if (!map)
 		return -ENOMEM;
 
@@ -511,10 +511,9 @@ static int max8903_parse_dc_current_limit(struct platform_device *pdev,
 	}
 
 	data->dc_current_limit_map_size = map_size / 2;
-	data->dc_current_limit_map = devm_kcalloc(dev,
-					data->dc_current_limit_map_size,
-					sizeof(*data->dc_current_limit_map),
-					GFP_KERNEL);
+	data->dc_current_limit_map = devm_kzalloc_objs(dev,
+						       *data->dc_current_limit_map,
+						       data->dc_current_limit_map_size);
 	if (!data->dc_current_limit_map) {
 		kfree(map);
 		return -ENOMEM;
@@ -700,7 +699,7 @@ static int max8903_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 
-	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct max8903_data);
 	if (!data)
 		return -ENOMEM;
 

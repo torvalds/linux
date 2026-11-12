@@ -136,7 +136,7 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	const char *clk_name = NULL;
 	int err;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

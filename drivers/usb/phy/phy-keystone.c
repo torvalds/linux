@@ -68,7 +68,7 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 	struct keystone_usbphy	*k_phy;
 	int ret;
 
-	k_phy = devm_kzalloc(dev, sizeof(*k_phy), GFP_KERNEL);
+	k_phy = devm_kzalloc_obj(dev, *k_phy);
 	if (!k_phy)
 		return -ENOMEM;
 

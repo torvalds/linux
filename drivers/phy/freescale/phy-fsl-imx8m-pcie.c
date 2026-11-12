@@ -215,7 +215,7 @@ static int imx8_pcie_phy_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct imx8_pcie_phy *imx8_phy;
 
-	imx8_phy = devm_kzalloc(dev, sizeof(*imx8_phy), GFP_KERNEL);
+	imx8_phy = devm_kzalloc_obj(dev, *imx8_phy);
 	if (!imx8_phy)
 		return -ENOMEM;
 

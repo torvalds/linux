@@ -532,7 +532,7 @@ static int plgpio_probe(struct platform_device *pdev)
 	struct plgpio *plgpio;
 	int ret, irq;
 
-	plgpio = devm_kzalloc(&pdev->dev, sizeof(*plgpio), GFP_KERNEL);
+	plgpio = devm_kzalloc_obj(&pdev->dev, *plgpio);
 	if (!plgpio)
 		return -ENOMEM;
 
@@ -565,10 +565,8 @@ static int plgpio_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "clk_get() failed, work without it\n");
 
 #ifdef CONFIG_PM_SLEEP
-	plgpio->csave_regs = devm_kcalloc(&pdev->dev,
-			DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG),
-			sizeof(*plgpio->csave_regs),
-			GFP_KERNEL);
+	plgpio->csave_regs = devm_kzalloc_objs(&pdev->dev, *plgpio->csave_regs,
+					       DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG));
 	if (!plgpio->csave_regs)
 		return -ENOMEM;
 #endif
@@ -603,9 +601,7 @@ static int plgpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &plgpio_irqchip);
 		girq->parent_handler = plgpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(&pdev->dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents, 1);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->parents[0] = irq;

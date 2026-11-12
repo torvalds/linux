@@ -684,7 +684,7 @@ static int zforce_probe(struct i2c_client *client)
 	struct input_dev *input_dev;
 	int error;
 
-	ts = devm_kzalloc(&client->dev, sizeof(struct zforce_ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&client->dev, struct zforce_ts);
 	if (!ts)
 		return -ENOMEM;
 

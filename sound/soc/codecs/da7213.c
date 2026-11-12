@@ -1930,7 +1930,7 @@ static struct da7213_platform_data
 	const char *fw_str;
 	u32 fw_val32;
 
-	pdata = devm_kzalloc(component->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(component->dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -2179,7 +2179,7 @@ static int da7213_i2c_probe(struct i2c_client *i2c)
 	struct da7213_priv *da7213;
 	int i, ret;
 
-	da7213 = devm_kzalloc(&i2c->dev, sizeof(*da7213), GFP_KERNEL);
+	da7213 = devm_kzalloc_obj(&i2c->dev, *da7213);
 	if (!da7213)
 		return -ENOMEM;
 

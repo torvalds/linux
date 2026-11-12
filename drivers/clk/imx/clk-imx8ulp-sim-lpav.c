@@ -74,9 +74,8 @@ static int clk_imx8ulp_sim_lpav_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	int i, ret;
 
-	data = devm_kzalloc(&pdev->dev,
-			    struct_size(data, clk_data.hws, ARRAY_SIZE(gates)),
-			    GFP_KERNEL);
+	data = devm_kzalloc_flex(&pdev->dev, *data, clk_data.hws,
+				 ARRAY_SIZE(gates));
 	if (!data)
 		return -ENOMEM;
 

@@ -235,7 +235,7 @@ static int mt6370_probe(struct i2c_client *i2c)
 	struct device *dev = &i2c->dev;
 	int ret, vid;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

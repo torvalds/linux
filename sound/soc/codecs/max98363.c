@@ -130,9 +130,8 @@ static int max98363_read_prop(struct sdw_slave *slave)
 	prop->clock_reg_supported = true;
 
 	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+	prop->sink_dpn_prop = devm_kzalloc_objs(&slave->dev,
+						*prop->sink_dpn_prop, nval);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -386,7 +385,7 @@ static int max98363_init(struct sdw_slave *slave, struct regmap *regmap)
 	struct device *dev = &slave->dev;
 
 	/*  Allocate and assign private driver data structure  */
-	max98363 = devm_kzalloc(dev, sizeof(*max98363), GFP_KERNEL);
+	max98363 = devm_kzalloc_obj(dev, *max98363);
 	if (!max98363)
 		return -ENOMEM;
 

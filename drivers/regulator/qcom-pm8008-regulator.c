@@ -127,7 +127,7 @@ static int pm8008_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(pm8008_reg_data); i++) {
 		data = &pm8008_reg_data[i];
 
-		preg = devm_kzalloc(dev, sizeof(*preg), GFP_KERNEL);
+		preg = devm_kzalloc_obj(dev, *preg);
 		if (!preg)
 			return -ENOMEM;
 

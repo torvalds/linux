@@ -27,8 +27,7 @@ static int wm8731_i2c_probe(struct i2c_client *i2c)
 	struct wm8731_priv *wm8731;
 	int ret;
 
-	wm8731 = devm_kzalloc(&i2c->dev, sizeof(struct wm8731_priv),
-			      GFP_KERNEL);
+	wm8731 = devm_kzalloc_obj(&i2c->dev, struct wm8731_priv);
 	if (wm8731 == NULL)
 		return -ENOMEM;
 

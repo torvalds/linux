@@ -168,7 +168,7 @@ static int meson_canvas_probe(struct platform_device *pdev)
 	struct meson_canvas *canvas;
 	struct device *dev = &pdev->dev;
 
-	canvas = devm_kzalloc(dev, sizeof(*canvas), GFP_KERNEL);
+	canvas = devm_kzalloc_obj(dev, *canvas);
 	if (!canvas)
 		return -ENOMEM;
 

@@ -1132,7 +1132,7 @@ static int sx150x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, i2c_funcs))
 		return -ENOSYS;
 
-	pctl = devm_kzalloc(dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 

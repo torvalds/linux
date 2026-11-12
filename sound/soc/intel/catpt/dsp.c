@@ -117,7 +117,7 @@ int catpt_dmac_probe(struct catpt_dev *cdev)
 	struct dw_dma_chip *dmac;
 	int ret;
 
-	dmac = devm_kzalloc(cdev->dev, sizeof(*dmac), GFP_KERNEL);
+	dmac = devm_kzalloc_obj(cdev->dev, *dmac);
 	if (!dmac)
 		return -ENOMEM;
 

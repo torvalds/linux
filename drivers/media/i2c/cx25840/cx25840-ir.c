@@ -1193,7 +1193,7 @@ int cx25840_ir_probe(struct v4l2_subdev *sd)
 	if (!(is_cx23885(state) || is_cx23887(state)))
 		return 0;
 
-	ir_state = devm_kzalloc(&state->c->dev, sizeof(*ir_state), GFP_KERNEL);
+	ir_state = devm_kzalloc_obj(&state->c->dev, *ir_state);
 	if (ir_state == NULL)
 		return -ENOMEM;
 

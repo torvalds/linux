@@ -307,7 +307,7 @@ static int amd_asf_probe(struct platform_device *pdev)
 	struct resource *eoi_addr;
 	int ret, irq;
 
-	asf_dev = devm_kzalloc(dev, sizeof(*asf_dev), GFP_KERNEL);
+	asf_dev = devm_kzalloc_obj(dev, *asf_dev);
 	if (!asf_dev)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate memory\n");
 

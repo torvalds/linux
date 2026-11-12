@@ -33,6 +33,7 @@
 #include <linux/rculist_bl.h>
 #include <linux/list_lru.h>
 #include <linux/namei.h>
+#include <linux/quotaops.h>
 #include "internal.h"
 #include "mount.h"
 
@@ -359,57 +360,50 @@ static inline int dname_external(const struct dentry *dentry)
 	return dentry->d_name.name != dentry->d_shortname.string;
 }
 
-static bool __take_dentry_name_snapshot(struct name_snapshot *name,
-					struct dentry *dentry, bool retry)
+static bool try_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
 {
-	unsigned seq;
-	const unsigned char *s;
+	const unsigned char *s = READ_ONCE(dentry->d_name.name);
+	struct external_name *p;
 
-	rcu_read_lock();
-retry:
-	seq = read_seqcount_begin(&dentry->d_seq);
-	s = READ_ONCE(dentry->d_name.name);
 	name->name.hash_len = dentry->d_name.hash_len;
 	name->name.name = name->inline_name.string;
 	if (likely(s == dentry->d_shortname.string)) {
 		name->inline_name = dentry->d_shortname;
-	} else {
-		struct external_name *p;
-		p = container_of(s, struct external_name, name[0]);
-		// get a valid reference
-		if (unlikely(!atomic_inc_not_zero(&p->count))) {
-			if (retry)
-				goto retry;
-			rcu_read_unlock();
-			return false;
-		}
-		name->name.name = s;
+		return true;
 	}
-	if (read_seqcount_retry(&dentry->d_seq, seq)) {
-		release_dentry_name_snapshot(name);
-		goto retry;
+
+	// Try to get a valid external reference
+	//
+	// In case we fail to get a ref, 'name.name' will
+	// point to the inline_name, which we leave as an
+	// empty name. release_dentry_name_snapshot() can
+	// be called regardless.
+	p = container_of(s, struct external_name, name[0]);
+	if (unlikely(!atomic_inc_not_zero(&p->count))) {
+		name->name.len = 0;
+		name->inline_name.string[0] = 0;
+		return false;
 	}
-	rcu_read_unlock();
+
+	// We got a ref and the name is now needs to be
+	// free'd regardless of whether the sequence count
+	// matches or not
+	name->name.name = s;
 	return true;
 }
 
-void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
+bool take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
 {
-	__take_dentry_name_snapshot(name, dentry, true);
+	guard(rcu)();
+	for (;;) {
+		unsigned seq = read_seqcount_begin(&dentry->d_seq);
+		bool retval = try_name_snapshot(name, dentry);
+		if (!read_seqcount_retry(&dentry->d_seq, seq))
+			return retval;
+		release_dentry_name_snapshot(name);
+	}
 }
 EXPORT_SYMBOL(take_dentry_name_snapshot);
-
-/*
- * For a caller that holds no reference on @dentry, e.g. in RCU walk.
- * The external name of a dead dentry has a zero refcount forever, so
- * take_dentry_name_snapshot() would retry without end.  Fail instead.
- */
-bool try_take_dentry_name_snapshot(struct name_snapshot *name,
-				   struct dentry *dentry)
-{
-	return __take_dentry_name_snapshot(name, dentry, false);
-}
-EXPORT_SYMBOL(try_take_dentry_name_snapshot);
 
 void release_dentry_name_snapshot(struct name_snapshot *name)
 {
@@ -3697,6 +3691,7 @@ void __init vfs_caches_init(void)
 	inode_init();
 	files_init();
 	files_maxfiles_init();
+	dquot_cache_init();
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();

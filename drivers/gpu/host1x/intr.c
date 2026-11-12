@@ -116,7 +116,8 @@ int host1x_intr_init(struct host1x *host)
 		INIT_LIST_HEAD(&syncpt->fences.list);
 	}
 
-	irq_data = devm_kcalloc(host->dev, host->num_syncpt_irqs, sizeof(irq_data[0]), GFP_KERNEL);
+	irq_data = devm_kzalloc_objs(host->dev, irq_data[0],
+				     host->num_syncpt_irqs);
 	if (!irq_data)
 		return -ENOMEM;
 

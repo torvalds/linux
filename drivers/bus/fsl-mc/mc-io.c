@@ -73,7 +73,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	void __iomem *mc_portal_virt_addr;
 	struct resource *res;
 
-	mc_io = devm_kzalloc(dev, sizeof(*mc_io), GFP_KERNEL);
+	mc_io = devm_kzalloc_obj(dev, *mc_io);
 	if (!mc_io)
 		return -ENOMEM;
 

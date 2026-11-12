@@ -1593,7 +1593,7 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		return -EPROBE_DEFER;
 
 	/* Alloc port structure */
-	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr_uart), GFP_KERNEL);
+	s = devm_kzalloc_flex(dev, *s, p, devtype->nr_uart);
 	if (!s)
 		return -ENOMEM;
 

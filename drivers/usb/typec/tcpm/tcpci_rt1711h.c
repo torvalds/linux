@@ -306,7 +306,7 @@ static int rt1711h_probe(struct i2c_client *client)
 			       TCPC_ALERT_CC_STATUS | TCPC_ALERT_RX_BUF_OVF |
 			       TCPC_ALERT_FAULT;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

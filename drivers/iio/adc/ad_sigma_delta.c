@@ -822,8 +822,8 @@ int devm_ad_sd_setup_buffer_and_trigger(struct device *dev, struct iio_dev *indi
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
 	int ret;
 
-	sigma_delta->slots = devm_kcalloc(dev, sigma_delta->num_slots,
-					  sizeof(*sigma_delta->slots), GFP_KERNEL);
+	sigma_delta->slots = devm_kzalloc_objs(dev, *sigma_delta->slots,
+					       sigma_delta->num_slots);
 	if (!sigma_delta->slots)
 		return -ENOMEM;
 

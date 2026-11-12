@@ -296,7 +296,7 @@ static int appleir_probe(struct hid_device *hid, const struct hid_device_id *id)
 	int ret;
 	struct appleir *appleir;
 
-	appleir = devm_kzalloc(&hid->dev, sizeof(struct appleir), GFP_KERNEL);
+	appleir = devm_kzalloc_obj(&hid->dev, struct appleir);
 	if (!appleir)
 		return -ENOMEM;
 

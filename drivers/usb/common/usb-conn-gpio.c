@@ -197,7 +197,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 	struct usb_conn_info *info;
 	int ret = 0;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

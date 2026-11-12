@@ -746,7 +746,7 @@ int mt8186_dai_adda_register(struct mtk_base_afe *afe)
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int ret;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

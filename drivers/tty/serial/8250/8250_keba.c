@@ -175,7 +175,7 @@ static int kuart_probe(struct auxiliary_device *auxdev,
 	struct resource res;
 	struct kuart *kuart;
 
-	kuart = devm_kzalloc(dev, sizeof(*kuart), GFP_KERNEL);
+	kuart = devm_kzalloc_obj(dev, *kuart);
 	if (!kuart)
 		return -ENOMEM;
 	kuart->auxdev = container_of(auxdev, struct keba_uart_auxdev, auxdev);

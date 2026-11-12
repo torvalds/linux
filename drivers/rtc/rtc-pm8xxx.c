@@ -602,7 +602,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENXIO;
 
-	rtc_dd = devm_kzalloc(&pdev->dev, sizeof(*rtc_dd), GFP_KERNEL);
+	rtc_dd = devm_kzalloc_obj(&pdev->dev, *rtc_dd);
 	if (rtc_dd == NULL)
 		return -ENOMEM;
 

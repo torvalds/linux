@@ -138,7 +138,7 @@ static int brcm_nvram_add_cells(struct brcm_nvram *priv, uint8_t *data,
 		priv->ncells++;
 	}
 
-	priv->cells = devm_kcalloc(dev, priv->ncells, sizeof(*priv->cells), GFP_KERNEL);
+	priv->cells = devm_kzalloc_objs(dev, *priv->cells, priv->ncells);
 	if (!priv->cells) {
 		err = -ENOMEM;
 		goto out;
@@ -219,7 +219,7 @@ static int brcm_nvram_probe(struct platform_device *pdev)
 	struct brcm_nvram *priv;
 	int err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

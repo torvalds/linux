@@ -74,7 +74,7 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct sof_hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	pcm = devm_kzalloc_obj(rtd->card->dev, *pcm);
 	if (!pcm)
 		return -ENOMEM;
 
@@ -227,10 +227,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
 
-	links = devm_kcalloc(dev, sof_audio_card_pcm512x.num_links,
-			sizeof(struct snd_soc_dai_link), GFP_KERNEL);
-	cpus = devm_kcalloc(dev, sof_audio_card_pcm512x.num_links,
-			sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
+	links = devm_kzalloc_objs(dev, struct snd_soc_dai_link,
+				  sof_audio_card_pcm512x.num_links);
+	cpus = devm_kzalloc_objs(dev, struct snd_soc_dai_link_component,
+				 sof_audio_card_pcm512x.num_links);
 	if (!links || !cpus)
 		goto devm_err;
 
@@ -301,9 +301,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 
 	/* HDMI */
 	if (hdmi_num > 0) {
-		idisp_components = devm_kcalloc(dev, hdmi_num,
-				sizeof(struct snd_soc_dai_link_component),
-				GFP_KERNEL);
+		idisp_components = devm_kzalloc_objs(dev,
+						     struct snd_soc_dai_link_component,
+						     hdmi_num);
 		if (!idisp_components)
 			goto devm_err;
 	}
@@ -359,7 +359,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	int dmic_be_num, hdmi_num;
 	int ret, ssp_codec;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

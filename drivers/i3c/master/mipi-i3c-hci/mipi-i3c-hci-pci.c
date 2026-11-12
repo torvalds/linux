@@ -165,7 +165,7 @@ static void intel_reset(void __iomem *priv)
 
 static int intel_i3c_init(struct mipi_i3c_hci_pci *hci)
 {
-	struct intel_host *host = devm_kzalloc(&hci->pci->dev, sizeof(*host), GFP_KERNEL);
+	struct intel_host *host = devm_kzalloc_obj(&hci->pci->dev, *host);
 	void __iomem *priv = hci->base + INTEL_PRIV_OFFSET;
 
 	if (!host)
@@ -426,7 +426,7 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	struct mipi_i3c_hci_pci *hci;
 	int ret;
 
-	hci = devm_kzalloc(&pci->dev, sizeof(*hci), GFP_KERNEL);
+	hci = devm_kzalloc_obj(&pci->dev, *hci);
 	if (!hci)
 		return -ENOMEM;
 

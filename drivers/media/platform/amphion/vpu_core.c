@@ -601,7 +601,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 	dev_dbg(dev, "probe\n");
 	if (!vpu)
 		return -EINVAL;
-	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(dev, *core);
 	if (!core)
 		return -ENOMEM;
 
@@ -644,7 +644,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	iface = devm_kzalloc(dev, sizeof(*iface), GFP_KERNEL);
+	iface = devm_kzalloc_obj(dev, *iface);
 	if (!iface)
 		return -ENOMEM;
 

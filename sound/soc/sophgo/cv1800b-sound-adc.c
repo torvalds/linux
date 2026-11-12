@@ -288,7 +288,7 @@ static int cv1800b_adc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cv1800b_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

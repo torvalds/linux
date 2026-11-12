@@ -646,7 +646,7 @@ static int max8971_probe(struct i2c_client *client)
 	struct power_supply_config cfg = { };
 	int err, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

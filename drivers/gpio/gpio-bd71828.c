@@ -97,7 +97,7 @@ static int bd71828_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bd71828_gpio *bdgpio;
 
-	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
+	bdgpio = devm_kzalloc_obj(dev, *bdgpio);
 	if (!bdgpio)
 		return -ENOMEM;
 

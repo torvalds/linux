@@ -859,8 +859,7 @@ static int qcom_pas_setup_tmd(struct qcom_pas *pas, const struct qcom_pas_data *
 	if (!desc->tmd_name || desc->num_tmd == 0)
 		return 0;
 
-	tmd_names = devm_kcalloc(pas->dev, desc->num_tmd,
-				 sizeof(*tmd_names), GFP_KERNEL);
+	tmd_names = devm_kzalloc_objs(pas->dev, *tmd_names, desc->num_tmd);
 	if (!tmd_names)
 		return -ENOMEM;
 

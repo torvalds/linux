@@ -75,7 +75,7 @@ static int otx2_qos_sq_aura_pool_init(struct otx2_nic *pfvf, int qidx)
 	/* Allocate pointers and free them to aura/pool */
 	sq = &qset->sq[qidx];
 	sq->sqb_count = 0;
-	sq->sqb_ptrs = kcalloc(num_sqbs, sizeof(*sq->sqb_ptrs), GFP_KERNEL);
+	sq->sqb_ptrs = kzalloc_objs(*sq->sqb_ptrs, num_sqbs);
 	if (!sq->sqb_ptrs) {
 		err = -ENOMEM;
 		goto pool_free;

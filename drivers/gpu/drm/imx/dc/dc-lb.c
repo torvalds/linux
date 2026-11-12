@@ -250,7 +250,7 @@ static int dc_lb_bind(struct device *dev, struct device *master, void *data)
 	void __iomem *base_cfg;
 	struct dc_lb *lb;
 
-	lb = devm_kzalloc(dev, sizeof(*lb), GFP_KERNEL);
+	lb = devm_kzalloc_obj(dev, *lb);
 	if (!lb)
 		return -ENOMEM;
 

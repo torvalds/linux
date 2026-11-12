@@ -76,7 +76,7 @@ static int madera_i2c_probe(struct i2c_client *i2c)
 		return -EINVAL;
 	}
 
-	madera = devm_kzalloc(&i2c->dev, sizeof(*madera), GFP_KERNEL);
+	madera = devm_kzalloc_obj(&i2c->dev, *madera);
 	if (!madera)
 		return -ENOMEM;
 

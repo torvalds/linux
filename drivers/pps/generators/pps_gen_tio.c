@@ -203,7 +203,7 @@ static int pps_gen_tio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	tio = devm_kzalloc(dev, sizeof(*tio), GFP_KERNEL);
+	tio = devm_kzalloc_obj(dev, *tio);
 	if (!tio)
 		return -ENOMEM;
 

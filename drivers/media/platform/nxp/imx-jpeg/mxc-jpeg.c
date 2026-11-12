@@ -2874,13 +2874,12 @@ static int mxc_jpeg_attach_pm_domains(struct mxc_jpeg_dev *jpeg)
 		return 0;
 	}
 
-	jpeg->pd_dev = devm_kmalloc_array(dev, jpeg->num_domains,
-					  sizeof(*jpeg->pd_dev), GFP_KERNEL);
+	jpeg->pd_dev = devm_kmalloc_objs(dev, *jpeg->pd_dev, jpeg->num_domains);
 	if (!jpeg->pd_dev)
 		return -ENOMEM;
 
-	jpeg->pd_link = devm_kmalloc_array(dev, jpeg->num_domains,
-					   sizeof(*jpeg->pd_link), GFP_KERNEL);
+	jpeg->pd_link = devm_kmalloc_objs(dev, *jpeg->pd_link,
+					  jpeg->num_domains);
 	if (!jpeg->pd_link)
 		return -ENOMEM;
 
@@ -2928,7 +2927,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		return -ENODEV;
 	mode = *(const int *)of_id->data;
 
-	jpeg = devm_kzalloc(dev, sizeof(struct mxc_jpeg_dev), GFP_KERNEL);
+	jpeg = devm_kzalloc_obj(dev, struct mxc_jpeg_dev);
 	if (!jpeg)
 		return -ENOMEM;
 

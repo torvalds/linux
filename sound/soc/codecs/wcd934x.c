@@ -1706,7 +1706,7 @@ static int wcd934x_slim_set_hw_params(struct wcd934x_codec *wcd,
 		cfg->port_mask |= BIT(ch->port);
 	}
 
-	cfg->chs = kcalloc(cfg->ch_count, sizeof(unsigned int), GFP_KERNEL);
+	cfg->chs = kzalloc_objs(unsigned int, cfg->ch_count);
 	if (!cfg->chs)
 		return -ENOMEM;
 
@@ -5839,7 +5839,7 @@ static int wcd934x_codec_probe(struct platform_device *pdev)
 	struct wcd934x_codec *wcd;
 	int ret, irq;
 
-	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
+	wcd = devm_kzalloc_obj(dev, *wcd);
 	if (!wcd)
 		return -ENOMEM;
 

@@ -1016,7 +1016,7 @@ static int nct7904_probe(struct i2c_client *client)
 	u32 mask;
 	u8 val, bit;
 
-	data = devm_kzalloc(dev, sizeof(struct nct7904_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct nct7904_data);
 	if (!data)
 		return -ENOMEM;
 

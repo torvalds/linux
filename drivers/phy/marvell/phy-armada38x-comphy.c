@@ -200,7 +200,7 @@ static int a38x_comphy_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

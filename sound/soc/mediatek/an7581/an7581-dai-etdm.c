@@ -317,8 +317,7 @@ static int mtk_dai_etdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct mtk_dai_etdm_priv *etdm_data;
 	void *priv_data;
 
-	priv_data = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_etdm_priv),
-				 GFP_KERNEL);
+	priv_data = devm_kzalloc_obj(afe->dev, struct mtk_dai_etdm_priv);
 	if (!priv_data)
 		return -ENOMEM;
 
@@ -415,7 +414,7 @@ int an7581_dai_etdm_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

@@ -4162,7 +4162,7 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 		switch (le32_to_cpu(manifest_tlv->type)) {
 		case SOF_MANIFEST_DATA_TYPE_NHLT:
 			/* Get the nhlt from topology manifest */
-			tplg_nhlt = devm_kzalloc(sdev->dev, sizeof(*tplg_nhlt), GFP_KERNEL);
+			tplg_nhlt = devm_kzalloc_obj(sdev->dev, *tplg_nhlt);
 			if (!tplg_nhlt)
 				return -ENOMEM;
 

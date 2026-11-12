@@ -562,7 +562,7 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 * downloaded previously then it needs to be powered down so that it
 	 * can be updated.
 	 */
-	if (cs35l56->base.fw_patched)
+	if (cs35l56->cs_dsp.booted)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 
 	cs35l56->base.fw_patched = false;
@@ -634,7 +634,7 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
-			goto err_powered_up;
+			return;
 
 		regcache_cache_only(cs35l56->base.regmap, false);
 	}
@@ -642,7 +642,7 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	/* Disable auto-hibernate so that runtime_pm has control */
 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
-		goto err_powered_up;
+		return;
 
 	regcache_sync(cs35l56->base.regmap);
 
@@ -663,10 +663,6 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 		cs_dsp_stop(&cs35l56->cs_dsp);
 
 	cs35l56_log_tuning(&cs35l56->base, &cs35l56->cs_dsp);
-
-err_powered_up:
-	if (!cs35l56->base.fw_patched)
-		cs_dsp_power_down(&cs35l56->cs_dsp);
 }
 
 static void cs35l56_hda_dsp_work(struct work_struct *work)
@@ -813,8 +809,10 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	cs_dsp_cleanup_debugfs(&cs35l56->cs_dsp);
 	debugfs_remove_recursive(cs35l56->debugfs_root);
 #endif
+	if (cs35l56->cs_dsp.running)
+		cs_dsp_stop(&cs35l56->cs_dsp);
 
-	if (cs35l56->base.fw_patched)
+	if (cs35l56->cs_dsp.booted)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 
 	comp = hda_component_from_index(parent, cs35l56->index);

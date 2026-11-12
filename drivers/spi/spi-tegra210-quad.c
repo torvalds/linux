@@ -1032,7 +1032,7 @@ static struct tegra_qspi_client_data *tegra_qspi_parse_cdata_dt(struct spi_devic
 	struct tegra_qspi_client_data *cdata;
 	struct tegra_qspi *tqspi = spi_controller_get_devdata(spi->controller);
 
-	cdata = devm_kzalloc(tqspi->dev, sizeof(*cdata), GFP_KERNEL);
+	cdata = devm_kzalloc_obj(tqspi->dev, *cdata);
 	if (!cdata)
 		return NULL;
 

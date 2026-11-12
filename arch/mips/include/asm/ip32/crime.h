@@ -22,7 +22,7 @@ struct sgi_crime {
 #define CRIME_ID_MASK			0xff
 #define CRIME_ID_IDBITS			0xf0
 #define CRIME_ID_IDVALUE		0xa0
-#define CRIME_ID_REV			0x0f
+#define CRIME_ID_IDVALUE_B		0xb0
 #define CRIME_REV_PETTY			0x00
 #define CRIME_REV_11			0x11
 #define CRIME_REV_13			0x13

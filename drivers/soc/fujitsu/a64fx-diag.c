@@ -79,7 +79,7 @@ static int a64fx_diag_probe(struct platform_device *pdev)
 	unsigned long irq_flags;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (priv == NULL)
 		return -ENOMEM;
 

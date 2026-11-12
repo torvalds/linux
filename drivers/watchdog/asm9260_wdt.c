@@ -290,7 +290,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 	int ret;
 	static const char * const mode_name[] = { "hw", "sw", "debug", };
 
-	priv = devm_kzalloc(dev, sizeof(struct asm9260_wdt_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct asm9260_wdt_priv);
 	if (!priv)
 		return -ENOMEM;
 

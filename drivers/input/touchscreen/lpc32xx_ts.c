@@ -208,7 +208,7 @@ static int lpc32xx_ts_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	tsc = devm_kzalloc(dev, sizeof(*tsc), GFP_KERNEL);
+	tsc = devm_kzalloc_obj(dev, *tsc);
 	if (!tsc)
 		return -ENOMEM;
 

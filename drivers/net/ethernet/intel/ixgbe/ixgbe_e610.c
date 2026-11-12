@@ -3340,7 +3340,7 @@ static int ixgbe_get_netlist_info(struct ixgbe_hw *hw,
 
 	node_count &= IXGBE_LINK_TOPO_NODE_COUNT_M;
 
-	id_blk = kcalloc(IXGBE_NETLIST_ID_BLK_SIZE, sizeof(*id_blk), GFP_KERNEL);
+	id_blk = kzalloc_objs(*id_blk, IXGBE_NETLIST_ID_BLK_SIZE);
 	if (!id_blk)
 		return -ENOMEM;
 

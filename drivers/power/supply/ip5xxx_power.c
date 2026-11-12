@@ -834,7 +834,7 @@ static int ip5xxx_power_probe(struct i2c_client *client)
 	struct power_supply *psy;
 	struct ip5xxx *ip5xxx;
 
-	ip5xxx = devm_kzalloc(dev, sizeof(*ip5xxx), GFP_KERNEL);
+	ip5xxx = devm_kzalloc_obj(dev, *ip5xxx);
 	if (!ip5xxx)
 		return -ENOMEM;
 

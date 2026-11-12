@@ -403,7 +403,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	int idle = IDLE_INTERVAL;
 	u32 enr_bits = 0;
 
-	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
+	common = devm_kzalloc_obj(dev, *common);
 	if (!common)
 		return -ENOMEM;
 
@@ -459,7 +459,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		if (!res)
 			break;
 
-		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+		priv = devm_kzalloc_obj(dev, *priv);
 		if (!priv) {
 			ret = -ENOMEM;
 			goto error_unregister;

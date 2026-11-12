@@ -1461,7 +1461,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (nr_ports == 0)
 		return dev_err_probe(&pcidev->dev, -ENODEV, "failed to get number of ports\n");
 
-	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, uport, nr_ports), GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pcidev->dev, *priv, uport, nr_ports);
 	if (!priv)
 		return -ENOMEM;
 

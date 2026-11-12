@@ -57,7 +57,7 @@ static int ep93xxbl_probe(struct platform_device *dev)
 	struct backlight_properties props;
 	struct resource *res;
 
-	ep93xxbl = devm_kzalloc(&dev->dev, sizeof(*ep93xxbl), GFP_KERNEL);
+	ep93xxbl = devm_kzalloc_obj(&dev->dev, *ep93xxbl);
 	if (!ep93xxbl)
 		return -ENOMEM;
 

@@ -280,7 +280,7 @@ static int starfive_trng_probe(struct platform_device *pdev)
 	int irq;
 	struct starfive_trng *trng;
 
-	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
+	trng = devm_kzalloc_obj(&pdev->dev, *trng);
 	if (!trng)
 		return -ENOMEM;
 

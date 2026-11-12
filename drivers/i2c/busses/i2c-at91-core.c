@@ -200,7 +200,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 	int rc;
 	u32 phy_addr;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

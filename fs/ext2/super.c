@@ -883,17 +883,18 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 	__le32 features;
 	int err;
 
-	sbi = kzalloc_obj(*sbi);
-	if (!sbi)
+	sb->s_fs_info = kzalloc_obj(*sbi);
+	if (!sb->s_fs_info)
 		return -ENOMEM;
+	sbi = EXT2_SB(sb);
 
 	sbi->s_blockgroup_lock =
 		kzalloc_obj(struct blockgroup_lock);
 	if (!sbi->s_blockgroup_lock) {
-		kfree(sbi);
+		kfree(sb->s_fs_info);
+		sb->s_fs_info = NULL;
 		return -ENOMEM;
 	}
-	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
 
 	guard(spinlock_init)(&EXT2_SB(sb)->s_lock);
@@ -1106,7 +1107,7 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto failed_mount;
 	}
 	bgl_lock_init(sbi->s_blockgroup_lock);
-	sbi->s_debts = kcalloc(sbi->s_groups_count, sizeof(*sbi->s_debts), GFP_KERNEL);
+	sbi->s_debts = kzalloc_objs(*sbi->s_debts, sbi->s_groups_count);
 	if (!sbi->s_debts) {
 		ret = -ENOMEM;
 		ext2_msg(sb, KERN_ERR, "error: not enough memory");

@@ -1790,8 +1790,7 @@ int ocrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		srq->bit_fields_len = (srq->rq.max_cnt / 32) +
 		    (srq->rq.max_cnt % 32 ? 1 : 0);
 		srq->idx_bit_fields =
-		    kmalloc_array(srq->bit_fields_len, sizeof(u32),
-				  GFP_KERNEL);
+		    kmalloc_objs(u32, srq->bit_fields_len);
 		if (!srq->idx_bit_fields) {
 			status = -ENOMEM;
 			goto arm_err;

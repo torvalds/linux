@@ -92,8 +92,7 @@ static int a10sr_reset_probe(struct platform_device *pdev)
 	struct altr_a10sr *a10sr = dev_get_drvdata(pdev->dev.parent);
 	struct a10sr_reset *a10r;
 
-	a10r = devm_kzalloc(&pdev->dev, sizeof(struct a10sr_reset),
-			    GFP_KERNEL);
+	a10r = devm_kzalloc_obj(&pdev->dev, struct a10sr_reset);
 	if (!a10r)
 		return -ENOMEM;
 

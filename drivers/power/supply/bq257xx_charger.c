@@ -1230,7 +1230,7 @@ static int bq257xx_charger_probe(struct platform_device *pdev)
 
 	device_set_of_node_from_dev(dev, pdev->dev.parent);
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

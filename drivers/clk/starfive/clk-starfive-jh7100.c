@@ -286,7 +286,7 @@ static int __init clk_starfive_jh7100_probe(struct platform_device *pdev)
 	unsigned int idx;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg, JH7100_CLK_PLL0_OUT), GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, reg, JH7100_CLK_PLL0_OUT);
 	if (!priv)
 		return -ENOMEM;
 

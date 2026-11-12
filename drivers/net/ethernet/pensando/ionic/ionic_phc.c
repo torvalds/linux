@@ -583,7 +583,7 @@ void ionic_lif_alloc_phc(struct ionic_lif *lif)
 	if (!(features & (IONIC_ETH_HW_TIMESTAMP | IONIC_ETH_HW_RDMA_TIMESTAMP)))
 		return;
 
-	phc = devm_kzalloc(ionic->dev, sizeof(*phc), GFP_KERNEL);
+	phc = devm_kzalloc_obj(ionic->dev, *phc);
 	if (!phc)
 		return;
 

@@ -75,7 +75,7 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct sof_hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	pcm = devm_kzalloc_obj(rtd->card->dev, *pcm);
 	if (!pcm)
 		return -ENOMEM;
 
@@ -274,7 +274,7 @@ static int snd_ehl_rt5660_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);

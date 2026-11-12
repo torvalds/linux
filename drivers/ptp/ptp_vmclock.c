@@ -665,7 +665,7 @@ static int vmclock_probe(struct platform_device *pdev)
 	struct vmclock_state *st;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

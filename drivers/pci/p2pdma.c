@@ -268,7 +268,7 @@ int pcim_p2pdma_init(struct pci_dev *pdev)
 	if (p2p)
 		return 0;
 
-	p2p = devm_kzalloc(&pdev->dev, sizeof(*p2p), GFP_KERNEL);
+	p2p = devm_kzalloc_obj(&pdev->dev, *p2p);
 	if (!p2p)
 		return -ENOMEM;
 
@@ -421,7 +421,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	if (WARN_ON(!mem))
 		return -EINVAL;
 
-	p2p_pgmap = devm_kzalloc(&pdev->dev, sizeof(*p2p_pgmap), GFP_KERNEL);
+	p2p_pgmap = devm_kzalloc_obj(&pdev->dev, *p2p_pgmap);
 	if (!p2p_pgmap)
 		return -ENOMEM;
 

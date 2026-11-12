@@ -46,7 +46,7 @@ static int thermal_mmio_probe(struct platform_device *pdev)
 	int ret;
 	int temperature;
 
-	sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&pdev->dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

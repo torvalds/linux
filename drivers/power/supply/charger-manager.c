@@ -1299,7 +1299,7 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	u32 battery_stat = CM_NO_BATTERY;
 	int num_chgs = 0;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1360,19 +1360,15 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 		struct charger_regulator *chg_regs;
 		struct device_node *child;
 
-		chg_regs = devm_kcalloc(dev,
-					desc->num_charger_regulators,
-					sizeof(*chg_regs),
-					GFP_KERNEL);
+		chg_regs = devm_kzalloc_objs(dev, *chg_regs,
+					     desc->num_charger_regulators);
 		if (!chg_regs)
 			return ERR_PTR(-ENOMEM);
 
 		desc->charger_regulators = chg_regs;
 
-		desc->sysfs_groups = devm_kcalloc(dev,
-					desc->num_charger_regulators + 1,
-					sizeof(*desc->sysfs_groups),
-					GFP_KERNEL);
+		desc->sysfs_groups = devm_kzalloc_objs(dev, *desc->sysfs_groups,
+						       desc->num_charger_regulators + 1);
 		if (!desc->sysfs_groups)
 			return ERR_PTR(-ENOMEM);
 
@@ -1386,10 +1382,8 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 			/* charger cables */
 			chg_regs->num_cables = of_get_child_count(child);
 			if (chg_regs->num_cables) {
-				cables = devm_kcalloc(dev,
-						      chg_regs->num_cables,
-						      sizeof(*cables),
-						      GFP_KERNEL);
+				cables = devm_kzalloc_objs(dev, *cables,
+							   chg_regs->num_cables);
 				if (!cables) {
 					of_node_put(child);
 					return ERR_PTR(-ENOMEM);
@@ -1446,7 +1440,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 		return PTR_ERR(desc);
 	}
 
-	cm = devm_kzalloc(&pdev->dev, sizeof(*cm), GFP_KERNEL);
+	cm = devm_kzalloc_obj(&pdev->dev, *cm);
 	if (!cm)
 		return -ENOMEM;
 
@@ -1457,7 +1451,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	/* Initialize alarm timer */
 	if (alarmtimer_get_rtcdev()) {
-		cm_timer = devm_kzalloc(cm->dev, sizeof(*cm_timer), GFP_KERNEL);
+		cm_timer = devm_kzalloc_obj(cm->dev, *cm_timer);
 		if (!cm_timer)
 			return -ENOMEM;
 		alarm_init(cm_timer, ALARM_BOOTTIME, cm_timer_func);
@@ -1536,10 +1530,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	cm->charger_psy_desc.name = cm->psy_name_buf;
 
 	/* Allocate for psy properties because they may vary */
-	properties = devm_kcalloc(&pdev->dev,
-			     ARRAY_SIZE(default_charger_props) +
-				NUM_CHARGER_PSY_OPTIONAL,
-			     sizeof(*properties), GFP_KERNEL);
+	properties = devm_kzalloc_objs(&pdev->dev, *properties,
+				       ARRAY_SIZE(default_charger_props) + NUM_CHARGER_PSY_OPTIONAL);
 	if (!properties)
 		return -ENOMEM;
 

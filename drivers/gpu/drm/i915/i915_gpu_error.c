@@ -1807,7 +1807,7 @@ static void gt_record_guc_hw_state(struct intel_uncore *uncore,
 	for (i = 0; i < ARRAY_SIZE(guc_hw_reg_state); i++)
 		count += guc_hw_reg_state[i].count;
 
-	hw_state = kcalloc(count, sizeof(u32), ALLOW_FAIL);
+	hw_state = kzalloc_objs(u32, count, ALLOW_FAIL);
 	if (!hw_state)
 		return;
 

@@ -104,13 +104,11 @@ static int jh7110_ispcrg_probe(struct platform_device *pdev)
 	unsigned int idx;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev,
-			    struct_size(priv, reg, JH7110_ISPCLK_END),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, reg, JH7110_ISPCLK_END);
 	if (!priv)
 		return -ENOMEM;
 
-	top = devm_kzalloc(&pdev->dev, sizeof(*top), GFP_KERNEL);
+	top = devm_kzalloc_obj(&pdev->dev, *top);
 	if (!top)
 		return -ENOMEM;
 

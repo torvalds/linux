@@ -355,7 +355,7 @@ static int dw9719_probe(struct i2c_client *client)
 	struct dw9719_device *dw9719;
 	int ret;
 
-	dw9719 = devm_kzalloc(&client->dev, sizeof(*dw9719), GFP_KERNEL);
+	dw9719 = devm_kzalloc_obj(&client->dev, *dw9719);
 	if (!dw9719)
 		return -ENOMEM;
 

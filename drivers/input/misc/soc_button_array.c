@@ -400,8 +400,8 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	}
 
 	/* There are package.count - 1 buttons + 1 terminating empty entry */
-	button_info = devm_kcalloc(dev, btns_desc->package.count,
-				   sizeof(*button_info), GFP_KERNEL);
+	button_info = devm_kzalloc_objs(dev, *button_info,
+					btns_desc->package.count);
 	if (!button_info) {
 		button_info = ERR_PTR(-ENOMEM);
 		goto out;
@@ -465,7 +465,7 @@ static int soc_button_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

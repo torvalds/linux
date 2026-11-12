@@ -166,7 +166,7 @@ mt76x02_dfs_seq_pool_get(struct mt76x02_dev *dev)
 	struct mt76x02_dfs_sequence *seq;
 
 	if (list_empty(&dfs_pd->seq_pool)) {
-		seq = devm_kzalloc(dev->mt76.dev, sizeof(*seq), GFP_ATOMIC);
+		seq = devm_kzalloc_obj(dev->mt76.dev, *seq, GFP_ATOMIC);
 	} else {
 		seq = list_first_entry(&dfs_pd->seq_pool,
 				       struct mt76x02_dfs_sequence,

@@ -2106,13 +2106,13 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 	struct dsa_switch *ds;
 	int err, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->mdiodev = mdiodev;
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 

@@ -1195,7 +1195,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 	if (np == NULL)
 		return 0;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&client->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -1464,7 +1464,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	if (!pdata)
 		return -EINVAL;
 
-	drvdata = devm_kzalloc(&client->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&client->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 
@@ -1639,10 +1639,10 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	else
 		parent_names[1] = si5351_pll_names[1];
 
-	drvdata->msynth = devm_kcalloc(&client->dev, num_clocks,
-				       sizeof(*drvdata->msynth), GFP_KERNEL);
-	drvdata->clkout = devm_kcalloc(&client->dev, num_clocks,
-				       sizeof(*drvdata->clkout), GFP_KERNEL);
+	drvdata->msynth = devm_kzalloc_objs(&client->dev, *drvdata->msynth,
+					    num_clocks);
+	drvdata->clkout = devm_kzalloc_objs(&client->dev, *drvdata->clkout,
+					    num_clocks);
 	drvdata->num_clkout = num_clocks;
 
 	if (WARN_ON(!drvdata->msynth || !drvdata->clkout)) {

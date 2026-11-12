@@ -1537,7 +1537,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	params->reg_fields = ale_dev_id->reg_fields;
 	params->num_fields = ale_dev_id->num_fields;
 
-	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
+	ale = devm_kzalloc_obj(params->dev, *ale);
 	if (!ale)
 		return ERR_PTR(-ENOMEM);
 	ale->regmap = devm_regmap_init_mmio(params->dev, params->ale_regs,

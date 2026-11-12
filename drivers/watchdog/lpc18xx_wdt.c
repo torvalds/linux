@@ -204,7 +204,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	struct lpc18xx_wdt_dev *lpc18xx_wdt;
 	struct device *dev = &pdev->dev;
 
-	lpc18xx_wdt = devm_kzalloc(dev, sizeof(*lpc18xx_wdt), GFP_KERNEL);
+	lpc18xx_wdt = devm_kzalloc_obj(dev, *lpc18xx_wdt);
 	if (!lpc18xx_wdt)
 		return -ENOMEM;
 

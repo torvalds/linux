@@ -3024,8 +3024,9 @@ static int tdx_td_vcpu_init(struct kvm_vcpu *vcpu, u64 vcpu_rcx)
 	 */
 	tdx->vp.tdvpr_pa = page_to_phys(tdx->vp.tdvpr_page);
 
-	tdx->vp.tdcx_pages = kcalloc(kvm_tdx->td.tdcx_nr_pages, sizeof(*tdx->vp.tdcx_pages),
-				     GFP_KERNEL_ACCOUNT);
+	tdx->vp.tdcx_pages = kzalloc_objs(*tdx->vp.tdcx_pages,
+					  kvm_tdx->td.tdcx_nr_pages,
+					  GFP_KERNEL_ACCOUNT);
 	if (!tdx->vp.tdcx_pages) {
 		ret = -ENOMEM;
 		goto free_tdvpr;

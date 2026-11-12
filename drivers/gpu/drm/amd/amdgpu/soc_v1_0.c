@@ -751,7 +751,7 @@ int soc_v1_0_reset_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_reset_control *reset_ctl;
 
-	reset_ctl = kzalloc_obj(*reset_ctl, GFP_KERNEL);
+	reset_ctl = kzalloc_obj(*reset_ctl);
 	if (!reset_ctl)
 		return -ENOMEM;
 

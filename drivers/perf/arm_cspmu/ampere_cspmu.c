@@ -209,7 +209,7 @@ static int ampere_cspmu_init_ops(struct arm_cspmu *cspmu)
 	struct ampere_cspmu_ctx *ctx;
 	struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
 
-	ctx = devm_kzalloc(dev, sizeof(struct ampere_cspmu_ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, struct ampere_cspmu_ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -677,7 +677,7 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 		wnd->bits_last = wbits;
 
 	wnd->free_bits =
-		kvmalloc_array(wnd->nwnd, sizeof(u16), GFP_KERNEL | __GFP_ZERO);
+		kvmalloc_objs(u16, wnd->nwnd, GFP_KERNEL | __GFP_ZERO);
 
 	if (!wnd->free_bits)
 		return -ENOMEM;
@@ -1342,7 +1342,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		new_last = wbits;
 
 	if (new_wnd != wnd->nwnd) {
-		new_free = kmalloc_array(new_wnd, sizeof(u16), GFP_NOFS);
+		new_free = kmalloc_objs(u16, new_wnd, GFP_NOFS);
 		if (!new_free)
 			return -ENOMEM;
 

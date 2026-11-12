@@ -350,8 +350,8 @@ static int kspi2_probe(struct auxiliary_device *auxdev,
 	kspi = spi_controller_get_devdata(host);
 	kspi->auxdev = container_of(auxdev, struct keba_spi_auxdev, auxdev);
 	kspi->host = host;
-	kspi->device = devm_kcalloc(dev, kspi->auxdev->info_size,
-				    sizeof(*kspi->device), GFP_KERNEL);
+	kspi->device = devm_kzalloc_objs(dev, *kspi->device,
+					 kspi->auxdev->info_size);
 	if (!kspi->device)
 		return -ENOMEM;
 	kspi->device_size = kspi->auxdev->info_size;

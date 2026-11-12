@@ -582,8 +582,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c)
 	struct wm8741_priv *wm8741;
 	int ret, i;
 
-	wm8741 = devm_kzalloc(&i2c->dev, sizeof(struct wm8741_priv),
-			      GFP_KERNEL);
+	wm8741 = devm_kzalloc_obj(&i2c->dev, struct wm8741_priv);
 	if (wm8741 == NULL)
 		return -ENOMEM;
 
@@ -640,8 +639,7 @@ static int wm8741_spi_probe(struct spi_device *spi)
 	struct wm8741_priv *wm8741;
 	int ret, i;
 
-	wm8741 = devm_kzalloc(&spi->dev, sizeof(struct wm8741_priv),
-			     GFP_KERNEL);
+	wm8741 = devm_kzalloc_obj(&spi->dev, struct wm8741_priv);
 	if (wm8741 == NULL)
 		return -ENOMEM;
 

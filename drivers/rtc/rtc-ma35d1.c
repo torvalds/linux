@@ -213,7 +213,7 @@ static int ma35d1_rtc_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

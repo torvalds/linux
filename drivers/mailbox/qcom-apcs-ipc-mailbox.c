@@ -82,7 +82,7 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	unsigned long i;
 	int ret;
 
-	apcs = devm_kzalloc(&pdev->dev, sizeof(*apcs), GFP_KERNEL);
+	apcs = devm_kzalloc_obj(&pdev->dev, *apcs);
 	if (!apcs)
 		return -ENOMEM;
 

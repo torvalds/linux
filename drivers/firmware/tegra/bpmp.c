@@ -509,7 +509,7 @@ int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 	if (!handler)
 		return -EINVAL;
 
-	entry = devm_kzalloc(bpmp->dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(bpmp->dev, *entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -740,7 +740,7 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	size_t size;
 	int err;
 
-	bpmp = devm_kzalloc(&pdev->dev, sizeof(*bpmp), GFP_KERNEL);
+	bpmp = devm_kzalloc_obj(&pdev->dev, *bpmp);
 	if (!bpmp)
 		return -ENOMEM;
 
@@ -764,19 +764,17 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&bpmp->atomic_tx_lock);
-	bpmp->tx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->tx_channel),
-					GFP_KERNEL);
+	bpmp->tx_channel = devm_kzalloc_obj(&pdev->dev, *bpmp->tx_channel);
 	if (!bpmp->tx_channel)
 		return -ENOMEM;
 
-	bpmp->rx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->rx_channel),
-	                                GFP_KERNEL);
+	bpmp->rx_channel = devm_kzalloc_obj(&pdev->dev, *bpmp->rx_channel);
 	if (!bpmp->rx_channel)
 		return -ENOMEM;
 
-	bpmp->threaded_channels = devm_kcalloc(&pdev->dev, bpmp->threaded.count,
-					       sizeof(*bpmp->threaded_channels),
-					       GFP_KERNEL);
+	bpmp->threaded_channels = devm_kzalloc_objs(&pdev->dev,
+						    *bpmp->threaded_channels,
+						    bpmp->threaded.count);
 	if (!bpmp->threaded_channels)
 		return -ENOMEM;
 

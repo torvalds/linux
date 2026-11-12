@@ -565,7 +565,7 @@ static int mv2222_probe(struct phy_device *phydev)
 
 	linkmode_copy(phydev->supported, supported);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -494,7 +494,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 	pdata = dev_get_platdata(&i2c->dev);
 
 	if (node && !pdata) {
-		pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&i2c->dev, *pdata);
 
 		if (!pdata)
 			return -ENOMEM;
@@ -505,7 +505,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 	if (!pdata)
 		return -EINVAL;
 
-	palmas = devm_kzalloc(&i2c->dev, sizeof(struct palmas), GFP_KERNEL);
+	palmas = devm_kzalloc_obj(&i2c->dev, struct palmas);
 	if (palmas == NULL)
 		return -ENOMEM;
 

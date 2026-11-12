@@ -364,7 +364,7 @@ static int aic26_spi_probe(struct spi_device *spi)
 	dev_dbg(&spi->dev, "probing tlv320aic26 spi device\n");
 
 	/* Allocate driver data */
-	aic26 = devm_kzalloc(&spi->dev, sizeof *aic26, GFP_KERNEL);
+	aic26 = devm_kzalloc_obj(&spi->dev, *aic26);
 	if (!aic26)
 		return -ENOMEM;
 

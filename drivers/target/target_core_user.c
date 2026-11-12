@@ -645,8 +645,7 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	tcmu_cmd->tcmu_dev = udev;
 
 	tcmu_cmd_set_block_cnts(tcmu_cmd);
-	tcmu_cmd->dbi = kcalloc(tcmu_cmd->dbi_cnt, sizeof(uint32_t),
-				GFP_NOIO);
+	tcmu_cmd->dbi = kzalloc_objs(uint32_t, tcmu_cmd->dbi_cnt, GFP_NOIO);
 	if (!tcmu_cmd->dbi) {
 		kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 		return NULL;
@@ -2522,6 +2521,11 @@ static int tcmu_set_data_pages_per_blk(struct tcmu_dev *udev, substring_t *arg)
 		pr_err("match_int() failed for data_pages_per_blk=. Error %d.\n",
 		       ret);
 		return ret;
+	}
+
+	if (val <= 0) {
+		pr_err("Invalid data_pages_per_blk %d.\n", val);
+		return -EINVAL;
 	}
 
 	if (val > TCMU_MBS_TO_PAGES(udev->data_area_mb)) {

@@ -270,7 +270,7 @@ int cr50_spi_probe(struct spi_device *spi)
 	int ret;
 	struct tpm_chip *chip;
 
-	cr50_phy = devm_kzalloc(&spi->dev, sizeof(*cr50_phy), GFP_KERNEL);
+	cr50_phy = devm_kzalloc_obj(&spi->dev, *cr50_phy);
 	if (!cr50_phy)
 		return -ENOMEM;
 

@@ -1471,8 +1471,8 @@ static int dac33_i2c_probe(struct i2c_client *client)
 	struct tlv320dac33_priv *dac33;
 	int ret, i;
 
-	dac33 = devm_kzalloc(&client->dev, struct_size(dac33, reg_cache, ARRAY_SIZE(dac33_reg)),
-			     GFP_KERNEL);
+	dac33 = devm_kzalloc_flex(&client->dev, *dac33, reg_cache,
+				  ARRAY_SIZE(dac33_reg));
 	if (dac33 == NULL)
 		return -ENOMEM;
 

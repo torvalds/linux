@@ -452,7 +452,7 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	struct ep93xx_i2s_info *info;
 	int err;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

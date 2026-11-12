@@ -95,7 +95,7 @@ static int s3fwrn82_uart_probe(struct serdev_device *serdev)
 	struct s3fwrn82_uart_phy *phy;
 	int ret = -ENOMEM;
 
-	phy = devm_kzalloc(&serdev->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(&serdev->dev, *phy);
 	if (!phy)
 		goto err_exit;
 

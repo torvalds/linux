@@ -1179,7 +1179,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 	struct ocs_hcu_dev *hcu_dev;
 	int rc;
 
-	hcu_dev = devm_kzalloc(dev, sizeof(*hcu_dev), GFP_KERNEL);
+	hcu_dev = devm_kzalloc_obj(dev, *hcu_dev);
 	if (!hcu_dev)
 		return -ENOMEM;
 

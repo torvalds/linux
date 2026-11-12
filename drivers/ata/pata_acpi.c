@@ -197,7 +197,7 @@ static int pacpi_port_start(struct ata_port *ap)
 	if (ACPI_HANDLE(&ap->tdev) == NULL)
 		return -ENODEV;
 
-	acpi = ap->private_data = devm_kzalloc(&pdev->dev, sizeof(struct pata_acpi), GFP_KERNEL);
+	acpi = ap->private_data = devm_kzalloc_obj(&pdev->dev, struct pata_acpi);
 	if (ap->private_data == NULL)
 		return -ENOMEM;
 	acpi->mask[0] = pacpi_discover_modes(ap, &ap->link.device[0]);

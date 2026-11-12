@@ -481,7 +481,7 @@ static int v9fs_at_to_dotl_flags(int flags)
 }
 
 /**
- * v9fs_dec_count - helper functon to drop i_nlink.
+ * v9fs_dec_count - helper function to drop i_nlink.
  *
  * If a directory had nlink <= 2 (including . and ..), then we should not drop
  * the link count, which indicates the underlying exported fs doesn't maintain
@@ -495,6 +495,12 @@ static int v9fs_at_to_dotl_flags(int flags)
  * nothing and races with concurrent metadata fetches that may already
  * have observed the post-unlink value (nlink == 0).
  *
+ * The same applies to a regular file whose cached nlink has already been
+ * driven to zero by the server: in the cached modes the attributes come
+ * from GETATTR and are applied verbatim, so decrementing a link count the
+ * server does not maintain only trips the drop_nlink() WARN_ON and
+ * underflows i_nlink.
+ *
  * @inode: inode whose nlink is being dropped
  */
 static void v9fs_dec_count(struct inode *inode)
@@ -502,6 +508,8 @@ static void v9fs_dec_count(struct inode *inode)
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 
 	if (!(v9ses->cache & (CACHE_META | CACHE_LOOSE)))
+		return;
+	if (inode->i_nlink == 0)
 		return;
 	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2)
 		drop_nlink(inode);
@@ -673,8 +681,8 @@ v9fs_vfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 /**
  * v9fs_vfs_mkdir - VFS mkdir hook to create a directory
  * @idmap: idmap of the mount
- * @dir:  inode that is being unlinked
- * @dentry: dentry that is being unlinked
+ * @dir: inode of the parent directory
+ * @dentry: dentry representing the directory being created
  * @mode: mode for new directory
  *
  */
@@ -802,6 +810,16 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	v9fs_invalidate_inode_attr(dir);
 	inode = d_inode(dentry);
 	v9inode = V9FS_I(inode);
+	if (!S_ISREG(inode->i_mode)) {
+		/*
+		 * Not a regular file.  v9fs_create() already stored the
+		 * unopened fid on the dentry.  Clunk the opened fid from
+		 * the create and let the VFS call ->open.
+		 */
+		p9_fid_put(fid);
+		file->f_mode |= FMODE_CREATED;
+		return finish_no_open(file, NULL);
+	}
 	err = finish_open(file, dentry, generic_file_open);
 	if (unlikely(err)) {
 		p9_fid_put(fid);
@@ -1134,7 +1152,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 		if (v9fs_proto_dotu(v9ses)) {
 			unsigned int i_nlink;
 			/*
-			 * Hadlink support got added later to the .u extension.
+			 * Hardlink support got added later to the .u extension.
 			 * So there can be a server out there that doesn't
 			 * support this even with .u extension. That would
 			 * just leave us with stat->extension being an empty

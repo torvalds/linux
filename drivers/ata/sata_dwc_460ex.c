@@ -226,7 +226,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 
-	hsdev->dma = devm_kzalloc(dev, sizeof(*hsdev->dma), GFP_KERNEL);
+	hsdev->dma = devm_kzalloc_obj(dev, *hsdev->dma);
 	if (!hsdev->dma)
 		return -ENOMEM;
 
@@ -1129,7 +1129,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 
 	/* Allocate DWC SATA device */
 	host = ata_host_alloc_pinfo(dev, ppi, SATA_DWC_MAX_PORTS);
-	hsdev = devm_kzalloc(dev, sizeof(*hsdev), GFP_KERNEL);
+	hsdev = devm_kzalloc_obj(dev, *hsdev);
 	if (!host || !hsdev)
 		return -ENOMEM;
 

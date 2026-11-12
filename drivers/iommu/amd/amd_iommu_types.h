@@ -660,8 +660,8 @@ struct amd_iommu {
 	/* Extended features 2 */
 	u64 features2;
 
-	/* Devices requesting PerfOpt; the shared PERF_OPT_EN bit is on while >0. Protected by @lock. */
-	int perfopt_refcount;
+	/* Saved PerfOpt activation state, protected by @lock. */
+	bool perfopt_enabled;
 
 	/* PCI device id of the IOMMU device */
 	u16 devid;
@@ -824,7 +824,7 @@ struct iommu_dev_data {
 	u8 ppr          :1;		  /* Enable device PPR support */
 	bool use_vapic;			  /* Enable device to use vapic mode */
 	bool defer_attach;
-	bool perfopt;
+	bool perfopt;			  /* Device is eligible for PerfOpt */
 
 	struct ratelimit_state rs;        /* Ratelimit IOPF messages */
 };

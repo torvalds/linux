@@ -14,12 +14,12 @@ static int avs_create_dai_links(struct device *dev, struct snd_soc_dai_link **li
 {
 	struct snd_soc_dai_link *dl;
 
-	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
+	dl = devm_kzalloc_obj(dev, *dl);
 	if (!dl)
 		return -ENOMEM;
 
-	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
-	dl->platforms = devm_kzalloc(dev, sizeof(*dl->platforms), GFP_KERNEL);
+	dl->cpus = devm_kzalloc_obj(dev, *dl->cpus);
+	dl->platforms = devm_kzalloc_obj(dev, *dl->platforms);
 	if (!dl->cpus || !dl->platforms)
 		return -ENOMEM;
 
@@ -43,7 +43,7 @@ static int avs_probe_mb_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

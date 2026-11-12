@@ -1442,7 +1442,7 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 	u8 mac[ETH_ALEN];
 	int ret;
 
-	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	plat = devm_kzalloc_obj(dev, *plat);
 	if (!plat)
 		return NULL;
 

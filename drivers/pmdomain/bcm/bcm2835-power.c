@@ -621,7 +621,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 	int ret = 0, i;
 	u32 id;
 
-	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
+	power = devm_kzalloc_obj(dev, *power);
 	if (!power)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, power);
@@ -648,10 +648,9 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 		}
 	}
 
-	power->pd_xlate.domains = devm_kcalloc(dev,
-					       ARRAY_SIZE(power_domain_names),
-					       sizeof(*power->pd_xlate.domains),
-					       GFP_KERNEL);
+	power->pd_xlate.domains = devm_kzalloc_objs(dev,
+						    *power->pd_xlate.domains,
+						    ARRAY_SIZE(power_domain_names));
 	if (!power->pd_xlate.domains)
 		return -ENOMEM;
 

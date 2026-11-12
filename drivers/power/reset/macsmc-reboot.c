@@ -204,7 +204,7 @@ static int macsmc_reboot_probe(struct platform_device *pdev)
 	struct macsmc_reboot *reboot;
 	int ret, i;
 
-	reboot = devm_kzalloc(&pdev->dev, sizeof(*reboot), GFP_KERNEL);
+	reboot = devm_kzalloc_obj(&pdev->dev, *reboot);
 	if (!reboot)
 		return -ENOMEM;
 

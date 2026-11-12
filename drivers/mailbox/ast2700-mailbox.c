@@ -163,12 +163,12 @@ static int ast2700_mbox_probe(struct platform_device *pdev)
 
 	dev_data = device_get_match_data(&pdev->dev);
 
-	mb = devm_kzalloc(dev, sizeof(*mb), GFP_KERNEL);
+	mb = devm_kzalloc_obj(dev, *mb);
 	if (!mb)
 		return -ENOMEM;
 
-	mb->mbox.chans = devm_kcalloc(&pdev->dev, dev_data->num_chans,
-				      sizeof(*mb->mbox.chans), GFP_KERNEL);
+	mb->mbox.chans = devm_kzalloc_objs(&pdev->dev, *mb->mbox.chans,
+					   dev_data->num_chans);
 	if (!mb->mbox.chans)
 		return -ENOMEM;
 

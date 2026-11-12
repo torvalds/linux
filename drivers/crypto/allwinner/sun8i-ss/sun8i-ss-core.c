@@ -521,8 +521,7 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 {
 	int i, j, err;
 
-	ss->flows = devm_kcalloc(ss->dev, MAXFLOW, sizeof(struct sun8i_ss_flow),
-				 GFP_KERNEL);
+	ss->flows = devm_kzalloc_objs(ss->dev, struct sun8i_ss_flow, MAXFLOW);
 	if (!ss->flows)
 		return -ENOMEM;
 
@@ -783,7 +782,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 	int err, irq;
 	u32 v;
 
-	ss = devm_kzalloc(&pdev->dev, sizeof(*ss), GFP_KERNEL);
+	ss = devm_kzalloc_obj(&pdev->dev, *ss);
 	if (!ss)
 		return -ENOMEM;
 

@@ -294,7 +294,7 @@ static struct st_sensors_platform_data *st_sensors_dev_probe(struct device *dev,
 	if (!dev_fwnode(dev))
 		return NULL;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 	if (!device_property_read_u32(dev, "st,drdy-int-pin", &val) && (val <= 2))

@@ -1239,8 +1239,7 @@ static int pxad_init_phys(struct platform_device *op,
 	if (irq0 < 0)
 		return irq0;
 
-	pdev->phys = devm_kcalloc(&op->dev, nb_phy_chans,
-				  sizeof(pdev->phys[0]), GFP_KERNEL);
+	pdev->phys = devm_kzalloc_objs(&op->dev, pdev->phys[0], nb_phy_chans);
 	if (!pdev->phys)
 		return -ENOMEM;
 
@@ -1324,7 +1323,7 @@ static int pxad_init_dmadev(struct platform_device *op,
 		return ret;
 
 	for (i = 0; i < nr_phy_chans; i++) {
-		c = devm_kzalloc(&op->dev, sizeof(*c), GFP_KERNEL);
+		c = devm_kzalloc_obj(&op->dev, *c);
 		if (!c)
 			return -ENOMEM;
 
@@ -1348,7 +1347,7 @@ static int pxad_probe(struct platform_device *op)
 		DMA_SLAVE_BUSWIDTH_1_BYTE   | DMA_SLAVE_BUSWIDTH_2_BYTES |
 		DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	pdev = devm_kzalloc(&op->dev, sizeof(*pdev), GFP_KERNEL);
+	pdev = devm_kzalloc_obj(&op->dev, *pdev);
 	if (!pdev)
 		return -ENOMEM;
 

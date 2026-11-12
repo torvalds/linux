@@ -432,7 +432,7 @@ static int onboard_dev_probe(struct platform_device *pdev)
 	struct device_node *i2c_node;
 	int err;
 
-	onboard_dev = devm_kzalloc(dev, sizeof(*onboard_dev), GFP_KERNEL);
+	onboard_dev = devm_kzalloc_obj(dev, *onboard_dev);
 	if (!onboard_dev)
 		return -ENOMEM;
 

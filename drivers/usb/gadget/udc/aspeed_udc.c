@@ -1482,7 +1482,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 	struct ast_udc_dev *udc;
 	int rc;
 
-	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc_dev), GFP_KERNEL);
+	udc = devm_kzalloc_obj(&pdev->dev, struct ast_udc_dev);
 	if (!udc)
 		return -ENOMEM;
 

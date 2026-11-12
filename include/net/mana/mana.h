@@ -90,6 +90,7 @@ enum mana_priv_flag_bits {
 /* Update this count whenever the respective structures are changed */
 #define MANA_STATS_RX_COUNT (6 + MANA_CQE_COAL_PKTS_8 - 1)
 #define MANA_STATS_TX_COUNT 11
+#define MANA_STATS_EQ_COUNT 1
 
 #define MANA_RX_FRAG_ALIGNMENT 64
 

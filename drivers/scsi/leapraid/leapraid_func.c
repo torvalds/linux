@@ -7839,7 +7839,7 @@ try_again:
 
 	/* Allocate I/O tracker to SCSI I/O. */
 	adapter->mem_desc.taskid_to_uniq_tag =
-		kcalloc(adapter->shost->can_queue, sizeof(u16), GFP_KERNEL);
+		kzalloc_objs(u16, adapter->shost->can_queue);
 	if (!adapter->mem_desc.taskid_to_uniq_tag)
 		return -ENOMEM;
 

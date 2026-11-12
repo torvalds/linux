@@ -1383,8 +1383,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	host = devm_kzalloc(&pdev->dev, sizeof(struct mmc_omap_host),
-			    GFP_KERNEL);
+	host = devm_kzalloc_obj(&pdev->dev, struct mmc_omap_host);
 	if (host == NULL)
 		return -ENOMEM;
 

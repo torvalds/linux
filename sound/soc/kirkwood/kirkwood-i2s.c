@@ -652,7 +652,7 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

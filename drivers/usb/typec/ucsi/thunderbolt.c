@@ -184,7 +184,7 @@ struct typec_altmode *ucsi_register_thunderbolt(struct ucsi_connector *con,
 	if (IS_ERR(alt) || !override)
 		return alt;
 
-	tbt = devm_kzalloc(&alt->dev, sizeof(*tbt), GFP_KERNEL);
+	tbt = devm_kzalloc_obj(&alt->dev, *tbt);
 	if (!tbt) {
 		typec_unregister_altmode(alt);
 		return ERR_PTR(-ENOMEM);

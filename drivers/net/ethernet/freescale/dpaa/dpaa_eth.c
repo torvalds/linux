@@ -701,8 +701,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
 	struct dpaa_fq *dpaa_fq;
 	int i;
 
-	dpaa_fq = devm_kcalloc(dev, count, sizeof(*dpaa_fq),
-			       GFP_KERNEL);
+	dpaa_fq = devm_kzalloc_objs(dev, *dpaa_fq, count);
 	if (!dpaa_fq)
 		return NULL;
 
@@ -957,7 +956,7 @@ static int dpaa_fq_setup(struct dpaa_priv *priv,
 	struct dpaa_fq *fq;
 	u16 *channels;
 
-	channels = kcalloc(num_possible_cpus(), sizeof(u16), GFP_KERNEL);
+	channels = kzalloc_objs(u16, num_possible_cpus());
 	if (!channels)
 		return -ENOMEM;
 
@@ -3205,7 +3204,7 @@ static struct dpaa_bp *dpaa_bp_alloc(struct device *dev)
 {
 	struct dpaa_bp *dpaa_bp;
 
-	dpaa_bp = devm_kzalloc(dev, sizeof(*dpaa_bp), GFP_KERNEL);
+	dpaa_bp = devm_kzalloc_obj(dev, *dpaa_bp);
 	if (!dpaa_bp)
 		return ERR_PTR(-ENOMEM);
 
@@ -3363,17 +3362,15 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	priv->msg_enable = netif_msg_init(debug, DPAA_MSG_DEFAULT);
 
-	priv->egress_fqs = devm_kcalloc(dev, dpaa_max_num_txqs(),
-					sizeof(*priv->egress_fqs),
-					GFP_KERNEL);
+	priv->egress_fqs = devm_kzalloc_objs(dev, *priv->egress_fqs,
+					     dpaa_max_num_txqs());
 	if (!priv->egress_fqs) {
 		err = -ENOMEM;
 		goto free_netdev;
 	}
 
-	priv->conf_fqs = devm_kcalloc(dev, dpaa_max_num_txqs(),
-				      sizeof(*priv->conf_fqs),
-				      GFP_KERNEL);
+	priv->conf_fqs = devm_kzalloc_objs(dev, *priv->conf_fqs,
+					   dpaa_max_num_txqs());
 	if (!priv->conf_fqs) {
 		err = -ENOMEM;
 		goto free_netdev;

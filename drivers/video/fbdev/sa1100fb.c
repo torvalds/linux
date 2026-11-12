@@ -1038,7 +1038,7 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
-	fbi = devm_kzalloc(dev, sizeof(struct sa1100fb_info), GFP_KERNEL);
+	fbi = devm_kzalloc_obj(dev, struct sa1100fb_info);
 	if (!fbi)
 		return NULL;
 

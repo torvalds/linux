@@ -86,7 +86,7 @@ static int hac300s_probe(struct i2c_client *client)
 	struct hac300s_data *data;
 	int rv;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct hac300s_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct hac300s_data);
 	if (!data)
 		return -ENOMEM;
 

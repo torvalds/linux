@@ -325,10 +325,8 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 		num_attrs += k;
 	}
 
-	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
-					 num_attrs,
-					 sizeof(struct attribute *),
-					 GFP_KERNEL);
+	priv->group.attrs = devm_kzalloc_objs(&priv->pdev->dev,
+					      struct attribute *, num_attrs);
 	if (!priv->group.attrs)
 		return -ENOMEM;
 
@@ -721,7 +719,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	i2c_put_adapter(deferred_adap);
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

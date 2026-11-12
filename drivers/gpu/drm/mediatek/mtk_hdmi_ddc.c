@@ -273,7 +273,7 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int ret;
 
-	ddc = devm_kzalloc(dev, sizeof(struct mtk_hdmi_ddc), GFP_KERNEL);
+	ddc = devm_kzalloc_obj(dev, struct mtk_hdmi_ddc);
 	if (!ddc)
 		return -ENOMEM;
 

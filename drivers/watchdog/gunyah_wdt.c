@@ -178,7 +178,7 @@ static int gunyah_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "status check failed\n");
 
-	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc_obj(dev, *wdd);
 	if (!wdd)
 		return -ENOMEM;
 

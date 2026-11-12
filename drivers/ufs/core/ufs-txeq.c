@@ -1239,9 +1239,8 @@ static int ufshcd_tx_eqtr(struct ufs_hba *hba,
 	noio_flag = memalloc_noio_save();
 
 	if (!params->eqtr_record) {
-		params->eqtr_record = devm_kzalloc(hba->dev,
-						   sizeof(*params->eqtr_record),
-						   GFP_KERNEL);
+		params->eqtr_record = devm_kzalloc_obj(hba->dev,
+						       *params->eqtr_record);
 		if (!params->eqtr_record) {
 			ret = -ENOMEM;
 			goto out_noio_restore;

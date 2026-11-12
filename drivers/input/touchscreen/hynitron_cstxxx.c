@@ -421,7 +421,7 @@ static int hyn_probe(struct i2c_client *client)
 	struct hynitron_ts_data *ts_data;
 	int err;
 
-	ts_data = devm_kzalloc(&client->dev, sizeof(*ts_data), GFP_KERNEL);
+	ts_data = devm_kzalloc_obj(&client->dev, *ts_data);
 	if (!ts_data)
 		return -ENOMEM;
 

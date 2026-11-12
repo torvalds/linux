@@ -403,8 +403,7 @@ static int tiadc_channel_init(struct device *dev, struct iio_dev *indio_dev,
 	int i;
 
 	indio_dev->num_channels = channels;
-	chan_array = devm_kcalloc(dev, channels, sizeof(*chan_array),
-				  GFP_KERNEL);
+	chan_array = devm_kzalloc_objs(dev, *chan_array, channels);
 	if (!chan_array)
 		return -ENOMEM;
 

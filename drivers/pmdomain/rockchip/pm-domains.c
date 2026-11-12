@@ -827,7 +827,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 		return -EINVAL;
 	}
 
-	pd = devm_kzalloc(pmu->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(pmu->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -837,8 +837,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 
 	pd->num_clks = of_clk_get_parent_count(node);
 	if (pd->num_clks > 0) {
-		pd->clks = devm_kcalloc(pmu->dev, pd->num_clks,
-					sizeof(*pd->clks), GFP_KERNEL);
+		pd->clks = devm_kzalloc_objs(pmu->dev, *pd->clks, pd->num_clks);
 		if (!pd->clks)
 			return -ENOMEM;
 	} else {
@@ -866,19 +865,16 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 						 NULL);
 
 	if (pd->num_qos > 0) {
-		pd->qos_regmap = devm_kcalloc(pmu->dev, pd->num_qos,
-					      sizeof(*pd->qos_regmap),
-					      GFP_KERNEL);
+		pd->qos_regmap = devm_kzalloc_objs(pmu->dev, *pd->qos_regmap,
+						   pd->num_qos);
 		if (!pd->qos_regmap) {
 			error = -ENOMEM;
 			goto err_unprepare_clocks;
 		}
 
 		for (j = 0; j < MAX_QOS_REGS_NUM; j++) {
-			pd->qos_save_regs[j] = devm_kcalloc(pmu->dev,
-							    pd->num_qos,
-							    sizeof(u32),
-							    GFP_KERNEL);
+			pd->qos_save_regs[j] = devm_kzalloc_objs(pmu->dev, u32,
+								 pd->num_qos);
 			if (!pd->qos_save_regs[j]) {
 				error = -ENOMEM;
 				goto err_unprepare_clocks;
@@ -1054,9 +1050,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 
 	pmu_info = device_get_match_data(dev);
 
-	pmu = devm_kzalloc(dev,
-			   struct_size(pmu, domains, pmu_info->num_domains),
-			   GFP_KERNEL);
+	pmu = devm_kzalloc_flex(dev, *pmu, domains, pmu_info->num_domains);
 	if (!pmu)
 		return -ENOMEM;
 

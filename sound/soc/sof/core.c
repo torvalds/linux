@@ -248,7 +248,7 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 nocodec:
 	/* select nocodec mode */
 	dev_warn(sdev->dev, "Using nocodec machine driver\n");
-	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
+	mach = devm_kzalloc_obj(sdev->dev, *mach);
 	if (!mach)
 		return -ENOMEM;
 
@@ -636,7 +636,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	struct snd_sof_dev *sdev;
 	int ret;
 
-	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc_obj(dev, *sdev);
 	if (!sdev)
 		return -ENOMEM;
 

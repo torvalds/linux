@@ -477,7 +477,7 @@ static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *
 	for (i = 0; i < n_regulator; i++) {
 		idx = regulator_idx_table[i];
 
-		rdesc[i] = devm_kcalloc(dev, 1, sizeof(*rdesc[0]), GFP_KERNEL);
+		rdesc[i] = devm_kzalloc_objs(dev, *rdesc[0], 1);
 		if (!rdesc[i])
 			return -ENOMEM;
 
@@ -606,7 +606,7 @@ static int rtq2208_probe(struct i2c_client *i2c)
 		     buck_masks[RTQ2208_BUCK_NUM_IRQ_REGS] = {0x33, 0x33, 0x33, 0x33, 0x33};
 	unsigned int ldo1_fixed_uV, ldo2_fixed_uV;
 
-	rdev_map = devm_kzalloc(dev, sizeof(struct rtq2208_rdev_map), GFP_KERNEL);
+	rdev_map = devm_kzalloc_obj(dev, struct rtq2208_rdev_map);
 	if (!rdev_map)
 		return -ENOMEM;
 

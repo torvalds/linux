@@ -265,20 +265,6 @@ int xfs_trans_alloc_dir(struct xfs_inode *dp, struct xfs_trans_res *resv,
 		struct xfs_trans **tpp, int *nospace_error);
 
 static inline void
-xfs_trans_set_context(
-	struct xfs_trans	*tp)
-{
-	tp->t_pflags = memalloc_nofs_save();
-}
-
-static inline void
-xfs_trans_clear_context(
-	struct xfs_trans	*tp)
-{
-	memalloc_nofs_restore(tp->t_pflags);
-}
-
-static inline void
 xfs_trans_cancel(
 	struct xfs_trans	*tp)
 {

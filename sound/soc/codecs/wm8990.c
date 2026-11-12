@@ -1236,8 +1236,7 @@ static int wm8990_i2c_probe(struct i2c_client *i2c)
 	struct wm8990_priv *wm8990;
 	int ret;
 
-	wm8990 = devm_kzalloc(&i2c->dev, sizeof(struct wm8990_priv),
-			      GFP_KERNEL);
+	wm8990 = devm_kzalloc_obj(&i2c->dev, struct wm8990_priv);
 	if (wm8990 == NULL)
 		return -ENOMEM;
 

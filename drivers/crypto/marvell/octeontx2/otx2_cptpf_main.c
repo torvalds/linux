@@ -727,7 +727,7 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 	struct otx2_cptpf_dev *cptpf;
 	int err, num_vec;
 
-	cptpf = devm_kzalloc(dev, sizeof(*cptpf), GFP_KERNEL);
+	cptpf = devm_kzalloc_obj(dev, *cptpf);
 	if (!cptpf)
 		return -ENOMEM;
 

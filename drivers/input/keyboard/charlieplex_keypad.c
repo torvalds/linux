@@ -156,7 +156,7 @@ static int charlieplex_keypad_probe(struct platform_device *pdev)
 	unsigned int poll_interval_ms;
 	int err;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, *keypad);
 	if (!keypad)
 		return -ENOMEM;
 

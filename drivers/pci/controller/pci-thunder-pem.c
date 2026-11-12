@@ -309,7 +309,7 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 	struct thunder_pem_pci *pem_pci;
 	resource_size_t bar4_start;
 
-	pem_pci = devm_kzalloc(dev, sizeof(*pem_pci), GFP_KERNEL);
+	pem_pci = devm_kzalloc_obj(dev, *pem_pci);
 	if (!pem_pci)
 		return -ENOMEM;
 
@@ -385,7 +385,7 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 	struct resource *res_pem;
 	int ret;
 
-	res_pem = devm_kzalloc(&adev->dev, sizeof(*res_pem), GFP_KERNEL);
+	res_pem = devm_kzalloc_obj(&adev->dev, *res_pem);
 	if (!res_pem)
 		return -ENOMEM;
 

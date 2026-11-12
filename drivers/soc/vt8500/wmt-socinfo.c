@@ -59,7 +59,7 @@ static int wmt_socinfo_probe(struct platform_device *pdev)
 
 	sccid = readl(reg);
 
-	attrs = devm_kzalloc(&pdev->dev, sizeof(*attrs), GFP_KERNEL);
+	attrs = devm_kzalloc_obj(&pdev->dev, *attrs);
 	if (!attrs)
 		return -ENOMEM;
 

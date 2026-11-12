@@ -189,13 +189,12 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 		return -EINVAL;
 	}
 
-	clk_data = devm_kmalloc(dev, sizeof(*clk_data), GFP_KERNEL);
+	clk_data = devm_kmalloc_obj(dev, *clk_data);
 	if (!clk_data)
 		return -ENOMEM;
 
 	clk_data->clk_num = count;
-	clk_data->clk = devm_kcalloc(dev, count, sizeof(*clk_data->clk),
-				     GFP_KERNEL);
+	clk_data->clk = devm_kzalloc_objs(dev, *clk_data->clk, count);
 	if (!clk_data->clk)
 		return -ENOMEM;
 
@@ -204,7 +203,7 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 		const char *name;
 		u32 val;
 
-		sclk = devm_kzalloc(dev, sizeof(*sclk), GFP_KERNEL);
+		sclk = devm_kzalloc_obj(dev, *sclk);
 		if (!sclk)
 			return -ENOMEM;
 

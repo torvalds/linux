@@ -127,7 +127,7 @@ static const struct ata_port_info *ahci_seattle_get_port_info(
 	struct seattle_plat_data *plat_data;
 	u32 val;
 
-	plat_data = devm_kzalloc(dev, sizeof(*plat_data), GFP_KERNEL);
+	plat_data = devm_kzalloc_obj(dev, *plat_data);
 	if (!plat_data)
 		return &ahci_port_info;
 

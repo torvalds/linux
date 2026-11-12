@@ -4581,7 +4581,7 @@ static int idpf_vport_intr_init_vec_idx(struct idpf_vport *vport,
 	}
 
 	total_vecs = idpf_get_reserved_vecs(adapter);
-	vecids = kcalloc(total_vecs, sizeof(u16), GFP_KERNEL);
+	vecids = kzalloc_objs(u16, total_vecs);
 	if (!vecids)
 		return -ENOMEM;
 

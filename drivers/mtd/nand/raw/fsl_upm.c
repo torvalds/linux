@@ -169,7 +169,7 @@ static int fun_probe(struct platform_device *ofdev)
 	int size;
 	int i;
 
-	fun = devm_kzalloc(&ofdev->dev, sizeof(*fun), GFP_KERNEL);
+	fun = devm_kzalloc_obj(&ofdev->dev, *fun);
 	if (!fun)
 		return -ENOMEM;
 

@@ -201,7 +201,7 @@ static int ocelot_spi_probe(struct spi_device *spi)
 	struct regmap *r;
 	int err;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

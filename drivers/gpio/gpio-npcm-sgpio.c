@@ -503,7 +503,7 @@ static int npcm_sgpio_probe(struct platform_device *pdev)
 	int rc;
 	u32 nin_gpios, nout_gpios;
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&pdev->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

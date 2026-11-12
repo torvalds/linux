@@ -370,7 +370,7 @@ static int q6usb_dai_dev_probe(struct platform_device *pdev)
 	struct of_phandle_args args;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

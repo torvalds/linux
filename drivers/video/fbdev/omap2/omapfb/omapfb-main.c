@@ -2472,8 +2472,7 @@ static int omapfb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	fbdev = devm_kzalloc(&pdev->dev, sizeof(struct omapfb2_device),
-			GFP_KERNEL);
+	fbdev = devm_kzalloc_obj(&pdev->dev, struct omapfb2_device);
 	if (fbdev == NULL) {
 		r = -ENOMEM;
 		goto err0;

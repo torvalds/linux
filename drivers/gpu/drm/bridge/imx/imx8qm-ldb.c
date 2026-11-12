@@ -442,7 +442,7 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 	int pixel_order;
 	int ret, i;
 
-	imx8qm_ldb = devm_kzalloc(dev, sizeof(*imx8qm_ldb), GFP_KERNEL);
+	imx8qm_ldb = devm_kzalloc_obj(dev, *imx8qm_ldb);
 	if (!imx8qm_ldb)
 		return -ENOMEM;
 

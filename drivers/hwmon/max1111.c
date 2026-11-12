@@ -192,7 +192,7 @@ static int max1111_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	data = devm_kzalloc(&spi->dev, sizeof(struct max1111_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&spi->dev, struct max1111_data);
 	if (data == NULL)
 		return -ENOMEM;
 

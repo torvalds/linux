@@ -981,7 +981,7 @@ static int rpcif_probe(struct platform_device *pdev)
 	}
 	of_node_put(flash);
 
-	rpc = devm_kzalloc(dev, sizeof(*rpc), GFP_KERNEL);
+	rpc = devm_kzalloc_obj(dev, *rpc);
 	if (!rpc)
 		return -ENOMEM;
 

@@ -410,7 +410,7 @@ static int pmc_ssram_telemetry_probe(struct pci_dev *pcidev, const struct pci_de
 
 	pmc_ssram_mark_probing(probe_cache.owned_mask);
 
-	drvdata = devm_kzalloc(&pcidev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pcidev->dev, *drvdata);
 	if (!drvdata) {
 		ret = -ENOMEM;
 		goto probe_finish;

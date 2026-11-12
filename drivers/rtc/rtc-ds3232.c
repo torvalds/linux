@@ -468,7 +468,7 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 		.type = NVMEM_TYPE_BATTERY_BACKED
 	};
 
-	ds3232 = devm_kzalloc(dev, sizeof(*ds3232), GFP_KERNEL);
+	ds3232 = devm_kzalloc_obj(dev, *ds3232);
 	if (!ds3232)
 		return -ENOMEM;
 

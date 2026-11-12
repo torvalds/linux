@@ -454,7 +454,7 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	dmic = devm_kzalloc(&pdev->dev, sizeof(struct omap_dmic), GFP_KERNEL);
+	dmic = devm_kzalloc_obj(&pdev->dev, struct omap_dmic);
 	if (!dmic)
 		return -ENOMEM;
 

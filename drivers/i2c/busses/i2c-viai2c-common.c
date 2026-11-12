@@ -179,7 +179,7 @@ int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat)
 {
 	struct viai2c *i2c;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

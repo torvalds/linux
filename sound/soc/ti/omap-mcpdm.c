@@ -540,7 +540,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
+	mcpdm = devm_kzalloc_obj(&pdev->dev, struct omap_mcpdm);
 	if (!mcpdm)
 		return -ENOMEM;
 

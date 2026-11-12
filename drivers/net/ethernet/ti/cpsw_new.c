@@ -1266,9 +1266,8 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 	data->bd_ram_size = CPSW_BD_RAM_SIZE;
 	data->mac_control = 0;
 
-	data->slave_data = devm_kcalloc(dev, CPSW_SLAVE_PORTS_NUM,
-					sizeof(struct cpsw_slave_data),
-					GFP_KERNEL);
+	data->slave_data = devm_kzalloc_objs(dev, struct cpsw_slave_data,
+					     CPSW_SLAVE_PORTS_NUM);
 	if (!data->slave_data) {
 		of_node_put(tmp_node);
 		return -ENOMEM;
@@ -1896,7 +1895,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int irq;
 
-	cpsw = devm_kzalloc(dev, sizeof(struct cpsw_common), GFP_KERNEL);
+	cpsw = devm_kzalloc_obj(dev, struct cpsw_common);
 	if (!cpsw)
 		return -ENOMEM;
 
@@ -1904,10 +1903,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	cpsw->dev = dev;
 
-	cpsw->slaves = devm_kcalloc(dev,
-				    CPSW_SLAVE_PORTS_NUM,
-				    sizeof(struct cpsw_slave),
-				    GFP_KERNEL);
+	cpsw->slaves = devm_kzalloc_objs(dev, struct cpsw_slave,
+					 CPSW_SLAVE_PORTS_NUM);
 	if (!cpsw->slaves)
 		return -ENOMEM;
 

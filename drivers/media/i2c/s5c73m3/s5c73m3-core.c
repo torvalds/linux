@@ -1607,7 +1607,7 @@ static int s5c73m3_probe(struct i2c_client *client)
 	struct s5c73m3 *state;
 	int ret, i;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

@@ -206,7 +206,7 @@ static int cavium_rng_probe_vf(struct	pci_dev		*pdev,
 	struct	cavium_rng *rng;
 	int	ret;
 
-	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
+	rng = devm_kzalloc_obj(&pdev->dev, *rng);
 	if (!rng)
 		return -ENOMEM;
 

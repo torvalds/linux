@@ -355,7 +355,7 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 	if (!node)
 		return NULL;
 
-	init_data = devm_kzalloc(dev, sizeof(*init_data), GFP_KERNEL);
+	init_data = devm_kzalloc_obj(dev, *init_data);
 	if (!init_data)
 		return NULL; /* Out of memory? */
 

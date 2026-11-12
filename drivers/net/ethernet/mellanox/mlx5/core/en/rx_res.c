@@ -347,14 +347,15 @@ static struct mlx5e_rx_res *mlx5e_rx_res_alloc(struct mlx5_core_dev *mdev, unsig
 	if (!rx_res)
 		return NULL;
 
-	rx_res->rss_rqns = kvcalloc(max_nch, sizeof(*rx_res->rss_rqns), GFP_KERNEL);
+	rx_res->rss_rqns = kvzalloc_objs(*rx_res->rss_rqns, max_nch);
 	if (!rx_res->rss_rqns) {
 		kvfree(rx_res);
 		return NULL;
 	}
 
 	if (multi_vhca) {
-		rx_res->rss_vhca_ids = kvcalloc(max_nch, sizeof(*rx_res->rss_vhca_ids), GFP_KERNEL);
+		rx_res->rss_vhca_ids = kvzalloc_objs(*rx_res->rss_vhca_ids,
+						     max_nch);
 		if (!rx_res->rss_vhca_ids) {
 			kvfree(rx_res->rss_rqns);
 			kvfree(rx_res);

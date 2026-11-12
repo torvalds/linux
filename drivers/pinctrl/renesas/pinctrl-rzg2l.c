@@ -1003,10 +1003,9 @@ static int rzg2l_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto done;
 	}
 
-	pins = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*pins), GFP_KERNEL);
-	psel_val = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*psel_val),
-				GFP_KERNEL);
-	pin_fn = devm_kzalloc(pctrl->dev, sizeof(*pin_fn), GFP_KERNEL);
+	pins = devm_kzalloc_objs(pctrl->dev, *pins, num_pinmux);
+	psel_val = devm_kzalloc_objs(pctrl->dev, *psel_val, num_pinmux);
+	pin_fn = devm_kzalloc_obj(pctrl->dev, *pin_fn);
 	if (!pins || !psel_val || !pin_fn) {
 		ret = -ENOMEM;
 		goto done;
@@ -3212,11 +3211,11 @@ static int rzg2l_pinctrl_reg_cache_alloc(struct rzg2l_pinctrl *pctrl)
 	u32 nports = pctrl->data->n_port_pins / RZG2L_PINS_PER_PORT;
 	struct rzg2l_pinctrl_reg_cache *cache, *dedicated_cache;
 
-	cache = devm_kzalloc(pctrl->dev, sizeof(*cache), GFP_KERNEL);
+	cache = devm_kzalloc_obj(pctrl->dev, *cache);
 	if (!cache)
 		return -ENOMEM;
 
-	dedicated_cache = devm_kzalloc(pctrl->dev, sizeof(*dedicated_cache), GFP_KERNEL);
+	dedicated_cache = devm_kzalloc_obj(pctrl->dev, *dedicated_cache);
 	if (!dedicated_cache)
 		return -ENOMEM;
 
@@ -3224,7 +3223,7 @@ static int rzg2l_pinctrl_reg_cache_alloc(struct rzg2l_pinctrl *pctrl)
 	if (!cache->p)
 		return -ENOMEM;
 
-	cache->pm = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pm), GFP_KERNEL);
+	cache->pm = devm_kzalloc_objs(pctrl->dev, *cache->pm, nports);
 	if (!cache->pm)
 		return -ENOMEM;
 
@@ -3232,71 +3231,71 @@ static int rzg2l_pinctrl_reg_cache_alloc(struct rzg2l_pinctrl *pctrl)
 	if (!cache->pmc)
 		return -ENOMEM;
 
-	cache->pfc = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pfc), GFP_KERNEL);
+	cache->pfc = devm_kzalloc_objs(pctrl->dev, *cache->pfc, nports);
 	if (!cache->pfc)
 		return -ENOMEM;
 
 	for (u8 i = 0; i < 2; i++) {
 		u32 n_dedicated_pins = pctrl->data->n_dedicated_pins;
 
-		cache->iolh[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->iolh[i]),
-					      GFP_KERNEL);
+		cache->iolh[i] = devm_kzalloc_objs(pctrl->dev, *cache->iolh[i],
+						   nports);
 		if (!cache->iolh[i])
 			return -ENOMEM;
 
-		cache->ien[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->ien[i]),
-					     GFP_KERNEL);
+		cache->ien[i] = devm_kzalloc_objs(pctrl->dev, *cache->ien[i],
+						  nports);
 		if (!cache->ien[i])
 			return -ENOMEM;
 
-		cache->pupd[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pupd[i]),
-					      GFP_KERNEL);
+		cache->pupd[i] = devm_kzalloc_objs(pctrl->dev, *cache->pupd[i],
+						   nports);
 		if (!cache->pupd[i])
 			return -ENOMEM;
 
-		cache->smt[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->smt[i]),
-					     GFP_KERNEL);
+		cache->smt[i] = devm_kzalloc_objs(pctrl->dev, *cache->smt[i],
+						  nports);
 		if (!cache->smt[i])
 			return -ENOMEM;
 
-		cache->sr[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->sr[i]),
-					    GFP_KERNEL);
+		cache->sr[i] = devm_kzalloc_objs(pctrl->dev, *cache->sr[i],
+						 nports);
 		if (!cache->sr[i])
 			return -ENOMEM;
 
-		cache->nod[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->nod[i]),
-					     GFP_KERNEL);
+		cache->nod[i] = devm_kzalloc_objs(pctrl->dev, *cache->nod[i],
+						  nports);
 		if (!cache->nod[i])
 			return -ENOMEM;
 
 		/* Allocate dedicated cache. */
-		dedicated_cache->iolh[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
-							sizeof(*dedicated_cache->iolh[i]),
-							GFP_KERNEL);
+		dedicated_cache->iolh[i] = devm_kzalloc_objs(pctrl->dev,
+							     *dedicated_cache->iolh[i],
+							     n_dedicated_pins);
 		if (!dedicated_cache->iolh[i])
 			return -ENOMEM;
 
-		dedicated_cache->ien[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
-						       sizeof(*dedicated_cache->ien[i]),
-						       GFP_KERNEL);
+		dedicated_cache->ien[i] = devm_kzalloc_objs(pctrl->dev,
+							    *dedicated_cache->ien[i],
+							    n_dedicated_pins);
 		if (!dedicated_cache->ien[i])
 			return -ENOMEM;
 
-		dedicated_cache->sr[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
-						      sizeof(*dedicated_cache->sr[i]),
-						      GFP_KERNEL);
+		dedicated_cache->sr[i] = devm_kzalloc_objs(pctrl->dev,
+							   *dedicated_cache->sr[i],
+							   n_dedicated_pins);
 		if (!dedicated_cache->sr[i])
 			return -ENOMEM;
 
-		dedicated_cache->nod[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
-						       sizeof(*dedicated_cache->nod[i]),
-						       GFP_KERNEL);
+		dedicated_cache->nod[i] = devm_kzalloc_objs(pctrl->dev,
+							    *dedicated_cache->nod[i],
+							    n_dedicated_pins);
 		if (!dedicated_cache->nod[i])
 			return -ENOMEM;
 
-		dedicated_cache->pupd[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
-							sizeof(*dedicated_cache->pupd[i]),
-							GFP_KERNEL);
+		dedicated_cache->pupd[i] = devm_kzalloc_objs(pctrl->dev,
+							     *dedicated_cache->pupd[i],
+							     n_dedicated_pins);
 		if (!dedicated_cache->pupd[i])
 			return -ENOMEM;
 	}
@@ -3399,12 +3398,11 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 #endif
 	}
 
-	pins = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(pctrl->dev, *pins, pctrl->desc.npins);
 	if (!pins)
 		return -ENOMEM;
 
-	pin_data = devm_kcalloc(pctrl->dev, pctrl->desc.npins,
-				sizeof(*pin_data), GFP_KERNEL);
+	pin_data = devm_kzalloc_objs(pctrl->dev, *pin_data, pctrl->desc.npins);
 	if (!pin_data)
 		return -ENOMEM;
 
@@ -3434,8 +3432,8 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 		pins[index].drv_data = &pin_data[index];
 	}
 
-	pctrl->settings = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pctrl->settings),
-				       GFP_KERNEL);
+	pctrl->settings = devm_kzalloc_objs(pctrl->dev, *pctrl->settings,
+					    pctrl->desc.npins);
 	if (!pctrl->settings)
 		return -ENOMEM;
 
@@ -3493,7 +3491,7 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(ARRAY_SIZE(r9a09g057_gpio_configs) * RZG2L_PINS_PER_PORT >
 		     ARRAY_SIZE(rzv2h_gpio_names));
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

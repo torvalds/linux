@@ -2131,7 +2131,7 @@ static int tvp5150_probe(struct i2c_client *c)
 	if (res)
 		return res;
 
-	core = devm_kzalloc(&c->dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(&c->dev, *core);
 	if (!core)
 		return -ENOMEM;
 

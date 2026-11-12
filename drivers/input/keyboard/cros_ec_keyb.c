@@ -864,7 +864,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	if (!cros_ec_device_registered(ec))
 		return -EPROBE_DEFER;
 
-	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
+	ckdev = devm_kzalloc_obj(dev, *ckdev);
 	if (!ckdev)
 		return -ENOMEM;
 

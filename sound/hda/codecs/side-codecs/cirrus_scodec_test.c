@@ -101,7 +101,7 @@ static int cirrus_scodec_test_gpio_probe(struct faux_device *fdev)
 	struct cirrus_scodec_test_gpio *gpio_priv;
 	int ret;
 
-	gpio_priv = devm_kzalloc(&fdev->dev, sizeof(*gpio_priv), GFP_KERNEL);
+	gpio_priv = devm_kzalloc_obj(&fdev->dev, *gpio_priv);
 	if (!gpio_priv)
 		return -ENOMEM;
 

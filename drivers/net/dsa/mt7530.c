@@ -2201,7 +2201,7 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 	struct device *dev = priv->dev;
 	struct gpio_chip *gc;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 
@@ -3532,7 +3532,7 @@ mt7530_probe_common(struct mt7530_priv *priv)
 {
 	struct device *dev = priv->dev;
 
-	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
+	priv->ds = devm_kzalloc_obj(dev, *priv->ds);
 	if (!priv->ds)
 		return -ENOMEM;
 

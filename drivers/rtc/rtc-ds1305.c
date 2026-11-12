@@ -564,7 +564,7 @@ static int ds1305_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	/* set up driver data */
-	ds1305 = devm_kzalloc(&spi->dev, sizeof(*ds1305), GFP_KERNEL);
+	ds1305 = devm_kzalloc_obj(&spi->dev, *ds1305);
 	if (!ds1305)
 		return -ENOMEM;
 	ds1305->spi = spi;

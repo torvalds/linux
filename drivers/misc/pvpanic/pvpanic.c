@@ -188,7 +188,7 @@ int devm_pvpanic_probe(struct device *dev, void __iomem *base)
 	if (!base)
 		return -EINVAL;
 
-	pi = devm_kmalloc(dev, sizeof(*pi), GFP_KERNEL);
+	pi = devm_kmalloc_obj(dev, *pi);
 	if (!pi)
 		return -ENOMEM;
 

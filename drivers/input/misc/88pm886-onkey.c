@@ -42,7 +42,7 @@ static int pm886_onkey_probe(struct platform_device *pdev)
 	struct input_dev *idev;
 	int irq, err;
 
-	onkey = devm_kzalloc(dev, sizeof(*onkey), GFP_KERNEL);
+	onkey = devm_kzalloc_obj(dev, *onkey);
 	if (!onkey)
 		return -ENOMEM;
 

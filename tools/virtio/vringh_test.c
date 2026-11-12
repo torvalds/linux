@@ -458,6 +458,8 @@ int main(int argc, char *argv[])
 	int err;
 	unsigned i;
 	void *ret;
+	struct vring_desc *ind;
+	char *data;
 	bool (*getrange)(struct vringh *vrh, u64 addr, struct vringh_range *r);
 	bool fast_vringh = false, parallel = false;
 
@@ -754,6 +756,45 @@ int main(int argc, char *argv[])
 			assert(buf[i] == i);
 		vringh_iov_cleanup(&riov);
 	}
+
+	/*
+	 * Regression test: a top-level indirect descriptor whose NEXT
+	 * points back to itself must be rejected with -ELOOP instead of
+	 * looping forever. Use index 1 rather than 0 so that returning
+	 * from the indirect table re-enters the same top-level descriptor.
+	 */
+	ind = __user_addr_max - USER_MEM/2;
+	data = __user_addr_max - USER_MEM/4;
+
+	/* Fresh ring and host state; resets last_avail_idx to 0. */
+	vring_init(&vrh.vring, RINGSIZE, __user_addr_min, ALIGN);
+	vringh_init_user(&vrh, vdev.features, RINGSIZE, true,
+			 vrh.vring.desc, vrh.vring.avail, vrh.vring.used);
+
+	/* Single-entry indirect table pointing at valid data. */
+	ind[0].addr = (unsigned long)data;
+	ind[0].len = 1;
+	ind[0].flags = 0;
+
+	/* Top-level desc[1]: INDIRECT, and NEXT loops back to itself. */
+	vrh.vring.desc[1].addr = (unsigned long)ind;
+	vrh.vring.desc[1].len = sizeof(*ind);
+	vrh.vring.desc[1].flags = VRING_DESC_F_INDIRECT | VRING_DESC_F_NEXT;
+	vrh.vring.desc[1].next = 1;
+
+	/* Publish head 1 on the avail ring. */
+	vrh.vring.avail->ring[0] = 1;
+	vrh.vring.avail->idx = 1;
+
+	vringh_iov_init(&riov, host_riov, ARRAY_SIZE(host_riov));
+	vringh_iov_init(&wiov, host_wiov, ARRAY_SIZE(host_wiov));
+
+	err = vringh_getdesc_user(&vrh, &riov, &wiov, getrange, &head);
+	if (err != -ELOOP)
+		errx(1, "self-referential indirect: %i not -ELOOP", err);
+
+	vringh_iov_cleanup(&riov);
+	vringh_iov_cleanup(&wiov);
 
 	/* Don't leak memory... */
 	vring_del_virtqueue(vq);

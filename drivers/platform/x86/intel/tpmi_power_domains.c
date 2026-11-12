@@ -240,8 +240,8 @@ static int __init tpmi_init(void)
 	if (!tpmi_power_domain_mask)
 		return -ENOMEM;
 
-	domain_die_map = kcalloc(size_mul(topology_max_packages(), MAX_POWER_DOMAINS),
-				 sizeof(*domain_die_map), GFP_KERNEL);
+	domain_die_map = kzalloc_objs(*domain_die_map,
+				      size_mul(topology_max_packages(), MAX_POWER_DOMAINS));
 	if (!domain_die_map) {
 		ret = -ENOMEM;
 		goto free_domain_mask;

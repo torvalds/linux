@@ -919,7 +919,7 @@ etm_perf_add_symlink_group(struct device *dev, const char *name, const char *gro
 	if (!etm_perf_up)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	ea = devm_kzalloc(dev, sizeof(*ea), GFP_KERNEL);
+	ea = devm_kzalloc_obj(dev, *ea);
 	if (!ea)
 		return ERR_PTR(-ENOMEM);
 

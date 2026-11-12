@@ -202,7 +202,7 @@ struct hdmirx_cec *snps_hdmirx_cec_register(struct hdmirx_cec_data *data)
 	 * hardware device here, so that userspace can see the association
 	 * between the HDMI hardware and its associated CEC chardev.
 	 */
-	cec = devm_kzalloc(data->dev, sizeof(*cec), GFP_KERNEL);
+	cec = devm_kzalloc_obj(data->dev, *cec);
 	if (!cec)
 		return ERR_PTR(-ENOMEM);
 

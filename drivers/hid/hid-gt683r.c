@@ -229,7 +229,7 @@ static int gt683r_led_probe(struct hid_device *hdev,
 	char *name;
 	struct gt683r_led *led;
 
-	led = devm_kzalloc(&hdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&hdev->dev, *led);
 	if (!led)
 		return -ENOMEM;
 

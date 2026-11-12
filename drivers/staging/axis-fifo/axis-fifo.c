@@ -434,7 +434,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	int rc = 0; /* error return value */
 	int irq;
 
-	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
+	fifo = devm_kzalloc_obj(dev, *fifo);
 	if (!fifo)
 		return -ENOMEM;
 

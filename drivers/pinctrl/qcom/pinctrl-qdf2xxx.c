@@ -74,11 +74,9 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pinctrl), GFP_KERNEL);
-	pins = devm_kcalloc(&pdev->dev, num_gpios,
-		sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
-	groups = devm_kcalloc(&pdev->dev, num_gpios,
-		sizeof(struct msm_pingroup), GFP_KERNEL);
+	pinctrl = devm_kzalloc_obj(&pdev->dev, *pinctrl);
+	pins = devm_kzalloc_objs(&pdev->dev, struct pinctrl_pin_desc, num_gpios);
+	groups = devm_kzalloc_objs(&pdev->dev, struct msm_pingroup, num_gpios);
 	names = devm_kcalloc(&pdev->dev, avail_gpios, NAME_SIZE, GFP_KERNEL);
 
 	if (!pinctrl || !pins || !groups || !names)

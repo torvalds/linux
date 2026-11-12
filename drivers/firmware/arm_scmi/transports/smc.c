@@ -148,7 +148,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!tx)
 		return -ENODEV;
 
-	scmi_info = devm_kzalloc(dev, sizeof(*scmi_info), GFP_KERNEL);
+	scmi_info = devm_kzalloc_obj(dev, *scmi_info);
 	if (!scmi_info)
 		return -ENOMEM;
 

@@ -2035,7 +2035,7 @@ static int tas675x_i2c_probe(struct i2c_client *client)
 	u32 val;
 	int i, ret;
 
-	tas = devm_kzalloc(&client->dev, sizeof(*tas), GFP_KERNEL);
+	tas = devm_kzalloc_obj(&client->dev, *tas);
 	if (!tas)
 		return -ENOMEM;
 

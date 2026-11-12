@@ -250,7 +250,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 	u32 ver_id;
 	u8  rng_type;
 
-	rngc = devm_kzalloc(&pdev->dev, sizeof(*rngc), GFP_KERNEL);
+	rngc = devm_kzalloc_obj(&pdev->dev, *rngc);
 	if (!rngc)
 		return -ENOMEM;
 

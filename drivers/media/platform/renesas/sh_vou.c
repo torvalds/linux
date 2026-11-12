@@ -1234,7 +1234,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	vou_dev = devm_kzalloc(&pdev->dev, sizeof(*vou_dev), GFP_KERNEL);
+	vou_dev = devm_kzalloc_obj(&pdev->dev, *vou_dev);
 	if (!vou_dev)
 		return -ENOMEM;
 

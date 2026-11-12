@@ -336,7 +336,7 @@ static int rpmi_pm_domain_probe(struct platform_device *pdev)
 	int ret;
 	u32 i;
 
-	mpxy_ctx = devm_kzalloc(&pdev->dev, sizeof(*mpxy_ctx), GFP_KERNEL);
+	mpxy_ctx = devm_kzalloc_obj(&pdev->dev, *mpxy_ctx);
 	if (!mpxy_ctx)
 		return -ENOMEM;
 
@@ -378,15 +378,15 @@ static int rpmi_pm_domain_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%u MPXY PM domains are found\n", num_domains);
 
-	mpxy_pd = devm_kcalloc(&pdev->dev, num_domains, sizeof(*mpxy_pd), GFP_KERNEL);
+	mpxy_pd = devm_kzalloc_objs(&pdev->dev, *mpxy_pd, num_domains);
 	if (!mpxy_pd)
 		return -ENOMEM;
 
-	domains = devm_kcalloc(&pdev->dev, num_domains, sizeof(*domains), GFP_KERNEL);
+	domains = devm_kzalloc_objs(&pdev->dev, *domains, num_domains);
 	if (!domains)
 		return -ENOMEM;
 
-	mpxy_pd_data = devm_kzalloc(&pdev->dev, sizeof(*mpxy_pd_data), GFP_KERNEL);
+	mpxy_pd_data = devm_kzalloc_obj(&pdev->dev, *mpxy_pd_data);
 	if (!mpxy_pd_data)
 		return -ENOMEM;
 

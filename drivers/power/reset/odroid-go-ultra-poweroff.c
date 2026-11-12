@@ -97,7 +97,7 @@ static int odroid_go_ultra_poweroff_probe(struct platform_device *pdev)
 	struct odroid_go_ultra_poweroff_data *poweroff_data;
 	int ret;
 
-	poweroff_data = devm_kzalloc(&pdev->dev, sizeof(*poweroff_data), GFP_KERNEL);
+	poweroff_data = devm_kzalloc_obj(&pdev->dev, *poweroff_data);
 	if (!poweroff_data)
 		return -ENOMEM;
 

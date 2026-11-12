@@ -2464,7 +2464,7 @@ static int nvmet_pci_epf_probe(struct pci_epf *epf,
 	struct nvmet_pci_epf *nvme_epf;
 	int ret;
 
-	nvme_epf = devm_kzalloc(&epf->dev, sizeof(*nvme_epf), GFP_KERNEL);
+	nvme_epf = devm_kzalloc_obj(&epf->dev, *nvme_epf);
 	if (!nvme_epf)
 		return -ENOMEM;
 
@@ -2611,7 +2611,7 @@ static const struct pci_epf_device_id nvmet_pci_epf_ids[] = {
 	{},
 };
 
-static struct pci_epf_ops nvmet_pci_epf_ops = {
+static const struct pci_epf_ops nvmet_pci_epf_ops = {
 	.bind	= nvmet_pci_epf_bind,
 	.unbind	= nvmet_pci_epf_unbind,
 	.add_cfs = nvmet_pci_epf_add_cfs,

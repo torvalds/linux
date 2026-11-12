@@ -265,8 +265,7 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size,
 	if (flex_gd->groups == NULL)
 		goto out2;
 
-	flex_gd->bg_flags = kmalloc_array(flex_gd->resize_bg, sizeof(__u16),
-					  GFP_NOFS);
+	flex_gd->bg_flags = kmalloc_objs(__u16, flex_gd->resize_bg, GFP_NOFS);
 	if (flex_gd->bg_flags == NULL)
 		goto out1;
 

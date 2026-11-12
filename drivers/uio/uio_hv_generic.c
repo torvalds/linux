@@ -262,7 +262,7 @@ hv_uio_probe(struct hv_device *dev,
 	/* Adjust ring size if necessary to have it page aligned */
 	ring_size = VMBUS_RING_SIZE(ring_size);
 
-	pdata = devm_kzalloc(&dev->device, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&dev->device, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

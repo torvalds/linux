@@ -148,7 +148,7 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 	u32 brightness;
 	int ret;
 
-	ktd253 = devm_kzalloc(dev, sizeof(*ktd253), GFP_KERNEL);
+	ktd253 = devm_kzalloc_obj(dev, *ktd253);
 	if (!ktd253)
 		return -ENOMEM;
 	ktd253->dev = dev;

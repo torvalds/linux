@@ -839,8 +839,7 @@ int meson_overlay_create(struct meson_drm *priv)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	meson_overlay = devm_kzalloc(priv->drm->dev, sizeof(*meson_overlay),
-				   GFP_KERNEL);
+	meson_overlay = devm_kzalloc_obj(priv->drm->dev, *meson_overlay);
 	if (!meson_overlay)
 		return -ENOMEM;
 

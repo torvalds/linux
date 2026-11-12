@@ -284,7 +284,7 @@ int visconti_pinctrl_probe(struct platform_device *pdev,
 	struct pinctrl_pin_desc *pins;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -298,8 +298,7 @@ int visconti_pinctrl_probe(struct platform_device *pdev,
 		return PTR_ERR(priv->base);
 	}
 
-	pins = devm_kcalloc(dev, devdata->nr_pins,
-			    sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, devdata->nr_pins);
 	if (!pins)
 		return -ENOMEM;
 

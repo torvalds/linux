@@ -1861,7 +1861,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 		return ERR_PTR(-EINVAL);
 	}
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
@@ -1971,7 +1971,7 @@ static int q6afe_probe(struct apr_device *adev)
 	struct q6afe *afe;
 	struct device *dev = &adev->dev;
 
-	afe = devm_kzalloc(dev, sizeof(*afe), GFP_KERNEL);
+	afe = devm_kzalloc_obj(dev, *afe);
 	if (!afe)
 		return -ENOMEM;
 

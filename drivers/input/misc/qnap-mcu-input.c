@@ -97,7 +97,7 @@ static int qnap_mcu_input_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int ret;
 
-	idev = devm_kzalloc(dev, sizeof(*idev), GFP_KERNEL);
+	idev = devm_kzalloc_obj(dev, *idev);
 	if (!idev)
 		return -ENOMEM;
 

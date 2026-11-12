@@ -542,7 +542,7 @@ static int aspeed_uart_routing_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aspeed_uart_routing *uart_routing;
 
-	uart_routing = devm_kzalloc(&pdev->dev, sizeof(*uart_routing), GFP_KERNEL);
+	uart_routing = devm_kzalloc_obj(&pdev->dev, *uart_routing);
 	if (!uart_routing)
 		return -ENOMEM;
 

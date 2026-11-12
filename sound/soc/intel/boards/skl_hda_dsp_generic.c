@@ -105,7 +105,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	unsigned long board_quirk = skl_hda_get_board_quirk(&mach->mach_params);
 	int ret;
 
-	card = devm_kzalloc(&pdev->dev, sizeof(struct snd_soc_card), GFP_KERNEL);
+	card = devm_kzalloc_obj(&pdev->dev, struct snd_soc_card);
 	if (!card)
 		return -ENOMEM;
 

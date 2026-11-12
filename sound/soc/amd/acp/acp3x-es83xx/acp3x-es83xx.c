@@ -441,7 +441,7 @@ static int acp3x_es83xx_probe(struct snd_soc_card *card)
 			return -EPROBE_DEFER;
 		}
 
-		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+		priv = devm_kzalloc_obj(dev, *priv);
 		if (!priv) {
 			put_device(codec_dev);
 			return -ENOMEM;

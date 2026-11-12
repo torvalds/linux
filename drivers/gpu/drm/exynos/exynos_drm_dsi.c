@@ -113,7 +113,7 @@ static int exynos_dsi_register_host(struct samsung_dsim *dsim)
 {
 	struct exynos_dsi *dsi;
 
-	dsi = devm_kzalloc(dsim->dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(dsim->dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

@@ -166,7 +166,7 @@ static int bbnsm_rtc_probe(struct platform_device *pdev)
 	struct bbnsm_rtc *bbnsm;
 	int ret;
 
-	bbnsm = devm_kzalloc(&pdev->dev, sizeof(*bbnsm), GFP_KERNEL);
+	bbnsm = devm_kzalloc_obj(&pdev->dev, *bbnsm);
 	if (!bbnsm)
 		return -ENOMEM;
 

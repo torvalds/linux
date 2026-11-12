@@ -427,7 +427,7 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
 		return -ENODEV;
 
-	smbus = devm_kzalloc(&dev->dev, sizeof(struct amd_smbus), GFP_KERNEL);
+	smbus = devm_kzalloc_obj(&dev->dev, struct amd_smbus);
 	if (!smbus)
 		return -ENOMEM;
 

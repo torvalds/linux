@@ -834,7 +834,7 @@ static int imx93_dsi_probe(struct platform_device *pdev)
 	struct imx93_dsi *dsi;
 	int ret;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

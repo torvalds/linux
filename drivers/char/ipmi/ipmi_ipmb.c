@@ -458,7 +458,7 @@ static int ipmi_ipmb_probe(struct i2c_client *client)
 	struct i2c_client *slave = NULL;
 	int rv;
 
-	iidev = devm_kzalloc(&client->dev, sizeof(*iidev), GFP_KERNEL);
+	iidev = devm_kzalloc_obj(&client->dev, *iidev);
 	if (!iidev)
 		return -ENOMEM;
 

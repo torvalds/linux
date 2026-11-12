@@ -1248,7 +1248,7 @@ static int msm_dp_display_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dp = devm_kzalloc(&pdev->dev, sizeof(*dp), GFP_KERNEL);
+	dp = devm_kzalloc_obj(&pdev->dev, *dp);
 	if (!dp)
 		return -ENOMEM;
 

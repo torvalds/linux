@@ -167,7 +167,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd = &pic32_wdd;
 	struct pic32_wdt *wdt;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

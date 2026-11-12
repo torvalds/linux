@@ -216,7 +216,7 @@ static int mvebu_a3700_utmi_phy_probe(struct platform_device *pdev)
 	struct mvebu_a3700_utmi *utmi;
 	struct phy_provider *provider;
 
-	utmi = devm_kzalloc(dev, sizeof(*utmi), GFP_KERNEL);
+	utmi = devm_kzalloc_obj(dev, *utmi);
 	if (!utmi)
 		return -ENOMEM;
 

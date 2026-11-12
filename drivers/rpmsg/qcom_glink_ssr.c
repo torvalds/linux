@@ -128,7 +128,7 @@ static int qcom_glink_ssr_probe(struct rpmsg_device *rpdev)
 {
 	struct glink_ssr *ssr;
 
-	ssr = devm_kzalloc(&rpdev->dev, sizeof(*ssr), GFP_KERNEL);
+	ssr = devm_kzalloc_obj(&rpdev->dev, *ssr);
 	if (!ssr)
 		return -ENOMEM;
 

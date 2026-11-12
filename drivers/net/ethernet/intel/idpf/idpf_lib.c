@@ -31,7 +31,7 @@ static int idpf_init_vector_stack(struct idpf_adapter *adapter)
 	stack->base = min_vec;
 	stack->top = min_vec;
 
-	stack->vec_idx = kcalloc(stack->size, sizeof(u16), GFP_KERNEL);
+	stack->vec_idx = kzalloc_objs(u16, stack->size);
 	if (!stack->vec_idx) {
 		mutex_unlock(&adapter->vector_lock);
 
@@ -378,7 +378,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 
 	adapter->mb_vector.v_idx = le16_to_cpu(adapter->caps.mailbox_vector_id);
 
-	vecids = kcalloc(actual_vecs, sizeof(u16), GFP_KERNEL);
+	vecids = kzalloc_objs(u16, actual_vecs);
 	if (!vecids) {
 		err = -ENOMEM;
 		goto free_msix;
@@ -1298,7 +1298,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 
 	rsrc = &vport->dflt_qv_rsrc;
 	rsrc->dev = &adapter->pdev->dev;
-	rsrc->q_vector_idxs = kcalloc(num_max_q, sizeof(u16), GFP_KERNEL);
+	rsrc->q_vector_idxs = kzalloc_objs(u16, num_max_q);
 	if (!rsrc->q_vector_idxs)
 		goto free_vport;
 

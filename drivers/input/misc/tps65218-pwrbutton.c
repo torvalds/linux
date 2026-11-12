@@ -91,7 +91,7 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENXIO;
 
-	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
+	pwr = devm_kzalloc_obj(dev, *pwr);
 	if (!pwr)
 		return -ENOMEM;
 

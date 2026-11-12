@@ -204,7 +204,7 @@ static void bcm63138_leds_create_led(struct bcm63138_leds *leds,
 	u32 bit;
 	int err;
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led) {
 		dev_err(dev, "Failed to alloc LED\n");
 		return;
@@ -260,7 +260,7 @@ static int bcm63138_leds_probe(struct platform_device *pdev)
 	struct bcm63138_leds *leds;
 	u32 shift_bits;
 
-	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc_obj(dev, *leds);
 	if (!leds)
 		return -ENOMEM;
 

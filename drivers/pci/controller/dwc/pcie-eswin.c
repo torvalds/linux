@@ -128,7 +128,7 @@ static int eswin_pcie_parse_port(struct eswin_pcie *pcie,
 	struct device *dev = pcie->pci.dev;
 	struct eswin_pcie_port *port;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 
@@ -307,7 +307,7 @@ static int eswin_pcie_probe(struct platform_device *pdev)
 	if (!data)
 		return dev_err_probe(dev, -ENODATA, "No platform data\n");
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 

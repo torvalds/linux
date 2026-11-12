@@ -1079,8 +1079,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	if (!ser->ops->num_dts_per_pipe)
 		return 0;
 
-	dts = devm_kcalloc(priv->dev, ser->ops->num_dts_per_pipe, sizeof(*dts),
-			   GFP_KERNEL);
+	dts = devm_kzalloc_objs(priv->dev, *dts, ser->ops->num_dts_per_pipe);
 	if (!dts)
 		return -ENOMEM;
 
@@ -1662,7 +1661,7 @@ static int max_ser_v4l2_register(struct max_ser_priv *priv)
 	sd->entity.ops = &max_ser_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
 
-	priv->pads = devm_kcalloc(priv->dev, num_pads, sizeof(*priv->pads), GFP_KERNEL);
+	priv->pads = devm_kzalloc_objs(priv->dev, *priv->pads, num_pads);
 	if (!priv->pads)
 		return -ENOMEM;
 
@@ -1873,34 +1872,32 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 	struct max_ser *ser = priv->ser;
 	unsigned int num_pads = max_ser_num_pads(ser);
 
-	ser->phys = devm_kcalloc(priv->dev, ser->ops->num_phys,
-				 sizeof(*ser->phys), GFP_KERNEL);
+	ser->phys = devm_kzalloc_objs(priv->dev, *ser->phys, ser->ops->num_phys);
 	if (!ser->phys)
 		return -ENOMEM;
 
-	ser->pipes = devm_kcalloc(priv->dev, ser->ops->num_pipes,
-				  sizeof(*ser->pipes), GFP_KERNEL);
+	ser->pipes = devm_kzalloc_objs(priv->dev, *ser->pipes,
+				       ser->ops->num_pipes);
 	if (!ser->pipes)
 		return -ENOMEM;
 
-	ser->vc_remaps = devm_kcalloc(priv->dev, ser->ops->num_vc_remaps,
-				      sizeof(*ser->vc_remaps), GFP_KERNEL);
+	ser->vc_remaps = devm_kzalloc_objs(priv->dev, *ser->vc_remaps,
+					   ser->ops->num_vc_remaps);
 	if (!ser->vc_remaps)
 		return -ENOMEM;
 
-	ser->i2c_xlates = devm_kcalloc(priv->dev, ser->ops->num_i2c_xlates,
-				       sizeof(*ser->i2c_xlates), GFP_KERNEL);
+	ser->i2c_xlates = devm_kzalloc_objs(priv->dev, *ser->i2c_xlates,
+					    ser->ops->num_i2c_xlates);
 	if (!ser->i2c_xlates)
 		return -ENOMEM;
 
-	priv->sources = devm_kcalloc(priv->dev, ser->ops->num_phys,
-				     sizeof(*priv->sources), GFP_KERNEL);
+	priv->sources = devm_kzalloc_objs(priv->dev, *priv->sources,
+					  ser->ops->num_phys);
 	if (!priv->sources)
 		return -ENOMEM;
 
-	priv->streams_masks = devm_kcalloc(priv->dev, num_pads,
-					   sizeof(*priv->streams_masks),
-					   GFP_KERNEL);
+	priv->streams_masks = devm_kzalloc_objs(priv->dev, *priv->streams_masks,
+						num_pads);
 	if (!priv->streams_masks)
 		return -ENOMEM;
 
@@ -1916,7 +1913,7 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser)
 	if (ser->ops->num_phys > MAX_SER_NUM_PHYS)
 		return -E2BIG;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

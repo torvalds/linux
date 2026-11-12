@@ -326,7 +326,7 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 			goto out;
 	}
 
-	nstr_list = kcalloc(str_nums, sizeof(__be16), GFP_KERNEL);
+	nstr_list = kzalloc_objs(__be16, str_nums);
 	if (!nstr_list) {
 		retval = -ENOMEM;
 		goto out;

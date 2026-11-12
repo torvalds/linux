@@ -1262,8 +1262,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 		return -EINVAL;
 	}
 
-	pdata->dais = devm_kcalloc(dev, pdata->num_dais, sizeof(*dai_drv),
-				   GFP_KERNEL);
+	pdata->dais = devm_kzalloc_objs(dev, *dai_drv, pdata->num_dais);
 	if (!pdata->dais)
 		return -ENOMEM;
 
@@ -1303,7 +1302,7 @@ static int q6asm_dai_probe(struct platform_device *pdev)
 	struct q6asm_dai_data *pdata;
 	int rc;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

@@ -1000,8 +1000,8 @@ int kvm_vgic_v5_irs_init(struct kvm *kvm, unsigned int nr_spis)
 	 * provide at least 32 SPIs, so we always meet alignment requirements.
 	 */
 	if (nr_spis) {
-		dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq),
-				     GFP_KERNEL_ACCOUNT);
+		dist->spis = kzalloc_objs(struct vgic_irq, nr_spis,
+					  GFP_KERNEL_ACCOUNT);
 		if (!dist->spis)
 			return -ENOMEM;
 

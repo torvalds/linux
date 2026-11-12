@@ -240,7 +240,7 @@ static int cdns_dphy_rx_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	struct cdns_dphy_rx *dphy;
 
-	dphy = devm_kzalloc(dev, sizeof(*dphy), GFP_KERNEL);
+	dphy = devm_kzalloc_obj(dev, *dphy);
 	if (!dphy)
 		return -ENOMEM;
 

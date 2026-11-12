@@ -273,7 +273,7 @@ static int upboard_fpga_probe(struct platform_device *pdev)
 	struct upboard_fpga *fpga;
 	int ret;
 
-	fpga = devm_kzalloc(dev, sizeof(*fpga), GFP_KERNEL);
+	fpga = devm_kzalloc_obj(dev, *fpga);
 	if (!fpga)
 		return -ENOMEM;
 

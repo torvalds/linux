@@ -357,7 +357,7 @@ static int lwmi_gz_probe(struct wmi_device *wdev, const void *context)
 	struct lwmi_gz_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

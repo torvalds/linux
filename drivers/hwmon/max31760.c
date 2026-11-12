@@ -521,7 +521,7 @@ static int max31760_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int ret;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

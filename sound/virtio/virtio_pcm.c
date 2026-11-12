@@ -245,7 +245,7 @@ struct virtio_pcm *virtsnd_pcm_find_or_create(struct virtio_snd *snd, u32 nid)
 	if (!IS_ERR(vpcm))
 		return vpcm;
 
-	vpcm = devm_kzalloc(&vdev->dev, sizeof(*vpcm), GFP_KERNEL);
+	vpcm = devm_kzalloc_obj(&vdev->dev, *vpcm);
 	if (!vpcm)
 		return ERR_PTR(-ENOMEM);
 
@@ -335,8 +335,8 @@ int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 	if (!snd->nsubstreams)
 		return 0;
 
-	snd->substreams = devm_kcalloc(&vdev->dev, snd->nsubstreams,
-				       sizeof(*snd->substreams), GFP_KERNEL);
+	snd->substreams = devm_kzalloc_objs(&vdev->dev, *snd->substreams,
+					    snd->nsubstreams);
 	if (!snd->substreams)
 		return -ENOMEM;
 
@@ -449,9 +449,9 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 				continue;
 
 			stream->substreams =
-				devm_kcalloc(&vdev->dev, stream->nsubstreams,
-					     sizeof(*stream->substreams),
-					     GFP_KERNEL);
+				devm_kzalloc_objs(&vdev->dev,
+						  *stream->substreams,
+						  stream->nsubstreams);
 			if (!stream->substreams)
 				return -ENOMEM;
 

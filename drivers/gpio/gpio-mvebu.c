@@ -1200,8 +1200,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	have_irqs = err != 0;
 
-	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
-			      GFP_KERNEL);
+	mvchip = devm_kzalloc_obj(&pdev->dev, struct mvebu_gpio_chip);
 	if (!mvchip)
 		return -ENOMEM;
 

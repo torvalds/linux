@@ -100,7 +100,7 @@ static int enetc_ierb_probe(struct platform_device *pdev)
 	struct enetc_ierb *ierb;
 	void __iomem *regs;
 
-	ierb = devm_kzalloc(&pdev->dev, sizeof(*ierb), GFP_KERNEL);
+	ierb = devm_kzalloc_obj(&pdev->dev, *ierb);
 	if (!ierb)
 		return -ENOMEM;
 

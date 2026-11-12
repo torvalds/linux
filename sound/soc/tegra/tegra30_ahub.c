@@ -522,8 +522,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	if (!soc_data)
 		return -EINVAL;
 
-	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
-			    GFP_KERNEL);
+	ahub = devm_kzalloc_obj(&pdev->dev, struct tegra30_ahub);
 	if (!ahub)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, ahub);

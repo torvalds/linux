@@ -706,9 +706,8 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
 	if (WARN_ON(ni->registered_protocols[proto_id]))
 		return ERR_PTR(-EINVAL);
 
-	pd = devm_kzalloc(ni->handle->dev,
-			  struct_size(pd, registered_events, num_events),
-			  GFP_KERNEL);
+	pd = devm_kzalloc_flex(ni->handle->dev, *pd, registered_events,
+			       num_events);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
@@ -794,9 +793,8 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 		int id;
 		struct scmi_registered_event *r_evt;
 
-		r_evt = devm_kzalloc(ni->handle->dev,
-				     struct_size(r_evt, sources, num_sources),
-				     GFP_KERNEL);
+		r_evt = devm_kzalloc_flex(ni->handle->dev, *r_evt, sources,
+					  num_sources);
 		if (!r_evt)
 			return -ENOMEM;
 
@@ -1662,7 +1660,7 @@ int scmi_notification_init(struct scmi_handle *handle)
 	if (!gid)
 		return -ENOMEM;
 
-	ni = devm_kzalloc(handle->dev, sizeof(*ni), GFP_KERNEL);
+	ni = devm_kzalloc_obj(handle->dev, *ni);
 	if (!ni)
 		goto err;
 

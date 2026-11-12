@@ -170,7 +170,7 @@ static int tw9906_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	dec = devm_kzalloc(&client->dev, sizeof(*dec), GFP_KERNEL);
+	dec = devm_kzalloc_obj(&client->dev, *dec);
 	if (dec == NULL)
 		return -ENOMEM;
 	sd = &dec->sd;

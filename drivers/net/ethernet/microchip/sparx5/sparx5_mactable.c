@@ -244,8 +244,7 @@ static struct sparx5_mact_entry *alloc_mact_entry(struct sparx5 *sparx5,
 {
 	struct sparx5_mact_entry *mact_entry;
 
-	mact_entry = devm_kzalloc(sparx5->dev,
-				  sizeof(*mact_entry), GFP_ATOMIC);
+	mact_entry = devm_kzalloc_obj(sparx5->dev, *mact_entry, GFP_ATOMIC);
 	if (!mact_entry)
 		return NULL;
 

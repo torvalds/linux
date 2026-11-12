@@ -1023,7 +1023,7 @@ static int rz_ssi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	ssi = devm_kzalloc(dev, sizeof(*ssi), GFP_KERNEL);
+	ssi = devm_kzalloc_obj(dev, *ssi);
 	if (!ssi)
 		return -ENOMEM;
 
@@ -1062,7 +1062,7 @@ static int rz_ssi_probe(struct platform_device *pdev)
 		struct snd_dmaengine_pcm_config *config;
 		unsigned int flags = 0;
 
-		config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
+		config = devm_kzalloc_obj(dev, *config);
 		if (!config)
 			return -ENOMEM;
 

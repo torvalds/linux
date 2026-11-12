@@ -141,7 +141,7 @@ static const struct rtc_class_ops bq4802_ops = {
 
 static int bq4802_probe(struct platform_device *pdev)
 {
-	struct bq4802 *p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	struct bq4802 *p = devm_kzalloc_obj(&pdev->dev, *p);
 	int err = -ENOMEM;
 
 	if (!p)

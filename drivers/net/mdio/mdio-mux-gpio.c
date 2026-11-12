@@ -45,7 +45,7 @@ static int mdio_mux_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpios))
 		return PTR_ERR(gpios);
 
-	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc_obj(&pdev->dev, *s);
 	if (!s)
 		return -ENOMEM;
 

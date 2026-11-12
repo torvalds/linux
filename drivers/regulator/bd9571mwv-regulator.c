@@ -279,7 +279,7 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 	int i;
 	enum rohm_chip_type chip = platform_get_device_id(pdev)->driver_data;
 
-	bdreg = devm_kzalloc(&pdev->dev, sizeof(*bdreg), GFP_KERNEL);
+	bdreg = devm_kzalloc_obj(&pdev->dev, *bdreg);
 	if (!bdreg)
 		return -ENOMEM;
 

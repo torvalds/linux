@@ -1245,7 +1245,7 @@ static int elan_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	data = devm_kzalloc(dev, sizeof(struct elan_tp_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct elan_tp_data);
 	if (!data)
 		return -ENOMEM;
 

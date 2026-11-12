@@ -85,6 +85,7 @@ static const struct cs35l41_config cs35l41_config_table[] = {
 	{ "103C8C51", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 4100, 24 },
 	{ "103C8CDD", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 4100, 24 },
 	{ "103C8CDE", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 3900, 24 },
+	{ "103C8E13", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 4500, 24 },
 	{ "103C8E60", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 4500, 24 },
 	{ "103C8F07", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 0, 1, -1, 1000, 3900, 24 },
 	{ "104312AF", 2, INTERNAL, { CS35L41_LEFT, CS35L41_RIGHT, 0, 0 }, 1, 2, 0, 1000, 4500, 24 },
@@ -188,16 +189,17 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 	/* must include termination entry */
 	num_entries++;
 
-	gpio_mapping = devm_kcalloc(physdev, num_entries, sizeof(struct acpi_gpio_mapping),
-				    GFP_KERNEL);
+	gpio_mapping = devm_kzalloc_objs(physdev, struct acpi_gpio_mapping,
+					 num_entries);
 
 	if (!gpio_mapping)
 		goto err;
 
 	if (reset_gpio >= 0) {
 		gpio_mapping[reset_index].name = "reset-gpios";
-		reset_gpio_params = devm_kcalloc(physdev, num_amps, sizeof(struct acpi_gpio_params),
-						 GFP_KERNEL);
+		reset_gpio_params = devm_kzalloc_objs(physdev,
+						      struct acpi_gpio_params,
+						      num_amps);
 		if (!reset_gpio_params)
 			goto err;
 
@@ -210,8 +212,9 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 
 	if (spkid_gpio >= 0) {
 		gpio_mapping[spkid_index].name = "spk-id-gpios";
-		spkid_gpio_params = devm_kcalloc(physdev, num_amps, sizeof(struct acpi_gpio_params),
-						 GFP_KERNEL);
+		spkid_gpio_params = devm_kzalloc_objs(physdev,
+						      struct acpi_gpio_params,
+						      num_amps);
 		if (!spkid_gpio_params)
 			goto err;
 
@@ -225,7 +228,8 @@ static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev
 	if ((cs_gpio_index >= 0) && (num_amps == 2)) {
 		gpio_mapping[csgpio_index].name = "cs-gpios";
 		/* only one GPIO CS is supported without using _DSD, obtained using index 0 */
-		cs_gpio_params = devm_kzalloc(physdev, sizeof(struct acpi_gpio_params), GFP_KERNEL);
+		cs_gpio_params = devm_kzalloc_obj(physdev,
+						  struct acpi_gpio_params);
 		if (!cs_gpio_params)
 			goto err;
 
@@ -543,6 +547,7 @@ static const struct cs35l41_prop_model cs35l41_prop_model_table[] = {
 	{ "CSC3551", "103C8C6A", hp_i2c_int_2amp_dual_spkid },
 	{ "CSC3551", "103C8CDD", generic_dsd_config },
 	{ "CSC3551", "103C8CDE", generic_dsd_config },
+	{ "CSC3551", "103C8E13", generic_dsd_config },
 	{ "CSC3551", "103C8E60", generic_dsd_config },
 	{ "CSC3551", "103C8F07", generic_dsd_config },
 	{ "CSC3551", "104312AF", generic_dsd_config },

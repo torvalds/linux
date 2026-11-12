@@ -112,7 +112,7 @@ struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
 
 	get_device(dev);
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info) {
 		put_device(dev);
 		return NULL;

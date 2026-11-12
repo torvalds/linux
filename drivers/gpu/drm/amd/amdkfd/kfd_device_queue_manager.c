@@ -1848,8 +1848,8 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
-	dqm->allocated_queues = kcalloc(get_pipes_per_mec(dqm),
-					sizeof(unsigned int), GFP_KERNEL);
+	dqm->allocated_queues = kzalloc_objs(unsigned int,
+					     get_pipes_per_mec(dqm));
 	if (!dqm->allocated_queues)
 		return -ENOMEM;
 

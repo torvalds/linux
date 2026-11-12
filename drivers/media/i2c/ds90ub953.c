@@ -1249,7 +1249,7 @@ static int ub953_probe(struct i2c_client *client)
 	struct ub953_data *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

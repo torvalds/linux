@@ -253,7 +253,7 @@ static int loongson2_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct loongson2_pinctrl *pctrl;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

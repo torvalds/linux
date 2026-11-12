@@ -245,7 +245,7 @@ static int unimac_mdio_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

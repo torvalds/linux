@@ -311,7 +311,7 @@ static int sg2042_mcu_i2c_probe(struct i2c_client *client)
 						I2C_FUNC_SMBUS_BLOCK_DATA))
 		return -ENODEV;
 
-	mcu = devm_kmalloc(dev, sizeof(*mcu), GFP_KERNEL);
+	mcu = devm_kmalloc_obj(dev, *mcu);
 	if (!mcu)
 		return -ENOMEM;
 

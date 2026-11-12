@@ -2403,7 +2403,7 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 			return -EEXIST;
 	}
 
-	policy = devm_kzalloc(chip->dev, sizeof(*policy), GFP_KERNEL);
+	policy = devm_kzalloc_obj(chip->dev, *policy);
 	if (!policy)
 		return -ENOMEM;
 
@@ -6697,7 +6697,7 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 {
 	struct mv88e6xxx_chip *chip;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return NULL;
 
@@ -7322,7 +7322,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	struct device *dev = chip->dev;
 	struct dsa_switch *ds;
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 

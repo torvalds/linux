@@ -1658,7 +1658,7 @@ static int ltc4282_probe(struct i2c_client *i2c)
 	struct ltc4282_state *st;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

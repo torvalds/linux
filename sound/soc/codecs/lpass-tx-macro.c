@@ -2252,7 +2252,7 @@ static int tx_macro_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, reg;
 
-	tx = devm_kzalloc(dev, sizeof(*tx), GFP_KERNEL);
+	tx = devm_kzalloc_obj(dev, *tx);
 	if (!tx)
 		return -ENOMEM;
 

@@ -717,9 +717,9 @@ int intel_tpmi_init(struct intel_tpmi_info *tpmi_info, struct device *tpmi_dev,
 	if (pci_dev)
 		tpmi_info->plat_info.bus_number = pci_dev->bus->number;
 
-	tpmi_info->tpmi_features = devm_kcalloc(tpmi_info->tpmi_dev, tpmi_info->feature_count,
-						sizeof(*tpmi_info->tpmi_features),
-						GFP_KERNEL);
+	tpmi_info->tpmi_features = devm_kzalloc_objs(tpmi_info->tpmi_dev,
+						     *tpmi_info->tpmi_features,
+						     tpmi_info->feature_count);
 	if (!tpmi_info->tpmi_features)
 		return -ENOMEM;
 

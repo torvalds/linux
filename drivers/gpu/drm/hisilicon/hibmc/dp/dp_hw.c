@@ -157,7 +157,7 @@ int hibmc_dp_hw_init(struct hibmc_dp *dp)
 	struct hibmc_dp_dev *dp_dev;
 	int ret;
 
-	dp_dev = devm_kzalloc(drm_dev->dev, sizeof(struct hibmc_dp_dev), GFP_KERNEL);
+	dp_dev = devm_kzalloc_obj(drm_dev->dev, struct hibmc_dp_dev);
 	if (!dp_dev)
 		return -ENOMEM;
 

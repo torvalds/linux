@@ -1476,7 +1476,7 @@ static int acpi_battery_probe(struct platform_device *pdev)
 	if (device->dep_unmet)
 		return -EPROBE_DEFER;
 
-	battery = devm_kzalloc(dev, sizeof(*battery), GFP_KERNEL);
+	battery = devm_kzalloc_obj(dev, *battery);
 	if (!battery)
 		return -ENOMEM;
 

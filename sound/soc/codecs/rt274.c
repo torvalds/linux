@@ -1129,8 +1129,7 @@ static int rt274_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt274 = devm_kzalloc(&i2c->dev,	sizeof(*rt274),
-				GFP_KERNEL);
+	rt274 = devm_kzalloc_obj(&i2c->dev, *rt274);
 	if (rt274 == NULL)
 		return -ENOMEM;
 

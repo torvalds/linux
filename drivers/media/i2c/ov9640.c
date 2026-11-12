@@ -687,7 +687,7 @@ static int ov9640_probe(struct i2c_client *client)
 	struct ov9640_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

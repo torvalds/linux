@@ -2011,7 +2011,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	const struct msm_dsi_config *cfg;
 	int ret;
 
-	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
+	msm_host = devm_kzalloc_obj(&pdev->dev, *msm_host);
 	if (!msm_host)
 		return -ENOMEM;
 

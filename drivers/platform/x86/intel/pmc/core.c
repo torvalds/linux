@@ -272,7 +272,7 @@ static void pmc_core_lpm_display(struct pmc *pmc, struct device *dev,
 	u32 bit_mask, *lpm_regs;
 
 	arr_size = pmc_core_lpm_get_arr_size(maps);
-	lpm_regs = kmalloc_array(arr_size, sizeof(*lpm_regs), GFP_KERNEL);
+	lpm_regs = kmalloc_objs(*lpm_regs, arr_size);
 	if (!lpm_regs)
 		return;
 
@@ -1628,8 +1628,8 @@ int pmc_core_pmt_get_blk_sub_req(struct pmc_dev *pmcdev, struct pmc *pmc,
 	num_blocker = pmc->map->num_s0ix_blocker;
 	sample_offset = pmc->map->blocker_req_offset;
 
-	pmc->lpm_req_regs = devm_kcalloc(&pmcdev->pdev->dev, num_blocker,
-					 sizeof(u32), GFP_KERNEL);
+	pmc->lpm_req_regs = devm_kzalloc_objs(&pmcdev->pdev->dev, u32,
+					      num_blocker);
 	if (!pmc->lpm_req_regs)
 		return -ENOMEM;
 
@@ -1715,7 +1715,7 @@ static int pmc_core_pmc_add(struct pmc_dev *pmcdev, unsigned int pmc_idx)
 	pmc = pmcdev->pmcs[pmc_idx];
 	/* Memory for primary PMC has been allocated */
 	if (!pmc) {
-		pmc = devm_kzalloc(&pmcdev->pdev->dev, sizeof(*pmc), GFP_KERNEL);
+		pmc = devm_kzalloc_obj(&pmcdev->pdev->dev, *pmc);
 		if (!pmc)
 			return -ENOMEM;
 	}
@@ -1935,7 +1935,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (device_initialized)
 		return -ENODEV;
 
-	pmcdev = devm_kzalloc(&pdev->dev, sizeof(*pmcdev), GFP_KERNEL);
+	pmcdev = devm_kzalloc_obj(&pdev->dev, *pmcdev);
 	if (!pmcdev)
 		return -ENOMEM;
 
@@ -1951,17 +1951,16 @@ static int pmc_core_probe(struct platform_device *pdev)
 	pmc_dev_info = (struct pmc_dev_info *)cpu_id->driver_data;
 
 	/* Primary PMC */
-	primary_pmc = devm_kzalloc(&pdev->dev, sizeof(*primary_pmc), GFP_KERNEL);
+	primary_pmc = devm_kzalloc_obj(&pdev->dev, *primary_pmc);
 	if (!primary_pmc)
 		return -ENOMEM;
 	pmcdev->pmcs[PMC_IDX_MAIN] = primary_pmc;
 
 	/* The last element in msr_map is empty */
 	pmcdev->num_of_pkgc = ARRAY_SIZE(msr_map) - 1;
-	pmcdev->pkgc_res_cnt = devm_kcalloc(&pdev->dev,
-					    pmcdev->num_of_pkgc,
-					    sizeof(*pmcdev->pkgc_res_cnt),
-					    GFP_KERNEL);
+	pmcdev->pkgc_res_cnt = devm_kzalloc_objs(&pdev->dev,
+						 *pmcdev->pkgc_res_cnt,
+						 pmcdev->num_of_pkgc);
 	if (!pmcdev->pkgc_res_cnt)
 		return -ENOMEM;
 

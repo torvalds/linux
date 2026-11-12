@@ -258,7 +258,7 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	int ret;
 	unsigned long ref_clk_freq;
 
-	crtc = devm_kzalloc(&pdev->dev, sizeof(*crtc), GFP_KERNEL);
+	crtc = devm_kzalloc_obj(&pdev->dev, *crtc);
 	if (!crtc)
 		return -ENOMEM;
 

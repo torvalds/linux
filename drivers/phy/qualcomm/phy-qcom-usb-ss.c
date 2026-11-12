@@ -191,7 +191,7 @@ static int qcom_ssphy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct ssphy_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct ssphy_priv);
 	if (!priv)
 		return -ENOMEM;
 

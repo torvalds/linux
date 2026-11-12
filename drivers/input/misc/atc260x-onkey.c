@@ -196,7 +196,7 @@ static int atc260x_onkey_probe(struct platform_device *pdev)
 	u32 press_time = KEY_PRESS_TIME_SEC, reset_time = 0;
 	int val, error;
 
-	onkey = devm_kzalloc(&pdev->dev, sizeof(*onkey), GFP_KERNEL);
+	onkey = devm_kzalloc_obj(&pdev->dev, *onkey);
 	if (!onkey)
 		return -ENOMEM;
 

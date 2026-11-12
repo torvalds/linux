@@ -67,8 +67,7 @@ static u32 *vs_bridge_atomic_get_output_bus_fmts_dpi(struct drm_bridge *bridge,
 
 	*num_output_fmts = 2;
 
-	output_fmts = kcalloc(*num_output_fmts, sizeof(*output_fmts),
-			      GFP_KERNEL);
+	output_fmts = kzalloc_objs(*output_fmts, *num_output_fmts);
 	if (!output_fmts)
 		return NULL;
 
@@ -90,8 +89,7 @@ static u32 *vs_bridge_atomic_get_output_bus_fmts_dp(struct drm_bridge *bridge,
 
 	*num_output_fmts = ARRAY_SIZE(vsdc_dp_supported_fmts);
 
-	output_fmts = kcalloc(*num_output_fmts, sizeof(*output_fmts),
-			      GFP_KERNEL);
+	output_fmts = kzalloc_objs(*output_fmts, *num_output_fmts);
 	if (!output_fmts)
 		return NULL;
 

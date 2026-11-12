@@ -442,10 +442,8 @@ static int sysc_get_clocks(struct sysc *ddata)
 	const char *name;
 	int nr_fck = 0, nr_ick = 0, i, error = 0;
 
-	ddata->clock_roles = devm_kcalloc(ddata->dev,
-					  SYSC_MAX_CLOCKS,
-					  sizeof(*ddata->clock_roles),
-					  GFP_KERNEL);
+	ddata->clock_roles = devm_kzalloc_objs(ddata->dev, *ddata->clock_roles,
+					       SYSC_MAX_CLOCKS);
 	if (!ddata->clock_roles)
 		return -ENOMEM;
 
@@ -485,9 +483,8 @@ static int sysc_get_clocks(struct sysc *ddata)
 	if (!nr_ick)
 		ddata->nr_clocks++;
 
-	ddata->clocks = devm_kcalloc(ddata->dev,
-				     ddata->nr_clocks, sizeof(*ddata->clocks),
-				     GFP_KERNEL);
+	ddata->clocks = devm_kzalloc_objs(ddata->dev, *ddata->clocks,
+					  ddata->nr_clocks);
 	if (!ddata->clocks)
 		return -ENOMEM;
 
@@ -2845,7 +2842,7 @@ static int sysc_init_pdata(struct sysc *ddata)
 	if (!pdata)
 		return 0;
 
-	mdata = devm_kzalloc(ddata->dev, sizeof(*mdata), GFP_KERNEL);
+	mdata = devm_kzalloc_obj(ddata->dev, *mdata);
 	if (!mdata)
 		return -ENOMEM;
 
@@ -3151,7 +3148,7 @@ static int sysc_probe(struct platform_device *pdev)
 	struct sysc *ddata;
 	int error;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

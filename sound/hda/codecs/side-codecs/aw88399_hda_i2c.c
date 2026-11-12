@@ -50,5 +50,7 @@ module_i2c_driver(aw88399_hda_i2c_driver);
 
 MODULE_DESCRIPTION("HDA AW88399 I2C driver");
 MODULE_IMPORT_NS("SND_HDA_SCODEC_AW88399");
+MODULE_IMPORT_NS("SND_SOC_AW88399_LIB");
 MODULE_AUTHOR("Yakov Till <yakov.till@gmail.com>");
+MODULE_AUTHOR("Marco Giunta <marco_giunta@outlook.it>");
 MODULE_LICENSE("GPL");

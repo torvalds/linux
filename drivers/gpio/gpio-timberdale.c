@@ -226,7 +226,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	struct timbgpio *tgpio;
 	int irq = platform_get_irq(pdev, 0);
 
-	tgpio = devm_kzalloc(dev, sizeof(*tgpio), GFP_KERNEL);
+	tgpio = devm_kzalloc_obj(dev, *tgpio);
 	if (!tgpio)
 		return -ENOMEM;
 

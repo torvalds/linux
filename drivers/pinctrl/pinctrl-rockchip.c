@@ -4346,8 +4346,8 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 
 	grp->npins = size / 4;
 
-	grp->pins = devm_kcalloc(dev, grp->npins, sizeof(*grp->pins), GFP_KERNEL);
-	grp->data = devm_kcalloc(dev, grp->npins, sizeof(*grp->data), GFP_KERNEL);
+	grp->pins = devm_kzalloc_objs(dev, *grp->pins, grp->npins);
+	grp->data = devm_kzalloc_objs(dev, *grp->data, grp->npins);
 	if (!grp->pins || !grp->data)
 		return -ENOMEM;
 
@@ -4399,7 +4399,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 	if (func->ngroups <= 0)
 		return 0;
 
-	func->groups = devm_kcalloc(dev, func->ngroups, sizeof(*func->groups), GFP_KERNEL);
+	func->groups = devm_kzalloc_objs(dev, *func->groups, func->ngroups);
 	if (!func->groups)
 		return -ENOMEM;
 
@@ -4427,11 +4427,12 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 	dev_dbg(dev, "nfunctions = %d\n", info->nfunctions);
 	dev_dbg(dev, "ngroups = %d\n", info->ngroups);
 
-	info->functions = devm_kcalloc(dev, info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
+	info->functions = devm_kzalloc_objs(dev, *info->functions,
+					    info->nfunctions);
 	if (!info->functions)
 		return -ENOMEM;
 
-	info->groups = devm_kcalloc(dev, info->ngroups, sizeof(*info->groups), GFP_KERNEL);
+	info->groups = devm_kzalloc_objs(dev, *info->groups, info->ngroups);
 	if (!info->groups)
 		return -ENOMEM;
 
@@ -4468,7 +4469,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &rockchip_pmx_ops;
 	ctrldesc->confops = &rockchip_pinconf_ops;
 
-	pindesc = devm_kcalloc(dev, info->ctrl->nr_pins, sizeof(*pindesc), GFP_KERNEL);
+	pindesc = devm_kzalloc_objs(dev, *pindesc, info->ctrl->nr_pins);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -4775,7 +4776,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return dev_err_probe(dev, -ENODEV, "device tree node not found\n");
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

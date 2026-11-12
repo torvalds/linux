@@ -1062,9 +1062,9 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 	for (i = 0; i < MAX_NB_NODE; i++) {
 		/* Allocate memory if not done yet */
 		if (!copy_node[i]) {
-			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
-						    sizeof(*copy_node[i]),
-						    GFP_ATOMIC);
+			copy_node[i] = devm_kzalloc_obj(ctx->bdisp_dev->dev,
+							*copy_node[i],
+							GFP_ATOMIC);
 			if (!copy_node[i])
 				return;
 		}

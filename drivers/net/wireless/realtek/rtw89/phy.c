@@ -8304,8 +8304,8 @@ static void __rtw89_phy_dm_init_data(struct rtw89_dev *rtwdev, struct rtw89_bb_c
 
 		hw_band = rtw89_nl80211_to_hw_band(band);
 		env->nhm_his[hw_band] =
-			devm_kcalloc(rtwdev->dev, sband->n_channels,
-				     sizeof(*env->nhm_his[0]), GFP_KERNEL);
+			devm_kzalloc_objs(rtwdev->dev, *env->nhm_his[0],
+					  sband->n_channels);
 
 		for (idx = 0; idx < sband->n_channels; idx++)
 			INIT_LIST_HEAD(&env->nhm_his[hw_band][idx].list);

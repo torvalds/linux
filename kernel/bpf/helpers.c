@@ -1222,6 +1222,8 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 {
 	struct bpf_hrtimer *t = container_of(hrtimer, struct bpf_hrtimer, timer);
 	struct bpf_map *map = READ_ONCE(t->cb.map);
+	struct bpf_prog *prog = READ_ONCE(t->cb.prog);
+	struct bpf_timed_may_goto saved;
 	void *value = t->cb.value;
 	bpf_callback_t callback_fn;
 	void *key;
@@ -1229,7 +1231,7 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 
 	BTF_TYPE_EMIT(struct bpf_timer);
 	callback_fn = rcu_dereference_check(t->cb.callback_fn, rcu_read_lock_bh_held());
-	if (!callback_fn || !map)
+	if (!callback_fn || !map || !prog)
 		goto out;
 
 	/* bpf_timer_cb() runs in hrtimer_run_softirq. It doesn't migrate and
@@ -1242,8 +1244,10 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 
 	key = map_key_from_value(map, value, &idx);
 
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
 	/* The verifier checked that return value is zero. */
+	bpf_timed_may_goto_restore(prog, &saved);
 
 	this_cpu_write(hrtimer_running, NULL);
 out:
@@ -1254,6 +1258,8 @@ static void bpf_wq_work(struct work_struct *work)
 {
 	struct bpf_work *w = container_of(work, struct bpf_work, work);
 	struct bpf_async_cb *cb = &w->cb;
+	struct bpf_timed_may_goto saved;
+	struct bpf_prog *prog;
 	struct bpf_map *map;
 	bpf_callback_t callback_fn;
 	void *value = cb->value;
@@ -1267,14 +1273,17 @@ static void bpf_wq_work(struct work_struct *work)
 
 	map = READ_ONCE(cb->map);
 	callback_fn = READ_ONCE(cb->callback_fn);
-	if (!callback_fn || !map)
+	prog = READ_ONCE(cb->prog);
+	if (!callback_fn || !map || !prog)
 		goto out;
 
 	key = map_key_from_value(map, value, &idx);
 
 	migrate_disable();
 
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
+	bpf_timed_may_goto_restore(prog, &saved);
 
 	migrate_enable();
 out:
@@ -3088,6 +3097,10 @@ __bpf_kfunc struct task_struct *bpf_task_from_vpid(s32 vpid)
  * bpf_dynptr_slice will not invalidate any ctx->data/data_end pointers in
  * the bpf program.
  *
+ * Please also note that when the buffer is on the stack, the verifier invalidates
+ * the returned pointer when the program stores to the buffer (helpers and kfuncs
+ * may fill it), or returns from the function that has it.
+ *
  * Return: NULL if the call failed (eg invalid dynptr), pointer to a read-only
  * data slice (can be either direct pointer to the data or a pointer to the user
  * provided buffer, with its contents containing the data, if unable to obtain
@@ -3172,6 +3185,12 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u64 offset,
  *
  * Please note that, as in the example above, the user must check that the
  * returned pointer is not null before using it.
+ *
+ * Please also note that when the buffer is on the stack, the verifier invalidates
+ * the returned pointer when the program stores to the buffer (helpers and kfuncs
+ * may fill it), or returns from the function that has it. Change the data through
+ * the returned pointer, and before the comparison with the buffer, as in the
+ * example above: after it the compiler may use one pointer in place of the other.
  *
  * Please also note that in the case of skb and xdp dynptrs, bpf_dynptr_slice_rdwr
  * does not change the underlying packet data pointers, so a call to
@@ -3294,8 +3313,10 @@ __bpf_kfunc int bpf_dynptr_copy(const struct bpf_dynptr *dst_ptr, u64 dst_off,
 {
 	const struct bpf_dynptr_kern *dst = (struct bpf_dynptr_kern *)dst_ptr;
 	const struct bpf_dynptr_kern *src = (struct bpf_dynptr_kern *)src_ptr;
+	bool same = src->data == dst->data;
 	void *src_slice, *dst_slice;
 	char buf[256];
+	bool rev;
 	u64 off;
 
 	src_slice = bpf_dynptr_slice(src_ptr, src_off, NULL, size);
@@ -3306,25 +3327,31 @@ __bpf_kfunc int bpf_dynptr_copy(const struct bpf_dynptr *dst_ptr, u64 dst_off,
 		return 0;
 	}
 
-	if (src_slice)
+	/* The other range is copied piece by piece. A slice of the same packet
+	 * may overlap with it, so it cannot be the buffer for that.
+	 */
+	if (src_slice && !same)
 		return __bpf_dynptr_write(dst, dst_off, src_slice, size, 0);
 
-	if (dst_slice)
+	if (dst_slice && !same)
 		return __bpf_dynptr_read(dst_slice, size, src, src_off, 0);
 
 	if (bpf_dynptr_check_off_len(dst, dst_off, size) ||
 	    bpf_dynptr_check_off_len(src, src_off, size))
 		return -E2BIG;
 
+	/* like memmove(): from the end if the destination is above the source */
+	rev = same && dst->offset + dst_off > src->offset + src_off;
 	off = 0;
 	while (off < size) {
 		u64 chunk_sz = min_t(u64, sizeof(buf), size - off);
+		u64 pos = rev ? size - off - chunk_sz : off;
 		int err;
 
-		err = __bpf_dynptr_read(buf, chunk_sz, src, src_off + off, 0);
+		err = __bpf_dynptr_read(buf, chunk_sz, src, src_off + pos, 0);
 		if (err)
 			return err;
-		err = __bpf_dynptr_write(dst, dst_off + off, buf, chunk_sz, 0);
+		err = __bpf_dynptr_write(dst, dst_off + pos, buf, chunk_sz, 0);
 		if (err)
 			return err;
 
@@ -4593,6 +4620,7 @@ static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx,
 static void bpf_task_work_callback(struct callback_head *cb)
 {
 	struct bpf_task_work_ctx *ctx = container_of(cb, struct bpf_task_work_ctx, work);
+	struct bpf_timed_may_goto saved;
 	enum bpf_task_work_state state;
 	u32 idx;
 	void *key;
@@ -4614,8 +4642,10 @@ static void bpf_task_work_callback(struct callback_head *cb)
 	key = (void *)map_key_from_value(ctx->map, ctx->map_val, &idx);
 
 	migrate_disable();
+	bpf_timed_may_goto_save(ctx->prog, &saved);
 	ctx->callback_fn((u64)(long)ctx->map, (u64)(long)key,
 			 (u64)(long)ctx->map_val, 0, 0);
+	bpf_timed_may_goto_restore(ctx->prog, &saved);
 	migrate_enable();
 
 	bpf_task_work_ctx_reset(ctx);
@@ -4855,6 +4885,7 @@ static void bpf_rcu_run_callback(struct rcu_head *rcu)
 	struct bpf_rcu_head_kern *rh = container_of(rcu, struct bpf_rcu_head_kern, rcu);
 	bpf_callback_t callback_fn = rh->callback_fn;
 	struct bpf_prog *prog = rh->prog;
+	struct bpf_timed_may_goto saved;
 	struct bpf_map *map = rh->map;
 	void *value, *key;
 	u32 idx;
@@ -4866,7 +4897,9 @@ static void bpf_rcu_run_callback(struct rcu_head *rcu)
 	smp_store_release(&rh->armed, 0);
 
 	rcu_read_lock_dont_migrate();
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
+	bpf_timed_may_goto_restore(prog, &saved);
 	rcu_read_unlock_migrate();
 
 	bpf_prog_put(prog);

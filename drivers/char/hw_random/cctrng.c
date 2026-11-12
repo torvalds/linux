@@ -461,7 +461,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(CCTRNG_DATA_BUF_WORDS < 6);
 	BUILD_BUG_ON((CCTRNG_DATA_BUF_WORDS & (CCTRNG_DATA_BUF_WORDS-1)) != 0);
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

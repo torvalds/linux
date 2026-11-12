@@ -1153,7 +1153,7 @@ int rt766_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 	int ret;
 	int i;
 
-	rt766 = devm_kzalloc(dev, sizeof(*rt766), GFP_KERNEL);
+	rt766 = devm_kzalloc_obj(dev, *rt766);
 	if (!rt766)
 		return -ENOMEM;
 
@@ -1196,7 +1196,7 @@ int rt766_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 	/* get SDCA function data */
 	dev_dbg(dev, "SDCA functions found: %d", slave->sdca_data.num_functions);
 	for (i = 0; i < slave->sdca_data.num_functions; i++) {
-		func_data_ptr = devm_kzalloc(dev, sizeof(*func_data_ptr), GFP_KERNEL);
+		func_data_ptr = devm_kzalloc_obj(dev, *func_data_ptr);
 		if (!func_data_ptr) {
 			dev_err(dev, "Failed to allocate memory for function data\n");
 			ret = -ENOMEM;

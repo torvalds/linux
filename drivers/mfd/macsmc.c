@@ -413,7 +413,7 @@ static int apple_smc_probe(struct platform_device *pdev)
 	__be32 count;
 	int ret;
 
-	smc = devm_kzalloc(dev, sizeof(*smc), GFP_KERNEL);
+	smc = devm_kzalloc_obj(dev, *smc);
 	if (!smc)
 		return -ENOMEM;
 

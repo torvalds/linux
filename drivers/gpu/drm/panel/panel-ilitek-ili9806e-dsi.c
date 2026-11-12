@@ -119,7 +119,7 @@ static int ili9806e_dsi_probe(struct mipi_dsi_device *dsi)
 	struct ili9806e_dsi_panel *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(struct ili9806e_dsi_panel), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, struct ili9806e_dsi_panel);
 	if (!ctx)
 		return -ENOMEM;
 

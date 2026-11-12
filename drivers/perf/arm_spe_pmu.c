@@ -1377,7 +1377,7 @@ static int arm_spe_pmu_device_probe(struct platform_device *pdev)
 		return -EPERM;
 	}
 
-	spe_pmu = devm_kzalloc(dev, sizeof(*spe_pmu), GFP_KERNEL);
+	spe_pmu = devm_kzalloc_obj(dev, *spe_pmu);
 	if (!spe_pmu)
 		return -ENOMEM;
 

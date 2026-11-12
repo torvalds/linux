@@ -757,7 +757,7 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 				     "clock-frequency (%u Hz) is too high (max = 20MHz)\n",
 				     clk_freq);
 
-	rsb = devm_kzalloc(dev, sizeof(*rsb), GFP_KERNEL);
+	rsb = devm_kzalloc_obj(dev, *rsb);
 	if (!rsb)
 		return -ENOMEM;
 

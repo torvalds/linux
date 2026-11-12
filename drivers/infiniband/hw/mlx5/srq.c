@@ -136,14 +136,14 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 
 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
-	in->pas = kvcalloc(srq->buf.npages, sizeof(*in->pas), GFP_KERNEL);
+	in->pas = kvzalloc_objs(*in->pas, srq->buf.npages);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_buf;
 	}
 	mlx5_fill_page_frag_array(&srq->buf, in->pas);
 
-	srq->wrid = kvmalloc_array(srq->msrq.max, sizeof(u64), GFP_KERNEL);
+	srq->wrid = kvmalloc_objs(u64, srq->msrq.max);
 	if (!srq->wrid) {
 		err = -ENOMEM;
 		goto err_in;

@@ -48,8 +48,7 @@ extern u8 amd_iommu_hpt_vasize;
 extern unsigned long amd_iommu_pgsize_bitmap;
 extern bool amd_iommu_hatdis;
 
-int amd_iommu_perfopt_clear(struct amd_iommu *iommu);
-int amd_iommu_perfopt_restore(struct amd_iommu *iommu);
+int amd_iommu_perfopt_set(struct amd_iommu *iommu, bool enable);
 
 /* Protection domain ops */
 void amd_iommu_init_identity_domain(void);

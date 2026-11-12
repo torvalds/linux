@@ -165,8 +165,7 @@ static int ssb_hcd_probe(struct ssb_device *dev,
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
 
-	usb_dev = devm_kzalloc(dev->dev, sizeof(struct ssb_hcd_device),
-			       GFP_KERNEL);
+	usb_dev = devm_kzalloc_obj(dev->dev, struct ssb_hcd_device);
 	if (!usb_dev)
 		return -ENOMEM;
 

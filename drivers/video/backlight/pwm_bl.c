@@ -194,8 +194,8 @@ int pwm_backlight_brightness_default(struct device *dev,
 	data->max_brightness =
 		min((int)DIV_ROUND_UP(period, fls(period)), 4096);
 
-	data->levels = devm_kcalloc(dev, data->max_brightness,
-				    sizeof(*data->levels), GFP_KERNEL);
+	data->levels = devm_kzalloc_objs(dev, *data->levels,
+					 data->max_brightness);
 	if (!data->levels)
 		return -ENOMEM;
 
@@ -252,8 +252,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 
 	/* read brightness levels from DT property */
 	if (num_levels > 0) {
-		data->levels = devm_kcalloc(dev, num_levels,
-					    sizeof(*data->levels), GFP_KERNEL);
+		data->levels = devm_kzalloc_objs(dev, *data->levels, num_levels);
 		if (!data->levels)
 			return -ENOMEM;
 
@@ -308,8 +307,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			 * Create a new table of brightness levels with all the
 			 * interpolated steps.
 			 */
-			table = devm_kcalloc(dev, num_levels, sizeof(*table),
-					     GFP_KERNEL);
+			table = devm_kzalloc_objs(dev, *table, num_levels);
 			if (!table)
 				return -ENOMEM;
 			/*
@@ -463,7 +461,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pb = devm_kzalloc(&pdev->dev, sizeof(*pb), GFP_KERNEL);
+	pb = devm_kzalloc_obj(&pdev->dev, *pb);
 	if (!pb) {
 		ret = -ENOMEM;
 		goto err_alloc;

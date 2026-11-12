@@ -1607,6 +1607,11 @@ reread:
 	 */
 	if (iinfo->i_lenEAttr > bs || iinfo->i_lenAlloc > bs)
 		goto out;
+	/* We need to have space at least for generic descriptor */
+	if (iinfo->i_lenEAttr && iinfo->i_lenEAttr <
+					sizeof(struct extendedAttrHeaderDesc))
+		goto out;
+
 	/* Now do exact checks */
 	if (udf_file_entry_alloc_offset(inode) + iinfo->i_lenAlloc > bs)
 		goto out;
@@ -2325,10 +2330,10 @@ int udf_current_aext(struct inode *inode, struct extent_position *epos,
 		ptr = epos->bh->b_data + epos->offset;
 		if (check_add_overflow(sizeof(struct allocExtDesc),
 				le32_to_cpu(header->lengthAllocDescs), &alen))
-			return -1;
+			return -EFSCORRUPTED;
 
 		if (alen > epos->bh->b_size)
-			return -1;
+			return -EFSCORRUPTED;
 	}
 
 	switch (iinfo->i_alloc_type) {

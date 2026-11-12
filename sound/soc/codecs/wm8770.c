@@ -653,8 +653,7 @@ static int wm8770_spi_probe(struct spi_device *spi)
 	struct wm8770_priv *wm8770;
 	int ret, i;
 
-	wm8770 = devm_kzalloc(&spi->dev, sizeof(struct wm8770_priv),
-			      GFP_KERNEL);
+	wm8770 = devm_kzalloc_obj(&spi->dev, struct wm8770_priv);
 	if (!wm8770)
 		return -ENOMEM;
 
