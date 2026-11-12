@@ -1894,9 +1894,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	struct sockaddr_storage ss;
 	int res = 0, i;
 
-	if (slave_dev->type == ARPHRD_CAN) {
+	if (slave_dev->type == ARPHRD_CAN ||
+	    slave_dev->type == ARPHRD_IEEE802154 ||
+	    slave_dev->type == ARPHRD_IEEE802154_MONITOR ||
+	    slave_dev->type == ARPHRD_6LOWPAN) {
 		BOND_NL_ERR(bond_dev, extack,
-			    "CAN devices cannot be enslaved");
+			    "CAN, IEEE 802.15.4 and 6LoWPAN devices cannot be enslaved");
 		return -EPERM;
 	}
 
