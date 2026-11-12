@@ -1139,21 +1139,23 @@ static struct rapl_pmu rapl_pmu;
 
 /* PMU helpers */
 
-static void set_pmu_cpumask(struct rapl_package *rp, cpumask_var_t mask)
+static int get_pmu_cpu(struct rapl_package *rp)
 {
 	int cpu;
 
 	if (!rp->has_pmu)
-		return;
+		return nr_cpu_ids;
 
 	/* Only TPMI & MSR RAPL are supported for now */
 	if (rp->priv->type != RAPL_IF_TPMI && rp->priv->type != RAPL_IF_MSR)
-		return;
+		return nr_cpu_ids;
 
 	/* TPMI/MSR RAPL uses any CPU in the package for PMU */
 	for_each_online_cpu(cpu)
 		if (topology_physical_package_id(cpu) == rp->id)
-			cpumask_set_cpu(cpu, mask);
+			return cpu;
+
+	return nr_cpu_ids;
 }
 
 static bool is_rp_pmu_cpu(struct rapl_package *rp, int cpu)
@@ -1435,6 +1437,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct rapl_package *rp;
 	cpumask_var_t cpu_mask;
+	int cpu;
 	int ret;
 
 	if (!alloc_cpumask_var(&cpu_mask, GFP_KERNEL))
@@ -1446,7 +1449,9 @@ static ssize_t cpumask_show(struct device *dev,
 
 	/* Choose a cpu for each RAPL Package */
 	list_for_each_entry(rp, &rapl_packages, plist) {
-		set_pmu_cpumask(rp, cpu_mask);
+		cpu = get_pmu_cpu(rp);
+		if (cpu < nr_cpu_ids)
+			cpumask_set_cpu(cpu, cpu_mask);
 	}
 	cpus_read_unlock();
 
