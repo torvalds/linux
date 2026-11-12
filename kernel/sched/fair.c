@@ -6549,19 +6549,8 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
 
 static void set_delayed(struct sched_entity *se)
 {
-	/*
-	 * Delayed se of cfs_rq have no tasks queued on them.
-	 * Do not adjust h_nr_runnable since __dequeue_task()
-	 * will account it for blocked tasks.
-	 *
-	 * This check can be removed because when flat pick
-	 * patches get merged as only task can get delayed,
-	 * same for clear_delayed().
-	 */
-	if (!entity_is_task(se)) {
-		se->sched_delayed = 1;
-		return;
-	}
+	/* Only tasks can be delayed. */
+	WARN_ON_ONCE(!entity_is_task(se));
 
 	/*
 	 * Drop a task leaving the runnable set.
@@ -6578,18 +6567,16 @@ static void set_delayed(struct sched_entity *se)
 	}
 }
 
+static void __clear_delayed(struct sched_entity *se)
+{
+	/* Only tasks can be delayed. */
+	WARN_ON_ONCE(!entity_is_task(se));
+	se->sched_delayed = 0;
+}
+
 static void clear_delayed(struct sched_entity *se)
 {
-	se->sched_delayed = 0;
-
-	/*
-	 * Delayed se of cfs_rq have no tasks queued on them.
-	 * Do not adjust h_nr_runnable since a dequeue has
-	 * already accounted for it or an enqueue of a task
-	 * below it will account for it in enqueue_task_fair().
-	 */
-	if (!entity_is_task(se))
-		return;
+	__clear_delayed(se);
 
 	/*
 	 * Re-add on wake, after sched_delayed is cleared. On a final delayed
@@ -8113,12 +8100,15 @@ requeue_delayed_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static unsigned long enqueue_hierarchy(struct task_struct *p, int flags)
 {
 	unsigned long weight = NICE_0_LOAD;
-	int task_new = !(flags & ENQUEUE_WAKEUP);
 	struct sched_entity *se = &p->se;
 	int h_nr_idle = task_has_idle_policy(p);
 	int h_nr_runnable = 1;
 
-	if (task_new && se->sched_delayed)
+	/*
+	 * Accounted via requeue_delayed_entity() calling
+	 * clear_delayed() when delayed task wakes up.
+	 */
+	if (se->sched_delayed)
 		h_nr_runnable = 0;
 
 	for_each_sched_entity(se) {
@@ -8192,6 +8182,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		return;
 	}
 
+	/* Wakeup of delayed tasks must be handled above. */
+	WARN_ON_ONCE(!task_new && se->sched_delayed);
+
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
 	 * utilization updates, so do it here explicitly with the IOWAIT flag
@@ -8208,9 +8201,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	if (curr)
 		place_entity(cfs_rq, se, flags);
-
-	if (se->on_rq && se->sched_delayed)
-		requeue_delayed_entity(cfs_rq, se);
 
 	weight = enqueue_hierarchy(p, flags);
 
@@ -8251,15 +8241,14 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 static void dequeue_hierarchy(struct task_struct *p, int flags)
 {
 	struct sched_entity *se = &p->se;
-	bool task_sleep = flags & DEQUEUE_SLEEP;
-	bool task_delayed = flags & DEQUEUE_DELAYED;
 	bool task_throttled = flags & DEQUEUE_THROTTLE;
 	int h_nr_runnable = 0;
 	int h_nr_idle = task_has_idle_policy(p);
 	bool dequeue = true;
 
-	if (task_sleep || task_delayed || !se->sched_delayed)
-		h_nr_runnable = 1;
+	/* Already accounted via set_delayed(). */
+	if (se->sched_delayed)
+		h_nr_runnable = 0;
 
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -8349,7 +8338,11 @@ static bool __dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 		rq->next_balance = jiffies;
 
 	if (task_delayed) {
-		clear_delayed(se);
+		/*
+		 * Skip accounting since set_delayed() has already
+		 * adjusted it. Just clear se->sched_delayed.
+		 */
+		__clear_delayed(se);
 
 		WARN_ON_ONCE(!task_sleep);
 		WARN_ON_ONCE(p->on_rq != 1);
