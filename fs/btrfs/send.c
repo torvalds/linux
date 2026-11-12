@@ -5842,7 +5842,7 @@ static int clone_range(struct send_ctx *sctx, struct btrfs_path *dst_path,
 		u8 type;
 		u64 ext_len;
 		u64 clone_len;
-		u64 clone_data_offset;
+		u64 clone_data_offset = 0;
 		bool crossed_src_i_size = false;
 
 		if (slot >= btrfs_header_nritems(leaf)) {
@@ -5906,23 +5906,26 @@ static int clone_range(struct send_ctx *sctx, struct btrfs_path *dst_path,
 			crossed_src_i_size = true;
 		}
 
-		clone_data_offset = btrfs_file_extent_offset(leaf, ei);
-		if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte) {
-			clone_root->offset = key.offset;
-			if (clone_data_offset < data_offset &&
-				clone_data_offset + ext_len > data_offset) {
-				u64 extent_offset;
+		if (type != BTRFS_FILE_EXTENT_INLINE) {
+			clone_data_offset = btrfs_file_extent_offset(leaf, ei);
+			if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte) {
+				clone_root->offset = key.offset;
+				if (clone_data_offset < data_offset &&
+				    clone_data_offset + ext_len > data_offset) {
+					u64 extent_offset;
 
-				extent_offset = data_offset - clone_data_offset;
-				ext_len -= extent_offset;
-				clone_data_offset += extent_offset;
-				clone_root->offset += extent_offset;
+					extent_offset = data_offset - clone_data_offset;
+					ext_len -= extent_offset;
+					clone_data_offset += extent_offset;
+					clone_root->offset += extent_offset;
+				}
 			}
 		}
 
 		clone_len = min_t(u64, ext_len, len);
 
-		if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte &&
+		if (type != BTRFS_FILE_EXTENT_INLINE &&
+		    btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte &&
 		    clone_data_offset == data_offset) {
 			const u64 src_end = clone_root->offset + clone_len;
 			const u64 sectorsize = SZ_64K;
