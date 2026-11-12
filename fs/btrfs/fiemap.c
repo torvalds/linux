@@ -621,6 +621,8 @@ static int fiemap_find_last_extent_offset(struct btrfs_inode *inode,
 		leaf = path->nodes[0];
 		ei = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);
+		if (btrfs_file_extent_type(leaf, ei) == BTRFS_FILE_EXTENT_INLINE)
+			break;
 		disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, ei);
 	}
 
