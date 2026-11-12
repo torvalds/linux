@@ -421,6 +421,9 @@ static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
 	__ret;								       \
 })
 
+/* Take cgroup_mutex first if you need both.  See kernel/bpf/cgroup.c. */
+void cgroup_bpf_lock(void);
+void cgroup_bpf_unlock(void);
 int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 			   enum bpf_prog_type ptype, struct bpf_prog *prog);
 int cgroup_bpf_prog_detach(const union bpf_attr *attr,
