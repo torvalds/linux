@@ -1086,14 +1086,20 @@ config ARM64_ERRATUM_2645198
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_3821522
-	bool "Cortex-A725: 3821522: workaround for possible CNT_CYCLES increment error due to WFE/WFI"
+	bool "Cortex-*/Neoverse-*/C1-*: workaround for possible CNT_CYCLES increment error due to WFE/WFI"
 	depends on ARM64_AMU_EXTN
 	select ARM64_WORKAROUND_BROKEN_AMU_CONSTCNT
 	default y
 	help
-	  This option adds the workaround for ARM Cortex-A725 erratum 3821522.
+	  This option adds the workaround for the following errata:
 
-	  On affected A725 cores, the CNT_CYCLES event may incur a significant
+	  * ARM Cortex-A725 erratum 3821522
+	  * ARM Cortex-A720 erratum 4689339
+	  * ARM Cortex-A720AE erratum 4689340
+	  * ARM Neoverse N3 erratum 4689341
+	  * ARM C1-Pro erratum 4689344
+
+	  On affected cores, the CNT_CYCLES event may incur a significant
 	  increment error when entering and subsequently exiting WFx.
 	  As a result, the CNT_CYCLES may diverge from the system counter
 	  frequency at which it is expected to increment.
