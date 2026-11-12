@@ -3064,7 +3064,7 @@ static noinline int walk_up_log_tree(struct btrfs_path *path, int *level,
 	int slot;
 	int ret;
 
-	for (i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
+	for (i = *level; i < BTRFS_MAX_LEVEL && path->nodes[i]; i++) {
 		slot = path->slots[i];
 		if (slot + 1 < btrfs_header_nritems(path->nodes[i])) {
 			path->slots[i]++;
