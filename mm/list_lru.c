@@ -645,9 +645,16 @@ int folio_memcg_list_lru_alloc(struct folio *folio, struct list_lru *lru,
 	if (likely(res))
 		return 0;
 
-	/* Allocation may block, pin the memcg */
+	/*
+	 * Allocation may block, so pin the memcg. If the folio's cgroup
+	 * was removed after the check above, the folio has moved up to a
+	 * parent memcg. That memcg may already have its lists, or may be
+	 * the root, which uses the global lists and has no parent. So
+	 * check again before allocating.
+	 */
 	memcg = get_mem_cgroup_from_folio(folio);
-	res = __memcg_list_lru_alloc(memcg, lru, gfp);
+	if (!memcg_list_lru_allocated(memcg, lru))
+		res = __memcg_list_lru_alloc(memcg, lru, gfp);
 	mem_cgroup_put(memcg);
 	return res;
 }
