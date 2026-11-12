@@ -76,6 +76,7 @@ TEST_PROGS := \
 	nk_qlease.py \
 	nl_netdev.py \
 	nl_nlctrl.py \
+	nsh_gso.sh \
 	pmtu.sh \
 	protodown.sh \
 	psock_snd.sh \
@@ -157,6 +158,7 @@ TEST_GEN_FILES := \
 	ipv6_flowlabel \
 	msg_zerocopy \
 	nettest \
+	nsh_gso \
 	psock_fanout \
 	psock_snd \
 	psock_tpacket \
