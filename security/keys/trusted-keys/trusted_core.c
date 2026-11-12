@@ -373,14 +373,19 @@ static int __init init_trusted(void)
 		if (!get_random)
 			get_random = kernel_get_random;
 
+		static_call_update(trusted_key_seal, trusted_key_sources[i].ops->seal);
+		static_call_update(trusted_key_unseal, trusted_key_sources[i].ops->unseal);
+		static_call_update(trusted_key_get_random, get_random);
+		migratable = trusted_key_sources[i].ops->migratable;
+
 		ret = trusted_key_sources[i].ops->init();
 		if (!ret) {
-			static_call_update(trusted_key_seal, trusted_key_sources[i].ops->seal);
-			static_call_update(trusted_key_unseal, trusted_key_sources[i].ops->unseal);
-			static_call_update(trusted_key_get_random, get_random);
-
 			trusted_key_exit = trusted_key_sources[i].ops->exit;
-			migratable = trusted_key_sources[i].ops->migratable;
+		} else {
+			static_call_update(trusted_key_seal, NULL);
+			static_call_update(trusted_key_unseal, NULL);
+			static_call_update(trusted_key_get_random, NULL);
+			migratable = 0;
 		}
 
 		if (!ret || ret != -ENODEV)
