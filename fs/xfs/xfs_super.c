@@ -916,7 +916,7 @@ xfs_statfs_data(
 		xfs_sum_freecounter(mp, XC_FREE_BLOCKS);
 
 	/* make sure st->f_bfree does not underflow */
-	st->f_bfree = max(0LL,
+	st->f_bfree = max_t(int64_t, 0,
 		fdblocks - xfs_freecounter_unavailable(mp, XC_FREE_BLOCKS));
 
 	/*
