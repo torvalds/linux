@@ -725,7 +725,7 @@ int of_gpiochip_get_lflags(struct gpio_chip *chip,
 			   struct fwnode_reference_args *gpiospec,
 			   unsigned long *lflags)
 {
-	enum of_gpio_flags xlate_flags;
+	enum of_gpio_flags xlate_flags = 0;
 	struct of_phandle_args args;
 	struct gpio_desc *desc;
 
