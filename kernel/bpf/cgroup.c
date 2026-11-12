@@ -1446,6 +1446,14 @@ static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 	if (effective_query && prog_attach_flags)
 		return -EINVAL;
 
+	/*
+	 * cgroup_bpf_release() frees the effective arrays once the bpf
+	 * refcount is zero.  It takes this lock too, so a nonzero count means
+	 * the arrays are still valid.
+	 */
+	if (percpu_ref_is_zero(&cgrp->bpf.refcnt))
+		return -ENOENT;
+
 	if (type == BPF_STRUCT_OPS) {
 		u32 type_id = attr->query.type_id;
 
