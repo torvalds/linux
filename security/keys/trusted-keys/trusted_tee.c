@@ -9,6 +9,7 @@
 #include <linux/err.h>
 #include <linux/key-type.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/tee_drv.h>
@@ -56,6 +57,8 @@ struct trusted_key_tee_private {
 };
 
 static struct trusted_key_tee_private pvt_data;
+/* Do not hold this mutex across key type registration or unregistration. */
+static DEFINE_MUTEX(trusted_key_tee_mutex);
 
 /*
  * Have the TEE seal(encrypt) the symmetric key
@@ -67,6 +70,12 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 	struct tee_param param[4];
 	struct tee_shm *reg_shm = NULL;
 
+	mutex_lock(&trusted_key_tee_mutex);
+	if (!pvt_data.ctx) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
 	memset(&inv_arg, 0, sizeof(inv_arg));
 	memset(&param, 0, sizeof(param));
 
@@ -74,7 +83,8 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 					      sizeof(p->key) + sizeof(p->blob));
 	if (IS_ERR(reg_shm)) {
 		dev_err(pvt_data.dev, "shm register failed\n");
-		return PTR_ERR(reg_shm);
+		ret = PTR_ERR(reg_shm);
+		goto out_unlock;
 	}
 
 	inv_arg.func = TA_CMD_SEAL;
@@ -100,7 +110,8 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 	}
 
 	tee_shm_free(reg_shm);
-
+out_unlock:
+	mutex_unlock(&trusted_key_tee_mutex);
 	return ret;
 }
 
@@ -114,6 +125,12 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 	struct tee_param param[4];
 	struct tee_shm *reg_shm = NULL;
 
+	mutex_lock(&trusted_key_tee_mutex);
+	if (!pvt_data.ctx) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
 	memset(&inv_arg, 0, sizeof(inv_arg));
 	memset(&param, 0, sizeof(param));
 
@@ -121,7 +138,8 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 					      sizeof(p->key) + sizeof(p->blob));
 	if (IS_ERR(reg_shm)) {
 		dev_err(pvt_data.dev, "shm register failed\n");
-		return PTR_ERR(reg_shm);
+		ret = PTR_ERR(reg_shm);
+		goto out_unlock;
 	}
 
 	inv_arg.func = TA_CMD_UNSEAL;
@@ -147,7 +165,8 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 	}
 
 	tee_shm_free(reg_shm);
-
+out_unlock:
+	mutex_unlock(&trusted_key_tee_mutex);
 	return ret;
 }
 
@@ -161,13 +180,20 @@ static int trusted_tee_get_random(unsigned char *key, size_t key_len)
 	struct tee_param param[4];
 	struct tee_shm *reg_shm = NULL;
 
+	mutex_lock(&trusted_key_tee_mutex);
+	if (!pvt_data.ctx) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
 	memset(&inv_arg, 0, sizeof(inv_arg));
 	memset(&param, 0, sizeof(param));
 
 	reg_shm = tee_shm_register_kernel_buf(pvt_data.ctx, key, key_len);
 	if (IS_ERR(reg_shm)) {
 		dev_err(pvt_data.dev, "key shm register failed\n");
-		return PTR_ERR(reg_shm);
+		ret = PTR_ERR(reg_shm);
+		goto out_unlock;
 	}
 
 	inv_arg.func = TA_CMD_GET_RANDOM;
@@ -189,7 +215,8 @@ static int trusted_tee_get_random(unsigned char *key, size_t key_len)
 	}
 
 	tee_shm_free(reg_shm);
-
+out_unlock:
+	mutex_unlock(&trusted_key_tee_mutex);
 	return ret;
 }
 
@@ -205,50 +232,67 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 static int trusted_key_probe(struct tee_client_device *rng_device)
 {
 	struct device *dev = &rng_device->dev;
+	struct tee_context *ctx;
 	int ret;
 	struct tee_ioctl_open_session_arg sess_arg;
 
+	mutex_lock(&trusted_key_tee_mutex);
+	if (pvt_data.ctx) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	memset(&sess_arg, 0, sizeof(sess_arg));
 
-	pvt_data.ctx = tee_client_open_context(NULL, optee_ctx_match, NULL,
-					       NULL);
-	if (IS_ERR(pvt_data.ctx))
-		return -ENODEV;
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
 
 	memcpy(sess_arg.uuid, rng_device->id.uuid.b, TEE_IOCTL_UUID_LEN);
 	sess_arg.clnt_login = TEE_IOCTL_LOGIN_REE_KERNEL;
 	sess_arg.num_params = 0;
 
-	ret = tee_client_open_session(pvt_data.ctx, &sess_arg, NULL);
+	ret = tee_client_open_session(ctx, &sess_arg, NULL);
 	if ((ret < 0) || (sess_arg.ret != 0)) {
 		dev_err(dev, "tee_client_open_session failed, err: %x\n",
 			sess_arg.ret);
 		ret = -EINVAL;
 		goto out_ctx;
 	}
+	pvt_data.ctx = ctx;
 	pvt_data.session_id = sess_arg.session;
+	pvt_data.dev = dev;
+	mutex_unlock(&trusted_key_tee_mutex);
 
 	ret = register_key_type(&key_type_trusted);
-	if (ret < 0)
-		goto out_sess;
+	if (!ret)
+		return 0;
 
-	pvt_data.dev = dev;
-
-	return 0;
-
-out_sess:
-	tee_client_close_session(pvt_data.ctx, pvt_data.session_id);
+	mutex_lock(&trusted_key_tee_mutex);
+	tee_client_close_session(ctx, pvt_data.session_id);
 out_ctx:
-	tee_client_close_context(pvt_data.ctx);
-
+	tee_client_close_context(ctx);
+	pvt_data.ctx = NULL;
+	pvt_data.dev = NULL;
+	pvt_data.session_id = 0;
+out_unlock:
+	mutex_unlock(&trusted_key_tee_mutex);
 	return ret;
 }
 
 static void trusted_key_remove(struct tee_client_device *dev)
 {
 	unregister_key_type(&key_type_trusted);
+
+	mutex_lock(&trusted_key_tee_mutex);
 	tee_client_close_session(pvt_data.ctx, pvt_data.session_id);
 	tee_client_close_context(pvt_data.ctx);
+	pvt_data.ctx = NULL;
+	pvt_data.dev = NULL;
+	pvt_data.session_id = 0;
+	mutex_unlock(&trusted_key_tee_mutex);
 }
 
 static const struct tee_client_device_id trusted_key_id_table[] = {
