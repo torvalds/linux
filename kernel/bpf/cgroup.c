@@ -988,6 +988,13 @@ static int __cgroup_bpf_attach(struct cgroup *cgrp,
 		/* replace_prog implies BPF_F_REPLACE, and vice versa */
 		return -EINVAL;
 
+	/*
+	 * The cgroup may have been removed since the caller looked it up.
+	 * Then its bpf state may be freed, and nothing would detach this.
+	 */
+	if (cgroup_is_dead(cgrp))
+		return -ENOENT;
+
 	atype = bpf_cgroup_atype_find(type, new_prog->aux->attach_btf_id);
 	if (atype < 0)
 		return -EINVAL;
@@ -3169,6 +3176,12 @@ int cgroup_bpf_struct_ops_attach(struct bpf_map *map, const union bpf_attr *attr
 	progs = &cgrp->bpf.progs[atype];
 
 	cgroup_lock();
+
+	/* See the cgroup_is_dead() check in __cgroup_bpf_attach() */
+	if (cgroup_is_dead(cgrp)) {
+		err = -ENOENT;
+		goto unlock;
+	}
 
 	if (attr->link_create.cgroup.expected_revision &&
 	    attr->link_create.cgroup.expected_revision != cgrp->bpf.revisions[atype]) {
