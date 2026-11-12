@@ -134,7 +134,8 @@ xfs_lock_flags_assert(
  * take both the i_rwsem and the invalidate_lock. These locks should *only* be
  * both taken in places where we need to invalidate the page cache in a race
  * free manner (e.g. truncate, hole punch and other extent manipulation
- * functions).
+ * functions), or where we change inode attributes that both kinds of IO rely
+ * on (xfs_fileattr_set).
  */
 void
 xfs_ilock(
