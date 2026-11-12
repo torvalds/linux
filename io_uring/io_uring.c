@@ -2368,7 +2368,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	xa_destroy(&ctx->io_bl_xa);
 	xa_destroy(&ctx->hpage_acct);
 	xa_destroy(&ctx->personalities);
-	kfree(ctx);
+	kfree_rcu(ctx, rcu);
 }
 
 static __cold void io_activate_pollwq_cb(struct callback_head *cb)
