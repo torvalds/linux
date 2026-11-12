@@ -113,7 +113,7 @@ static void nvmet_file_io_done(struct kiocb *iocb, long ret)
 	}
 
 	if (unlikely(ret != req->transfer_len))
-		status = errno_to_nvme_status(req, ret);
+		status = errno_to_nvme_status(req, ret < 0 ? ret : -EIO);
 	nvmet_req_complete(req, status);
 }
 
@@ -150,8 +150,11 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 		if (unlikely(is_sync) &&
 		    (nr_bvec - 1 == 0 || bv_cnt == NVMET_MAX_MPOOL_BVEC)) {
 			ret = nvmet_file_submit_bvec(req, pos, bv_cnt, len, 0);
-			if (ret < 0)
+			if (ret != len) {
+				if (ret >= 0)
+					ret = -EIO;
 				goto complete;
+			}
 
 			pos += len;
 			bv_cnt = 0;
