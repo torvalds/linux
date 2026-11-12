@@ -1092,7 +1092,6 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file,
 
 	ap->args.out_pages = true;
 	ap->args.page_zeroing = true;
-	ap->args.page_replace = true;
 
 	/*
 	 * Don't overflow end offset.

@@ -54,7 +54,8 @@ static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 }
 #endif
 
-int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum)
+int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops,
+		     int inum, u64 ns_id)
 {
 	int ret = 0;
 
@@ -64,7 +65,6 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 	ns->ns_security = NULL;
 #endif
 	ns->ops = ops;
-	ns->ns_id = 0;
 	ns->ns_type = ns_type;
 	ns_tree_node_init(&ns->ns_tree_node);
 	ns_tree_node_init(&ns->ns_unified_node);
@@ -81,6 +81,9 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 		ret = proc_alloc_inum(&ns->inum);
 	if (ret)
 		return ret;
+
+	/* Allocate the id before the LSM hook so it can track the namespace by it. */
+	__ns_tree_gen_id(ns, ns_id);
 
 	ret = security_namespace_init(ns);
 	if (ret) {

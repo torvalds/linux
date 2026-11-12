@@ -3703,15 +3703,8 @@ static void zero_pipe_buf_release(struct pipe_inode_info *pipe,
 {
 }
 
-static bool zero_pipe_buf_try_steal(struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return false;
-}
-
 static const struct pipe_buf_operations zero_pipe_buf_ops = {
 	.release	= zero_pipe_buf_release,
-	.try_steal	= zero_pipe_buf_try_steal,
 	.get		= zero_pipe_buf_get,
 };
 

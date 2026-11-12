@@ -56,63 +56,6 @@ static noinline void pipe_clear_nowait(struct file *file)
 }
 
 /*
- * Attempt to steal a page from a pipe buffer. This should perhaps go into
- * a vm helper function, it's already simplified quite a bit by the
- * addition of remove_mapping(). If success is returned, the caller may
- * attempt to reuse this page for another destination.
- */
-static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
-		struct pipe_buffer *buf)
-{
-	struct folio *folio = page_folio(buf->page);
-	struct address_space *mapping;
-
-	folio_lock(folio);
-
-	mapping = folio_mapping(folio);
-	if (mapping) {
-		WARN_ON(!folio_test_uptodate(folio));
-
-		/*
-		 * At least for ext2 with nobh option, we need to wait on
-		 * writeback completing on this folio, since we'll remove it
-		 * from the pagecache.  Otherwise truncate wont wait on the
-		 * folio, allowing the disk blocks to be reused by someone else
-		 * before we actually wrote our data to them. fs corruption
-		 * ensues.
-		 */
-		folio_wait_writeback(folio);
-
-		if (!filemap_release_folio(folio, GFP_KERNEL))
-			goto out_unlock;
-
-		/*
-		 * If we succeeded in removing the mapping, set LRU flag
-		 * and return good.
-		 */
-		if (remove_mapping(mapping, folio)) {
-			buf->flags |= PIPE_BUF_FLAG_LRU;
-			return true;
-		}
-	}
-
-	/*
-	 * Raced with truncate or failed to remove folio from current
-	 * address space, unlock and return failure.
-	 */
-out_unlock:
-	folio_unlock(folio);
-	return false;
-}
-
-static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
-					struct pipe_buffer *buf)
-{
-	put_page(buf->page);
-	buf->flags &= ~PIPE_BUF_FLAG_LRU;
-}
-
-/*
  * Check whether the contents of buf is OK to access. Since the content
  * is a page cache page, IO may be in flight.
  */
@@ -154,24 +97,12 @@ error:
 
 const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.confirm	= page_cache_pipe_buf_confirm,
-	.release	= page_cache_pipe_buf_release,
-	.try_steal	= page_cache_pipe_buf_try_steal,
+	.release	= generic_pipe_buf_release,
 	.get		= generic_pipe_buf_get,
 };
 
-static bool user_page_pipe_buf_try_steal(struct pipe_inode_info *pipe,
-		struct pipe_buffer *buf)
-{
-	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
-		return false;
-
-	buf->flags |= PIPE_BUF_FLAG_LRU;
-	return generic_pipe_buf_try_steal(pipe, buf);
-}
-
 static const struct pipe_buf_operations user_page_pipe_buf_ops = {
-	.release	= page_cache_pipe_buf_release,
-	.try_steal	= user_page_pipe_buf_try_steal,
+	.release	= generic_pipe_buf_release,
 	.get		= generic_pipe_buf_get,
 };
 
@@ -400,16 +331,9 @@ EXPORT_SYMBOL(copy_splice_read);
 
 const struct pipe_buf_operations default_pipe_buf_ops = {
 	.release	= generic_pipe_buf_release,
-	.try_steal	= generic_pipe_buf_try_steal,
 	.get		= generic_pipe_buf_get,
 };
-
-/* Pipe buffer operations for a socket and similar. */
-const struct pipe_buf_operations nosteal_pipe_buf_ops = {
-	.release	= generic_pipe_buf_release,
-	.get		= generic_pipe_buf_get,
-};
-EXPORT_SYMBOL(nosteal_pipe_buf_ops);
+EXPORT_SYMBOL(default_pipe_buf_ops);
 
 static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
 {
@@ -737,9 +661,12 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		sd.pos = kiocb.ki_pos;
 		if (ret <= 0)
 			break;
-		WARN_ONCE(ret > sd.total_len - left,
-			  "Splice Exceeded! ret=%zd tot=%zu left=%zu\n",
-			  ret, sd.total_len, left);
+		if (unlikely(ret > sd.total_len - left)) {
+			WARN_ONCE(1,
+				  "Splice Exceeded! ret=%zd tot=%zu left=%zu\n",
+				  ret, sd.total_len, left);
+			ret = sd.total_len - left;
+		}
 
 		sd.num_spliced += ret;
 		sd.total_len -= ret;
@@ -1469,12 +1396,10 @@ static ssize_t __do_splice(struct file *in, loff_t __user *off_in,
 }
 
 static ssize_t iter_to_pipe(struct iov_iter *from,
-			    struct pipe_inode_info *pipe,
-			    unsigned int flags)
+			    struct pipe_inode_info *pipe)
 {
 	struct pipe_buffer buf = {
 		.ops = &user_page_pipe_buf_ops,
-		.flags = flags
 	};
 	size_t total = 0;
 	ssize_t ret = 0;
@@ -1564,10 +1489,6 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 {
 	struct pipe_inode_info *pipe;
 	ssize_t ret = 0;
-	unsigned buf_flag = 0;
-
-	if (flags & SPLICE_F_GIFT)
-		buf_flag = PIPE_BUF_FLAG_GIFT;
 
 	pipe = get_pipe_info(file, true);
 	if (!pipe)
@@ -1578,7 +1499,7 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	pipe_lock(pipe);
 	ret = wait_for_space(pipe, flags);
 	if (!ret)
-		ret = iter_to_pipe(iter, pipe, buf_flag);
+		ret = iter_to_pipe(iter, pipe);
 	pipe_unlock(pipe);
 	if (ret > 0) {
 		wakeup_pipe_readers(pipe);
@@ -1839,11 +1760,7 @@ retry:
 			}
 			*obuf = *ibuf;
 
-			/*
-			 * Don't inherit the gift and merge flags, we need to
-			 * prevent multiple steals of this page.
-			 */
-			obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
+			/* The page is shared with ipipe: don't append to it */
 			obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 			obuf->len = len;
@@ -1956,11 +1873,7 @@ retry:
 
 		*obuf = *ibuf;
 
-		/*
-		 * Don't inherit the gift and merge flag, we need to prevent
-		 * multiple steals of this page.
-		 */
-		obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
+		/* The page is shared with ipipe: don't append to it */
 		obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 		if (obuf->len > len)

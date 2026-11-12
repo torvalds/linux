@@ -987,7 +987,8 @@ TRACE_EVENT(landlock_deny_access_net,
  * @logged: Whether this denial was selected for audit logging.
  * @blockers: Request type and final missing permission subset (never NULL).
  * @namespace_type: CLONE_NEW* namespace type that was denied.
- * @namespace_id: Namespace ID, or 0 when creation was denied.
+ * @namespace_id: Namespace ID, not directly visible from user space when
+ *                creation was denied.
  *
  * Emitted when a Landlock domain denies namespace use.
  */

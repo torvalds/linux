@@ -93,8 +93,6 @@ void ext2_evict_inode(struct inode * inode)
 		if (inode->i_blocks)
 			ext2_truncate_blocks(inode, 0);
 		ext2_xattr_delete_inode(inode);
-	} else {
-		mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
 	}
 	mmb_invalidate(&EXT2_I(inode)->i_metadata_bhs);
 	clear_inode(inode);
@@ -1266,46 +1264,59 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
 	return 0;
 }
 
-static struct ext2_inode *ext2_get_inode(struct super_block *sb, ino_t ino,
-					struct buffer_head **p)
+/*
+ * Find the inode table block that holds inode @ino and the offset of the
+ * inode in that block.
+ */
+static int ext2_inode_block(struct super_block *sb, ino_t ino,
+			    unsigned long *block, unsigned long *offset)
 {
-	struct buffer_head * bh;
 	unsigned long block_group;
-	unsigned long block;
-	unsigned long offset;
 	struct ext2_group_desc * gdp;
 
-	*p = NULL;
 	if ((ino != EXT2_ROOT_INO && ino < EXT2_FIRST_INO(sb)) ||
-	    ino > le32_to_cpu(EXT2_SB(sb)->s_es->s_inodes_count))
-		goto Einval;
+	    ino > le32_to_cpu(EXT2_SB(sb)->s_es->s_inodes_count)) {
+		ext2_error(sb, __func__, "bad inode number: %lu",
+			   (unsigned long) ino);
+		return -EINVAL;
+	}
 
 	block_group = (ino - 1) / EXT2_INODES_PER_GROUP(sb);
 	gdp = ext2_get_group_desc(sb, block_group, NULL);
 	if (!gdp)
-		goto Egdp;
+		return -EIO;
 	/*
 	 * Figure out the offset within the block group inode table
 	 */
-	offset = ((ino - 1) % EXT2_INODES_PER_GROUP(sb)) * EXT2_INODE_SIZE(sb);
-	block = le32_to_cpu(gdp->bg_inode_table) +
-		(offset >> EXT2_BLOCK_SIZE_BITS(sb));
+	*offset = ((ino - 1) % EXT2_INODES_PER_GROUP(sb)) * EXT2_INODE_SIZE(sb);
+	*block = le32_to_cpu(gdp->bg_inode_table) +
+		(*offset >> EXT2_BLOCK_SIZE_BITS(sb));
+	*offset &= (EXT2_BLOCK_SIZE(sb) - 1);
+	return 0;
+}
+
+static struct ext2_inode *ext2_get_inode(struct super_block *sb, ino_t ino,
+					struct buffer_head **p)
+{
+	struct buffer_head *bh;
+	unsigned long block;
+	unsigned long offset;
+	int err;
+
+	*p = NULL;
+	err = ext2_inode_block(sb, ino, &block, &offset);
+	if (err)
+		return ERR_PTR(err);
 	if (!(bh = sb_bread(sb, block)))
 		goto Eio;
 
 	*p = bh;
-	offset &= (EXT2_BLOCK_SIZE(sb) - 1);
 	return (struct ext2_inode *) (bh->b_data + offset);
 
-Einval:
-	ext2_error(sb, "ext2_get_inode", "bad inode number: %lu",
-		   (unsigned long) ino);
-	return ERR_PTR(-EINVAL);
 Eio:
 	ext2_error(sb, "ext2_get_inode",
 		   "unable to read inode block - inode=%lu, block=%lu",
 		   (unsigned long) ino, block);
-Egdp:
 	return ERR_PTR(-EIO);
 }
 
@@ -1567,19 +1578,22 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 int ext2_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 {
 	struct buffer_head *bh;
-	struct ext2_inode *raw_inode = ext2_get_inode(inode->i_sb, inode->i_ino,
-						      &bh);
+	unsigned long block, offset;
 	int err = 0;
 
-	if (IS_ERR(raw_inode))
+	if (ext2_inode_block(inode->i_sb, inode->i_ino, &block, &offset))
 		return -EIO;
 	err = mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
 	if (err) {
 		ext2_error(inode->i_sb, __func__,
 			"Error syncing inode metadata ino=%lu\n",
 			(unsigned long)inode->i_ino);
-		goto out;
+		return err;
 	}
+	/* A block that isn't cached is neither dirty nor under writeback. */
+	bh = sb_find_get_block_nonatomic(inode->i_sb, block);
+	if (!bh)
+		return 0;
 	sync_dirty_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		ext2_error(inode->i_sb, __func__,
@@ -1587,7 +1601,6 @@ int ext2_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 			(unsigned long)inode->i_ino);
 		err = -EIO;
 	}
-out:
 	brelse(bh);
 	return err;
 }
