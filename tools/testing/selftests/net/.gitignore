@@ -21,6 +21,7 @@ log.txt
 msg_zerocopy
 netlink-dumps
 nettest
+nsh_gso
 proc_net_pktgen
 psock_fanout
 psock_snd
