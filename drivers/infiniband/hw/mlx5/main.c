@@ -3536,7 +3536,8 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u32 port_num,
 	if (err)
 		return err;
 
-	if (ll == IB_LINK_LAYER_INFINIBAND) {
+	if (ll == IB_LINK_LAYER_INFINIBAND &&
+	    MLX5_CAP_GEN(dev->mdev, ib_virt)) {
 		if (ibdev->type == RDMA_DEVICE_TYPE_SMI)
 			port_num = smi_to_native_portnum(dev, port_num);
 
