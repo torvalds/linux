@@ -2702,6 +2702,9 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	if (!(current->flags & PF_IO_WORKER)) {
 		io_ring_ctx_cancel(ctx);
 		io_ring_ctx_wait_inflight(ctx);
+		/* exit is past the drop in io_uring_cancel_generic() */
+		if (current->io_uring)
+			io_uring_drop_tctx_refs(current);
 	}
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
