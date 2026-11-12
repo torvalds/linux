@@ -57,7 +57,7 @@ struct mlx5_fs_hws_rule_action {
 	struct mlx5hws_action *action;
 	union {
 		struct mlx5_fc *counter;
-		struct mlx5_exe_aso *exe_aso;
+		u32 aso_base_id;
 		u32 sampler_id;
 	};
 };

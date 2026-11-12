@@ -343,7 +343,12 @@ static void mip6_addr_swap(struct sk_buff *skb, const struct inet6_skb_parm *opt
 		if (likely(off >= 0)) {
 			hao = (struct ipv6_destopt_hao *)
 					(skb_network_header(skb) + off);
-			swap(iph->saddr, hao->addr);
+			/*
+			 * The header can have moved or changed after
+			 * ipv6_dest_hao() checked the length.
+			 */
+			if (hao->length == 16)
+				swap(iph->saddr, hao->addr);
 		}
 	}
 }

@@ -185,12 +185,12 @@ int cipso_v4_sock_setattr(struct sock *sk,
 			  const struct cipso_v4_doi *doi_def,
 			  const struct netlbl_lsm_secattr *secattr,
 			  bool sk_locked);
-void cipso_v4_sock_delattr(struct sock *sk);
+int cipso_v4_sock_delattr(struct sock *sk);
 int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr);
 int cipso_v4_req_setattr(struct request_sock *req,
 			 const struct cipso_v4_doi *doi_def,
 			 const struct netlbl_lsm_secattr *secattr);
-void cipso_v4_req_delattr(struct request_sock *req);
+int cipso_v4_req_delattr(struct request_sock *req);
 int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 			    const struct cipso_v4_doi *doi_def,
 			    const struct netlbl_lsm_secattr *secattr);
@@ -221,8 +221,9 @@ static inline int cipso_v4_sock_setattr(struct sock *sk,
 	return -ENOSYS;
 }
 
-static inline void cipso_v4_sock_delattr(struct sock *sk)
+static inline int cipso_v4_sock_delattr(struct sock *sk)
 {
+	return 0;
 }
 
 static inline int cipso_v4_sock_getattr(struct sock *sk,
@@ -238,9 +239,9 @@ static inline int cipso_v4_req_setattr(struct request_sock *req,
 	return -ENOSYS;
 }
 
-static inline void cipso_v4_req_delattr(struct request_sock *req)
+static inline int cipso_v4_req_delattr(struct request_sock *req)
 {
-	return;
+	return 0;
 }
 
 static inline int cipso_v4_skbuff_setattr(struct sk_buff *skb,

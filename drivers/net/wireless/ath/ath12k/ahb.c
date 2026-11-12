@@ -602,8 +602,8 @@ static int ath12k_ahb_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 
 	work_done = ath12k_dp_service_srng(dp, irq_grp, budget);
 	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
-		ath12k_ahb_ext_grp_enable(irq_grp);
+		if (likely(napi_complete_done(napi, work_done)))
+			ath12k_ahb_ext_grp_enable(irq_grp);
 	}
 
 	if (work_done > budget)
@@ -619,9 +619,10 @@ static irqreturn_t ath12k_ahb_ext_interrupt_handler(int irq, void *arg)
 	/* last interrupt received for this group */
 	irq_grp->timestamp = jiffies;
 
-	ath12k_ahb_ext_grp_disable(irq_grp);
-
-	napi_schedule(&irq_grp->napi);
+	if (napi_schedule_prep(&irq_grp->napi)) {
+		ath12k_ahb_ext_grp_disable(irq_grp);
+		__napi_schedule(&irq_grp->napi);
+	}
 
 	return IRQ_HANDLED;
 }

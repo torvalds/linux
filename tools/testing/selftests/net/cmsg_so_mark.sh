@@ -68,6 +68,28 @@ for ovr in setsock cmsg both; do
     done
 done
 
+# Reject an explicit zero mark while leaving the socket mark allowed.
+ip -netns "$NS" rule add fwmark 0/0xffffffff lookup 300 || exit 1
+ip -6 -netns "$NS" rule add fwmark 0/0xffffffff lookup 300 || exit 1
+
+# Check per-message marks after connect() has populated the route cache.
+for i in 4 6; do
+    [ "$i" = 4 ] && TGT=$TGT4 || TGT=$TGT6
+
+    for p in u i r; do
+	for mark in "$((MARK + 1))" "$MARK" 0; do
+	    expected=0
+	    if [ "$mark" -eq "$MARK" ] || [ "$mark" -eq 0 ]; then
+		expected=1
+	    fi
+
+	    ip netns exec "$NS" ./cmsg_sender -"$i" -p "$p" -k \
+		-M "$((MARK + 1))" -m "$mark" -s "$TGT" 1234
+	    check_result "$?" "$expected" "IPv$i $p connected mark $mark"
+	done
+    done
+done
+
 # Summary
 if [ $BAD -ne 0 ]; then
     echo "FAIL - $BAD/$TOTAL cases failed"

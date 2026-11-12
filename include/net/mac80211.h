@@ -1772,7 +1772,8 @@ enum mac80211_rx_encoding {
  * @zero_length_psdu_type: radiotap type of the 0-length PSDU
  * @link_id: id of the link used to receive the packet. Set and used by
  *	mac80211 internally, it uses @freq set by the driver to identify the
- *	correct link per vif.
+ *	correct link per vif. Set to %IEEE80211_LINK_UNSPECIFIED for non-MLD
+ *	or if link information is not applicable.
  */
 struct ieee80211_rx_status {
 	u64 mactime;

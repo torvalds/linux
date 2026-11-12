@@ -1,7 +1,7 @@
 /*
  * Broadcom 43xx PCMCIA-SSB bridge module
  *
- * Copyright (c) 2007 Michael Buesch <m@bues.ch>
+ * Copyright (c) 2007 Michael Buesch
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */

@@ -87,10 +87,10 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 
 	r = nlmsg_data(nlh);
 	smc_diag_msg_common_fill(r, sk);
-	r->diag_state = sk->sk_state;
+	r->diag_state = smp_load_acquire(&sk->sk_state);
 	if (smc->use_fallback)
 		r->diag_mode = SMC_DIAG_MODE_FALLBACK_TCP;
-	else if (smc_conn_lgr_valid(&smc->conn) && smc->conn.lgr->is_smcd)
+	else if (smc->conn.is_smcd)
 		r->diag_mode = SMC_DIAG_MODE_SMCD;
 	else
 		r->diag_mode = SMC_DIAG_MODE_SMCR;
@@ -102,6 +102,10 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 	fallback.peer_diagnosis = smc->peer_diagnosis;
 	if (nla_put(skb, SMC_DIAG_FALLBACK, sizeof(fallback), &fallback) < 0)
 		goto errout;
+
+	if (r->diag_state == SMC_INIT || r->diag_state == SMC_CLOSED ||
+	    smc->use_fallback)
+		goto out;
 
 	if ((req->diag_ext & (1 << (SMC_DIAG_CONNINFO - 1))) &&
 	    smc->conn.alert_token_local) {
@@ -154,8 +158,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 			.lnk[0].link_id = link->link_id,
 		};
 
-		memcpy(linfo.lnk[0].ibname, link->smcibdev->ibdev->name,
-		       sizeof(link->smcibdev->ibdev->name));
+		memcpy(linfo.lnk[0].ibname, link->ibname, sizeof(link->ibname));
 		smc_gid_be16_convert(linfo.lnk[0].gid, link->gid);
 		smc_gid_be16_convert(linfo.lnk[0].peer_gid, link->peer_gid);
 
@@ -185,6 +188,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 			goto errout;
 	}
 
+out:
 	nlmsg_end(skb, nlh);
 	return 0;
 

@@ -1081,7 +1081,8 @@ int dpll_pin_ref_sync_pair_add(struct dpll_pin *pin,
 	mutex_lock(&dpll_lock);
 	ret = xa_insert(&pin->ref_sync_pins, ref_sync_pin->id,
 			ref_sync_pin, GFP_KERNEL);
-	__dpll_pin_change_ntf(pin);
+	if (!ret)
+		__dpll_pin_change_ntf(pin);
 	mutex_unlock(&dpll_lock);
 
 	return ret;

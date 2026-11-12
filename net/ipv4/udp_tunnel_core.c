@@ -62,10 +62,10 @@ EXPORT_SYMBOL(udp_sock_create4);
 static bool sk_saddr_any(struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	return ipv6_addr_any(&sk->sk_v6_rcv_saddr);
-#else
-	return !sk->sk_rcv_saddr;
+	if (sk->sk_family == AF_INET6)
+		return ipv6_addr_any(&sk->sk_v6_rcv_saddr);
 #endif
+	return !sk->sk_rcv_saddr;
 }
 
 void setup_udp_tunnel_sock(struct net *net, struct sock *sk,

@@ -19,7 +19,7 @@ struct skb_gso_cb {
 	int	encap_level;
 	__wsum	csum;
 	__u16	csum_start;
-	/* Number of IPv4/IPv6 GSO handler entries for this packet. */
+	/* Number of IPv4/IPv6/NSH GSO handler entries for this packet. */
 	u8	recursion_counter;
 	/* Max MSS segs per output skb, 0 = no limit */
 	u8	max_segs;

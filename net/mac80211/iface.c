@@ -1712,8 +1712,11 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 				break;
 
 			status = IEEE80211_SKB_RXCB(skb);
-			link_sta = wiphy_dereference(local->hw.wiphy,
-						     sta->link[status->link_id]);
+			if (status->link_id == IEEE80211_LINK_UNSPECIFIED)
+				link_sta = &sta->deflink;
+			else
+				link_sta = wiphy_dereference(local->hw.wiphy,
+							     sta->link[status->link_id]);
 			if (link_sta)
 				ieee80211_ht_handle_chanwidth_notif(local, sdata, sta,
 								    link_sta, chanwidth,

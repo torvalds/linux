@@ -413,15 +413,18 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 		goto out_fail;
 	}
 
+	/* Check the size on the first fragment, which will become the head:
+	 * inet_frag_reasm_finish() must follow inet_frag_reasm_prepare().
+	 */
+	len = ip_hdrlen(skb_rb_first(&qp->q.rb_fragments)) + qp->q.len;
+	err = -E2BIG;
+	if (len > 65535)
+		goto out_oversize;
+
 	/* Make the one we just received the head. */
 	reasm_data = inet_frag_reasm_prepare(&qp->q, skb, prev_tail);
 	if (!reasm_data)
 		goto out_nomem;
-
-	len = ip_hdrlen(skb) + qp->q.len;
-	err = -E2BIG;
-	if (len > 65535)
-		goto out_oversize;
 
 	inet_frag_reasm_finish(&qp->q, skb, reasm_data,
 			       ip_frag_coalesce_ok(qp));

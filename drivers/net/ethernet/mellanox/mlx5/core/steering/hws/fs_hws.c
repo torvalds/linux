@@ -523,13 +523,13 @@ mlx5_fs_get_action_aso_meter(struct mlx5_fs_hws_context *fs_ctx,
 }
 
 static void mlx5_fs_put_action_aso_meter(struct mlx5_fs_hws_context *fs_ctx,
-					 struct mlx5_exe_aso *exe_aso)
+					 u32 base_id)
 {
 	struct mlx5_fs_hws_data *meter_hws_data;
 	struct xarray *meters_xa;
 
 	meters_xa = &fs_ctx->hws_pool.aso_meters;
-	meter_hws_data = xa_load(meters_xa, exe_aso->base_id);
+	meter_hws_data = xa_load(meters_xa, base_id);
 	if (!meter_hws_data)
 		return;
 	return mlx5_fs_put_hws_action(meter_hws_data);
@@ -704,7 +704,7 @@ static void mlx5_fs_destroy_fs_action(struct mlx5_flow_root_namespace *ns,
 		mlx5_fc_put_hws_action(fs_action->counter);
 		break;
 	case MLX5HWS_ACTION_TYP_ASO_METER:
-		mlx5_fs_put_action_aso_meter(fs_ctx, fs_action->exe_aso);
+		mlx5_fs_put_action_aso_meter(fs_ctx, fs_action->aso_base_id);
 		break;
 	case MLX5HWS_ACTION_TYP_SAMPLER:
 		mlx5_fs_put_dest_action_sampler(fs_ctx, fs_action->sampler_id);
@@ -937,7 +937,7 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 			fte_action->exe_aso.flow_meter.init_color;
 		(*ractions)[num_actions++].action = tmp_action;
 		fs_actions[num_fs_actions].action = tmp_action;
-		fs_actions[num_fs_actions++].exe_aso = &fte_action->exe_aso;
+		fs_actions[num_fs_actions++].aso_base_id = fte_action->exe_aso.base_id;
 	}
 
 	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_DROP) {

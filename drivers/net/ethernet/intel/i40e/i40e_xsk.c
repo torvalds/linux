@@ -320,22 +320,19 @@ static struct sk_buff *i40e_construct_skb_zc(struct i40e_ring *rx_ring,
 		goto out;
 
 	for (int i = 0; i < nr_frags; i++) {
-		struct skb_shared_info *skinfo = skb_shinfo(skb);
 		skb_frag_t *frag = &sinfo->frags[i];
+		unsigned int frag_size = skb_frag_size(frag);
 		struct page *page;
-		void *addr;
 
 		page = dev_alloc_page();
 		if (!page) {
 			dev_kfree_skb(skb);
-			return NULL;
+			skb = NULL;
+			goto out;
 		}
-		addr = page_to_virt(page);
 
-		memcpy(addr, skb_frag_page(frag), skb_frag_size(frag));
-
-		__skb_fill_page_desc_noacc(skinfo, skinfo->nr_frags++,
-					   addr, 0, skb_frag_size(frag));
+		memcpy(page_to_virt(page), skb_frag_address(frag), frag_size);
+		skb_add_rx_frag(skb, i, page, 0, frag_size, PAGE_SIZE);
 	}
 
 out:
@@ -354,7 +351,6 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 	struct sk_buff *skb;
 
 	*rx_packets = 1;
-	*rx_bytes = xdp_get_buff_len(xdp_buff);
 
 	if (likely(xdp_res == I40E_XDP_REDIR) || xdp_res == I40E_XDP_TX)
 		return;
@@ -469,21 +465,30 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		xsk_buff_set_size(bi, size);
 		xsk_buff_dma_sync_for_cpu(bi);
 
-		if (!first)
-			first = bi;
-		else if (!xsk_buff_add_frag(first, bi)) {
-			xsk_buff_free(first);
-			break;
-		}
-
 		if (++next_to_process == count)
 			next_to_process = 0;
+
+		if (!first) {
+			first = bi;
+		} else if (!xsk_buff_add_frag(first, bi)) {
+			/* Drop what has been gathered so far. xp_free() skips
+			 * @bi if it duplicates a buffer that is already on a
+			 * pool list. Remaining buffers of this packet, if any,
+			 * will be processed as a new packet.
+			 */
+			xsk_buff_free(first);
+			xsk_buff_free(bi);
+			next_to_clean = next_to_process;
+			first = NULL;
+			continue;
+		}
 
 		if (i40e_is_non_eop(rx_ring, rx_desc))
 			continue;
 
 		xsk_buff_to_i40e_ctx(first)->desc = rx_desc;
 
+		rx_bytes = xdp_get_buff_len(first);
 		xdp_res = i40e_run_xdp_zc(rx_ring, first, xdp_prog);
 		i40e_handle_xdp_result_zc(rx_ring, first, rx_desc, &rx_packets,
 					  &rx_bytes, xdp_res, &failure);

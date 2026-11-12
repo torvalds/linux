@@ -3,7 +3,7 @@
  * ChipCommon core driver
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
+ * Copyright 2006, 2007, Michael Buesch
  * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.

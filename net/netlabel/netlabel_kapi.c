@@ -1045,18 +1045,18 @@ socket_setattr_return:
  * ensuring that @sk is locked.
  *
  */
-void netlbl_sock_delattr(struct sock *sk)
+int netlbl_sock_delattr(struct sock *sk)
 {
 	switch (sk->sk_family) {
 	case AF_INET:
-		cipso_v4_sock_delattr(sk);
-		break;
+		return cipso_v4_sock_delattr(sk);
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		calipso_sock_delattr(sk);
 		break;
 #endif /* IPv6 */
 	}
+	return 0;
 }
 
 /**
@@ -1156,8 +1156,7 @@ int netlbl_conn_setattr(struct sock *sk,
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now
 			 * but we could remove other protocols if needed */
-			netlbl_sock_delattr(sk);
-			ret_val = 0;
+			ret_val = netlbl_sock_delattr(sk);
 			break;
 		default:
 			ret_val = -ENOENT;
@@ -1185,8 +1184,7 @@ int netlbl_conn_setattr(struct sock *sk,
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now
 			 * but we could remove other protocols if needed */
-			netlbl_sock_delattr(sk);
-			ret_val = 0;
+			ret_val = netlbl_sock_delattr(sk);
 			break;
 		default:
 			ret_val = -ENOENT;
@@ -1234,8 +1232,7 @@ int netlbl_req_setattr(struct request_sock *req,
 						       entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			netlbl_req_delattr(req);
-			ret_val = 0;
+			ret_val = netlbl_req_delattr(req);
 			break;
 		default:
 			ret_val = -ENOENT;
@@ -1255,8 +1252,7 @@ int netlbl_req_setattr(struct request_sock *req,
 						      entry->calipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			netlbl_req_delattr(req);
-			ret_val = 0;
+			ret_val = netlbl_req_delattr(req);
 			break;
 		default:
 			ret_val = -ENOENT;
@@ -1280,18 +1276,18 @@ req_setattr_return:
 * Remove all the NetLabel labeling from @req.
 *
 */
-void netlbl_req_delattr(struct request_sock *req)
+int netlbl_req_delattr(struct request_sock *req)
 {
 	switch (req->rsk_ops->family) {
 	case AF_INET:
-		cipso_v4_req_delattr(req);
-		break;
+		return cipso_v4_req_delattr(req);
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		calipso_req_delattr(req);
 		break;
 #endif /* IPv6 */
 	}
+	return 0;
 }
 
 /**

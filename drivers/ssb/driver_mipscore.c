@@ -3,7 +3,7 @@
  * Broadcom MIPS core driver
  *
  * Copyright 2005, Broadcom Corporation
- * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
+ * Copyright 2006, 2007, Michael Buesch
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */

@@ -139,6 +139,7 @@ struct tls_sw_context_rx {
 	u8 zc_capable:1;
 	u8 reader_contended:1;
 	bool key_update_pending;
+	u8 empty_run;
 
 	struct tls_strparser strp;
 

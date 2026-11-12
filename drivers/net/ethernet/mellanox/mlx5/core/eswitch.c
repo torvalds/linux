@@ -1514,12 +1514,8 @@ int mlx5_esw_pf_enable_hca(struct mlx5_core_dev *dev, u16 vport_num)
 	struct mlx5_vport *vport;
 	int err;
 
-	if (!mlx5_core_is_ecpf(dev) || !mlx5_esw_allowed(esw))
+	if (!mlx5_core_is_ecpf(dev))
 		return 0;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
 
 	/* Once vport and representor are ready, take the PF out of
 	 * initializing state. Enabling HCA clears the iser->initializing
@@ -1529,7 +1525,11 @@ int mlx5_esw_pf_enable_hca(struct mlx5_core_dev *dev, u16 vport_num)
 	if (err)
 		return err;
 
-	vport->pf_activated = true;
+	if (mlx5_esw_allowed(esw)) {
+		vport = mlx5_eswitch_get_vport(esw, vport_num);
+		if (!IS_ERR(vport))
+			vport->pf_activated = true;
+	}
 
 	return 0;
 }
@@ -1540,18 +1540,18 @@ int mlx5_esw_pf_disable_hca(struct mlx5_core_dev *dev, u16 vport_num)
 	struct mlx5_vport *vport;
 	int err;
 
-	if (!mlx5_core_is_ecpf(dev) || !mlx5_esw_allowed(esw))
+	if (!mlx5_core_is_ecpf(dev))
 		return 0;
-
-	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
 
 	err = mlx5_cmd_pf_disable_hca(dev, vport_num);
 	if (err)
 		return err;
 
-	vport->pf_activated = false;
+	if (mlx5_esw_allowed(esw)) {
+		vport = mlx5_eswitch_get_vport(esw, vport_num);
+		if (!IS_ERR(vport))
+			vport->pf_activated = false;
+	}
 
 	return 0;
 }
@@ -3051,12 +3051,36 @@ int mlx5_esw_lock(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+static void esw_mode_lock(struct mlx5_eswitch *esw)
+{
+	down_write(&esw->mode_lock);
+}
+
+static void esw_mode_unlock(struct mlx5_eswitch *esw)
+{
+	up_write(&esw->mode_lock);
+}
+
+/* Lock the eswitch and wait for an operation in progress to finish. */
+void mlx5_esw_lock_wait(struct mlx5_eswitch *esw)
+{
+	down_write(&esw->mode_lock);
+	wait_var_event_any_lock(&esw->eswitch_operation_in_progress,
+				!esw->eswitch_operation_in_progress,
+				esw, esw_mode, TASK_UNINTERRUPTIBLE);
+}
+
 /**
  * mlx5_esw_unlock() - Release write lock on esw mode lock
  * @esw: eswitch device.
+ *
+ * Also wakes up mlx5_esw_lock_wait() waiters, so it must be used to release
+ * mode_lock after clearing eswitch_operation_in_progress.
  */
 void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 {
+	wake_up_var_locked(&esw->eswitch_operation_in_progress,
+			   &esw->mode_lock);
 	up_write(&esw->mode_lock);
 }
 
