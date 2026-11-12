@@ -464,7 +464,7 @@ static int bpf_cgroup_array_copy_to_user(struct bpf_prog_array *array,
 			return -EFAULT;
 		i++;
 	}
-	return item->prog ? -ENOSPC : 0;
+	return 0;
 }
 
 static int bpf_cgroup_array_delete_safe_at(struct bpf_prog_array *array,
@@ -1567,7 +1567,8 @@ static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 			effective = rcu_dereference_protected(cgrp->bpf.effective[atype],
 							      cgroup_bpf_held());
 			cnt = min_t(int, bpf_cgroup_array_length(effective, atype), total_cnt);
-			ret = bpf_cgroup_array_copy_to_user(effective, prog_ids, cnt, atype);
+			if (bpf_cgroup_array_copy_to_user(effective, prog_ids, cnt, atype))
+				return -EFAULT;
 		} else {
 			struct hlist_head *progs;
 			struct bpf_prog_list *pl;
