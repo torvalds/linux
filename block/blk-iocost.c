@@ -1853,7 +1853,8 @@ static u32 hweight_after_donation(struct ioc_gq *iocg, u32 old_hwi, u32 hwm,
 	delta = div64_s64(WEIGHT_ONE * (now->vnow - vtime),
 			  now->vnow - ioc->period_at_vtime);
 	target = WEIGHT_ONE * MARGIN_TARGET_PCT / 100;
-	new_hwi = div64_s64(WEIGHT_ONE * usage, WEIGHT_ONE - target + delta);
+	new_hwi = div64_s64((s64)WEIGHT_ONE * usage,
+			    WEIGHT_ONE - target + delta);
 
 	return clamp_t(s64, new_hwi, 1, hwm);
 }
