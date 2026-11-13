@@ -352,6 +352,7 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 		mid_execute_callback(server, mid);
 		release_mid(server, mid);
 	}
+	wake_up_all(&server->request_q);
 }
 
 static bool cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num_targets)
@@ -2200,7 +2201,8 @@ void __cifs_put_smb_ses(struct cifs_ses *ses)
 			kref_put(&ses->chans[i].iface->refcount, release_iface);
 			ses->chans[i].iface = NULL;
 		}
-		cifs_put_tcp_session(ses->chans[i].server, 0);
+		if (ses->chans[i].server)
+			cifs_put_tcp_session(ses->chans[i].server, 0);
 		ses->chans[i].server = NULL;
 	}
 
@@ -2610,18 +2612,21 @@ static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 }
 
 static struct cifs_tcon *
-cifs_find_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
+cifs_find_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx,
+	       bool unlinked)
 {
 	struct cifs_tcon *tcon;
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 		spin_lock(&tcon->tc_lock);
-		if (!match_tcon(tcon, ctx)) {
+		if (!match_tcon(tcon, ctx) || cifs_tcon_dying(tcon)) {
 			spin_unlock(&tcon->tc_lock);
 			continue;
 		}
 		++tcon->tc_count;
+		++tcon->mnt_refs;
+		tcon->mnt_unlinked += unlinked;
 		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
 				    netfs_trace_tcon_ref_get_find);
 		spin_unlock(&tcon->tc_lock);
@@ -2695,10 +2700,47 @@ cifs_put_tcon(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
 #endif
 }
 
+void cifs_wake_ses_waiters(struct cifs_ses *ses)
+{
+	guard(spinlock)(&ses->chan_lock);
+	for (size_t i = 0; i < ses->chan_count; i++) {
+		struct TCP_Server_Info *server = ses->chans[i].server;
+
+		if (!server)
+			continue;
+		wake_up_all(&server->request_q);
+		wake_up_all(&server->response_q);
+	}
+}
+
+static void drop_mnt_ref(struct cifs_tcon *tcon)
+{
+	scoped_guard(spinlock, &tcon->tc_lock) {
+		if (--tcon->mnt_refs)
+			return;
+	}
+	cifs_wake_ses_waiters(tcon->ses);
+}
+
+static void put_mnt_tcon(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
+{
+	drop_mnt_ref(tcon);
+	cifs_put_tcon(tcon, trace);
+}
+
+static void erase_tlink(struct cifs_sb_info *cifs_sb, struct tcon_link *tlink)
+{
+	clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
+	rb_erase(&tlink->tl_rbnode, &cifs_sb->tlink_tree);
+	if (!IS_ERR(tlink_tcon(tlink)))
+		drop_mnt_ref(tlink_tcon(tlink));
+}
+
 /**
  * cifs_get_tcon - get a tcon matching @ctx data from @ses
  * @ses: smb session to issue the request on
  * @ctx: the superblock configuration context to use for building the
+ * @unlinked: the mount reference is for a tlink not yet in a superblock's tree
  *
  * - tcon refcount is the number of mount points using the tcon.
  * - ses refcount is the number of tcon using the session.
@@ -2718,13 +2760,13 @@ cifs_put_tcon(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
  *    decrement the ses refcount.
  */
 static struct cifs_tcon *
-cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
+cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx, bool unlinked)
 {
 	struct cifs_tcon *tcon;
 	bool nohandlecache;
 	int rc, xid;
 
-	tcon = cifs_find_tcon(ses, ctx);
+	tcon = cifs_find_tcon(ses, ctx, unlinked);
 	if (tcon) {
 		/*
 		 * tcon has refcount already incremented but we need to
@@ -2750,6 +2792,8 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 		rc = -ENOMEM;
 		goto out_fail;
 	}
+	tcon->mnt_refs = 1;
+	tcon->mnt_unlinked = unlinked;
 	tcon->nohandlecache = nohandlecache;
 
 	if (ctx->snapshot_time) {
@@ -3576,7 +3620,7 @@ void cifs_mount_put_conns(struct cifs_mount_ctx *mnt_ctx)
 	int rc = 0;
 
 	if (mnt_ctx->tcon)
-		cifs_put_tcon(mnt_ctx->tcon, netfs_trace_tcon_ref_put_mnt_ctx);
+		put_mnt_tcon(mnt_ctx->tcon, netfs_trace_tcon_ref_put_mnt_ctx);
 	else if (mnt_ctx->ses)
 		cifs_put_smb_ses(mnt_ctx->ses);
 	else if (mnt_ctx->server)
@@ -3656,7 +3700,7 @@ int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 	cifs_sb = mnt_ctx->cifs_sb;
 
 	/* search for existing tcon to this server share */
-	tcon = cifs_get_tcon(mnt_ctx->ses, ctx);
+	tcon = cifs_get_tcon(mnt_ctx->ses, ctx, false);
 	if (IS_ERR(tcon)) {
 		rc = PTR_ERR(tcon);
 		tcon = NULL;
@@ -4032,8 +4076,7 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	while ((node = rb_first(root))) {
 		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
 		cifs_get_tlink(tlink);
-		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
-		rb_erase(node, root);
+		erase_tlink(cifs_sb, tlink);
 
 		spin_unlock(&cifs_sb->tlink_tree_lock);
 		cifs_put_tlink(tlink);
@@ -4321,7 +4364,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	}
 #endif
 
-	tcon = cifs_get_tcon(ses, ctx);
+	tcon = cifs_get_tcon(ses, ctx, true);
 	if (IS_ERR(tcon)) {
 		cifs_put_smb_ses(ses);
 		goto out;
@@ -4424,6 +4467,7 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 {
 	struct tcon_link *tlink, *newtlink;
 	kuid_t fsuid = current_fsuid();
+	struct cifs_tcon *tcon;
 	int err;
 
 	if (!(cifs_sb_flags(cifs_sb) & CIFS_MOUNT_MULTIUSER))
@@ -4481,7 +4525,16 @@ wait_for_construction:
 			goto wait_for_construction;
 	}
 
-	tlink->tl_tcon = cifs_construct_tcon(cifs_sb, fsuid);
+	tcon = cifs_construct_tcon(cifs_sb, fsuid);
+	scoped_guard(spinlock, &cifs_sb->tlink_tree_lock) {
+		tlink->tl_tcon = tcon;
+		if (!IS_ERR(tcon)) {
+			scoped_guard(spinlock, &tcon->tc_lock)
+				tcon->mnt_unlinked--;
+			if (!test_bit(TCON_LINK_IN_TREE, &tlink->tl_flags))
+				drop_mnt_ref(tcon);
+		}
+	}
 	clear_bit(TCON_LINK_PENDING, &tlink->tl_flags);
 	wake_up_bit(&tlink->tl_flags, TCON_LINK_PENDING);
 
@@ -4530,8 +4583,7 @@ cifs_prune_tlinks(struct work_struct *work)
 			continue;
 
 		cifs_get_tlink(tlink);
-		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
-		rb_erase(tmp, root);
+		erase_tlink(cifs_sb, tlink);
 
 		spin_unlock(&cifs_sb->tlink_tree_lock);
 		cifs_put_tlink(tlink);
