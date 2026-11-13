@@ -984,7 +984,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	/* NAPI functions as RCU section */
 	peer_dev = rcu_dereference_check(priv->peer, rcu_read_lock_bh_held());
-	peer_txq = (peer_dev && queue_idx < peer_dev->real_num_tx_queues) ?
+	peer_txq = (peer_dev && queue_idx < peer_dev->num_tx_queues) ?
 		   netdev_get_tx_queue(peer_dev, queue_idx) : NULL;
 
 	xdp_set_return_frame_no_direct();
