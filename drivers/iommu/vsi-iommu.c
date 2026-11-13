@@ -369,7 +369,8 @@ static void vsi_iommu_flush_tlb(struct iommu_domain *domain)
 	struct vsi_iommu *iommu;
 
 	list_for_each_entry(iommu, &vsi_domain->iommus, node) {
-		if (pm_runtime_get(iommu->dev) < 0)
+		/* A suspended IOMMU is flushed when it resumes */
+		if (pm_runtime_get_if_active(iommu->dev) <= 0)
 			continue;
 
 		spin_lock(&iommu->lock);
@@ -545,6 +546,8 @@ static void vsi_iommu_enable(struct vsi_iommu *iommu, struct iommu_domain *domai
 	writel(VSI_MMU_OUT_OF_BOUND, iommu->regs + VSI_MMU_CONFIG1_BASE);
 	writel(VSI_MMU_BIT_ENABLE, iommu->regs + VSI_MMU_AHB_EXCEPTION_BASE);
 	writel(VSI_MMU_BIT_ENABLE, iommu->regs + VSI_MMU_AHB_CONTROL_BASE);
+	writel(VSI_MMU_BIT_FLUSH, iommu->regs + VSI_MMU_FLUSH_BASE);
+	writel(0, iommu->regs + VSI_MMU_FLUSH_BASE);
 	iommu->enable = true;
 }
 
@@ -564,8 +567,6 @@ static int vsi_iommu_attach_device(struct iommu_domain *domain,
 	spin_lock(&iommu->lock);
 
 	vsi_iommu_enable(iommu, domain);
-	writel(VSI_MMU_BIT_FLUSH, iommu->regs + VSI_MMU_FLUSH_BASE);
-	writel(0, iommu->regs + VSI_MMU_FLUSH_BASE);
 
 	list_del_init(&iommu->node);
 	list_add_tail(&iommu->node, &vsi_domain->iommus);
