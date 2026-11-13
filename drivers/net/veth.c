@@ -1087,6 +1087,7 @@ static int __veth_napi_enable(struct net_device *dev)
 static void veth_napi_del_range(struct net_device *dev, int start, int end)
 {
 	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
 	int i;
 
 	for (i = start; i < end; i++) {
@@ -1099,11 +1100,17 @@ static void veth_napi_del_range(struct net_device *dev, int start, int end)
 	}
 	synchronize_net();
 
+	peer = rtnl_dereference(priv->peer);
+
 	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		rq->rx_notify_masked = false;
 		ptr_ring_cleanup(&rq->xdp_ring, veth_ptr_free);
+
+		/* veth_poll() can no longer wake a txq stopped on a full ring */
+		if (peer && i < peer->num_tx_queues)
+			netif_wake_subqueue(peer, i);
 	}
 
 	for (i = start; i < end; i++) {
