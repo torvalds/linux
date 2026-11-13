@@ -429,9 +429,24 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	VM_WARN_ON(!pte_present(pte));
 	ncontig = num_contig_ptes(huge_page_size(hstate_vma(vma)), &pgsize);
 
-	if (!pte_cont(pte))
-		return __ptep_set_access_flags_anysz(vma, addr, ptep, pte,
-						     dirty, pgsize);
+	if (!pte_cont(pte)) {
+		if (__ptep_set_access_flags_anysz(vma, addr, ptep, pte,
+						  dirty, pgsize))
+			return 1;
+
+		/*
+		 * Another CPU may have made the entry writable without
+		 * invalidating our stale read-only TLB entry. To avoid
+		 * indefinitely faulting on this entry, flush it.
+		 */
+		if (dirty)
+			__flush_hugetlb_tlb_range(vma, addr, addr + pgsize,
+						  pgsize,
+						  TLBF_NOWALKCACHE |
+						  TLBF_NOBROADCAST |
+						  TLBF_NONOTIFY);
+		return 0;
+	}
 
 	if (!__cont_access_flags_changed(ptep, pte, ncontig))
 		return 0;
