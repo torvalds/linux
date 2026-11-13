@@ -558,25 +558,40 @@ static void program_grph_pixel_format(
 	struct dce_mem_input *dce_mi,
 	enum surface_pixel_format format)
 {
-	uint32_t red_xbar = 0, blue_xbar = 0; /* no swap */
+	/* Crossbar per output channel: 0 R, 1 G, 2 B, 3 A source (see
+	 * DCP_GRPH_*_CROSSBAR in the enum headers). DCE unpacks all 32bpp
+	 * as ARGB, so alpha-in-LSB layouts are reordered via the crossbar.
+	 */
+	uint32_t red_xbar = 0, green_xbar = 0, blue_xbar = 0, alpha_xbar = 0;
 	uint32_t grph_depth = 0, grph_format = 0;
 	uint32_t sign = 0, floating = 0;
 
-	if (format == SURFACE_PIXEL_FORMAT_GRPH_ABGR8888 ||
-			/*todo: doesn't look like we handle BGRA here,
-			 *  should problem swap endian*/
-		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010 ||
-		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS ||
-		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616 ||
-		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F) {
-		/* ABGR formats */
-		red_xbar = 2;
-		blue_xbar = 2;
+	switch (format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		/* ABGR: swap R and B */
+		red_xbar = 2;  /* R from B */
+		blue_xbar = 2; /* B from R */
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
+		/* rotate ARGB -> RGBA */
+		red_xbar = 3;   /* R from A */
+		green_xbar = 3; /* G from R */
+		blue_xbar = 3;  /* B from G */
+		alpha_xbar = 3; /* A from B */
+		break;
+	default:
+		break;
 	}
 
-	REG_SET_2(GRPH_SWAP_CNTL, 0,
+	REG_SET_4(GRPH_SWAP_CNTL, 0,
 			GRPH_RED_CROSSBAR, red_xbar,
-			GRPH_BLUE_CROSSBAR, blue_xbar);
+			GRPH_GREEN_CROSSBAR, green_xbar,
+			GRPH_BLUE_CROSSBAR, blue_xbar,
+			GRPH_ALPHA_CROSSBAR, alpha_xbar);
 
 	switch (format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
