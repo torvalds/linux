@@ -332,14 +332,38 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 	}
 }
 
+static int cs35l56_asp_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+
+	return regmap_assign_bits(cs35l56->base.regmap, CS35L56_ASP1_ENABLES1,
+				  BIT(w->shift),
+				  SND_SOC_DAPM_EVENT_ON(event));
+}
+
 static int cs35l56_asp_tx_event(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	int ret;
 
-	return regmap_write(cs35l56->base.regmap, CS35L56_ASP1TX1_INPUT + (4 * w->shift),
-			    cs35l56->asp_tx_input[w->shift]);
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = regmap_write(cs35l56->base.regmap,
+				   CS35L56_ASP1TX1_INPUT + (4 * w->shift),
+				   cs35l56->asp_tx_input[w->shift]);
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		break;
+	}
+
+	return cs35l56_asp_event(w, kcontrol, event);
 }
 
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
@@ -355,22 +379,25 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0, cs35l56_dsp_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_AIF_IN("ASP1RX1", NULL, 0, CS35L56_ASP1_ENABLES1,
-			    CS35L56_ASP_RX1_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_IN("ASP1RX2", NULL, 1, CS35L56_ASP1_ENABLES1,
-			    CS35L56_ASP_RX2_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_OUT_E("ASP1TX1", NULL, 0, CS35L56_ASP1_ENABLES1,
+	/* Avoid reading ASP1_ENABLES1 when DAPM initializes the widgets. */
+	SND_SOC_DAPM_AIF_IN_E("ASP1RX1", NULL, 0, SND_SOC_NOPM,
+			      CS35L56_ASP_RX1_EN_SHIFT, 0,
+			      cs35l56_asp_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_IN_E("ASP1RX2", NULL, 1, SND_SOC_NOPM,
+			      CS35L56_ASP_RX2_EN_SHIFT, 0,
+			      cs35l56_asp_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX1", NULL, 0, SND_SOC_NOPM,
 			       CS35L56_ASP_TX1_EN_SHIFT, 0,
-			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_AIF_OUT_E("ASP1TX2", NULL, 1, CS35L56_ASP1_ENABLES1,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX2", NULL, 1, SND_SOC_NOPM,
 			       CS35L56_ASP_TX2_EN_SHIFT, 0,
-			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_AIF_OUT_E("ASP1TX3", NULL, 2, CS35L56_ASP1_ENABLES1,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX3", NULL, 2, SND_SOC_NOPM,
 			       CS35L56_ASP_TX3_EN_SHIFT, 0,
-			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_AIF_OUT_E("ASP1TX4", NULL, 3, CS35L56_ASP1_ENABLES1,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX4", NULL, 3, SND_SOC_NOPM,
 			       CS35L56_ASP_TX4_EN_SHIFT, 0,
-			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MUX("ASP1 TX1 Source", SND_SOC_NOPM, 0, 0, &asp1_tx1_mux),
 	SND_SOC_DAPM_MUX("ASP1 TX2 Source", SND_SOC_NOPM, 0, 0, &asp1_tx2_mux),
@@ -473,7 +500,7 @@ static int cs35l56_asp_dai_probe(struct snd_soc_dai *codec_dai)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
 
-	return cs35l56_set_asp_patch(&cs35l56->base);
+	return cs35l56_set_asp_defaults(&cs35l56->base);
 }
 
 static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -2314,12 +2341,6 @@ post_soft_reset:
 
 	/* Registers could be dirty after soft reset or SoundWire enumeration */
 	regcache_sync(cs35l56->base.regmap);
-
-	/* Set ASP1 DOUT to high-impedance when it is not transmitting audio data. */
-	ret = regmap_set_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL3,
-			      CS35L56_ASP1_DOUT_HIZ_CTRL_MASK);
-	if (ret)
-		return dev_err_probe(cs35l56->base.dev, ret, "Failed to write ASP1_CONTROL3\n");
 
 	cs35l56->needs_wait_for_fw_idle =
 		cs35l56_needs_wait_for_firmware_timer_expiry(&cs35l56->base);
