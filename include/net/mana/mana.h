@@ -74,9 +74,12 @@ enum mana_priv_flag_bits {
 /* 8-pkt mode packs up to 2 packets per PPI entry */
 #define MANA_CQE_COAL_PKTS_8 8
 
-/* Default/max interrupt moderation settings */
-#define MANA_INTR_MODR_USEC_DEF 0
-#define MANA_INTR_MODR_COMP_DEF 0
+/* Default/min interrupt moderation settings */
+#define MANA_INTR_MODR_USEC_DEF 1
+#define MANA_INTR_MODR_COMP_DEF 1
+
+#define MANA_INTR_MODR_USEC_MIN 1
+#define MANA_INTR_MODR_COMP_MIN 1
 
 #define MANA_ADAPTIVE_RX_DEF true
 #define MANA_ADAPTIVE_TX_DEF true

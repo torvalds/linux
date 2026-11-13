@@ -776,6 +776,9 @@ enum {
 /* Driver supports handling throttled EQEs */
 #define GDMA_DRV_CAP_FLAG_1_THROTTLED_EVENT_QUEUE BIT_ULL(32)
 
+/* Enforce min 1 usec, 1 frames for Interrupt Moderation */
+#define GDMA_DRV_CAP_FLAG_1_SET_MIN_INTR_MOD_VALUE BIT_ULL(33)
+
 /* Capabilities in the PCI-only group below rely on dynamic MSI-X allocation
  * and on the servicing and reset paths reached through
  * mana_schedule_serv_work(). Transports that provide neither leave
@@ -801,7 +804,8 @@ enum {
 	 GDMA_DRV_CAP_FLAG_1_EQ_MSI_UNSHARE_MULTI_VPORT | \
 	 GDMA_DRV_CAP_FLAG_1_DYN_INTERRUPT_MODERATION | \
 	 GDMA_DRV_CAP_FLAG_1_NON_CONTIGUOUS_BUFFERS | \
-	 GDMA_DRV_CAP_FLAG_1_THROTTLED_EVENT_QUEUE)
+	 GDMA_DRV_CAP_FLAG_1_THROTTLED_EVENT_QUEUE | \
+	 GDMA_DRV_CAP_FLAG_1_SET_MIN_INTR_MOD_VALUE)
 
 #define GDMA_DRV_CAP_FLAGS2 0
 

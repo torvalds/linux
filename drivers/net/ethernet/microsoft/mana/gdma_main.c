@@ -646,6 +646,11 @@ void mana_gd_ring_dim(struct gdma_queue *cq, u32 mod_usec, bool mod_usec_vld,
 	struct gdma_context *gc = cq->gdma_dev->gdma_context;
 	u32 dim_val;
 
+	mod_usec = clamp_t(u32, mod_usec, MANA_INTR_MODR_USEC_MIN,
+			   MANA_INTR_MODR_USEC_MAX);
+	mod_comps = clamp_t(u32, mod_comps, MANA_INTR_MODR_COMP_MIN,
+			    MANA_INTR_MODR_COMP_MAX);
+
 	/* Convert the DIM values to doorbell parameters */
 	dim_val = FIELD_PREP(MANA_INTR_MODR_USEC_MAX, mod_usec) |
 		  FIELD_PREP(MANA_INTR_MODR_COMP_MASK, mod_comps);
