@@ -2550,6 +2550,10 @@ static __cold void io_ring_ctx_wait_inflight(struct io_ring_ctx *ctx)
 	/* Only wait if this task has attached to the ring */
 	if (!tctx || !xa_load(&tctx->xa, (unsigned long)ctx))
 		return;
+	/* Requests may sit in local work that only exit work can run */
+	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
+	    !io_local_work_cancel_allowed(ctx))
+		return;
 	if (atomic_read(&tctx->in_cancel))
 		return;
 

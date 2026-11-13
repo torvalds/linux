@@ -286,10 +286,11 @@ void __cold io_cancel_local_task_work(struct io_ring_ctx *ctx)
 	 * The work list consumer side is serialized by ->uring_lock, see
 	 * __io_run_local_work(). Grab it to guard against racing with normal
 	 * task_work running, as the task may be exiting. The ring is going
-	 * away, run the entries in cancel mode right here - the callers
-	 * provide the same process context the per-ctx fallback work that
-	 * they were previously punted to ran in.
+	 * away, run the entries in cancel mode right here, if allowed.
 	 */
+	if (!io_local_work_cancel_allowed(ctx))
+		return;
+
 	guard(mutex)(&ctx->uring_lock);
 
 	while (!mpscq_empty(&ctx->work_list)) {
