@@ -780,6 +780,9 @@ in the running kernel.
 .. kernel-doc:: security/landlock/errata/abi-1.h
     :doc: erratum_4
 
+.. kernel-doc:: security/landlock/errata/abi-4.h
+    :doc: erratum_5
+
 How to check for errata
 ~~~~~~~~~~~~~~~~~~~~~~~
 
