@@ -1810,6 +1810,13 @@ static void r8a66597_remove(struct platform_device *pdev)
 	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&r8a66597->gadget);
+
+	/*
+	 * The interrupt handler re-arms the timer on VBUS changes; the
+	 * IRQ is devm-managed and freed only at detach, so free it
+	 * before deleting the timer.
+	 */
+	devm_free_irq(&pdev->dev, r8a66597->irq, r8a66597);
 	timer_delete_sync(&r8a66597->timer);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 
@@ -1896,6 +1903,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 			       udc_name, r8a66597);
 	if (ret < 0)
 		goto clean_up2;
+	r8a66597->irq = irq;
 
 	INIT_LIST_HEAD(&r8a66597->gadget.ep_list);
 	r8a66597->gadget.ep0 = &r8a66597->ep[0].ep;

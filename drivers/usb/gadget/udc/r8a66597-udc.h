@@ -110,6 +110,7 @@ struct r8a66597 {
 	unsigned char interrupt;
 	unsigned char isochronous;
 	unsigned char num_dma;
+	int irq;
 
 	unsigned irq_sense_low:1;
 };
