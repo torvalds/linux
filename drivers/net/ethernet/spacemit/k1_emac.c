@@ -1732,7 +1732,6 @@ static int emac_down(struct emac_priv *priv)
 	napi_disable(&priv->napi);
 
 	timer_delete_sync(&priv->txtimer);
-	cancel_work_sync(&priv->tx_timeout_task);
 
 	timer_delete_sync(&priv->stats_timer);
 
@@ -2010,8 +2009,9 @@ static void emac_remove(struct platform_device *pdev)
 {
 	struct emac_priv *priv = platform_get_drvdata(pdev);
 
+	disable_work_sync(&priv->tx_timeout_task);
+
 	timer_shutdown_sync(&priv->txtimer);
-	cancel_work_sync(&priv->tx_timeout_task);
 
 	timer_shutdown_sync(&priv->stats_timer);
 
@@ -2023,6 +2023,8 @@ static int emac_resume(struct device *dev)
 	struct emac_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
 	int ret;
+
+	enable_work(&priv->tx_timeout_task);
 
 	ret = clk_prepare_enable(priv->bus_clk);
 	if (ret < 0) {
@@ -2050,6 +2052,8 @@ static int emac_suspend(struct device *dev)
 {
 	struct emac_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
+
+	disable_work_sync(&priv->tx_timeout_task);
 
 	if (!ndev || !netif_running(ndev)) {
 		clk_disable_unprepare(priv->bus_clk);
