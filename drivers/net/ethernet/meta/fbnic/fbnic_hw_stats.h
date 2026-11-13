@@ -154,6 +154,7 @@ struct fbnic_hw_stats {
 
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset);
 
+void __fbnic_reset_hw_stats(struct fbnic_dev *fbd);
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd);
 void fbnic_init_hw_stats(struct fbnic_dev *fbd);
 void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,

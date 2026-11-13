@@ -539,9 +539,10 @@ static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
 	mac->get_rmon_stats(fbd, true, &mac_stats->rmon);
 }
 
-void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
+void __fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats.lock);
+	lockdep_assert_held(&fbd->hw_stats.lock);
+
 	fbnic_reset_phy_stats(fbd, &fbd->hw_stats.phy);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
@@ -550,6 +551,12 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
 	fbnic_reset_hw_mac_stats(fbd, &fbd->hw_stats.mac);
+}
+
+void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
+{
+	spin_lock(&fbd->hw_stats.lock);
+	__fbnic_reset_hw_stats(fbd);
 	spin_unlock(&fbd->hw_stats.lock);
 }
 
