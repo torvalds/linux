@@ -41,6 +41,7 @@
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
 #include "intel_gmbus.h"
+#include "intel_quirks.h"
 #include "intel_rom.h"
 #include "intel_vdsc.h"
 
@@ -1575,6 +1576,10 @@ parse_edp(struct intel_display *display,
 	if (display->vbt.version >= 261)
 		panel->vbt.edp.pipe_joiner_enable =
 			panel_bool(edp->pipe_joiner_enable, panel_type);
+
+	/* Some machines need the joiner regardless of what VBT says */
+	if (intel_has_quirk(display, QUIRK_ALLOW_EDP_JOINER))
+		panel->vbt.edp.pipe_joiner_enable = true;
 }
 
 static void
