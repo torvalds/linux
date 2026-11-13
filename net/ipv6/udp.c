@@ -651,11 +651,12 @@ static struct sock *__udp6_lib_err_encap(struct net *net,
 	network_offset = skb_network_offset(skb);
 	transport_offset = skb_transport_offset(skb);
 
+	/* Transport header needs to point to the UDP header */
+	if (unlikely(!skb_set_transport_header_careful(skb, offset)))
+		return ERR_PTR(-EINVAL);
+
 	/* Network header needs to point to the outer IPv6 header inside ICMP */
 	skb_reset_network_header(skb);
-
-	/* Transport header needs to point to the UDP header */
-	skb_set_transport_header(skb, offset);
 
 	if (sk) {
 		up = udp_sk(sk);
