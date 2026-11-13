@@ -2031,11 +2031,16 @@ static int emac_resume(struct device *dev)
 		dev_err(dev, "Failed to enable bus clock: %d\n", ret);
 		return ret;
 	}
+	rtnl_lock();
 
-	if (!netif_running(ndev))
+	if (!netif_running(ndev)) {
+		rtnl_unlock();
 		return 0;
+	}
 
 	ret = emac_open(ndev);
+	rtnl_unlock();
+
 	if (ret) {
 		clk_disable_unprepare(priv->bus_clk);
 		return ret;
@@ -2055,12 +2060,16 @@ static int emac_suspend(struct device *dev)
 
 	disable_work_sync(&priv->tx_timeout_task);
 
+	rtnl_lock();
+
 	if (!ndev || !netif_running(ndev)) {
+		rtnl_unlock();
 		clk_disable_unprepare(priv->bus_clk);
 		return 0;
 	}
 
 	emac_stop(ndev);
+	rtnl_unlock();
 
 	clk_disable_unprepare(priv->bus_clk);
 	netif_device_detach(ndev);
