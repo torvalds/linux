@@ -741,7 +741,7 @@ static int __maybe_unused vsi_iommu_suspend(struct device *dev)
 {
 	struct vsi_iommu *iommu = dev_get_drvdata(dev);
 
-	vsi_iommu_disable(iommu);
+	iommu->enable = false;
 
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 
