@@ -1047,6 +1047,8 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	bool mshot_finished = true;
+	void __user *control;
+	size_t controllen;
 	int consumed = 0;
 	size_t len;
 
@@ -1084,6 +1086,8 @@ retry_multishot:
 
 	kmsg->msg.msg_get_inq = 1;
 	kmsg->msg.msg_inq = -1;
+	control = kmsg->msg.msg_control_user;
+	controllen = kmsg->msg.msg_controllen;
 	if (req->flags & REQ_F_APOLL_MULTISHOT) {
 		ret = io_recvmsg_multishot(sock, sr, kmsg, flags,
 					   &mshot_finished);
@@ -1108,6 +1112,12 @@ retry_multishot:
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
+			/*
+			 * Don't depend on the control buffer being untouched, a
+			 * protocol may post a cmsg before it finds no data.
+			 */
+			kmsg->msg.msg_control_user = control;
+			kmsg->msg.msg_controllen = controllen;
 			io_kbuf_recycle(req, sel.buf_list, issue_flags);
 			return IOU_RETRY;
 		}
