@@ -213,6 +213,12 @@ static int letsketch_raw_event(struct hid_device *hdev,
  * string descriptors. But the firmware is buggy and does not like it if
  * we do this too fast. Even if we go slow sometimes the usb_string() call
  * fails. Ignore errors and retry it a couple of times if necessary.
+ *
+ * Some firmware revisions (e.g. "Vision_V201_180530", sold as the Starcom
+ * GC-422) do not implement every string descriptor index the handshake
+ * reads. For those indices usb_string() keeps returning an empty string or
+ * -EPIPE (STALL). Report such an index as missing with -ENOENT once the
+ * retries are used up, so that the caller can skip it.
  */
 static int letsketch_get_string(struct usb_device *udev, int index, char *buf, int size)
 {
@@ -225,9 +231,14 @@ static int letsketch_get_string(struct usb_device *udev, int index, char *buf, i
 			return 0;
 	}
 
+	if (ret == 0 || ret == -EPIPE) {
+		dev_dbg(&udev->dev, "String descriptor %d not implemented\n", index);
+		return -ENOENT;
+	}
+
 	dev_err(&udev->dev, "Max retries (%d) exceeded reading string descriptor %d\n",
 		LETSKETCH_GET_STRING_RETRIES, index);
-	return ret ? ret : -EIO;
+	return ret;
 }
 
 static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -256,6 +267,8 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 	 */
 	for (i = LETSKETCH_INFO_STR_IDX_BEGIN; i <= LETSKETCH_INFO_STR_IDX_END; i++) {
 		ret = letsketch_get_string(udev, i, buf, sizeof(buf));
+		if (ret == -ENOENT)
+			continue;
 		if (ret)
 			return ret;
 
@@ -264,16 +277,16 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 
 	for (i = 1; i <= 250; i++) {
 		ret = letsketch_get_string(udev, i, buf, sizeof(buf));
-		if (ret)
+		if (ret && ret != -ENOENT)
 			return ret;
 	}
 
 	ret = letsketch_get_string(udev, 0x64, buf, sizeof(buf));
-	if (ret)
+	if (ret && ret != -ENOENT)
 		return ret;
 
 	ret = letsketch_get_string(udev, LETSKETCH_INFO_STR_IDX_BEGIN, buf, sizeof(buf));
-	if (ret)
+	if (ret && ret != -ENOENT)
 		return ret;
 
 	/*
