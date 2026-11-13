@@ -553,6 +553,27 @@ static bool migrate_vma_check_page(struct page *page, struct page *fault_page)
 }
 
 /*
+ * Pin the anonymous rmap if present to allow migration entries to be safely
+ * removed. Returns true if the pin succeeded or no pin is required, and false
+ * if the folio is no longer mapped.
+ */
+static bool pin_anon_rmap(struct folio *folio, unsigned long *src_pfn)
+{
+	if (!folio_test_anon(folio) || folio_test_ksm(folio))
+		return true;
+	if (!folio_get_anon_vma(folio)) /* Pin the anon rmap. */
+		return false;
+	*src_pfn |= MIGRATE_PFN_ANON_RMAP;
+	return true;
+}
+
+static void unpin_anon_rmap(struct folio *folio, unsigned long src_pfn)
+{
+	if (src_pfn & MIGRATE_PFN_ANON_RMAP)
+		put_anon_vma(folio_anon_vma(folio)); /* Unpin the anon rmap. */
+}
+
+/*
  * Unmaps pages for migration. Returns number of source pfns marked as
  * migrating.
  */
@@ -633,6 +654,7 @@ next:
 
 		folio = page_folio(page);
 		remove_migration_ptes(folio, folio, 0);
+		unpin_anon_rmap(folio, src_pfns[i]);
 
 		src_pfns[i] = 0;
 		if (fault_folio != folio)
@@ -1331,6 +1353,7 @@ static void __migrate_device_finalize(unsigned long *src_pfns,
 		if (!folio_is_zone_device(dst))
 			folio_add_lru(dst);
 		remove_migration_ptes(src, dst, 0);
+		unpin_anon_rmap(src, src_pfns[i]);
 		if (fault_folio != src)
 			folio_unlock(src);
 		folio_put(src);
@@ -1380,6 +1403,7 @@ EXPORT_SYMBOL(migrate_vma_finalize);
 
 static unsigned long migrate_device_pfn_lock(unsigned long pfn)
 {
+	unsigned long src_pfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
 	struct folio *folio;
 
 	folio = folio_get_nontail_page(pfn_to_page(pfn));
@@ -1391,7 +1415,13 @@ static unsigned long migrate_device_pfn_lock(unsigned long pfn)
 		return 0;
 	}
 
-	return migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
+	if (!pin_anon_rmap(folio, &src_pfn)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return 0;
+	}
+
+	return src_pfn;
 }
 
 /**
@@ -1427,6 +1457,7 @@ int migrate_device_range(unsigned long *src_pfns, unsigned long start,
 		nr = folio_nr_pages(folio);
 		if (nr > npages - i) {
 			if (src_pfns[i] & MIGRATE_PFN_MIGRATE) {
+				unpin_anon_rmap(folio, src_pfns[i]);
 				folio_unlock(folio);
 				folio_put(folio);
 			}
@@ -1470,6 +1501,7 @@ int migrate_device_pfns(unsigned long *src_pfns, unsigned long npages)
 		nr = folio_nr_pages(folio);
 		if (nr > npages - i) {
 			if (src_pfns[i] & MIGRATE_PFN_MIGRATE) {
+				unpin_anon_rmap(folio, src_pfns[i]);
 				folio_unlock(folio);
 				folio_put(folio);
 			}
@@ -1505,6 +1537,11 @@ int migrate_device_coherent_folio(struct folio *folio)
 
 	folio_lock(folio);
 	src_pfn = migrate_pfn(folio_pfn(folio)) | MIGRATE_PFN_MIGRATE;
+	if (!pin_anon_rmap(folio, &src_pfn)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return -EBUSY;
+	}
 
 	/*
 	 * We don't have a VMA and don't need to walk the page tables to find
