@@ -2228,7 +2228,7 @@ static int wm8995_spi_probe(struct spi_device *spi)
 	struct wm8995_priv *wm8995;
 	int ret;
 
-	wm8995 = devm_kzalloc(&spi->dev, sizeof(*wm8995), GFP_KERNEL);
+	wm8995 = devm_kzalloc_obj(&spi->dev, *wm8995);
 	if (!wm8995)
 		return -ENOMEM;
 
@@ -2265,7 +2265,7 @@ static int wm8995_i2c_probe(struct i2c_client *i2c)
 	struct wm8995_priv *wm8995;
 	int ret;
 
-	wm8995 = devm_kzalloc(&i2c->dev, sizeof(*wm8995), GFP_KERNEL);
+	wm8995 = devm_kzalloc_obj(&i2c->dev, *wm8995);
 	if (!wm8995)
 		return -ENOMEM;
 

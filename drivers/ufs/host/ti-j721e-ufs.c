@@ -28,7 +28,7 @@ static int ti_j721e_ufs_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
+	ufs = devm_kzalloc_obj(dev, *ufs);
 	if (!ufs)
 		return -ENOMEM;
 

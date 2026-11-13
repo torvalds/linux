@@ -269,7 +269,7 @@ static int srt_ec_probe(struct i2c_client *client)
 	char str_buf[4];
 	int ret;
 
-	srt = devm_kzalloc(dev, sizeof(*srt), GFP_KERNEL);
+	srt = devm_kzalloc_obj(dev, *srt);
 	if (!srt)
 		return -ENOMEM;
 

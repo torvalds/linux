@@ -1319,7 +1319,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret, i, irq;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

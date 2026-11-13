@@ -33,8 +33,7 @@ static int rmi_f1a_parse_device_properties(struct rmi_function *fn, struct f1a_d
 		return error;
 	}
 
-	buttonmap = devm_kmalloc_array(dev, n_keys, sizeof(*buttonmap),
-				       GFP_KERNEL);
+	buttonmap = devm_kmalloc_objs(dev, *buttonmap, n_keys);
 	if (!buttonmap)
 		return -ENOMEM;
 
@@ -117,7 +116,7 @@ static int rmi_f1a_probe(struct rmi_function *fn)
 		return -ENXIO;
 	}
 
-	f1a = devm_kzalloc(&fn->dev, sizeof(*f1a), GFP_KERNEL);
+	f1a = devm_kzalloc_obj(&fn->dev, *f1a);
 	if (!f1a)
 		return -ENOMEM;
 

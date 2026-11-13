@@ -605,7 +605,7 @@ static int s500_clk_probe(struct platform_device *pdev)
 	desc = &s500_clk_desc;
 	owl_clk_regmap_init(pdev, desc);
 
-	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
+	reset = devm_kzalloc_obj(&pdev->dev, *reset);
 	if (!reset)
 		return -ENOMEM;
 

@@ -781,7 +781,7 @@ static struct clk_hw *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
 	};
 	int ret;
 
-	pll_postdiv = devm_kzalloc(dev, sizeof(*pll_postdiv), GFP_KERNEL);
+	pll_postdiv = devm_kzalloc_obj(dev, *pll_postdiv);
 	if (!pll_postdiv)
 		return ERR_PTR(-ENOMEM);
 
@@ -879,7 +879,7 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 	if (!pdev)
 		return -ENODEV;
 
-	pll_14nm = devm_kzalloc(&pdev->dev, sizeof(*pll_14nm), GFP_KERNEL);
+	pll_14nm = devm_kzalloc_obj(&pdev->dev, *pll_14nm);
 	if (!pll_14nm)
 		return -ENOMEM;
 

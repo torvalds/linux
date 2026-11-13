@@ -268,7 +268,7 @@ static int uniphier_tm_probe(struct platform_device *pdev)
 	struct uniphier_tm_dev *tdev;
 	int ret, irq;
 
-	tdev = devm_kzalloc(dev, sizeof(*tdev), GFP_KERNEL);
+	tdev = devm_kzalloc_obj(dev, *tdev);
 	if (!tdev)
 		return -ENOMEM;
 	tdev->dev = dev;

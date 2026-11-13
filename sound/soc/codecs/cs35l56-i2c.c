@@ -23,7 +23,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 	const struct regmap_config *regmap_config;
 	int ret;
 
-	cs35l56 = devm_kzalloc(dev, sizeof(struct cs35l56_private), GFP_KERNEL);
+	cs35l56 = devm_kzalloc_obj(dev, struct cs35l56_private);
 	if (!cs35l56)
 		return -ENOMEM;
 

@@ -607,7 +607,7 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 	iommu_pmu->cntr_stride = pcap_cntr_stride(perfcap);
 	iommu_pmu->num_eg = pcap_num_event_group(perfcap);
 
-	iommu_pmu->evcap = kcalloc(iommu_pmu->num_eg, sizeof(u64), GFP_KERNEL);
+	iommu_pmu->evcap = kzalloc_objs(u64, iommu_pmu->num_eg);
 	if (!iommu_pmu->evcap) {
 		ret = -ENOMEM;
 		goto free_pmu;
@@ -628,7 +628,7 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 		goto free_pmu_evcap;
 	}
 	for (i = 0; i < iommu_pmu->num_cntr; i++) {
-		iommu_pmu->cntr_evcap[i] = kcalloc(iommu_pmu->num_eg, sizeof(u32), GFP_KERNEL);
+		iommu_pmu->cntr_evcap[i] = kzalloc_objs(u32, iommu_pmu->num_eg);
 		if (!iommu_pmu->cntr_evcap[i]) {
 			ret = -ENOMEM;
 			goto free_pmu_cntr_evcap;

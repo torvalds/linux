@@ -33,7 +33,6 @@
 #include <linux/console.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
-#include <linux/amd-iommu.h>
 #include <linux/pci.h>
 #include <linux/pci-p2pdma.h>
 #include <linux/apple-gmux.h>
@@ -3770,28 +3769,6 @@ amdgpu_device_should_register_switcheroo(struct amdgpu_device *adev, bool px)
 		       apple_gmux_detect(NULL, NULL)));
 }
 
-static inline bool amdgpu_device_identity(struct amdgpu_device *adev)
-{
-	struct pci_dev *pdev = adev->pdev;
-	struct iommu_domain *domain = iommu_get_domain_for_dev(&pdev->dev);
-
-	if (!domain)
-		return false;
-
-	return domain->type == IOMMU_DOMAIN_IDENTITY;
-}
-
-static bool amdgpu_device_use_perfopt(struct amdgpu_device *adev)
-{
-	if (amdgpu_iommu_perfopt == 0)
-		return false;
-
-	if (!(adev->flags & AMD_IS_APU))
-		return false;
-
-	return amdgpu_device_identity(adev);
-}
-
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -4000,16 +3977,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
-
-	if (amdgpu_device_use_perfopt(adev)) {
-		int perfopt_ret = amd_iommu_enable_perfopt(pdev);
-
-		/* Optional optimization; a failure to arm it must not abort probe. */
-		if (perfopt_ret)
-			dev_warn(adev->dev,
-				 "Failed to enable IOMMU PerfOpt (%d); continuing without it\n",
-				 perfopt_ret);
-	}
 
 	/*
 	 * No need to remove conflicting FBs for non-display class devices.
@@ -4380,9 +4347,6 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	amdgpu_gart_dummy_page_fini(adev);
 
-	if (amdgpu_device_use_perfopt(adev))
-		amd_iommu_disable_perfopt(adev->pdev);
-
 	if (pci_dev_is_disconnected(adev->pdev))
 		amdgpu_device_unmap_mmio(adev);
 
@@ -4745,20 +4709,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool notify_clients)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
-
-	if (amdgpu_device_use_perfopt(adev)) {
-		int perfopt_ret = amd_iommu_enable_perfopt(adev->pdev);
-
-		/*
-		 * Must not return on failure: a bare return would leak the
-		 * SR-IOV VF exclusive-mode acquisition taken above (released
-		 * via the exit: path).
-		 */
-		if (perfopt_ret)
-			dev_warn(adev->dev,
-				 "Failed to enable IOMMU PerfOpt (%d); continuing without it\n",
-				 perfopt_ret);
-	}
 
 	if (adev->in_s0ix)
 		amdgpu_dpm_gfx_state_change(adev, sGpuChangeState_D0Entry);
@@ -5577,7 +5527,21 @@ static void amdgpu_device_halt_activities(struct amdgpu_device *adev,
 	struct amdgpu_device *tmp_adev = NULL;
 	int i;
 
-	/* block all schedulers and reset given job's ring */
+	/* Stop job submission first, the preparation below can take seconds */
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
+		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+			struct amdgpu_ring *ring = tmp_adev->rings[i];
+
+			if (!amdgpu_ring_sched_ready(ring))
+				continue;
+
+			drm_sched_wqueue_stop(&ring->sched);
+
+			if (need_emergency_restart)
+				amdgpu_job_stop_all_jobs_on_sched(&ring->sched);
+		}
+	}
+
 	list_for_each_entry(tmp_adev, device_list, reset_list) {
 		amdgpu_device_set_mp1_state(tmp_adev);
 
@@ -5613,18 +5577,6 @@ static void amdgpu_device_halt_activities(struct amdgpu_device *adev,
 			amdgpu_ras_suspend(tmp_adev);
 
 		amdgpu_userq_pre_reset(tmp_adev);
-
-		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-			struct amdgpu_ring *ring = tmp_adev->rings[i];
-
-			if (!amdgpu_ring_sched_ready(ring))
-				continue;
-
-			drm_sched_wqueue_stop(&ring->sched);
-
-			if (need_emergency_restart)
-				amdgpu_job_stop_all_jobs_on_sched(&ring->sched);
-		}
 		atomic_inc(&tmp_adev->gpu_reset_counter);
 	}
 }
@@ -5859,8 +5811,10 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	amdgpu_device_halt_activities(adev, job, reset_context, &device_list,
 				      hive, need_emergency_restart);
-	if (need_emergency_restart)
-		goto skip_sched_resume;
+	if (need_emergency_restart) {
+		amdgpu_device_gpu_resume(adev, &device_list, need_emergency_restart);
+		goto reset_unlock;
+	}
 	/*
 	 * Must check guilty signal here since after this point all old
 	 * HW fences are force signaled.
@@ -5870,18 +5824,17 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	if (job && (dma_fence_get_status(&job->hw_fence->base) > 0)) {
 		job_signaled = true;
 		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
-		goto skip_hw_reset;
+		goto post_resume;
 	}
 
 	r = amdgpu_device_asic_reset(adev, &device_list, reset_context);
 	if (r)
 		goto reset_unlock;
-skip_hw_reset:
+post_resume:
+	amdgpu_device_gpu_resume(adev, &device_list, need_emergency_restart);
 	r = amdgpu_device_sched_resume(&device_list, reset_context, job_signaled);
 	if (r)
 		goto reset_unlock;
-skip_sched_resume:
-	amdgpu_device_gpu_resume(adev, &device_list, need_emergency_restart);
 reset_unlock:
 	amdgpu_device_recovery_put_reset_lock(adev, &device_list);
 	amdgpu_ras_post_reset(adev, &device_list);

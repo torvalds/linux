@@ -206,7 +206,7 @@ struct vsp1_clu *vsp1_clu_create(struct vsp1_device *vsp1)
 	struct vsp1_clu *clu;
 	int ret;
 
-	clu = devm_kzalloc(vsp1->dev, sizeof(*clu), GFP_KERNEL);
+	clu = devm_kzalloc_obj(vsp1->dev, *clu);
 	if (clu == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -419,7 +419,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	if (!num_leds)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, struct_size(priv, leds, num_leds), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, leds, num_leds);
 	if (!priv)
 		return -ENOMEM;
 

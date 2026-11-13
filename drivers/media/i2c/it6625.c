@@ -2246,7 +2246,7 @@ static int it6625_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	it6625 = devm_kzalloc(&client->dev, sizeof(struct it6625), GFP_KERNEL);
+	it6625 = devm_kzalloc_obj(&client->dev, struct it6625);
 	if (!it6625)
 		return -ENOMEM;
 

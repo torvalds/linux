@@ -75,7 +75,7 @@ static int a500_ec_leds_probe(struct platform_device *pdev)
 	/* reset and turn off LEDs */
 	regmap_multi_reg_write(rmap, a500_ec_leds_reset_seq, 2);
 
-	white_led = devm_kzalloc(&pdev->dev, sizeof(*white_led), GFP_KERNEL);
+	white_led = devm_kzalloc_obj(&pdev->dev, *white_led);
 	if (!white_led)
 		return -ENOMEM;
 
@@ -86,7 +86,7 @@ static int a500_ec_leds_probe(struct platform_device *pdev)
 	white_led->enable_seq = a500_ec_white_led_enable_seq;
 	white_led->rmap = rmap;
 
-	orange_led = devm_kzalloc(&pdev->dev, sizeof(*orange_led), GFP_KERNEL);
+	orange_led = devm_kzalloc_obj(&pdev->dev, *orange_led);
 	if (!orange_led)
 		return -ENOMEM;
 

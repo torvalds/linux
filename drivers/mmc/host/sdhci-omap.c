@@ -1122,10 +1122,8 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 	if (!(omap_host->flags & SDHCI_OMAP_REQUIRE_IODELAY))
 		return 0;
 
-	pinctrl_state = devm_kcalloc(dev,
-				     MMC_TIMING_MMC_HS200 + 1,
-				     sizeof(*pinctrl_state),
-				     GFP_KERNEL);
+	pinctrl_state = devm_kzalloc_objs(dev, *pinctrl_state,
+					  MMC_TIMING_MMC_HS200 + 1);
 	if (!pinctrl_state)
 		return -ENOMEM;
 

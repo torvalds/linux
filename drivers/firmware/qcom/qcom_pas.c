@@ -35,7 +35,7 @@ struct qcom_pas_context *devm_qcom_pas_context_alloc(struct device *dev,
 {
 	struct qcom_pas_context *ctx;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

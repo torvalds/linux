@@ -219,8 +219,7 @@ int pcm179x_common_init(struct device *dev, struct regmap *regmap)
 {
 	struct pcm179x_private *pcm179x;
 
-	pcm179x = devm_kzalloc(dev, sizeof(struct pcm179x_private),
-				GFP_KERNEL);
+	pcm179x = devm_kzalloc_obj(dev, struct pcm179x_private);
 	if (!pcm179x)
 		return -ENOMEM;
 

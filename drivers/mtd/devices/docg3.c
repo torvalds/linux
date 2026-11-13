@@ -1980,8 +1980,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	ret = -ENOMEM;
-	cascade = devm_kcalloc(dev, DOC_MAX_NBFLOORS, sizeof(*cascade),
-			       GFP_KERNEL);
+	cascade = devm_kzalloc_objs(dev, *cascade, DOC_MAX_NBFLOORS);
 	if (!cascade)
 		return ret;
 	cascade->base = base;

@@ -1005,7 +1005,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ssp = devm_kzalloc(&pdev->dev, sizeof(*ssp), GFP_KERNEL);
+	ssp = devm_kzalloc_obj(&pdev->dev, *ssp);
 	if (!ssp)
 		return -ENOMEM;
 

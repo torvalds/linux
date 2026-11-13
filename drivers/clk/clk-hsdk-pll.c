@@ -311,7 +311,7 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 	struct clk_init_data init = { };
 	struct device *dev = &pdev->dev;
 
-	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = devm_kzalloc_obj(dev, *pll_clk);
 	if (!pll_clk)
 		return -ENOMEM;
 

@@ -481,7 +481,7 @@ static int tps65219_probe(struct i2c_client *client)
 	bool pwr_button;
 	int ret;
 
-	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&client->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

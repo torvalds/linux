@@ -202,7 +202,7 @@ static int mtk_pcie_phy_probe(struct platform_device *pdev)
 	struct mtk_pcie_phy *pcie_phy;
 	int ret;
 
-	pcie_phy = devm_kzalloc(dev, sizeof(*pcie_phy), GFP_KERNEL);
+	pcie_phy = devm_kzalloc_obj(dev, *pcie_phy);
 	if (!pcie_phy)
 		return -ENOMEM;
 

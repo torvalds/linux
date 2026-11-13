@@ -672,7 +672,7 @@ static int cs4271_common_probe(struct device *dev,
 	struct cs4271_private *cs4271;
 	int i, ret;
 
-	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
+	cs4271 = devm_kzalloc_obj(dev, *cs4271);
 	if (!cs4271)
 		return -ENOMEM;
 

@@ -121,7 +121,7 @@ static int imx8mp_dw_hdmi_probe(struct platform_device *pdev)
 	struct device_node *remote;
 	struct imx8mp_hdmi *hdmi;
 
-	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc_obj(dev, *hdmi);
 	if (!hdmi)
 		return -ENOMEM;
 

@@ -219,7 +219,7 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 
 	dev_info(dev, "ARM PL%x revision %s\n", amba_part(adev), rev);
 
-	pl172 = devm_kzalloc(dev, sizeof(*pl172), GFP_KERNEL);
+	pl172 = devm_kzalloc_obj(dev, *pl172);
 	if (!pl172)
 		return -ENOMEM;
 

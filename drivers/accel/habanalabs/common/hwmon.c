@@ -178,7 +178,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 		num_sensors_for_type = counts[i] + 1;
 		dev_dbg(hdev->dev, "num_sensors_for_type %d = %d\n", i, num_sensors_for_type);
 
-		curr_arr = kcalloc(num_sensors_for_type, sizeof(*curr_arr), GFP_KERNEL);
+		curr_arr = kzalloc_objs(*curr_arr, num_sensors_for_type);
 		if (!curr_arr) {
 			rc = -ENOMEM;
 			goto sensors_type_err;

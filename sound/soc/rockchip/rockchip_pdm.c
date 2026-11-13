@@ -586,7 +586,7 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	pdm = devm_kzalloc(&pdev->dev, sizeof(*pdm), GFP_KERNEL);
+	pdm = devm_kzalloc_obj(&pdev->dev, *pdm);
 	if (!pdm)
 		return -ENOMEM;
 

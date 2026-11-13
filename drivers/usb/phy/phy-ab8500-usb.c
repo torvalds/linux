@@ -875,11 +875,11 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ab = devm_kzalloc(&pdev->dev, sizeof(*ab), GFP_KERNEL);
+	ab = devm_kzalloc_obj(&pdev->dev, *ab);
 	if (!ab)
 		return -ENOMEM;
 
-	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
+	otg = devm_kzalloc_obj(&pdev->dev, *otg);
 	if (!otg)
 		return -ENOMEM;
 

@@ -534,7 +534,7 @@ static int max98373_i2c_probe(struct i2c_client *i2c)
 	int i;
 	struct max98373_priv *max98373 = NULL;
 
-	max98373 = devm_kzalloc(&i2c->dev, sizeof(*max98373), GFP_KERNEL);
+	max98373 = devm_kzalloc_obj(&i2c->dev, *max98373);
 
 	if (!max98373) {
 		ret = -ENOMEM;
@@ -558,9 +558,8 @@ static int max98373_i2c_probe(struct i2c_client *i2c)
 	}
 
 	max98373->cache_num = ARRAY_SIZE(max98373_i2c_cache_reg);
-	max98373->cache = devm_kcalloc(&i2c->dev, max98373->cache_num,
-				       sizeof(*max98373->cache),
-				       GFP_KERNEL);
+	max98373->cache = devm_kzalloc_objs(&i2c->dev, *max98373->cache,
+					    max98373->cache_num);
 	if (!max98373->cache) {
 		ret = -ENOMEM;
 		return ret;

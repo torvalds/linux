@@ -4900,8 +4900,7 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 	uint32_t num_cpu_cores = amdgpu_dpm_get_num_cpu_cores(adev);
 
 	if (amdgpu_dpm_is_cclk_dpm_supported(adev)) {
-		p_val = kcalloc(num_cpu_cores, sizeof(uint16_t),
-				GFP_KERNEL);
+		p_val = kzalloc_objs(uint16_t, num_cpu_cores);
 
 		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_CPU_CLK,
 					    (void *)p_val, &size)) {

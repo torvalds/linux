@@ -1677,8 +1677,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	}
 
 	/* Allocate scratch space for all instruction data. */
-	data = kmalloc_array(max_n_data_required, sizeof(unsigned int),
-			     GFP_KERNEL);
+	data = kmalloc_objs(unsigned int, max_n_data_required);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
@@ -1768,7 +1767,7 @@ static int do_insn_ioctl(struct comedi_device *dev,
 		n_data = MAX_SAMPLES;
 	}
 
-	data = kmalloc_array(n_data, sizeof(unsigned int), GFP_KERNEL);
+	data = kmalloc_objs(unsigned int, n_data);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;

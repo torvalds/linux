@@ -151,7 +151,7 @@ static struct clk_hw *clk_register_gpio(struct device *dev, u8 num_parents,
 		{ .index = 1 },
 	};
 
-	clk_gpio = devm_kzalloc(dev, sizeof(*clk_gpio),	GFP_KERNEL);
+	clk_gpio = devm_kzalloc_obj(dev, *clk_gpio);
 	if (!clk_gpio)
 		return ERR_PTR(-ENOMEM);
 
@@ -362,7 +362,7 @@ static int clk_gated_fixed_probe(struct platform_device *pdev)
 	u32 rate;
 	int ret;
 
-	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
+	clk = devm_kzalloc_obj(dev, *clk);
 	if (!clk)
 		return -ENOMEM;
 

@@ -869,7 +869,7 @@ static int cp500_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	char buf[64];
 	int ret;
 
-	cp500 = devm_kzalloc(dev, sizeof(*cp500), GFP_KERNEL);
+	cp500 = devm_kzalloc_obj(dev, *cp500);
 	if (!cp500)
 		return -ENOMEM;
 	cp500->pci_dev = pci_dev;

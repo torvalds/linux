@@ -231,15 +231,15 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	u8 offset;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 
-	ls_epc = devm_kzalloc(dev, sizeof(*ls_epc), GFP_KERNEL);
+	ls_epc = devm_kzalloc_obj(dev, *ls_epc);
 	if (!ls_epc)
 		return -ENOMEM;
 

@@ -111,7 +111,7 @@ static struct ahci_host_priv *ahci_dwc_get_resources(struct platform_device *pde
 	struct ahci_dwc_host_priv *dpriv;
 	struct ahci_host_priv *hpriv;
 
-	dpriv = devm_kzalloc(&pdev->dev, sizeof(*dpriv), GFP_KERNEL);
+	dpriv = devm_kzalloc_obj(&pdev->dev, *dpriv);
 	if (!dpriv)
 		return ERR_PTR(-ENOMEM);
 

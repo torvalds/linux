@@ -397,7 +397,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 			return error;
 	}
 
-	f01 = devm_kzalloc(&fn->dev, sizeof(struct f01_data), GFP_KERNEL);
+	f01 = devm_kzalloc_obj(&fn->dev, struct f01_data);
 	if (!f01)
 		return -ENOMEM;
 

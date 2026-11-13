@@ -3149,7 +3149,7 @@ static int coda_probe(struct platform_device *pdev)
 	struct coda_dev *dev;
 	int ret, irq;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

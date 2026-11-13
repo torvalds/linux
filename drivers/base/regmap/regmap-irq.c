@@ -733,50 +733,44 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		return -ENOMEM;
 
 	if (chip->num_main_regs) {
-		d->main_status_buf = kcalloc(chip->num_main_regs,
-					     sizeof(*d->main_status_buf),
-					     GFP_KERNEL);
+		d->main_status_buf = kzalloc_objs(*d->main_status_buf,
+						  chip->num_main_regs);
 
 		if (!d->main_status_buf)
 			goto err_alloc;
 	}
 
-	d->status_buf = kcalloc(chip->num_regs, sizeof(*d->status_buf),
-				GFP_KERNEL);
+	d->status_buf = kzalloc_objs(*d->status_buf, chip->num_regs);
 	if (!d->status_buf)
 		goto err_alloc;
 
 	if (chip->status_is_level) {
-		d->prev_status_buf = kcalloc(chip->num_regs, sizeof(*d->prev_status_buf),
-					     GFP_KERNEL);
+		d->prev_status_buf = kzalloc_objs(*d->prev_status_buf,
+						  chip->num_regs);
 		if (!d->prev_status_buf)
 			goto err_alloc;
 	}
 
-	d->mask_buf = kcalloc(chip->num_regs, sizeof(*d->mask_buf),
-			      GFP_KERNEL);
+	d->mask_buf = kzalloc_objs(*d->mask_buf, chip->num_regs);
 	if (!d->mask_buf)
 		goto err_alloc;
 
-	d->mask_buf_def = kcalloc(chip->num_regs, sizeof(*d->mask_buf_def),
-				  GFP_KERNEL);
+	d->mask_buf_def = kzalloc_objs(*d->mask_buf_def, chip->num_regs);
 	if (!d->mask_buf_def)
 		goto err_alloc;
 
 	if (chip->wake_base) {
-		d->wake_buf = kcalloc(chip->num_regs, sizeof(*d->wake_buf),
-				      GFP_KERNEL);
+		d->wake_buf = kzalloc_objs(*d->wake_buf, chip->num_regs);
 		if (!d->wake_buf)
 			goto err_alloc;
 	}
 
 	if (chip->type_in_mask) {
-		d->type_buf_def = kcalloc(chip->num_regs,
-					  sizeof(*d->type_buf_def), GFP_KERNEL);
+		d->type_buf_def = kzalloc_objs(*d->type_buf_def, chip->num_regs);
 		if (!d->type_buf_def)
 			goto err_alloc;
 
-		d->type_buf = kcalloc(chip->num_regs, sizeof(*d->type_buf), GFP_KERNEL);
+		d->type_buf = kzalloc_objs(*d->type_buf, chip->num_regs);
 		if (!d->type_buf)
 			goto err_alloc;
 	}
@@ -785,15 +779,14 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		/*
 		 * Create config_buf[num_config_bases][num_config_regs]
 		 */
-		d->config_buf = kcalloc(chip->num_config_bases,
-					sizeof(*d->config_buf), GFP_KERNEL);
+		d->config_buf = kzalloc_objs(*d->config_buf,
+					     chip->num_config_bases);
 		if (!d->config_buf)
 			goto err_alloc;
 
 		for (i = 0; i < chip->num_config_bases; i++) {
-			d->config_buf[i] = kcalloc(chip->num_config_regs,
-						   sizeof(**d->config_buf),
-						   GFP_KERNEL);
+			d->config_buf[i] = kzalloc_objs(**d->config_buf,
+							chip->num_config_regs);
 			if (!d->config_buf[i])
 				goto err_alloc;
 		}

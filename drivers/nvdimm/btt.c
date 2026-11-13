@@ -721,7 +721,7 @@ static int log_set_indices(struct arena_info *arena)
 
 static int btt_rtt_init(struct arena_info *arena)
 {
-	arena->rtt = kcalloc(arena->nfree, sizeof(u32), GFP_KERNEL);
+	arena->rtt = kzalloc_objs(u32, arena->nfree);
 	if (arena->rtt == NULL)
 		return -ENOMEM;
 
@@ -1577,7 +1577,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	struct nd_namespace_io *nsio;
 	struct device *dev = &nd_btt->dev;
 
-	btt = devm_kzalloc(dev, sizeof(struct btt), GFP_KERNEL);
+	btt = devm_kzalloc_obj(dev, struct btt);
 	if (!btt)
 		return NULL;
 
@@ -1666,7 +1666,7 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 		return -ENODEV;
 	}
 
-	btt_sb = devm_kzalloc(&nd_btt->dev, sizeof(*btt_sb), GFP_KERNEL);
+	btt_sb = devm_kzalloc_obj(&nd_btt->dev, *btt_sb);
 	if (!btt_sb)
 		return -ENOMEM;
 

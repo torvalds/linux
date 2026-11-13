@@ -151,7 +151,7 @@ int st_thermal_register(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

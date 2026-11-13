@@ -621,7 +621,7 @@ static int mhi_mbim_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 	struct mhi_mbim_context *mbim;
 	int err;
 
-	mbim = devm_kzalloc(&mhi_dev->dev, sizeof(*mbim), GFP_KERNEL);
+	mbim = devm_kzalloc_obj(&mhi_dev->dev, *mbim);
 	if (!mbim)
 		return -ENOMEM;
 

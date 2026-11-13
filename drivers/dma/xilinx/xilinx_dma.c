@@ -3033,7 +3033,7 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	int err;
 
 	/* Allocate and initialize the channel structure */
-	chan = devm_kzalloc(xdev->dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(xdev->dev, *chan);
 	if (!chan)
 		return -ENOMEM;
 
@@ -3285,7 +3285,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	int i, err;
 
 	/* Allocate and initialize the DMA engine structure */
-	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(&pdev->dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

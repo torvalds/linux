@@ -559,8 +559,7 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	unsigned int wdt_max_duration;	/* (seconds) */
 	int ret, irq;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct orion_watchdog),
-			   GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, struct orion_watchdog);
 	if (!dev)
 		return -ENOMEM;
 

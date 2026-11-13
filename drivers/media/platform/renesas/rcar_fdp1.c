@@ -2256,7 +2256,7 @@ static int fdp1_probe(struct platform_device *pdev)
 	int ret;
 	int hw_version;
 
-	fdp1 = devm_kzalloc(&pdev->dev, sizeof(*fdp1), GFP_KERNEL);
+	fdp1 = devm_kzalloc_obj(&pdev->dev, *fdp1);
 	if (!fdp1)
 		return -ENOMEM;
 

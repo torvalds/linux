@@ -1741,6 +1741,7 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	if (space_info->block_group_kobjs[index]) {
 		spin_unlock(&space_info->lock);
 		kobject_put(&rkobj->kobj);
+		memalloc_nofs_restore(nofs_flag);
 		return;
 	} else {
 		space_info->block_group_kobjs[index] = &rkobj->kobj;
@@ -2049,6 +2050,9 @@ int btrfs_sysfs_add_device(struct btrfs_device *device)
 	ret = kobject_init_and_add(&device->devid_kobj, &devid_ktype,
 				   devinfo_kobj, "%llu", device->devid);
 	if (ret) {
+		if (device->bdev)
+			sysfs_remove_link(devices_kobj,
+					  bdev_kobj(device->bdev)->name);
 		kobject_put(&device->devid_kobj);
 		btrfs_warn(device->fs_info,
 			   "devinfo init for devid %llu failed: %d",

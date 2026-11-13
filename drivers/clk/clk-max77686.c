@@ -189,7 +189,7 @@ static int max77686_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drv_data = devm_kzalloc(dev, struct_size(drv_data, max_clk_data, num_clks), GFP_KERNEL);
+	drv_data = devm_kzalloc_flex(dev, *drv_data, max_clk_data, num_clks);
 	if (!drv_data)
 		return -ENOMEM;
 

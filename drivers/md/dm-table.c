@@ -513,7 +513,7 @@ static char **realloc_argv(unsigned int *size, char **old_argv)
 		new_size = 8;
 		gfp = GFP_NOIO;
 	}
-	argv = kmalloc_array(new_size, sizeof(*argv), gfp);
+	argv = kmalloc_objs(*argv, new_size, gfp);
 	if (argv) {
 		if (old_argv)
 			memcpy(argv, old_argv, *size * sizeof(*argv));

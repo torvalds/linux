@@ -156,7 +156,7 @@ int lp8788_irq_init(struct lp8788 *lp, int irq)
 		return 0;
 	}
 
-	irqd = devm_kzalloc(lp->dev, sizeof(*irqd), GFP_KERNEL);
+	irqd = devm_kzalloc_obj(lp->dev, *irqd);
 	if (!irqd)
 		return -ENOMEM;
 

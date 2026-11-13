@@ -141,7 +141,7 @@ static int sky1_pcie_probe(struct platform_device *pdev)
 	struct sky1_pcie *pcie;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 
@@ -176,7 +176,7 @@ static int sky1_pcie_probe(struct platform_device *pdev)
 	cdns_pcie->is_rc = true;
 	cdns_pcie->is_hpa = true;
 
-	reg_off = devm_kzalloc(dev, sizeof(*reg_off), GFP_KERNEL);
+	reg_off = devm_kzalloc_obj(dev, *reg_off);
 	if (!reg_off) {
 		pci_ecam_free(pcie->cfg);
 		return -ENOMEM;

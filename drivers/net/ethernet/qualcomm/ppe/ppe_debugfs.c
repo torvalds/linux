@@ -827,7 +827,7 @@ void ppe_debugfs_setup(struct ppe_device *ppe_dev)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++) {
-		entry = devm_kzalloc(ppe_dev->dev, sizeof(*entry), GFP_KERNEL);
+		entry = devm_kzalloc_obj(ppe_dev->dev, *entry);
 		if (!entry)
 			return;
 

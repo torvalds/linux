@@ -653,7 +653,7 @@ static int macsmc_power_probe(struct platform_device *pdev)
 	if (!smc)
 		return -ENODEV;
 
-	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
+	power = devm_kzalloc_obj(dev, *power);
 	if (!power)
 		return -ENOMEM;
 
@@ -686,9 +686,8 @@ static int macsmc_power_probe(struct platform_device *pdev)
 
 	if (has_battery) {
 		power->batt_desc = macsmc_battery_desc_template;
-		props = devm_kcalloc(dev, MACSMC_MAX_BATT_PROPS,
-				     sizeof(enum power_supply_property),
-				     GFP_KERNEL);
+		props = devm_kzalloc_objs(dev, enum power_supply_property,
+					  MACSMC_MAX_BATT_PROPS);
 		if (!props)
 			return -ENOMEM;
 
@@ -818,9 +817,8 @@ static int macsmc_power_probe(struct platform_device *pdev)
 
 	if (has_ac_adapter) {
 		power->ac_desc = macsmc_ac_desc_template;
-		props = devm_kcalloc(dev, MACSMC_MAX_AC_PROPS,
-				     sizeof(enum power_supply_property),
-				     GFP_KERNEL);
+		props = devm_kzalloc_objs(dev, enum power_supply_property,
+					  MACSMC_MAX_AC_PROPS);
 		if (!props)
 			return -ENOMEM;
 

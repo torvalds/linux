@@ -44,7 +44,7 @@ static int rt5120_pwrkey_probe(struct platform_device *pdev)
 	int press_irq, release_irq;
 	int error;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

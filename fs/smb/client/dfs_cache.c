@@ -798,7 +798,7 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 	INIT_LIST_HEAD(head);
 
 	list_for_each_entry(t, &ce->tlist, list) {
-		it = kzalloc_obj(*it, GFP_KERNEL);
+		it = kzalloc_obj(*it);
 		if (!it) {
 			rc = -ENOMEM;
 			goto err_free_it;

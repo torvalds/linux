@@ -1237,8 +1237,8 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 	int ret;
 	char *name;
 
-	prof_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
-		sizeof(prof_ctrls[0]), GFP_KERNEL);
+	prof_ctrls = devm_kzalloc_objs(tas_priv->dev, prof_ctrls[0],
+				       nr_controls);
 	if (!prof_ctrls) {
 		ret = -ENOMEM;
 		goto out;
@@ -1269,8 +1269,8 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 	case TAS2573:
 	case TAS2574:
 	case TAS2781:
-	prof_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
-		sizeof(prof_ctrls[0]), GFP_KERNEL);
+	prof_ctrls = devm_kzalloc_objs(tas_priv->dev, prof_ctrls[0],
+				       nr_controls);
 	if (!prof_ctrls) {
 		ret = -ENOMEM;
 		goto out;
@@ -1399,8 +1399,7 @@ static int tasdevice_dsp_create_ctrls(struct tasdevice_priv *tas_priv)
 	/* Alloc kcontrol via devm_kzalloc, which don't manually
 	 * free the kcontrol
 	 */
-	dsp_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
-		sizeof(dsp_ctrls[0]), GFP_KERNEL);
+	dsp_ctrls = devm_kzalloc_objs(tas_priv->dev, dsp_ctrls[0], nr_controls);
 	if (!dsp_ctrls)
 		return -ENOMEM;
 
@@ -1514,8 +1513,7 @@ static int create_tas2781_cali_start_ktrl(struct tasdevice_priv
 	struct soc_bytes_ext *ext_cali_start;
 	char *cali_start_name;
 
-	ext_cali_start = devm_kzalloc(priv->dev,
-		sizeof(*ext_cali_start), GFP_KERNEL);
+	ext_cali_start = devm_kzalloc_obj(priv->dev, *ext_cali_start);
 	if (!ext_cali_start)
 		return -ENOMEM;
 
@@ -1653,8 +1651,7 @@ static int create_tas2573_cali_status_ktrl(struct tasdevice_priv
 	struct soc_bytes_ext *ext_cali_start;
 	char *cali_start_name;
 
-	ext_cali_start = devm_kzalloc(priv->dev,
-		sizeof(*ext_cali_start), GFP_KERNEL);
+	ext_cali_start = devm_kzalloc_obj(priv->dev, *ext_cali_start);
 	if (!ext_cali_start)
 		return -ENOMEM;
 
@@ -1690,8 +1687,7 @@ static int create_tas2573_cali_re_ktrl(struct tasdevice_priv
 	struct soc_bytes_ext *ext_cali_start;
 	char *cali_start_name;
 
-	ext_cali_start = devm_kzalloc(priv->dev,
-		sizeof(*ext_cali_start), GFP_KERNEL);
+	ext_cali_start = devm_kzalloc_obj(priv->dev, *ext_cali_start);
 	if (!ext_cali_start)
 		return -ENOMEM;
 
@@ -1820,13 +1816,11 @@ static int tasdevice_create_cali_ctrls(struct tasdevice_priv *priv)
 	 * Alloc kcontrol via devm_kzalloc(), which don't manually
 	 * free the kcontrol.
 	 */
-	cali_ctrls = devm_kcalloc(priv->dev, nctrls,
-		sizeof(cali_ctrls[0]), GFP_KERNEL);
+	cali_ctrls = devm_kzalloc_objs(priv->dev, cali_ctrls[0], nctrls);
 	if (!cali_ctrls)
 		return -ENOMEM;
 
-	ext_cali_data = devm_kzalloc(priv->dev, sizeof(*ext_cali_data),
-		GFP_KERNEL);
+	ext_cali_data = devm_kzalloc_obj(priv->dev, *ext_cali_data);
 	if (!ext_cali_data)
 		return -ENOMEM;
 

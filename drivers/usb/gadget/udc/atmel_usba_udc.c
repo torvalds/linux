@@ -2172,8 +2172,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		udc->num_ep = usba_config_fifo_table(udc);
 	}
 
-	eps = devm_kcalloc(&pdev->dev, udc->num_ep, sizeof(struct usba_ep),
-			   GFP_KERNEL);
+	eps = devm_kzalloc_objs(&pdev->dev, struct usba_ep, udc->num_ep);
 	if (!eps)
 		return ERR_PTR(-ENOMEM);
 
@@ -2276,7 +2275,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	struct usba_udc *udc;
 	int irq, ret, i;
 
-	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(&pdev->dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 

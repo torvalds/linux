@@ -240,7 +240,7 @@ static int wl1251_spi_probe(struct spi_device *spi)
 	if (!np)
 		return -ENODEV;
 
-	wl_spi = devm_kzalloc(&spi->dev, sizeof(*wl_spi), GFP_KERNEL);
+	wl_spi = devm_kzalloc_obj(&spi->dev, *wl_spi);
 	if (!wl_spi)
 		return -ENOMEM;
 

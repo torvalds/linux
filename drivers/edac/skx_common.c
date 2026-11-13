@@ -363,8 +363,7 @@ int skx_adxl_get(void)
 	while (*names++)
 		adxl_component_count++;
 
-	adxl_values = kcalloc(adxl_component_count, sizeof(*adxl_values),
-			      GFP_KERNEL);
+	adxl_values = kzalloc_objs(*adxl_values, adxl_component_count);
 	if (!adxl_values) {
 		adxl_component_count = 0;
 		return -ENOMEM;

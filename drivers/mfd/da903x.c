@@ -510,8 +510,7 @@ static int da903x_probe(struct i2c_client *client)
 	unsigned int tmp;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(struct da903x_chip),
-				GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, struct da903x_chip);
 	if (chip == NULL)
 		return -ENOMEM;
 

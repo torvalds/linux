@@ -1441,8 +1441,7 @@ static s32 tac_init(struct tac5xx2_prv *tac_dev)
 		return -EINVAL;
 	}
 
-	component_driver = devm_kzalloc(tac_dev->dev, sizeof(*component_driver),
-					GFP_KERNEL);
+	component_driver = devm_kzalloc_obj(tac_dev->dev, *component_driver);
 	if (!component_driver)
 		return -ENOMEM;
 
@@ -1934,7 +1933,7 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 	struct regmap *regmap;
 	int ret, i;
 
-	tac_dev = devm_kzalloc(dev, sizeof(*tac_dev), GFP_KERNEL);
+	tac_dev = devm_kzalloc_obj(dev, *tac_dev);
 	if (!tac_dev)
 		return dev_err_probe(dev, -ENOMEM,
 				     "Failed devm_kzalloc");
@@ -1968,8 +1967,7 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 				continue;
 			}
 
-			function_data = devm_kzalloc(dev, sizeof(*function_data),
-						     GFP_KERNEL);
+			function_data = devm_kzalloc_obj(dev, *function_data);
 			if (!function_data)
 				return dev_err_probe(dev, -ENOMEM,
 						     "failed to allocate %s function data",

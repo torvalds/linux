@@ -425,7 +425,7 @@ static int um780xtx_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, data);

@@ -771,7 +771,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	int ret = -ENOMEM;
 	int i;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

@@ -503,8 +503,7 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 #ifdef CONFIG_SERIAL_8250_DMA
 	dmacnt = of_property_count_strings(pdev->dev.of_node, "dma-names");
 	if (dmacnt == 2) {
-		data->dma = devm_kzalloc(&pdev->dev, sizeof(*data->dma),
-					 GFP_KERNEL);
+		data->dma = devm_kzalloc_obj(&pdev->dev, *data->dma);
 		if (!data->dma)
 			return -ENOMEM;
 
@@ -541,7 +540,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	if (!uart.port.membase)
 		return -ENOMEM;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

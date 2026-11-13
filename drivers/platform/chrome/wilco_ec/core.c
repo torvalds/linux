@@ -40,7 +40,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	struct wilco_ec_device *ec;
 	int ret;
 
-	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
+	ec = devm_kzalloc_obj(dev, *ec);
 	if (!ec)
 		return -ENOMEM;
 

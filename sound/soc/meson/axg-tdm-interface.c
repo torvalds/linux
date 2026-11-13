@@ -530,7 +530,7 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 	struct snd_soc_dai_driver *dai_drv;
 	struct axg_tdm_iface *iface;
 
-	iface = devm_kzalloc(dev, sizeof(*iface), GFP_KERNEL);
+	iface = devm_kzalloc_obj(dev, *iface);
 	if (!iface)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, iface);

@@ -680,7 +680,7 @@ struct ipu6_mmu *ipu6_mmu_init(struct device *dev,
 	struct ipu6_mmu *mmu;
 	int ret;
 
-	mmu = devm_kzalloc(dev, sizeof(*mmu), GFP_KERNEL);
+	mmu = devm_kzalloc_obj(dev, *mmu);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 

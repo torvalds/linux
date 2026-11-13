@@ -164,6 +164,7 @@ struct asus_wmi_wmi_info {
 
 struct asus_wmi_sensors {
 	struct asus_wmi_wmi_info wmi;
+	struct hwmon_chip_info chip_info;
 	/* lock access to internal cache */
 	struct mutex lock;
 };
@@ -252,7 +253,7 @@ static int asus_wmi_hwmon_add_chan_info(struct hwmon_channel_info *asus_wmi_hwmo
 {
 	u32 *cfg;
 
-	cfg = devm_kcalloc(dev, num + 1, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kzalloc_objs(dev, *cfg, num + 1);
 	if (!cfg)
 		return -ENOMEM;
 
@@ -496,11 +497,6 @@ static const struct hwmon_ops asus_wmi_hwmon_ops = {
 	.read_string = asus_wmi_hwmon_read_string,
 };
 
-static struct hwmon_chip_info asus_wmi_chip_info = {
-	.ops = &asus_wmi_hwmon_ops,
-	.info = NULL,
-};
-
 static int asus_wmi_configure_sensor_setup(struct device *dev,
 					   struct asus_wmi_sensors *sensor_data)
 {
@@ -508,7 +504,7 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 	struct hwmon_channel_info *asus_wmi_hwmon_chan;
 	int nr_count[hwmon_max] = {}, nr_types = 0;
 	struct asus_wmi_sensor_info *temp_sensor;
-	const struct hwmon_chip_info *chip_info;
+	struct hwmon_chip_info *chip_info;
 	enum hwmon_sensor_types type;
 	struct device *hwdev;
 	int i, idx;
@@ -538,23 +534,22 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 	if (nr_count[hwmon_temp])
 		nr_count[hwmon_chip]++, nr_types++;
 
-	asus_wmi_hwmon_chan = devm_kcalloc(dev, nr_types,
-					   sizeof(*asus_wmi_hwmon_chan),
-					   GFP_KERNEL);
+	asus_wmi_hwmon_chan = devm_kzalloc_objs(dev, *asus_wmi_hwmon_chan,
+						nr_types);
 	if (!asus_wmi_hwmon_chan)
 		return -ENOMEM;
 
-	ptr_asus_wmi_ci = devm_kcalloc(dev, nr_types + 1,
-				       sizeof(*ptr_asus_wmi_ci), GFP_KERNEL);
+	ptr_asus_wmi_ci = devm_kzalloc_objs(dev, *ptr_asus_wmi_ci, nr_types + 1);
 	if (!ptr_asus_wmi_ci)
 		return -ENOMEM;
 
-	asus_wmi_chip_info.info = ptr_asus_wmi_ci;
-	chip_info = &asus_wmi_chip_info;
+	chip_info = &sensor_data->chip_info;
+	chip_info->ops = &asus_wmi_hwmon_ops;
+	chip_info->info = ptr_asus_wmi_ci;
 
-	sensor_data->wmi.info_by_id = devm_kcalloc(dev, sensor_data->wmi.sensor_count,
-						   sizeof(*sensor_data->wmi.info_by_id),
-						   GFP_KERNEL);
+	sensor_data->wmi.info_by_id = devm_kzalloc_objs(dev,
+							*sensor_data->wmi.info_by_id,
+							sensor_data->wmi.sensor_count);
 
 	if (!sensor_data->wmi.info_by_id)
 		return -ENOMEM;
@@ -571,16 +566,15 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 
 		*ptr_asus_wmi_ci++ = asus_wmi_hwmon_chan++;
 
-		sensor_data->wmi.info[type] = devm_kcalloc(dev,
-							   nr_count[type],
-							   sizeof(*sensor_data->wmi.info[type]),
-							   GFP_KERNEL);
+		sensor_data->wmi.info[type] = devm_kzalloc_objs(dev,
+								*sensor_data->wmi.info[type],
+								nr_count[type]);
 		if (!sensor_data->wmi.info[type])
 			return -ENOMEM;
 	}
 
 	for (i = sensor_data->wmi.sensor_count - 1; i >= 0; i--) {
-		temp_sensor = devm_kzalloc(dev, sizeof(*temp_sensor), GFP_KERNEL);
+		temp_sensor = devm_kzalloc_obj(dev, *temp_sensor);
 		if (!temp_sensor)
 			return -ENOMEM;
 
@@ -620,7 +614,7 @@ static int asus_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (!dmi_check_system(asus_wmi_dmi_table))
 		return -ENODEV;
 
-	sensor_data = devm_kzalloc(dev, sizeof(*sensor_data), GFP_KERNEL);
+	sensor_data = devm_kzalloc_obj(dev, *sensor_data);
 	if (!sensor_data)
 		return -ENOMEM;
 

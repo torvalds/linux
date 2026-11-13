@@ -2067,13 +2067,12 @@ static int xudc_probe(struct platform_device *pdev)
 	u32 ier;
 	u8 *buff;
 
-	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(&pdev->dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 
 	/* Create a dummy request for GET_STATUS, SET_ADDRESS */
-	udc->req = devm_kzalloc(&pdev->dev, sizeof(struct xusb_req),
-				GFP_KERNEL);
+	udc->req = devm_kzalloc_obj(&pdev->dev, struct xusb_req);
 	if (!udc->req)
 		return -ENOMEM;
 

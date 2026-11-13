@@ -906,7 +906,7 @@ static int xcsi2rxss_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int irq, ret;
 
-	xcsi2rxss = devm_kzalloc(dev, sizeof(*xcsi2rxss), GFP_KERNEL);
+	xcsi2rxss = devm_kzalloc_obj(dev, *xcsi2rxss);
 	if (!xcsi2rxss)
 		return -ENOMEM;
 

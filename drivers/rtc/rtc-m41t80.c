@@ -912,8 +912,7 @@ static int m41t80_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	m41t80_data = devm_kzalloc(&client->dev, sizeof(*m41t80_data),
-				   GFP_KERNEL);
+	m41t80_data = devm_kzalloc_obj(&client->dev, *m41t80_data);
 	if (!m41t80_data)
 		return -ENOMEM;
 

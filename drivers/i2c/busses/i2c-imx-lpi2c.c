@@ -743,7 +743,7 @@ static int lpi2c_imx_alloc_rx_cmd_buf(struct lpi2c_imx_struct *lpi2c_imx)
 	 * the rx command words buffer.
 	 */
 	cmd_num = DIV_ROUND_UP(rx_remain, CHUNK_DATA);
-	dma->rx_cmd_buf = kcalloc(cmd_num, sizeof(u16), GFP_KERNEL);
+	dma->rx_cmd_buf = kzalloc_objs(u16, cmd_num);
 	dma->rx_cmd_buf_len = cmd_num * sizeof(u16);
 
 	if (!dma->rx_cmd_buf) {
@@ -1406,7 +1406,7 @@ static int lpi2c_dma_init(struct device *dev, dma_addr_t phy_addr)
 	if (!group)
 		return -ENOMEM;
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma) {
 		ret = -ENOMEM;
 		goto release_group;
@@ -1483,7 +1483,7 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 	unsigned int temp;
 	int ret;
 
-	lpi2c_imx = devm_kzalloc(&pdev->dev, sizeof(*lpi2c_imx), GFP_KERNEL);
+	lpi2c_imx = devm_kzalloc_obj(&pdev->dev, *lpi2c_imx);
 	if (!lpi2c_imx)
 		return -ENOMEM;
 

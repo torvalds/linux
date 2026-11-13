@@ -655,7 +655,7 @@ static int pulsar_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	    intf->cur_altsetting->desc.bInterfaceNumber != USB_INTERFACE)
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

@@ -1694,7 +1694,7 @@ static int lwmi_other_probe(struct wmi_device *wdev, const void *context)
 	struct component_match *master_match = NULL;
 	struct lwmi_om_priv *priv;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -671,7 +671,7 @@ static int csi_formatter_probe(struct platform_device *pdev)
 	struct csi_formatter *formatter;
 	int ret;
 
-	formatter = devm_kzalloc(dev, sizeof(*formatter), GFP_KERNEL);
+	formatter = devm_kzalloc_obj(dev, *formatter);
 	if (!formatter)
 		return -ENOMEM;
 

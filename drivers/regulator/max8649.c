@@ -155,8 +155,7 @@ static int max8649_regulator_probe(struct i2c_client *client)
 	unsigned char data;
 	int ret;
 
-	info = devm_kzalloc(&client->dev, sizeof(struct max8649_regulator_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, struct max8649_regulator_info);
 	if (!info)
 		return -ENOMEM;
 

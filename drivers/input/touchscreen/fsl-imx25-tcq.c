@@ -505,7 +505,7 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 	void __iomem *mem;
 	int error;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

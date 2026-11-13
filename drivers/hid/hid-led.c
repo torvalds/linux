@@ -451,7 +451,7 @@ static int hidled_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	unsigned int minor;
 	int ret, i;
 
-	ldev = devm_kzalloc(&hdev->dev, sizeof(*ldev), GFP_KERNEL);
+	ldev = devm_kzalloc_obj(&hdev->dev, *ldev);
 	if (!ldev)
 		return -ENOMEM;
 
@@ -479,8 +479,8 @@ static int hidled_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			return ret;
 	}
 
-	ldev->rgb = devm_kcalloc(&hdev->dev, ldev->config->num_leds,
-				 sizeof(struct hidled_rgb), GFP_KERNEL);
+	ldev->rgb = devm_kzalloc_objs(&hdev->dev, struct hidled_rgb,
+				      ldev->config->num_leds);
 	if (!ldev->rgb)
 		return -ENOMEM;
 

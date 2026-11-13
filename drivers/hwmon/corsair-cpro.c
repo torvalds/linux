@@ -215,10 +215,11 @@ static int set_target(struct ccp_device *ccp, int channel, long val)
 	int ret;
 
 	val = clamp_val(val, 0, 0xFFFF);
-	ccp->target[channel] = val;
 
 	mutex_lock(&ccp->mutex);
 	ret = send_usb_cmd(ccp, CTL_SET_FAN_TARGET, channel, val >> 8, val);
+	if (!ret)
+		ccp->target[channel] = val;
 
 	mutex_unlock(&ccp->mutex);
 	return ret;
@@ -589,7 +590,7 @@ static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	bool fw_valid, bl_valid;
 	int ret;
 
-	ccp = devm_kzalloc(&hdev->dev, sizeof(*ccp), GFP_KERNEL);
+	ccp = devm_kzalloc_obj(&hdev->dev, *ccp);
 	if (!ccp)
 		return -ENOMEM;
 

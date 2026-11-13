@@ -1070,9 +1070,7 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 
 	nfc_info(&nfc_spi_dev->dev, "ST95HF driver probe called.\n");
 
-	st95context = devm_kzalloc(&nfc_spi_dev->dev,
-				   sizeof(struct st95hf_context),
-				   GFP_KERNEL);
+	st95context = devm_kzalloc_obj(&nfc_spi_dev->dev, struct st95hf_context);
 	if (!st95context)
 		return -ENOMEM;
 

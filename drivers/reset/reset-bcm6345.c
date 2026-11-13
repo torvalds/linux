@@ -96,8 +96,7 @@ static int bcm6345_reset_probe(struct platform_device *pdev)
 {
 	struct bcm6345_reset *bcm6345_reset;
 
-	bcm6345_reset = devm_kzalloc(&pdev->dev,
-				     sizeof(*bcm6345_reset), GFP_KERNEL);
+	bcm6345_reset = devm_kzalloc_obj(&pdev->dev, *bcm6345_reset);
 	if (!bcm6345_reset)
 		return -ENOMEM;
 

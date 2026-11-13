@@ -293,7 +293,7 @@ static int mtk_mdp_rdma_probe(struct platform_device *pdev)
 	struct mtk_mdp_rdma *priv;
 	int ret = 0;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

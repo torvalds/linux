@@ -662,8 +662,7 @@ static int emc1403_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, ret,
 				     "Failed to enable regulator\n");
 
-	data = devm_kzalloc(&client->dev, sizeof(struct thermal_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct thermal_data);
 	if (!data)
 		return -ENOMEM;
 

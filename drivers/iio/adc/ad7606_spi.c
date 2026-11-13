@@ -284,7 +284,7 @@ static int ad7606_spi_offload_probe(struct device *dev,
 	};
 	int ret;
 
-	bus_data = devm_kzalloc(dev, sizeof(*bus_data), GFP_KERNEL);
+	bus_data = devm_kzalloc_obj(dev, *bus_data);
 	if (!bus_data)
 		return -ENOMEM;
 	st->bus_data = bus_data;

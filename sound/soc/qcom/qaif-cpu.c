@@ -771,7 +771,7 @@ int asoc_qcom_qaif_cpu_platform_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret, i, dai_id, idx;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate driver data\n");
 	platform_set_drvdata(pdev, drvdata);
@@ -836,8 +836,8 @@ int asoc_qcom_qaif_cpu_platform_probe(struct platform_device *pdev)
 	}
 
 	drvdata->num_clks = variant->num_clks;
-	drvdata->clks = devm_kcalloc(dev, drvdata->num_clks,
-				     sizeof(*drvdata->clks), GFP_KERNEL);
+	drvdata->clks = devm_kzalloc_objs(dev, *drvdata->clks,
+					  drvdata->num_clks);
 	if (!drvdata->clks)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate clocks\n");
 

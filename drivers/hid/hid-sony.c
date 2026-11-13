@@ -602,7 +602,7 @@ static int ghl_init_urb(struct sony_sc *sc, struct usb_device *usbdev,
 
 	pipe = usb_sndctrlpipe(usbdev, 0);
 
-	cr = devm_kzalloc(&sc->hdev->dev, sizeof(*cr), GFP_ATOMIC);
+	cr = devm_kzalloc_obj(&sc->hdev->dev, *cr, GFP_ATOMIC);
 	if (!cr)
 		return -ENOMEM;
 
@@ -2338,7 +2338,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	    !strcmp(hdev->name, "ShanWan PS(R) Ga`epad"))
 		quirks |= SHANWAN_GAMEPAD;
 
-	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
+	sc = devm_kzalloc_obj(&hdev->dev, *sc);
 	if (!sc)
 		return -ENOMEM;
 

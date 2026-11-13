@@ -150,7 +150,7 @@ static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		mqd_size *= NUM_XCC(node->xcc_mask);
 
 	if (node->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+		mqd_mem_obj = kzalloc_obj(struct kfd_mem_obj);
 		if (!mqd_mem_obj)
 			return NULL;
 		retval = amdgpu_amdkfd_alloc_kernel_mem(node->adev,

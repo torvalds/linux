@@ -479,7 +479,7 @@ static int mxc_isi_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret = 0;
 
-	isi = devm_kzalloc(dev, sizeof(*isi), GFP_KERNEL);
+	isi = devm_kzalloc_obj(dev, *isi);
 	if (!isi)
 		return -ENOMEM;
 

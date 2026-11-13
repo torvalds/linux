@@ -103,8 +103,7 @@ static void dw_edma_debugfs_create_x32(struct dw_edma *dw,
 	struct dw_edma_debugfs_entry *entries;
 	int i;
 
-	entries = devm_kcalloc(dw->chip->dev, nr_entries, sizeof(*entries),
-			       GFP_KERNEL);
+	entries = devm_kzalloc_objs(dw->chip->dev, *entries, nr_entries);
 	if (!entries)
 		return;
 

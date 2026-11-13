@@ -300,8 +300,7 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 		     supported_regulators[i].id == MAX77836_LDO2)) {
 			struct max77836_ldo *ldo;
 
-			ldo = devm_kzalloc(&pdev->dev, sizeof(*ldo),
-					   GFP_KERNEL);
+			ldo = devm_kzalloc_obj(&pdev->dev, *ldo);
 			if (!ldo)
 				return -ENOMEM;
 

@@ -76,7 +76,7 @@ int mt7925_mcu_send_axidma_info(struct mt792x_dev *dev)
 	if (!dev->cached_cal.va)
 		return -EINVAL;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -195,7 +195,7 @@ static int mt7925_mcu_fact_cal_rapid_set(struct mt792x_dev *dev, u8 cal_type,
 	if (data_len > MT7925_FACT_CAL_DATA_BUF_LEN)
 		return -EINVAL;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -225,7 +225,7 @@ int mt7925_mcu_send_fact_cal_mapping_tbl(struct mt792x_dev *dev)
 	if (!dev->cached_cal.va)
 		return -EINVAL;
 
-	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (!tbl)
 		return -ENOMEM;
 

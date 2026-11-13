@@ -173,8 +173,7 @@ static int mpq4210_i2c_probe(struct i2c_client *client)
 				     r[0], r[1]);
 	desc->uV_step = mpq4210_scale(MPQ4210_REF_STEP_UV, r[0], r[1]);
 
-	slew = devm_kcalloc(dev, ARRAY_SIZE(mpq4210_ref_slew_rate),
-			    sizeof(*slew), GFP_KERNEL);
+	slew = devm_kzalloc_objs(dev, *slew, ARRAY_SIZE(mpq4210_ref_slew_rate));
 	if (!slew)
 		return -ENOMEM;
 

@@ -903,7 +903,7 @@ static int mc_probe(struct platform_device *pdev)
 		goto err_rproc_boot;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv) {
 		rc = -ENOMEM;
 		goto err_alloc;

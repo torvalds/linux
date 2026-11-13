@@ -661,7 +661,7 @@ int smsc_phy_probe(struct phy_device *phydev)
 	struct smsc_phy_priv *priv;
 	struct clk *refclk;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

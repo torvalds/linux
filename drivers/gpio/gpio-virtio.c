@@ -512,7 +512,7 @@ static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio,
 		return NULL;
 	}
 
-	names = devm_kcalloc(dev, ngpio, sizeof(*names), GFP_KERNEL);
+	names = devm_kzalloc_objs(dev, *names, ngpio);
 	if (!names)
 		return NULL;
 
@@ -541,7 +541,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	u16 ngpio;
 	int ret, i;
 
-	vgpio = devm_kzalloc(dev, sizeof(*vgpio), GFP_KERNEL);
+	vgpio = devm_kzalloc_obj(dev, *vgpio);
 	if (!vgpio)
 		return -ENOMEM;
 
@@ -556,7 +556,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	vgpio->lines = devm_kcalloc(dev, ngpio, sizeof(*vgpio->lines), GFP_KERNEL);
+	vgpio->lines = devm_kzalloc_objs(dev, *vgpio->lines, ngpio);
 	if (!vgpio->lines)
 		return -ENOMEM;
 
@@ -584,11 +584,12 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 
 	/* Interrupt support */
 	if (virtio_has_feature(vdev, VIRTIO_GPIO_F_IRQ)) {
-		vgpio->irq_lines = devm_kcalloc(dev, ngpio, sizeof(*vgpio->irq_lines), GFP_KERNEL);
+		vgpio->irq_lines = devm_kzalloc_objs(dev, *vgpio->irq_lines,
+						     ngpio);
 		if (!vgpio->irq_lines)
 			return -ENOMEM;
 
-		gpio_irq_chip = devm_kzalloc(dev, sizeof(*gpio_irq_chip), GFP_KERNEL);
+		gpio_irq_chip = devm_kzalloc_obj(dev, *gpio_irq_chip);
 		if (!gpio_irq_chip)
 			return -ENOMEM;
 

@@ -470,7 +470,7 @@ static int logicvc_layer_init(struct logicvc_drm *logicvc,
 	unsigned int zpos;
 	int ret;
 
-	layer = devm_kzalloc(dev, sizeof(*layer), GFP_KERNEL);
+	layer = devm_kzalloc_obj(dev, *layer);
 	if (!layer) {
 		ret = -ENOMEM;
 		goto error;

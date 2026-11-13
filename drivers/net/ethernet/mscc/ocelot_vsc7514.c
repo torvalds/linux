@@ -152,15 +152,14 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 	int port, err;
 	u32 reg;
 
-	ocelot->ports = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
-				     sizeof(struct ocelot_port *), GFP_KERNEL);
+	ocelot->ports = devm_kzalloc_objs(ocelot->dev, struct ocelot_port *,
+					  ocelot->num_phys_ports);
 	if (!ocelot->ports)
 		return -ENOMEM;
 
-	ocelot->devlink_ports = devm_kcalloc(ocelot->dev,
-					     ocelot->num_phys_ports,
-					     sizeof(*ocelot->devlink_ports),
-					     GFP_KERNEL);
+	ocelot->devlink_ports = devm_kzalloc_objs(ocelot->dev,
+						  *ocelot->devlink_ports,
+						  ocelot->num_phys_ports);
 	if (!ocelot->devlink_ports)
 		return -ENOMEM;
 

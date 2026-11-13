@@ -264,7 +264,7 @@ static int mvebu_icu_subset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	bool sei;
 
-	msi_data = devm_kzalloc(dev, sizeof(*msi_data), GFP_KERNEL);
+	msi_data = devm_kzalloc_obj(dev, *msi_data);
 	if (!msi_data)
 		return -ENOMEM;
 
@@ -309,8 +309,7 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 	struct mvebu_icu *icu;
 	int i;
 
-	icu = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_icu),
-			   GFP_KERNEL);
+	icu = devm_kzalloc_obj(&pdev->dev, struct mvebu_icu);
 	if (!icu)
 		return -ENOMEM;
 

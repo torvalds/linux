@@ -462,7 +462,7 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	struct aspeed_pwm_tach_data *priv;
 	struct pwm_chip *chip;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

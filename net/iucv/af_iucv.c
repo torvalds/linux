@@ -2080,7 +2080,16 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	int err = NET_RX_SUCCESS;
 	char nullstring[8];
 
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		return NET_RX_SUCCESS;
+
 	if (!pskb_may_pull(skb, sizeof(*trans_hdr))) {
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
+	if (skb_cow(skb, ETH_HLEN)) {
 		kfree_skb(skb);
 		return NET_RX_SUCCESS;
 	}

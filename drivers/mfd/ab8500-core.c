@@ -1025,7 +1025,7 @@ static int ab8500_probe(struct platform_device *pdev)
 	int irq;
 	u8 value;
 
-	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
+	ab8500 = devm_kzalloc_obj(&pdev->dev, *ab8500);
 	if (!ab8500)
 		return -ENOMEM;
 

@@ -1469,7 +1469,7 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 	void __iomem *base_rt;
 	int i;
 
-	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
+	ringacc = devm_kzalloc_obj(dev, *ringacc);
 	if (!ringacc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1531,7 +1531,7 @@ static int k3_ringacc_probe(struct platform_device *pdev)
 	if (!match_data)
 		return -ENODEV;
 
-	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
+	ringacc = devm_kzalloc_obj(dev, *ringacc);
 	if (!ringacc)
 		return -ENOMEM;
 

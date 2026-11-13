@@ -368,7 +368,7 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 	struct quickspi_device *qsdev;
 	int ret;
 
-	qsdev = devm_kzalloc(dev, sizeof(struct quickspi_device), GFP_KERNEL);
+	qsdev = devm_kzalloc_obj(dev, struct quickspi_device);
 	if (!qsdev)
 		return ERR_PTR(-ENOMEM);
 

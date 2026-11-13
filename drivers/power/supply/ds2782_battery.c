@@ -385,7 +385,7 @@ static int ds278x_battery_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

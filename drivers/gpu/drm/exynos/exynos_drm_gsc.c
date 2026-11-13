@@ -1222,7 +1222,7 @@ static int gsc_probe(struct platform_device *pdev)
 	struct gsc_context *ctx;
 	int num_formats, ret, i, j;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1233,7 +1233,7 @@ static int gsc_probe(struct platform_device *pdev)
 
 	/* construct formats/limits array */
 	num_formats = ARRAY_SIZE(gsc_formats) + ARRAY_SIZE(gsc_tiled_formats);
-	formats = devm_kcalloc(dev, num_formats, sizeof(*formats), GFP_KERNEL);
+	formats = devm_kzalloc_objs(dev, *formats, num_formats);
 	if (!formats)
 		return -ENOMEM;
 

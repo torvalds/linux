@@ -78,7 +78,7 @@ static int mtk_adsp_ipc_probe(struct platform_device *pdev)
 
 	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
-	adsp_ipc = devm_kzalloc(dev, sizeof(*adsp_ipc), GFP_KERNEL);
+	adsp_ipc = devm_kzalloc_obj(dev, *adsp_ipc);
 	if (!adsp_ipc)
 		return -ENOMEM;
 

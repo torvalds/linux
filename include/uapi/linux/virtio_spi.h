@@ -73,7 +73,7 @@
  * @max_cs_hold_ns: the maximum delay supported before chipselect is deasserted,
  *   in ns unit, 0 means delay is not supported to introduce before chipselect
  *   is deasserted.
- * @max_cs_incative_ns: maximum delay supported after chipselect is deasserted,
+ * @max_cs_inactive_ns: maximum delay supported after chipselect is deasserted,
  *   in ns unit, 0 means delay is not supported to introduce after chipselect is
  *   deasserted.
  */

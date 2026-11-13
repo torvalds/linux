@@ -832,7 +832,7 @@ static int __init xiaomi_mipad2_init(struct device *dev)
 	if (IS_ERR(xiaomi_mipad2_led_pwm))
 		return dev_err_probe(dev, PTR_ERR(xiaomi_mipad2_led_pwm), "getting pwm\n");
 
-	led_cdev = devm_kzalloc(dev, sizeof(*led_cdev), GFP_KERNEL);
+	led_cdev = devm_kzalloc_obj(dev, *led_cdev);
 	if (!led_cdev)
 		return -ENOMEM;
 

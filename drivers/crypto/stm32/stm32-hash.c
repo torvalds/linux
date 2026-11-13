@@ -2332,7 +2332,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	hdev = devm_kzalloc(dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(dev, *hdev);
 	if (!hdev)
 		return -ENOMEM;
 

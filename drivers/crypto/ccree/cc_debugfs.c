@@ -65,7 +65,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 	struct debugfs_regset32 *regset, *verset;
 
-	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(dev, *regset);
 	if (!regset)
 		return -ENOMEM;
 
@@ -80,7 +80,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	debugfs_create_regset32("regs", 0400, drvdata->dir, regset);
 	debugfs_create_bool("coherent", 0400, drvdata->dir, &drvdata->coherent);
 
-	verset = devm_kzalloc(dev, sizeof(*verset), GFP_KERNEL);
+	verset = devm_kzalloc_obj(dev, *verset);
 	/* Failing here is not important enough to fail the module load */
 	if (!verset)
 		return 0;

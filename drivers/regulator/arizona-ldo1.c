@@ -300,7 +300,7 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	bool external_dcvdd;
 	int ret;
 
-	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
+	ldo1 = devm_kzalloc_obj(&pdev->dev, *ldo1);
 	if (!ldo1)
 		return -ENOMEM;
 
@@ -354,7 +354,7 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 	bool external_dcvdd;
 	int ret;
 
-	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
+	ldo1 = devm_kzalloc_obj(&pdev->dev, *ldo1);
 	if (!ldo1)
 		return -ENOMEM;
 

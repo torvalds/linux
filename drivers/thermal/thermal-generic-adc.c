@@ -149,9 +149,7 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 		return -EINVAL;
 	}
 
-	gti->lookup_table = devm_kcalloc(dev,
-					 ntable, sizeof(*gti->lookup_table),
-					 GFP_KERNEL);
+	gti->lookup_table = devm_kzalloc_objs(dev, *gti->lookup_table, ntable);
 	if (!gti->lookup_table)
 		return -ENOMEM;
 
@@ -179,7 +177,7 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	gti = devm_kzalloc(dev, sizeof(*gti), GFP_KERNEL);
+	gti = devm_kzalloc_obj(dev, *gti);
 	if (!gti)
 		return -ENOMEM;
 

@@ -435,7 +435,7 @@ static int hycon_hy46xx_probe(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "probing for HYCON HY46XX I2C\n");
 
-	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
+	tsdata = devm_kzalloc_obj(&client->dev, *tsdata);
 	if (!tsdata)
 		return -ENOMEM;
 

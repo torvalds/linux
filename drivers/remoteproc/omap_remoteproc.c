@@ -1143,8 +1143,7 @@ static int omap_rproc_get_boot_data(struct platform_device *pdev,
 	if (!of_property_present(np, "ti,bootreg"))
 		return 0;
 
-	oproc->boot_data = devm_kzalloc(&pdev->dev, sizeof(*oproc->boot_data),
-					GFP_KERNEL);
+	oproc->boot_data = devm_kzalloc_obj(&pdev->dev, *oproc->boot_data);
 	if (!oproc->boot_data)
 		return -ENOMEM;
 
@@ -1185,8 +1184,7 @@ static int omap_rproc_of_get_internal_memories(struct platform_device *pdev,
 	num_mems = of_property_count_elems_of_size(dev->of_node, "reg",
 						   sizeof(u32)) / 2;
 
-	oproc->mem = devm_kcalloc(dev, num_mems, sizeof(*oproc->mem),
-				  GFP_KERNEL);
+	oproc->mem = devm_kzalloc_objs(dev, *oproc->mem, num_mems);
 	if (!oproc->mem)
 		return -ENOMEM;
 
@@ -1263,9 +1261,8 @@ static int omap_rproc_of_get_timers(struct platform_device *pdev,
 
 	num_timers = oproc->num_timers + oproc->num_wd_timers;
 	if (num_timers) {
-		oproc->timers = devm_kcalloc(dev, num_timers,
-					     sizeof(*oproc->timers),
-					     GFP_KERNEL);
+		oproc->timers = devm_kzalloc_objs(dev, *oproc->timers,
+						  num_timers);
 		if (!oproc->timers)
 			return -ENOMEM;
 

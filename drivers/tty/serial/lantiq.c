@@ -817,8 +817,7 @@ static int lqasc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ltq_port = devm_kzalloc(&pdev->dev, sizeof(struct ltq_uart_port),
-				GFP_KERNEL);
+	ltq_port = devm_kzalloc_obj(&pdev->dev, struct ltq_uart_port);
 	if (!ltq_port)
 		return -ENOMEM;
 

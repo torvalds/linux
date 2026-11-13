@@ -168,7 +168,7 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
-	mac = devm_kzalloc(&pdev->dev, sizeof(*mac), GFP_KERNEL);
+	mac = devm_kzalloc_obj(&pdev->dev, *mac);
 	if (!mac)
 		return -ENOMEM;
 

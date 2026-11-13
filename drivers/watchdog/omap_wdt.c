@@ -232,7 +232,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	struct omap_wdt_dev *wdev;
 	int ret;
 
-	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
+	wdev = devm_kzalloc_obj(&pdev->dev, *wdev);
 	if (!wdev)
 		return -ENOMEM;
 

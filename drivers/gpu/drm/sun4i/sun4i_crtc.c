@@ -198,7 +198,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 	struct drm_plane *primary = NULL, *cursor = NULL;
 	int ret, i;
 
-	scrtc = devm_kzalloc(drm->dev, sizeof(*scrtc), GFP_KERNEL);
+	scrtc = devm_kzalloc_obj(drm->dev, *scrtc);
 	if (!scrtc)
 		return ERR_PTR(-ENOMEM);
 	scrtc->engine = engine;

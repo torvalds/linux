@@ -510,7 +510,7 @@ static int asus_glymur_ec_probe(struct i2c_client *client)
 	struct asus_ec *ec;
 	int ret;
 
-	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
+	ec = devm_kzalloc_obj(dev, *ec);
 	if (!ec)
 		return -ENOMEM;
 

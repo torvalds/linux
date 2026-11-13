@@ -221,8 +221,7 @@ static int wm831x_status_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_status),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct wm831x_status);
 	if (!drvdata)
 		return -ENOMEM;
 

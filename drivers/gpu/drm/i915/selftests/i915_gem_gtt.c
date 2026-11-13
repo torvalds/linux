@@ -251,7 +251,7 @@ static int lowlevel_hole(struct i915_address_space *vm,
 	struct i915_vma_resource *mock_vma_res;
 	unsigned int size;
 
-	mock_vma_res = kzalloc(sizeof(*mock_vma_res), GFP_KERNEL);
+	mock_vma_res = kzalloc_obj(*mock_vma_res);
 	if (!mock_vma_res)
 		return -ENOMEM;
 

@@ -136,7 +136,7 @@ static int cgbc_bl_probe(struct platform_device *pdev)
 	struct cgbc_bl_data *bl_data;
 	int ret;
 
-	bl_data = devm_kzalloc(&pdev->dev, sizeof(*bl_data), GFP_KERNEL);
+	bl_data = devm_kzalloc_obj(&pdev->dev, *bl_data);
 	if (!bl_data)
 		return -ENOMEM;
 

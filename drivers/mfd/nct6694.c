@@ -280,15 +280,15 @@ static int nct6694_usb_probe(struct usb_interface *iface,
 	struct nct6694 *nct6694;
 	int ret;
 
-	nct6694 = devm_kzalloc(dev, sizeof(*nct6694), GFP_KERNEL);
+	nct6694 = devm_kzalloc_obj(dev, *nct6694);
 	if (!nct6694)
 		return -ENOMEM;
 
-	nct6694->usb_msg = devm_kzalloc(dev, sizeof(union nct6694_usb_msg), GFP_KERNEL);
+	nct6694->usb_msg = devm_kzalloc_obj(dev, union nct6694_usb_msg);
 	if (!nct6694->usb_msg)
 		return -ENOMEM;
 
-	nct6694->int_buffer = devm_kzalloc(dev, sizeof(*nct6694->int_buffer), GFP_KERNEL);
+	nct6694->int_buffer = devm_kzalloc_obj(dev, *nct6694->int_buffer);
 	if (!nct6694->int_buffer)
 		return -ENOMEM;
 

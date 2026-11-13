@@ -167,7 +167,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 	if (mode != ST_LPC_MODE_WDT)
 		return -ENODEV;
 
-	st_wdog = devm_kzalloc(dev, sizeof(*st_wdog), GFP_KERNEL);
+	st_wdog = devm_kzalloc_obj(dev, *st_wdog);
 	if (!st_wdog)
 		return -ENOMEM;
 

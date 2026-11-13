@@ -807,7 +807,7 @@ struct msm_dp_panel *msm_dp_panel_get(struct device *dev, struct drm_dp_aux *aux
 		return ERR_PTR(-EINVAL);
 	}
 
-	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
+	panel = devm_kzalloc_obj(dev, *panel);
 	if (!panel)
 		return ERR_PTR(-ENOMEM);
 

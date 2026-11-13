@@ -442,7 +442,7 @@ static int rtq9124_probe(struct i2c_client *i2c)
 	struct regmap *regmap;
 	int ret;
 
-	rtq9124 = devm_kzalloc(dev, sizeof(*rtq9124), GFP_KERNEL);
+	rtq9124 = devm_kzalloc_obj(dev, *rtq9124);
 	if (!rtq9124)
 		return -ENOMEM;
 

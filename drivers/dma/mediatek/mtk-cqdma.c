@@ -751,7 +751,7 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 	int err;
 	u32 i;
 
-	cqdma = devm_kzalloc(&pdev->dev, sizeof(*cqdma), GFP_KERNEL);
+	cqdma = devm_kzalloc_obj(&pdev->dev, *cqdma);
 	if (!cqdma)
 		return -ENOMEM;
 
@@ -800,15 +800,14 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 		cqdma->dma_channels = MTK_CQDMA_NR_PCHANS;
 	}
 
-	cqdma->pc = devm_kcalloc(&pdev->dev, cqdma->dma_channels,
-				 sizeof(*cqdma->pc), GFP_KERNEL);
+	cqdma->pc = devm_kzalloc_objs(&pdev->dev, *cqdma->pc,
+				      cqdma->dma_channels);
 	if (!cqdma->pc)
 		return -ENOMEM;
 
 	/* initialization for PCs */
 	for (i = 0; i < cqdma->dma_channels; ++i) {
-		cqdma->pc[i] = devm_kcalloc(&pdev->dev, 1,
-					    sizeof(**cqdma->pc), GFP_KERNEL);
+		cqdma->pc[i] = devm_kzalloc_objs(&pdev->dev, **cqdma->pc, 1);
 		if (!cqdma->pc[i])
 			return -ENOMEM;
 
@@ -836,8 +835,8 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 	}
 
 	/* allocate resource for VCs */
-	cqdma->vc = devm_kcalloc(&pdev->dev, cqdma->dma_requests,
-				 sizeof(*cqdma->vc), GFP_KERNEL);
+	cqdma->vc = devm_kzalloc_objs(&pdev->dev, *cqdma->vc,
+				      cqdma->dma_requests);
 	if (!cqdma->vc)
 		return -ENOMEM;
 

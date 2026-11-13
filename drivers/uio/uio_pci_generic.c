@@ -86,7 +86,7 @@ static int probe(struct pci_dev *pdev,
 	if (pdev->irq && !pci_intx_mask_supported(pdev))
 		return -ENODEV;
 
-	gdev = devm_kzalloc(&pdev->dev, sizeof(struct uio_pci_generic_dev), GFP_KERNEL);
+	gdev = devm_kzalloc_obj(&pdev->dev, struct uio_pci_generic_dev);
 	if (!gdev)
 		return -ENOMEM;
 

@@ -672,7 +672,7 @@ static int cci_probe(struct platform_device *pdev)
 	int ret, i;
 	u32 val;
 
-	cci = devm_kzalloc(dev, sizeof(*cci), GFP_KERNEL);
+	cci = devm_kzalloc_obj(dev, *cci);
 	if (!cci)
 		return -ENOMEM;
 

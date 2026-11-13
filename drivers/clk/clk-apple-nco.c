@@ -275,13 +275,13 @@ static int applnco_probe(struct platform_device *pdev)
 	nchannels = (resource_size(res) - NCO_CHANNEL_REGSIZE)
 			/ NCO_CHANNEL_STRIDE + 1;
 
-	onecell_data = devm_kzalloc(&pdev->dev, struct_size(onecell_data, hws,
-							nchannels), GFP_KERNEL);
+	onecell_data = devm_kzalloc_flex(&pdev->dev, *onecell_data, hws,
+					 nchannels);
 	if (!onecell_data)
 		return -ENOMEM;
 	onecell_data->num = nchannels;
 
-	tbl = devm_kzalloc(&pdev->dev, sizeof(*tbl), GFP_KERNEL);
+	tbl = devm_kzalloc_obj(&pdev->dev, *tbl);
 	if (!tbl)
 		return -ENOMEM;
 	applnco_compute_tables(tbl);
@@ -289,7 +289,7 @@ static int applnco_probe(struct platform_device *pdev)
 	for (i = 0; i < nchannels; i++) {
 		struct applnco_channel *chan;
 
-		chan = devm_kzalloc(&pdev->dev, sizeof(*chan), GFP_KERNEL);
+		chan = devm_kzalloc_obj(&pdev->dev, *chan);
 		if (!chan)
 			return -ENOMEM;
 		chan->base = base + NCO_CHANNEL_STRIDE * i;

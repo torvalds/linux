@@ -1094,7 +1094,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	u32 width;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1141,7 +1141,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	 * "DPCM Link Back-End": 1 cpus, 2 codecs
 	 * totally 10 components
 	 */
-	dlc = devm_kcalloc(&pdev->dev, 10, sizeof(*dlc), GFP_KERNEL);
+	dlc = devm_kzalloc_objs(&pdev->dev, *dlc, 10);
 	if (!dlc) {
 		ret = -ENOMEM;
 		goto asrc_fail;

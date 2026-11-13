@@ -161,7 +161,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 
-	bg = devm_kzalloc(&dev->dev, sizeof(struct bt8xxgpio), GFP_KERNEL);
+	bg = devm_kzalloc_obj(&dev->dev, struct bt8xxgpio);
 	if (!bg)
 		return -ENOMEM;
 

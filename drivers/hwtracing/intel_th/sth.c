@@ -207,7 +207,7 @@ static int intel_th_sth_probe(struct intel_th_device *thdev)
 	if (!channels)
 		return -ENOMEM;
 
-	sth = devm_kzalloc(dev, sizeof(*sth), GFP_KERNEL);
+	sth = devm_kzalloc_obj(dev, *sth);
 	if (!sth)
 		return -ENOMEM;
 

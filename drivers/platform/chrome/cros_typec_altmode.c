@@ -318,7 +318,7 @@ cros_typec_register_displayport(struct cros_typec_port *port,
 	if (IS_ERR(alt))
 		return alt;
 
-	dp_data = devm_kzalloc(&alt->dev, sizeof(*dp_data), GFP_KERNEL);
+	dp_data = devm_kzalloc_obj(&alt->dev, *dp_data);
 	if (!dp_data) {
 		typec_unregister_altmode(alt);
 		return ERR_PTR(-ENOMEM);
@@ -352,7 +352,7 @@ cros_typec_register_thunderbolt(struct cros_typec_port *port,
 	if (IS_ERR(alt))
 		return alt;
 
-	adata = devm_kzalloc(&alt->dev, sizeof(*adata), GFP_KERNEL);
+	adata = devm_kzalloc_obj(&alt->dev, *adata);
 	if (!adata) {
 		typec_unregister_altmode(alt);
 		return ERR_PTR(-ENOMEM);

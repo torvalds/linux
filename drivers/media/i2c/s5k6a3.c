@@ -280,7 +280,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 	int i, ret;
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

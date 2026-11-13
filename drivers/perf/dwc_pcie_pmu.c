@@ -770,7 +770,7 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 	if (!name)
 		return -ENOMEM;
 
-	pcie_pmu = devm_kzalloc(&plat_dev->dev, sizeof(*pcie_pmu), GFP_KERNEL);
+	pcie_pmu = devm_kzalloc_obj(&plat_dev->dev, *pcie_pmu);
 	if (!pcie_pmu)
 		return -ENOMEM;
 

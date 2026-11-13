@@ -291,7 +291,7 @@ vchiq_platform_init_state(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *platform_state;
 
-	platform_state = devm_kzalloc(state->dev, sizeof(*platform_state), GFP_KERNEL);
+	platform_state = devm_kzalloc_obj(state->dev, *platform_state);
 	if (!platform_state)
 		return -ENOMEM;
 
@@ -1387,7 +1387,7 @@ static int vchiq_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	mgmt = devm_kzalloc(&pdev->dev, sizeof(*mgmt), GFP_KERNEL);
+	mgmt = devm_kzalloc_obj(&pdev->dev, *mgmt);
 	if (!mgmt)
 		return -ENOMEM;
 

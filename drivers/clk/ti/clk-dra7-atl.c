@@ -212,7 +212,7 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
+	cinfo = devm_kzalloc_obj(&pdev->dev, *cinfo);
 	if (!cinfo)
 		return -ENOMEM;
 

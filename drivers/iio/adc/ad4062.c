@@ -1431,7 +1431,7 @@ static int ad4062_gpio_init(struct ad4062_state *st)
 	if (!device_property_read_bool(dev, "gpio-controller"))
 		return 0;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 

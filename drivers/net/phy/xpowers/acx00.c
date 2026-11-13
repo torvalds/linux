@@ -318,7 +318,7 @@ static int acx00_ephy_probe(struct phy_device *phydev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1228,7 +1228,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 	struct sun4i_dma_dev *priv;
 	int i, j, ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1289,13 +1289,12 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 
 	priv->slave.dev = &pdev->dev;
 
-	priv->pchans = devm_kcalloc(&pdev->dev, priv->cfg->dma_nr_max_channels,
-				    sizeof(struct sun4i_dma_pchan), GFP_KERNEL);
-	priv->vchans = devm_kcalloc(&pdev->dev, SUN4I_DMA_NR_MAX_VCHANS,
-				    sizeof(struct sun4i_dma_vchan), GFP_KERNEL);
-	priv->pchans_used = devm_kcalloc(&pdev->dev,
-					 BITS_TO_LONGS(priv->cfg->dma_nr_max_channels),
-					 sizeof(unsigned long), GFP_KERNEL);
+	priv->pchans = devm_kzalloc_objs(&pdev->dev, struct sun4i_dma_pchan,
+					 priv->cfg->dma_nr_max_channels);
+	priv->vchans = devm_kzalloc_objs(&pdev->dev, struct sun4i_dma_vchan,
+					 SUN4I_DMA_NR_MAX_VCHANS);
+	priv->pchans_used = devm_kzalloc_objs(&pdev->dev, unsigned long,
+					      BITS_TO_LONGS(priv->cfg->dma_nr_max_channels));
 	if (!priv->vchans || !priv->pchans || !priv->pchans_used)
 		return -ENOMEM;
 

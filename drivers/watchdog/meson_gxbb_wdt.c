@@ -166,7 +166,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	struct wdt_params *params;
 	u32 ctrl_reg;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

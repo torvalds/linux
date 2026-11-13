@@ -171,7 +171,7 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-	hci->ibi_devs = devm_kcalloc(dev, hci->DAT_entries, sizeof(*hci->ibi_devs), GFP_KERNEL);
+	hci->ibi_devs = devm_kzalloc_objs(dev, *hci->ibi_devs, hci->DAT_entries);
 	if (!hci->ibi_devs)
 		return -ENOMEM;
 
@@ -1190,7 +1190,7 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	struct i3c_hci *hci;
 	int irq, ret;
 
-	hci = devm_kzalloc(&pdev->dev, sizeof(*hci), GFP_KERNEL);
+	hci = devm_kzalloc_obj(&pdev->dev, *hci);
 	if (!hci)
 		return -ENOMEM;
 

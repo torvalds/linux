@@ -407,8 +407,7 @@ int __init hv_common_init(void)
 		BUG_ON(!hv_synic_eventring_tail);
 	}
 
-	hv_vp_index = kmalloc_array(nr_cpu_ids, sizeof(*hv_vp_index),
-				    GFP_KERNEL);
+	hv_vp_index = kmalloc_objs(*hv_vp_index, nr_cpu_ids);
 	if (!hv_vp_index) {
 		hv_common_free();
 		return -ENOMEM;
@@ -894,7 +893,7 @@ int hv_pci_register_dev_id(int pci_domain_nr, u32 logical_dev_id_prefix)
 	struct hv_pci_busdata *bus, *new;
 	int ret;
 
-	new = kzalloc_obj(*new, GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return -ENOMEM;
 

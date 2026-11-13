@@ -491,7 +491,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
 		return -ENODEV;
-	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(&pdev->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 

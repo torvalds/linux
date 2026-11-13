@@ -141,7 +141,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	arb = devm_kzalloc(dev, sizeof(*arb), GFP_KERNEL);
+	arb = devm_kzalloc_obj(dev, *arb);
 	if (!arb)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, arb);

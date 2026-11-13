@@ -613,7 +613,7 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

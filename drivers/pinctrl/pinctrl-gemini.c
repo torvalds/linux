@@ -2536,7 +2536,7 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	int i;
 
 	/* Create state holders etc for this driver */
-	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
+	pmx = devm_kzalloc_obj(&pdev->dev, *pmx);
 	if (!pmx)
 		return -ENOMEM;
 

@@ -385,14 +385,14 @@ static struct spi_board_info *cs42l43_create_bridge_amp(struct cs42l43_spi *priv
 	struct spi_board_info *info;
 
 	if (spkid >= 0) {
-		props = devm_kcalloc(priv->dev, 2, sizeof(*props), GFP_KERNEL);
+		props = devm_kzalloc_objs(priv->dev, *props, 2);
 		if (!props)
 			return NULL;
 
 		*props = PROPERTY_ENTRY_U32("cirrus,speaker-id", spkid);
 	}
 
-	swnode = devm_kmalloc(priv->dev, sizeof(*swnode), GFP_KERNEL);
+	swnode = devm_kmalloc_obj(priv->dev, *swnode);
 	if (!swnode)
 		return NULL;
 
@@ -424,7 +424,7 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	int spkid = -EINVAL;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

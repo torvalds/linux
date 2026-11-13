@@ -428,7 +428,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	rwtm = devm_kzalloc(dev, sizeof(*rwtm), GFP_KERNEL);
+	rwtm = devm_kzalloc_obj(dev, *rwtm);
 	if (!rwtm)
 		return -ENOMEM;
 

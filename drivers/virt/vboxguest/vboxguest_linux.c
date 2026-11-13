@@ -292,7 +292,7 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	struct vbg_dev *gdev;
 	int ret;
 
-	gdev = devm_kzalloc(dev, sizeof(*gdev), GFP_KERNEL);
+	gdev = devm_kzalloc_obj(dev, *gdev);
 	if (!gdev)
 		return -ENOMEM;
 

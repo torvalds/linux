@@ -799,7 +799,7 @@ static int mtk_spmi_probe(struct platform_device *pdev)
 	u8 cur_bus = 0;
 	int ret;
 
-	arb = devm_kzalloc(&pdev->dev, sizeof(*arb), GFP_KERNEL);
+	arb = devm_kzalloc_obj(&pdev->dev, *arb);
 	if (!arb)
 		return -ENOMEM;
 

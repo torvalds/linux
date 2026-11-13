@@ -338,7 +338,7 @@ int axg_fifo_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
+	fifo = devm_kzalloc_obj(dev, *fifo);
 	if (!fifo)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, fifo);

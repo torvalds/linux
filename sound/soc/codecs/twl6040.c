@@ -1100,7 +1100,7 @@ static int twl6040_probe(struct snd_soc_component *component)
 	struct platform_device *pdev = to_platform_device(component->dev);
 	int ret = 0;
 
-	priv = devm_kzalloc(component->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(component->dev, *priv);
 	if (priv == NULL)
 		return -ENOMEM;
 

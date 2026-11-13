@@ -2923,7 +2923,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 	const char *name = NULL;
 	int i, err;
 
-	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc_obj(dev, *hw);
 	if (!hw)
 		return -ENOMEM;
 

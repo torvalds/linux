@@ -142,7 +142,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	if (irq < 0)
 		irq = 0;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

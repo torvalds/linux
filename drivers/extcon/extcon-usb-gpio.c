@@ -103,7 +103,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	if (!np)
 		return -EINVAL;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

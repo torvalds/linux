@@ -1437,7 +1437,7 @@ static int si4713_probe(struct i2c_client *client)
 	struct platform_device *si4713_pdev;
 	int rval;
 
-	sdev = devm_kzalloc(&client->dev, sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc_obj(&client->dev, *sdev);
 	if (!sdev) {
 		dev_err(&client->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;

@@ -604,7 +604,7 @@ int tlv320aic23_probe(struct device *dev, struct regmap *regmap)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	aic23 = devm_kzalloc(dev, sizeof(struct aic23), GFP_KERNEL);
+	aic23 = devm_kzalloc_obj(dev, struct aic23);
 	if (aic23 == NULL)
 		return -ENOMEM;
 

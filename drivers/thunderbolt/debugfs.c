@@ -1960,8 +1960,7 @@ static int port_clear_all_counters(struct tb_port *port)
 	u32 *buf;
 	int ret;
 
-	buf = kcalloc(COUNTER_SET_LEN * port->config.max_counters, sizeof(u32),
-		      GFP_KERNEL);
+	buf = kzalloc_objs(u32, COUNTER_SET_LEN * port->config.max_counters);
 	if (!buf)
 		return -ENOMEM;
 

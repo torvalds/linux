@@ -1555,7 +1555,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	else
 		ndc->rx_table_sz = ITAB_NUM;
 
-	ndc->rx_table = kcalloc(ndc->rx_table_sz, sizeof(u16), GFP_KERNEL);
+	ndc->rx_table = kzalloc_objs(u16, ndc->rx_table_sz);
 	if (!ndc->rx_table) {
 		ret = -ENOMEM;
 		goto err_dev_remv;

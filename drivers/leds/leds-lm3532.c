@@ -487,7 +487,7 @@ static int lm3532_parse_als(struct lm3532_data *priv)
 	int als_impedance;
 	int ret;
 
-	als = devm_kzalloc(priv->dev, sizeof(*als), GFP_KERNEL);
+	als = devm_kzalloc_obj(priv->dev, *als);
 	if (als == NULL)
 		return -ENOMEM;
 
@@ -684,8 +684,7 @@ static int lm3532_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	drvdata = devm_kzalloc(&client->dev, struct_size(drvdata, leds, count),
-			   GFP_KERNEL);
+	drvdata = devm_kzalloc_flex(&client->dev, *drvdata, leds, count);
 	if (drvdata == NULL)
 		return -ENOMEM;
 

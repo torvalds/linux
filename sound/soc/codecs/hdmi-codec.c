@@ -925,7 +925,7 @@ static int hdmi_dai_probe(struct snd_soc_dai *dai)
 			return ret;
 	}
 
-	daifmt = devm_kzalloc(dai->dev, sizeof(*daifmt), GFP_KERNEL);
+	daifmt = devm_kzalloc_obj(dai->dev, *daifmt);
 	if (!daifmt)
 		return -ENOMEM;
 
@@ -1148,7 +1148,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hcp = devm_kzalloc(dev, sizeof(*hcp), GFP_KERNEL);
+	hcp = devm_kzalloc_obj(dev, *hcp);
 	if (!hcp)
 		return -ENOMEM;
 
@@ -1160,7 +1160,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	daidrv = devm_kcalloc(dev, dai_count, sizeof(*daidrv), GFP_KERNEL);
+	daidrv = devm_kzalloc_objs(dev, *daidrv, dai_count);
 	if (!daidrv)
 		return -ENOMEM;
 

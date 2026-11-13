@@ -916,7 +916,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client)
 	int ret = 0, i, devid;
 	u8 val;
 
-	cs53l30 = devm_kzalloc(dev, sizeof(*cs53l30), GFP_KERNEL);
+	cs53l30 = devm_kzalloc_obj(dev, *cs53l30);
 	if (!cs53l30)
 		return -ENOMEM;
 

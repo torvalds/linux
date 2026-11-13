@@ -315,7 +315,7 @@ static int c3_isp_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

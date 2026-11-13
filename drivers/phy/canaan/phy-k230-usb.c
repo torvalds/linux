@@ -220,7 +220,7 @@ static int k230_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	int i;
 
-	global = devm_kzalloc(dev, sizeof(*global), GFP_KERNEL);
+	global = devm_kzalloc_obj(dev, *global);
 	if (!global)
 		return -ENOMEM;
 	dev_set_drvdata(dev, global);

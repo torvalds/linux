@@ -489,7 +489,7 @@ static int pata_icside_probe(struct expansion_card *ec,
 	if (ret)
 		goto out;
 
-	state = devm_kzalloc(&ec->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&ec->dev, *state);
 	if (!state) {
 		ret = -ENOMEM;
 		goto release;

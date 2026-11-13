@@ -102,7 +102,7 @@ static int dc_fl_bind(struct device *dev, struct device *master, void *data)
 	struct dc_fu *fu;
 	int i, id;
 
-	fl = devm_kzalloc(dev, sizeof(*fl), GFP_KERNEL);
+	fl = devm_kzalloc_obj(dev, *fl);
 	if (!fl)
 		return -ENOMEM;
 

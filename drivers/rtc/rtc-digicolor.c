@@ -178,7 +178,7 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 	struct dc_rtc *rtc;
 	int irq, ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

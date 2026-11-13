@@ -176,7 +176,7 @@ static int crystal_cove_i2c_probe(struct i2c_client *i2c)
 	else
 		config = &crystal_cove_config_cht_crc;
 
-	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc_obj(dev, *pmic);
 	if (!pmic)
 		return -ENOMEM;
 

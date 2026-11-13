@@ -1944,7 +1944,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	cs35l41 = devm_kzalloc(dev, sizeof(*cs35l41), GFP_KERNEL);
+	cs35l41 = devm_kzalloc_obj(dev, *cs35l41);
 	if (!cs35l41)
 		return -ENOMEM;
 

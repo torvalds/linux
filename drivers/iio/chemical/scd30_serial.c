@@ -218,7 +218,7 @@ static int scd30_serdev_probe(struct serdev_device *serdev)
 	struct scd30_serdev_priv *priv;
 	int irq, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

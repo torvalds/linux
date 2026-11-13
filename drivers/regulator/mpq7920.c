@@ -268,8 +268,7 @@ static int mpq7920_i2c_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	int i;
 
-	info = devm_kzalloc(dev, sizeof(struct mpq7920_regulator_info),
-				GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, struct mpq7920_regulator_info);
 	if (!info)
 		return -ENOMEM;
 

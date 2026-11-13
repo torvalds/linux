@@ -403,7 +403,7 @@ static int adv7175_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
+	encoder = devm_kzalloc_obj(&client->dev, *encoder);
 	if (encoder == NULL)
 		return -ENOMEM;
 	sd = &encoder->sd;

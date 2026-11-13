@@ -169,7 +169,7 @@ static int scrub_create_desc(struct device *scrub_dev,
 		[SCRUB_CUR_CYCLE_DURATION] = EDAC_SCRUB_ATTR_RW(current_cycle_duration, instance)
 	};
 
-	scrub_ctx = devm_kzalloc(scrub_dev, sizeof(*scrub_ctx), GFP_KERNEL);
+	scrub_ctx = devm_kzalloc_obj(scrub_dev, *scrub_ctx);
 	if (!scrub_ctx)
 		return -ENOMEM;
 

@@ -249,15 +249,15 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		if (!name)
 			return -ENOMEM;
 
-		cpus = devm_kcalloc(dev, num_cpus, sizeof(*cpus), GFP_KERNEL);
+		cpus = devm_kzalloc_objs(dev, *cpus, num_cpus);
 		if (!cpus)
 			return -ENOMEM;
 
-		codecs = devm_kcalloc(dev, num_codecs, sizeof(*codecs), GFP_KERNEL);
+		codecs = devm_kzalloc_objs(dev, *codecs, num_codecs);
 		if (!codecs)
 			return -ENOMEM;
 
-		codec_maps = devm_kcalloc(dev, num_codecs, sizeof(*codec_maps), GFP_KERNEL);
+		codec_maps = devm_kzalloc_objs(dev, *codec_maps, num_codecs);
 		if (!codec_maps)
 			return -ENOMEM;
 
@@ -331,8 +331,8 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 	int i;
 	int ret;
 
-	sdw_platform_component = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-					      GFP_KERNEL);
+	sdw_platform_component = devm_kzalloc_obj(dev,
+						  struct snd_soc_dai_link_component);
 	if (!sdw_platform_component)
 		return -ENOMEM;
 
@@ -376,11 +376,11 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component *pdm_platform;
 	int ret;
 
-	pdm_cpu = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
+	pdm_cpu = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!pdm_cpu)
 		return -ENOMEM;
 
-	pdm_platform = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
+	pdm_platform = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!pdm_platform)
 		return -ENOMEM;
 
@@ -446,7 +446,7 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	if (!soc_ends)
 		return -ENOMEM;
 
-	soc_aux = devm_kcalloc(dev, num_aux, sizeof(*soc_aux), GFP_KERNEL);
+	soc_aux = devm_kzalloc_objs(dev, *soc_aux, num_aux);
 	if (!soc_aux)
 		return -ENOMEM;
 
@@ -486,13 +486,13 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 
 	dev_dbg(dev, "sdw %d, dmic %d", sdw_be_num, dmic_num);
 
-	codec_conf = devm_kcalloc(dev, num_confs, sizeof(*codec_conf), GFP_KERNEL);
+	codec_conf = devm_kzalloc_objs(dev, *codec_conf, num_confs);
 	if (!codec_conf)
 		return -ENOMEM;
 
 	/* allocate BE dailinks */
 	num_links = sdw_be_num + dmic_num;
-	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
+	dai_links = devm_kzalloc_objs(dev, *dai_links, num_links);
 	if (!dai_links)
 		return -ENOMEM;
 
@@ -537,13 +537,13 @@ static int mc_probe(struct platform_device *pdev)
 	int amp_num = 0, i;
 	int ret;
 
-	amd_ctx = devm_kzalloc(&pdev->dev, sizeof(*amd_ctx), GFP_KERNEL);
+	amd_ctx = devm_kzalloc_obj(&pdev->dev, *amd_ctx);
 	if (!amd_ctx)
 		return -ENOMEM;
 
 	amd_ctx->acp_rev = mach->mach_params.subsystem_rev;
 	amd_ctx->max_sdw_links = ACP63_SDW_MAX_LINKS;
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->codec_info_list_count = asoc_sdw_get_codec_info_list_count();

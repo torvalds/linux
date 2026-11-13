@@ -119,7 +119,7 @@ u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 	u32 *fmts;
 	int i, j, n = 0;
 
-	fmts = kcalloc(table->n_formats, sizeof(u32), GFP_KERNEL);
+	fmts = kzalloc_objs(u32, table->n_formats);
 	if (!fmts)
 		return NULL;
 

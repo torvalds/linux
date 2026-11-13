@@ -359,7 +359,7 @@ static int mt6397_probe(struct platform_device *pdev)
 	struct mt6397_chip *pmic;
 	const struct chip_data *pmic_core;
 
-	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc_obj(&pdev->dev, *pmic);
 	if (!pmic)
 		return -ENOMEM;
 

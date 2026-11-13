@@ -89,7 +89,7 @@ static int jh7100_audclk_probe(struct platform_device *pdev)
 	unsigned int idx;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg, JH7100_AUDCLK_END), GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, reg, JH7100_AUDCLK_END);
 	if (!priv)
 		return -ENOMEM;
 

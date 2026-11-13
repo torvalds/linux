@@ -435,7 +435,7 @@ static int rk3328_platform_probe(struct platform_device *pdev)
 	struct regmap *grf;
 	void __iomem *base;
 
-	rk3328 = devm_kzalloc(&pdev->dev, sizeof(*rk3328), GFP_KERNEL);
+	rk3328 = devm_kzalloc_obj(&pdev->dev, *rk3328);
 	if (!rk3328)
 		return -ENOMEM;
 

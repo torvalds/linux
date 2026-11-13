@@ -1187,7 +1187,7 @@ static int rt1015_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt1015 = devm_kzalloc(&i2c->dev, sizeof(*rt1015), GFP_KERNEL);
+	rt1015 = devm_kzalloc_obj(&i2c->dev, *rt1015);
 	if (!rt1015)
 		return -ENOMEM;
 

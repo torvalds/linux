@@ -131,7 +131,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	char *randomness;
 	const struct sunxi_sid_cfg *cfg;
 
-	sid = devm_kzalloc(dev, sizeof(*sid), GFP_KERNEL);
+	sid = devm_kzalloc_obj(dev, *sid);
 	if (!sid)
 		return -ENOMEM;
 
@@ -146,7 +146,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	size = cfg->size;
 
-	nvmem_cfg = devm_kzalloc(dev, sizeof(*nvmem_cfg), GFP_KERNEL);
+	nvmem_cfg = devm_kzalloc_obj(dev, *nvmem_cfg);
 	if (!nvmem_cfg)
 		return -ENOMEM;
 

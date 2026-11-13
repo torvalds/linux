@@ -6301,8 +6301,8 @@ static inline int prepare_klistmount(struct klistmount *kls, struct mnt_id_req *
 	kls->last_mnt_id = last_mnt_id;
 
 	kls->nr_mnt_ids = nr_mnt_ids;
-	kls->kmnt_ids = kvmalloc_array(nr_mnt_ids, sizeof(*kls->kmnt_ids),
-				       GFP_KERNEL_ACCOUNT);
+	kls->kmnt_ids = kvmalloc_objs(*kls->kmnt_ids, nr_mnt_ids,
+				      GFP_KERNEL_ACCOUNT);
 	if (!kls->kmnt_ids)
 		return -ENOMEM;
 

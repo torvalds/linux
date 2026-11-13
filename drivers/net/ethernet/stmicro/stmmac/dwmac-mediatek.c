@@ -466,7 +466,8 @@ static int mediatek_dwmac_clk_init(struct mediatek_dwmac_plat_data *plat)
 	const struct mediatek_dwmac_variant *variant = plat->variant;
 	int i, ret;
 
-	plat->clks = devm_kcalloc(plat->dev, variant->num_clks, sizeof(*plat->clks), GFP_KERNEL);
+	plat->clks = devm_kzalloc_objs(plat->dev, *plat->clks,
+				       variant->num_clks);
 	if (!plat->clks)
 		return -ENOMEM;
 
@@ -571,9 +572,8 @@ static int mediatek_dwmac_common_data(struct platform_device *pdev,
 	plat->resume = mediatek_dwmac_init;
 	plat->clks_config = mediatek_dwmac_clks_config;
 
-	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
-					     sizeof(*plat->safety_feat_cfg),
-					     GFP_KERNEL);
+	plat->safety_feat_cfg = devm_kzalloc_obj(&pdev->dev,
+						 *plat->safety_feat_cfg);
 	if (!plat->safety_feat_cfg)
 		return -ENOMEM;
 
@@ -603,7 +603,7 @@ static int mediatek_dwmac_probe(struct platform_device *pdev)
 	struct stmmac_resources stmmac_res;
 	int ret;
 
-	priv_plat = devm_kzalloc(&pdev->dev, sizeof(*priv_plat), GFP_KERNEL);
+	priv_plat = devm_kzalloc_obj(&pdev->dev, *priv_plat);
 	if (!priv_plat)
 		return -ENOMEM;
 

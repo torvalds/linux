@@ -34,6 +34,12 @@ Usage notes
 As these are USB HIDs, the driver can be loaded automatically by the kernel and
 supports hot swapping.
 
+The pump of the RYUJIN III also has a 4-pin cable for a motherboard fan header.
+The cooler either hands the pump to its internal controller, which follows the
+PWM of the header its 4-pin cable is plugged into, or runs it at the pump duty
+set over USB. Writing pwm1 selects the duty set over USB. Writing pwm2 sets
+only the internal fan duty and leaves the pump control as it is.
+
 Sysfs entries
 -------------
 

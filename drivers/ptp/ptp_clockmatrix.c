@@ -2391,7 +2391,7 @@ static int idtcm_probe(struct platform_device *pdev)
 	int err;
 	u8 i;
 
-	idtcm = devm_kzalloc(&pdev->dev, sizeof(struct idtcm), GFP_KERNEL);
+	idtcm = devm_kzalloc_obj(&pdev->dev, struct idtcm);
 
 	if (!idtcm)
 		return -ENOMEM;

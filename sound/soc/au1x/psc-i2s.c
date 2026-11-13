@@ -307,8 +307,7 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	unsigned long sel;
 	struct au1xpsc_audio_data *wd;
 
-	wd = devm_kzalloc(&pdev->dev, sizeof(struct au1xpsc_audio_data),
-			  GFP_KERNEL);
+	wd = devm_kzalloc_obj(&pdev->dev, struct au1xpsc_audio_data);
 	if (!wd)
 		return -ENOMEM;
 

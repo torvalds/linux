@@ -1630,7 +1630,7 @@ static int iqs626_probe(struct i2c_client *client)
 	struct iqs626_private *iqs626;
 	int error;
 
-	iqs626 = devm_kzalloc(&client->dev, sizeof(*iqs626), GFP_KERNEL);
+	iqs626 = devm_kzalloc_obj(&client->dev, *iqs626);
 	if (!iqs626)
 		return -ENOMEM;
 

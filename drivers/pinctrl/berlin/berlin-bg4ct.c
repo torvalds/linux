@@ -457,7 +457,7 @@ static int berlin4ct_pinctrl_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 
-	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
+	rmconfig = devm_kzalloc_obj(&pdev->dev, *rmconfig);
 	if (!rmconfig)
 		return -ENOMEM;
 

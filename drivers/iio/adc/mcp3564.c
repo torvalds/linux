@@ -1017,7 +1017,7 @@ static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)
 		return dev_err_probe(dev, -EINVAL, "Too many channels %d > %d\n",
 				     num_ch, adc->chip_info->num_channels);
 
-	channels = devm_kcalloc(dev, num_ch, sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, num_ch);
 	if (!channels)
 		return -ENOMEM;
 

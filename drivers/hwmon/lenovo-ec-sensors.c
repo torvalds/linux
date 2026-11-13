@@ -515,7 +515,7 @@ static int lenovo_ec_probe(struct platform_device *pdev)
 	const struct dmi_system_id *dmi_id;
 	int app_id;
 
-	ec_data = devm_kzalloc(dev, sizeof(struct ec_sensors_data), GFP_KERNEL);
+	ec_data = devm_kzalloc_obj(dev, struct ec_sensors_data);
 	if (!ec_data)
 		return -ENOMEM;
 

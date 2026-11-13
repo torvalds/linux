@@ -90,7 +90,7 @@ static int ac100_rsb_probe(struct sunxi_rsb_device *rdev)
 	struct ac100_dev *ac100;
 	int ret;
 
-	ac100 = devm_kzalloc(&rdev->dev, sizeof(*ac100), GFP_KERNEL);
+	ac100 = devm_kzalloc_obj(&rdev->dev, *ac100);
 	if (!ac100)
 		return -ENOMEM;
 

@@ -154,7 +154,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int low_irq, high_irq, ret = 0;
 
-	th = devm_kzalloc(dev, sizeof(*th), GFP_KERNEL);
+	th = devm_kzalloc_obj(dev, *th);
 	if (!th)
 		return -ENOMEM;
 

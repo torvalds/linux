@@ -790,8 +790,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	up = devm_kzalloc(&pdev->dev, sizeof(struct ar933x_uart_port),
-			  GFP_KERNEL);
+	up = devm_kzalloc_obj(&pdev->dev, struct ar933x_uart_port);
 	if (!up)
 		return -ENOMEM;
 

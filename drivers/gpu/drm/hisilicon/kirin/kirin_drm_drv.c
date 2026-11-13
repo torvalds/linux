@@ -112,7 +112,7 @@ static int kirin_drm_private_init(struct drm_device *dev,
 	int ret;
 	u32 ch;
 
-	kirin_priv = devm_kzalloc(dev->dev, sizeof(*kirin_priv), GFP_KERNEL);
+	kirin_priv = devm_kzalloc_obj(dev->dev, *kirin_priv);
 	if (!kirin_priv) {
 		DRM_ERROR("failed to alloc kirin_drm_private\n");
 		return -ENOMEM;

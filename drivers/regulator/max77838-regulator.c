@@ -162,8 +162,7 @@ static int max77838_i2c_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	int i;
 
-	info = devm_kzalloc(dev, sizeof(struct max77838_regulator_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, struct max77838_regulator_info);
 	if (!info)
 		return -ENOMEM;
 

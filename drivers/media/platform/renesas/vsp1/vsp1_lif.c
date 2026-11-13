@@ -127,7 +127,7 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1, unsigned int index)
 	struct vsp1_lif *lif;
 	int ret;
 
-	lif = devm_kzalloc(vsp1->dev, sizeof(*lif), GFP_KERNEL);
+	lif = devm_kzalloc_obj(vsp1->dev, *lif);
 	if (lif == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -170,7 +170,7 @@ static int as3722_rtc_probe(struct platform_device *pdev)
 	struct as3722_rtc *as3722_rtc;
 	int ret;
 
-	as3722_rtc = devm_kzalloc(&pdev->dev, sizeof(*as3722_rtc), GFP_KERNEL);
+	as3722_rtc = devm_kzalloc_obj(&pdev->dev, *as3722_rtc);
 	if (!as3722_rtc)
 		return -ENOMEM;
 

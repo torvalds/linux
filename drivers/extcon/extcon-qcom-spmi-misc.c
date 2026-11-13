@@ -89,7 +89,7 @@ static int qcom_usb_extcon_probe(struct platform_device *pdev)
 	struct qcom_usb_extcon_info *info;
 	int ret;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

@@ -658,7 +658,7 @@ static int tw9900_probe(struct i2c_client *client)
 	struct tw9900 *tw9900;
 	int ret = 0;
 
-	tw9900 = devm_kzalloc(dev, sizeof(*tw9900), GFP_KERNEL);
+	tw9900 = devm_kzalloc_obj(dev, *tw9900);
 	if (!tw9900)
 		return -ENOMEM;
 

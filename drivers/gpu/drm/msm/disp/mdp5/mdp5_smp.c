@@ -364,7 +364,7 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 	struct mdp5_global_state *global_state;
 	struct mdp5_smp *smp;
 
-	smp = devm_kzalloc(dev->dev, sizeof(*smp), GFP_KERNEL);
+	smp = devm_kzalloc_obj(dev->dev, *smp);
 	if (unlikely(!smp))
 		return ERR_PTR(-ENOMEM);
 

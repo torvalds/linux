@@ -154,7 +154,7 @@ static int adcxx_probe(struct spi_device *spi)
 	int status;
 	int i;
 
-	adc = devm_kzalloc(&spi->dev, sizeof(*adc), GFP_KERNEL);
+	adc = devm_kzalloc_obj(&spi->dev, *adc);
 	if (!adc)
 		return -ENOMEM;
 

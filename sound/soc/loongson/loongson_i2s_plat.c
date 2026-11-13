@@ -71,7 +71,7 @@ static int loongson_i2s_plat_probe(struct platform_device *pdev)
 	struct clk *i2s_clk;
 	int ret;
 
-	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(dev, *i2s);
 	if (!i2s)
 		return -ENOMEM;
 

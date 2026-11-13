@@ -2320,9 +2320,8 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	if (!hisi_hba->itct)
 		goto err_out;
 
-	hisi_hba->slot_info = devm_kcalloc(dev, max_command_entries,
-					   sizeof(struct hisi_sas_slot),
-					   GFP_KERNEL);
+	hisi_hba->slot_info = devm_kzalloc_objs(dev, struct hisi_sas_slot,
+						max_command_entries);
 	if (!hisi_hba->slot_info)
 		goto err_out;
 

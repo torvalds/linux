@@ -40,7 +40,6 @@ config EC_ASUS_GLYMUR
 	depends on HWMON
 	depends on INPUT
 	depends on PM
-	depends on THERMAL || THERMAL=n
 	select NEW_LEDS
 	select LEDS_CLASS
 	help

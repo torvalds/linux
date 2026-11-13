@@ -357,7 +357,7 @@ static int rt5120_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = {};
 	int i, ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

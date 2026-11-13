@@ -187,7 +187,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_flow_steering *fs)
 		list_size = max_list_size;
 	}
 
-	vlans = kvcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
+	vlans = kvzalloc_objs(*vlans, list_size);
 	if (!vlans)
 		return -ENOMEM;
 

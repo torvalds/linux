@@ -243,12 +243,12 @@ int __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
 	d->nr_reg += hw->subgroups ? hw->nr_subgroups : 0;
 
-	d->reg = kcalloc(d->nr_reg, sizeof(*d->reg), GFP_NOWAIT);
+	d->reg = kzalloc_objs(*d->reg, d->nr_reg, GFP_NOWAIT);
 	if (!d->reg)
 		goto err2;
 
 #ifdef CONFIG_SMP
-	d->smp = kcalloc(d->nr_reg, sizeof(*d->smp), GFP_NOWAIT);
+	d->smp = kzalloc_objs(*d->smp, d->nr_reg, GFP_NOWAIT);
 	if (!d->smp)
 		goto err3;
 #endif

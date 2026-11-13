@@ -954,8 +954,7 @@ static int zynqmp_r5_get_sram_banks(struct zynqmp_r5_core *r5_core)
 		return -EINVAL;
 	}
 
-	sram = devm_kcalloc(dev, num_sram,
-			    sizeof(struct zynqmp_sram_bank), GFP_KERNEL);
+	sram = devm_kzalloc_objs(dev, struct zynqmp_sram_bank, num_sram);
 	if (!sram)
 		return -ENOMEM;
 
@@ -1038,16 +1037,15 @@ static int zynqmp_r5_get_tcm_node_from_dt(struct zynqmp_r5_cluster *cluster)
 			return -EINVAL;
 		}
 
-		r5_core->tcm_banks = devm_kcalloc(dev, tcm_bank_count,
-						  sizeof(struct mem_bank_data *),
-						  GFP_KERNEL);
+		r5_core->tcm_banks = devm_kzalloc_objs(dev,
+						       struct mem_bank_data *,
+						       tcm_bank_count);
 		if (!r5_core->tcm_banks)
 			return -ENOMEM;
 
 		r5_core->tcm_bank_count = tcm_bank_count;
 		for (j = 0, tcm_pd_idx = 1; j < tcm_bank_count; j++, tcm_pd_idx++) {
-			tcm = devm_kzalloc(dev, sizeof(struct mem_bank_data),
-					   GFP_KERNEL);
+			tcm = devm_kzalloc_obj(dev, struct mem_bank_data);
 			if (!tcm)
 				return -ENOMEM;
 
@@ -1139,9 +1137,9 @@ static int zynqmp_r5_get_tcm_node(struct zynqmp_r5_cluster *cluster)
 	tcm_node = 0;
 	for (i = 0; i < cluster->core_count; i++) {
 		r5_core = cluster->r5_cores[i];
-		r5_core->tcm_banks = devm_kcalloc(dev, tcm_bank_count,
-						  sizeof(struct mem_bank_data *),
-						  GFP_KERNEL);
+		r5_core->tcm_banks = devm_kzalloc_objs(dev,
+						       struct mem_bank_data *,
+						       tcm_bank_count);
 		if (!r5_core->tcm_banks)
 			return -ENOMEM;
 

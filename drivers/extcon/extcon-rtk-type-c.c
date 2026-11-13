@@ -1321,7 +1321,7 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 	const struct type_c_cfg *type_c_cfg;
 	int ret = 0;
 
-	type_c = devm_kzalloc(dev, sizeof(*type_c), GFP_KERNEL);
+	type_c = devm_kzalloc_obj(dev, *type_c);
 	if (!type_c)
 		return -ENOMEM;
 
@@ -1368,8 +1368,7 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	type_c->type_c_cfg = devm_kzalloc(dev, sizeof(*type_c->type_c_cfg),
-					  GFP_KERNEL);
+	type_c->type_c_cfg = devm_kzalloc_obj(dev, *type_c->type_c_cfg);
 	if (!type_c->type_c_cfg)
 		return -ENOMEM;
 

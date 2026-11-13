@@ -622,7 +622,7 @@ static int zinitix_ts_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	bt541 = devm_kzalloc(&client->dev, sizeof(*bt541), GFP_KERNEL);
+	bt541 = devm_kzalloc_obj(&client->dev, *bt541);
 	if (!bt541)
 		return -ENOMEM;
 

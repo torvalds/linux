@@ -339,7 +339,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	if (is_tx) {
 		struct ath_buf *bf;
 
-		bf = devm_kcalloc(sc->dev, sizeof(*bf), nbuf, GFP_KERNEL);
+		bf = devm_kzalloc_objs(sc->dev, *bf, nbuf);
 		if (!bf)
 			return -ENOMEM;
 
@@ -369,7 +369,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	} else {
 		struct ath_rxbuf *bf;
 
-		bf = devm_kcalloc(sc->dev, sizeof(struct ath_rxbuf), nbuf, GFP_KERNEL);
+		bf = devm_kzalloc_objs(sc->dev, struct ath_rxbuf, nbuf);
 		if (!bf)
 			return -ENOMEM;
 
@@ -662,7 +662,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	int ret = 0, i;
 	int csz = 0;
 
-	ah = devm_kzalloc(sc->dev, sizeof(struct ath_hw), GFP_KERNEL);
+	ah = devm_kzalloc_obj(sc->dev, struct ath_hw);
 	if (!ah)
 		return -ENOMEM;
 

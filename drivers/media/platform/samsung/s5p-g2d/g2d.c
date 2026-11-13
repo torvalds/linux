@@ -622,7 +622,7 @@ static int g2d_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	int ret = 0;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

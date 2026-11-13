@@ -1621,7 +1621,7 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	xcvr = devm_kzalloc(dev, sizeof(*xcvr), GFP_KERNEL);
+	xcvr = devm_kzalloc_obj(dev, *xcvr);
 	if (!xcvr)
 		return -ENOMEM;
 

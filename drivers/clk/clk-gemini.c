@@ -281,7 +281,7 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	gr = devm_kzalloc(dev, sizeof(*gr), GFP_KERNEL);
+	gr = devm_kzalloc_obj(dev, *gr);
 	if (!gr)
 		return -ENOMEM;
 

@@ -906,7 +906,7 @@ xfs_mount_sysfs_init(
 				"metadata", &mp->m_error_meta_kobj,
 				xfs_error_meta_init);
 	if (error)
-		goto out_remove_csum_dir;
+		goto out_remove_error_dir;
 
 	return 0;
 

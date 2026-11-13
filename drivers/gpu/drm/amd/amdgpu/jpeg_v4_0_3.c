@@ -248,16 +248,12 @@ static int jpeg_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
  *
  * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
- * JPEG suspend and free up sw allocation
+ * Free up JPEG sw allocation
  */
 static int jpeg_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	int r;
-
-	r = amdgpu_jpeg_suspend(adev);
-	if (r)
-		return r;
 
 	amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 
@@ -435,12 +431,16 @@ static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 							VCN_JPEG_DB_CTRL__EN_MASK);
 				r = amdgpu_ring_test_helper(ring);
 				if (r)
-					return r;
+					goto error;
 			}
 		}
 	}
 
 	return 0;
+
+error:
+	amdgpu_jpeg_cancel_idle_work(adev);
+	return r;
 }
 
 /**
@@ -455,7 +455,9 @@ static int jpeg_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0;
 
-	cancel_delayed_work_sync(&adev->jpeg.idle_work);
+	/* Teardown cancelled it synchronously in early_fini */
+	if (!adev->shutdown)
+		amdgpu_jpeg_cancel_idle_work(adev);
 
 	if (!amdgpu_sriov_vf(adev)) {
 		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
@@ -477,15 +479,7 @@ static int jpeg_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
  */
 static int jpeg_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
 {
-	int r;
-
-	r = jpeg_v4_0_3_hw_fini(ip_block);
-	if (r)
-		return r;
-
-	r = amdgpu_jpeg_suspend(ip_block->adev);
-
-	return r;
+	return jpeg_v4_0_3_hw_fini(ip_block);
 }
 
 /**
@@ -1222,6 +1216,7 @@ static const struct amd_ip_funcs jpeg_v4_0_3_ip_funcs = {
 	.early_init = jpeg_v4_0_3_early_init,
 	.sw_init = jpeg_v4_0_3_sw_init,
 	.sw_fini = jpeg_v4_0_3_sw_fini,
+	.early_fini = amdgpu_jpeg_early_fini,
 	.hw_init = jpeg_v4_0_3_hw_init,
 	.hw_fini = jpeg_v4_0_3_hw_fini,
 	.suspend = jpeg_v4_0_3_suspend,

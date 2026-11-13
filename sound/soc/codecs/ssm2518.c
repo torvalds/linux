@@ -752,7 +752,7 @@ static int ssm2518_i2c_probe(struct i2c_client *i2c)
 	struct ssm2518 *ssm2518;
 	int ret;
 
-	ssm2518 = devm_kzalloc(&i2c->dev, sizeof(*ssm2518), GFP_KERNEL);
+	ssm2518 = devm_kzalloc_obj(&i2c->dev, *ssm2518);
 	if (ssm2518 == NULL)
 		return -ENOMEM;
 

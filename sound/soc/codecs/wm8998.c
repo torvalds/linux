@@ -1340,8 +1340,7 @@ static int wm8998_probe(struct platform_device *pdev)
 	struct wm8998_priv *wm8998;
 	int i, ret;
 
-	wm8998 = devm_kzalloc(&pdev->dev, sizeof(struct wm8998_priv),
-			      GFP_KERNEL);
+	wm8998 = devm_kzalloc_obj(&pdev->dev, struct wm8998_priv);
 	if (!wm8998)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8998);

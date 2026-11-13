@@ -449,11 +449,11 @@ static struct panel_desc *panel_dpi_probe(struct device *dev)
 	int ret;
 
 	np = dev->of_node;
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
-	timing = devm_kzalloc(dev, sizeof(*timing), GFP_KERNEL);
+	timing = devm_kzalloc_obj(dev, *timing);
 	if (!timing)
 		return ERR_PTR(-ENOMEM);
 

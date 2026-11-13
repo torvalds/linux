@@ -1939,7 +1939,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 	int ret, i;
 
 	data = of_device_get_match_data(dev);
-	hellcreek = devm_kzalloc(dev, struct_size(hellcreek, ports, data->num_ports), GFP_KERNEL);
+	hellcreek = devm_kzalloc_flex(dev, *hellcreek, ports, data->num_ports);
 	if (!hellcreek)
 		return -ENOMEM;
 
@@ -1955,10 +1955,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 		struct hellcreek_port *port = &hellcreek->ports[i];
 
 		port->counter_values =
-			devm_kcalloc(dev,
-				     ARRAY_SIZE(hellcreek_counter),
-				     sizeof(*port->counter_values),
-				     GFP_KERNEL);
+			devm_kzalloc_objs(dev, *port->counter_values,
+					  ARRAY_SIZE(hellcreek_counter));
 		if (!port->counter_values)
 			return -ENOMEM;
 
@@ -2014,7 +2012,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	hellcreek_feature_detect(hellcreek);
 
-	hellcreek->ds = devm_kzalloc(dev, sizeof(*hellcreek->ds), GFP_KERNEL);
+	hellcreek->ds = devm_kzalloc_obj(dev, *hellcreek->ds);
 	if (!hellcreek->ds)
 		return -ENOMEM;
 

@@ -145,7 +145,7 @@ static int ts4900_gpio_probe(struct i2c_client *client)
 	if (device_property_read_u32(&client->dev, "ngpios", &ngpio))
 		ngpio = DEFAULT_PIN_NUMBER;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

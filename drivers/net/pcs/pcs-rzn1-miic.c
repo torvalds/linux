@@ -790,7 +790,7 @@ static int miic_probe(struct platform_device *pdev)
 	u32 mode_cfg;
 	int ret;
 
-	miic = devm_kzalloc(dev, sizeof(*miic), GFP_KERNEL);
+	miic = devm_kzalloc_obj(dev, *miic);
 	if (!miic)
 		return -ENOMEM;
 

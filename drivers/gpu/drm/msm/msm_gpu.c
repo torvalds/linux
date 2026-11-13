@@ -285,7 +285,7 @@ static void crashstate_get_bos(struct msm_gpu_state *state, struct msm_gem_submi
 		drm_gpuvm_for_each_va (vma, submit->vm)
 			cnt++;
 
-		state->bos = kcalloc(cnt, sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
+		state->bos = kzalloc_objs(struct msm_gpu_state_bo, cnt);
 
 		if (state->bos)
 			drm_gpuvm_for_each_va(vma, submit->vm) {
@@ -301,8 +301,8 @@ static void crashstate_get_bos(struct msm_gpu_state *state, struct msm_gem_submi
 
 		drm_exec_fini(&exec);
 	} else {
-		state->bos = kcalloc(submit->nr_bos,
-			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
+		state->bos = kzalloc_objs(struct msm_gpu_state_bo,
+					  submit->nr_bos);
 
 		for (int i = 0; state->bos && i < submit->nr_bos; i++) {
 			struct drm_gem_object *obj = submit->bos[i].obj;

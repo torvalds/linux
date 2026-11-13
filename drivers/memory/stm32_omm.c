@@ -303,7 +303,7 @@ static int stm32_omm_probe(struct platform_device *pdev)
 	struct stm32_omm *omm;
 	int i, ret;
 
-	omm = devm_kzalloc(dev, sizeof(*omm), GFP_KERNEL);
+	omm = devm_kzalloc_obj(dev, *omm);
 	if (!omm)
 		return -ENOMEM;
 

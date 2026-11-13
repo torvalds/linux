@@ -549,7 +549,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	unsigned int npins;
 	int ret;
 
-	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(dev, *p);
 	if (!p)
 		return -ENOMEM;
 

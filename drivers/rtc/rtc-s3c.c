@@ -387,7 +387,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	struct s3c_rtc *info = NULL;
 	int ret;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

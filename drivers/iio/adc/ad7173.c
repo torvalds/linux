@@ -1201,8 +1201,8 @@ static int ad7173_setup(struct iio_dev *indio_dev)
 	st->interface_mode = 0x0;
 
 	st->config_usage_counter = 0;
-	st->config_cnts = devm_kcalloc(dev, st->info->num_configs,
-				       sizeof(*st->config_cnts), GFP_KERNEL);
+	st->config_cnts = devm_kzalloc_objs(dev, *st->config_cnts,
+					    st->info->num_configs);
 	if (!st->config_cnts)
 		return -ENOMEM;
 
@@ -1801,12 +1801,11 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 	indio_dev->num_channels = num_channels;
 	st->num_channels = num_channels;
 
-	chan_arr = devm_kcalloc(dev, sizeof(*chan_arr), st->num_channels, GFP_KERNEL);
+	chan_arr = devm_kzalloc_objs(dev, *chan_arr, st->num_channels);
 	if (!chan_arr)
 		return -ENOMEM;
 
-	chans_st_arr = devm_kcalloc(dev, st->num_channels, sizeof(*st->channels),
-				    GFP_KERNEL);
+	chans_st_arr = devm_kzalloc_objs(dev, *st->channels, st->num_channels);
 	if (!chans_st_arr)
 		return -ENOMEM;
 

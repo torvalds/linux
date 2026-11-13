@@ -23,7 +23,7 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	void __iomem *base_addr;
 	int retval;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -1973,7 +1973,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_CQHCI) {
 		host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
-		cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
+		cq_host = devm_kzalloc_obj(&pdev->dev, *cq_host);
 		if (!cq_host) {
 			err = -ENOMEM;
 			goto disable_ahb_clk;

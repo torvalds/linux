@@ -109,10 +109,10 @@ module_param_call(pool_mode, param_set_pool_mode, param_get_pool_mode,
 static int
 svc_pool_map_alloc_arrays(struct svc_pool_map *m, unsigned int maxpools)
 {
-	m->to_pool = kcalloc(maxpools, sizeof(unsigned int), GFP_KERNEL);
+	m->to_pool = kzalloc_objs(unsigned int, maxpools);
 	if (!m->to_pool)
 		goto fail;
-	m->pool_to = kcalloc(maxpools, sizeof(unsigned int), GFP_KERNEL);
+	m->pool_to = kzalloc_objs(unsigned int, maxpools);
 	if (!m->pool_to)
 		goto fail_free;
 

@@ -477,8 +477,7 @@ static int nfp_abm_init(struct nfp_app *app)
 	if (!abm->threshold_undef)
 		goto err_free_abm;
 
-	abm->thresholds = kvcalloc(abm->num_thresholds,
-				   sizeof(*abm->thresholds), GFP_KERNEL);
+	abm->thresholds = kvzalloc_objs(*abm->thresholds, abm->num_thresholds);
 	if (!abm->thresholds)
 		goto err_free_thresh_umap;
 

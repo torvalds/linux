@@ -1069,7 +1069,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 	eeprom_len = last_word - first_word + 1;
 
-	eeprom_buff = kmalloc_array(eeprom_len, sizeof(u16), GFP_KERNEL);
+	eeprom_buff = kmalloc_objs(u16, eeprom_len);
 	if (!eeprom_buff)
 		return -ENOMEM;
 

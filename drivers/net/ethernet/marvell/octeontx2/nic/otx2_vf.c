@@ -628,8 +628,8 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_free_netdev;
 	}
 
-	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
-					 sizeof(cpumask_var_t), GFP_KERNEL);
+	hw->affinity_mask = devm_kzalloc_objs(&hw->pdev->dev, cpumask_var_t,
+					      num_vec);
 	if (!hw->affinity_mask) {
 		err = -ENOMEM;
 		goto err_free_netdev;

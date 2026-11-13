@@ -281,7 +281,7 @@ static int fme_mgr_probe(struct platform_device *pdev)
 	struct fme_mgr_priv *priv;
 	struct fpga_manager *mgr;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -297,7 +297,7 @@ static int fme_mgr_probe(struct platform_device *pdev)
 	info.name = "DFL FME FPGA Manager";
 	info.mops = &fme_mgr_ops;
 	info.priv = priv;
-	info.compat_id = devm_kzalloc(dev, sizeof(*info.compat_id), GFP_KERNEL);
+	info.compat_id = devm_kzalloc_obj(dev, *info.compat_id);
 	if (!info.compat_id)
 		return -ENOMEM;
 

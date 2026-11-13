@@ -423,7 +423,7 @@ static int nvvrs_rtc_probe(struct i2c_client *client)
 	struct nvvrs_rtc_info *info;
 	int ret;
 
-	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

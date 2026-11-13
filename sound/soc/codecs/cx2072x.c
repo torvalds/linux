@@ -1643,8 +1643,7 @@ static int cx2072x_i2c_probe(struct i2c_client *i2c)
 	unsigned int ven_id, rev_id;
 	int ret;
 
-	cx2072x = devm_kzalloc(&i2c->dev, sizeof(struct cx2072x_priv),
-			       GFP_KERNEL);
+	cx2072x = devm_kzalloc_obj(&i2c->dev, struct cx2072x_priv);
 	if (!cx2072x)
 		return -ENOMEM;
 

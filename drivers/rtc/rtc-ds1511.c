@@ -283,7 +283,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		.priv = &pdev->dev,
 	};
 
-	ds1511 = devm_kzalloc(&pdev->dev, sizeof(*ds1511), GFP_KERNEL);
+	ds1511 = devm_kzalloc_obj(&pdev->dev, *ds1511);
 	if (!ds1511)
 		return -ENOMEM;
 

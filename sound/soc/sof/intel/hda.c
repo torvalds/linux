@@ -788,7 +788,7 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 
 	sdev->num_cores = chip->cores_num;
 
-	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(sdev->dev, *hdev);
 	if (!hdev)
 		return -ENOMEM;
 	sdev->pdata->hw_pdata = hdev;
@@ -1179,7 +1179,7 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 	link->mask = BIT(sdw_device->bus->link_id);
 	/* index is 0 based, we need allocate index + 1 for the array size */
 	if (!index)
-		adr_dev = devm_kzalloc(dev, sizeof(*adr_dev), GFP_KERNEL);
+		adr_dev = devm_kzalloc_obj(dev, *adr_dev);
 	else
 		adr_dev = devm_krealloc(dev, (struct snd_soc_acpi_adr_device *)link->adr_d,
 					(index + 1) * sizeof(*adr_dev), GFP_KERNEL);
@@ -1197,8 +1197,8 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		if (sdw_device->id.part_id != codec_info_list[i].part_id)
 			continue;
 
-		endpoints = devm_kcalloc(dev, codec_info_list[i].dai_num,
-					 sizeof(struct snd_soc_acpi_endpoint), GFP_KERNEL);
+		endpoints = devm_kzalloc_objs(dev, struct snd_soc_acpi_endpoint,
+					      codec_info_list[i].dai_num);
 		if (!endpoints)
 			return NULL;
 
@@ -1405,7 +1405,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		return NULL;
 
 	/* Create default SDW mach */
-	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
+	mach = devm_kzalloc_obj(sdev->dev, *mach);
 	if (!mach)
 		return NULL;
 
@@ -1415,7 +1415,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 
 	link_num = hweight32(link_mask);
 	/* An empty adr_link is needed to terminate the adr_link loop */
-	links = devm_kcalloc(sdev->dev, link_num + 1, sizeof(*links), GFP_KERNEL);
+	links = devm_kzalloc_objs(sdev->dev, *links, link_num + 1);
 	if (!links)
 		return NULL;
 

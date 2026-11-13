@@ -282,7 +282,7 @@ static int dfl_tod_probe(struct dfl_device *ddev)
 	struct device *dev = &ddev->dev;
 	struct dfl_tod *dt;
 
-	dt = devm_kzalloc(dev, sizeof(*dt), GFP_KERNEL);
+	dt = devm_kzalloc_obj(dev, *dt);
 	if (!dt)
 		return -ENOMEM;
 

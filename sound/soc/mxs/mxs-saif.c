@@ -796,7 +796,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	int irq, ret;
 	struct device_node *master;
 
-	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
+	saif = devm_kzalloc_obj(&pdev->dev, *saif);
 	if (!saif)
 		return -ENOMEM;
 

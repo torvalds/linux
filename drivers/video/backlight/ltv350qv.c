@@ -227,7 +227,7 @@ static int ltv350qv_probe(struct spi_device *spi)
 	struct lcd_device *ld;
 	int ret;
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct ltv350qv), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(&spi->dev, struct ltv350qv);
 	if (!lcd)
 		return -ENOMEM;
 

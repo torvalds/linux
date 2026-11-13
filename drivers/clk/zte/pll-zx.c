@@ -522,7 +522,7 @@ struct clk_hw *zx_clk_register_pll(struct device *dev, struct regmap *regmap,
 	unsigned int i;
 	int res;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

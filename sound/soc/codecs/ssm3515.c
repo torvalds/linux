@@ -413,7 +413,7 @@ static int ssm3515_i2c_probe(struct i2c_client *client)
 	struct ssm3515_data *data;
 	int ret;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

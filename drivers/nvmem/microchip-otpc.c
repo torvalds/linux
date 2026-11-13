@@ -209,7 +209,7 @@ static int mchp_otpc_init_packets_list(struct mchp_otpc *otpc, u32 *size)
 		if (!payload_size)
 			break;
 
-		packet = devm_kzalloc(otpc->dev, sizeof(*packet), GFP_KERNEL);
+		packet = devm_kzalloc_obj(otpc->dev, *packet);
 		if (!packet)
 			return -ENOMEM;
 
@@ -247,7 +247,7 @@ static int mchp_otpc_probe(struct platform_device *pdev)
 	u32 size;
 	int ret;
 
-	otpc = devm_kzalloc(&pdev->dev, sizeof(*otpc), GFP_KERNEL);
+	otpc = devm_kzalloc_obj(&pdev->dev, *otpc);
 	if (!otpc)
 		return -ENOMEM;
 

@@ -806,7 +806,7 @@ static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 	if (gmu->bw_table)
 		goto send;
 
-	msg = devm_kzalloc(gmu->dev, sizeof(*msg), GFP_KERNEL);
+	msg = devm_kzalloc_obj(gmu->dev, *msg);
 	if (!msg)
 		return -ENOMEM;
 

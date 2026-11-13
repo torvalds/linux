@@ -95,7 +95,7 @@ static int k210_rst_probe(struct platform_device *pdev)
 
 	dev_info(dev, "K210 reset controller\n");
 
-	ksr = devm_kzalloc(dev, sizeof(*ksr), GFP_KERNEL);
+	ksr = devm_kzalloc_obj(dev, *ksr);
 	if (!ksr)
 		return -ENOMEM;
 

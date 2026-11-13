@@ -381,7 +381,7 @@ static int framer_codec_probe(struct platform_device *pdev)
 {
 	struct framer_codec *framer;
 
-	framer = devm_kzalloc(&pdev->dev, sizeof(*framer), GFP_KERNEL);
+	framer = devm_kzalloc_obj(&pdev->dev, *framer);
 	if (!framer)
 		return -ENOMEM;
 

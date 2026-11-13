@@ -631,7 +631,7 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 	if (!parent_domain)
 		return -ENODEV;
 
-	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 
@@ -647,7 +647,7 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio);
 
-	gpiochip = devm_kzalloc(dev, sizeof(*gpiochip), GFP_KERNEL);
+	gpiochip = devm_kzalloc_obj(dev, *gpiochip);
 	if (!gpiochip)
 		return -ENOMEM;
 

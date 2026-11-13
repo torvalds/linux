@@ -86,7 +86,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 	struct dwc3_keystone	*kdwc;
 	int			error, irq;
 
-	kdwc = devm_kzalloc(dev, sizeof(*kdwc), GFP_KERNEL);
+	kdwc = devm_kzalloc_obj(dev, *kdwc);
 	if (!kdwc)
 		return -ENOMEM;
 

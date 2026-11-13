@@ -951,7 +951,7 @@ static int idtfc3_probe(struct platform_device *pdev)
 	struct idtfc3 *idtfc3;
 	int err;
 
-	idtfc3 = devm_kzalloc(&pdev->dev, sizeof(struct idtfc3), GFP_KERNEL);
+	idtfc3 = devm_kzalloc_obj(&pdev->dev, struct idtfc3);
 
 	if (!idtfc3)
 		return -ENOMEM;

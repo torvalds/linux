@@ -653,7 +653,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pcif_vec,
 		goto err_sf_ctrl;
 	}
 
-	table->sf_comp_pool->irqs_per_cpu = kcalloc(nr_cpu_ids, sizeof(u16), GFP_KERNEL);
+	table->sf_comp_pool->irqs_per_cpu = kzalloc_objs(u16, nr_cpu_ids);
 	if (!table->sf_comp_pool->irqs_per_cpu) {
 		err = -ENOMEM;
 		goto err_irqs_per_cpu;

@@ -3248,7 +3248,7 @@ static int alloc_port(struct vip_dev *dev, int id)
 	if (dev->ports[id])
 		return -EINVAL;
 
-	port = devm_kzalloc(&dev->pdev->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(&dev->pdev->dev, *port);
 	if (!port)
 		return -ENOMEM;
 
@@ -3424,7 +3424,7 @@ static int vip_probe_complete(struct platform_device *pdev)
 	int ret, i, slice_id, port_id, p;
 
 	/* Allocate ctrl before using it */
-	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(&pdev->dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -3491,7 +3491,7 @@ static int vip_probe_slice(struct platform_device *pdev, int slice)
 	struct csc_data *csc;
 	int ret;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -3518,7 +3518,7 @@ static int vip_probe_slice(struct platform_device *pdev, int slice)
 	vip_top_reset(dev);
 	vip_set_slice_path(dev, VIP_MULTI_CHANNEL_DATA_SELECT, 1);
 
-	parser = devm_kzalloc(&pdev->dev, sizeof(*dev->parser), GFP_KERNEL);
+	parser = devm_kzalloc_obj(&pdev->dev, *dev->parser);
 	if (!parser)
 		return -ENOMEM;
 
@@ -3530,7 +3530,7 @@ static int vip_probe_slice(struct platform_device *pdev, int slice)
 	dev->parser = parser;
 
 	dev->sc_assigned = VIP_NOT_ASSIGNED;
-	sc = devm_kzalloc(&pdev->dev, sizeof(*dev->sc), GFP_KERNEL);
+	sc = devm_kzalloc_obj(&pdev->dev, *dev->sc);
 	if (!sc)
 		return -ENOMEM;
 
@@ -3542,7 +3542,7 @@ static int vip_probe_slice(struct platform_device *pdev, int slice)
 	dev->sc = sc;
 
 	dev->csc_assigned = VIP_NOT_ASSIGNED;
-	csc = devm_kzalloc(&pdev->dev, sizeof(*dev->csc), GFP_KERNEL);
+	csc = devm_kzalloc_obj(&pdev->dev, *dev->csc);
 	if (!csc)
 		return -ENOMEM;
 
@@ -3575,7 +3575,7 @@ static int vip_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	shared = devm_kzalloc(&pdev->dev, sizeof(*shared), GFP_KERNEL);
+	shared = devm_kzalloc_obj(&pdev->dev, *shared);
 	if (!shared)
 		return -ENOMEM;
 

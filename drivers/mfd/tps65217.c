@@ -359,7 +359,7 @@ static int tps65217_probe(struct i2c_client *client)
 	status_off = of_property_read_bool(client->dev.of_node,
 					   "ti,pmic-shutdown-controller");
 
-	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&client->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

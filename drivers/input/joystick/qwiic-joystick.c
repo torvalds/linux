@@ -75,7 +75,7 @@ static int qwiic_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "SparkFun Qwiic Joystick, FW: %u.%u\n",
 		vers.major, vers.minor);
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

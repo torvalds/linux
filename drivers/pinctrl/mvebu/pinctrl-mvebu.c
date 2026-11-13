@@ -507,9 +507,8 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 
 	/* we allocate functions for number of pins and hope
 	 * there are fewer unique functions than pins available */
-	funcs = devm_kcalloc(&pdev->dev,
-			     funcsize, sizeof(struct mvebu_pinctrl_function),
-			     GFP_KERNEL);
+	funcs = devm_kzalloc_objs(&pdev->dev, struct mvebu_pinctrl_function,
+				  funcsize);
 	if (!funcs)
 		return -ENOMEM;
 
@@ -591,8 +590,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pinctrl),
-			GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, struct mvebu_pinctrl);
 	if (!pctl)
 		return -ENOMEM;
 
@@ -630,10 +628,8 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	pdesc = devm_kcalloc(&pdev->dev,
-			     pctl->desc.npins,
-			     sizeof(struct pinctrl_pin_desc),
-			     GFP_KERNEL);
+	pdesc = devm_kzalloc_objs(&pdev->dev, struct pinctrl_pin_desc,
+				  pctl->desc.npins);
 	if (!pdesc)
 		return -ENOMEM;
 
@@ -776,8 +772,7 @@ int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	mpp_data = devm_kcalloc(&pdev->dev, soc->ncontrols, sizeof(*mpp_data),
-				GFP_KERNEL);
+	mpp_data = devm_kzalloc_objs(&pdev->dev, *mpp_data, soc->ncontrols);
 	if (!mpp_data)
 		return -ENOMEM;
 
@@ -828,8 +823,7 @@ int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	mpp_data = devm_kcalloc(&pdev->dev, soc->ncontrols, sizeof(*mpp_data),
-				GFP_KERNEL);
+	mpp_data = devm_kzalloc_objs(&pdev->dev, *mpp_data, soc->ncontrols);
 	if (!mpp_data)
 		return -ENOMEM;
 

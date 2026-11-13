@@ -947,11 +947,12 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		goto free_cs;
 	}
 
-	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
-			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
+	cs->jobs_in_queue_cnt = kzalloc_objs(*cs->jobs_in_queue_cnt,
+					     hdev->asic_prop.max_queues,
+					     GFP_ATOMIC);
 	if (!cs->jobs_in_queue_cnt)
-		cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
-				sizeof(*cs->jobs_in_queue_cnt), GFP_KERNEL);
+		cs->jobs_in_queue_cnt = kzalloc_objs(*cs->jobs_in_queue_cnt,
+						     hdev->asic_prop.max_queues);
 
 	if (!cs->jobs_in_queue_cnt) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
@@ -1899,13 +1900,11 @@ static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 		return -EINVAL;
 	}
 
-	signal_seq_arr = kmalloc_array(signal_seq_arr_len,
-					sizeof(*signal_seq_arr),
-					GFP_ATOMIC);
+	signal_seq_arr = kmalloc_objs(*signal_seq_arr, signal_seq_arr_len,
+				      GFP_ATOMIC);
 	if (!signal_seq_arr)
-		signal_seq_arr = kmalloc_array(signal_seq_arr_len,
-					sizeof(*signal_seq_arr),
-					GFP_KERNEL);
+		signal_seq_arr = kmalloc_objs(*signal_seq_arr,
+					      signal_seq_arr_len);
 	if (!signal_seq_arr) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);
@@ -2479,7 +2478,7 @@ static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
 	}
 
 	engine_cores_arr = (void __user *) (uintptr_t) engine_cores;
-	cores = kmalloc_array(num_engine_cores, sizeof(u32), GFP_KERNEL);
+	cores = kmalloc_objs(u32, num_engine_cores);
 	if (!cores)
 		return -ENOMEM;
 
@@ -2521,7 +2520,7 @@ static int cs_ioctl_engines(struct hl_fpriv *hpriv, u64 engines_arr_user_addr,
 	}
 
 	engines_arr = (void __user *) (uintptr_t) engines_arr_user_addr;
-	engines = kmalloc_array(num_engines, sizeof(u32), GFP_KERNEL);
+	engines = kmalloc_objs(u32, num_engines);
 	if (!engines)
 		return -ENOMEM;
 
@@ -3037,7 +3036,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	/* allocate memory for sequence array */
 	cs_seq_arr =
-		kmalloc_array(seq_arr_len, sizeof(*cs_seq_arr), GFP_KERNEL);
+		kmalloc_objs(*cs_seq_arr, seq_arr_len);
 	if (!cs_seq_arr)
 		return -ENOMEM;
 

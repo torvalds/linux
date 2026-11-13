@@ -117,7 +117,7 @@ int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *parent)
 	if (!parent_name)
 		return -ENODEV;
 
-	ddc = devm_kzalloc(hdmi->dev, sizeof(*ddc), GFP_KERNEL);
+	ddc = devm_kzalloc_obj(hdmi->dev, *ddc);
 	if (!ddc)
 		return -ENOMEM;
 

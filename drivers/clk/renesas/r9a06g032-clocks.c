@@ -805,7 +805,7 @@ static int r9a06g032_add_clk_domain(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct generic_pm_domain *pd;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -1318,9 +1318,8 @@ static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 	struct regbit uart_group_sel[2];
 	int error;
 
-	clocks = devm_kzalloc(dev, sizeof(*clocks), GFP_KERNEL);
-	clks = devm_kcalloc(dev, R9A06G032_CLOCK_COUNT, sizeof(struct clk *),
-			    GFP_KERNEL);
+	clocks = devm_kzalloc_obj(dev, *clocks);
+	clks = devm_kzalloc_objs(dev, struct clk *, R9A06G032_CLOCK_COUNT);
 	if (!clocks || !clks)
 		return -ENOMEM;
 

@@ -111,7 +111,9 @@ static int sht4x_read_values(struct sht4x_data *data)
 	}
 
 	if (data->data_pending &&
-	    time_before64(get_jiffies_64(), data->heating_complete + data->update_interval)) {
+	    time_before64(get_jiffies_64(),
+			  data->heating_complete +
+			  msecs_to_jiffies(data->update_interval))) {
 		data->data_pending = false;
 	} else {
 		next_update = data->last_updated +
@@ -428,7 +430,7 @@ static int sht4x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -EOPNOTSUPP;
 
-	data = devm_kzalloc(device, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(device, *data);
 	if (!data)
 		return -ENOMEM;
 

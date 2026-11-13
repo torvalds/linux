@@ -59,7 +59,7 @@ static int sbrmi_common_probe(struct device *dev, struct regmap *regmap, uint8_t
 	struct sbrmi_data *data;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(struct sbrmi_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct sbrmi_data);
 	if (!data)
 		return -ENOMEM;
 

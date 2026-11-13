@@ -401,7 +401,7 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 
 	mode = (enum dw_pcie_device_mode)data->mode;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 

@@ -1483,7 +1483,7 @@ static int pci_epf_test_probe(struct pci_epf *epf,
 	struct device *dev = &epf->dev;
 	enum pci_barno bar;
 
-	epf_test = devm_kzalloc(dev, sizeof(*epf_test), GFP_KERNEL);
+	epf_test = devm_kzalloc_obj(dev, *epf_test);
 	if (!epf_test)
 		return -ENOMEM;
 

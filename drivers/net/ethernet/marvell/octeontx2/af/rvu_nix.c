@@ -541,8 +541,7 @@ static int nix_setup_bpids(struct rvu *rvu, struct nix_hw *hw, int blkaddr)
 	if (err)
 		return err;
 
-	bp->fn_map = devm_kcalloc(rvu->dev, bp->bpids.max,
-				  sizeof(u16), GFP_KERNEL);
+	bp->fn_map = devm_kzalloc_objs(rvu->dev, u16, bp->bpids.max);
 	if (!bp->fn_map)
 		goto free_bpids;
 
@@ -3796,8 +3795,7 @@ static int nix_setup_txvlan(struct rvu *rvu, struct nix_hw *nix_hw)
 		return -ENOMEM;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
-	vlan->entry2pfvf_map = devm_kcalloc(rvu->dev, vlan->rsrc.max,
-					    sizeof(u16), GFP_KERNEL);
+	vlan->entry2pfvf_map = devm_kzalloc_objs(rvu->dev, u16, vlan->rsrc.max);
 	if (!vlan->entry2pfvf_map)
 		goto free_mem;
 
@@ -3847,8 +3845,8 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 		/* Allocate memory for scheduler queues to
 		 * PF/VF pcifunc mapping info.
 		 */
-		txsch->pfvf_map = devm_kcalloc(rvu->dev, txsch->schq.max,
-					       sizeof(u32), GFP_KERNEL);
+		txsch->pfvf_map = devm_kzalloc_objs(rvu->dev, u32,
+						    txsch->schq.max);
 		if (!txsch->pfvf_map)
 			return -ENOMEM;
 		for (schq = 0; schq < txsch->schq.max; schq++)
@@ -3909,8 +3907,7 @@ static int nix_af_mark_format_setup(struct rvu *rvu, struct nix_hw *nix_hw,
 
 	total = (rvu_read64(rvu, blkaddr, NIX_AF_PSE_CONST) & 0xFF00) >> 8;
 	nix_hw->mark_format.total = (u8)total;
-	nix_hw->mark_format.cfg = devm_kcalloc(rvu->dev, total, sizeof(u32),
-					       GFP_KERNEL);
+	nix_hw->mark_format.cfg = devm_kzalloc_objs(rvu->dev, u32, total);
 	if (!nix_hw->mark_format.cfg)
 		return -ENOMEM;
 	for (i = 0; i < NIX_MARK_CFG_MAX; i++) {
@@ -5163,8 +5160,8 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		if (err)
 			return err;
 
-		nix_hw->tx_credits = kcalloc(hw->cgx_links + hw->lbk_links,
-					     sizeof(u64), GFP_KERNEL);
+		nix_hw->tx_credits = kzalloc_objs(u64,
+						  hw->cgx_links + hw->lbk_links);
 		if (!nix_hw->tx_credits)
 			return -ENOMEM;
 
@@ -5184,8 +5181,7 @@ int rvu_nix_init(struct rvu *rvu)
 	int blkaddr = 0, err;
 	int i = 0;
 
-	hw->nix = devm_kcalloc(rvu->dev, MAX_NIX_BLKS, sizeof(struct nix_hw),
-			       GFP_KERNEL);
+	hw->nix = devm_kzalloc_objs(rvu->dev, struct nix_hw, MAX_NIX_BLKS);
 	if (!hw->nix)
 		return -ENOMEM;
 
@@ -5805,8 +5801,8 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 	}
 
 	hw->cap.ipolicer = true;
-	nix_hw->ipolicer = devm_kcalloc(rvu->dev, BAND_PROF_NUM_LAYERS,
-					sizeof(*ipolicer), GFP_KERNEL);
+	nix_hw->ipolicer = devm_kzalloc_objs(rvu->dev, *ipolicer,
+					     BAND_PROF_NUM_LAYERS);
 	if (!nix_hw->ipolicer)
 		return -ENOMEM;
 
@@ -5833,15 +5829,13 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 		if (err)
 			return err;
 
-		ipolicer->pfvf_map = devm_kcalloc(rvu->dev,
-						  ipolicer->band_prof.max,
-						  sizeof(u16), GFP_KERNEL);
+		ipolicer->pfvf_map = devm_kzalloc_objs(rvu->dev, u16,
+						       ipolicer->band_prof.max);
 		if (!ipolicer->pfvf_map)
 			return -ENOMEM;
 
-		ipolicer->match_id = devm_kcalloc(rvu->dev,
-						  ipolicer->band_prof.max,
-						  sizeof(u16), GFP_KERNEL);
+		ipolicer->match_id = devm_kzalloc_objs(rvu->dev, u16,
+						       ipolicer->band_prof.max);
 		if (!ipolicer->match_id)
 			return -ENOMEM;
 
@@ -5868,9 +5862,8 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 		if (layer != BAND_PROF_MID_LAYER)
 			continue;
 
-		ipolicer->ref_count = devm_kcalloc(rvu->dev,
-						   ipolicer->band_prof.max,
-						   sizeof(u16), GFP_KERNEL);
+		ipolicer->ref_count = devm_kzalloc_objs(rvu->dev, u16,
+							ipolicer->band_prof.max);
 		if (!ipolicer->ref_count)
 			return -ENOMEM;
 	}

@@ -389,7 +389,7 @@ void vcap_port_debugfs(struct device *dev, struct dentry *parent,
 {
 	struct vcap_port_debugfs_info *info;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return;
 
@@ -409,7 +409,7 @@ void vcap_port_debugfs_portno(struct device *dev,
 	struct vcap_port_debugfs_info *info;
 	char name[16];
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return;
 
@@ -469,7 +469,7 @@ struct dentry *vcap_debugfs(struct device *dev, struct dentry *parent,
 	list_for_each_entry(admin, &vctrl->list, list) {
 		sprintf(name, "raw_%s_%d", vctrl->vcaps[admin->vtype].name,
 			admin->vinst);
-		info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+		info = devm_kzalloc_obj(dev, *info);
 		if (!info)
 			return NULL;
 		info->vctrl = vctrl;

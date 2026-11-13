@@ -2372,7 +2372,7 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 		 vsc->addr[0], vsc->addr[1], vsc->addr[2],
 		 vsc->addr[3], vsc->addr[4], vsc->addr[5]);
 
-	vsc->ds = devm_kzalloc(dev, sizeof(*vsc->ds), GFP_KERNEL);
+	vsc->ds = devm_kzalloc_obj(dev, *vsc->ds);
 	if (!vsc->ds)
 		return -ENOMEM;
 

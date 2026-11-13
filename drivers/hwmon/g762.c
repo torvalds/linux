@@ -1076,7 +1076,7 @@ static int g762_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(struct g762_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct g762_data);
 	if (!data)
 		return -ENOMEM;
 

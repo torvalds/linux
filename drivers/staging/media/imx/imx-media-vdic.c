@@ -881,7 +881,7 @@ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 	struct vdic_priv *priv;
 	int i, ret;
 
-	priv = devm_kzalloc(ipu_dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(ipu_dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

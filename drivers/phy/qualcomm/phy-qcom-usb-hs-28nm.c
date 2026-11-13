@@ -312,7 +312,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -321,8 +321,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	priv->num_clks = ARRAY_SIZE(qcom_snps_hsphy_clks);
-	priv->clks = devm_kcalloc(dev, priv->num_clks, sizeof(*priv->clks),
-				  GFP_KERNEL);
+	priv->clks = devm_kzalloc_objs(dev, *priv->clks, priv->num_clks);
 	if (!priv->clks)
 		return -ENOMEM;
 

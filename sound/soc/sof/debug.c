@@ -121,7 +121,7 @@ static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 	if (!sdev)
 		return -EINVAL;
 
-	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc_obj(sdev->dev, *dfse);
 	if (!dfse)
 		return -ENOMEM;
 
@@ -177,7 +177,7 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 	if (!sdev)
 		return -EINVAL;
 
-	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc_obj(sdev->dev, *dfse);
 	if (!dfse)
 		return -ENOMEM;
 
@@ -297,7 +297,7 @@ int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_dfsentry *dfse;
 
-	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc_obj(sdev->dev, *dfse);
 	if (!dfse)
 		return -ENOMEM;
 

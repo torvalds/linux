@@ -221,7 +221,7 @@ static int surface_platform_profile_probe(struct ssam_device *sdev)
 {
 	struct ssam_platform_profile_device *tpd;
 
-	tpd = devm_kzalloc(&sdev->dev, sizeof(*tpd), GFP_KERNEL);
+	tpd = devm_kzalloc_obj(&sdev->dev, *tpd);
 	if (!tpd)
 		return -ENOMEM;
 

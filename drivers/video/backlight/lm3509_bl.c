@@ -223,7 +223,7 @@ static int lm3509_probe(struct i2c_client *client)
 		return -EOPNOTSUPP;
 	}
 
-	data = devm_kzalloc(dev, sizeof(struct lm3509_bl), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm3509_bl);
 	if (!data)
 		return -ENOMEM;
 

@@ -255,7 +255,7 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 	unsigned long rate, opp_volt;
 	int ret;
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 
@@ -352,7 +352,7 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 		goto out_remove_opp_table;
 	}
 
-	passive_data = devm_kzalloc(dev, sizeof(*passive_data), GFP_KERNEL);
+	passive_data = devm_kzalloc_obj(dev, *passive_data);
 	if (!passive_data) {
 		ret = -ENOMEM;
 		goto out_remove_opp_table;

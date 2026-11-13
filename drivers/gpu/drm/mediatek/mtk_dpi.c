@@ -710,8 +710,7 @@ static u32 *mtk_dpi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		return NULL;
 	}
 
-	output_fmts = kcalloc(dpi->conf->num_output_fmts, sizeof(*output_fmts),
-			     GFP_KERNEL);
+	output_fmts = kzalloc_objs(*output_fmts, dpi->conf->num_output_fmts);
 	if (!output_fmts)
 		return NULL;
 
@@ -734,8 +733,7 @@ static u32 *mtk_dpi_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 
 	*num_input_fmts = 0;
 
-	input_fmts = kcalloc(1, sizeof(*input_fmts),
-			     GFP_KERNEL);
+	input_fmts = kzalloc_objs(*input_fmts, 1);
 	if (!input_fmts)
 		return NULL;
 

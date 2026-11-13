@@ -217,7 +217,8 @@ static int sb_validate(struct pcache_cache_dev *cache_dev, struct pcache_sb *sb)
 static int cache_dev_init(struct pcache_cache_dev *cache_dev, u32 seg_num)
 {
 	cache_dev->seg_num = seg_num;
-	cache_dev->seg_bitmap = kvcalloc(BITS_TO_LONGS(cache_dev->seg_num), sizeof(unsigned long), GFP_KERNEL);
+	cache_dev->seg_bitmap = kvzalloc_objs(unsigned long,
+					      BITS_TO_LONGS(cache_dev->seg_num));
 	if (!cache_dev->seg_bitmap)
 		return -ENOMEM;
 

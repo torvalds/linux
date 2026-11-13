@@ -116,7 +116,7 @@ static int cci_init_drvdata(struct pci_dev *pcidev)
 {
 	struct cci_drvdata *drvdata;
 
-	drvdata = devm_kzalloc(&pcidev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pcidev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

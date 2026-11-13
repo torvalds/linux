@@ -1215,7 +1215,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	u32 irq_mask = 0;
 	int ret;
 
-	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
+	dmac = devm_kzalloc_obj(&pdev->dev, *dmac);
 	if (!dmac)
 		return -ENOMEM;
 

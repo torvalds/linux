@@ -422,8 +422,7 @@ static int hisi_lpc_acpi_set_io_res(struct acpi_device *adev,
 		return count ? count : -EIO;
 	}
 
-	resources = devm_kcalloc(hostdev, count, sizeof(*resources),
-				 GFP_KERNEL);
+	resources = devm_kzalloc_objs(hostdev, *resources, count);
 	if (!resources) {
 		dev_warn(hostdev, "could not allocate memory for %d resources\n",
 			 count);
@@ -611,7 +610,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	resource_size_t io_end;
 	int ret;
 
-	lpcdev = devm_kzalloc(dev, sizeof(*lpcdev), GFP_KERNEL);
+	lpcdev = devm_kzalloc_obj(dev, *lpcdev);
 	if (!lpcdev)
 		return -ENOMEM;
 
@@ -621,7 +620,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	if (IS_ERR(lpcdev->membase))
 		return PTR_ERR(lpcdev->membase);
 
-	range = devm_kzalloc(dev, sizeof(*range), GFP_KERNEL);
+	range = devm_kzalloc_obj(dev, *range);
 	if (!range)
 		return -ENOMEM;
 

@@ -906,7 +906,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	struct dma_device *dd;
 	int i, err;
 
-	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
+	hsdma = devm_kzalloc_obj(&pdev->dev, *hsdma);
 	if (!hsdma)
 		return -ENOMEM;
 
@@ -962,13 +962,13 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 			 MTK_HSDMA_NR_VCHANS);
 	}
 
-	hsdma->pc = devm_kcalloc(&pdev->dev, MTK_HSDMA_NR_MAX_PCHANS,
-				 sizeof(*hsdma->pc), GFP_KERNEL);
+	hsdma->pc = devm_kzalloc_objs(&pdev->dev, *hsdma->pc,
+				      MTK_HSDMA_NR_MAX_PCHANS);
 	if (!hsdma->pc)
 		return -ENOMEM;
 
-	hsdma->vc = devm_kcalloc(&pdev->dev, hsdma->dma_requests,
-				 sizeof(*hsdma->vc), GFP_KERNEL);
+	hsdma->vc = devm_kzalloc_objs(&pdev->dev, *hsdma->vc,
+				      hsdma->dma_requests);
 	if (!hsdma->vc)
 		return -ENOMEM;
 

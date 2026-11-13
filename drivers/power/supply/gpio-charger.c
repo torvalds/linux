@@ -222,8 +222,9 @@ static int init_charge_current_limit(struct device *dev,
 		return -EINVAL;
 	}
 
-	gpio_charger->current_limit_map = devm_kmalloc_array(dev,
-		len / 2, sizeof(*gpio_charger->current_limit_map), GFP_KERNEL);
+	gpio_charger->current_limit_map = devm_kmalloc_objs(dev,
+							    *gpio_charger->current_limit_map,
+							    len / 2);
 	if (!gpio_charger->current_limit_map)
 		return -ENOMEM;
 
@@ -290,7 +291,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	gpio_charger = devm_kzalloc(dev, sizeof(*gpio_charger), GFP_KERNEL);
+	gpio_charger = devm_kzalloc_obj(dev, *gpio_charger);
 	if (!gpio_charger)
 		return -ENOMEM;
 	gpio_charger->dev = dev;

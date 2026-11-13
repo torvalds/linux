@@ -643,8 +643,7 @@ static int rt1016_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt1016 = devm_kzalloc(&i2c->dev, sizeof(struct rt1016_priv),
-				GFP_KERNEL);
+	rt1016 = devm_kzalloc_obj(&i2c->dev, struct rt1016_priv);
 	if (rt1016 == NULL)
 		return -ENOMEM;
 

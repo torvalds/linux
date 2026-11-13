@@ -185,7 +185,7 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	struct sama5d2_piobu *piobu;
 	int ret, i;
 
-	piobu = devm_kzalloc(&pdev->dev, sizeof(*piobu), GFP_KERNEL);
+	piobu = devm_kzalloc_obj(&pdev->dev, *piobu);
 	if (!piobu)
 		return -ENOMEM;
 

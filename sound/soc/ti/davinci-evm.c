@@ -215,7 +215,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 		mclk = NULL;
 	}
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, *drvdata);
 	if (!drvdata) {
 		ret = -ENOMEM;
 		goto err_put;

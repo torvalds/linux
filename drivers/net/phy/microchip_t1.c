@@ -1494,7 +1494,7 @@ static int lan887x_probe(struct phy_device *phydev)
 {
 	struct lan887x_priv *priv;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

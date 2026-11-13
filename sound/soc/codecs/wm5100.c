@@ -2413,8 +2413,7 @@ static int wm5100_i2c_probe(struct i2c_client *i2c)
 	unsigned int reg;
 	int ret, i, irq_flags;
 
-	wm5100 = devm_kzalloc(&i2c->dev, sizeof(struct wm5100_priv),
-			      GFP_KERNEL);
+	wm5100 = devm_kzalloc_obj(&i2c->dev, struct wm5100_priv);
 	if (wm5100 == NULL)
 		return -ENOMEM;
 

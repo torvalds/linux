@@ -364,17 +364,16 @@ static int gpio_sim_setup_sysfs(struct gpio_sim_chip *chip)
 	struct attribute **attrs;
 	int i, ret;
 
-	chip->attr_groups = devm_kcalloc(dev, sizeof(*chip->attr_groups),
-					 num_lines + 1, GFP_KERNEL);
+	chip->attr_groups = devm_kzalloc_objs(dev, *chip->attr_groups,
+					      num_lines + 1);
 	if (!chip->attr_groups)
 		return -ENOMEM;
 
 	for (i = 0; i < num_lines; i++) {
-		attr_group = devm_kzalloc(dev, sizeof(*attr_group), GFP_KERNEL);
-		attrs = devm_kcalloc(dev, GPIO_SIM_NUM_ATTRS, sizeof(*attrs),
-				     GFP_KERNEL);
-		val_attr = devm_kzalloc(dev, sizeof(*val_attr), GFP_KERNEL);
-		pull_attr = devm_kzalloc(dev, sizeof(*pull_attr), GFP_KERNEL);
+		attr_group = devm_kzalloc_obj(dev, *attr_group);
+		attrs = devm_kzalloc_objs(dev, *attrs, GPIO_SIM_NUM_ATTRS);
+		val_attr = devm_kzalloc_obj(dev, *val_attr);
+		pull_attr = devm_kzalloc_obj(dev, *pull_attr);
 		if (!attr_group || !attrs || !val_attr || !pull_attr)
 			return -ENOMEM;
 
@@ -438,7 +437,7 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 			return -ENOMEM;
 	}
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -803,7 +802,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	ranges_size = gpio_sim_get_reserved_ranges_size(bank);
 	if (ranges_size) {
-		ranges = kcalloc(ranges_size, sizeof(u32), GFP_KERNEL);
+		ranges = kzalloc_objs(u32, ranges_size);
 		if (!ranges)
 			return ERR_PTR(-ENOMEM);
 

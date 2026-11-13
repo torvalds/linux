@@ -621,7 +621,7 @@ static int max9860_probe(struct i2c_client *i2c)
 	int i;
 	int intr;
 
-	max9860 = devm_kzalloc(dev, sizeof(struct max9860_priv), GFP_KERNEL);
+	max9860 = devm_kzalloc_obj(dev, struct max9860_priv);
 	if (!max9860)
 		return -ENOMEM;
 

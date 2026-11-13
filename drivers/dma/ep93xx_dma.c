@@ -1372,8 +1372,7 @@ static struct ep93xx_dma_engine *ep93xx_dma_of_probe(struct platform_device *pde
 	if (!data)
 		return ERR_PTR(dev_err_probe(dev, -ENODEV, "No device match found\n"));
 
-	edma = devm_kzalloc(dev, struct_size(edma, channels, data->num_channels),
-			    GFP_KERNEL);
+	edma = devm_kzalloc_flex(dev, *edma, channels, data->num_channels);
 	if (!edma)
 		return ERR_PTR(-ENOMEM);
 

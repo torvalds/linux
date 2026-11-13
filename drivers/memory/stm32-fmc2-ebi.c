@@ -1634,7 +1634,7 @@ static int stm32_fmc2_ebi_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	int ret;
 
-	ebi = devm_kzalloc(&pdev->dev, sizeof(*ebi), GFP_KERNEL);
+	ebi = devm_kzalloc_obj(&pdev->dev, *ebi);
 	if (!ebi)
 		return -ENOMEM;
 

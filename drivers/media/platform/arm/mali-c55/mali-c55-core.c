@@ -785,7 +785,7 @@ static int mali_c55_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	mali_c55 = devm_kzalloc(dev, sizeof(*mali_c55), GFP_KERNEL);
+	mali_c55 = devm_kzalloc_obj(dev, *mali_c55);
 	if (!mali_c55)
 		return -ENOMEM;
 

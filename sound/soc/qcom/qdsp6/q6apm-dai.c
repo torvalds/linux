@@ -1193,7 +1193,7 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 	struct of_phandle_args args;
 	int rc;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

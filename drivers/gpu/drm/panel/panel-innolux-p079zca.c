@@ -390,9 +390,8 @@ static int innolux_panel_add(struct mipi_dsi_device *dsi,
 
 	innolux->desc = desc;
 
-	innolux->supplies = devm_kcalloc(dev, desc->num_supplies,
-					 sizeof(*innolux->supplies),
-					 GFP_KERNEL);
+	innolux->supplies = devm_kzalloc_objs(dev, *innolux->supplies,
+					      desc->num_supplies);
 	if (!innolux->supplies)
 		return -ENOMEM;
 

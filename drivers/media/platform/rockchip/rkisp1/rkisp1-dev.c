@@ -655,7 +655,7 @@ static int rkisp1_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 cif_id;
 
-	rkisp1 = devm_kzalloc(dev, sizeof(*rkisp1), GFP_KERNEL);
+	rkisp1 = devm_kzalloc_obj(dev, *rkisp1);
 	if (!rkisp1)
 		return -ENOMEM;
 

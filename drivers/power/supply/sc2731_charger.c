@@ -459,7 +459,7 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 	struct power_supply_config charger_cfg = { };
 	int ret;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

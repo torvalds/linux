@@ -599,7 +599,7 @@ static u32 *_parse_named_prop(struct dev_pm_opp *opp, struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	out = kmalloc_array(count, sizeof(*out), GFP_KERNEL);
+	out = kmalloc_objs(*out, count);
 	if (!out)
 		return ERR_PTR(-EINVAL);
 
@@ -737,7 +737,7 @@ static int _read_rate(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
 		return -EINVAL;
 	}
 
-	rates = kmalloc_array(count, sizeof(*rates), GFP_KERNEL);
+	rates = kmalloc_objs(*rates, count);
 	if (!rates)
 		return -ENOMEM;
 
@@ -782,7 +782,7 @@ static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
 		return -EINVAL;
 	}
 
-	bw = kmalloc_array(count, sizeof(*bw), GFP_KERNEL);
+	bw = kmalloc_objs(*bw, count);
 	if (!bw)
 		return -ENOMEM;
 

@@ -43,7 +43,7 @@ static int sl28cpld_intc_probe(struct platform_device *pdev)
 	if (!dev->parent)
 		return -ENODEV;
 
-	irqchip = devm_kzalloc(dev, sizeof(*irqchip), GFP_KERNEL);
+	irqchip = devm_kzalloc_obj(dev, *irqchip);
 	if (!irqchip)
 		return -ENOMEM;
 

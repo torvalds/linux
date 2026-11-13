@@ -711,8 +711,8 @@ static int mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 	int i;
 	int j;
 
-	enabled = kcalloc(ldev->ports, sizeof(*enabled), GFP_KERNEL);
-	disabled = kcalloc(ldev->ports, sizeof(*disabled), GFP_KERNEL);
+	enabled = kzalloc_objs(*enabled, ldev->ports);
+	disabled = kzalloc_objs(*disabled, ldev->ports);
 	if (!enabled || !disabled) {
 		err = -ENOMEM;
 		goto out;

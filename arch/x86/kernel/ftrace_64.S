@@ -286,9 +286,9 @@ SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	RET
 
 1:
-	testb	$1, %al
-	jz	2f
-	andq $0xfffffffffffffffe, %rax
+	/* See ftrace_jmp_set(), jmp to the trampoline */
+	btsq	$63, %rax
+	jc	2f
 	movq %rax, MCOUNT_REG_SIZE+8(%rsp)
 	restore_mcount_regs
 	/* Restore flags */

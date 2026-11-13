@@ -500,8 +500,8 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		 * There are only 3 LEDs per module otherwise they should be
 		 * banked which also is presented as 3 LEDs.
 		 */
-		mc_led_info = devm_kcalloc(priv->dev, LP50XX_LEDS_PER_MODULE,
-					   sizeof(*mc_led_info), GFP_KERNEL);
+		mc_led_info = devm_kzalloc_objs(priv->dev, *mc_led_info,
+						LP50XX_LEDS_PER_MODULE);
 		if (!mc_led_info)
 			return -ENOMEM;
 
@@ -559,8 +559,7 @@ static int lp50xx_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	led = devm_kzalloc(&client->dev, struct_size(led, leds, count),
-			   GFP_KERNEL);
+	led = devm_kzalloc_flex(&client->dev, *led, leds, count);
 	if (!led)
 		return -ENOMEM;
 

@@ -2089,7 +2089,7 @@ static ssize_t uvcg_frame_dw_frame_interval_store(struct config_item *item,
 	if (ret)
 		goto end;
 
-	tmp = frm_intrv = kcalloc(n, sizeof(u32), GFP_KERNEL);
+	tmp = frm_intrv = kzalloc_objs(u32, n);
 	if (!frm_intrv) {
 		ret = -ENOMEM;
 		goto end;

@@ -231,7 +231,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	lpc_ctrl = devm_kzalloc(dev, sizeof(*lpc_ctrl), GFP_KERNEL);
+	lpc_ctrl = devm_kzalloc_obj(dev, *lpc_ctrl);
 	if (!lpc_ctrl)
 		return -ENOMEM;
 

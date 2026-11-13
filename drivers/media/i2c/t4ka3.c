@@ -961,7 +961,7 @@ static int t4ka3_probe(struct i2c_client *client)
 	int ret;
 
 	/* allocate sensor device & init sub device */
-	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&client->dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

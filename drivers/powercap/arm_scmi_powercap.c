@@ -432,7 +432,7 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	if (IS_ERR(powercap_ops))
 		return PTR_ERR(powercap_ops);
 
-	pr = devm_kzalloc(dev, sizeof(*pr), GFP_KERNEL);
+	pr = devm_kzalloc_obj(dev, *pr);
 	if (!pr)
 		return -ENOMEM;
 
@@ -443,15 +443,13 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	}
 	pr->num_zones = ret;
 
-	pr->spzones = devm_kcalloc(dev, pr->num_zones,
-				   sizeof(*pr->spzones), GFP_KERNEL);
+	pr->spzones = devm_kzalloc_objs(dev, *pr->spzones, pr->num_zones);
 	if (!pr->spzones)
 		return -ENOMEM;
 
 	/* Allocate for worst possible scenario of maximum tree height. */
-	pr->registered_zones = devm_kcalloc(dev, pr->num_zones,
-					    sizeof(*pr->registered_zones),
-					    GFP_KERNEL);
+	pr->registered_zones = devm_kzalloc_objs(dev, *pr->registered_zones,
+						 pr->num_zones);
 	if (!pr->registered_zones)
 		return -ENOMEM;
 

@@ -280,8 +280,7 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ak4104 = devm_kzalloc(&spi->dev, sizeof(struct ak4104_private),
-			      GFP_KERNEL);
+	ak4104 = devm_kzalloc_obj(&spi->dev, struct ak4104_private);
 	if (ak4104 == NULL)
 		return -ENOMEM;
 

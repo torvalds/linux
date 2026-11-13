@@ -1558,9 +1558,8 @@ static int bcm4377_alloc_transfer_ring(struct bcm4377_data *bcm4377,
 		return -ENOMEM;
 
 	if (ring->allow_wait) {
-		ring->events = devm_kcalloc(&bcm4377->pdev->dev,
-					    ring->n_entries,
-					    sizeof(*ring->events), GFP_KERNEL);
+		ring->events = devm_kzalloc_objs(&bcm4377->pdev->dev,
+						 *ring->events, ring->n_entries);
 		if (!ring->events)
 			return -ENOMEM;
 	}
@@ -2283,7 +2282,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	bcm4377 = devm_kzalloc(&pdev->dev, sizeof(*bcm4377), GFP_KERNEL);
+	bcm4377 = devm_kzalloc_obj(&pdev->dev, *bcm4377);
 	if (!bcm4377)
 		return -ENOMEM;
 

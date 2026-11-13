@@ -1831,6 +1831,9 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	/* Wait for worker to be done with the work structure in osb */
 	cancel_work_sync(&osb->dquot_drop_work);
 
+	/* Stop recovery producers before releasing their local allocators. */
+	ocfs2_recovery_stop(osb);
+
 	ocfs2_shutdown_local_alloc(osb);
 
 	ocfs2_truncate_log_shutdown(osb);
@@ -2069,8 +2072,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	osb->slot_recovery_generations =
-		kcalloc(osb->max_slots, sizeof(*osb->slot_recovery_generations),
-			GFP_KERNEL);
+		kzalloc_objs(*osb->slot_recovery_generations, osb->max_slots);
 	if (!osb->slot_recovery_generations) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -2078,9 +2080,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	init_waitqueue_head(&osb->osb_wipe_event);
-	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
-					sizeof(*osb->osb_orphan_wipes),
-					GFP_KERNEL);
+	osb->osb_orphan_wipes = kzalloc_objs(*osb->osb_orphan_wipes,
+					     osb->max_slots);
 	if (!osb->osb_orphan_wipes) {
 		status = -ENOMEM;
 		mlog_errno(status);

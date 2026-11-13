@@ -126,7 +126,7 @@ static int da9055_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *da9055_wdt;
 	int ret;
 
-	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
+	driver_data = devm_kzalloc_obj(dev, *driver_data);
 	if (!driver_data)
 		return -ENOMEM;
 

@@ -535,8 +535,9 @@ static int ma35_gpiolib_register(struct platform_device *pdev, struct ma35_pinct
 			girq->parent_handler = ma35_irq_demux_intgroup;
 			girq->num_parents = 1;
 
-			girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
-						     sizeof(*girq->parents), GFP_KERNEL);
+			girq->parents = devm_kzalloc_objs(&pdev->dev,
+							  *girq->parents,
+							  girq->num_parents);
 			if (!girq->parents)
 				return -ENOMEM;
 
@@ -588,8 +589,8 @@ static int ma35_pinctrl_get_soc_data(struct ma35_pinctrl *pctl, struct platform_
 	ctrl = pctl->ctrl;
 	ctrl->nr_banks = MA35_GPIO_BANK_MAX;
 
-	ctrl->pin_banks = devm_kcalloc(&pdev->dev, ctrl->nr_banks,
-				       sizeof(*ctrl->pin_banks), GFP_KERNEL);
+	ctrl->pin_banks = devm_kzalloc_objs(&pdev->dev, *ctrl->pin_banks,
+					    ctrl->nr_banks);
 	if (!ctrl->pin_banks)
 		return -ENOMEM;
 
@@ -998,7 +999,7 @@ static int ma35_pinctrl_parse_groups(struct fwnode_handle *fwnode, struct group_
 	if (!count || count % 3)
 		return -EINVAL;
 
-	elems = devm_kmalloc_array(npctl->dev, count, sizeof(u32), GFP_KERNEL);
+	elems = devm_kmalloc_objs(npctl->dev, u32, count);
 	if (!elems)
 		return -ENOMEM;
 
@@ -1009,12 +1010,12 @@ static int ma35_pinctrl_parse_groups(struct fwnode_handle *fwnode, struct group_
 		return -EINVAL;
 	grp->grp.npins = count / 3;
 
-	pins = devm_kcalloc(npctl->dev, grp->grp.npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(npctl->dev, *pins, grp->grp.npins);
 	if (!pins)
 		return -ENOMEM;
 	grp->grp.pins = pins;
 
-	pin = devm_kcalloc(npctl->dev, grp->grp.npins, sizeof(*pin), GFP_KERNEL);
+	pin = devm_kzalloc_objs(npctl->dev, *pin, grp->grp.npins);
 	if (!pin)
 		return -ENOMEM;
 	grp->data = pin;
@@ -1053,7 +1054,7 @@ static int ma35_pinctrl_parse_functions(struct fwnode_handle *fwnode, struct ma3
 	if (func->ngroups <= 0)
 		return 0;
 
-	groups = devm_kcalloc(npctl->dev, func->ngroups, sizeof(*groups), GFP_KERNEL);
+	groups = devm_kzalloc_objs(npctl->dev, *groups, func->ngroups);
 	if (!groups)
 		return -ENOMEM;
 
@@ -1091,13 +1092,13 @@ static int ma35_pinctrl_probe_dt(struct platform_device *pdev, struct ma35_pinct
 	if (!npctl->nfunctions)
 		return -EINVAL;
 
-	npctl->functions = devm_kcalloc(&pdev->dev, npctl->nfunctions,
-					sizeof(*npctl->functions), GFP_KERNEL);
+	npctl->functions = devm_kzalloc_objs(&pdev->dev, *npctl->functions,
+					     npctl->nfunctions);
 	if (!npctl->functions)
 		return -ENOMEM;
 
-	npctl->groups = devm_kcalloc(&pdev->dev, npctl->ngroups,
-				     sizeof(*npctl->groups), GFP_KERNEL);
+	npctl->groups = devm_kzalloc_objs(&pdev->dev, *npctl->groups,
+					  npctl->ngroups);
 	if (!npctl->groups)
 		return -ENOMEM;
 
@@ -1127,15 +1128,15 @@ int ma35_pinctrl_probe(struct platform_device *pdev, const struct ma35_pinctrl_s
 		return -EINVAL;
 	}
 
-	npctl = devm_kzalloc(&pdev->dev, sizeof(*npctl), GFP_KERNEL);
+	npctl = devm_kzalloc_obj(&pdev->dev, *npctl);
 	if (!npctl)
 		return -ENOMEM;
 
-	ma35_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*ma35_pinctrl_desc), GFP_KERNEL);
+	ma35_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *ma35_pinctrl_desc);
 	if (!ma35_pinctrl_desc)
 		return -ENOMEM;
 
-	npctl->ctrl = devm_kzalloc(&pdev->dev, sizeof(*npctl->ctrl), GFP_KERNEL);
+	npctl->ctrl = devm_kzalloc_obj(&pdev->dev, *npctl->ctrl);
 	if (!npctl->ctrl)
 		return -ENOMEM;
 

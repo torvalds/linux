@@ -304,9 +304,8 @@ struct perf_event_pmu_context;
 #define PERF_PMU_CAP_AUX_OUTPUT		0x0080
 #define PERF_PMU_CAP_EXTENDED_HW_TYPE	0x0100
 #define PERF_PMU_CAP_AUX_PAUSE		0x0200
-#define PERF_PMU_CAP_AUX_PREFER_LARGE	0x0400
-#define PERF_PMU_CAP_MEDIATED_VPMU	0x0800
-#define PERF_PMU_CAP_SIMD_REGS		0x1000
+#define PERF_PMU_CAP_MEDIATED_VPMU	0x0400
+#define PERF_PMU_CAP_SIMD_REGS		0x0800
 
 /**
  * pmu::scope
@@ -1813,6 +1812,12 @@ extern void perf_bp_event(struct perf_event *event, void *data);
 extern unsigned long perf_misc_flags(struct perf_event *event, struct pt_regs *regs);
 extern unsigned long perf_instruction_pointer(struct perf_event *event,
 					      struct pt_regs *regs);
+
+extern void perf_sample_regs_user(struct perf_regs *regs_user,
+				  struct pt_regs *regs);
+extern void perf_sample_regs_intr(struct perf_regs *regs_intr,
+				  struct pt_regs *regs,
+				  bool exclude_kernel);
 
 #ifndef perf_arch_misc_flags
 # define perf_arch_misc_flags(regs) \

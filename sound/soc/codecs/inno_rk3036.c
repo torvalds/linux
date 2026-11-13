@@ -418,7 +418,7 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 	struct regmap *grf;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -351,7 +351,7 @@ int fuse_ext_map_populate(struct fuse_conn *fc, struct fuse_notify_backing_map_o
 	fb->backing_id = arg->backing_id;
 
 	err = -ENOMEM;
-	fb->extents = kvcalloc(arg->num_extents, sizeof(*fb->extents), GFP_KERNEL);
+	fb->extents = kvzalloc_objs(*fb->extents, arg->num_extents);
 	if (!fb->extents)
 		goto err_put;
 

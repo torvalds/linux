@@ -802,7 +802,7 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id,
 {
 	struct bcm2835_chan *c;
 
-	c = devm_kzalloc(d->ddev.dev, sizeof(*c), GFP_KERNEL);
+	c = devm_kzalloc_obj(d->ddev.dev, *c);
 	if (!c)
 		return -ENOMEM;
 
@@ -899,7 +899,7 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
+	od = devm_kzalloc_obj(&pdev->dev, *od);
 	if (!od)
 		return -ENOMEM;
 

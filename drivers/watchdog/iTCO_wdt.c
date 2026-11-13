@@ -462,7 +462,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(dev, *p);
 	if (!p)
 		return -ENOMEM;
 

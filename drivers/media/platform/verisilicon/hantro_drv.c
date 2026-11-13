@@ -886,7 +886,7 @@ static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 	int ret;
 
 	match = of_match_node(of_hantro_match, vpu->dev->of_node);
-	func = devm_kzalloc(vpu->dev, sizeof(*func), GFP_KERNEL);
+	func = devm_kzalloc_obj(vpu->dev, *func);
 	if (!func) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
 		return -ENOMEM;
@@ -1076,7 +1076,7 @@ static int hantro_probe(struct platform_device *pdev)
 	int num_bases;
 	int i, ret;
 
-	vpu = devm_kzalloc(&pdev->dev, sizeof(*vpu), GFP_KERNEL);
+	vpu = devm_kzalloc_obj(&pdev->dev, *vpu);
 	if (!vpu)
 		return -ENOMEM;
 
@@ -1103,8 +1103,8 @@ static int hantro_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&vpu->watchdog_work, hantro_watchdog);
 
-	vpu->clocks = devm_kcalloc(&pdev->dev, vpu->variant->num_clocks,
-				   sizeof(*vpu->clocks), GFP_KERNEL);
+	vpu->clocks = devm_kzalloc_objs(&pdev->dev, *vpu->clocks,
+					vpu->variant->num_clocks);
 	if (!vpu->clocks)
 		return -ENOMEM;
 
@@ -1131,8 +1131,8 @@ static int hantro_probe(struct platform_device *pdev)
 		return PTR_ERR(vpu->resets);
 
 	num_bases = vpu->variant->num_regs ?: 1;
-	vpu->reg_bases = devm_kcalloc(&pdev->dev, num_bases,
-				      sizeof(*vpu->reg_bases), GFP_KERNEL);
+	vpu->reg_bases = devm_kzalloc_objs(&pdev->dev, *vpu->reg_bases,
+					   num_bases);
 	if (!vpu->reg_bases)
 		return -ENOMEM;
 

@@ -689,8 +689,7 @@ static int wm8971_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8971_priv *wm8971;
 
-	wm8971 = devm_kzalloc(&i2c->dev, sizeof(struct wm8971_priv),
-			      GFP_KERNEL);
+	wm8971 = devm_kzalloc_obj(&i2c->dev, struct wm8971_priv);
 	if (wm8971 == NULL)
 		return -ENOMEM;
 

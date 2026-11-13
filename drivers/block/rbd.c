@@ -1043,9 +1043,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 			goto out_err;
 
 		/* ...as well as the array of their sizes. */
-		snap_sizes = kmalloc_array(snap_count,
-					   sizeof(*header->snap_sizes),
-					   GFP_KERNEL);
+		snap_sizes = kmalloc_objs(*header->snap_sizes, snap_count);
 		if (!snap_sizes)
 			goto out_err;
 

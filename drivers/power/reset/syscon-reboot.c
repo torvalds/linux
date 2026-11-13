@@ -70,7 +70,7 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 	u32 priority;
 	int err;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

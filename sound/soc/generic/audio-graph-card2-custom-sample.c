@@ -144,7 +144,7 @@ static int custom_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	custom_priv = devm_kzalloc(dev, sizeof(*custom_priv), GFP_KERNEL);
+	custom_priv = devm_kzalloc_obj(dev, *custom_priv);
 	if (!custom_priv)
 		return -ENOMEM;
 

@@ -144,7 +144,7 @@ static int cdns_ti_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int error, i;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

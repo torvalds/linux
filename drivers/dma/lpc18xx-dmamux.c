@@ -124,7 +124,7 @@ static int lpc18xx_dmamux_probe(struct platform_device *pdev)
 	struct lpc18xx_dmamux_data *dmamux;
 	int ret;
 
-	dmamux = devm_kzalloc(&pdev->dev, sizeof(*dmamux), GFP_KERNEL);
+	dmamux = devm_kzalloc_obj(&pdev->dev, *dmamux);
 	if (!dmamux)
 		return -ENOMEM;
 
@@ -155,9 +155,8 @@ static int lpc18xx_dmamux_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dmamux->muxes = devm_kcalloc(&pdev->dev, dmamux->dma_master_requests,
-				     sizeof(struct lpc18xx_dmamux),
-				     GFP_KERNEL);
+	dmamux->muxes = devm_kzalloc_objs(&pdev->dev, struct lpc18xx_dmamux,
+					  dmamux->dma_master_requests);
 	if (!dmamux->muxes)
 		return -ENOMEM;
 

@@ -330,7 +330,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 		goto rsnd_ctu_probe_done;
 	}
 
-	ctu = devm_kcalloc(dev, nr, sizeof(*ctu), GFP_KERNEL);
+	ctu = devm_kzalloc_objs(dev, *ctu, nr);
 	if (!ctu) {
 		ret = -ENOMEM;
 		goto rsnd_ctu_probe_done;

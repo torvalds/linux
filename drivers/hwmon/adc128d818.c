@@ -434,7 +434,7 @@ static int adc128_probe(struct i2c_client *client)
 	bool external_vref;
 	int err, vref;
 
-	data = devm_kzalloc(dev, sizeof(struct adc128_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct adc128_data);
 	if (!data)
 		return -ENOMEM;
 

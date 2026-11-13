@@ -748,7 +748,7 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

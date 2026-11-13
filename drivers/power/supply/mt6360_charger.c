@@ -782,7 +782,7 @@ static int mt6360_charger_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	int ret;
 
-	mci = devm_kzalloc(&pdev->dev, sizeof(*mci), GFP_KERNEL);
+	mci = devm_kzalloc_obj(&pdev->dev, *mci);
 	if (!mci)
 		return -ENOMEM;
 

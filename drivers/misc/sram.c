@@ -267,9 +267,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	list_sort(NULL, &reserve_list, sram_reserve_cmp);
 
 	if (exports) {
-		sram->partition = devm_kcalloc(sram->dev,
-				       exports, sizeof(*sram->partition),
-				       GFP_KERNEL);
+		sram->partition = devm_kzalloc_objs(sram->dev, *sram->partition,
+						    exports);
 		if (!sram->partition) {
 			ret = -ENOMEM;
 			goto err_chunks;
@@ -383,7 +382,7 @@ static int sram_probe(struct platform_device *pdev)
 
 	config = of_device_get_match_data(&pdev->dev);
 
-	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
+	sram = devm_kzalloc_obj(&pdev->dev, *sram);
 	if (!sram)
 		return -ENOMEM;
 

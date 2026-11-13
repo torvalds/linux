@@ -1682,7 +1682,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 	 */
 	xe_assert(xe, !((flags & XE_VM_FLAG_GSC) && (flags & XE_VM_FLAG_FAULT_MODE)));
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
@@ -3287,8 +3287,8 @@ static int prefetch_ranges(struct xe_vm *vm, struct xe_vma_ops *vops,
 	thread = skip_threads ? &stack_thread : NULL;
 
 	if (!skip_threads) {
-		prefetches = kvmalloc_array(op->prefetch_range.ranges_count,
-					    sizeof(*prefetches), GFP_KERNEL);
+		prefetches = kvmalloc_objs(*prefetches,
+					   op->prefetch_range.ranges_count);
 		if (!prefetches)
 			return -ENOMEM;
 	}
@@ -3566,7 +3566,7 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 			++n_fence;
 	}
 
-	fences = kcalloc(n_fence, sizeof(*fences), GFP_KERNEL);
+	fences = kzalloc_objs(*fences, n_fence);
 	if (!fences) {
 		fence = ERR_PTR(-ENOMEM);
 		goto err_trace;

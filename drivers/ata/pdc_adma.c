@@ -508,7 +508,7 @@ static int adma_port_start(struct ata_port *ap)
 	struct adma_port_priv *pp;
 
 	adma_enter_reg_mode(ap);
-	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc_obj(dev, *pp);
 	if (!pp)
 		return -ENOMEM;
 	pp->pkt = dmam_alloc_coherent(dev, ADMA_PKT_BYTES, &pp->pkt_dma,

@@ -976,6 +976,19 @@ static struct arg_track arg_join_imprecise(struct arg_track a, struct arg_track 
 	return (struct arg_track){ .mask = m, .frame = ARG_IMPRECISE };
 }
 
+/*
+ * 'a' or a value that is not a pointer to stack. A single fp-N gets a fake fp+0,
+ * to keep stack_use and prevent stack_def. fp+0 itself would stay a single offset.
+ */
+static struct arg_track arg_or_none(struct arg_track a)
+{
+	if (a.off_cnt != 1)
+		return a;
+	if (!a.off[0])
+		return (struct arg_track){ .frame = a.frame };
+	return arg_merge_offsets(a, arg_single(a.frame, 0));
+}
+
 /* Join two arg_track values at merge points */
 static struct arg_track __arg_track_join(struct arg_track a, struct arg_track b)
 {
@@ -1000,20 +1013,10 @@ static struct arg_track __arg_track_join(struct arg_track a, struct arg_track b)
 	 */
 	if (a.frame == ARG_NONE && b.frame == ARG_NONE)
 		return a;
-	if (a.frame >= 0 && b.frame == ARG_NONE) {
-		/*
-		 * When joining single fp-N add fake fp+0 to
-		 * keep stack_use and prevent stack_def
-		 */
-		if (a.off_cnt == 1)
-			return arg_merge_offsets(a, arg_single(a.frame, 0));
-		return a;
-	}
-	if (b.frame >= 0 && a.frame == ARG_NONE) {
-		if (b.off_cnt == 1)
-			return arg_merge_offsets(b, arg_single(b.frame, 0));
-		return b;
-	}
+	if (a.frame >= 0 && b.frame == ARG_NONE)
+		return arg_or_none(a);
+	if (b.frame >= 0 && a.frame == ARG_NONE)
+		return arg_or_none(b);
 
 	return arg_join_imprecise(a, b);
 }
@@ -1381,6 +1384,31 @@ static struct arg_track arg_track_deref(struct bpf_verifier_env *env, struct bpf
 }
 
 /*
+ * True if the call at @insn_idx can pass a pointer to the frame at @depth to a static subprog
+ * or to a callback. They use it as a pointer to stack, a global subprog gets plain memory.
+ * It errs on the safe side: it looks at all argument registers and stack args, also at those
+ * that this callee doesn't take.
+ */
+static bool subprog_gets_local_fp(struct bpf_verifier_env *env, struct bpf_insn *insn, int insn_idx,
+				  struct arg_track *at, int depth)
+{
+	int r;
+
+	if (bpf_pseudo_call(insn)) {
+		r = bpf_find_subprog(env, insn_idx + insn->imm + 1);
+		if (r >= 0 && bpf_subprog_is_global(env, r))
+			return false;
+	} else if (!bpf_is_callx(insn) && !bpf_calls_callback(env, insn_idx)) {
+		return false;
+	}
+	/* R1-R5 and stack args */
+	for (r = BPF_REG_1; r < MAX_AT_TRACK_REGS; r++)
+		if ((r <= BPF_REG_5 || r >= MAX_BPF_REG) && can_be_local_fp(depth, r, &at[r]))
+			return true;
+	return false;
+}
+
+/*
  * Pure dataflow transfer function for arg_track state.
  * Updates at_out[] based on how the instruction modifies registers.
  * Tracks spill/fill, but not other memory accesses.
@@ -1443,21 +1471,22 @@ static void arg_track_xfer(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		*dst = none;
 	} else if (class == BPF_JMP && code == BPF_CALL) {
 		/*
-		 * at_stack_out[slot] is not cleared by the helper and subprog calls.
-		 * The fill_from_stack() may return the stale spill — which is an FP-derived arg_track
-		 * (the value that was originally spilled there). The loaded register then carries
-		 * a phantom FP-derived identity that doesn't correspond to what's actually in the slot.
-		 * This phantom FP pointer propagates forward, and wherever it's subsequently used
-		 * (as a helper argument, another store, etc.), it sets stack liveness bits.
-		 * Those bits correspond to stack accesses that don't actually happen.
-		 * So the effect is over-reporting stack liveness — marking slots as live that aren't
-		 * actually accessed. The verifier preserves more state than necessary across calls,
-		 * which is conservative.
+		 * Helpers, kfuncs and global subprogs can scratch stack slots. The verifier reads
+		 * a scalar from a scratched slot, but at_stack_out[slot] is not cleared, and
+		 * fill_from_stack() returns the stale spill: an FP-derived arg_track for a scalar.
+		 * A scalar can't be dereferenced, so the stale value can only set liveness bits
+		 * for stack accesses that don't happen. That is conservative.
 		 *
-		 * helpers can scratch stack slots, but they won't make a valid pointer out of it.
-		 * subprogs are allowed to write into parent slots, but they cannot write
-		 * _any_ FP-derived pointer into it (either their own or parent's FP).
+		 * Static subprogs and callbacks can't store an FP-derived pointer into the frame of
+		 * the caller, but they can store any other pointer there. The caller can fill it
+		 * and store through it. With the stale spill that store would be a definite write
+		 * to a stack slot, and it doesn't touch the stack. Callees are analyzed after the
+		 * caller, and they reach the whole frame from one pointer to it. So after the call
+		 * every slot holds what it held before or a value that is not FP-derived.
 		 */
+		if (subprog_gets_local_fp(env, insn, insn_idx, at_out, depth))
+			for (slot = 0; slot < nslots; slot++)
+				at_stack_out[slot] = __arg_track_join(at_stack_out[slot], none);
 		for (r = BPF_REG_0; r <= BPF_REG_5; r++)
 			at_out[r] = none;
 	} else if (class == BPF_LDX) {

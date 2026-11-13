@@ -160,7 +160,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	ir = devm_kzalloc(&intf->dev, sizeof(*ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(&intf->dev, *ir);
 	if (!ir)
 		return -ENOMEM;
 

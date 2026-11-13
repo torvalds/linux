@@ -786,8 +786,8 @@ int mt8189_init_clock(struct mtk_base_afe *afe)
 	int ret;
 	int i;
 
-	afe_priv->clk = devm_kcalloc(afe->dev, MT8189_CLK_NUM, sizeof(*afe_priv->clk),
-				     GFP_KERNEL);
+	afe_priv->clk = devm_kzalloc_objs(afe->dev, *afe_priv->clk,
+					  MT8189_CLK_NUM);
 	if (!afe_priv->clk)
 		return -ENOMEM;
 

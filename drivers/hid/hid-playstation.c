@@ -877,8 +877,8 @@ static int ps_lightbar_register(struct ps_device *ps_dev, struct led_classdev_mc
 	struct led_classdev *led_cdev;
 	int ret;
 
-	mc_led_info = devm_kmalloc_array(&hdev->dev, 3, sizeof(*mc_led_info),
-					 GFP_KERNEL | __GFP_ZERO);
+	mc_led_info = devm_kmalloc_objs(&hdev->dev, *mc_led_info, 3,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!mc_led_info)
 		return -ENOMEM;
 
@@ -1754,7 +1754,7 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 				dualsense_player_led_set_brightness }
 	};
 
-	ds = devm_kzalloc(&hdev->dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(&hdev->dev, *ds);
 	if (!ds)
 		return ERR_PTR(-ENOMEM);
 
@@ -2747,7 +2747,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		  dualshock4_led_set_brightness, dualshock4_led_set_blink },
 	};
 
-	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
+	ds4 = devm_kzalloc_obj(&hdev->dev, *ds4);
 	if (!ds4)
 		return ERR_PTR(-ENOMEM);
 

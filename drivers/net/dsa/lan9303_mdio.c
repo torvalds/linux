@@ -101,8 +101,7 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 	struct lan9303_mdio *sw_dev;
 	int ret;
 
-	sw_dev = devm_kzalloc(&mdiodev->dev, sizeof(struct lan9303_mdio),
-			      GFP_KERNEL);
+	sw_dev = devm_kzalloc_obj(&mdiodev->dev, struct lan9303_mdio);
 	if (!sw_dev)
 		return -ENOMEM;
 

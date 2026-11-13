@@ -82,7 +82,7 @@ static int imx_scu_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

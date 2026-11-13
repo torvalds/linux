@@ -1197,7 +1197,8 @@ static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 	dev_info(aw88261->aw_pa->dev, "loaded %s - size: %zu\n",
 			fw_name, cont ? cont->size : 0);
 
-	aw_cfg = devm_kzalloc(aw88261->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
+	aw_cfg = devm_kzalloc_flex(aw88261->aw_pa->dev, *aw_cfg, data,
+				   cont->size);
 	if (!aw_cfg)
 		return -ENOMEM;
 
@@ -1290,7 +1291,7 @@ static int aw88261_init(struct aw88261 *aw88261, struct i2c_client *i2c, struct 
 
 	dev_info(&i2c->dev, "chip id = %x\n", chip_id);
 
-	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
+	aw_dev = devm_kzalloc_obj(&i2c->dev, *aw_dev);
 	if (!aw_dev)
 		return -ENOMEM;
 
@@ -1320,7 +1321,7 @@ static int aw88261_i2c_probe(struct i2c_client *i2c)
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return dev_err_probe(&i2c->dev, -ENXIO, "check_functionality failed");
 
-	aw88261 = devm_kzalloc(&i2c->dev, sizeof(*aw88261), GFP_KERNEL);
+	aw88261 = devm_kzalloc_obj(&i2c->dev, *aw88261);
 	if (!aw88261)
 		return -ENOMEM;
 

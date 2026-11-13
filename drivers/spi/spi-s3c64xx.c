@@ -1161,7 +1161,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 	struct s3c64xx_spi_info *sci;
 	u32 temp;
 
-	sci = devm_kzalloc(dev, sizeof(*sci), GFP_KERNEL);
+	sci = devm_kzalloc_obj(dev, *sci);
 	if (!sci)
 		return ERR_PTR(-ENOMEM);
 

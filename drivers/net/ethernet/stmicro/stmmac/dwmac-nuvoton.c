@@ -95,7 +95,7 @@ static int nvt_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return dev_err_probe(dev, PTR_ERR(plat_dat), "Failed to get platform data\n");
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate private data\n");
 

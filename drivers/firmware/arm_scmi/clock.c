@@ -271,9 +271,9 @@ static int iter_clk_possible_parents_update_state(struct scmi_iterator_state *st
 	if (!st->max_resources) {
 		int num_parents = st->num_returned + st->num_remaining;
 
-		p->clkd->info.parents = devm_kcalloc(p->dev, num_parents,
-						     sizeof(*p->clkd->info.parents),
-						     GFP_KERNEL);
+		p->clkd->info.parents = devm_kzalloc_objs(p->dev,
+							  *p->clkd->info.parents,
+							  num_parents);
 		if (!p->clkd->info.parents)
 			return -ENOMEM;
 
@@ -484,8 +484,8 @@ iter_clk_describe_update_state(struct scmi_iterator_state *st,
 	if (!st->max_resources) {
 		unsigned int tot_rates = st->num_returned + st->num_remaining;
 
-		p->clkd->r.rates = devm_kcalloc(p->dev, tot_rates,
-						sizeof(*p->clkd->r.rates), GFP_KERNEL);
+		p->clkd->r.rates = devm_kzalloc_objs(p->dev, *p->clkd->r.rates,
+						     tot_rates);
 		if (!p->clkd->r.rates)
 			return -ENOMEM;
 
@@ -1237,7 +1237,7 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Clock Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	cinfo = devm_kzalloc(ph->dev, sizeof(*cinfo), GFP_KERNEL);
+	cinfo = devm_kzalloc_obj(ph->dev, *cinfo);
 	if (!cinfo)
 		return -ENOMEM;
 
@@ -1245,8 +1245,8 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	cinfo->clkds = devm_kcalloc(ph->dev, cinfo->num_clocks,
-				    sizeof(*cinfo->clkds), GFP_KERNEL);
+	cinfo->clkds = devm_kzalloc_objs(ph->dev, *cinfo->clkds,
+					 cinfo->num_clocks);
 	if (!cinfo->clkds)
 		return -ENOMEM;
 

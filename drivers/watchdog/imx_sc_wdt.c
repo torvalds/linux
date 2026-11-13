@@ -183,7 +183,7 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	imx_sc_wdd = devm_kzalloc(dev, sizeof(*imx_sc_wdd), GFP_KERNEL);
+	imx_sc_wdd = devm_kzalloc_obj(dev, *imx_sc_wdd);
 	if (!imx_sc_wdd)
 		return -ENOMEM;
 

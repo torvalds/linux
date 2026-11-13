@@ -683,7 +683,7 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev->parent);
 	int ret, irq;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -788,8 +788,7 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	for_each_child_of_node(dev->of_node, child)
 		max_asid = max(max_asid, get_asid(child));
 
-	qcom_iommu = devm_kzalloc(dev, struct_size(qcom_iommu, ctxs, max_asid + 1),
-				  GFP_KERNEL);
+	qcom_iommu = devm_kzalloc_flex(dev, *qcom_iommu, ctxs, max_asid + 1);
 	if (!qcom_iommu)
 		return -ENOMEM;
 	qcom_iommu->max_asid = max_asid;

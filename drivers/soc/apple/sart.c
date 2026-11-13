@@ -183,7 +183,7 @@ static int apple_sart_probe(struct platform_device *pdev)
 	struct apple_sart *sart;
 	struct device *dev = &pdev->dev;
 
-	sart = devm_kzalloc(dev, sizeof(*sart), GFP_KERNEL);
+	sart = devm_kzalloc_obj(dev, *sart);
 	if (!sart)
 		return -ENOMEM;
 

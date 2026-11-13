@@ -174,18 +174,16 @@ ice_vc_fdir_alloc_prof(struct ice_vf *vf, enum ice_fltr_ptype flow)
 	struct ice_vf_fdir *fdir = &vf->fdir;
 
 	if (!fdir->fdir_prof) {
-		fdir->fdir_prof = devm_kcalloc(ice_pf_to_dev(vf->pf),
-					       ICE_FLTR_PTYPE_MAX,
-					       sizeof(*fdir->fdir_prof),
-					       GFP_KERNEL);
+		fdir->fdir_prof = devm_kzalloc_objs(ice_pf_to_dev(vf->pf),
+						    *fdir->fdir_prof,
+						    ICE_FLTR_PTYPE_MAX);
 		if (!fdir->fdir_prof)
 			return -ENOMEM;
 	}
 
 	if (!fdir->fdir_prof[flow]) {
-		fdir->fdir_prof[flow] = devm_kzalloc(ice_pf_to_dev(vf->pf),
-						     sizeof(**fdir->fdir_prof),
-						     GFP_KERNEL);
+		fdir->fdir_prof[flow] = devm_kzalloc_obj(ice_pf_to_dev(vf->pf),
+							 **fdir->fdir_prof);
 		if (!fdir->fdir_prof[flow])
 			return -ENOMEM;
 	}
@@ -768,7 +766,7 @@ ice_vc_fdir_config_input_set(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 		return ret;
 	}
 
-	seg = devm_kzalloc(dev, sizeof(*seg), GFP_KERNEL);
+	seg = devm_kzalloc_obj(dev, *seg);
 	if (!seg)
 		return -ENOMEM;
 
@@ -2135,7 +2133,7 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_exit;
 	}
 
-	conf = devm_kzalloc(dev, sizeof(*conf), GFP_KERNEL);
+	conf = devm_kzalloc_obj(dev, *conf);
 	if (!conf) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		dev_dbg(dev, "Alloc conf for VF %d failed\n", vf->vf_id);

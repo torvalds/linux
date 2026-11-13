@@ -133,7 +133,7 @@ static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
 {
 	struct max8997_platform_data *pd;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
@@ -148,8 +148,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c)
 	struct max8997_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
 
-	max8997 = devm_kzalloc(&i2c->dev, sizeof(struct max8997_dev),
-				GFP_KERNEL);
+	max8997 = devm_kzalloc_obj(&i2c->dev, struct max8997_dev);
 	if (max8997 == NULL)
 		return -ENOMEM;
 

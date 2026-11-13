@@ -164,7 +164,7 @@ int simple_util_parse_tdm_width_map(struct simple_util_priv *priv, struct device
 	}
 
 	ret = -ENOMEM;
-	dai->tdm_width_map = devm_kcalloc(dev, n, sizeof(*dai->tdm_width_map), GFP_KERNEL);
+	dai->tdm_width_map = devm_kzalloc_objs(dev, *dai->tdm_width_map, n);
 	if (!dai->tdm_width_map)
 		return simple_ret(priv, ret); /* see NOTE */
 
@@ -674,7 +674,7 @@ static int simple_init_for_codec2codec(struct simple_util_priv *priv,
 	}
 
 	ret = -ENOMEM;
-	c2c_params = devm_kzalloc(rtd->dev, sizeof(*c2c_params), GFP_KERNEL);
+	c2c_params = devm_kzalloc_obj(rtd->dev, *c2c_params);
 	if (!c2c_params)
 		goto end;
 
@@ -855,8 +855,7 @@ int simple_util_init_aux_jacks(struct snd_soc_card *card, char *prefix)
 	if (num < 1)
 		return 0;
 
-	priv->aux_jacks = devm_kcalloc(card->dev, num,
-				       sizeof(struct snd_soc_jack), GFP_KERNEL);
+	priv->aux_jacks = devm_kzalloc_objs(card->dev, struct snd_soc_jack, num);
 	if (!priv->aux_jacks)
 		return simple_ret(priv, -ENOMEM);
 
@@ -900,8 +899,8 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 	struct snd_soc_codec_conf *cconf = NULL;
 	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
 
-	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
-	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
+	dai_props = devm_kzalloc_objs(dev, *dai_props, li->link);
+	dai_link  = devm_kzalloc_objs(dev, *dai_link, li->link);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 
@@ -919,13 +918,13 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 			cnf_num += li->num[i].codecs;
 	}
 
-	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
-	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dlcs), GFP_KERNEL);
+	dais = devm_kzalloc_objs(dev, *dais, dai_num);
+	dlcs = devm_kzalloc_objs(dev, *dlcs, dlc_num);
 	if (!dais || !dlcs)
 		return -ENOMEM;
 
 	if (cnf_num) {
-		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
+		cconf = devm_kzalloc_objs(dev, *cconf, cnf_num);
 		if (!cconf)
 			return -ENOMEM;
 	}

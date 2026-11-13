@@ -1123,8 +1123,7 @@ static int alc5632_i2c_probe(struct i2c_client *client)
 	unsigned int vid1, vid2;
 	unsigned int matched_id;
 
-	alc5632 = devm_kzalloc(&client->dev,
-			 sizeof(struct alc5632_priv), GFP_KERNEL);
+	alc5632 = devm_kzalloc_obj(&client->dev, struct alc5632_priv);
 	if (alc5632 == NULL)
 		return -ENOMEM;
 

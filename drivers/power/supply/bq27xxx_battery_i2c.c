@@ -175,7 +175,7 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 	if (!name)
 		return -ENOMEM;
 
-	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(&client->dev, *di);
 	if (!di)
 		return -ENOMEM;
 

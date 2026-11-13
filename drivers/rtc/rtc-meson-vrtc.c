@@ -66,7 +66,7 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	struct meson_vrtc_data *vrtc;
 	struct rtc_device *rtc;
 
-	vrtc = devm_kzalloc(&pdev->dev, sizeof(*vrtc), GFP_KERNEL);
+	vrtc = devm_kzalloc_obj(&pdev->dev, *vrtc);
 	if (!vrtc)
 		return -ENOMEM;
 

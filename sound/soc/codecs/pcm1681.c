@@ -348,7 +348,7 @@ static int pcm1681_i2c_probe(struct i2c_client *client)
 	int ret;
 	struct pcm1681_private *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

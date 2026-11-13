@@ -503,8 +503,7 @@ static int lm3630a_probe(struct i2c_client *client)
 		return -EOPNOTSUPP;
 	}
 
-	pchip = devm_kzalloc(&client->dev, sizeof(struct lm3630a_chip),
-			     GFP_KERNEL);
+	pchip = devm_kzalloc_obj(&client->dev, struct lm3630a_chip);
 	if (!pchip)
 		return -ENOMEM;
 	pchip->dev = &client->dev;
@@ -518,9 +517,8 @@ static int lm3630a_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, pchip);
 	if (pdata == NULL) {
-		pdata = devm_kzalloc(pchip->dev,
-				     sizeof(struct lm3630a_platform_data),
-				     GFP_KERNEL);
+		pdata = devm_kzalloc_obj(pchip->dev,
+					 struct lm3630a_platform_data);
 		if (pdata == NULL)
 			return -ENOMEM;
 

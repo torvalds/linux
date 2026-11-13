@@ -221,7 +221,7 @@ static int yoga_c630_ucsi_probe(struct auxiliary_device *adev,
 	struct yoga_c630_ucsi *uec;
 	int ret;
 
-	uec = devm_kzalloc(&adev->dev, sizeof(*uec), GFP_KERNEL);
+	uec = devm_kzalloc_obj(&adev->dev, *uec);
 	if (!uec)
 		return -ENOMEM;
 

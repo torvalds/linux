@@ -184,7 +184,7 @@ static int rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	int retval = -EBUSY;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(struct ds2404), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, struct ds2404);
 	if (!chip)
 		return -ENOMEM;
 

@@ -153,15 +153,15 @@ static int exynos_mbox_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENODEV;
 
-	exynos_mbox = devm_kzalloc(dev, sizeof(*exynos_mbox), GFP_KERNEL);
+	exynos_mbox = devm_kzalloc_obj(dev, *exynos_mbox);
 	if (!exynos_mbox)
 		return -ENOMEM;
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 
-	chans = devm_kcalloc(dev, data->num_chans, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(dev, *chans, data->num_chans);
 	if (!chans)
 		return -ENOMEM;
 

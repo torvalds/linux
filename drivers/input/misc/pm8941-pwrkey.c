@@ -263,7 +263,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 
 	pull_up = of_property_read_bool(pdev->dev.of_node, "bias-pull-up");
 
-	pwrkey = devm_kzalloc(&pdev->dev, sizeof(*pwrkey), GFP_KERNEL);
+	pwrkey = devm_kzalloc_obj(&pdev->dev, *pwrkey);
 	if (!pwrkey)
 		return -ENOMEM;
 

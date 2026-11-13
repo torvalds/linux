@@ -1592,8 +1592,7 @@ int vsc8584_ptp_probe(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
 
-	vsc8531->ptp = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531->ptp),
-				    GFP_KERNEL);
+	vsc8531->ptp = devm_kzalloc_obj(&phydev->mdio.dev, *vsc8531->ptp);
 	if (!vsc8531->ptp)
 		return -ENOMEM;
 

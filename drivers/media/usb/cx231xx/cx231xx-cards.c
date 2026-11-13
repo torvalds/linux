@@ -1724,7 +1724,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	udev = interface_to_usbdev(interface);
 
 	/* allocate memory for our device state and initialize it */
-	dev = devm_kzalloc(&interface->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&interface->dev, *dev);
 	if (dev == NULL) {
 		retval = -ENOMEM;
 		goto err_if;

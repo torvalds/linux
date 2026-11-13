@@ -41,7 +41,7 @@ struct ti_sci_proc *ti_sci_proc_of_get_tsp(struct device *dev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	tsp = devm_kzalloc(dev, sizeof(*tsp), GFP_KERNEL);
+	tsp = devm_kzalloc_obj(dev, *tsp);
 	if (!tsp)
 		return ERR_PTR(-ENOMEM);
 

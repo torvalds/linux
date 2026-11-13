@@ -452,11 +452,11 @@ static struct clk_hw *rpmi_clk_enumerate(struct rpmi_clk_context *context, u32 c
 	struct clk_hw *clk_hw;
 	int ret;
 
-	rates = devm_kzalloc(dev, sizeof(*rates), GFP_KERNEL);
+	rates = devm_kzalloc_obj(dev, *rates);
 	if (!rates)
 		return ERR_PTR(-ENOMEM);
 
-	rpmi_clk = devm_kzalloc(dev, sizeof(*rpmi_clk), GFP_KERNEL);
+	rpmi_clk = devm_kzalloc_obj(dev, *rpmi_clk);
 	if (!rpmi_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -518,7 +518,7 @@ static int rpmi_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw_ptr;
 	struct device *dev = &pdev->dev;
 
-	context = devm_kzalloc(dev, sizeof(*context), GFP_KERNEL);
+	context = devm_kzalloc_obj(dev, *context);
 	if (!context)
 		return -ENOMEM;
 	context->dev = dev;
@@ -578,8 +578,7 @@ static int rpmi_clk_probe(struct platform_device *pdev)
 	if (!num_clocks)
 		return dev_err_probe(dev, -ENODEV, "No clocks found\n");
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, num_clocks),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, num_clocks);
 	if (!clk_data)
 		return dev_err_probe(dev, -ENOMEM, "No memory for clock data\n");
 	clk_data->num = num_clocks;

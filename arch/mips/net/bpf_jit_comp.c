@@ -959,8 +959,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	 * Not able to allocate memory for descriptors[], then
 	 * we must fall back to the interpreter
 	 */
-	ctx.descriptors = kcalloc(prog->len + 1, sizeof(*ctx.descriptors),
-				  GFP_KERNEL);
+	ctx.descriptors = kzalloc_objs(*ctx.descriptors, prog->len + 1);
 	if (ctx.descriptors == NULL)
 		goto out_err;
 

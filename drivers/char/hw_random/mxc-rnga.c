@@ -136,7 +136,7 @@ static int mxc_rnga_probe(struct platform_device *pdev)
 	int err;
 	struct mxc_rng *mxc_rng;
 
-	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(*mxc_rng), GFP_KERNEL);
+	mxc_rng = devm_kzalloc_obj(&pdev->dev, *mxc_rng);
 	if (!mxc_rng)
 		return -ENOMEM;
 

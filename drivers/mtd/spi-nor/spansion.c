@@ -567,7 +567,7 @@ static int s25fs256t_post_sfdp_fixup(struct spi_nor *nor)
 	 * same code base for both single and multi chip package devices, thus
 	 * set the vreg_offset and n_dice to be able to do so.
 	 */
-	params->vreg_offset = devm_kmalloc(nor->dev, sizeof(u32), GFP_KERNEL);
+	params->vreg_offset = devm_kmalloc_obj(nor->dev, u32);
 	if (!params->vreg_offset)
 		return -ENOMEM;
 
@@ -1124,8 +1124,7 @@ static int spansion_nor_late_init(struct spi_nor *nor)
 	}
 
 	if (mfr_flags & (USE_CLSR | USE_CLPEF)) {
-		priv_params = devm_kmalloc(nor->dev, sizeof(*priv_params),
-					   GFP_KERNEL);
+		priv_params = devm_kmalloc_obj(nor->dev, *priv_params);
 		if (!priv_params)
 			return -ENOMEM;
 

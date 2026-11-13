@@ -185,7 +185,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec)
 	if (!leds_exist)
 		return 0;
 
-	wkl = devm_kzalloc(ec->dev, sizeof(*wkl), GFP_KERNEL);
+	wkl = devm_kzalloc_obj(ec->dev, *wkl);
 	if (!wkl)
 		return -ENOMEM;
 

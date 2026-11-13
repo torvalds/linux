@@ -284,7 +284,7 @@ static int liteuart_probe(struct platform_device *pdev)
 	struct xa_limit limit;
 	int dev_id, ret;
 
-	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
+	uart = devm_kzalloc_obj(&pdev->dev, struct liteuart_port);
 	if (!uart)
 		return -ENOMEM;
 

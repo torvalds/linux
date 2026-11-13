@@ -56,7 +56,7 @@ static int xilinx_selectmap_probe(struct platform_device *pdev)
 	struct xilinx_selectmap_conf *conf;
 	void __iomem *base;
 
-	conf = devm_kzalloc(&pdev->dev, sizeof(*conf), GFP_KERNEL);
+	conf = devm_kzalloc_obj(&pdev->dev, *conf);
 	if (!conf)
 		return -ENOMEM;
 

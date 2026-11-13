@@ -226,7 +226,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 	u32 ngpios;
 	int res;
 
-	hlwd = devm_kzalloc(&pdev->dev, sizeof(*hlwd), GFP_KERNEL);
+	hlwd = devm_kzalloc_obj(&pdev->dev, *hlwd);
 	if (!hlwd)
 		return -ENOMEM;
 
@@ -289,9 +289,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &hlwd_gpio_irq_chip);
 		girq->parent_handler = hlwd_gpio_irqhandler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(&pdev->dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents, 1);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->parents[0] = hlwd->irq;

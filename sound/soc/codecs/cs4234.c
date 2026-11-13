@@ -749,7 +749,7 @@ static int cs4234_i2c_probe(struct i2c_client *i2c_client)
 	uint8_t ids[3];
 	int ret = 0, i;
 
-	cs4234 = devm_kzalloc(dev, sizeof(*cs4234), GFP_KERNEL);
+	cs4234 = devm_kzalloc_obj(dev, *cs4234);
 	if (!cs4234)
 		return -ENOMEM;
 	i2c_set_clientdata(i2c_client, cs4234);

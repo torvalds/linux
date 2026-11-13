@@ -357,6 +357,18 @@ static bool rtk_spi_supports_op(struct spi_mem *mem,
 	return spi_mem_default_supports_op(mem, op);
 }
 
+static int rtk_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	/*
+	 * A write through exec_op is a single access to the data window,
+	 * which programs one byte. Let the caller split longer writes.
+	 */
+	if (op->data.dir == SPI_MEM_DATA_OUT && op->addr.nbytes)
+		op->data.nbytes = min(op->data.nbytes, 1U);
+
+	return 0;
+}
+
 static int rtk_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
 	const struct spi_mem_op *op = desc->info.op_tmpl;
@@ -449,6 +461,7 @@ static const struct spi_controller_mem_ops rtk_spi_mem_ops = {
 	.dirmap_create = rtk_spi_dirmap_create,
 	.dirmap_read = rtk_spi_dirmap_read,
 	.dirmap_write = rtk_spi_dirmap_write,
+	.adjust_op_size = rtk_spi_adjust_op_size,
 };
 
 static int rtk_spi_probe(struct platform_device *pdev)

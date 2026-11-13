@@ -183,7 +183,7 @@ static int stm32_sai_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
+	sai = devm_kzalloc_obj(&pdev->dev, *sai);
 	if (!sai)
 		return -ENOMEM;
 

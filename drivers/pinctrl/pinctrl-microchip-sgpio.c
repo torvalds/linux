@@ -821,7 +821,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	pctl_desc->confops = &sgpio_confops;
 	pctl_desc->owner = THIS_MODULE;
 
-	pins = devm_kcalloc(dev, ngpios, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, ngpios);
 	if (!pins)
 		return -ENOMEM;
 
@@ -874,9 +874,8 @@ static int microchip_sgpio_register_bank(struct device *dev,
 			gpio_irq_chip_set_chip(girq, &microchip_sgpio_irqchip);
 			girq->parent_handler = sgpio_irq_handler;
 			girq->num_parents = 1;
-			girq->parents = devm_kcalloc(dev, 1,
-						     sizeof(*girq->parents),
-						     GFP_KERNEL);
+			girq->parents = devm_kzalloc_objs(dev, *girq->parents,
+							  1);
 			if (!girq->parents)
 				return -ENOMEM;
 			girq->parents[0] = irq;
@@ -913,7 +912,7 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 		.reg_stride = 4,
 	};
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

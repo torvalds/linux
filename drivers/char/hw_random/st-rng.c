@@ -76,7 +76,7 @@ static int st_rng_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

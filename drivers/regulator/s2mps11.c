@@ -2170,8 +2170,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	const struct regulator_desc *regulators;
 	const struct s2mpg10_regulator_desc *s2mpg1x_regulators = NULL;
 
-	s2mps11 = devm_kzalloc(&pdev->dev, sizeof(struct s2mps11_info),
-				GFP_KERNEL);
+	s2mps11 = devm_kzalloc_obj(&pdev->dev, struct s2mps11_info);
 	if (!s2mps11)
 		return -ENOMEM;
 

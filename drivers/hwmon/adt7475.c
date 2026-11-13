@@ -1817,7 +1817,7 @@ static int adt7475_probe(struct i2c_client *client)
 	int i, ret = 0, revision, group_num = 0;
 	u8 config3;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (data == NULL)
 		return -ENOMEM;
 

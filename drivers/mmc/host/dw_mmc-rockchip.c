@@ -424,7 +424,7 @@ static int dw_mci_common_parse_dt(struct dw_mci *host)
 	struct device_node *np = host->dev->of_node;
 	struct dw_mci_rockchip_priv_data *priv;
 
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(host->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

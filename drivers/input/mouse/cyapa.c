@@ -1256,7 +1256,7 @@ static int cyapa_probe(struct i2c_client *client)
 			I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0)
 		return -ENODEV;
 
-	cyapa = devm_kzalloc(dev, sizeof(struct cyapa), GFP_KERNEL);
+	cyapa = devm_kzalloc_obj(dev, struct cyapa);
 	if (!cyapa)
 		return -ENOMEM;
 

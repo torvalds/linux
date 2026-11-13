@@ -356,7 +356,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
-	cec = devm_kzalloc(&pdev->dev, sizeof(struct tegra_cec), GFP_KERNEL);
+	cec = devm_kzalloc_obj(&pdev->dev, struct tegra_cec);
 
 	if (!cec)
 		return -ENOMEM;

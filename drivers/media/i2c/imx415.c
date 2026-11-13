@@ -1354,7 +1354,7 @@ static int imx415_probe(struct i2c_client *client)
 	struct imx415 *sensor;
 	int ret;
 
-	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&client->dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

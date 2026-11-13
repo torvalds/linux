@@ -1457,7 +1457,7 @@ static int renesas_i3c_probe(struct platform_device *pdev)
 	struct renesas_i3c *i3c;
 	int ret, i;
 
-	i3c = devm_kzalloc(&pdev->dev, sizeof(*i3c), GFP_KERNEL);
+	i3c = devm_kzalloc_obj(&pdev->dev, *i3c);
 	if (!i3c)
 		return -ENOMEM;
 

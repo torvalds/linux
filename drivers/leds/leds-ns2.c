@@ -198,7 +198,7 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 	}
 
 	nmodes = ret / 3;
-	modval = devm_kcalloc(dev, nmodes, sizeof(*modval), GFP_KERNEL);
+	modval = devm_kzalloc_objs(dev, *modval, nmodes);
 	if (!modval)
 		return -ENOMEM;
 
@@ -246,7 +246,7 @@ static int ns2_led_probe(struct platform_device *pdev)
 	if (!count)
 		return -ENODEV;
 
-	leds = devm_kcalloc(dev, count, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc_objs(dev, *leds, count);
 	if (!leds)
 		return -ENOMEM;
 

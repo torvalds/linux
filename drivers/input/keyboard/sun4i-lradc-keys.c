@@ -215,9 +215,8 @@ static int sun4i_lradc_load_dt_keymap(struct device *dev,
 		return -EINVAL;
 	}
 
-	lradc->chan0_map = devm_kmalloc_array(dev, lradc->chan0_map_count,
-					      sizeof(struct sun4i_lradc_keymap),
-					      GFP_KERNEL);
+	lradc->chan0_map = devm_kmalloc_objs(dev, struct sun4i_lradc_keymap,
+					     lradc->chan0_map_count);
 	if (!lradc->chan0_map)
 		return -ENOMEM;
 
@@ -256,7 +255,7 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error, i, irq;
 
-	lradc = devm_kzalloc(dev, sizeof(struct sun4i_lradc_data), GFP_KERNEL);
+	lradc = devm_kzalloc_obj(dev, struct sun4i_lradc_data);
 	if (!lradc)
 		return -ENOMEM;
 

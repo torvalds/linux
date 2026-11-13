@@ -257,7 +257,7 @@ static int meson_irtx_transmit(struct rc_dev *rc, unsigned int *buf,
 	if (!meson_irtx_check_buf(ir, buf, len))
 		return -EINVAL;
 
-	tx_buf = kmalloc_array(len, sizeof(u32), GFP_KERNEL);
+	tx_buf = kmalloc_objs(u32, len);
 	if (!tx_buf)
 		return -ENOMEM;
 
@@ -318,7 +318,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 	unsigned int clk_nr;
 	int ret;
 
-	ir = devm_kzalloc(dev, sizeof(*ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(dev, *ir);
 	if (!ir)
 		return -ENOMEM;
 

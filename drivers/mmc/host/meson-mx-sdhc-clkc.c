@@ -95,7 +95,7 @@ int meson_mx_sdhc_register_clkc(struct device *dev, void __iomem *base,
 	struct meson_mx_sdhc_clkc *clkc_data;
 	int ret;
 
-	clkc_data = devm_kzalloc(dev, sizeof(*clkc_data), GFP_KERNEL);
+	clkc_data = devm_kzalloc_obj(dev, *clkc_data);
 	if (!clkc_data)
 		return -ENOMEM;
 

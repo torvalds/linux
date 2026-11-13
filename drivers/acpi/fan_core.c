@@ -287,7 +287,7 @@ static int acpi_fan_get_fps(struct device *dev, struct acpi_device *device)
 	}
 
 	fan->fps_count = obj->package.count - 1; /* minus revision field */
-	fan->fps = devm_kcalloc(dev, fan->fps_count, sizeof(*fan->fps), GFP_KERNEL);
+	fan->fps = devm_kzalloc_objs(dev, *fan->fps, fan->fps_count);
 	if (!fan->fps)
 		return -ENOMEM;
 
@@ -475,7 +475,7 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	if (!device)
 		return -ENODEV;
 
-	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
+	fan = devm_kzalloc_obj(&pdev->dev, *fan);
 	if (!fan) {
 		dev_err(&device->dev, "No memory for fan\n");
 		return -ENOMEM;

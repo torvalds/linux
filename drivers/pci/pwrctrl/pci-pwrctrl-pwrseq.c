@@ -84,7 +84,7 @@ static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	pwrseq = devm_kzalloc_obj(dev, *pwrseq);
 	if (!pwrseq)
 		return -ENOMEM;
 

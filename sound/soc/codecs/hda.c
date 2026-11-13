@@ -21,7 +21,7 @@ static int hda_codec_create_dais(struct hda_codec *codec, int pcm_count,
 	struct hda_pcm *pcm;
 	int i;
 
-	drvs = devm_kcalloc(dev, pcm_count, sizeof(*drvs), GFP_KERNEL);
+	drvs = devm_kzalloc_objs(dev, *drvs, pcm_count);
 	if (!drvs)
 		return -ENOMEM;
 
@@ -357,7 +357,7 @@ static int hda_hdev_attach(struct hdac_device *hdev)
 		return -ENODEV;
 	}
 
-	comp_drv = devm_kzalloc(&hdev->dev, sizeof(*comp_drv), GFP_KERNEL);
+	comp_drv = devm_kzalloc_obj(&hdev->dev, *comp_drv);
 	if (!comp_drv)
 		return -ENOMEM;
 

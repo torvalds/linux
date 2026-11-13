@@ -811,7 +811,7 @@ static int ad3530r_parse_channel_cfg(struct iio_dev *indio_dev)
 	if (!num_chan)
 		return dev_err_probe(dev, -ENOENT, "No channels configured\n");
 
-	channels = devm_kcalloc(dev, num_chan, sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, num_chan);
 	if (!channels)
 		return -ENOMEM;
 

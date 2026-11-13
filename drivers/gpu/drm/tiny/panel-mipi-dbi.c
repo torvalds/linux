@@ -170,7 +170,7 @@ panel_mipi_dbi_check_commands(struct device *dev, const struct firmware *fw)
 		return ERR_PTR(-EINVAL);
 	}
 
-	commands = devm_kzalloc(dev, sizeof(*commands), GFP_KERNEL);
+	commands = devm_kzalloc_obj(dev, *commands);
 	if (!commands)
 		return ERR_PTR(-ENOMEM);
 

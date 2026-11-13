@@ -141,7 +141,7 @@ static int nic78bx_probe(struct platform_device *pdev)
 	struct resource *io_rc;
 	int ret, i;
 
-	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
+	led_data = devm_kzalloc_obj(dev, *led_data);
 	if (!led_data)
 		return -ENOMEM;
 

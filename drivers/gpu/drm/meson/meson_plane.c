@@ -537,8 +537,7 @@ int meson_plane_create(struct meson_drm *priv)
 	const uint64_t *format_modifiers = format_modifiers_default;
 	int ret;
 
-	meson_plane = devm_kzalloc(priv->drm->dev, sizeof(*meson_plane),
-				   GFP_KERNEL);
+	meson_plane = devm_kzalloc_obj(priv->drm->dev, *meson_plane);
 	if (!meson_plane)
 		return -ENOMEM;
 

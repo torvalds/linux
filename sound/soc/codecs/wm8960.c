@@ -1446,8 +1446,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	u8 val;
 
-	wm8960 = devm_kzalloc(&i2c->dev, sizeof(struct wm8960_priv),
-			      GFP_KERNEL);
+	wm8960 = devm_kzalloc_obj(&i2c->dev, struct wm8960_priv);
 	if (wm8960 == NULL)
 		return -ENOMEM;
 

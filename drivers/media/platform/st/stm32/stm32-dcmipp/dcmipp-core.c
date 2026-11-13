@@ -454,7 +454,7 @@ static int dcmipp_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	dcmipp = devm_kzalloc(&pdev->dev, sizeof(*dcmipp), GFP_KERNEL);
+	dcmipp = devm_kzalloc_obj(&pdev->dev, *dcmipp);
 	if (!dcmipp)
 		return -ENOMEM;
 
@@ -527,8 +527,8 @@ static int dcmipp_probe(struct platform_device *pdev)
 		dcmipp->mclk = mclk;
 	}
 
-	dcmipp->entity = devm_kcalloc(&pdev->dev, dcmipp->pipe_cfg->num_ents,
-				      sizeof(*dcmipp->entity), GFP_KERNEL);
+	dcmipp->entity = devm_kzalloc_objs(&pdev->dev, *dcmipp->entity,
+					   dcmipp->pipe_cfg->num_ents);
 	if (!dcmipp->entity)
 		return -ENOMEM;
 

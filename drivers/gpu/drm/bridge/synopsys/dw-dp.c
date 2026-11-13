@@ -1768,7 +1768,8 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 
 	*num_output_fmts = 0;
 
-	output_fmts = kcalloc(ARRAY_SIZE(dw_dp_output_formats), sizeof(*output_fmts), GFP_KERNEL);
+	output_fmts = kzalloc_objs(*output_fmts,
+				   ARRAY_SIZE(dw_dp_output_formats));
 	if (!output_fmts)
 		return NULL;
 

@@ -239,7 +239,7 @@ static int cix_ipbloq_hda_probe(struct platform_device *pdev)
 	struct azx *chip;
 	int err;
 
-	hda = devm_kzalloc(&pdev->dev, sizeof(*hda), GFP_KERNEL);
+	hda = devm_kzalloc_obj(&pdev->dev, *hda);
 	if (!hda)
 		return -ENOMEM;
 	hda->dev = &pdev->dev;

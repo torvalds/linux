@@ -414,7 +414,7 @@ static int mpfs_auto_update_probe(struct platform_device *pdev)
 	struct fw_upload *fw_uploader;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

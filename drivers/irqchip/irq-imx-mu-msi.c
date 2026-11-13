@@ -311,7 +311,7 @@ static int imx_mu_probe(struct platform_device *pdev, struct device_node *parent
 
 	dev = &pdev->dev;
 
-	msi_data = devm_kzalloc(&pdev->dev, sizeof(*msi_data), GFP_KERNEL);
+	msi_data = devm_kzalloc_obj(&pdev->dev, *msi_data);
 	if (!msi_data)
 		return -ENOMEM;
 

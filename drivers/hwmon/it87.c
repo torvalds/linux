@@ -3666,7 +3666,7 @@ static int it87_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct it87_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct it87_data);
 	if (!data)
 		return -ENOMEM;
 

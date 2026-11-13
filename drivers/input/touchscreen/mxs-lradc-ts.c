@@ -608,7 +608,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	int ret, irq, virq, i;
 	u32 ts_wires = 0, adapt;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

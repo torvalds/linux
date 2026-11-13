@@ -55,7 +55,7 @@ int afu_mmio_region_add(struct dfl_feature_dev_data *fdata,
 	struct dfl_afu *afu;
 	int ret = 0;
 
-	region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
+	region = devm_kzalloc_obj(dev, *region);
 	if (!region)
 		return -ENOMEM;
 

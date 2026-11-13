@@ -1149,7 +1149,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
 	struct mmp_pdma_chan *chan;
 	int ret;
 
-	chan = devm_kzalloc(pdev->dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(pdev->dev, *chan);
 	if (chan == NULL)
 		return -ENOMEM;
 
@@ -1263,7 +1263,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 		DMA_SLAVE_BUSWIDTH_1_BYTE   | DMA_SLAVE_BUSWIDTH_2_BYTES |
 		DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	pdev = devm_kzalloc(&op->dev, sizeof(*pdev), GFP_KERNEL);
+	pdev = devm_kzalloc_obj(&op->dev, *pdev);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -1306,8 +1306,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 			irq_num++;
 	}
 
-	pdev->phy = devm_kcalloc(pdev->dev, dma_channels, sizeof(*pdev->phy),
-				 GFP_KERNEL);
+	pdev->phy = devm_kzalloc_objs(pdev->dev, *pdev->phy, dma_channels);
 	if (pdev->phy == NULL)
 		return -ENOMEM;
 

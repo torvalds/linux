@@ -778,7 +778,7 @@ static int rtq9128_probe(struct i2c_client *i2c)
 	const struct snd_soc_component_driver *comp_drv;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

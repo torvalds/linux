@@ -129,7 +129,7 @@ static int p1_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct p1_rtc *p1;
 
-	p1 = devm_kzalloc(dev, sizeof(*p1), GFP_KERNEL);
+	p1 = devm_kzalloc_obj(dev, *p1);
 	if (!p1)
 		return -ENOMEM;
 	dev_set_drvdata(dev, p1);

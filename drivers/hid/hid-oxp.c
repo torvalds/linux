@@ -1483,12 +1483,12 @@ static int oxp_cfg_probe(struct hid_device *hdev, u16 up)
 		return 0;
 
 skip_rgb:
-	bmap_1 = devm_kzalloc(&hdev->dev, sizeof(struct oxp_bmap_page_1), GFP_KERNEL);
+	bmap_1 = devm_kzalloc_obj(&hdev->dev, struct oxp_bmap_page_1);
 	if (!bmap_1)
 		return dev_err_probe(&hdev->dev, -ENOMEM,
 				     "Unable to allocate button map page 1\n");
 
-	bmap_2 = devm_kzalloc(&hdev->dev, sizeof(struct oxp_bmap_page_2), GFP_KERNEL);
+	bmap_2 = devm_kzalloc_obj(&hdev->dev, struct oxp_bmap_page_2);
 	if (!bmap_2)
 		return dev_err_probe(&hdev->dev, -ENOMEM,
 				     "Unable to allocate button map page 2\n");

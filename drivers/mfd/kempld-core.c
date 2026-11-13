@@ -436,7 +436,7 @@ static int kempld_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pld = devm_kzalloc(dev, sizeof(*pld), GFP_KERNEL);
+	pld = devm_kzalloc_obj(dev, *pld);
 	if (!pld)
 		return -ENOMEM;
 

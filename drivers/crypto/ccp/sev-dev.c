@@ -2854,7 +2854,7 @@ int sev_dev_init(struct psp_device *psp)
 		return 0;
 	}
 
-	sev = devm_kzalloc(dev, sizeof(*sev), GFP_KERNEL);
+	sev = devm_kzalloc_obj(dev, *sev);
 	if (!sev)
 		goto e_err;
 

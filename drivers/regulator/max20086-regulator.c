@@ -144,8 +144,8 @@ static int max20086_parse_regulators_dt(struct max20086 *chip, bool *boot_on)
 		return -ENODEV;
 	}
 
-	matches = devm_kcalloc(chip->dev, chip->info->num_outputs,
-			       sizeof(*matches), GFP_KERNEL);
+	matches = devm_kzalloc_objs(chip->dev, *matches,
+				    chip->info->num_outputs);
 	if (!matches)
 		return -ENOMEM;
 
@@ -223,7 +223,7 @@ static int max20086_i2c_probe(struct i2c_client *i2c)
 	bool boot_on;
 	int ret;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

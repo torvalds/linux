@@ -1675,7 +1675,7 @@ static int mv_port_start(struct ata_port *ap)
 	unsigned long flags;
 	int tag;
 
-	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc_obj(dev, *pp);
 	if (!pp)
 		return -ENOMEM;
 	ap->private_data = pp;
@@ -4067,18 +4067,14 @@ static int mv_platform_probe(struct platform_device *pdev)
 		return irq;
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
-	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(&pdev->dev, *hpriv);
 
 	if (!host || !hpriv)
 		return -ENOMEM;
-	hpriv->port_clks = devm_kcalloc(&pdev->dev,
-					n_ports, sizeof(struct clk *),
-					GFP_KERNEL);
+	hpriv->port_clks = devm_kzalloc_objs(&pdev->dev, struct clk *, n_ports);
 	if (!hpriv->port_clks)
 		return -ENOMEM;
-	hpriv->port_phys = devm_kcalloc(&pdev->dev,
-					n_ports, sizeof(struct phy *),
-					GFP_KERNEL);
+	hpriv->port_phys = devm_kzalloc_objs(&pdev->dev, struct phy *, n_ports);
 	if (!hpriv->port_phys)
 		return -ENOMEM;
 	host->private_data = hpriv;
@@ -4361,7 +4357,7 @@ static int mv_pci_init_one(struct pci_dev *pdev,
 	n_ports = mv_get_hc_count(ppi[0]->flags) * MV_PORTS_PER_HC;
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
-	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(&pdev->dev, *hpriv);
 	if (!host || !hpriv)
 		return -ENOMEM;
 	host->private_data = hpriv;

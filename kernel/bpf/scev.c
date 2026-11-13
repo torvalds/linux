@@ -518,7 +518,7 @@ static struct env *get_loop_env(struct scev *scev, int loop_header, int insn_idx
 	if (e)
 		return e;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL_ACCOUNT);
+	e = kzalloc_obj(*e, GFP_KERNEL_ACCOUNT);
 	if (!e)
 		return NULL;
 
@@ -1276,11 +1276,11 @@ static int compute_scev_for_loop(struct bpf_verifier_env *env, int cur_header)
 		return 0;
 	}
 
-	cur_env = kzalloc(sizeof(*cur_env), GFP_KERNEL_ACCOUNT);
+	cur_env = kzalloc_obj(*cur_env, GFP_KERNEL_ACCOUNT);
 	if (!cur_env)
 		goto nomem;
 	if (log_level2) {
-		old_env = kzalloc(sizeof(*old_env), GFP_KERNEL_ACCOUNT);
+		old_env = kzalloc_obj(*old_env, GFP_KERNEL_ACCOUNT);
 		if (!old_env)
 			goto nomem;
 	}
@@ -1725,7 +1725,7 @@ int bpf_init_scev(struct bpf_verifier_env *env)
 {
 	struct scev *scev;
 
-	scev = kzalloc(sizeof(struct scev), GFP_KERNEL_ACCOUNT);
+	scev = kzalloc_obj(struct scev, GFP_KERNEL_ACCOUNT);
 	if (!scev)
 		return -ENOMEM;
 	env->scev = scev;
@@ -1733,13 +1733,16 @@ int bpf_init_scev(struct bpf_verifier_env *env)
 	bpf_mark_reg_unknown_imprecise(&scev->unknown_reg);
 	/* A power of two for hash & (exprs_ht_cnt - 1)` indexing. */
 	scev->exprs_ht_cnt = roundup_pow_of_two(max(256U, DIV_ROUND_UP(env->prog->len, 4)));
-	scev->exprs_ht = kvcalloc(scev->exprs_ht_cnt, sizeof(*scev->exprs_ht), GFP_KERNEL_ACCOUNT);
+	scev->exprs_ht = kvzalloc_objs(*scev->exprs_ht, scev->exprs_ht_cnt,
+				       GFP_KERNEL_ACCOUNT);
 	if (!scev->exprs_ht)
 		goto nomem;
 	if (expr0(scev, UNKNOWN) < 0 || expr0(scev, OPAQUE)  < 0)
 		goto nomem;
-	scev->envs = kvcalloc(env->prog->len, sizeof(*scev->envs), GFP_KERNEL_ACCOUNT);
-	scev->discovered = kvcalloc(env->prog->len, sizeof(*scev->discovered), GFP_KERNEL_ACCOUNT);
+	scev->envs = kvzalloc_objs(*scev->envs, env->prog->len,
+				   GFP_KERNEL_ACCOUNT);
+	scev->discovered = kvzalloc_objs(*scev->discovered, env->prog->len,
+					 GFP_KERNEL_ACCOUNT);
 	if (!scev->envs || !scev->discovered)
 		goto nomem;
 	/*
@@ -1831,7 +1834,11 @@ scev_reg_for_read(struct bpf_verifier_env *env, const struct bpf_func_state *st,
 	return zero ? &env->scev->zero_reg : &env->scev->unknown_reg;
 }
 
-/* Materialize a writable value in the current state, growing its stack if needed. */
+/*
+ * Materialize a writable value in the current state, growing its stack if needed.
+ * This does not go through check_stack_write(). The callers skip is_unbound_scev_reg() slots,
+ * thus the buffer of a live dynptr slice, see bpf_reg_state::buf, does not become a spill here.
+ */
 static int scev_reg_for_write(struct bpf_verifier_env *env, struct bpf_func_state *st,
 			      u32 r, struct bpf_reg_state **out)
 {
@@ -2762,6 +2769,7 @@ static int union_any_reg(struct bpf_verifier_env *env, struct bpf_func_state *lo
 	const struct bpf_reg_state *leaf_reg;
 	struct scev *scev = env->scev;
 	u32 l, r, leaf, order;
+	s64 smax = reg_smax(acc);
 	s64 imm;
 	int err;
 
@@ -2785,10 +2793,13 @@ static int union_any_reg(struct bpf_verifier_env *env, struct bpf_func_state *lo
 			verifier_bug(env, "scev ANY union has an unsupported leaf");
 			return -EFAULT;
 		}
+		smax = max(smax, reg_smax(leaf_reg));
 		err = bpf_reg_union(env, acc, leaf_reg);
 		if (err)
 			return err;
 	}
+	/* All leaves have the same range. It goes with the largest offset of all leaves. */
+	bpf_trim_pkt_range(acc, smax);
 	return 0;
 }
 
@@ -2837,6 +2848,9 @@ int bpf_widen_scev_regs(struct bpf_verifier_env *env, struct bpf_verifier_state 
 				bpf_log(log, "\n");
 			}
 			scratch_widened_reg_id(env, reg);
+			/* "at pkt_end" and "beyond pkt_end" are not valid in all iterations */
+			if (type_is_pkt_pointer(reg->type))
+				reg->range = max(reg->range, 0);
 			err = bpf_set_reg_range(env, reg, bounds.r64, bounds.r32,
 						bounds.base, bounds.step);
 			if (err)

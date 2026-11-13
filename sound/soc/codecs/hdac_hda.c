@@ -646,7 +646,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 	struct hdac_ext_link *hlink;
 	int ret;
 
-	hda_pvt = devm_kzalloc(&hdev->dev, sizeof(*hda_pvt), GFP_KERNEL);
+	hda_pvt = devm_kzalloc_obj(&hdev->dev, *hda_pvt);
 	if (!hda_pvt)
 		return -ENOMEM;
 

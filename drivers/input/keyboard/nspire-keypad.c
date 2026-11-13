@@ -155,8 +155,7 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -EINVAL;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(struct nspire_keypad),
-			      GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, struct nspire_keypad);
 	if (!keypad) {
 		dev_err(&pdev->dev, "failed to allocate keypad memory\n");
 		return -ENOMEM;

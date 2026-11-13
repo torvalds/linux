@@ -138,7 +138,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ngroups += 1;
 	nmaps = 2 * ngroups;
 
-	pgnames = devm_kcalloc(dev, ngroups, sizeof(*pgnames), GFP_KERNEL);
+	pgnames = devm_kzalloc_objs(dev, *pgnames, ngroups);
 	if (!pgnames)
 		return -ENOMEM;
 
@@ -171,13 +171,13 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		pgnames[ngroups++] = grpname;
 
-		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
+		pins = devm_kzalloc_objs(dev, *pins, npins);
 		if (!pins) {
 			ret = -ENOMEM;
 			goto free_map;
 		}
 
-		pinmux = devm_kcalloc(dev, npins, sizeof(*pinmux), GFP_KERNEL);
+		pinmux = devm_kzalloc_objs(dev, *pinmux, npins);
 		if (!pinmux) {
 			ret = -ENOMEM;
 			goto free_map;
@@ -858,8 +858,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	num_saved_regs = IS_ENABLED(CONFIG_PM_SLEEP) ? info->nsaved_regs : 0;
-	sfp = devm_kzalloc(dev, struct_size(sfp, saved_regs, num_saved_regs),
-			   GFP_KERNEL);
+	sfp = devm_kzalloc_flex(dev, *sfp, saved_regs, num_saved_regs);
 	if (!sfp)
 		return -ENOMEM;
 	sfp->num_saved_regs = num_saved_regs;
@@ -895,9 +894,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	jh7110_pinctrl_desc = devm_kzalloc(&pdev->dev,
-					   sizeof(*jh7110_pinctrl_desc),
-					   GFP_KERNEL);
+	jh7110_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *jh7110_pinctrl_desc);
 	if (!jh7110_pinctrl_desc)
 		return -ENOMEM;
 
@@ -941,9 +938,8 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(&sfp->gc.irq, &jh7110_irq_chip);
 	sfp->gc.irq.parent_handler = info->jh7110_gpio_irq_handler;
 	sfp->gc.irq.num_parents = 1;
-	sfp->gc.irq.parents = devm_kcalloc(dev, sfp->gc.irq.num_parents,
-					   sizeof(*sfp->gc.irq.parents),
-					   GFP_KERNEL);
+	sfp->gc.irq.parents = devm_kzalloc_objs(dev, *sfp->gc.irq.parents,
+						sfp->gc.irq.num_parents);
 	if (!sfp->gc.irq.parents)
 		return -ENOMEM;
 	sfp->gc.irq.default_type = IRQ_TYPE_NONE;

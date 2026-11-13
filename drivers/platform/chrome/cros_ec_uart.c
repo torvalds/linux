@@ -255,7 +255,7 @@ static int cros_ec_uart_probe(struct serdev_device *serdev)
 	struct cros_ec_uart *ec_uart;
 	int ret;
 
-	ec_uart = devm_kzalloc(dev, sizeof(*ec_uart), GFP_KERNEL);
+	ec_uart = devm_kzalloc_obj(dev, *ec_uart);
 	if (!ec_uart)
 		return -ENOMEM;
 

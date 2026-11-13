@@ -1927,8 +1927,8 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!bands)
 		return -EINVAL;
 
-	ar->survey = devm_kcalloc(&ar->udev->dev, chans,
-				  sizeof(struct survey_info), GFP_KERNEL);
+	ar->survey = devm_kzalloc_objs(&ar->udev->dev, struct survey_info,
+				       chans);
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;

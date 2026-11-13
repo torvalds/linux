@@ -92,7 +92,7 @@ static int mc33880_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	mc = devm_kzalloc(&spi->dev, sizeof(struct mc33880), GFP_KERNEL);
+	mc = devm_kzalloc_obj(&spi->dev, struct mc33880);
 	if (!mc)
 		return -ENOMEM;
 

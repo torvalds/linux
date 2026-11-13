@@ -128,7 +128,7 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 	int ret;
 	int i;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return NULL;
 
@@ -194,8 +194,7 @@ static int max8952_pmic_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	max8952 = devm_kzalloc(&client->dev, sizeof(struct max8952_data),
-			       GFP_KERNEL);
+	max8952 = devm_kzalloc_obj(&client->dev, struct max8952_data);
 	if (!max8952)
 		return -ENOMEM;
 

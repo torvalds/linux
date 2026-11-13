@@ -201,7 +201,7 @@ static int cros_usbpd_logger_probe(struct platform_device *pd)
 	struct logger_data *logger;
 	int ret;
 
-	logger = devm_kzalloc(dev, sizeof(*logger), GFP_KERNEL);
+	logger = devm_kzalloc_obj(dev, *logger);
 	if (!logger)
 		return -ENOMEM;
 

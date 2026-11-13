@@ -2227,7 +2227,7 @@ static int nau8360_i2c_probe(struct i2c_client *i2c)
 	int num_total_regs;
 	int ret, value;
 
-	nau8360 = devm_kzalloc(dev, sizeof(*nau8360), GFP_KERNEL);
+	nau8360 = devm_kzalloc_obj(dev, *nau8360);
 	if (!nau8360)
 		return -ENOMEM;
 

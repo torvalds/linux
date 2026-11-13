@@ -209,7 +209,7 @@ static void jh71x0_clk_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	struct jh71x0_clk_priv *priv = jh71x0_priv_from(clk);
 	struct debugfs_regset32 *regset;
 
-	regset = devm_kzalloc(priv->dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(priv->dev, *regset);
 	if (!regset)
 		return;
 

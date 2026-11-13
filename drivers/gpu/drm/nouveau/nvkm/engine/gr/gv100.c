@@ -128,7 +128,7 @@ gv100_gr_scg_estimate_perf(struct gf100_gr *gr, unsigned long *gpc_tpc_mask,
 	u32 *num_tpc_gpc;
 	int ret = -EINVAL;
 
-	if (!(num_tpc_gpc = kcalloc(gr->gpc_nr, sizeof(*num_tpc_gpc), GFP_KERNEL)))
+	if (!(num_tpc_gpc = kzalloc_objs(*num_tpc_gpc, gr->gpc_nr)))
 		return -ENOMEM;
 
 	/* Calculate pix-perf-reduction-rate per GPC and find bottleneck TPC */
@@ -231,9 +231,9 @@ gv100_gr_oneinit_sm_id(struct gf100_gr *gr)
 	u32 gpc, tpc, pes, gtpc;
 	int perf, maxperf, ret = 0;
 
-	gpc_tpc_mask = kcalloc(gr->gpc_nr, sizeof(*gpc_tpc_mask), GFP_KERNEL);
-	gpc_table = kcalloc(gr->tpc_total, sizeof(*gpc_table), GFP_KERNEL);
-	tpc_table = kcalloc(gr->tpc_total, sizeof(*tpc_table), GFP_KERNEL);
+	gpc_tpc_mask = kzalloc_objs(*gpc_tpc_mask, gr->gpc_nr);
+	gpc_table = kzalloc_objs(*gpc_table, gr->tpc_total);
+	tpc_table = kzalloc_objs(*tpc_table, gr->tpc_total);
 	if (!gpc_table || !tpc_table || !gpc_tpc_mask) {
 		ret = -ENOMEM;
 		goto done;

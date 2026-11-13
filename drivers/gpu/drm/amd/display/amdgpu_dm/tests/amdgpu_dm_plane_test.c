@@ -765,7 +765,7 @@ static void dm_test_add_modifier_appends_and_grows(struct kunit *test)
 
 	size = 1;
 	cap = 1;
-	mods = kmalloc_array(cap, sizeof(*mods), GFP_KERNEL);
+	mods = kmalloc_objs(*mods, cap);
 	KUNIT_ASSERT_NOT_NULL(test, mods);
 	mods[0] = 0xAAULL;
 
@@ -803,7 +803,7 @@ static void dm_test_add_modifier_failure_paths(struct kunit *test)
 	/* Doubling this capacity overflows the kmalloc_array() size product. */
 	cap = 1ULL << 62;
 	size = cap;
-	mods = kmalloc_array(1, sizeof(*mods), GFP_KERNEL);
+	mods = kmalloc_objs(*mods, 1);
 	KUNIT_ASSERT_NOT_NULL(test, mods);
 
 	amdgpu_dm_plane_add_modifier(&mods, &size, &cap, 0x1234ULL);
@@ -2448,7 +2448,7 @@ static void dm_test_plane_destroy_state_releases_resources(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, dc_plane_state);
 
 	/* destroy_state frees the state itself, so use a plain allocation. */
-	dm_plane_state = kzalloc_obj(*dm_plane_state, GFP_KERNEL);
+	dm_plane_state = kzalloc_obj(*dm_plane_state);
 	KUNIT_ASSERT_NOT_NULL(test, dm_plane_state);
 
 	/* Hold an extra reference so the release does not free KUnit memory. */
@@ -3187,7 +3187,7 @@ static struct drm_plane *dm_test_alloc_init_plane(struct kunit *test,
 	adev->dm.adev = adev;
 	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
 
-	plane = kzalloc_obj(*plane, GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	KUNIT_ASSERT_NOT_NULL(test, plane);
 	plane->type = DRM_PLANE_TYPE_OVERLAY;
 

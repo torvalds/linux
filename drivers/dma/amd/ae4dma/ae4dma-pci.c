@@ -79,11 +79,11 @@ static int ae4_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int bar_mask;
 	int ret = 0;
 
-	ae4 = devm_kzalloc(dev, sizeof(*ae4), GFP_KERNEL);
+	ae4 = devm_kzalloc_obj(dev, *ae4);
 	if (!ae4)
 		return -ENOMEM;
 
-	ae4->ae4_msix = devm_kzalloc(dev, sizeof(struct ae4_msix), GFP_KERNEL);
+	ae4->ae4_msix = devm_kzalloc_obj(dev, struct ae4_msix);
 	if (!ae4->ae4_msix)
 		return -ENOMEM;
 

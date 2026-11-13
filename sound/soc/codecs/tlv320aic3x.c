@@ -1765,7 +1765,7 @@ int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver
 	int ret, i;
 	u32 value;
 
-	aic3x = devm_kzalloc(dev, sizeof(struct aic3x_priv), GFP_KERNEL);
+	aic3x = devm_kzalloc_obj(dev, struct aic3x_priv);
 	if (!aic3x)
 		return -ENOMEM;
 
@@ -1779,7 +1779,7 @@ int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver
 
 	dev_set_drvdata(dev, aic3x);
 	if (np) {
-		ai3x_setup = devm_kzalloc(dev, sizeof(*ai3x_setup), GFP_KERNEL);
+		ai3x_setup = devm_kzalloc_obj(dev, *ai3x_setup);
 		if (!ai3x_setup)
 			return -ENOMEM;
 

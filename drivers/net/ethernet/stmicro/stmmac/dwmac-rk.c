@@ -1143,8 +1143,8 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 	if (phy_iface == PHY_INTERFACE_MODE_RMII)
 		bsp_priv->num_clks += ARRAY_SIZE(rk_rmii_clocks);
 
-	bsp_priv->clks = devm_kcalloc(dev, bsp_priv->num_clks,
-				      sizeof(*bsp_priv->clks), GFP_KERNEL);
+	bsp_priv->clks = devm_kzalloc_objs(dev, *bsp_priv->clks,
+					   bsp_priv->num_clks);
 	if (!bsp_priv->clks)
 		return -ENOMEM;
 
@@ -1288,7 +1288,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	const char *strings = NULL;
 	int value;
 
-	bsp_priv = devm_kzalloc(dev, sizeof(*bsp_priv), GFP_KERNEL);
+	bsp_priv = devm_kzalloc_obj(dev, *bsp_priv);
 	if (!bsp_priv)
 		return ERR_PTR(-ENOMEM);
 

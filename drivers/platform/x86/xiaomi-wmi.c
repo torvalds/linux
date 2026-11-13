@@ -33,7 +33,7 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (!context)
 		return -EINVAL;
 
-	data = devm_kzalloc(&wdev->dev, sizeof(struct xiaomi_wmi), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, struct xiaomi_wmi);
 	if (data == NULL)
 		return -ENOMEM;
 	dev_set_drvdata(&wdev->dev, data);

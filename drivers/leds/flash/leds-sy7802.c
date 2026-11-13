@@ -462,7 +462,7 @@ static int sy7802_probe(struct i2c_client *client)
 	if (!count || count > SY7802_MAX_LEDS)
 		return dev_err_probe(dev, -EINVAL, "Invalid amount of LED nodes %zu\n", count);
 
-	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
+	chip = devm_kzalloc_flex(dev, *chip, leds, count);
 	if (!chip)
 		return -ENOMEM;
 

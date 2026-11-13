@@ -396,7 +396,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	struct vprbrd_gpio *vb_gpio;
 	int ret;
 
-	vb_gpio = devm_kzalloc(&pdev->dev, sizeof(*vb_gpio), GFP_KERNEL);
+	vb_gpio = devm_kzalloc_obj(&pdev->dev, *vb_gpio);
 	if (vb_gpio == NULL)
 		return -ENOMEM;
 

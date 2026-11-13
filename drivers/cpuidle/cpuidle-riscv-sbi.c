@@ -245,7 +245,7 @@ static int sbi_cpuidle_dt_init_states(struct device *dev,
 	if (!cpu_node)
 		return -ENODEV;
 
-	states = devm_kcalloc(dev, state_count, sizeof(*states), GFP_KERNEL);
+	states = devm_kzalloc_objs(dev, *states, state_count);
 	if (!states)
 		return -ENOMEM;
 
@@ -291,7 +291,7 @@ static int sbi_cpuidle_init_cpu(struct device *dev, int cpu)
 	unsigned int state_count = 0;
 	int ret = 0;
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

@@ -36,7 +36,7 @@ int max1600_init(struct device *dev, struct max1600 **ptr,
 	if (code != MAX1600_CODE_LOW && code != MAX1600_CODE_HIGH)
 		return -EINVAL;
 
-	m = devm_kzalloc(dev, sizeof(*m), GFP_KERNEL);
+	m = devm_kzalloc_obj(dev, *m);
 	if (!m)
 		return -ENOMEM;
 

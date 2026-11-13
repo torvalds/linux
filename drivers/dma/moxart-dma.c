@@ -558,7 +558,7 @@ static int moxart_probe(struct platform_device *pdev)
 	struct moxart_chan *ch;
 	struct moxart_dmadev *mdc;
 
-	mdc = devm_kzalloc(dev, sizeof(*mdc), GFP_KERNEL);
+	mdc = devm_kzalloc_obj(dev, *mdc);
 	if (!mdc)
 		return -ENOMEM;
 

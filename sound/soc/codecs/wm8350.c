@@ -1492,8 +1492,7 @@ static  int wm8350_component_probe(struct snd_soc_component *component)
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(component->dev, sizeof(struct wm8350_data),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(component->dev, struct wm8350_data);
 	if (priv == NULL)
 		return -ENOMEM;
 

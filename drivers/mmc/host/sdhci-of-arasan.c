@@ -1811,8 +1811,7 @@ static int sdhci_arasan_add_host(struct sdhci_arasan_data *sdhci_arasan)
 	if (ret)
 		return ret;
 
-	cq_host = devm_kzalloc(host->mmc->parent,
-			       sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(host->mmc->parent, *cq_host);
 	if (!cq_host) {
 		ret = -ENOMEM;
 		goto cleanup;

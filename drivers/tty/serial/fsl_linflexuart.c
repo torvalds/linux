@@ -811,7 +811,7 @@ static int linflex_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
+	sport = devm_kzalloc_obj(&pdev->dev, *sport);
 	if (!sport)
 		return -ENOMEM;
 

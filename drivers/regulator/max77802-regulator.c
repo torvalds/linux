@@ -494,9 +494,7 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 	int i, val;
 	struct regulator_config config = { };
 
-	max77802 = devm_kzalloc(&pdev->dev,
-				sizeof(struct max77802_regulator_prv),
-				GFP_KERNEL);
+	max77802 = devm_kzalloc_obj(&pdev->dev, struct max77802_regulator_prv);
 	if (!max77802)
 		return -ENOMEM;
 

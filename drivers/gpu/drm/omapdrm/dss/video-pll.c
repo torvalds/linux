@@ -163,7 +163,7 @@ struct dss_pll *dss_video_pll_init(struct dss_device *dss,
 		return ERR_CAST(clk);
 	}
 
-	vpll = devm_kzalloc(&pdev->dev, sizeof(*vpll), GFP_KERNEL);
+	vpll = devm_kzalloc_obj(&pdev->dev, *vpll);
 	if (!vpll)
 		return ERR_PTR(-ENOMEM);
 

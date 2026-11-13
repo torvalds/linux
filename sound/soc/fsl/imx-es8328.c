@@ -158,7 +158,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data) {
 		ret = -ENOMEM;
 		goto put_device;

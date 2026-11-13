@@ -204,7 +204,7 @@ static int pf1550_i2c_probe(struct i2c_client *i2c)
 	struct irq_domain *domain;
 	int irq, ret = 0;
 
-	pf1550 = devm_kzalloc(&i2c->dev, sizeof(*pf1550), GFP_KERNEL);
+	pf1550 = devm_kzalloc_obj(&i2c->dev, *pf1550);
 	if (!pf1550)
 		return -ENOMEM;
 

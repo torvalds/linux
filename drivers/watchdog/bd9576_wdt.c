@@ -204,7 +204,7 @@ static int bd9576_wdt_probe(struct platform_device *pdev)
 	int count;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

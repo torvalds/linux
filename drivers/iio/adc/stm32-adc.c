@@ -2436,8 +2436,8 @@ static int stm32_adc_chan_fw_init(struct iio_dev *indio_dev, bool timestamping)
 	if (timestamping)
 		num_channels++;
 
-	channels = devm_kcalloc(&indio_dev->dev, num_channels,
-				sizeof(struct iio_chan_spec), GFP_KERNEL);
+	channels = devm_kzalloc_objs(&indio_dev->dev, struct iio_chan_spec,
+				     num_channels);
 	if (!channels)
 		return -ENOMEM;
 

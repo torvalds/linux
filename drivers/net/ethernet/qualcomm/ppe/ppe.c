@@ -262,9 +262,8 @@ static int qcom_ppe_probe(struct platform_device *pdev)
 	if (!data)
 		return dev_err_probe(dev, -EINVAL, "PPE no match data provided\n");
 
-	ppe_dev = devm_kzalloc(dev,
-			       struct_size(ppe_dev, icc_paths, data->num_icc_paths),
-			       GFP_KERNEL);
+	ppe_dev = devm_kzalloc_flex(dev, *ppe_dev, icc_paths,
+				    data->num_icc_paths);
 	if (!ppe_dev)
 		return -ENOMEM;
 

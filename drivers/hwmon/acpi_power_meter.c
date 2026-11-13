@@ -30,13 +30,6 @@
 #define POWER_METER_CAN_CAP	(1 << 2)
 #define POWER_METER_CAN_NOTIFY	(1 << 3)
 #define POWER_METER_IS_BATTERY	(1 << 8)
-#define UNKNOWN_HYSTERESIS	0xFFFFFFFF
-/*
- * ACPI integers can either be 32-bit or 64-bit wide, so
- * we have to check for both values.
- */
-#define UNKNOWN_POWER_32	U32_MAX
-#define UNKNOWN_POWER_64	U64_MAX
 
 #define METER_NOTIFY_CONFIG	0x80
 #define METER_NOTIFY_TRIP	0x81
@@ -53,6 +46,15 @@ static int cap_in_hardware;
 static bool force_cap_on;
 
 static DEFINE_MUTEX(acpi_notify_lock);
+
+/*
+ * ACPI integers can either be 32-bit or 64-bit wide, so
+ * we have to check for both values.
+ */
+static bool acpi_power_meter_is_unknown(u64 val)
+{
+	return val == U32_MAX || val == U64_MAX;
+}
 
 static int can_cap_in_hardware(void)
 {
@@ -179,9 +181,10 @@ static int update_meter(struct acpi_power_meter_resource *resource)
 	acpi_status status;
 	unsigned long local_jiffies = jiffies;
 
-	if (time_before(local_jiffies, resource->sensors_last_updated +
+	if (!acpi_power_meter_is_unknown(resource->caps.sampling_time) &&
+	    time_before(local_jiffies, resource->sensors_last_updated +
 			msecs_to_jiffies(resource->caps.sampling_time)) &&
-			resource->sensors_valid)
+	    resource->sensors_valid)
 		return 0;
 
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_PMM",
@@ -377,28 +380,30 @@ static int set_avg_interval(struct acpi_power_meter_resource *resource,
 	return 0;
 }
 
-static int get_power_alarm_state(struct acpi_power_meter_resource *resource,
-				 long *val)
+static bool get_power_alarm_state(struct acpi_power_meter_resource *resource)
 {
+	bool alarm = false;
 	int ret;
 
+	if (resource->caps.flags & POWER_METER_CAN_NOTIFY)
+		alarm = resource->power_alarm;
+	resource->power_alarm = false;
+
 	ret = update_meter(resource);
-	if (ret)
-		return ret;
+	if (ret || acpi_power_meter_is_unknown(resource->power))
+		return alarm;
 
 	/* need to update cap if not to support the notification. */
 	if (!(resource->caps.flags & POWER_METER_CAN_NOTIFY)) {
 		ret = update_cap(resource);
 		if (ret)
-			return ret;
-		resource->power_alarm = resource->power > resource->cap;
-		*val = resource->power_alarm;
-	} else {
-		*val = resource->power_alarm || resource->power > resource->cap;
-		resource->power_alarm = resource->power > resource->cap;
+			return false;
 	}
 
-	return 0;
+	if (acpi_power_meter_is_unknown(resource->cap))
+		return alarm;
+
+	return alarm || resource->power > resource->cap;
 }
 
 static umode_t power_meter_is_visible(const void *data,
@@ -458,37 +463,47 @@ static int power_meter_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = update_meter(res);
 		if (ret)
 			return ret;
-		if (res->power == UNKNOWN_POWER_32 || res->power == UNKNOWN_POWER_64)
+		if (acpi_power_meter_is_unknown(res->power))
 			return -ENODATA;
 		*val = res->power * 1000;
 		break;
 	case hwmon_power_average_interval_min:
+		if (acpi_power_meter_is_unknown(res->caps.min_avg_interval))
+			return -ENODATA;
 		*val = res->caps.min_avg_interval;
 		break;
 	case hwmon_power_average_interval_max:
+		if (acpi_power_meter_is_unknown(res->caps.max_avg_interval))
+			return -ENODATA;
 		*val = res->caps.max_avg_interval;
 		break;
 	case hwmon_power_average_interval:
 		ret = update_avg_interval(res);
 		if (ret)
 			return ret;
-		*val = (res)->avg_interval;
+		if (acpi_power_meter_is_unknown(res->avg_interval))
+			return -ENODATA;
+		*val = res->avg_interval;
 		break;
 	case hwmon_power_cap_min:
+		if (acpi_power_meter_is_unknown(res->caps.min_cap))
+			return -ENODATA;
 		*val = res->caps.min_cap * 1000;
 		break;
 	case hwmon_power_cap_max:
+		if (acpi_power_meter_is_unknown(res->caps.max_cap))
+			return -ENODATA;
 		*val = res->caps.max_cap * 1000;
 		break;
 	case hwmon_power_alarm:
-		ret = get_power_alarm_state(res, val);
-		if (ret)
-			return ret;
+		*val = get_power_alarm_state(res);
 		break;
 	case hwmon_power_cap:
 		ret = update_cap(res);
 		if (ret)
 			return ret;
+		if (acpi_power_meter_is_unknown(res->cap))
+			return -ENODATA;
 		*val = res->cap * 1000;
 		break;
 	default:
@@ -584,6 +599,8 @@ static ssize_t power1_average_min_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
 	if (res->trip[POWER_METER_TRIP_AVERAGE_MIN_IDX] < 0)
 		return sysfs_emit(buf, "unknown\n");
 
@@ -595,6 +612,8 @@ static ssize_t power1_average_max_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
 
 	if (res->trip[POWER_METER_TRIP_AVERAGE_MAX_IDX] < 0)
 		return sysfs_emit(buf, "unknown\n");
@@ -608,7 +627,9 @@ static ssize_t power1_cap_hyst_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
-	if (res->caps.hysteresis == UNKNOWN_HYSTERESIS)
+	guard(mutex)(&res->lock);
+
+	if (acpi_power_meter_is_unknown(res->caps.hysteresis))
 		return sysfs_emit(buf, "unknown\n");
 
 	return sysfs_emit(buf, "%llu\n", res->caps.hysteresis * 1000);
@@ -619,8 +640,14 @@ static ssize_t power1_accuracy_show(struct device *dev,
 				    char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
-	unsigned int acc = res->caps.accuracy;
+	unsigned int acc;
 
+	guard(mutex)(&res->lock);
+
+	if (acpi_power_meter_is_unknown(res->caps.accuracy))
+		return sysfs_emit(buf, "unknown\n");
+
+	acc = res->caps.accuracy;
 	return sysfs_emit(buf, "%u.%u%%\n", acc / 1000, acc % 1000);
 }
 
@@ -629,6 +656,8 @@ static ssize_t power1_is_battery_show(struct device *dev,
 				      char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
 
 	return sysfs_emit(buf, "%u\n",
 			  res->caps.flags & POWER_METER_IS_BATTERY ? 1 : 0);
@@ -640,6 +669,11 @@ static ssize_t power1_model_number_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
+	if (!res->model_number)
+		return -ENODATA;
+
 	return sysfs_emit(buf, "%s\n", res->model_number);
 }
 
@@ -649,6 +683,11 @@ static ssize_t power1_oem_info_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
+	if (!res->oem_info)
+		return -ENODATA;
+
 	return sysfs_emit(buf, "%s\n", res->oem_info);
 }
 
@@ -657,6 +696,11 @@ static ssize_t power1_serial_number_show(struct device *dev,
 					 char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
+
+	if (!res->serial_number)
+		return -ENODATA;
 
 	return sysfs_emit(buf, "%s\n", res->serial_number);
 }
@@ -983,6 +1027,8 @@ static void acpi_power_meter_remove(struct platform_device *pdev)
 static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource = dev_get_drvdata(dev);
+
+	guard(mutex)(&resource->lock);
 
 	free_capabilities(resource);
 	read_capabilities(resource);

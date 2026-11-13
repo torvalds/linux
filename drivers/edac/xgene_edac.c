@@ -1847,7 +1847,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 	struct resource *res;
 	int rc;
 
-	edac = devm_kzalloc(&pdev->dev, sizeof(*edac), GFP_KERNEL);
+	edac = devm_kzalloc_obj(&pdev->dev, *edac);
 	if (!edac)
 		return -ENOMEM;
 

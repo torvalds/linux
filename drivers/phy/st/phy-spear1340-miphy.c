@@ -245,7 +245,7 @@ static int spear1340_miphy_probe(struct platform_device *pdev)
 	struct spear1340_miphy_priv *priv;
 	struct phy_provider *phy_provider;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

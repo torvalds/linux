@@ -280,9 +280,8 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 				   &cpu_capacity);
 	if (!ret) {
 		if (!raw_capacity) {
-			raw_capacity = kcalloc(num_possible_cpus(),
-					       sizeof(*raw_capacity),
-					       GFP_KERNEL);
+			raw_capacity = kzalloc_objs(*raw_capacity,
+						    num_possible_cpus());
 			if (!raw_capacity) {
 				cap_parsing_failed = true;
 				return false;
@@ -333,8 +332,7 @@ static inline void topology_init_cpu_capacity_cppc(void)
 	if (likely(!acpi_cpc_valid()))
 		return;
 
-	raw_capacity = kcalloc(num_possible_cpus(), sizeof(*raw_capacity),
-			       GFP_KERNEL);
+	raw_capacity = kzalloc_objs(*raw_capacity, num_possible_cpus());
 	if (!raw_capacity)
 		return;
 

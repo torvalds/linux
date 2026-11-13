@@ -542,7 +542,7 @@ struct dpmaif_ctrl *t7xx_dpmaif_hif_init(struct t7xx_pci_dev *t7xx_dev,
 	if (!callbacks)
 		return NULL;
 
-	dpmaif_ctrl = devm_kzalloc(dev, sizeof(*dpmaif_ctrl), GFP_KERNEL);
+	dpmaif_ctrl = devm_kzalloc_obj(dev, *dpmaif_ctrl);
 	if (!dpmaif_ctrl)
 		return NULL;
 

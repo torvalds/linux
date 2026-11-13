@@ -2767,7 +2767,7 @@ static int rcsi2_probe(struct platform_device *pdev)
 	unsigned int i, num_pads;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

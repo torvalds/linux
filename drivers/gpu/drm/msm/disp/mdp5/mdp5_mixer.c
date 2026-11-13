@@ -149,7 +149,7 @@ struct mdp5_hw_mixer *mdp5_mixer_init(struct drm_device *dev,
 {
 	struct mdp5_hw_mixer *mixer;
 
-	mixer = devm_kzalloc(dev->dev, sizeof(*mixer), GFP_KERNEL);
+	mixer = devm_kzalloc_obj(dev->dev, *mixer);
 	if (!mixer)
 		return ERR_PTR(-ENOMEM);
 

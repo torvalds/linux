@@ -127,14 +127,13 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	int i, ret = 0;
 	enum sec_device_type hwid = platform_get_device_id(pdev)->driver_data;
 
-	s2mps11_clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
-				sizeof(*s2mps11_clks), GFP_KERNEL);
+	s2mps11_clks = devm_kzalloc_objs(&pdev->dev, *s2mps11_clks,
+					 S2MPS11_CLKS_NUM);
 	if (!s2mps11_clks)
 		return -ENOMEM;
 
-	clk_data = devm_kzalloc(&pdev->dev,
-				struct_size(clk_data, hws, S2MPS11_CLKS_NUM),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(&pdev->dev, *clk_data, hws,
+				     S2MPS11_CLKS_NUM);
 	if (!clk_data)
 		return -ENOMEM;
 

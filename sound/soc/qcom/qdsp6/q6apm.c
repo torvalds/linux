@@ -886,7 +886,7 @@ static int apm_probe(gpr_device_t *gdev)
 	struct q6apm *apm;
 	int ret;
 
-	apm = devm_kzalloc(dev, sizeof(*apm), GFP_KERNEL);
+	apm = devm_kzalloc_obj(dev, *apm);
 	if (!apm)
 		return -ENOMEM;
 

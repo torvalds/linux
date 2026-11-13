@@ -2650,7 +2650,7 @@ static int ov5670_probe(struct i2c_client *client)
 	bool full_power;
 	int ret;
 
-	ov5670 = devm_kzalloc(&client->dev, sizeof(*ov5670), GFP_KERNEL);
+	ov5670 = devm_kzalloc_obj(&client->dev, *ov5670);
 	if (!ov5670)
 		return -ENOMEM;
 

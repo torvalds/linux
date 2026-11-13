@@ -1290,7 +1290,7 @@ static int ipu_probe(struct platform_device *pdev)
 
 	ipu_base = res->start;
 
-	ipu = devm_kzalloc(&pdev->dev, sizeof(*ipu), GFP_KERNEL);
+	ipu = devm_kzalloc_obj(&pdev->dev, *ipu);
 	if (!ipu)
 		return -ENODEV;
 

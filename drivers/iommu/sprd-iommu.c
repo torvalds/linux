@@ -464,7 +464,7 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc_obj(dev, *sdev);
 	if (!sdev)
 		return -ENOMEM;
 

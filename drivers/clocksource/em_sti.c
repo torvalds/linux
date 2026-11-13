@@ -281,7 +281,7 @@ static int em_sti_probe(struct platform_device *pdev)
 	struct em_sti_priv *p;
 	int irq, ret;
 
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(&pdev->dev, *p);
 	if (p == NULL)
 		return -ENOMEM;
 

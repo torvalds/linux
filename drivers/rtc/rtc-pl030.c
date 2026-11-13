@@ -91,7 +91,7 @@ static int pl030_probe(struct amba_device *dev, const struct amba_id *id)
 	if (ret)
 		goto err_req;
 
-	rtc = devm_kzalloc(&dev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&dev->dev, *rtc);
 	if (!rtc) {
 		ret = -ENOMEM;
 		goto err_rtc;

@@ -835,7 +835,7 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	dma = devm_kzalloc(&pdev->dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(&pdev->dev, *dma);
 	if (!dma)
 		return -ENOMEM;
 

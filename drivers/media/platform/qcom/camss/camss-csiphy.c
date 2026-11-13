@@ -729,16 +729,12 @@ int msm_csiphy_subdev_init_legacy(struct camss *camss,
 	while (res->clock[csiphy->nclocks])
 		csiphy->nclocks++;
 
-	csiphy->clock = devm_kcalloc(dev,
-				     csiphy->nclocks, sizeof(*csiphy->clock),
-				     GFP_KERNEL);
+	csiphy->clock = devm_kzalloc_objs(dev, *csiphy->clock, csiphy->nclocks);
 	if (!csiphy->clock)
 		return -ENOMEM;
 
-	csiphy->rate_set = devm_kcalloc(dev,
-					csiphy->nclocks,
-					sizeof(*csiphy->rate_set),
-					GFP_KERNEL);
+	csiphy->rate_set = devm_kzalloc_objs(dev, *csiphy->rate_set,
+					     csiphy->nclocks);
 	if (!csiphy->rate_set)
 		return -ENOMEM;
 
@@ -760,10 +756,8 @@ int msm_csiphy_subdev_init_legacy(struct camss *camss,
 			continue;
 		}
 
-		clock->freq = devm_kcalloc(dev,
-					   clock->nfreqs,
-					   sizeof(*clock->freq),
-					   GFP_KERNEL);
+		clock->freq = devm_kzalloc_objs(dev, *clock->freq,
+						clock->nfreqs);
 		if (!clock->freq)
 			return -ENOMEM;
 

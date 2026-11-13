@@ -423,7 +423,7 @@ static int lm83_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	struct lm83_data *data;
 
-	data = devm_kzalloc(dev, sizeof(struct lm83_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm83_data);
 	if (!data)
 		return -ENOMEM;
 

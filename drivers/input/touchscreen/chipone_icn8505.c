@@ -393,7 +393,7 @@ static int icn8505_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	icn8505 = devm_kzalloc(dev, sizeof(*icn8505), GFP_KERNEL);
+	icn8505 = devm_kzalloc_obj(dev, *icn8505);
 	if (!icn8505)
 		return -ENOMEM;
 

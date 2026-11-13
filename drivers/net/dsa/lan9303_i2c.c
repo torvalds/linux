@@ -34,8 +34,7 @@ static int lan9303_i2c_probe(struct i2c_client *client)
 	struct lan9303_i2c *sw_dev;
 	int ret;
 
-	sw_dev = devm_kzalloc(&client->dev, sizeof(struct lan9303_i2c),
-			      GFP_KERNEL);
+	sw_dev = devm_kzalloc_obj(&client->dev, struct lan9303_i2c);
 	if (!sw_dev)
 		return -ENOMEM;
 

@@ -1235,7 +1235,7 @@ struct snd_soc_dai *snd_soc_dai_register(struct snd_soc_component *component,
 
 	lockdep_assert_held(&client_mutex);
 
-	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(dev, *dai);
 	if (dai == NULL)
 		return NULL;
 

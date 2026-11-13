@@ -185,7 +185,7 @@ static int msc313_rtc_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct msc313_rtc), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct msc313_rtc);
 	if (!priv)
 		return -ENOMEM;
 

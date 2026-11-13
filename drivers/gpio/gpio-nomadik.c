@@ -545,7 +545,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	}
 #endif
 
-	nmk_chip = devm_kzalloc(dev, sizeof(*nmk_chip), GFP_KERNEL);
+	nmk_chip = devm_kzalloc_obj(dev, *nmk_chip);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
 		goto err_put_pdev;

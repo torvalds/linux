@@ -118,7 +118,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_vpu_init(void *priv, enum mtk_vcodec_fw_use 
 	else
 		vpu_wdt_reg_handler(fw_pdev, mtk_vcodec_vpu_reset_enc_handler, priv, rst_id);
 
-	fw = devm_kzalloc(&plat_dev->dev, sizeof(*fw), GFP_KERNEL);
+	fw = devm_kzalloc_obj(&plat_dev->dev, *fw);
 	if (!fw) {
 		put_device(&fw_pdev->dev);
 		return ERR_PTR(-ENOMEM);

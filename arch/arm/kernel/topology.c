@@ -92,8 +92,7 @@ static void __init parse_dt_topology(void)
 	unsigned long capacity = 0;
 	int cpu = 0;
 
-	__cpu_capacity = kcalloc(nr_cpu_ids, sizeof(*__cpu_capacity),
-				 GFP_NOWAIT);
+	__cpu_capacity = kzalloc_objs(*__cpu_capacity, nr_cpu_ids, GFP_NOWAIT);
 
 	for_each_possible_cpu(cpu) {
 		const __be32 *rate;

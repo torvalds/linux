@@ -397,7 +397,7 @@ static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct fwnode_handle *fwn
 	if (!num_channels || num_channels > chip->num_leds)
 		return -EINVAL;
 
-	info = devm_kcalloc(chip->dev, num_channels, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_objs(chip->dev, *info, num_channels);
 	if (!info)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static int ktd202x_probe(struct i2c_client *client)
 	if (!count || count > KTD202X_MAX_LEDS)
 		return dev_err_probe(dev, -EINVAL, "Incorrect number of leds (%d)", count);
 
-	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
+	chip = devm_kzalloc_flex(dev, *chip, leds, count);
 	if (!chip)
 		return -ENOMEM;
 

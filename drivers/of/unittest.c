@@ -3123,7 +3123,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
-	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
+	std = devm_kzalloc_obj(dev, *std);
 	if (!std)
 		return -ENOMEM;
 

@@ -423,7 +423,7 @@ static int lm95241_probe(struct i2c_client *client)
 	struct lm95241_data *data;
 	struct device *hwmon_dev;
 
-	data = devm_kzalloc(dev, sizeof(struct lm95241_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm95241_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -473,8 +473,7 @@ static int rk_udphy_reset_init(struct rk_udphy *udphy, struct device *dev)
 	int idx;
 
 	udphy->num_rsts = cfg->num_rsts;
-	udphy->rsts = devm_kcalloc(dev, udphy->num_rsts,
-				   sizeof(*udphy->rsts), GFP_KERNEL);
+	udphy->rsts = devm_kzalloc_objs(dev, *udphy->rsts, udphy->num_rsts);
 	if (!udphy->rsts)
 		return -ENOMEM;
 
@@ -1412,7 +1411,7 @@ static int rk_udphy_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int id, ret;
 
-	udphy = devm_kzalloc(dev, sizeof(*udphy), GFP_KERNEL);
+	udphy = devm_kzalloc_obj(dev, *udphy);
 	if (!udphy)
 		return -ENOMEM;
 

@@ -750,7 +750,7 @@ static int rt712_sdca_dmic_init(struct device *dev, struct regmap *regmap,
 	struct rt712_sdca_dmic_priv *rt712;
 	int ret;
 
-	rt712 = devm_kzalloc(dev, sizeof(*rt712), GFP_KERNEL);
+	rt712 = devm_kzalloc_obj(dev, *rt712);
 	if (!rt712)
 		return -ENOMEM;
 
@@ -837,8 +837,8 @@ static int rt712_sdca_dmic_read_prop(struct sdw_slave *slave)
 	prop->sink_ports = 0;
 
 	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-		sizeof(*prop->src_dpn_prop), GFP_KERNEL);
+	prop->src_dpn_prop = devm_kzalloc_objs(&slave->dev, *prop->src_dpn_prop,
+					       nval);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 

@@ -169,7 +169,7 @@ static int reset_simple_probe(struct platform_device *pdev)
 
 	devdata = of_device_get_match_data(dev);
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

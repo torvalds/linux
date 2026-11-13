@@ -197,7 +197,7 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
 		SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
 
-	intel_prop = devm_kzalloc(bus->dev, sizeof(*intel_prop), GFP_KERNEL);
+	intel_prop = devm_kzalloc_obj(bus->dev, *intel_prop);
 	if (!intel_prop) {
 		fwnode_handle_put(link);
 		return -ENOMEM;
@@ -320,7 +320,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	struct sdw_bus *bus;
 	int ret;
 
-	sdw = devm_kzalloc(dev, sizeof(*sdw), GFP_KERNEL);
+	sdw = devm_kzalloc_obj(dev, *sdw);
 	if (!sdw)
 		return -ENOMEM;
 

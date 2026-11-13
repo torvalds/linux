@@ -604,7 +604,7 @@ static int lan78xx_read_reg(struct lan78xx_net *dev, u32 index, u32 *data)
 	if (test_bit(EVENT_DEV_DISCONNECT, &dev->flags))
 		return -ENODEV;
 
-	buf = kmalloc(sizeof(u32), GFP_KERNEL);
+	buf = kmalloc_obj(u32);
 	if (!buf)
 		return -ENOMEM;
 
@@ -634,7 +634,7 @@ static int lan78xx_write_reg(struct lan78xx_net *dev, u32 index, u32 data)
 	if (test_bit(EVENT_DEV_DISCONNECT, &dev->flags))
 		return -ENODEV;
 
-	buf = kmalloc(sizeof(u32), GFP_KERNEL);
+	buf = kmalloc_obj(u32);
 	if (!buf)
 		return -ENOMEM;
 

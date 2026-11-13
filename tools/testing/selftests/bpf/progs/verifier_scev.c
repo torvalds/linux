@@ -3936,4 +3936,186 @@ __naked void clamp_pkt_pointer_keeps_range_of_entry(void)
 	: __clobber_all);
 }
 
+/*
+ * r4 is 0, 8 .. 48, but its umax is 50. @bytes from r6 are in the packet: the range of r6 is
+ * @start + 50 + @bytes.
+ */
+#define PKT_PLUS_R4(start, bytes)					\
+	"r7 = *(u32 *)(r1 + %[data_end]);"				\
+	"r6 = *(u32 *)(r1 + %[data]);"					\
+	"r4 = *(u32 *)(r1 + %[mark]);"					\
+	"r4 &= 0x38;"							\
+	"if r4 > 50 goto 9f;"						\
+	"r6 += " #start ";"						\
+	"r6 += r4;"							\
+	"r5 = r6;"							\
+	"r5 += " #bytes ";"						\
+	"if r5 > r7 goto 9f;"
+
+#define PKT_IMMS							\
+	__imm_const(data, offsetof(struct __sk_buff, data)),		\
+	__imm_const(data_end, offsetof(struct __sk_buff, data_end)),	\
+	__imm_const(mark, offsetof(struct __sk_buff, mark))
+
+/*
+ * r6 is 0..58 at the head, and 0..56 with the step of 8. The range must go from 58 to 56 too:
+ * in the second iteration no byte from r6 is in the packet.
+ */
+SEC("tc")
+__failure __msg("invalid access to packet, off=56 size=2, R6(id=2,off=56,r=56)")
+__naked void widen_pkt_pointer_step_lowers_umax(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(0, 8)
+	"r9 = 0;"
+"1:"
+	"r0 = *(u16 *)(r6 + 0);"
+	"r6 += 8;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/* The pointer goes down. 8 bytes from the first r6 are in the packet, not 10. */
+SEC("tc")
+__failure __msg("invalid access to packet, off=120 size=2, R6(id=2,off=120,r=120)")
+__naked void widen_pkt_pointer_step_lowers_umax_down(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(64, 8)
+	"r9 = 0;"
+"1:"
+	"r0 = *(u16 *)(r6 + 8);"
+	"r6 += -8;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/*
+ * r6 is -8..50 at the head, and -8..48 with the step of 8. Its umax is U64_MAX in the two cases.
+ * r5 is 0..56 and has the range of r6. In the first iteration no byte from r5 is in the packet.
+ */
+SEC("tc")
+__failure __msg("invalid access to packet, off=56 size=2, R5(id=2,off=56,r=56)")
+__naked void widen_pkt_pointer_negative_offset(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(0, 8)
+	"r9 = 0;"
+"1:"
+	"r5 = r6;"
+	"r5 += 8;"
+	"r0 = *(u16 *)(r5 + 0);"
+	"r6 += -8;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/* The access is in the second iteration only: the verifier gets to it after the clamp */
+SEC("tc")
+__failure __msg("invalid access to packet, off=56 size=2, R6(id=3,off=56,r=56)")
+__naked void clamp_pkt_pointer_step_lowers_umax(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(0, 8)
+	"r9 = 0;"
+	"w1 = 0;"
+	"*(u32 *)(r10 - 8) = r1;"
+"1:"
+	"w1 = *(u32 *)(r10 - 8);"
+	"if w1 == 0 goto 2f;"
+	"r0 = *(u16 *)(r6 + 0);"
+"2:"
+	"w1 = 1;"
+	"*(u32 *)(r10 - 8) = r1;"
+	"r6 += 8;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/* r5 is r5 = r6 + 8 or r6 at the head. Here var_off lowers umax. No byte from r6 + 8 is valid. */
+SEC("tc")
+__failure __msg("invalid access to packet, off=56 size=2, R5(id=2,off=56,r=56)")
+__naked void union_pkt_pointer_var_off_lowers_umax(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(0, 8)
+	"r9 = 0;"
+"1:"
+	"r0 = *(u16 *)(r5 + 0);"
+	"r5 = r6;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/* 16 bytes from r6 are in the packet: two iterations read 8 bytes each */
+SEC("tc")
+__success __retval(0)
+__naked void widen_pkt_pointer_keeps_valid_bytes(void)
+{
+	asm volatile (
+	PKT_PLUS_R4(0, 16)
+	"r9 = 0;"
+"1:"
+	"r0 = *(u64 *)(r6 + 0);"
+	"r6 += 8;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
+/*
+ * r6 is beyond pkt_end in front of the loop and comes back into the packet. The mark is not for
+ * all iterations: the verifier must look at the two branches of the compare in the first pass.
+ */
+SEC("tc")
+__success
+__log_level(2)
+__msg("widening r6 to 32..96 step 32")
+__msg("6: R6=pkt(id=1,r=0,smin=umin=smin32=umin32=32,smax=umax=smax32=umax32=96")
+__naked void widen_pkt_pointer_beyond_pkt_end(void)
+{
+	asm volatile (
+	"r7 = *(u32 *)(r1 + %[data_end]);"
+	"r6 = *(u32 *)(r1 + %[data]);"
+	"r6 += 96;"
+	"if r6 > r7 goto 1f;"
+	"goto 9f;"
+"1:"
+	"r9 = 0;"
+"2:"
+	"if r6 > r7 goto 3f;"
+	"r0 = *(u8 *)(r6 - 1);"
+"3:"
+	"r6 += -32;"
+	"r9 += 1;"
+	"if r9 < 3 goto 2b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:: PKT_IMMS : __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

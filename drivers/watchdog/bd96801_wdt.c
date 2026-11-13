@@ -337,7 +337,7 @@ static int bd96801_wdt_probe(struct platform_device *pdev)
 	int ret, irq;
 	unsigned int val;
 
-	w = devm_kzalloc(&pdev->dev, sizeof(*w), GFP_KERNEL);
+	w = devm_kzalloc_obj(&pdev->dev, *w);
 	if (!w)
 		return -ENOMEM;
 

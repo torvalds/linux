@@ -267,8 +267,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 		info->laggy = laggy;
 		info->num_export_targets = num_export_targets;
 		if (num_export_targets) {
-			info->export_targets = kcalloc(num_export_targets,
-						       sizeof(u32), GFP_NOFS);
+			info->export_targets = kzalloc_objs(u32,
+							    num_export_targets,
+							    GFP_NOFS);
 			if (!info->export_targets)
 				goto nomem;
 			for (j = 0; j < num_export_targets; j++) {
@@ -287,7 +288,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	/* pg_pools */
 	ceph_decode_32_safe(p, end, n, bad);
 	m->m_num_data_pg_pools = n;
-	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
+	m->m_data_pg_pools = kzalloc_objs(u64, n, GFP_NOFS);
 	if (!m->m_data_pg_pools)
 		goto nomem;
 	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);

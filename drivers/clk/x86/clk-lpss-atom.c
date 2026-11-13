@@ -18,7 +18,7 @@ static int lpss_atom_clk_probe(struct platform_device *pdev)
 	struct lpss_clk_data *drvdata;
 	struct clk *clk;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

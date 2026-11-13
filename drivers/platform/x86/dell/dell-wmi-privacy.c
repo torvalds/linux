@@ -288,7 +288,7 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 	struct key_entry *keymap;
 	int ret, i, j;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

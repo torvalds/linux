@@ -304,6 +304,8 @@ static u8 mgmt_errno_status(int err)
 		return MGMT_STATUS_DISCONNECTED;
 	case -ECANCELED:
 		return MGMT_STATUS_CANCELLED;
+	case -ERFKILL:
+		return MGMT_STATUS_RFKILLED;
 	}
 
 	return MGMT_STATUS_FAILED;
@@ -3241,7 +3243,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	/* Defer clearing up the connection parameters until closing to
 	 * give a chance of keeping them if a repairing happens.
 	 */
-	set_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
+	set_bit(HCI_CONN_PARAM_REMOVAL_PEND, conn->flags);
 
 	/* Disable auto-connection parameters if present */
 	params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr, addr_type);
@@ -3416,7 +3418,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	i = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
-		if (test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
+		if (test_bit(HCI_CONN_MGMT_CONNECTED, c->flags))
 			i++;
 	}
 
@@ -3428,7 +3430,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	i = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
-		if (!test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
+		if (!test_bit(HCI_CONN_MGMT_CONNECTED, c->flags))
 			continue;
 		bacpy(&rp->addr[i].bdaddr, &c->dst);
 		rp->addr[i].type = link_to_bdaddr(c->type, c->dst_type);
@@ -3628,7 +3630,7 @@ static int pairing_complete(struct mgmt_pending_cmd *cmd, u8 status)
 	/* The device is paired so there is no need to remove
 	 * its connection parameters anymore.
 	 */
-	clear_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
+	clear_bit(HCI_CONN_PARAM_REMOVAL_PEND, conn->flags);
 
 	hci_conn_put(conn);
 
@@ -6316,12 +6318,29 @@ static void stop_discovery_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_dbg(hdev, "err %d", err);
 
+	hci_dev_lock(hdev);
+
+	/* Change the state before replying, so that a client acting on the
+	 * reply sees it, and only while the discovery is still stopping, as
+	 * Inquiry Cancel may already have stopped it and a new Start Discovery
+	 * may have followed. Go back to DISCOVERY_FINDING when stopping failed
+	 * while the inquiry or the active LE scan of the discovery is still
+	 * running, so that it can be stopped again.
+	 */
+	if (hdev->discovery.state == DISCOVERY_STOPPING) {
+		if (err && (test_bit(HCI_INQUIRY, &hdev->flags) ||
+			    (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
+			     hdev->le_scan_type == LE_SCAN_ACTIVE)))
+			hci_discovery_set_state(hdev, DISCOVERY_FINDING);
+		else
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	}
+
+	hci_dev_unlock(hdev);
+
 	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_status(err),
 			  cmd->param, 1);
 	mgmt_pending_free(cmd);
-
-	if (!err)
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 }
 
 static int stop_discovery_sync(struct hci_dev *hdev, void *data)
@@ -8173,7 +8192,11 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
-	if (param_count > 1)
+	/* A single entry may be an update for one device, so keep the other
+	 * disabled parameters then, but clear them otherwise, including when
+	 * no entries are loaded.
+	 */
+	if (param_count != 1)
 		hci_conn_params_clear_disabled(hdev);
 
 	for (i = 0; i < param_count; i++) {
@@ -10128,7 +10151,7 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	u16 eir_len = 0;
 	u32 flags = 0;
 
-	if (test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+	if (test_and_set_bit(HCI_CONN_MGMT_CONNECTED, conn->flags))
 		return;
 
 	/* allocate buff for LE or BR/EDR adv */
@@ -10177,7 +10200,7 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	 * since userspace did not know about them yet, so report it now.
 	 * Unencrypted connections have no change to report.
 	 */
-	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+	if (test_bit(HCI_CONN_ENCRYPT, conn->flags))
 		mgmt_security_level_changed(conn);
 }
 
@@ -10289,7 +10312,7 @@ void mgmt_connect_failed(struct hci_dev *hdev, struct hci_conn *conn, u8 status)
 	 * still needs it set to know whether to report the security level
 	 * reset, so it is consumed there instead of here.
 	 */
-	if (test_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags)) {
+	if (test_bit(HCI_CONN_MGMT_CONNECTED, conn->flags)) {
 		mgmt_device_disconnected(hdev, &conn->dst, conn->type,
 					 conn->dst_type,
 					 hci_to_mgmt_reason(status), true);
@@ -10930,7 +10953,7 @@ void mgmt_security_level_changed(struct hci_conn *conn)
 	u8 *tlv_data;
 	u8 tlv_len;
 
-	if (!test_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+	if (!test_bit(HCI_CONN_MGMT_CONNECTED, conn->flags))
 		return;
 
 	/* Only ACL, LE and BIS links are tracked as mgmt connections, so
@@ -10943,7 +10966,7 @@ void mgmt_security_level_changed(struct hci_conn *conn)
 		return;
 
 	tlv_len = 2 * (sizeof(*tlv) + sizeof(__u8));
-	ev = kzalloc_flex(*ev, tlv_data, tlv_len, GFP_KERNEL);
+	ev = kzalloc_flex(*ev, tlv_data, tlv_len);
 	if (!ev)
 		return;
 
@@ -10961,9 +10984,9 @@ void mgmt_security_level_changed(struct hci_conn *conn)
 	tlv = (void *)tlv_data;
 	tlv->type = cpu_to_le16(MGMT_SEC_LEVEL_CHANGED_PARAM_ENC_TYPE);
 	tlv->length = sizeof(__u8);
-	if (!test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+	if (!test_bit(HCI_CONN_ENCRYPT, conn->flags))
 		tlv->value[0] = MGMT_CONN_SEC_ENCRYPT_NONE;
-	else if (test_bit(HCI_CONN_AES_CCM, &conn->flags))
+	else if (test_bit(HCI_CONN_AES_CCM, conn->flags))
 		tlv->value[0] = MGMT_CONN_SEC_ENCRYPT_AES_CCM;
 	else
 		tlv->value[0] = MGMT_CONN_SEC_ENCRYPT_E0;

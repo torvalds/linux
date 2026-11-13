@@ -212,7 +212,7 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -115,7 +115,7 @@ static int clk_mt8173_mfgtop_probe(struct platform_device *pdev)
 	struct mt8173_mfgtop_data *data;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

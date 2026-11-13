@@ -805,7 +805,7 @@ int airoha_pinctrl_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	pinctrl = devm_kzalloc(dev, sizeof(*pinctrl), GFP_KERNEL);
+	pinctrl = devm_kzalloc_obj(dev, *pinctrl);
 	if (!pinctrl)
 		return -ENOMEM;
 

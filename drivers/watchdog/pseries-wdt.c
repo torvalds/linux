@@ -106,7 +106,7 @@ static int pseries_wdt_probe(struct platform_device *pdev)
 		return -EIO;
 	cap = ret[0];
 
-	pw = devm_kzalloc(&pdev->dev, sizeof(*pw), GFP_KERNEL);
+	pw = devm_kzalloc_obj(&pdev->dev, *pw);
 	if (!pw)
 		return -ENOMEM;
 

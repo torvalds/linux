@@ -408,7 +408,7 @@ static int mt6360_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = {};
 	int i, ret;
 
-	mrd = devm_kzalloc(&pdev->dev, sizeof(*mrd), GFP_KERNEL);
+	mrd = devm_kzalloc_obj(&pdev->dev, *mrd);
 	if (!mrd)
 		return -ENOMEM;
 

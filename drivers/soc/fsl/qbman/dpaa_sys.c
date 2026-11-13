@@ -69,7 +69,7 @@ int qbman_init_private_mem(struct device *dev, int idx, const char *compat,
 	if (!of_property_present(mem_node, "reg")) {
 		struct property *prop;
 
-		prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
+		prop = devm_kzalloc_obj(dev, *prop);
 		if (!prop)
 			return -ENOMEM;
 		prop->value = res_array = devm_kzalloc(dev, sizeof(__be32) * 4,

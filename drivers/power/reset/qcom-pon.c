@@ -59,7 +59,7 @@ static int qcom_pon_probe(struct platform_device *pdev)
 	long reason_shift;
 	int error;
 
-	pon = devm_kzalloc(&pdev->dev, sizeof(*pon), GFP_KERNEL);
+	pon = devm_kzalloc_obj(&pdev->dev, *pon);
 	if (!pon)
 		return -ENOMEM;
 

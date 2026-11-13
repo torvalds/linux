@@ -832,7 +832,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	u8 buf[ETH_ALEN] = {0};
 	int ret, i;
 
-	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->udev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

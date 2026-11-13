@@ -228,7 +228,7 @@ static int qaif_platform_pcmops_open(struct snd_soc_component *component,
 		return dma_reg_idx;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	runtime->private_data = data;

@@ -254,7 +254,7 @@ static int amd_halo_probe(struct wmi_device *wdev, const void *context)
 	u8 r, g, b;
 	int ret;
 
-	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

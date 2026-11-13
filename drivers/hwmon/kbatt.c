@@ -110,7 +110,7 @@ static int kbatt_probe(struct auxiliary_device *auxdev,
 	struct kbatt *kbatt;
 	int retval;
 
-	kbatt = devm_kzalloc(dev, sizeof(*kbatt), GFP_KERNEL);
+	kbatt = devm_kzalloc_obj(dev, *kbatt);
 	if (!kbatt)
 		return -ENOMEM;
 

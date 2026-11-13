@@ -773,7 +773,7 @@ static int gpio_virtuser_dbgfs_init_line_array_attrs(struct device *dev,
 	struct gpio_virtuser_line_array_data *data;
 	char *name;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -803,7 +803,7 @@ static int gpio_virtuser_dbgfs_init_line_attrs(struct device *dev,
 	char *name;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -917,7 +917,7 @@ static int gpio_virtuser_probe(struct platform_device *pdev)
 	if (num_ids == 0)
 		return dev_err_probe(dev, -EINVAL, "No GPIO IDs specified\n");
 
-	ids = devm_kcalloc(dev, num_ids, sizeof(*ids), GFP_KERNEL);
+	ids = devm_kzalloc_objs(dev, *ids, num_ids);
 	if (!ids)
 		return -ENOMEM;
 

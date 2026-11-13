@@ -275,7 +275,7 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct gpu_i2c_dev *i2cd;
 	int status;
 
-	i2cd = devm_kzalloc(dev, sizeof(*i2cd), GFP_KERNEL);
+	i2cd = devm_kzalloc_obj(dev, *i2cd);
 	if (!i2cd)
 		return -ENOMEM;
 

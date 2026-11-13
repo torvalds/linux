@@ -1702,8 +1702,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -EINVAL;
 
-	thermal = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_thermal_data),
-			       GFP_KERNEL);
+	thermal = devm_kzalloc_obj(&pdev->dev, struct rockchip_thermal_data);
 	if (!thermal)
 		return -ENOMEM;
 
@@ -1713,8 +1712,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (!thermal->chip)
 		return -EINVAL;
 
-	thermal->sensors = devm_kcalloc(&pdev->dev, thermal->chip->chn_num,
-					sizeof(*thermal->sensors), GFP_KERNEL);
+	thermal->sensors = devm_kzalloc_objs(&pdev->dev, *thermal->sensors,
+					     thermal->chip->chn_num);
 	if (!thermal->sensors)
 		return -ENOMEM;
 

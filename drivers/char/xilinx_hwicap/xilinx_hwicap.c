@@ -631,7 +631,7 @@ static int hwicap_setup(struct platform_device *pdev, int id,
 
 	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR + id);
 
-	drvdata = devm_kzalloc(dev, sizeof(struct hwicap_drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, struct hwicap_drvdata);
 	if (!drvdata) {
 		retval = -ENOMEM;
 		goto failed;

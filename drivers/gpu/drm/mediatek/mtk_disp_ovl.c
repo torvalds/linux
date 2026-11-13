@@ -614,7 +614,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -343,7 +343,7 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 	struct s2mpa01_info *s2mpa01;
 	int i;
 
-	s2mpa01 = devm_kzalloc(&pdev->dev, sizeof(*s2mpa01), GFP_KERNEL);
+	s2mpa01 = devm_kzalloc_obj(&pdev->dev, *s2mpa01);
 	if (!s2mpa01)
 		return -ENOMEM;
 

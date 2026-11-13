@@ -256,7 +256,7 @@ static int s5_clk_probe(struct platform_device *pdev)
 		.parent_data = &pdata,
 	};
 
-	s5_clk = devm_kzalloc(dev, sizeof(*s5_clk), GFP_KERNEL);
+	s5_clk = devm_kzalloc_obj(dev, *s5_clk);
 	if (!s5_clk)
 		return -ENOMEM;
 

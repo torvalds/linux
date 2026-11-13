@@ -1388,7 +1388,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	struct mtk_i2c *i2c;
 	int i, irq, speed_clk;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

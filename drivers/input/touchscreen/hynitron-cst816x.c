@@ -194,7 +194,7 @@ static int cst816x_probe(struct i2c_client *client)
 	struct cst816x_priv *priv;
 	int error;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

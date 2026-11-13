@@ -926,7 +926,7 @@ static int aspeed_pcie_parse_port(struct aspeed_pcie *pcie,
 	struct device *dev = pcie->dev;
 	int ret;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

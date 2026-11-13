@@ -2408,7 +2408,7 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 	struct arm_cmn_node *dn, *xp;
 	int dtc_idx = 0;
 
-	cmn->dtc = devm_kcalloc(cmn->dev, cmn->num_dtcs, sizeof(cmn->dtc[0]), GFP_KERNEL);
+	cmn->dtc = devm_kzalloc_objs(cmn->dev, cmn->dtc[0], cmn->num_dtcs);
 	if (!cmn->dtc)
 		return -ENOMEM;
 
@@ -2602,8 +2602,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	 * by creating one of each internally. For a (very) safe initial upper
 	 * bound, account for double the number of non-XP nodes.
 	 */
-	dn = devm_kcalloc(cmn->dev, cmn->num_dns * 2 - cmn->num_xps,
-			  sizeof(*dn), GFP_KERNEL);
+	dn = devm_kzalloc_objs(cmn->dev, *dn, cmn->num_dns * 2 - cmn->num_xps);
 	if (!dn)
 		return -ENOMEM;
 
@@ -2611,7 +2610,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	i = cmn->num_xps;
 	if (cmn->multi_dtm)
 		i += cmn->num_xps + 1;
-	dtm = devm_kcalloc(cmn->dev, i, sizeof(*dtm), GFP_KERNEL);
+	dtm = devm_kzalloc_objs(cmn->dev, *dtm, i);
 	if (!dtm)
 		return -ENOMEM;
 
@@ -2837,7 +2836,7 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	static atomic_t id;
 	int err, rootnode, this_id;
 
-	cmn = devm_kzalloc(&pdev->dev, sizeof(*cmn), GFP_KERNEL);
+	cmn = devm_kzalloc_obj(&pdev->dev, *cmn);
 	if (!cmn)
 		return -ENOMEM;
 

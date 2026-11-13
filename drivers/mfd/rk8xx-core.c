@@ -773,7 +773,7 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
 	int ret;
 	int i;
 
-	rk808 = devm_kzalloc(dev, sizeof(*rk808), GFP_KERNEL);
+	rk808 = devm_kzalloc_obj(dev, *rk808);
 	if (!rk808)
 		return -ENOMEM;
 	rk808->dev = dev;

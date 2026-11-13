@@ -941,7 +941,7 @@ static struct clk_hw *clk_wzrd_register_divf(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	div = devm_kzalloc_obj(dev, *div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
@@ -985,7 +985,7 @@ static struct clk_hw *clk_wzrd_ver_register_divider(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	div = devm_kzalloc_obj(dev, *div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
@@ -1031,7 +1031,7 @@ static struct clk_hw *clk_wzrd_register_divider(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	div = devm_kzalloc_obj(dev, *div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
@@ -1298,8 +1298,8 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	if (ret || nr_outputs > WZRD_NUM_OUTPUTS)
 		return -EINVAL;
 
-	clk_wzrd = devm_kzalloc(&pdev->dev, struct_size(clk_wzrd, clk_data.hws, nr_outputs),
-				GFP_KERNEL);
+	clk_wzrd = devm_kzalloc_flex(&pdev->dev, *clk_wzrd, clk_data.hws,
+				     nr_outputs);
 	if (!clk_wzrd)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, clk_wzrd);

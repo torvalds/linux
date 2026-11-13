@@ -1012,7 +1012,7 @@ static int rk3308_codec_platform_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int err;
 
-	rk3308 = devm_kzalloc(&pdev->dev, sizeof(*rk3308), GFP_KERNEL);
+	rk3308 = devm_kzalloc_obj(&pdev->dev, *rk3308);
 	if (!rk3308)
 		return -ENOMEM;
 

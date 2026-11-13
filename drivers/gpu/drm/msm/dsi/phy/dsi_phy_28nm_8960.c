@@ -393,7 +393,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	DBG("%d", pll_28nm->phy->id);
 
-	bytediv = devm_kzalloc(dev, sizeof(*bytediv), GFP_KERNEL);
+	bytediv = devm_kzalloc_obj(dev, *bytediv);
 	if (!bytediv)
 		return -ENOMEM;
 
@@ -448,7 +448,7 @@ static int dsi_pll_28nm_8960_init(struct msm_dsi_phy *phy)
 	if (!pdev)
 		return -ENODEV;
 
-	pll_28nm = devm_kzalloc(&pdev->dev, sizeof(*pll_28nm), GFP_KERNEL);
+	pll_28nm = devm_kzalloc_obj(&pdev->dev, *pll_28nm);
 	if (!pll_28nm)
 		return -ENOMEM;
 

@@ -517,7 +517,7 @@ static int tusb320_probe(struct i2c_client *client)
 	u32 irq_trigger_type = IRQF_TRIGGER_FALLING;
 	struct irq_data *irq_d;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

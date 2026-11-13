@@ -2139,8 +2139,7 @@ static int qmp_usb_reset_init(struct qmp_usb *qmp,
 	int i;
 	int ret;
 
-	qmp->resets = devm_kcalloc(dev, num_resets,
-				   sizeof(*qmp->resets), GFP_KERNEL);
+	qmp->resets = devm_kzalloc_objs(dev, *qmp->resets, num_resets);
 	if (!qmp->resets)
 		return -ENOMEM;
 
@@ -2162,7 +2161,7 @@ static int qmp_usb_clk_init(struct qmp_usb *qmp)
 	int num = ARRAY_SIZE(qmp_usb_phy_clk_l);
 	int i;
 
-	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
+	qmp->clks = devm_kzalloc_objs(dev, *qmp->clks, num);
 	if (!qmp->clks)
 		return -ENOMEM;
 
@@ -2368,7 +2367,7 @@ static int qmp_usb_probe(struct platform_device *pdev)
 	struct qmp_usb *qmp;
 	int ret;
 
-	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
+	qmp = devm_kzalloc_obj(dev, *qmp);
 	if (!qmp)
 		return -ENOMEM;
 

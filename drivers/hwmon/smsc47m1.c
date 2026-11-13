@@ -724,7 +724,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	data = devm_kzalloc(dev, sizeof(struct smsc47m1_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct smsc47m1_data);
 	if (!data)
 		return -ENOMEM;
 

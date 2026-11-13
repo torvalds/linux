@@ -396,10 +396,10 @@ static int rzt2h_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto done;
 	}
 
-	pins = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(pctrl->dev, *pins, num_pinmux);
 	psel_val = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*psel_val),
 				GFP_KERNEL);
-	pin_fn = devm_kzalloc(pctrl->dev, sizeof(*pin_fn), GFP_KERNEL);
+	pin_fn = devm_kzalloc_obj(pctrl->dev, *pin_fn);
 	if (!pins || !psel_val || !pin_fn) {
 		ret = -ENOMEM;
 		goto done;
@@ -1209,7 +1209,7 @@ static int rzt2h_pinctrl_register(struct rzt2h_pinctrl *pctrl)
 	desc->confops = &rzt2h_pinctrl_confops;
 	desc->owner = THIS_MODULE;
 
-	pins = devm_kcalloc(dev, desc->npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, desc->npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -1269,7 +1269,7 @@ static int rzt2h_pinctrl_probe(struct platform_device *pdev)
 	struct rzt2h_pinctrl *pctrl;
 	int ret;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

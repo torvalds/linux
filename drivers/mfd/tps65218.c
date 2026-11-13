@@ -285,7 +285,7 @@ static int tps65218_probe(struct i2c_client *client)
 	int ret;
 	unsigned int chipid;
 
-	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&client->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

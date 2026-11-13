@@ -472,7 +472,7 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 {
 	struct twl4030_gpio_platform_data *omap_twl_info;
 
-	omap_twl_info = devm_kzalloc(dev, sizeof(*omap_twl_info), GFP_KERNEL);
+	omap_twl_info = devm_kzalloc_obj(dev, *omap_twl_info);
 	if (!omap_twl_info)
 		return NULL;
 
@@ -506,8 +506,7 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 	struct gpio_twl4030_priv *priv;
 	int ret, irq_base;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct gpio_twl4030_priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct gpio_twl4030_priv);
 	if (!priv)
 		return -ENOMEM;
 

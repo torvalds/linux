@@ -78,7 +78,7 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 		return ret;
 	hid_descriptor_address = ret;
 
-	ihid_acpi = devm_kzalloc(dev, sizeof(*ihid_acpi), GFP_KERNEL);
+	ihid_acpi = devm_kzalloc_obj(dev, *ihid_acpi);
 	if (!ihid_acpi)
 		return -ENOMEM;
 

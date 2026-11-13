@@ -156,7 +156,7 @@ static int xcv_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 	struct device *dev = &pdev->dev;
 
-	xcv = devm_kzalloc(dev, sizeof(struct xcv), GFP_KERNEL);
+	xcv = devm_kzalloc_obj(dev, struct xcv);
 	if (!xcv)
 		return -ENOMEM;
 	xcv->pdev = pdev;

@@ -163,7 +163,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	dev_set_drvdata(dev, drm_dev);
 
-	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
+	private = devm_kzalloc_obj(drm_dev->dev, *private);
 	if (!private) {
 		ret = -ENOMEM;
 		goto err_free;

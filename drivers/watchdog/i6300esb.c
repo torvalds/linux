@@ -301,7 +301,7 @@ static int esb_probe(struct pci_dev *pdev,
 	struct esb_dev *edev;
 	int ret;
 
-	edev = devm_kzalloc(&pdev->dev, sizeof(*edev), GFP_KERNEL);
+	edev = devm_kzalloc_obj(&pdev->dev, *edev);
 	if (!edev)
 		return -ENOMEM;
 

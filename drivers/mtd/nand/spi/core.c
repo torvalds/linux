@@ -2057,8 +2057,7 @@ static int spinand_probe(struct spi_mem *mem)
 	struct mtd_info *mtd;
 	int ret;
 
-	spinand = devm_kzalloc(&mem->spi->dev, sizeof(*spinand),
-			       GFP_KERNEL);
+	spinand = devm_kzalloc_obj(&mem->spi->dev, *spinand);
 	if (!spinand)
 		return -ENOMEM;
 

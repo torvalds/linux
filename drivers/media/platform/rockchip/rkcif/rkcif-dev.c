@@ -188,7 +188,7 @@ static int rkcif_probe(struct platform_device *pdev)
 	struct rkcif_device *rkcif;
 	int ret, irq;
 
-	rkcif = devm_kzalloc(dev, sizeof(*rkcif), GFP_KERNEL);
+	rkcif = devm_kzalloc_obj(dev, *rkcif);
 	if (!rkcif)
 		return -ENOMEM;
 

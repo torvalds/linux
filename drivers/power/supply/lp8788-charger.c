@@ -681,7 +681,7 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	pchg = devm_kzalloc(dev, sizeof(struct lp8788_charger), GFP_KERNEL);
+	pchg = devm_kzalloc_obj(dev, struct lp8788_charger);
 	if (!pchg)
 		return -ENOMEM;
 

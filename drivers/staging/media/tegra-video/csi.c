@@ -791,7 +791,7 @@ static int tegra_csi_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(&pdev->dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 
@@ -801,8 +801,8 @@ static int tegra_csi_probe(struct platform_device *pdev)
 
 	csi->soc = of_device_get_match_data(&pdev->dev);
 
-	csi->clks = devm_kcalloc(&pdev->dev, csi->soc->num_clks,
-				 sizeof(*csi->clks), GFP_KERNEL);
+	csi->clks = devm_kzalloc_objs(&pdev->dev, *csi->clks,
+				      csi->soc->num_clks);
 	if (!csi->clks)
 		return -ENOMEM;
 

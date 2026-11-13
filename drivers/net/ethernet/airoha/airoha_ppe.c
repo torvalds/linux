@@ -1599,7 +1599,7 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	u32 ppe_num_entries;
 	struct airoha_ppe *ppe;
 
-	ppe = devm_kzalloc(eth->dev, sizeof(*ppe), GFP_KERNEL);
+	ppe = devm_kzalloc_obj(eth->dev, *ppe);
 	if (!ppe)
 		return -ENOMEM;
 

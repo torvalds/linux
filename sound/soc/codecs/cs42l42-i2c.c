@@ -20,7 +20,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	struct regmap *regmap;
 	int ret;
 
-	cs42l42 = devm_kzalloc(dev, sizeof(*cs42l42), GFP_KERNEL);
+	cs42l42 = devm_kzalloc_obj(dev, *cs42l42);
 	if (!cs42l42)
 		return -ENOMEM;
 

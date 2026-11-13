@@ -120,11 +120,11 @@ static int dc_ic_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int i, ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
-	entry = devm_kcalloc(dev, IRQ_COUNT, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_objs(dev, *entry, IRQ_COUNT);
 	if (!entry)
 		return -ENOMEM;
 

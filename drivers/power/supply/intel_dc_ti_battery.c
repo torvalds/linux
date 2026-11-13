@@ -340,7 +340,7 @@ static int dc_ti_battery_probe(struct platform_device *pdev)
 
 	fwnode_handle_put(args.fwnode);
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

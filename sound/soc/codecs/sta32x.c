@@ -1099,7 +1099,7 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 	struct sta32x_platform_data *pdata;
 	u32 tmp;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -1151,8 +1151,7 @@ static int sta32x_i2c_probe(struct i2c_client *i2c)
 	struct sta32x_priv *sta32x;
 	int ret, i;
 
-	sta32x = devm_kzalloc(&i2c->dev, sizeof(struct sta32x_priv),
-			      GFP_KERNEL);
+	sta32x = devm_kzalloc_obj(&i2c->dev, struct sta32x_priv);
 	if (!sta32x)
 		return -ENOMEM;
 

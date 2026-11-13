@@ -150,15 +150,16 @@ static int set_fan_speed(struct gpio_fan_data *fan_data, int speed_index)
 
 	__set_fan_ctrl(fan_data, fan_data->speed[speed_index].ctrl_val);
 
-	if (fan_data->speed_index > 0 && speed_index == 0) {
+	/* The GPIOs have changed, and a PM put drops the reference on error. */
+	fan_data->speed_index = speed_index;
+
+	if (speed_index == 0) {
 		int ret;
 
 		ret = pm_runtime_put_sync(fan_data->dev);
 		if (ret < 0 && ret != -ENOSYS)
 			return ret;
 	}
-
-	fan_data->speed_index = speed_index;
 
 	return 0;
 }
@@ -466,9 +467,7 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 		dev_err(dev, "DT properties empty / missing");
 		return -ENODEV;
 	}
-	gpios = devm_kcalloc(dev,
-			     fan_data->num_gpios, sizeof(struct gpio_desc *),
-			     GFP_KERNEL);
+	gpios = devm_kzalloc_objs(dev, struct gpio_desc *, fan_data->num_gpios);
 	if (!gpios)
 		return -ENOMEM;
 	for (i = 0; i < fan_data->num_gpios; i++) {
@@ -496,9 +495,8 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 	 * Speed map is in the form <RPM ctrl_val RPM ctrl_val ...>
 	 * this needs splitting into pairs to create gpio_fan_speed structs
 	 */
-	speed = devm_kcalloc(dev,
-			fan_data->num_speed, sizeof(struct gpio_fan_speed),
-			GFP_KERNEL);
+	speed = devm_kzalloc_objs(dev, struct gpio_fan_speed,
+				  fan_data->num_speed);
 	if (!speed)
 		return -ENOMEM;
 	p = NULL;
@@ -541,8 +539,7 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
-	fan_data = devm_kzalloc(dev, sizeof(struct gpio_fan_data),
-				GFP_KERNEL);
+	fan_data = devm_kzalloc_obj(dev, struct gpio_fan_data);
 	if (!fan_data)
 		return -ENOMEM;
 

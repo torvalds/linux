@@ -531,7 +531,7 @@ static int spd5118_common_probe(struct device *dev, struct regmap *regmap)
 	struct device *hwmon_dev;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

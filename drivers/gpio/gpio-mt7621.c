@@ -450,7 +450,7 @@ mt7621_gpio_probe(struct platform_device *pdev)
 	int i;
 	int ret;
 
-	mtk = devm_kzalloc(dev, sizeof(*mtk), GFP_KERNEL);
+	mtk = devm_kzalloc_obj(dev, *mtk);
 	if (!mtk)
 		return -ENOMEM;
 

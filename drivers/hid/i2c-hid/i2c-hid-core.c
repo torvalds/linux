@@ -1249,7 +1249,7 @@ int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 		return client->irq;
 	}
 
-	ihid = devm_kzalloc(&client->dev, sizeof(*ihid), GFP_KERNEL);
+	ihid = devm_kzalloc_obj(&client->dev, *ihid);
 	if (!ihid)
 		return -ENOMEM;
 

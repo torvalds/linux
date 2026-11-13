@@ -1050,7 +1050,7 @@ static int qmp_usb_legacy_vreg_init(struct qmp_usb *qmp)
 	int num = cfg->num_vregs;
 	int i;
 
-	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
+	qmp->vregs = devm_kzalloc_objs(dev, *qmp->vregs, num);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
@@ -1067,8 +1067,7 @@ static int qmp_usb_legacy_reset_init(struct qmp_usb *qmp)
 	int i;
 	int ret;
 
-	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
-				   sizeof(*qmp->resets), GFP_KERNEL);
+	qmp->resets = devm_kzalloc_objs(dev, *qmp->resets, cfg->num_resets);
 	if (!qmp->resets)
 		return -ENOMEM;
 
@@ -1089,7 +1088,7 @@ static int qmp_usb_legacy_clk_init(struct qmp_usb *qmp)
 	int num = cfg->num_clks;
 	int i;
 
-	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
+	qmp->clks = devm_kzalloc_objs(dev, *qmp->clks, num);
 	if (!qmp->clks)
 		return -ENOMEM;
 
@@ -1251,7 +1250,7 @@ static int qmp_usb_legacy_probe(struct platform_device *pdev)
 	struct qmp_usb *qmp;
 	int ret;
 
-	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
+	qmp = devm_kzalloc_obj(dev, *qmp);
 	if (!qmp)
 		return -ENOMEM;
 

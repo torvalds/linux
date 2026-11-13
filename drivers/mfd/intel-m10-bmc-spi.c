@@ -66,7 +66,7 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 	struct intel_m10bmc *ddata;
 	int ret;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

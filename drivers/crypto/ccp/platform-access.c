@@ -208,7 +208,7 @@ int platform_access_dev_init(struct psp_device *psp)
 	struct device *dev = psp->dev;
 	struct psp_platform_access_device *pa_dev;
 
-	pa_dev = devm_kzalloc(dev, sizeof(*pa_dev), GFP_KERNEL);
+	pa_dev = devm_kzalloc_obj(dev, *pa_dev);
 	if (!pa_dev)
 		return -ENOMEM;
 

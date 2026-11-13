@@ -136,6 +136,8 @@ static __always_inline int evmcs_field_offset(unsigned long field,
 	if (unlikely(index >= nr_evmcs_1_fields))
 		return -ENOENT;
 
+	index = array_index_nospec(index, nr_evmcs_1_fields);
+
 	evmcs_field = &vmcs_field_to_evmcs_1[index];
 
 	/*

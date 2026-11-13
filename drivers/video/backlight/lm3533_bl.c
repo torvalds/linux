@@ -271,7 +271,7 @@ static int lm3533_bl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bl = devm_kzalloc(&pdev->dev, sizeof(*bl), GFP_KERNEL);
+	bl = devm_kzalloc_obj(&pdev->dev, *bl);
 	if (!bl)
 		return -ENOMEM;
 

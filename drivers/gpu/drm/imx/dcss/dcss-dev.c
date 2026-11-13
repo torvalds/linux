@@ -185,7 +185,7 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 		return ERR_PTR(-EBUSY);
 	}
 
-	dcss = devm_kzalloc(dev, sizeof(*dcss), GFP_KERNEL);
+	dcss = devm_kzalloc_obj(dev, *dcss);
 	if (!dcss)
 		return ERR_PTR(-ENOMEM);
 

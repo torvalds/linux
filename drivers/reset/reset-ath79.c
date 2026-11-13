@@ -84,8 +84,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	struct ath79_reset *ath79_reset;
 	int err;
 
-	ath79_reset = devm_kzalloc(&pdev->dev,
-				sizeof(*ath79_reset), GFP_KERNEL);
+	ath79_reset = devm_kzalloc_obj(&pdev->dev, *ath79_reset);
 	if (!ath79_reset)
 		return -ENOMEM;
 

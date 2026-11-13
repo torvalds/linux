@@ -1133,7 +1133,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	/* Otherwise logic will break because some bytes must always use PIO */
 	BUILD_BUG_ON_MSG(RCAR_MIN_DMA_LEN < 3, "Invalid min DMA length");
 
-	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct rcar_i2c_priv);
 	if (!priv)
 		return -ENOMEM;
 

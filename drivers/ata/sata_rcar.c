@@ -867,7 +867,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	priv = devm_kzalloc(dev, sizeof(struct sata_rcar_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct sata_rcar_priv);
 	if (!priv)
 		return -ENOMEM;
 

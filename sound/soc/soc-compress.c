@@ -774,12 +774,11 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd)
 	else
 		direction = SND_COMPRESS_CAPTURE;
 
-	compr = devm_kzalloc(rtd->card->dev, sizeof(*compr), GFP_KERNEL);
+	compr = devm_kzalloc_obj(rtd->card->dev, *compr);
 	if (!compr)
 		return -ENOMEM;
 
-	compr->ops = devm_kzalloc(rtd->card->dev, sizeof(soc_compr_ops),
-				  GFP_KERNEL);
+	compr->ops = devm_kzalloc_obj(rtd->card->dev, soc_compr_ops);
 	if (!compr->ops)
 		return -ENOMEM;
 

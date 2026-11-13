@@ -219,7 +219,7 @@ static int lp3952_probe(struct i2c_client *client)
 	int status;
 	struct lp3952_led_array *priv;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

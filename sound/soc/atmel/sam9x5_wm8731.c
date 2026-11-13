@@ -84,9 +84,9 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	dai = devm_kzalloc(&pdev->dev, sizeof(*dai), GFP_KERNEL);
+	card = devm_kzalloc_obj(&pdev->dev, *card);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
+	dai = devm_kzalloc_obj(&pdev->dev, *dai);
 	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
 	if (!dai || !card || !priv || !comp) {
 		ret = -ENOMEM;

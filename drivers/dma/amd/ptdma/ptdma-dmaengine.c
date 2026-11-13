@@ -572,11 +572,10 @@ int pt_dmaengine_register(struct pt_device *pt)
 		ae4 = container_of(pt, struct ae4_device, pt);
 
 	if (ae4)
-		pt->pt_dma_chan = devm_kcalloc(pt->dev, ae4->cmd_q_count,
-					       sizeof(*pt->pt_dma_chan), GFP_KERNEL);
+		pt->pt_dma_chan = devm_kzalloc_objs(pt->dev, *pt->pt_dma_chan,
+						    ae4->cmd_q_count);
 	else
-		pt->pt_dma_chan = devm_kzalloc(pt->dev, sizeof(*pt->pt_dma_chan),
-					       GFP_KERNEL);
+		pt->pt_dma_chan = devm_kzalloc_obj(pt->dev, *pt->pt_dma_chan);
 
 	if (!pt->pt_dma_chan)
 		return -ENOMEM;

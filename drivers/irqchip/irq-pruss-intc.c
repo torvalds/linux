@@ -513,7 +513,7 @@ static int pruss_intc_probe(struct platform_device *pdev)
 	int i, irq, ret;
 	u8 max_system_events, irqs_reserved = 0;
 
-	intc = devm_kzalloc(dev, sizeof(*intc), GFP_KERNEL);
+	intc = devm_kzalloc_obj(dev, *intc);
 	if (!intc)
 		return -ENOMEM;
 
@@ -562,7 +562,7 @@ static int pruss_intc_probe(struct platform_device *pdev)
 
 		intc->irqs[i] = irq;
 
-		host_data = devm_kzalloc(dev, sizeof(*host_data), GFP_KERNEL);
+		host_data = devm_kzalloc_obj(dev, *host_data);
 		if (!host_data) {
 			ret = -ENOMEM;
 			goto fail_irq;

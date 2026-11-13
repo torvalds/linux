@@ -343,17 +343,15 @@ static int axiado_mbox_probe(struct platform_device *pdev)
 	if (!drv_data)
 		return -ENODEV;
 
-	mb = devm_kzalloc(dev, sizeof(*mb), GFP_KERNEL);
+	mb = devm_kzalloc_obj(dev, *mb);
 	if (!mb)
 		return -ENOMEM;
 
 	mb->mbox.dev = dev;
 	mb->mbox.num_chans = drv_data->num_chans;
 
-	mb->mbox.chans = devm_kcalloc(&pdev->dev,
-				      drv_data->num_chans,
-				      sizeof(*mb->mbox.chans),
-				      GFP_KERNEL);
+	mb->mbox.chans = devm_kzalloc_objs(&pdev->dev, *mb->mbox.chans,
+					   drv_data->num_chans);
 	if (!mb->mbox.chans)
 		return -ENOMEM;
 
@@ -365,10 +363,7 @@ static int axiado_mbox_probe(struct platform_device *pdev)
 	if (IS_ERR(mb->rx_base))
 		return PTR_ERR(mb->rx_base);
 
-	ch_data = devm_kcalloc(&pdev->dev,
-			       drv_data->num_chans,
-			       sizeof(*ch_data),
-			       GFP_KERNEL);
+	ch_data = devm_kzalloc_objs(&pdev->dev, *ch_data, drv_data->num_chans);
 	if (!ch_data)
 		return -ENOMEM;
 

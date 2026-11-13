@@ -710,7 +710,7 @@ int inv_icm45600_core_probe(struct regmap *regmap, const struct inv_icm45600_chi
 	if (IS_ERR(regmap_custom))
 		return dev_err_probe(dev, PTR_ERR(regmap_custom), "Failed to register regmap\n");
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

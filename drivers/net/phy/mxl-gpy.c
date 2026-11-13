@@ -363,7 +363,7 @@ static int gpy_probe(struct phy_device *phydev)
 			return ret;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;

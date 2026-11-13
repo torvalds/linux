@@ -1379,7 +1379,7 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 	struct cc_crypto_alg *t_alg;
 	struct skcipher_alg *alg;
 
-	t_alg = devm_kzalloc(dev, sizeof(*t_alg), GFP_KERNEL);
+	t_alg = devm_kzalloc_obj(dev, *t_alg);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 

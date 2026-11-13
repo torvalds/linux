@@ -1435,7 +1435,7 @@ static int ofdpa_port_vlan_flood_group(struct ofdpa_port *ofdpa_port,
 	int err = 0;
 	int i;
 
-	group_ids = kcalloc(port_count, sizeof(u32), GFP_KERNEL);
+	group_ids = kzalloc_objs(u32, port_count);
 	if (!group_ids)
 		return -ENOMEM;
 
