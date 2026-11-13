@@ -2143,6 +2143,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 					i--;
 					if (!i40e_active_tx_ring_index(vsi, i))
 						continue;
+					/* not live yet, skip its BQL reset on free */
+					tx_rings[i].netdev = NULL;
 					i40e_free_tx_resources(&tx_rings[i]);
 				}
 				kfree(tx_rings);
@@ -2248,8 +2250,11 @@ free_tx:
 	/* error cleanup if the Rx allocations failed after getting Tx */
 	if (tx_rings) {
 		for (i = 0; i < tx_alloc_queue_pairs; i++) {
-			if (i40e_active_tx_ring_index(vsi, i))
+			if (i40e_active_tx_ring_index(vsi, i)) {
+				/* not live yet, skip its BQL reset on free */
+				tx_rings[i].netdev = NULL;
 				i40e_free_tx_resources(&tx_rings[i]);
+			}
 		}
 		kfree(tx_rings);
 		tx_rings = NULL;
