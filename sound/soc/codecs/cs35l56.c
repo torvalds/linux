@@ -178,41 +178,91 @@ static const struct snd_kcontrol_new cs35l63_controls[] = {
 			 SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
+static int cs35l56_asp_tx_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+
+	snd_soc_dapm_mutex_lock(dapm);
+	ucontrol->value.enumerated.item[0] =
+		snd_soc_enum_val_to_item(e, cs35l56->asp_tx_input[e->shift_l]);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return 0;
+}
+
+static int cs35l56_asp_tx_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int item = ucontrol->value.enumerated.item[0];
+	unsigned int val;
+	bool change = false;
+
+	if (item >= e->items)
+		return -EINVAL;
+
+	val = snd_soc_enum_item_to_val(e, item);
+
+	snd_soc_dapm_mutex_lock(dapm);
+	if (cs35l56->asp_tx_input[e->shift_l] != val)
+		change = true;
+
+	cs35l56->asp_tx_input[e->shift_l] = val;
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	if (change)
+		snd_soc_dapm_mux_update_power(dapm, kcontrol, item, e, NULL);
+
+	return change;
+}
+
+/* The shift field of each virtual enum holds the ASP TX channel index. */
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
-				  CS35L56_ASP1TX1_INPUT,
+				  SND_SOC_NOPM,
 				  0, CS35L56_ASP_TXn_SRC_MASK,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx1_mux =
-	SOC_DAPM_ENUM("ASP1TX1 SRC", cs35l56_asp1tx1_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX1 SRC", cs35l56_asp1tx1_enum,
+			  cs35l56_asp_tx_get, cs35l56_asp_tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx2_enum,
-				  CS35L56_ASP1TX2_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  1, CS35L56_ASP_TXn_SRC_MASK,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx2_mux =
-	SOC_DAPM_ENUM("ASP1TX2 SRC", cs35l56_asp1tx2_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX2 SRC", cs35l56_asp1tx2_enum,
+			  cs35l56_asp_tx_get, cs35l56_asp_tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx3_enum,
-				  CS35L56_ASP1TX3_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  2, CS35L56_ASP_TXn_SRC_MASK,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx3_mux =
-	SOC_DAPM_ENUM("ASP1TX3 SRC", cs35l56_asp1tx3_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX3 SRC", cs35l56_asp1tx3_enum,
+			  cs35l56_asp_tx_get, cs35l56_asp_tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx4_enum,
-				  CS35L56_ASP1TX4_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  3, CS35L56_ASP_TXn_SRC_MASK,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx4_mux =
-	SOC_DAPM_ENUM("ASP1TX4 SRC", cs35l56_asp1tx4_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX4 SRC", cs35l56_asp1tx4_enum,
+			  cs35l56_asp_tx_get, cs35l56_asp_tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx1_enum,
 				CS35L56_SWIRE_DP3_CH1_INPUT,
@@ -282,6 +332,16 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 	}
 }
 
+static int cs35l56_asp_tx_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+
+	return regmap_write(cs35l56->base.regmap, CS35L56_ASP1TX1_INPUT + (4 * w->shift),
+			    cs35l56->asp_tx_input[w->shift]);
+}
+
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
@@ -299,14 +359,18 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 			    CS35L56_ASP_RX1_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_IN("ASP1RX2", NULL, 1, CS35L56_ASP1_ENABLES1,
 			    CS35L56_ASP_RX2_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP1TX1", NULL, 0, CS35L56_ASP1_ENABLES1,
-			     CS35L56_ASP_TX1_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP1TX2", NULL, 1, CS35L56_ASP1_ENABLES1,
-			     CS35L56_ASP_TX2_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP1TX3", NULL, 2, CS35L56_ASP1_ENABLES1,
-			     CS35L56_ASP_TX3_EN_SHIFT, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP1TX4", NULL, 3, CS35L56_ASP1_ENABLES1,
-			     CS35L56_ASP_TX4_EN_SHIFT, 0),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX1", NULL, 0, CS35L56_ASP1_ENABLES1,
+			       CS35L56_ASP_TX1_EN_SHIFT, 0,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX2", NULL, 1, CS35L56_ASP1_ENABLES1,
+			       CS35L56_ASP_TX2_EN_SHIFT, 0,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX3", NULL, 2, CS35L56_ASP1_ENABLES1,
+			       CS35L56_ASP_TX3_EN_SHIFT, 0,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_AIF_OUT_E("ASP1TX4", NULL, 3, CS35L56_ASP1_ENABLES1,
+			       CS35L56_ASP_TX4_EN_SHIFT, 0,
+			       cs35l56_asp_tx_event, SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_MUX("ASP1 TX1 Source", SND_SOC_NOPM, 0, 0, &asp1_tx1_mux),
 	SND_SOC_DAPM_MUX("ASP1 TX2 Source", SND_SOC_NOPM, 0, 0, &asp1_tx2_mux),
@@ -1437,6 +1501,8 @@ static int _cs35l56_component_probe(struct snd_soc_component *component)
 	int ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
+
+	memset(&cs35l56->asp_tx_input, 0, sizeof(cs35l56->asp_tx_input));
 
 	cs35l56->dsp.part = kasprintf(GFP_KERNEL, "cs35l%02x", cs35l56->base.type);
 	if (!cs35l56->dsp.part)
