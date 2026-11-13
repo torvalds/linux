@@ -470,6 +470,28 @@ static bool drm_scdc_sink_supports_scrambling(struct drm_connector *connector)
 	       info->hdmi.scdc.scrambling.supported;
 }
 
+static void drm_connector_hdmi_reset_sink_scrambling(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	u8 config;
+	int ret;
+
+	if (!connector->ddc || !drm_scdc_sink_supports_scrambling(connector))
+		return;
+
+	ret = drm_scdc_readb(connector->ddc, SCDC_TMDS_CONFIG, &config);
+	if (ret) {
+		drm_dbg_kms(dev, "Failed to read TMDS config: %d\n", ret);
+		return;
+	}
+
+	if (config & SCDC_SCRAMBLING_ENABLE)
+		drm_scdc_set_scrambling(connector, false);
+
+	if (config & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40)
+		drm_scdc_set_high_tmds_clock_ratio(connector, false);
+}
+
 static int drm_connector_hdmi_try_scrambling_setup(struct drm_connector *connector)
 {
 	bool done;
@@ -522,6 +544,11 @@ static void drm_connector_hdmi_scdc_work(struct work_struct *work)
  * the sink side and retry the operation, as some displays refuse to set the
  * scrambling bit right away.
  *
+ * When @conn_state doesn't require scrambling, the sink-side SCDC status is
+ * reset instead, so that a sink left scrambling by a state the driver did not
+ * control, e.g. set up by the firmware before boot, doesn't end up out of sync
+ * with the source.
+ *
  * The work item is cancelled by drm_connector_hdmi_disable_scrambling(), hence
  * source drivers must ensure the display pipeline is shut down on unbind, e.g.
  * via drm_atomic_helper_shutdown(). Otherwise the work may outlive the driver's
@@ -541,8 +568,14 @@ int drm_connector_hdmi_enable_scrambling(struct drm_connector *connector,
 	if (!conn_state)
 		return -EINVAL;
 
-	if (!conn_state->hdmi.scrambler_needed)
+	if (!conn_state->hdmi.scrambler_needed) {
+		/*
+		 * Resync the sink here, where it is known to be connected
+		 * and its capabilities have been parsed.
+		 */
+		drm_connector_hdmi_reset_sink_scrambling(connector);
 		return 0;
+	}
 
 	if (!drm_connector_hdmi_scrambler_supported(connector)) {
 		drm_dbg_kms(dev, "Source doesn't support scrambling.\n");
@@ -581,8 +614,7 @@ int drm_connector_hdmi_enable_scrambling(struct drm_connector *connector,
 		WRITE_ONCE(hdmi->scrambler_enabled, false);
 		cancel_delayed_work_sync(&hdmi->scdc_work);
 
-		drm_scdc_set_scrambling(connector, false);
-		drm_scdc_set_high_tmds_clock_ratio(connector, false);
+		drm_connector_hdmi_reset_sink_scrambling(connector);
 	}
 
 	return ret;
@@ -619,12 +651,7 @@ int drm_connector_hdmi_disable_scrambling(struct drm_connector *connector)
 	if (hdmi->scdc_work_initialized)
 		cancel_delayed_work_sync(&hdmi->scdc_work);
 
-	if (connector->ddc &&
-	    connector->status == connector_status_connected &&
-	    drm_scdc_sink_supports_scrambling(connector)) {
-		drm_scdc_set_scrambling(connector, false);
-		drm_scdc_set_high_tmds_clock_ratio(connector, false);
-	}
+	drm_connector_hdmi_reset_sink_scrambling(connector);
 
 	return hdmi->funcs->scrambler_disable(connector);
 }
@@ -653,15 +680,16 @@ EXPORT_SYMBOL(drm_connector_hdmi_disable_scrambling);
 int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_connector_hdmi *hdmi = &connector->hdmi;
-	struct drm_device *dev = connector->dev;
 	struct drm_connector_state *conn_state;
+	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	u8 config;
 	int ret;
 
 	if (!connector || !plugged || !ctx)
 		return 0;
+
+	dev = connector->dev;
 
 	/*
 	 * This is normally part of .detect_ctx() call path, which already holds
@@ -674,12 +702,19 @@ int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 
 	/* TODO: Also handle HDMI 2.1 FRL link training */
 
-	if (!drm_connector_hdmi_scrambler_supported(connector) ||
-	    !READ_ONCE(hdmi->scrambler_enabled))
-		return 0;
-
 	conn_state = connector->state;
 	if (!conn_state)
+		return 0;
+
+	/*
+	 * Rely on the committed connector state rather than on the current
+	 * scrambler status: a source driver may force scrambler_enabled at
+	 * init to get a disable at boot (e.g. vc4), and that value would
+	 * remain stale until the first disable actually happens, leading to
+	 * a spurious CRTC reset whenever the active mode needs no scrambling.
+	 */
+	if (!drm_connector_hdmi_scrambler_supported(connector) ||
+	    !conn_state->hdmi.scrambler_needed)
 		return 0;
 
 	crtc = conn_state->crtc;

@@ -302,10 +302,14 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used)
 {
-	int ret = 0;
+	int ret;
 
 	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
+
+	ret = vc4_v3d_pm_get(vc4);
+	if (ret)
+		return ret;
 
 	mutex_lock(&vc4->bin_bo_lock);
 
@@ -322,6 +326,7 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used)
 
 complete:
 	mutex_unlock(&vc4->bin_bo_lock);
+	vc4_v3d_pm_put(vc4);
 
 	return ret;
 }
@@ -373,7 +378,6 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 	vc4_v3d_init_hw(&vc4->base);
 
 	vc4_irq_enable(&vc4->base);
-	enable_irq(vc4->irq);
 
 	return 0;
 }
