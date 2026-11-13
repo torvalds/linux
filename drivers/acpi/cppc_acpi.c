@@ -2949,9 +2949,9 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	if (!high || !low || !nom || !ref || !min_nonlinear ||
 	    high > U32_MAX || low > U32_MAX || guaranteed > U32_MAX ||
 	    nom > U32_MAX || ref > U32_MAX || min_nonlinear > U32_MAX ||
-	    high < nom || nom < min_nonlinear || min_nonlinear < low ||
+	    high < min_nonlinear || min_nonlinear < low ||
 	    (CPC_SUPPORTED(guaranteed_reg) &&
-	     (guaranteed < low || guaranteed > nom))) {
+	     (guaranteed < low || guaranteed > high))) {
 		ret = -EFAULT;
 		goto out_err;
 	}
