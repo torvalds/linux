@@ -2461,6 +2461,17 @@ static void rhine_remove_one_platform(struct platform_device *pdev)
 	free_netdev(dev);
 }
 
+static void rhine_shutdown_platform(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	rtnl_lock();
+	netif_device_detach(dev);
+	if (netif_running(dev))
+		dev_close(dev);
+	rtnl_unlock();
+}
+
 static void rhine_shutdown_pci(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -2580,6 +2591,7 @@ static struct pci_driver rhine_driver_pci = {
 static struct platform_driver rhine_driver_platform = {
 	.probe		= rhine_init_one_platform,
 	.remove		= rhine_remove_one_platform,
+	.shutdown	= rhine_shutdown_platform,
 	.driver = {
 		.name	= DRV_NAME,
 		.of_match_table	= rhine_of_tbl,
