@@ -2398,14 +2398,70 @@ static void fbnic_idle_dump(struct fbnic_dev *fbd,
 				   fbnic_rd32(fbd, regs[i].reg_base + j));
 }
 
-int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
+/* The poll timeout only accounts for the delay between polls, not for
+ * the time spent in the poll itself, and each poll is a series of
+ * non-posted PCIe register reads that take on the order of a
+ * microsecond each. Space the polls out so that the reads stay a small
+ * part of each interval and the timeout stays close to wall time.
+ */
+#define FBNIC_IDLE_POLL_US	20
+#define FBNIC_IDLE_TIMEOUT_US	500000
+
+static bool fbnic_tx_idle(struct fbnic_dev *fbd,
+			  const struct fbnic_idle_regs *regs,
+			  unsigned int nregs)
+{
+	u32 inflight;
+
+	if (!fbnic_all_idle(fbd, regs, nregs))
+		return false;
+
+	/* The QM idle bits do not cover the TMI completion path, so a
+	 * timestamp request can still be waiting on its completion. The
+	 * count is bounded by the timestamp requests the Tx path can hold,
+	 * so all ones is a failed read, as for the idle bits, not a count.
+	 */
+	inflight = fbnic_rd32(fbd, FBNIC_TCE_PTP_INFLIGHT);
+
+	return !inflight || !~inflight;
+}
+
+static int fbnic_wait_tx_idle(struct fbnic_dev *fbd)
 {
 	static const struct fbnic_idle_regs tx[] = {
 		{ FBNIC_QM_TWQ_IDLE(0),	FBNIC_QM_TWQ_IDLE_CNT, },
 		{ FBNIC_QM_TQS_IDLE(0),	FBNIC_QM_TQS_IDLE_CNT, },
 		{ FBNIC_QM_TDE_IDLE(0),	FBNIC_QM_TDE_IDLE_CNT, },
 		{ FBNIC_QM_TCQ_IDLE(0),	FBNIC_QM_TCQ_IDLE_CNT, },
-	}, rx[] = {
+	};
+	bool idle;
+	int err;
+
+	err = read_poll_timeout_atomic(fbnic_tx_idle, idle, idle,
+				       FBNIC_IDLE_POLL_US,
+				       FBNIC_IDLE_TIMEOUT_US, false,
+				       fbd, tx, ARRAY_SIZE(tx));
+	if (err == -ETIMEDOUT) {
+		fbnic_tx_flush(fbd);
+		err = read_poll_timeout_atomic(fbnic_tx_idle, idle, idle,
+					       FBNIC_IDLE_POLL_US,
+					       FBNIC_IDLE_TIMEOUT_US, false,
+					       fbd, tx, ARRAY_SIZE(tx));
+		fbnic_tx_flush_off(fbd);
+	}
+	if (err) {
+		fbnic_idle_dump(fbd, tx, ARRAY_SIZE(tx), "Tx", err);
+		netdev_err(fbd->netdev, "0x%04x: %08x\n",
+			   FBNIC_TCE_PTP_INFLIGHT,
+			   fbnic_rd32(fbd, FBNIC_TCE_PTP_INFLIGHT));
+	}
+
+	return err;
+}
+
+int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
+{
+	static const struct fbnic_idle_regs rx[] = {
 		{ FBNIC_QM_HPQ_IDLE(0),	FBNIC_QM_HPQ_IDLE_CNT, },
 		{ FBNIC_QM_PPQ_IDLE(0),	FBNIC_QM_PPQ_IDLE_CNT, },
 		{ FBNIC_QM_RCQ_IDLE(0),	FBNIC_QM_RCQ_IDLE_CNT, },
@@ -2413,23 +2469,14 @@ int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
 	bool idle;
 	int err;
 
-	err = read_poll_timeout_atomic(fbnic_all_idle, idle, idle, 2, 500000,
-				       false, fbd, tx, ARRAY_SIZE(tx));
-	if (err == -ETIMEDOUT) {
-		fbnic_tx_flush(fbd);
-		err = read_poll_timeout_atomic(fbnic_all_idle, idle, idle,
-					       2, 500000, false,
-					       fbd, tx, ARRAY_SIZE(tx));
-		fbnic_tx_flush_off(fbd);
-	}
-	if (err) {
-		fbnic_idle_dump(fbd, tx, ARRAY_SIZE(tx), "Tx", err);
-		if (may_fail)
-			return err;
-	}
+	err = fbnic_wait_tx_idle(fbd);
+	if (err && may_fail)
+		return err;
 
-	err = read_poll_timeout_atomic(fbnic_all_idle, idle, idle, 2, 500000,
-				       false, fbd, rx, ARRAY_SIZE(rx));
+	err = read_poll_timeout_atomic(fbnic_all_idle, idle, idle,
+				       FBNIC_IDLE_POLL_US,
+				       FBNIC_IDLE_TIMEOUT_US, false,
+				       fbd, rx, ARRAY_SIZE(rx));
 	if (err)
 		fbnic_idle_dump(fbd, rx, ARRAY_SIZE(rx), "Rx", err);
 	return err;

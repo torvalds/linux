@@ -422,7 +422,8 @@ enum {
 #define FBNIC_TCE_TXB_NTWRK_DWRR_CTRL_EXT \
 					0x0404E		/* 0x10138 */
 #define FBNIC_TCE_TXB_BMC_DWRR_CTRL_EXT	0x0404F		/* 0x1013c */
-#define FBNIC_CSR_END_TCE		0x04050	/* CSR section delimiter */
+#define FBNIC_TCE_PTP_INFLIGHT		0x040A7		/* 0x1029c */
+#define FBNIC_CSR_END_TCE		0x040B4	/* CSR section delimiter */
 
 /* TCE RAM registers */
 #define FBNIC_CSR_START_TCE_RAM		0x04200	/* CSR section delimiter */
