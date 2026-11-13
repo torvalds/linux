@@ -7,6 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
@@ -313,6 +314,11 @@ static void bcm4908_enet_dma_ring_init(struct bcm4908_enet *enet,
 	enet_write(enet, ring->st_ram_block + ENET_DMA_CH_STATE_RAM_BASE_DESC_PTR,
 		   (uint32_t)ring->dma_addr);
 
+	/* A descriptor the stopped DMA never completed still carries OWN */
+	if (ring->is_tx)
+		memset(ring->buf_desc, 0,
+		       ring->length * sizeof(*ring->buf_desc));
+
 	ring->read_idx = 0;
 	ring->write_idx = 0;
 }
@@ -362,10 +368,22 @@ static void bcm4908_enet_dma_tx_ring_enable(struct bcm4908_enet *enet,
 	enet_write(enet, ring->cfg_block + ENET_DMA_CH_CFG, ENET_DMA_CH_CFG_ENABLE);
 }
 
-static void bcm4908_enet_dma_tx_ring_disable(struct bcm4908_enet *enet,
-					     struct bcm4908_enet_dma_ring *ring)
+static int bcm4908_enet_dma_tx_ring_disable(struct bcm4908_enet *enet,
+					    struct bcm4908_enet_dma_ring *ring)
 {
+	u32 tmp;
+	int err;
+
 	enet_write(enet, ring->cfg_block + ENET_DMA_CH_CFG, 0);
+
+	/* Wait for the channel to stop, as for RX, before freeing buffers */
+	err = read_poll_timeout(enet_read, tmp, !(tmp & ENET_DMA_CH_CFG_ENABLE),
+				10, 2000, false, enet,
+				ring->cfg_block + ENET_DMA_CH_CFG);
+	if (err)
+		dev_warn(enet->dev, "Timeout waiting for DMA TX stop\n");
+
+	return err;
 }
 
 static void bcm4908_enet_dma_rx_ring_enable(struct bcm4908_enet *enet,
@@ -391,7 +409,7 @@ static void bcm4908_enet_dma_rx_ring_disable(struct bcm4908_enet *enet,
 		usleep_range(10, 30);
 	} while (!time_after_eq(jiffies, deadline));
 
-	dev_warn(enet->dev, "Timeout waiting for DMA TX stop\n");
+	dev_warn(enet->dev, "Timeout waiting for DMA RX stop\n");
 }
 
 /***
@@ -496,6 +514,25 @@ static int bcm4908_enet_open(struct net_device *netdev)
 	return 0;
 }
 
+static void bcm4908_enet_tx_ring_clean(struct bcm4908_enet *enet)
+{
+	struct bcm4908_enet_dma_ring *tx_ring = &enet->tx_ring;
+	struct device *dev = enet->dev;
+	int i;
+
+	for (i = tx_ring->read_idx; i != tx_ring->write_idx;
+	     i = i == tx_ring->length - 1 ? 0 : i + 1) {
+		struct bcm4908_enet_dma_ring_slot *slot = &tx_ring->slots[i];
+
+		dma_unmap_single(dev, slot->dma_addr, slot->len, DMA_TO_DEVICE);
+		dev_kfree_skb_any(slot->skb);
+	}
+
+	/* Leave the ring empty, so that nothing frees these skbs again */
+	tx_ring->read_idx = 0;
+	tx_ring->write_idx = 0;
+}
+
 static int bcm4908_enet_stop(struct net_device *netdev)
 {
 	struct bcm4908_enet *enet = netdev_priv(netdev);
@@ -509,8 +546,10 @@ static int bcm4908_enet_stop(struct net_device *netdev)
 	netdev_reset_queue(netdev);
 
 	bcm4908_enet_dma_rx_ring_disable(enet, &enet->rx_ring);
-	bcm4908_enet_dma_tx_ring_disable(enet, &enet->tx_ring);
 
+	/* Leave the TX buffers alone if the channel may still read them */
+	if (!bcm4908_enet_dma_tx_ring_disable(enet, &enet->tx_ring))
+		bcm4908_enet_tx_ring_clean(enet);
 	bcm4908_enet_dma_uninit(enet);
 
 	free_irq(enet->irq_tx, enet);
@@ -549,13 +588,6 @@ static netdev_tx_t bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_devic
 	if (!netif_txq_maybe_stop(txq, bcm4908_enet_tx_free_descs(ring), 1, 1))
 		return NETDEV_TX_BUSY;
 
-	/* Hardware removes OWN bit after sending data */
-	buf_desc = &ring->buf_desc[ring->write_idx];
-	if (unlikely(le32_to_cpu(buf_desc->ctl) & DMA_CTL_STATUS_OWN)) {
-		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
-	}
-
 	dma_addr = dma_map_single(dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, dma_addr))) {
 		dev_kfree_skb_any(skb);
@@ -563,6 +595,7 @@ static netdev_tx_t bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_devic
 		return NETDEV_TX_OK;
 	}
 
+	buf_desc = &ring->buf_desc[ring->write_idx];
 	slot = &ring->slots[ring->write_idx];
 	slot->skb = skb;
 	slot->len = skb->len;
