@@ -121,25 +121,29 @@ int mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
 	return 0;
 }
 
-int mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
+static int __mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
 {
 	struct mlx5_vxlan_port *vxlanp;
-	int ret = 0;
 
-	mutex_lock(&vxlan->sync_lock);
+	lockdep_assert_held(&vxlan->sync_lock);
 
 	vxlanp = vxlan_lookup_port(vxlan, port);
-	if (WARN_ON(!vxlanp)) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
+	if (WARN_ON(!vxlanp))
+		return -ENOENT;
 
 	hash_del_rcu(&vxlanp->hlist);
 	synchronize_rcu();
 	mlx5_vxlan_core_del_port_cmd(vxlan->mdev, port);
 	kfree(vxlanp);
+	return 0;
+}
 
-out_unlock:
+int mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
+{
+	int ret;
+
+	mutex_lock(&vxlan->sync_lock);
+	ret = __mlx5_vxlan_del_port(vxlan, port);
 	mutex_unlock(&vxlan->sync_lock);
 	return ret;
 }
@@ -185,12 +189,14 @@ void mlx5_vxlan_reset_to_default(struct mlx5_vxlan *vxlan)
 	if (!mlx5_vxlan_allowed(vxlan))
 		return;
 
+	mutex_lock(&vxlan->sync_lock);
 	hash_for_each_safe(vxlan->htable, bkt, tmp, vxlanp, hlist) {
 		/* Don't delete default UDP port added by the HW.
 		 * Remove only user configured ports
 		 */
 		if (vxlanp->udp_port == IANA_VXLAN_UDP_PORT)
 			continue;
-		mlx5_vxlan_del_port(vxlan, vxlanp->udp_port);
+		__mlx5_vxlan_del_port(vxlan, vxlanp->udp_port);
 	}
+	mutex_unlock(&vxlan->sync_lock);
 }
