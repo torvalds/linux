@@ -566,7 +566,9 @@ static int bcm4908_enet_stop(struct net_device *netdev)
  */
 static int bcm4908_enet_tx_free_descs(struct bcm4908_enet_dma_ring *ring)
 {
-	int free = READ_ONCE(ring->read_idx) - READ_ONCE(ring->write_idx) - 1;
+	/* Pairs with smp_store_release() in bcm4908_enet_poll_tx() */
+	int free = smp_load_acquire(&ring->read_idx) -
+		   READ_ONCE(ring->write_idx) - 1;
 
 	return free < 0 ? free + ring->length : free;
 }
@@ -619,12 +621,14 @@ static netdev_tx_t bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_devic
 	dma_wmb();
 	buf_desc->ctl = cpu_to_le32(tmp);
 
-	bcm4908_enet_dma_tx_ring_enable(enet, &enet->tx_ring);
+	/* Publish the slot and the descriptor before the index; pairs with
+	 * smp_load_acquire() in bcm4908_enet_poll_tx()
+	 */
+	smp_store_release(&ring->write_idx,
+			  ring->write_idx < ring->length - 1 ?
+			  ring->write_idx + 1 : 0);
 
-	if (ring->write_idx == ring->length - 1)
-		WRITE_ONCE(ring->write_idx, 0);
-	else
-		WRITE_ONCE(ring->write_idx, ring->write_idx + 1);
+	bcm4908_enet_dma_tx_ring_enable(enet, &enet->tx_ring);
 
 	/* poll_tx() wakes the queue once there is room again */
 	netif_txq_maybe_stop(txq, bcm4908_enet_tx_free_descs(ring), 1, 1);
@@ -718,7 +722,10 @@ static int bcm4908_enet_poll_tx(struct napi_struct *napi, int weight)
 	unsigned int bytes = 0;
 	int handled = 0;
 
-	while (handled < weight && read_idx != READ_ONCE(tx_ring->write_idx)) {
+	while (handled < weight) {
+		/* Pairs with the release in bcm4908_enet_start_xmit() */
+		if (read_idx == smp_load_acquire(&tx_ring->write_idx))
+			break;
 		buf_desc = &tx_ring->buf_desc[read_idx];
 		if (le32_to_cpu(buf_desc->ctl) & DMA_CTL_STATUS_OWN)
 			break;
@@ -733,7 +740,10 @@ static int bcm4908_enet_poll_tx(struct napi_struct *napi, int weight)
 		if (++read_idx == tx_ring->length)
 			read_idx = 0;
 	}
-	WRITE_ONCE(tx_ring->read_idx, read_idx);
+	/* Be done with the slots before start_xmit() may reuse them; pairs
+	 * with smp_load_acquire() in bcm4908_enet_tx_free_descs()
+	 */
+	smp_store_release(&tx_ring->read_idx, read_idx);
 
 	enet->netdev->stats.tx_packets += handled;
 	enet->netdev->stats.tx_bytes += bytes;
