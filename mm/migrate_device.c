@@ -1207,6 +1207,11 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 
 		if (folio_is_device_private(newfolio) ||
 		    folio_is_device_coherent(newfolio)) {
+			/* KSM does not scan or track device pages. */
+			if (folio_test_ksm(folio)) {
+				src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
+				goto next;
+			}
 			if (mapping) {
 				/*
 				 * For now only support anonymous memory migrating to
