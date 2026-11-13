@@ -196,7 +196,7 @@ static irqreturn_t vsi_iommu_irq(int irq, void *dev_id)
 	dma_addr_t iova;
 	u32 status;
 
-	if (pm_runtime_resume_and_get(iommu->dev) < 0)
+	if (pm_runtime_get_if_active(iommu->dev) <= 0)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&iommu->lock, flags);
