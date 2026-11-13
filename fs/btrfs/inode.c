@@ -9573,9 +9573,9 @@ static ssize_t btrfs_encoded_read_inline(
 		ptr += iocb->ki_pos - extent_start;
 	}
 
-	tmp = kmalloc(count, GFP_NOFS);
+	tmp = kmalloc(count, nowait ? GFP_NOWAIT : GFP_NOFS);
 	if (!tmp)
-		return -ENOMEM;
+		return nowait ? -EAGAIN : -ENOMEM;
 
 	read_extent_buffer(leaf, tmp, ptr, count);
 	btrfs_release_path(path);
