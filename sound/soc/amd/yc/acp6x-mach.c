@@ -413,6 +413,13 @@ static const struct dmi_system_id yc_acp_quirk_table[] = {
 		.driver_data = &acp6x_card,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "RB"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN16-41"),
+		}
+	},
+	{
+		.driver_data = &acp6x_card,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "RB"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN17-41"),
 		}
 	},
@@ -955,6 +962,13 @@ static const struct dmi_system_id yc_acp_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP 255R 15.6 inch G10 Notebook PC"),
 		}
 	},
+	{
+		.driver_data = &acp6x_card,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TUF Gaming A16 FA607NUQ"),
+		}
+	},
 	{}
 };
 
@@ -986,7 +1000,7 @@ static int acp6x_probe(struct platform_device *pdev)
 	if (!ACPI_FAILURE(ret)) {
 		wov_en = dmic_status;
 		if (!wov_en)
-			return -ENODEV;
+			goto check_dmi_entry;
 	} else {
 		/* Incase of ACPI method read failure then jump to check_dmi_entry */
 		goto check_dmi_entry;

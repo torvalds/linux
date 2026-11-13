@@ -478,16 +478,20 @@ static void amd_sof_handle_acp70_sdw_wake_event(struct acp_dev_data *adata)
 	struct amd_sdw_manager *amd_manager;
 
 	if (adata->acp70_sdw0_wake_event) {
-		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
-		if (amd_manager)
-			pm_request_resume(amd_manager->dev);
+		if (adata->sdw) {
+			amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
+			if (amd_manager)
+				pm_request_resume(amd_manager->dev);
+		}
 		adata->acp70_sdw0_wake_event = 0;
 	}
 
 	if (adata->acp70_sdw1_wake_event) {
-		amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
-		if (amd_manager)
-			pm_request_resume(amd_manager->dev);
+		if (adata->sdw) {
+			amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
+			if (amd_manager)
+				pm_request_resume(amd_manager->dev);
+		}
 		adata->acp70_sdw1_wake_event = 0;
 	}
 }
@@ -579,10 +583,12 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat);
 	if (val & ACP_SDW0_IRQ_MASK) {
-		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_SDW0_IRQ_MASK);
-		if (amd_manager)
-			schedule_work(&amd_manager->amd_sdw_irq_thread);
+		if (adata->sdw) {
+			amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
+			if (amd_manager)
+				schedule_work(&amd_manager->amd_sdw_irq_thread);
+		}
 		irq_flag = 1;
 	}
 
@@ -608,11 +614,13 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 	if (desc->ext_intr_stat1) {
 		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat1);
 		if (val & ACP_SDW1_IRQ_MASK) {
-			amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
 			snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1,
 					  ACP_SDW1_IRQ_MASK);
-			if (amd_manager)
-				schedule_work(&amd_manager->amd_sdw_irq_thread);
+			if (adata->sdw) {
+				amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
+				if (amd_manager)
+					schedule_work(&amd_manager->amd_sdw_irq_thread);
+			}
 			irq_flag = 1;
 		}
 		switch (adata->pci_rev) {
@@ -1212,6 +1220,27 @@ static int amd_sof_sdw_exit(struct snd_sof_dev *sdev)
 }
 #endif
 
+/*
+ * The PSP validates the signed DSP firmware, so it must be signed with the
+ * scheme the platform firmware uses: images for the alternative scheme are
+ * named with an "_l" suffix before the extension, the default ones have none.
+ */
+static int amd_sof_acp_get_fw_suffix(struct snd_sof_dev *sdev, const char **suffix)
+{
+	u32 val;
+	int ret;
+
+	ret = amd_smn_read(0, MP0_C2PMSG_63_REG, &val);
+	if (ret) {
+		dev_err(sdev->dev, "PSP firmware signing type read failed (err %d)\n", ret);
+		return ret;
+	}
+
+	*suffix = (val & MP0_C2PMSG_63_FW_SIGN_ALT) ? "_l" : "";
+
+	return 0;
+}
+
 int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
@@ -1447,8 +1476,14 @@ skip_soundwire:
 	sdev->debug_box.size = BOX_SIZE_1024;
 
 	if (adata->acp_sof_signed_firmware_image) {
+		const char *fw_suffix;
+
+		ret = amd_sof_acp_get_fw_suffix(sdev, &fw_suffix);
+		if (ret)
+			goto free_ipc_irq;
+
 		adata->fw_code_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "sof-%s-code.bin", chip->name);
+						    "sof-%s-code%s.bin", chip->name, fw_suffix);
 		if (!adata->fw_code_bin) {
 			ret = -ENOMEM;
 			goto free_ipc_irq;

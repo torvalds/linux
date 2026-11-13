@@ -73,8 +73,8 @@ static int es9356_sdw_component_probe(struct snd_soc_component *component)
 }
 
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -9600, 12, 0);
-static const DECLARE_TLV_DB_SCALE(amic_gain_tlv, 0, 3, 0);
-static const DECLARE_TLV_DB_SCALE(dmic_gain_tlv, 0, 6, 0);
+static const DECLARE_TLV_DB_SCALE(amic_gain_tlv, 0, 300, 0);
+static const DECLARE_TLV_DB_SCALE(dmic_gain_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new es9356_sdca_controls[] = {
 	SDCA_SINGLE_Q78_TLV("FU41 Left Playback Volume",

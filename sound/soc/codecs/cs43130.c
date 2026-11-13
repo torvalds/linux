@@ -2413,7 +2413,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs43130_digital =
 	.set_sysclk		= cs43130_component_set_sysclk,
 	.set_pll		= cs43130_set_pll,
 	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	/* Don't take into account the ending analog widgets and routes */
 	.dapm_widgets		= hp_widgets,
@@ -2429,7 +2428,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs43130_analog = 
 	.set_sysclk		= cs43130_component_set_sysclk,
 	.set_pll		= cs43130_set_pll,
 	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.dapm_widgets		= hp_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(hp_widgets),

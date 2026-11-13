@@ -514,6 +514,8 @@ int q6asm_map_memory_regions(unsigned int dir, struct audio_client *ac,
 
 
 	ac->port[dir].buf = buf;
+	ac->port[dir].dsp_buf = 0;
+	atomic_set(&ac->port[dir].hw_ptr, 0);
 
 	buf[0].phys = phys;
 	buf[0].size = period_sz;

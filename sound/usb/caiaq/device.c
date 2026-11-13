@@ -600,13 +600,18 @@ static void snd_disconnect(struct usb_interface *intf)
 
 	snd_card_disconnect(card);
 
+	/*
+	 * Kill the EP1 URB before disconnecting the input device: its
+	 * completion reports into cdev->input_dev, which input_disconnect()
+	 * frees without clearing the pointer.
+	 */
+	usb_kill_urb(cdev->ep1_in_urb);
+	usb_kill_urb(cdev->midi_out_urb);
+
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	snd_usb_caiaq_input_disconnect(cdev);
 #endif
 	snd_usb_caiaq_audio_disconnect(cdev);
-
-	usb_kill_urb(cdev->ep1_in_urb);
-	usb_kill_urb(cdev->midi_out_urb);
 
 	snd_card_free_when_closed(card);
 }

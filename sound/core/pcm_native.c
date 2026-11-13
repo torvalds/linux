@@ -1127,7 +1127,13 @@ int snd_pcm_status64(struct snd_pcm_substream *substream,
 	status->trigger_tstamp_sec = runtime->trigger_tstamp.tv_sec;
 	status->trigger_tstamp_nsec = runtime->trigger_tstamp.tv_nsec;
 	if (snd_pcm_running(substream)) {
-		snd_pcm_update_hw_ptr(substream);
+		if (snd_pcm_update_hw_ptr(substream) < 0) {
+			/* update_hw_ptr may have put us in xrun state, update state */
+			status->state = runtime->state;
+			status->suspended_state = runtime->suspended_state;
+			status->trigger_tstamp_sec = runtime->trigger_tstamp.tv_sec;
+			status->trigger_tstamp_nsec = runtime->trigger_tstamp.tv_nsec;
+		}
 		if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 			status->tstamp_sec = runtime->status->tstamp.tv_sec;
 			status->tstamp_nsec =
