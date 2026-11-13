@@ -593,6 +593,7 @@ static void program_grph_pixel_format(
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
 		grph_depth = 2;
 		grph_format = 0;
 		break;
