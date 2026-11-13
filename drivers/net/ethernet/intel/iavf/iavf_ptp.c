@@ -252,6 +252,16 @@ static int iavf_ptp_gettimex64(struct ptp_clock_info *info,
 	return iavf_read_phc_indirect(adapter, ts, sts);
 }
 
+static int iavf_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
+{
+	return -EOPNOTSUPP;
+}
+
+static int iavf_ptp_adjtime(struct ptp_clock_info *info, s64 delta)
+{
+	return -EOPNOTSUPP;
+}
+
 static int iavf_ptp_settime64(struct ptp_clock_info *info,
 			      const struct timespec64 *ts)
 {
@@ -326,6 +336,8 @@ static int iavf_ptp_register_clock(struct iavf_adapter *adapter)
 		 KBUILD_MODNAME, dev_name(dev));
 	ptp_info->owner = THIS_MODULE;
 	ptp_info->gettimex64 = iavf_ptp_gettimex64;
+	ptp_info->adjfine = iavf_ptp_adjfine;
+	ptp_info->adjtime = iavf_ptp_adjtime;
 	ptp_info->settime64 = iavf_ptp_settime64;
 	ptp_info->do_aux_work = iavf_ptp_do_aux_work;
 
