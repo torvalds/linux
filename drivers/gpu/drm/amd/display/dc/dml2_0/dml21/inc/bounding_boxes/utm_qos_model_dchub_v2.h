@@ -58,27 +58,27 @@ static inline void dchub_v2_get_sop_total_available_bandwidth_KBps(
 {
 	const struct utm_soc_operating_point *sop = &model->sops[sop_index];
 	const struct utm_qos_model_socbb *socbb = &model->socbb;
-	uint64_t dram_available_bandwidth_KBps_nominal;
-	uint64_t fabric_available_bandwidth_KBps_nominal;
-	uint64_t dram_available_bandwidth_KBps_urgent;
-	uint64_t fabric_available_bandwidth_KBps_urgent;
+	double dram_available_bandwidth_KBps_nominal;
+	double fabric_available_bandwidth_KBps_nominal;
+	double dram_available_bandwidth_KBps_urgent;
+	double fabric_available_bandwidth_KBps_urgent;
 
-	dram_available_bandwidth_KBps_nominal = (uint64_t) sop->uclk_khz
+	dram_available_bandwidth_KBps_nominal = (double) sop->uclk_khz
 			* socbb->dram_channel_count
 			* socbb->dram_channel_width_bytes
 			* socbb->dram_transactions_per_clock
-			* socbb->dram_derate_percent_nominal / 100;
-	dram_available_bandwidth_KBps_urgent = (uint64_t) sop->uclk_khz
+			* socbb->dram_derate_percent_nominal / 100.0;
+	dram_available_bandwidth_KBps_urgent = (double) sop->uclk_khz
 			* socbb->dram_channel_count
 			* socbb->dram_channel_width_bytes
 			* socbb->dram_transactions_per_clock
-			* socbb->dram_derate_percent_urgent / 100;
-	fabric_available_bandwidth_KBps_nominal = (uint64_t) sop->fclk_khz
+			* socbb->dram_derate_percent_urgent / 100.0;
+	fabric_available_bandwidth_KBps_nominal = (double) sop->fclk_khz
 			* socbb->fabric_datapath_to_dcn_data_return_bytes
-			* socbb->fabric_derate_percent_nominal / 100;
-	fabric_available_bandwidth_KBps_urgent = (uint64_t) sop->fclk_khz
+			* socbb->fabric_derate_percent_nominal / 100.0;
+	fabric_available_bandwidth_KBps_urgent = (double) sop->fclk_khz
 			* socbb->fabric_datapath_to_dcn_data_return_bytes
-			* socbb->fabric_derate_percent_urgent / 100;
+			* socbb->fabric_derate_percent_urgent / 100.0;
 
 	total_available_bandwidth->nominal_bandwidth_KBps =
 			dram_available_bandwidth_KBps_nominal < fabric_available_bandwidth_KBps_nominal ?
@@ -99,8 +99,8 @@ static inline bool dchub_v2_is_qos_bandwidth_supported_by_sop(
 {
 	struct utm_qos_model_dchub_memory_path_bandwidth_v2 available_bandwidth = {0};
 	const struct utm_qos_model_dchub_v2 *dchub = model->dchub_v2;
-	uint64_t nominal_available_bandwidth_KBps;
-	uint64_t urgent_available_bandwidth_KBps;
+	double nominal_available_bandwidth_KBps;
+	double urgent_available_bandwidth_KBps;
 
 	if (nominal_utm_budget_percent > dchub->max_nominal_utm_budget_percent ||
 			nominal_utm_budget_percent < dchub->min_nominal_utm_budget_percent ||
@@ -112,9 +112,9 @@ static inline bool dchub_v2_is_qos_bandwidth_supported_by_sop(
 	nominal_available_bandwidth_KBps = available_bandwidth.nominal_bandwidth_KBps;
 	urgent_available_bandwidth_KBps = available_bandwidth.urgent_bandwidth_KBps;
 
-	if ((nominal_available_bandwidth_KBps * nominal_utm_budget_percent / 100) < qos_bandwidth->nominal_bandwidth_KBps)
+	if ((nominal_available_bandwidth_KBps * nominal_utm_budget_percent / 100.0) < qos_bandwidth->nominal_bandwidth_KBps)
 		return false;
-	else if ((urgent_available_bandwidth_KBps * urgent_utm_budget_percent / 100) < qos_bandwidth->urgent_bandwidth_KBps)
+	else if ((urgent_available_bandwidth_KBps * urgent_utm_budget_percent / 100.0) < qos_bandwidth->urgent_bandwidth_KBps)
 		return false;
 	else
 		return true;

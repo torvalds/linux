@@ -1457,7 +1457,7 @@ int smu_v15_0_od_edit_dpm_table(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinGfxclk,
 						      smu->gfx_actual_hard_min_freq,
 						      NULL);
 		if (ret) {
