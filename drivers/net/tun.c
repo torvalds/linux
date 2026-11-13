@@ -1871,8 +1871,15 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		err = PTR_ERR_OR_ZERO(skb);
 		if (err)
 			goto drop;
-		if (!skb)
+		if (!skb) {
+			/* consumed by XDP, after copying */
+			if (msg_control) {
+				struct ubuf_info *uarg = msg_control;
+
+				uarg->ops->complete(NULL, uarg, false);
+			}
 			return total_len;
+		}
 	} else {
 		if (!zerocopy) {
 			copylen = len;
