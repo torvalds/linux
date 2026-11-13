@@ -4991,6 +4991,9 @@ ata_scsi_remove_element_and_truncate_xlat(struct ata_queued_cmd *qc)
 		return 1;
 	}
 
+	if (req_capacity > 1)
+		req_capacity--;
+
 	id = get_unaligned_be32(&cdb[10]);
 
 	tf->protocol = ATA_PROT_NODATA;
