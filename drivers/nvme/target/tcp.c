@@ -270,6 +270,30 @@ static inline bool nvmet_tcp_has_inline_data(struct nvmet_tcp_cmd *cmd)
 		!cmd->rbytes_done;
 }
 
+/*
+ * Check whether the SGL of @cmd carries in-capsule data that the host
+ * will send right after the command PDU.  Only the offset form of the
+ * data block descriptor is in-capsule; a regular transport SGL is
+ * fetched through an R2T instead.
+ */
+static inline bool nvmet_tcp_sgl_is_inline(struct nvmet_tcp_cmd *cmd)
+{
+	struct nvme_sgl_desc *sgl = &cmd->req.cmd->common.dptr.sgl;
+	u32 len = le32_to_cpu(sgl->length);
+
+	if (sgl->type != ((NVME_SGL_FMT_DATA_DESC << 4) |
+			  NVME_SGL_FMT_OFFSET))
+		return false;
+
+	if (!nvme_is_write(cmd->req.cmd))
+		return false;
+
+	if (!len)
+		return false;
+
+	return len <= cmd->req.port->inline_data_size;
+}
+
 static inline struct nvmet_tcp_cmd *
 nvmet_tcp_get_cmd(struct nvmet_tcp_queue *queue)
 {
@@ -626,25 +650,19 @@ static void nvmet_tcp_queue_response(struct nvmet_req *req)
 	struct nvmet_tcp_queue	*queue = cmd->queue;
 	enum nvmet_tcp_recv_state queue_state;
 	struct nvmet_tcp_cmd *queue_cmd;
-	struct nvme_sgl_desc *sgl;
-	u32 len;
 
 	/* Pairs with store_release in nvmet_prepare_receive_pdu() */
 	queue_state = smp_load_acquire(&queue->rcv_state);
 	queue_cmd = READ_ONCE(queue->cmd);
 
 	if (unlikely(cmd == queue_cmd)) {
-		sgl = &cmd->req.cmd->common.dptr.sgl;
-		len = le32_to_cpu(sgl->length);
-
 		/*
-		 * Wait for inline data before processing the response.
-		 * Avoid using helpers, this might happen before
-		 * nvmet_req_init is completed.
+		 * Wait for in-capsule data before processing the response.
+		 * This can happen before nvmet_req_init() has completed, so
+		 * only look at the SGL descriptor itself.
 		 */
 		if (queue_state == NVMET_TCP_RECV_PDU &&
-		    len && len <= cmd->req.port->inline_data_size &&
-		    nvme_is_write(cmd->req.cmd))
+		    nvmet_tcp_sgl_is_inline(cmd))
 			return;
 	}
 
@@ -982,7 +1000,6 @@ static int nvmet_tcp_handle_icreq(struct nvmet_tcp_queue *queue)
 static int nvmet_tcp_handle_req_failure(struct nvmet_tcp_queue *queue,
 		struct nvmet_tcp_cmd *cmd, struct nvmet_req *req)
 {
-	size_t data_len = le32_to_cpu(req->cmd->common.dptr.sgl.length);
 	int ret;
 
 	/*
@@ -992,8 +1009,7 @@ static int nvmet_tcp_handle_req_failure(struct nvmet_tcp_queue *queue,
 	 * otherwise we will need to prepare a buffer and receive the
 	 * stale data before continuing forward.
 	 */
-	if (!nvme_is_write(cmd->req.cmd) || !data_len ||
-	    data_len > cmd->req.port->inline_data_size) {
+	if (!nvmet_tcp_sgl_is_inline(cmd)) {
 		nvmet_prepare_receive_pdu(queue);
 		return 0;
 	}
