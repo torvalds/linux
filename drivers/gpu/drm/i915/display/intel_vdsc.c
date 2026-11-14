@@ -122,7 +122,7 @@ static int
 get_range_bpg_offset(int bpp_low, int offset_low, int bpp_high, int offset_high, int bpp)
 {
 	return offset_low + DIV_ROUND_UP((offset_high - offset_low) * (bpp - bpp_low),
-					 (bpp_low - bpp_high));
+					 (bpp_high - bpp_low));
 }
 
 /*
