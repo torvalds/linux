@@ -497,31 +497,42 @@ static void vsi_iommu_disable(struct vsi_iommu *iommu)
 	iommu->enable = false;
 }
 
+/* Take the IOMMU off the list of its paging domain, if it has one. */
+static void vsi_iommu_list_del(struct vsi_iommu *iommu)
+{
+	struct vsi_iommu_domain *vsi_domain;
+	unsigned long flags;
+
+	if (!iommu->domain || iommu->domain == &vsi_identity_domain)
+		return;
+
+	vsi_domain = to_vsi_domain(iommu->domain);
+	spin_lock_irqsave(&vsi_domain->lock, flags);
+	list_del_init(&iommu->node);
+	spin_unlock_irqrestore(&vsi_domain->lock, flags);
+}
+
 static int vsi_iommu_identity_attach(struct iommu_domain *domain,
 				     struct device *dev, struct iommu_domain *old)
 {
 	struct vsi_iommu *iommu = dev_iommu_priv_get(dev);
-	struct vsi_iommu_domain *vsi_domain = to_vsi_domain(domain);
 	unsigned long flags;
 	int ret;
+
+	if (iommu->domain == domain)
+		return 0;
 
 	ret = pm_runtime_resume_and_get(iommu->dev);
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irqsave(&vsi_domain->lock, flags);
-	spin_lock(&iommu->lock);
-	if (iommu->domain == domain)
-		goto unlock;
+	vsi_iommu_list_del(iommu);
 
+	spin_lock_irqsave(&iommu->lock, flags);
 	vsi_iommu_disable(iommu);
-	list_del_init(&iommu->node);
-
 	iommu->domain = domain;
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
-unlock:
-	spin_unlock(&iommu->lock);
-	spin_unlock_irqrestore(&vsi_domain->lock, flags);
 	pm_runtime_put_autosuspend(iommu->dev);
 	return 0;
 }
@@ -537,11 +548,12 @@ static struct iommu_domain vsi_identity_domain = {
 
 static void vsi_iommu_enable(struct vsi_iommu *iommu, struct iommu_domain *domain)
 {
-	struct vsi_iommu_domain *vsi_domain = to_vsi_domain(domain);
+	struct vsi_iommu_domain *vsi_domain;
 
 	if (domain == &vsi_identity_domain)
 		return;
 
+	vsi_domain = to_vsi_domain(domain);
 	writel(vsi_domain->pta_dma, iommu->regs + VSI_MMU_AHB_TLB_ARRAY_BASE_L_BASE);
 	writel(VSI_MMU_OUT_OF_BOUND, iommu->regs + VSI_MMU_CONFIG1_BASE);
 	writel(VSI_MMU_BIT_ENABLE, iommu->regs + VSI_MMU_AHB_EXCEPTION_BASE);
@@ -758,15 +770,10 @@ static int __maybe_unused vsi_iommu_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (iommu->domain) {
-		struct vsi_iommu_domain *vsi_domain = to_vsi_domain(iommu->domain);
-
-		spin_lock_irqsave(&vsi_domain->lock, flags);
-		spin_lock(&iommu->lock);
+	spin_lock_irqsave(&iommu->lock, flags);
+	if (iommu->domain)
 		vsi_iommu_enable(iommu, iommu->domain);
-		spin_unlock(&iommu->lock);
-		spin_unlock_irqrestore(&vsi_domain->lock, flags);
-	}
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
 }
