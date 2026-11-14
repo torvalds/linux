@@ -707,8 +707,10 @@ static int vsi_iommu_probe(struct platform_device *pdev)
 		return err;
 
 	iommu->irq = platform_get_irq(pdev, 0);
-	if (iommu->irq < 0)
-		return iommu->irq;
+	if (iommu->irq < 0) {
+		err = iommu->irq;
+		goto err_unprepare_clocks;
+	}
 
 	err = devm_request_irq(iommu->dev, iommu->irq, vsi_iommu_irq,
 			       IRQF_SHARED, dev_name(dev), iommu);
