@@ -1453,7 +1453,7 @@ static bool guc_submit_hint_wedged(struct xe_guc *guc)
 	if (xe_device_wedged(xe))
 		return true;
 
-	xe_device_declare_wedged(xe);
+	xe_device_declare_wedged(xe, DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET);
 
 	return true;
 }
@@ -1599,6 +1599,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	int err = -ETIME;
 	pid_t pid = -1;
 	bool wedged = false, wedge_device = false, skip_timeout_check;
+	int idx;
 
 	xe_gt_assert(guc_to_gt(guc), !exec_queue_destroyed(q));
 
@@ -1613,6 +1614,11 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags) ||
 	    vf_recovery(guc))
 		return DRM_GPU_SCHED_STAT_NO_HANG;
+
+	if (!drm_dev_enter(&xe->drm, &idx)) {
+		xe_sched_job_set_error(job, -ENODEV);
+		return DRM_GPU_SCHED_STAT_NO_HANG;
+	}
 
 	/* Kill the run_job entry point */
 	if (xe_exec_queue_is_multi_queue(q))
@@ -1780,12 +1786,14 @@ trigger_reset:
 	}
 
 	if (wedge_device)
-		xe_device_declare_wedged(gt_to_xe(q->gt));
+		xe_device_declare_wedged(gt_to_xe(q->gt),
+					 DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET);
 
 	/*
 	 * We want the job added back to the pending list so it gets freed; this
 	 * is what DRM_GPU_SCHED_STAT_NO_HANG does.
 	 */
+	drm_dev_exit(idx);
 	return DRM_GPU_SCHED_STAT_NO_HANG;
 
 rearm:
@@ -1799,6 +1807,7 @@ rearm:
 	else
 		xe_sched_submission_start(sched);
 handle_vf_resume:
+	drm_dev_exit(idx);
 	return DRM_GPU_SCHED_STAT_NO_HANG;
 }
 
@@ -1935,15 +1944,10 @@ static void __guc_exec_queue_process_msg_set_sched_props(struct xe_sched_msg *ms
 	kfree(msg);
 }
 
-static void __suspend_fence_signal(struct xe_exec_queue *q)
+static void suspend_wait_wake(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
-
-	if (!q->guc->suspend_pending)
-		return;
-
-	WRITE_ONCE(q->guc->suspend_pending, false);
 
 	/*
 	 * We use a GuC shared wait queue for VFs because the VF resfix start
@@ -1955,6 +1959,15 @@ static void __suspend_fence_signal(struct xe_exec_queue *q)
 		wake_up_all(&guc->ct.wq);
 	else
 		wake_up(&q->guc->suspend_wait);
+}
+
+static void __suspend_fence_signal(struct xe_exec_queue *q)
+{
+	if (!q->guc->suspend_pending)
+		return;
+
+	WRITE_ONCE(q->guc->suspend_pending, false);
+	suspend_wait_wake(q);
 }
 
 static void suspend_fence_signal(struct xe_exec_queue *q)
@@ -2210,7 +2223,13 @@ static void guc_exec_queue_kill(struct xe_exec_queue *q)
 {
 	trace_xe_exec_queue_kill(q);
 	set_exec_queue_killed(q);
-	__suspend_fence_signal(q);
+	/*
+	 * Do not signal the suspend fence here, the queue may still be running
+	 * on the hardware. Only wake any suspend waiter so it observes the
+	 * killed state instead of waiting out the full timeout, suspend_pending
+	 * stays set until the queue is torn down.
+	 */
+	suspend_wait_wake(q);
 	xe_guc_exec_queue_trigger_cleanup(q);
 }
 
@@ -2399,7 +2418,12 @@ static bool __guc_exec_queue_resume(struct xe_exec_queue *q)
 	bool last;
 
 	xe_sched_msg_lock(sched);
-	xe_gt_assert(guc_to_gt(guc), !ge->suspend_pending);
+	/*
+	 * A killed, banned or wedged queue keeps suspend_pending set until it
+	 * is torn down, so only assert the flag is clear otherwise.
+	 */
+	xe_gt_assert(guc_to_gt(guc), !ge->suspend_pending ||
+		     exec_queue_killed_or_banned_or_wedged(q));
 	xe_gt_assert(guc_to_gt(guc), ge->suspend_count > 0);
 	last = (--ge->suspend_count == 0);
 	if (last) {
@@ -2469,8 +2493,10 @@ static void guc_exec_queue_suspend_timeout_ban(struct xe_exec_queue *q)
 	/*
 	 * The GuC failed to respond to the suspend within the timeout. This is
 	 * not recoverable for this context, so ban it and tear it down via
-	 * cleanup rather than leave it suspended forever. __suspend_fence_signal
-	 * clears suspend_pending and wakes any waiter.
+	 * cleanup rather than leave it suspended forever. The suspend fence is
+	 * not signalled here, the queue may still be running on the hardware,
+	 * so suspend_pending stays set until teardown. The waiter that timed
+	 * out is the caller, so no wake up is needed either.
 	 *
 	 * @q is the primary here; it owns the group's GuC context, so a failure
 	 * to suspend it wedges the whole group. Ban and tear down the entire
@@ -2478,11 +2504,9 @@ static void guc_exec_queue_suspend_timeout_ban(struct xe_exec_queue *q)
 	 */
 	if (xe_exec_queue_is_multi_queue(q)) {
 		set_exec_queue_group_banned(q);
-		__suspend_fence_signal(q);
 		xe_guc_exec_queue_group_trigger_cleanup(q);
 	} else {
 		set_exec_queue_banned(q);
-		__suspend_fence_signal(q);
 		xe_guc_exec_queue_trigger_cleanup(q);
 	}
 }
@@ -2505,9 +2529,9 @@ static int guc_exec_queue_wait_suspend_done(struct xe_exec_queue *q, bool blocki
 	int ret;
 
 	/*
-	 * Likely don't need to check exec_queue_killed() as we clear
-	 * suspend_pending upon kill but to be paranoid but races in which
-	 * suspend_pending is set after kill also check kill here.
+	 * A kill does not clear suspend_pending, the queue may still be running
+	 * on the hardware, so exec_queue_killed() is what ends the wait in that
+	 * case and the queue is torn down asynchronously.
 	 */
 #define WAIT_COND \
 	(!READ_ONCE(q->guc->suspend_pending) ||	exec_queue_killed(q) || \
@@ -2716,10 +2740,12 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 		if (exec_queue_destroyed(q))
 			do_destroy = true;
 	}
+	xe_sched_msg_lock(sched);
 	if (q->guc->suspend_pending) {
 		set_exec_queue_suspended(q);
 		suspend_fence_signal(q);
 	}
+	xe_sched_msg_unlock(sched);
 	atomic_and(EXEC_QUEUE_STATE_WEDGED | EXEC_QUEUE_STATE_BANNED |
 		   EXEC_QUEUE_STATE_KILLED | EXEC_QUEUE_STATE_DESTROYED |
 		   EXEC_QUEUE_STATE_SUSPENDED,
@@ -3333,33 +3359,50 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 		smp_wmb();
 		wake_up_all(&guc->ct.wq);
 	} else {
+		bool was_pending;
+
 		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
 		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_disable(q));
 
-		if (q->guc->suspend_pending) {
+		/*
+		 * A TDR stops the scheduler, which can trap a queued SUSPEND
+		 * message, and then issues a disable of its own. suspend_pending
+		 * is still set in that case, so only attribute this SCHED_DONE
+		 * to a suspend if the SUSPEND message actually ran, i.e. it
+		 * marked the queue suspended before disabling scheduling. The
+		 * trapped message completes the suspend once submission
+		 * restarts.
+		 */
+		xe_sched_msg_lock(&q->guc->sched);
+		was_pending = q->guc->suspend_pending && exec_queue_suspended(q);
+		if (was_pending) {
 			clear_exec_queue_pending_disable(q);
 			suspend_fence_signal(q);
-		} else {
-			if (exec_queue_banned(q)) {
-				smp_wmb();
-				wake_up_all(&guc->ct.wq);
-			}
-			if (exec_queue_destroyed(q)) {
-				/*
-				 * Make sure to clear the pending_disable only
-				 * after sampling the destroyed state. We want
-				 * to ensure we don't trigger the unregister too
-				 * early with something intending to only
-				 * disable scheduling. The caller doing the
-				 * destroy must wait for an ongoing
-				 * pending_disable before marking as destroyed.
-				 */
-				clear_exec_queue_pending_disable(q);
-				deregister_exec_queue(guc, q);
-			} else {
-				clear_exec_queue_pending_disable(q);
-			}
 		}
+		xe_sched_msg_unlock(&q->guc->sched);
+
+		if (!was_pending) {
+			/*
+			 * Make sure to clear the pending_disable only after
+			 * sampling the destroyed state. We want to ensure we
+			 * don't trigger the unregister too early with something
+			 * intending to only disable scheduling. The caller
+			 * doing the destroy must wait for an ongoing
+			 * pending_disable before marking as destroyed.
+			 */
+			bool destroyed = exec_queue_destroyed(q);
+
+			clear_exec_queue_pending_disable(q);
+			if (destroyed)
+				deregister_exec_queue(guc, q);
+		}
+
+		/*
+		 * Wake after pending_disable is cleared, not before, so waiters
+		 * such as the TDR see the updated state on the first re-check.
+		 */
+		smp_wmb();
+		wake_up_all(&guc->ct.wq);
 	}
 }
 
@@ -3561,7 +3604,7 @@ int xe_guc_uncorrectable_error_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	guc_id = msg[0];
 
 	if (guc_id == GUC_ID_UNKNOWN) {
-		xe_gt_err(gt, "GuC: Uncorrectable local error with unknown GuC id\n");
+		xe_gt_err_ratelimited(gt, "GuC: Uncorrectable local error with unknown GuC id\n");
 		return 0;
 	}
 
@@ -3569,9 +3612,19 @@ int xe_guc_uncorrectable_error_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	if (unlikely(!q))
 		return -EPROTO;
 
-	xe_gt_err(gt,
-		  "GuC: Uncorrectable local error! guc_id=%d class=%s, logical_mask=0x%x",
-		  guc_id, xe_hw_engine_class_to_str(q->class), q->logical_mask);
+	/*
+	 * On CRI, the hardware cannot distinguish GT translation faults
+	 * from true RAS conditions. Demote to debug to avoid false
+	 * positive hardware error logs.
+	 */
+	if (gt_to_xe(gt)->info.platform == XE_CRESCENTISLAND)
+		xe_gt_dbg(gt,
+			  "GuC: Uncorrectable local error! guc_id=%d class=%s, logical_mask=0x%x",
+			  guc_id, xe_hw_engine_class_to_str(q->class), q->logical_mask);
+	else
+		xe_gt_err(gt,
+			  "GuC: Uncorrectable local error! guc_id=%d class=%s, logical_mask=0x%x",
+			  guc_id, xe_hw_engine_class_to_str(q->class), q->logical_mask);
 
 	trace_xe_guc_uncorrectable_error(q);
 

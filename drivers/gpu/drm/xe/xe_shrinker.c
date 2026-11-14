@@ -113,6 +113,9 @@ static int __xe_shrinker_walk(struct xe_shrinker *shrinker,
 				continue;
 
 			lret = xe_bo_shrink(ctx, ttm_bo, flags, scanned);
+			/* Like the TTM LRU walk, skip bos we can't shrink now. */
+			if (lret == -EBUSY)
+				continue;
 			if (lret < 0) {
 				ret = lret;
 				goto out;

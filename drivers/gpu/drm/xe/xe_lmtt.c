@@ -12,7 +12,8 @@
 
 #include "xe_assert.h"
 #include "xe_bo.h"
-#include "xe_tlb_inval.h"
+#include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
 #include "xe_mert.h"
@@ -21,6 +22,7 @@
 #include "xe_sriov.h"
 #include "xe_tile.h"
 #include "xe_tile_sriov_printk.h"
+#include "xe_tlb_inval.h"
 
 /**
  * DOC: Local Memory Translation Table
@@ -210,14 +212,43 @@ fail:
 	return err;
 }
 
-static void lmtt_setup_dir_ptr(struct xe_lmtt *lmtt)
+static void lmtt_setup_dir_ptr_gt(struct xe_gt *gt, u32 config)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_reg_mcr reg_mcr;
+	struct xe_reg reg;
+	u32 val_read;
+
+	if (GRAPHICS_VER(xe) < 20) {
+		reg = LMEM_CFG;
+		xe_mmio_write32(&gt->mmio, reg, config);
+		return;
+	}
+
+	if (xe_gt_is_main_type(gt)) {
+		reg_mcr = XE2_LMEM_CFG_MCR;
+		xe_gt_mcr_multicast_write(gt, reg_mcr, config);
+		val_read = xe_gt_mcr_unicast_read_any(gt, reg_mcr);
+		xe_gt_assert_msg(gt, val_read == config, "LMEM_CFG_MCR: %#x != %#x\n",
+				 config, val_read);
+	} else {
+		reg = XE2_LMEM_CFG;
+		xe_mmio_write32(&gt->mmio, reg, config);
+
+		if (MEDIA_VER(xe) >= 35) {
+			val_read = xe_mmio_read32(&gt->mmio, reg);
+			xe_gt_assert_msg(gt, val_read == config, "LMEM_CFG: %#x != %#x\n",
+					 config, val_read);
+		}
+	}
+}
+
+static void lmtt_setup_dir_ptr(struct xe_lmtt *lmtt, struct xe_gt *gt)
 {
 	struct xe_tile *tile = lmtt_to_tile(lmtt);
 	struct xe_device *xe = tile_to_xe(tile);
 	dma_addr_t offset = xe_bo_main_addr(lmtt->pd->bo, XE_PAGE_SIZE);
-	struct xe_gt *gt;
 	u32 config;
-	u8 id;
 
 	lmtt_debug(lmtt, "DIR offset %pad\n", &offset);
 	lmtt_assert(lmtt, xe_bo_is_vram(lmtt->pd->bo));
@@ -225,31 +256,32 @@ static void lmtt_setup_dir_ptr(struct xe_lmtt *lmtt)
 
 	config = LMEM_EN | REG_FIELD_PREP(LMTT_DIR_PTR, offset / SZ_64K);
 
-	for_each_gt_on_tile(gt, tile, id)
-		xe_mmio_write32(&gt->mmio,
-				GRAPHICS_VER(xe) >= 20 ? XE2_LMEM_CFG : LMEM_CFG,
-				config);
+	lmtt_setup_dir_ptr_gt(gt, config);
 
-	if (xe_device_has_mert(xe) && xe_tile_is_root(tile))
+	if (xe_device_has_mert(xe) && xe_tile_is_root(tile) &&
+	    xe_gt_is_main_type(gt))
 		xe_mmio_write32(&tile->mmio, MERT_LMEM_CFG, config);
 }
 
 /**
  * xe_lmtt_init_hw - Perform LMTT hardware initialization.
- * @lmtt: the &xe_lmtt to initialize
+ * @gt: the &xe_gt for which lmtt is initialized
  *
  * This function is a second step of the LMTT initialization.
- * This function registers LMTT Root Directory prepared in xe_lmtt_init().
+ * This function registers LMTT Root Directory prepared in xe_lmtt_init()
+ * on the given GT.
  *
  * This function shall be called after every hardware reset.
  * This function shall be called only when running as a PF driver.
  */
-void xe_lmtt_init_hw(struct xe_lmtt *lmtt)
+void xe_lmtt_init_hw(struct xe_gt *gt)
 {
+	struct xe_lmtt *lmtt = &gt_to_tile(gt)->sriov.pf.lmtt;
+
 	if (!lmtt->pd)
 		return;
 
-	lmtt_setup_dir_ptr(lmtt);
+	lmtt_setup_dir_ptr(lmtt, gt);
 }
 
 static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)

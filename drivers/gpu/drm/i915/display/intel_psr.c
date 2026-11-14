@@ -3645,12 +3645,6 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 		intel_psr_exit(intel_dp);
 	} else if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		/* Selective fetch prior LNL */
-		if (intel_dp->psr.psr2_sel_fetch_cff_enabled) {
-			/* can we turn CFF off? */
-			if (intel_dp->psr.busy_frontbuffer_bits == 0)
-				intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
-		}
-
 		/*
 		 * Still keep cff bit enabled as we don't have proper SU
 		 * configuration in case update is sent for any reason after
@@ -3669,9 +3663,6 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 		 */
 		intel_psr_force_update(intel_dp);
 	}
-
-	if (!intel_dp->psr.active && !intel_dp->psr.busy_frontbuffer_bits)
-		queue_work(display->wq.unordered, &intel_dp->psr.work);
 }
 
 /**
@@ -3704,28 +3695,39 @@ void intel_psr_flush(struct intel_display *display,
 
 		pipe_frontbuffer_bits &=
 			INTEL_FRONTBUFFER_ALL_MASK(intel_dp->psr.pipe);
-		intel_dp->psr.busy_frontbuffer_bits &= ~pipe_frontbuffer_bits;
-
-		/*
-		 * If the PSR is paused by an explicit intel_psr_paused() call,
-		 * we have to ensure that the PSR is not activated until
-		 * intel_psr_resume() is called.
-		 */
-		if (intel_dp->psr.pause_counter)
-			goto unlock;
-
-		if (origin == ORIGIN_FLIP ||
-		    (origin == ORIGIN_CURSOR_UPDATE &&
-		     !intel_dp->psr.psr2_sel_fetch_enabled)) {
-			psr2_dc3co_flush_locked(intel_dp, frontbuffer_bits);
-			goto unlock;
-		}
 
 		if (pipe_frontbuffer_bits == 0)
 			goto unlock;
 
+		intel_dp->psr.busy_frontbuffer_bits &= ~pipe_frontbuffer_bits;
+
+		if (intel_dp->psr.pause_counter)
+			goto rearm;
+
+		if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
+			psr2_dc3co_flush_locked(intel_dp, frontbuffer_bits);
+
+		if (origin == ORIGIN_FLIP)
+			goto rearm;
+
 		/* By definition flush = invalidate + flush */
 		_psr_flush_handle(intel_dp);
+
+rearm:
+		if (!intel_dp->psr.busy_frontbuffer_bits) {
+			if (intel_dp->psr.psr2_sel_fetch_cff_enabled)
+				intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
+
+			/*
+			 * If the PSR is paused by an explicit
+			 * intel_psr_paused() call, we have to ensure that the
+			 * PSR is not activated until intel_psr_resume() is
+			 * called.
+			 */
+			if (!intel_dp->psr.active && !intel_dp->psr.pause_counter)
+				queue_work(display->wq.unordered, &intel_dp->psr.work);
+		}
+
 unlock:
 		mutex_unlock(&intel_dp->psr.lock);
 	}

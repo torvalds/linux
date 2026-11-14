@@ -776,6 +776,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
 	uint32_t dummy = 0xffffffff;
+	uint32_t luma_pitch, chroma_pitch, height;
 	uint32_t *size = &dummy;
 	unsigned int idx;
 	int i, r = 0;
@@ -881,19 +882,19 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 				goto out;
 			}
 
-			uint32_t width, height;
-			width = amdgpu_ib_get_value(ib, idx + 8);
-			height = amdgpu_ib_get_value(ib, idx + 10);
+			luma_pitch = amdgpu_ib_get_value(ib, idx + 8);
+			chroma_pitch = amdgpu_ib_get_value(ib, idx + 9);
+			height = amdgpu_ib_get_value(ib, idx + 10); /* encRefYHeightInQw */
 
-			if (width == 0 || height == 0 ||
-			    width > 4096 || height > 2304) {
-				DRM_ERROR("invalid VCE image size: %ux%u\n",
-					  width, height);
+			if (luma_pitch == 0 || chroma_pitch == 0 || height == 0 ||
+			    luma_pitch > 4096 || chroma_pitch > 4096 || height > 2304 / 8) {
+				DRM_ERROR("invalid VCE ref image size: (%u %u)x%u\n",
+					  luma_pitch, chroma_pitch, height * 8);
 				r = -EINVAL;
 				goto out;
 			}
 
-			*size = width * height * 8 * 3 / 2;
+			*size = luma_pitch * height * 8 + chroma_pitch * height * 8 / 2;
 
 			break;
 
@@ -922,13 +923,25 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 			break;
 
 		case 0x03000001: /* encode */
+			height = amdgpu_ib_get_value(ib, idx + 13);
+			luma_pitch = amdgpu_ib_get_value(ib, idx + 14);
+			chroma_pitch = amdgpu_ib_get_value(ib, idx + 15);
+
+			if (luma_pitch == 0 || chroma_pitch == 0 || height == 0 ||
+			    luma_pitch > 4096 || chroma_pitch > 4096 || height > 2304) {
+				DRM_ERROR("invalid VCE image size: (%u %u)x%u\n",
+					  luma_pitch, chroma_pitch, height);
+				r = -EINVAL;
+				goto out;
+			}
+
 			r = amdgpu_vce_cs_reloc(p, ib, idx + 10, idx + 9,
-						*size, 0);
+						luma_pitch * height, 0);
 			if (r)
 				goto out;
 
 			r = amdgpu_vce_cs_reloc(p, ib, idx + 12, idx + 11,
-						*size / 3, 0);
+						chroma_pitch * height / 2, 0);
 			if (r)
 				goto out;
 			break;
