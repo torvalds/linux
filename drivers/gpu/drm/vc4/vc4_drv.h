@@ -596,6 +596,12 @@ struct vc4_crtc {
 	 * access to that value.
 	 */
 	unsigned int current_hvs_channel;
+
+	/**
+	 * @async_flip_wq: Ordered workqueue completing the CRTC's async
+	 * page flips.
+	 */
+	struct workqueue_struct *async_flip_wq;
 };
 
 #define to_vc4_crtc(_crtc)					\

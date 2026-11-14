@@ -884,15 +884,18 @@ struct vc4_async_flip_state {
 	struct drm_framebuffer *fb;
 	struct drm_framebuffer *old_fb;
 	struct drm_pending_vblank_event *event;
+	struct dma_fence *fence;
 	struct dma_fence_cb cb;
+	struct work_struct work;
 };
 
-/* Called when the V3D execution for the BO being flipped to is done, so that
- * we can actually update the plane's address to point to it.
+/* Executed when the V3D execution for the BO being flipped to is done, so
+ * that we can actually update the plane's address to point to it.
  */
-static void
-vc4_async_page_flip_complete(struct vc4_async_flip_state *flip_state)
+static void vc4_async_page_flip_work(struct work_struct *work)
 {
+	struct vc4_async_flip_state *flip_state =
+		container_of(work, struct vc4_async_flip_state, work);
 	struct drm_crtc *crtc = flip_state->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -930,17 +933,19 @@ vc4_async_page_flip_complete(struct vc4_async_flip_state *flip_state)
 		drm_framebuffer_put(flip_state->old_fb);
 	}
 
+	dma_fence_put(flip_state->fence);
 	kfree(flip_state);
 }
 
-static void vc4_async_page_flip_fence_complete(struct dma_fence *fence,
-					       struct dma_fence_cb *cb)
+static void vc4_async_page_flip_fence_cb(struct dma_fence *fence,
+					 struct dma_fence_cb *cb)
 {
 	struct vc4_async_flip_state *flip_state =
 		container_of(cb, struct vc4_async_flip_state, cb);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(flip_state->crtc);
 
-	vc4_async_page_flip_complete(flip_state);
-	dma_fence_put(fence);
+	/* Completing the flip may sleep, so defer it to a worker. */
+	queue_work(vc4_crtc->async_flip_wq, &flip_state->work);
 }
 
 static int vc4_async_set_fence_cb(struct drm_device *dev,
@@ -948,23 +953,26 @@ static int vc4_async_set_fence_cb(struct drm_device *dev,
 {
 	struct drm_framebuffer *fb = flip_state->fb;
 	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
-	struct dma_fence *fence;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(flip_state->crtc);
 	int ret;
 
-	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
+	INIT_WORK(&flip_state->work, vc4_async_page_flip_work);
+
+	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ,
+				     &flip_state->fence);
 	if (ret)
 		return ret;
 
-	/* If there's no fence, complete the page flip immediately */
-	if (!fence) {
-		vc4_async_page_flip_fence_complete(fence, &flip_state->cb);
+	if (flip_state->fence &&
+	    !dma_fence_add_callback(flip_state->fence, &flip_state->cb,
+				    vc4_async_page_flip_fence_cb))
 		return 0;
-	}
 
-	/* If the fence has already been completed, complete the page flip */
-	if (dma_fence_add_callback(fence, &flip_state->cb,
-				   vc4_async_page_flip_fence_complete))
-		vc4_async_page_flip_fence_complete(fence, &flip_state->cb);
+	/* No fence or the fence has already signaled. Complete the flip
+	 * immediately, after earlier queued flips.
+	 */
+	flush_workqueue(vc4_crtc->async_flip_wq);
+	vc4_async_page_flip_work(&flip_state->work);
 
 	return 0;
 }
@@ -990,7 +998,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 
 	/* Save the current FB before it's replaced by the new one in
 	 * drm_atomic_set_fb_for_plane(). We'll need the old FB in
-	 * vc4_async_page_flip_complete() to decrement the BO usecnt and keep
+	 * vc4_async_page_flip_work() to decrement the BO usecnt and keep
 	 * it consistent.
 	 * FIXME: we should move to generic async-page-flip when it's
 	 * available, so that we can get rid of this hand-made cleanup_fb()
@@ -1394,6 +1402,11 @@ int __vc4_crtc_init(struct drm_device *drm,
 		return ret;
 
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
+
+	vc4_crtc->async_flip_wq = drmm_alloc_ordered_workqueue(drm, "%s-async-flip",
+							       0, crtc->name);
+	if (IS_ERR(vc4_crtc->async_flip_wq))
+		return PTR_ERR(vc4_crtc->async_flip_wq);
 
 	if (vc4->gen == VC4_GEN_4) {
 		drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
