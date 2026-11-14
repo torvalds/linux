@@ -1340,6 +1340,22 @@ static int inet_ulp_can_listen(const struct sock *sk)
 	return 0;
 }
 
+/* Free all the reqs queued in rskq_rst_head. */
+static void reqsk_fastopen_purge_rst(struct request_sock_queue *queue)
+{
+	struct request_sock *next, *req;
+
+	spin_lock_bh(&queue->fastopenq.lock);
+	req = queue->fastopenq.rskq_rst_head;
+	queue->fastopenq.rskq_rst_head = NULL;
+	spin_unlock_bh(&queue->fastopenq.lock);
+	while (req != NULL) {
+		next = req->dl_next;
+		reqsk_put(req);
+		req = next;
+	}
+}
+
 static void reqsk_queue_alloc(struct request_sock_queue *queue)
 {
 	queue->fastopenq.rskq_rst_head = NULL;
@@ -1382,6 +1398,12 @@ int inet_csk_listen_start(struct sock *sk)
 	}
 
 	inet_sk_set_state(sk, TCP_CLOSE);
+
+	/* A Fast Open child accepted before a previous shutdown() of this
+	 * listener might have queued its request in rskq_rst_head while
+	 * we were transiently in TCP_LISTEN state.
+	 */
+	reqsk_fastopen_purge_rst(&icsk->icsk_accept_queue);
 	return err;
 }
 
@@ -1486,7 +1508,7 @@ void inet_csk_listen_stop(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
-	struct request_sock *next, *req;
+	struct request_sock *req;
 
 	/* Following specs, it would be better either to send FIN
 	 * (and enter FIN-WAIT-1, it is normal close)
@@ -1542,16 +1564,7 @@ skip_child_forget:
 		if (!has_current_bpf_ctx())
 			cond_resched();
 	}
-	/* Free all the reqs queued in rskq_rst_head. */
-	spin_lock_bh(&queue->fastopenq.lock);
-	req = queue->fastopenq.rskq_rst_head;
-	queue->fastopenq.rskq_rst_head = NULL;
-	spin_unlock_bh(&queue->fastopenq.lock);
-	while (req != NULL) {
-		next = req->dl_next;
-		reqsk_put(req);
-		req = next;
-	}
+	reqsk_fastopen_purge_rst(queue);
 	WARN_ON_ONCE(sk->sk_ack_backlog);
 }
 
