@@ -343,6 +343,7 @@ static const struct pnp_device_id scl200wdt_pnp_devices[] = {
 	{ .id = "NSC0800" },
 	{ }
 };
+MODULE_DEVICE_TABLE(pnp, scl200wdt_pnp_devices);
 
 static int scl200wdt_pnp_probe(struct pnp_dev *dev,
 					const struct pnp_device_id *dev_id)
