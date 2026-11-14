@@ -948,33 +948,22 @@ static void vc4_async_page_flip_fence_cb(struct dma_fence *fence,
 	queue_work(vc4_crtc->async_flip_wq, &flip_state->work);
 }
 
-static int vc4_async_set_fence_cb(struct drm_device *dev,
-				  struct vc4_async_flip_state *flip_state)
+static void vc4_async_set_fence_cb(struct vc4_async_flip_state *flip_state)
 {
-	struct drm_framebuffer *fb = flip_state->fb;
-	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(flip_state->crtc);
-	int ret;
 
 	INIT_WORK(&flip_state->work, vc4_async_page_flip_work);
-
-	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ,
-				     &flip_state->fence);
-	if (ret)
-		return ret;
 
 	if (flip_state->fence &&
 	    !dma_fence_add_callback(flip_state->fence, &flip_state->cb,
 				    vc4_async_page_flip_fence_cb))
-		return 0;
+		return;
 
 	/* No fence or the fence has already signaled. Complete the flip
 	 * immediately, after earlier queued flips.
 	 */
 	flush_workqueue(vc4_crtc->async_flip_wq);
 	vc4_async_page_flip_work(&flip_state->work);
-
-	return 0;
 }
 
 static int
@@ -983,13 +972,21 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 			   struct drm_pending_vblank_event *event,
 			   uint32_t flags)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
 	struct drm_plane *plane = crtc->primary;
 	struct vc4_async_flip_state *flip_state;
+	int ret;
 
 	flip_state = kzalloc_obj(*flip_state);
 	if (!flip_state)
 		return -ENOMEM;
+
+	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ,
+				     &flip_state->fence);
+	if (ret) {
+		kfree(flip_state);
+		return ret;
+	}
 
 	drm_framebuffer_get(fb);
 	flip_state->fb = fb;
@@ -1016,7 +1013,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 	 */
 	drm_atomic_set_fb_for_plane(plane->state, fb);
 
-	vc4_async_set_fence_cb(dev, flip_state);
+	vc4_async_set_fence_cb(flip_state);
 
 	/* Driver takes ownership of state on successful async commit. */
 	return 0;
