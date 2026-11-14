@@ -575,12 +575,13 @@ static int vsi_iommu_attach_device(struct iommu_domain *domain,
 	if (ret < 0)
 		return ret;
 
+	vsi_iommu_list_del(iommu);
+
 	spin_lock_irqsave(&vsi_domain->lock, flags);
 	spin_lock(&iommu->lock);
 
 	vsi_iommu_enable(iommu, domain);
 
-	list_del_init(&iommu->node);
 	list_add_tail(&iommu->node, &vsi_domain->iommus);
 
 	iommu->domain = domain;
