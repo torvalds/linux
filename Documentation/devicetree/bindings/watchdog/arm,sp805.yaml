@@ -16,6 +16,7 @@ description: |+
 
 allOf:
   - $ref: /schemas/watchdog/watchdog.yaml#
+  - $ref: /schemas/arm/primecell.yaml#
 
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
