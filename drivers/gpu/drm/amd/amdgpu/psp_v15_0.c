@@ -32,11 +32,19 @@
 #include "mp/mp_15_0_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_0_toc_l.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_0_toc_p.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_0_ta_l.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_0_ta_p.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_5_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_5_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_9_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_toc_l.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_toc_p.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_9_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_ta_l.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_ta_p.bin");
 
 #define regMPASP_PCRU0_MPASP_C2PMSG_64                                         0x4280
 #define regMPASP_PCRU0_MPASP_C2PMSG_64_BASE_IDX                                2
@@ -106,6 +114,45 @@ static int psp_v15_0_0_ring_stop(struct psp_context *psp,
 	}
 
 	return ret;
+}
+
+/*
+ * C2PMSG_63 bit 6: 0 = default firmware signing, 1 = alternative
+ * C2PMSG_63 bit 28: 0 = production part, 1 = preproduction part
+ */
+#define PSP_V15_0_0_FW_SIGN_ALT		BIT(6)
+#define PSP_V15_0_0_FW_PREPROD		BIT(28)
+
+void psp_v15_0_0_get_fw_variant(struct amdgpu_device *adev)
+{
+	bool alt, preprod;
+	u32 val;
+
+	if (!adev->reg_offset[MP0_HWIP][0])
+		return;
+
+	val = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_63);
+	if (val == 0xffffffff) {
+		drm_warn(adev_to_drm(adev), "Unable to access regMPASP_SMN_C2PMSG_63\n");
+		return;
+	}
+
+	alt = val & PSP_V15_0_0_FW_SIGN_ALT;
+	preprod = val & PSP_V15_0_0_FW_PREPROD;
+
+	if (alt && preprod) {
+		adev->firmware.sign_type = AMDGPU_FW_SIGN_UNKNOWN;
+		return;
+	}
+
+	if (preprod)
+		adev->firmware.sign_type = AMDGPU_FW_SIGN_PREPROD;
+	else if (alt)
+		adev->firmware.sign_type = AMDGPU_FW_SIGN_ALT;
+
+	dev_info(adev->dev, "PSP firmware: %s signing, %s part (C2PMSG_63=0x%08x)\n",
+		 alt ? "alternative" : "default",
+		 preprod ? "preproduction" : "production", val);
 }
 
 static int psp_v15_0_0_ring_create(struct psp_context *psp,
