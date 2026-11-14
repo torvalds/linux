@@ -1012,10 +1012,14 @@ static int ublk_validate_params(const struct ublk_device *ub)
 	if (ub->params.types & UBLK_PARAM_TYPE_DEVT)
 		return -EINVAL;
 
-	if (ub->params.types & UBLK_PARAM_TYPE_ZONED)
-		return ublk_dev_param_zoned_validate(ub);
-	else if (ublk_dev_is_zoned(ub))
+	if (ub->params.types & UBLK_PARAM_TYPE_ZONED) {
+		int ret = ublk_dev_param_zoned_validate(ub);
+
+		if (ret)
+			return ret;
+	} else if (ublk_dev_is_zoned(ub)) {
 		return -EINVAL;
+	}
 
 	if (ub->params.types & UBLK_PARAM_TYPE_DMA_ALIGN) {
 		const struct ublk_param_dma_align *p = &ub->params.dma;
