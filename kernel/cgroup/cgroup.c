@@ -4806,19 +4806,21 @@ void cgroup_file_notify(struct cgroup_file *cfile)
 	if (!READ_ONCE(cfile->kn))
 		return;
 
-	last = READ_ONCE(cfile->notified_at);
-	next = last + CGROUP_FILE_NOTIFY_MIN_INTV;
-	if (time_in_range(jiffies, last, next)) {
-		timer_reduce(&cfile->notify_timer, next);
-		if (timer_pending(&cfile->notify_timer))
-			return;
-	}
+	if (timer_pending(&cfile->notify_timer))
+		return;
 
 	spin_lock_irqsave(&cfile->lock, flags);
 	if (cfile->kn) {
-		kn = cfile->kn;
-		kernfs_get(kn);
-		WRITE_ONCE(cfile->notified_at, jiffies);
+		last = cfile->notified_at;
+		next = last + CGROUP_FILE_NOTIFY_MIN_INTV;
+
+		if (time_in_range(jiffies, last, next)) {
+			timer_reduce(&cfile->notify_timer, next);
+		} else {
+			kn = cfile->kn;
+			kernfs_get(kn);
+			cfile->notified_at = jiffies;
+		}
 	}
 	spin_unlock_irqrestore(&cfile->lock, flags);
 

@@ -137,7 +137,8 @@ LAST_PRESENT_CPU=$(cat /sys/devices/system/cpu/present | sed -e "s/.*[,-]//")
 # If isolated CPUs have been reserved at boot time (as shown in
 # /sys/devices/system/cpu/isolated), these isolated CPUs should be outside of
 # CPUs 0-8 that will be used by this script for testing purpose. If not, some
-# of the tests may fail incorrectly.
+# of the tests may fail incorrectly. The first boot isolated CPU should be
+# 10 or above.
 #
 # The current set of isolated CPUs (as shown in cpuset.cpus.isolated) should
 # be the same as the boot value. If not, wait a bit and retry again just in
@@ -156,7 +157,7 @@ TEST_ISOLCPUS=
 [[ -n "$BOOT_ISOLCPUS" ]] && {
 	FIRST_ISOLCPUS=$(echo $BOOT_ISOLCPUS | sed -e "s/[,-].*//")
 	echo "Boot isolated CPUs: $BOOT_ISOLCPUS"
-	[[ $FIRST_ISOLCPUS -le 8 ]] &&
+	[[ $FIRST_ISOLCPUS -le 9 ]] &&
 		skip_test "Boot isolated CPUs overlap CPUs to be tested"
 }
 
@@ -433,6 +434,12 @@ TEST_MATRIX=(
 	# cpuset.cpus is allowed, but those extra CPUs are ignored.
 	"  C2-3:P1   C3:P1  .      .      .     C2-4    .      .     0 A1:|A2:2-3 A1:P1|A2:P1"
 
+	# Clearing cpuset.cpus.exclusive of an invalid partition releases its
+	# exclusive CPUs, including those of its descendants, so a sibling
+	# can claim them.
+	" CX2-3:P1    .     .     C3  T:O2=0:O3=0:X  .     .      X3   0 XA1:|XB1:3 A1:P-1"
+	" CX2-3:P1   X3     .     C3  T:O2=0:O3=0:X  .     .      X3   0 XA1:|XA2:|XB1:3 A1:P-1"
+
 	# A child cannot recover until its exclusive CPUs are available again.
 	" CX1-4:P1 CX3-4:P1 .     .     X1-2     .      .      .     0 A1:1-2|A2:1-2|XA2: A1:P1|A2:P-1"
 	" CX1-4:P1 CX3-4:P1 .     .  X1-2:X1-4   .      .      .     0 A1:1-2|A2:3-4|XA2:3-4 A1:P1|A2:P1"
@@ -531,6 +538,31 @@ TEST_MATRIX=(
 	" C1-4:P1 C3-4:P2   .      .    T:C4-6   .      .      .     0 A1:5-6|A2:4 A1:P1|A2:P2 4"
 	" C1-4:P1 C1-2:P2   .      .    T:C4-6   .      .      .     0 A1:4-6|A2:4-6 A1:P1|A2:P-2 ."
 
+	# The extra CPUs gained by a child partition when its parent expands the
+	# exclusive CPUs have to be taken away from the parent.
+	" C2-6:X2-5:P1 CX4-6:P1 \
+	                    .      .    X2-6     .      .      .     0 A1:2-3|A2:4-6|XA2:4-6 \
+								       A1:P1|A2:P1 ."
+	" C2-6:X2-5:P1 CX4-6:P2 \
+	                    .      .    X2-6     .      .      .     0 A1:2-3|A2:4-6|XA2:4-6 \
+								       A1:P1|A2:P2 4-6"
+
+	# Both expansion and contraction of parent's effective_xcpus will be
+	# correctly handled in child partition and the child can be invalidated
+	# if a populated parent could lose all its effective_cpus.
+	" C2-6:X2-5:P1 CX3,5-6:P2 \
+	                    .      .    X4-6     .      .      .     0 A1:4|A2:5-6|XA2:5-6 \
+								       A1:P1|A2:P2 4-6|5-6"
+	" C2-6:X2-5:P1 CX3-6:P2 \
+	                    .      .   T:X4-6    .      .      .     0 A1:4-6|A2:4-6 A1:P1|A2:P-2 ."
+
+	# Switch PRS state (root <=> isolated) will properly update cpuset.cpus.isolated
+	# even if child partitions are present.
+	" C1-6:P1 C3-6:P1 C5-6:P2  .       .    P2      .      .     0 A1:1-2|A2:3-4|A3:5-6 \
+								       A1:P1|A2:P2|A3:P2 3-6"
+	" C1-6:P1 C3-6:P2 C5-6:P2  .       .    P1      .      .     0 A1:1-2|A2:3-4|A3:5-6 \
+								       A1:P1|A2:P1|A3:P2 5-6"
+
 	#
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
@@ -587,6 +619,7 @@ ISOLCPUS_TEST_MATRIX=(
 )
 
 # Test matrix to be run when boot time nohz_full CPUs cover all CPUs except CPUs 0-7
+# This also means that CPU 8 is available and is a nohz_full CPU.
 NOHZ_FULL_TEST_MATRIX=(
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
@@ -595,6 +628,10 @@ NOHZ_FULL_TEST_MATRIX=(
 	" C2-7:P2    .      .      .     C0-4    .      .      .     0 A1:0-4 A1:P2 0-4"
 	" C1-7:P2 C5-7:P2   .      .       .     .      .    C0:P2   0 A1:1-4|A2:5-7|B1:0
 								       A1:P2|A2:P2|B1:P-2 1-7"
+	# An isolated child partition cannot grow to take over the last
+	# housekeeping CPU when its parent expands the exclusive CPUs.
+	" C0-8:X1-8:P1 CX0-8:P2 .  .     X0-7    .      .      .     0 A1:0-7|A2:0-7 A1:P1|A2:P-2 ."
+	" C0-8:X0-6:P1 CX0-8:P2 .  .     X2-8    .      .      .     0 A1:|A2:2-8 A1:P1|A2:P2 2-8"
 )
 
 #
@@ -670,6 +707,11 @@ REMOTE_TEST_MATRIX=(
 	"  C1-4:P1 C5-6   C1-2     .       C5      .  \
 	      .      P1    P1      .      O5=0     .     p1:3-4|p2:6|c11:1-2|c12:3-4|c21:6|c22:6 \
 							 p1:P1|p2:P1|c11:P1"
+	# Expanding a remote partition should check top cpuset, not its member
+	# parent, for the no CPU left for tasks error.
+	"  CX2-3:T  .   C2-3:X2:P1  .       .       .  \
+	      .      .     X2-3    .       .       .     p1:1,4-7|c11:2-3 \
+							 p1:P0|c11:P1"
 )
 
 #
