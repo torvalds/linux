@@ -968,8 +968,7 @@ static int hw_breakpoint_event_init(struct perf_event *bp)
 
 static int hw_breakpoint_add(struct perf_event *bp, int flags)
 {
-	if (!(flags & PERF_EF_START))
-		bp->hw.state = PERF_HES_STOPPED;
+	bp->hw.state = (flags & PERF_EF_START) ? 0 : PERF_HES_STOPPED;
 
 	if (is_sampling_event(bp)) {
 		bp->hw.last_period = bp->hw.sample_period;
