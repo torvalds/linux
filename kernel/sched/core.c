@@ -6297,7 +6297,6 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	__must_hold(__rq_lockp(rq))
 {
 	struct task_struct *next, *p, *max;
-	const struct cpumask *smt_mask;
 	bool fi_before = false;
 	bool core_clock_updated = (rq == rq->core);
 	unsigned long cookie;
@@ -6343,8 +6342,6 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	}
 
 	prev_balance(rq, rf);
-
-	smt_mask = cpu_smt_mask(cpu);
 
 restart:
 	need_sync |= !!rq->core->core_cookie;
@@ -6413,7 +6410,7 @@ restart:
 	 * Tie-break prio towards the current CPU
 	 */
 	max = NULL;
-	for_each_cpu_wrap(i, smt_mask, cpu) {
+	for_each_core_cpu_wrap(i, rq) {
 		rq_i = cpu_rq(i);
 
 		/*
@@ -6446,7 +6443,7 @@ restart:
 	 * For each thread: try and find a runnable task that matches @max or
 	 * force idle.
 	 */
-	for_each_cpu(i, smt_mask) {
+	for_each_core_cpu(i, rq) {
 		rq_i = cpu_rq(i);
 		p = rq_i->core_pick;
 
@@ -6491,7 +6488,7 @@ restart:
 	 * their task. This ensures there is no inter-sibling overlap between
 	 * non-matching user state.
 	 */
-	for_each_cpu(i, smt_mask) {
+	for_each_core_cpu(i, rq) {
 		rq_i = cpu_rq(i);
 
 		/*
