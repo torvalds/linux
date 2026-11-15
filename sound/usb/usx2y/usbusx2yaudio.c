@@ -84,7 +84,7 @@ static int usx2y_urb_capt_retire(struct snd_usx2y_substream *subs)
 	subs->transfer_done += lens;
 	/* update the pointer, call callback if necessary */
 	if (subs->transfer_done >= runtime->period_size) {
-		subs->transfer_done -= runtime->period_size;
+		subs->transfer_done %= runtime->period_size;
 		snd_pcm_period_elapsed(subs->pcm_substream);
 	}
 	return 0;
@@ -184,7 +184,7 @@ static void usx2y_urb_play_retire(struct snd_usx2y_substream *subs, struct urb *
 	if (subs->hwptr_done >= runtime->buffer_size)
 		subs->hwptr_done -= runtime->buffer_size;
 	if (subs->transfer_done >= runtime->period_size) {
-		subs->transfer_done -= runtime->period_size;
+		subs->transfer_done %= runtime->period_size;
 		snd_pcm_period_elapsed(subs->pcm_substream);
 	}
 }
