@@ -312,6 +312,18 @@ Module Parameters
 /sys/module/nfs/parameters/localio_enabled (bool)
 controls if LOCALIO is enabled, defaults to Y. If client and server are
 local but 'localio_enabled' is set to N then LOCALIO will not be used.
+It is checked on every I/O: setting it to N sends the next I/O of every
+client over the network, and setting it back to Y resumes LOCALIO.  A
+client that probed while it was N is probed again when it is set to Y.
+
+/sys/module/nfs/parameters/localio_timeout (uint)
+sets how many seconds the LOCALIO probe waits for each reply from the
+server, defaults to 10, at most 600.  A server that does not support
+LOCALIO may not answer the probe at all.  If no reply comes in time,
+the probe gives up without a log message.  The client then does not use
+LOCALIO.  The mount's timeouts do not apply to the probe.  Set to 0, the
+probe uses the mount's timeouts instead, as an NFS RPC would.  A change
+applies to the next probe.
 
 /sys/module/nfs/parameters/localio_O_DIRECT_semantics (bool)
 controls if O_DIRECT extends down to the underlying filesystem, defaults

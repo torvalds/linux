@@ -120,6 +120,7 @@ struct nfs_client {
 #define NFS_SP4_MACH_CRED_COMMIT   6	/* COMMIT */
 #define NFS_SP4_MACH_CRED_PNFS_CLEANUP  7 /* LAYOUTRETURN */
 	wait_queue_head_t	cl_lock_waitq;
+	bool			cl_may_notify_lock;
 #endif /* CONFIG_NFS_V4 */
 
 	/* Our own IP address, as a null-terminated string.
