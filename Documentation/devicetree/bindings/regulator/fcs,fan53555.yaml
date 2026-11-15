@@ -20,6 +20,7 @@ properties:
           - fcs,fan53526
           - rockchip,rk8600
           - rockchip,rk8602
+          - silergy,sym827
           - silergy,syr827
           - silergy,syr828
           - tcs,tcs4525
