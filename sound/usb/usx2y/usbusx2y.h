@@ -46,6 +46,7 @@ struct snd_usx2y_async_seq {
 struct snd_usx2y_urb_seq {
 	int	submitted;
 	int	len;
+	int	pending;	/* completions still to come */
 	struct urb	*urb[] __counted_by(len);
 };
 
