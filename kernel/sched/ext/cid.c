@@ -64,7 +64,13 @@ static void calc_shard_layout(const struct cpumask *llc_cpus, u32 shard_size,
 
 	for_each_cpu(cpu, llc_cpus) {
 		nr_cpus++;
-		if (cpumask_first(topology_sibling_cpumask(cpu)) == cpu)
+		/*
+		 * scx_cid_init() forms each core from the siblings in
+		 * @llc_cpus. The sibling mask may include cpus outside
+		 * @llc_cpus, so count a core at its first sibling in @llc_cpus.
+		 */
+		if (cpumask_first_and(topology_sibling_cpumask(cpu),
+				      llc_cpus) == cpu)
 			nr_cores++;
 	}
 

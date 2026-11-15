@@ -869,6 +869,10 @@ struct sched_ext_ops {
 	 * @sub_attach: Attach a sub-scheduler
 	 * @args: argument container, see the struct definition
 	 *
+	 * The sub-scheduler's cgroup is online for the whole call. If it goes
+	 * offline after the sub-scheduler is accepted, ops.sub_detach()
+	 * follows.
+	 *
 	 * Return 0 to accept the sub-scheduler. -errno to reject.
 	 */
 	s32 (*sub_attach)(struct scx_sub_attach_args *args);
