@@ -23,3 +23,13 @@ config VDSO_GETRANDOM
 	select VDSO_DATASTORE
 	help
 	  Selected by architectures that support vDSO getrandom().
+
+config VDSO_UNALIGNED_PACKED
+	bool
+	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	help
+	  Use packed structs rather than memcpy() in include/vdso/unaligned.h
+	  for unaligned memory accesses. Enabled by default when the
+	  architecture does not have efficient unaligned accesses, as GCC may
+	  emit stack spills or out-of-line memcpy() calls instead of inlining
+	  byte shifts.
