@@ -924,7 +924,7 @@ static struct sensor_device_attribute sda_temp_tolerance[] = {
 static ssize_t show_temp1(struct device *dev, struct device_attribute *devattr,
 				char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
 	struct w83791d_data *data = w83791d_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->temp1[attr->index]));
 }
@@ -932,7 +932,7 @@ static ssize_t show_temp1(struct device *dev, struct device_attribute *devattr,
 static ssize_t store_temp1(struct device *dev, struct device_attribute *devattr,
 				const char *buf, size_t count)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83791d_data *data = i2c_get_clientdata(client);
 	int nr = attr->index;
