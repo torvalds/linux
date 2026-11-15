@@ -1857,7 +1857,7 @@ EXPORT_SYMBOL_GPL(nct6775_show_beep);
 ssize_t
 nct6775_store_beep(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int nr = data->BEEP_BITS[sattr->index];
 	int regindex = nr >> 3;
@@ -1911,7 +1911,7 @@ static ssize_t
 store_temp_beep(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int nr, bit, regindex;
 	unsigned long val;
