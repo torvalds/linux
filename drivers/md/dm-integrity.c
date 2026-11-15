@@ -2908,6 +2908,11 @@ static void integrity_commit(struct work_struct *w)
 
 	spin_lock_irq(&ic->endio_wait.lock);
 	flushes = bio_list_get(&ic->flush_bio_list);
+	if (unlikely(dm_integrity_failed(ic))) {
+		wake_up_locked(&ic->endio_wait);
+		spin_unlock_irq(&ic->endio_wait.lock);
+		goto release_flush_bios;
+	}
 	if (unlikely(ic->mode != 'J')) {
 		spin_unlock_irq(&ic->endio_wait.lock);
 		dm_integrity_flush_buffers(ic, true);
@@ -3888,6 +3893,24 @@ static bool superblock_changed(struct dm_integrity_c *ic)
 	       memcmp(ic->sb->salt, ic->sb_copy->salt, SALT_SIZE) != 0;
 }
 
+/*
+ * The superblock is authenticated only if fix_hmac and journal_mac are used,
+ * so SB_FLAG_DIRTY_BITMAP may have been set by someone who doesn't know the
+ * key. Apply the policy that the constructor applies to SB_FLAG_RECALCULATING.
+ */
+static bool dm_integrity_may_recalc_dirty_bitmap(struct dm_integrity_c *ic)
+{
+	if (!ic->internal_hash) {
+		DMERR("Dirty bitmap found, but internal_hash is not used");
+		return false;
+	}
+	if (dm_integrity_disable_recalculate(ic)) {
+		DMERR("Dirty bitmap found, but HMAC recalculation requires \"legacy_recalculate\"");
+		return false;
+	}
+	return true;
+}
+
 static void dm_integrity_resume(struct dm_target *ti)
 {
 	struct dm_integrity_c *ic = ti->private;
@@ -3977,8 +4000,10 @@ static void dm_integrity_resume(struct dm_target *ti)
 			if (!(ic->sb->log2_blocks_per_bitmap_bit == ic->log2_blocks_per_bitmap_bit &&
 			      block_bitmap_op(ic, ic->journal, 0, ic->provided_data_sectors, BITMAP_OP_TEST_ALL_CLEAR)) ||
 			    ic->reset_recalculate_flag) {
-				ic->sb->flags |= cpu_to_le32(SB_FLAG_RECALCULATING);
-				ic->sb->recalc_sector = cpu_to_le64(0);
+				if (dm_integrity_may_recalc_dirty_bitmap(ic)) {
+					ic->sb->flags |= cpu_to_le32(SB_FLAG_RECALCULATING);
+					ic->sb->recalc_sector = cpu_to_le64(0);
+				}
 			}
 			init_journal(ic, 0, ic->journal_sections, 0);
 			replay_journal(ic);
@@ -5409,7 +5434,6 @@ try_smaller_buffer:
 		r = create_journal(ic, &ti->error);
 		if (r)
 			goto bad;
-
 	}
 
 	if (ic->mode == 'B') {

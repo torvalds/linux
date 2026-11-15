@@ -336,9 +336,9 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 	return backing_req;
 }
 
-void backing_dev_flush(struct pcache_backing_dev *backing_dev)
+int backing_dev_flush(struct pcache_backing_dev *backing_dev)
 {
-	blkdev_issue_flush(backing_dev->dm_dev->bdev);
+	return blkdev_issue_flush(backing_dev->dm_dev->bdev);
 }
 
 int pcache_backing_init(void)

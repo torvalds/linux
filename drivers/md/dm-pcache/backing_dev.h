@@ -120,7 +120,7 @@ struct pcache_backing_dev_req *backing_dev_req_alloc(struct pcache_backing_dev *
 						struct pcache_backing_dev_req_opts *opts);
 void backing_dev_req_init(struct pcache_backing_dev_req *backing_req,
 			struct pcache_backing_dev_req_opts *opts);
-void backing_dev_flush(struct pcache_backing_dev *backing_dev);
+int backing_dev_flush(struct pcache_backing_dev *backing_dev);
 
 int pcache_backing_init(void);
 void pcache_backing_exit(void);

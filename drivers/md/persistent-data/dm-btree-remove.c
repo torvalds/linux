@@ -253,7 +253,9 @@ static int __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
 		/*
 		 * Merge
 		 */
-		node_copy(left, right, -nr_right);
+		ret = node_copy(left, right, -nr_right);
+		if (unlikely(ret))
+			return ret;
 		left->header.nr_entries = cpu_to_le32(nr_left + nr_right);
 		delete_at(parent, r->index);
 
@@ -315,13 +317,16 @@ static int delete_center_node(struct dm_btree_info *info, struct btree_node *par
 {
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	unsigned int shift = min(max_entries - nr_left, nr_center);
+	int ret;
 
 	if (nr_left + shift > max_entries) {
 		DMERR("node shift out of bounds");
 		return -EINVAL;
 	}
 
-	node_copy(left, center, -shift);
+	ret = node_copy(left, center, -shift);
+	if (unlikely(ret))
+		return ret;
 	left->header.nr_entries = cpu_to_le32(nr_left + shift);
 
 	if (shift != nr_center) {
@@ -333,7 +338,9 @@ static int delete_center_node(struct dm_btree_info *info, struct btree_node *par
 		}
 
 		node_shift(right, shift);
-		node_copy(center, right, shift);
+		ret = node_copy(center, right, shift);
+		if (unlikely(ret))
+			return ret;
 		right->header.nr_entries = cpu_to_le32(nr_right + shift);
 	}
 	*key_ptr(parent, r->index) = right->keys[0];
