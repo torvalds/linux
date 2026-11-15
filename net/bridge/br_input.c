@@ -257,13 +257,18 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 		br_fdb_update(p->br, p, vlan, eth_hdr(skb)->h_source, 0);
 }
 
-/* note: already called with rcu_read_lock */
+/* okfn of the link-local NF_BR_LOCAL_IN hook in br_handle_frame(). It is
+ * only called when a queued frame is reinjected, after br_handle_frame()
+ * returned RX_HANDLER_CONSUMED for it, so the frame can no longer be
+ * passed up on the port and has to be freed here.
+ * note: already called with rcu_read_lock
+ */
 static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	__br_handle_local_finish(skb);
+	kfree_skb(skb);
 
-	/* return 1 to signal the okfn() was called so it's ok to use the skb */
-	return 1;
+	return 0;
 }
 
 static int nf_hook_bridge_pre(struct sk_buff *skb, struct sk_buff **pskb)
@@ -424,11 +429,14 @@ static rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		/* The else clause should be hit when nf_hook():
 		 *   - returns < 0 (drop/error)
 		 *   - returns = 0 (stolen/nf_queue)
-		 * Thus return 1 from the okfn() to signal the skb is ok to pass
+		 * On 1 the frame is passed on here. The okfn() only runs if a
+		 * queued frame is reinjected later, and must consume it then.
 		 */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+		if (nf_hook(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
 			    br_handle_local_finish) == 1) {
+			*pskb = skb;
+			__br_handle_local_finish(skb);
 			return RX_HANDLER_PASS;
 		} else {
 			return RX_HANDLER_CONSUMED;
