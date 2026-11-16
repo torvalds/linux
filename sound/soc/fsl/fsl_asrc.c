@@ -216,6 +216,8 @@ static void fsl_asrc_sel_proc(int inrate, int outrate,
  * It assigns pair by the order of A->C->B because allocation of pair B,
  * within range [ANCA, ANCA+ANCB-1], depends on the channels of pair A
  * while pair A and pair C are comparatively independent.
+ *
+ * If @pair already owns a pair, it is kept and only its channels are updated.
  */
 static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 {
@@ -225,6 +227,19 @@ static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 	int i, ret = 0;
 
 	guard(spinlock_irqsave)(&asrc->lock);
+
+	if (asrc->pair[pair->index] == pair) {
+		if (asrc->channel_avail + pair->channels < channels) {
+			dev_err(dev, "can't afford required channels: %d\n", channels);
+			return -EINVAL;
+		}
+
+		asrc->channel_avail += pair->channels;
+		asrc->channel_avail -= channels;
+		pair->channels = channels;
+
+		return 0;
+	}
 
 	for (i = ASRC_PAIR_A; i < ASRC_PAIR_MAX_NUM; i++) {
 		if (asrc->pair[i] != NULL)
@@ -257,11 +272,18 @@ static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
  * @pair: pair to release
  *
  * It clears the resource from asrc and releases the occupied channels.
+ * Nothing is done if @pair does not own a pair.
  */
 static void fsl_asrc_release_pair(struct fsl_asrc_pair *pair)
 {
 	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
+
+	/* Only the owner clears its entry, so it cannot change after this check */
+	scoped_guard(spinlock_irqsave, &asrc->lock) {
+		if (asrc->pair[index] != pair)
+			return;
+	}
 
 	/* Make sure the pair is disabled */
 	regmap_update_bits(asrc->regmap, REG_ASRCTR,
