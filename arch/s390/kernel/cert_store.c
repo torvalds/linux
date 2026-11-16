@@ -18,6 +18,7 @@
 #include <linux/keyctl.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/rwsem.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
@@ -320,13 +321,17 @@ static int invalidate_keyring_keys(struct key *keyring)
 	struct key *current_key;
 	int rc;
 
-	keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
-	num_keys = keyring_payload_len / sizeof(key_serial_t);
-	key_array = kzalloc_objs(key_serial_t, num_keys);
-	if (!key_array)
-		return -ENOMEM;
+	scoped_guard(rwsem_read, &keyring->sem) {
+		keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
+		num_keys = keyring_payload_len / sizeof(key_serial_t);
 
-	rc = key_type_keyring.read(keyring, (char *)key_array, keyring_payload_len);
+		key_array = kzalloc_objs(key_serial_t, num_keys);
+		if (!key_array)
+			return -ENOMEM;
+
+		rc = key_type_keyring.read(keyring, (char *)key_array, keyring_payload_len);
+	}
+
 	if (rc != keyring_payload_len) {
 		pr_dbf_msg("Couldn't read keyring payload");
 		goto out;
