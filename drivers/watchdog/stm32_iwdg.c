@@ -309,7 +309,7 @@ static int stm32_iwdg_irq_init(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		ret = dev_pm_set_wake_irq(dev, irq);
+		ret = devm_pm_set_wake_irq(dev, irq);
 		if (ret)
 			return ret;
 	}
