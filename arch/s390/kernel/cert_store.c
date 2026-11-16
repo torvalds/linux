@@ -360,7 +360,7 @@ out:
 
 static struct key *find_cs_keyring(void)
 {
-	struct key *cs_keyring, *us_keyring;
+	struct key *us_keyring;
 	key_ref_t cs_keyring_ref;
 
 	us_keyring = get_user_session_keyring();
@@ -373,11 +373,7 @@ static struct key *find_cs_keyring(void)
 		if (!IS_ERR(cs_keyring_ref))
 			return key_ref_to_ptr(cs_keyring_ref);
 	}
-	/* Search default locations: thread, process, session keyrings */
-	cs_keyring = request_key(&key_type_keyring, CERT_STORE_KEYRING_NAME, NULL);
-	if (IS_ERR(cs_keyring))
-		return NULL;
-	return cs_keyring;
+	return NULL;
 }
 
 static void cleanup_cs_keys(void)
