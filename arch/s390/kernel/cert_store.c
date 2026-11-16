@@ -308,7 +308,6 @@ static struct key *get_user_session_keyring(void)
 			   PTR_ERR(us_keyring_ref));
 		return ERR_PTR(-ENOKEY);
 	}
-	key_ref_put(us_keyring_ref);
 	return key_ref_to_ptr(us_keyring_ref);
 }
 
@@ -370,6 +369,7 @@ static struct key *find_cs_keyring(void)
 						&key_type_keyring,
 						CERT_STORE_KEYRING_NAME,
 						false);
+		key_put(us_keyring);
 		if (!IS_ERR(cs_keyring_ref))
 			return key_ref_to_ptr(cs_keyring_ref);
 	}
@@ -399,8 +399,10 @@ static void cleanup_cs_keys(void)
 	keyring_clear(cs_keyring);
 	key_invalidate(cs_keyring);
 	us_keyring = get_user_session_keyring();
-	if (!IS_ERR(us_keyring))
+	if (!IS_ERR(us_keyring)) {
 		key_unlink(us_keyring, cs_keyring);
+		key_put(us_keyring);
+	}
 	key_put(cs_keyring);
 }
 
@@ -418,6 +420,7 @@ static struct key *create_cs_keyring(void)
 				   (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ,
 				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
 				   NULL, us_keyring);
+	key_put(us_keyring);
 	if (IS_ERR(cs_keyring)) {
 		pr_dbf_msg("Can't allocate cert_store keyring");
 		return NULL;
