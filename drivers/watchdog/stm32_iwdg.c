@@ -346,14 +346,14 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	wdd->max_hw_heartbeat_ms = ((RLR_MAX + 1) * wdt->data->max_prescaler *
 				    1000) / wdt->rate;
 
+	watchdog_set_drvdata(wdd, wdt);
+	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_init_timeout(wdd, 0, dev);
+
 	/* Initialize IRQ, this might override wdd->info, hence it is here. */
 	ret = stm32_iwdg_irq_init(pdev, wdt);
 	if (ret)
 		return ret;
-
-	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
-	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
 	 * In case of CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED is set
