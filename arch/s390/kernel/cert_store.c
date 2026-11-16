@@ -670,7 +670,7 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
  */
 static int query_diag320_subcodes(void)
 {
-	unsigned long ism[ISM_LEN_DWORDS];
+	unsigned long ism[ISM_LEN_DWORDS] = {};
 	int rc;
 
 	rc = diag320(0, ism);
