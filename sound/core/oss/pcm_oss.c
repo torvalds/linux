@@ -1084,8 +1084,10 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 
 	err = 0;
 failure:
-	if (err)
+	if (err) {
+		runtime->oss.params = 1;
 		snd_pcm_oss_release_buffers(substream);
+	}
 	kfree(sw_params);
 	kfree(params);
 	kfree(sparams);
