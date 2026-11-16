@@ -261,13 +261,11 @@ static int diag320(unsigned long subcode, void *addr)
 static int check_certificate_hash(const struct vce *vce)
 {
 	u8 hash[SHA256_DIGEST_SIZE];
-	u16 vc_hash_length;
 	u8 *vce_hash;
 
 	vce_hash = (u8 *)vce + vce->vce_hdr.vc_hash_offset;
-	vc_hash_length = vce->vce_hdr.vc_hash_length;
 	sha256((u8 *)vce + vce->vce_hdr.vc_offset, vce->vce_hdr.vc_length, hash);
-	if (memcmp(vce_hash, hash, vc_hash_length) == 0)
+	if (memcmp(vce_hash, hash, sizeof(hash)) == 0)
 		return 0;
 
 	pr_dbf_msg("SHA256 hash of received certificate does not match");
@@ -291,6 +289,10 @@ static int check_certificate_valid(const struct vce *vce)
 	}
 	if (vce->vce_hdr.vc_hash_type != 1) {
 		pr_dbf_msg("Hash type is not supported");
+		return -EINVAL;
+	}
+	if (vce->vce_hdr.vc_hash_length != SHA256_DIGEST_SIZE) {
+		pr_dbf_msg("Hash length is not supported");
 		return -EINVAL;
 	}
 
