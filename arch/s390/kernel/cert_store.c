@@ -181,6 +181,7 @@ static void pr_dbf_vce(const struct vce *e)
 {
 	unsigned char vc_name[VC_NAME_LEN_BYTES + 1];
 	char log_string[VC_NAME_LEN_BYTES + 40];
+	u32 data_len = 0;
 
 	pr_dbf_msg("VCE Header:");
 	pr_dbf_msg("vce_hdr.vce_length: %d", e->vce_hdr.vce_length);
@@ -206,11 +207,13 @@ static void pr_dbf_vce(const struct vce *e)
 	debug_text_event(cert_store_hexdump, 3, log_string);
 
 	/* Certificate data. */
+	if (e->vce_hdr.vce_length > sizeof(e->vce_hdr))
+		data_len = e->vce_hdr.vce_length - sizeof(e->vce_hdr);
 	debug_text_event(cert_store_hexdump, 3, "VCE: Certificate data start");
-	debug_event(cert_store_hexdump, 3, (u8 *)e->cert_data_buf, 128);
+	debug_event(cert_store_hexdump, 3, (u8 *)e->cert_data_buf, min(data_len, 128U));
 	debug_text_event(cert_store_hexdump, 3, "VCE: Certificate data end");
-	debug_event(cert_store_hexdump, 3,
-		    (u8 *)e->cert_data_buf + e->vce_hdr.vce_length - 128, 128);
+	if (data_len > 128)
+		debug_event(cert_store_hexdump, 3, (u8 *)e + e->vce_hdr.vce_length - 128, 128);
 }
 
 static void pr_dbf_vcssb(const struct vcssb *s)
