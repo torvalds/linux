@@ -401,7 +401,7 @@ static void cleanup_cs_keys(void)
 
 static struct key *create_cs_keyring(void)
 {
-	static struct key *cs_keyring;
+	struct key *cs_keyring;
 
 	/* Cleanup previous cs_keyring and all associated keys if any. */
 	cleanup_cs_keys();
