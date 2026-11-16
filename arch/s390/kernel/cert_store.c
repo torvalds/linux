@@ -225,7 +225,7 @@ static void pr_dbf_vcssb(const struct vcssb *s)
 	pr_dbf_msg("total_vc_index_count: %u", s->total_vc_index_count);
 	pr_dbf_msg("max_vc_index_count: %u", s->max_vc_index_count);
 	pr_dbf_msg("max_vce_length: %u", s->max_vce_length);
-	pr_dbf_msg("max_vcxe_length: %u", s->max_vce_length);
+	pr_dbf_msg("max_vcxe_length: %u", s->max_vcxe_length);
 	pr_dbf_msg("max_single_vcb_length: %u", s->max_single_vcb_length);
 	pr_dbf_msg("total_vcb_length: %u", s->total_vcb_length);
 	pr_dbf_msg("max_single_vcxb_length: %u", s->max_single_vcxb_length);
