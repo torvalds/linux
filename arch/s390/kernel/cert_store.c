@@ -723,6 +723,7 @@ static int fill_cs_keyring(void)
 	if (rc)
 		goto cleanup_cs_keyring;
 
+	key_put(cs_keyring);
 	goto out;
 
 cleanup_cs_keyring:
