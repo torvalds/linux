@@ -629,6 +629,7 @@ static int add_rule_capability(struct landlock_ruleset *const ruleset,
  * - %EAFNOSUPPORT: @rule_type is %LANDLOCK_RULE_NET_PORT but TCP/IP is not
  *   supported by the running kernel;
  * - %EINVAL: @flags is not valid;
+ * - %EINVAL: @rule_type is not valid;
  * - %EINVAL: The rule accesses are inconsistent (i.e.
  *   &landlock_path_beneath_attr.allowed_access or
  *   &landlock_net_port_attr.allowed_access is not a subset of the ruleset
