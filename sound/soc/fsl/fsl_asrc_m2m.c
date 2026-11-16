@@ -470,6 +470,10 @@ static int fsl_asrc_m2m_comp_task_create(struct snd_compr_stream *stream,
 	struct dma_chan *tmp_chan;
 	int ret;
 
+	/* All tasks share the pair and DMA channels: one task at a time */
+	if (pair->dma_chan[IN])
+		return -EBUSY;
+
 	exp_info_in.ops = &fsl_asrc_m2m_dma_buf_ops;
 	exp_info_in.size = ASRC_M2M_BUFFER_SIZE;
 	exp_info_in.flags = O_RDWR;
@@ -526,6 +530,7 @@ static int fsl_asrc_m2m_comp_task_create(struct snd_compr_stream *stream,
 
 err_dma_channel_out:
 	dma_release_channel(pair->dma_chan[IN]);
+	pair->dma_chan[IN] = NULL;
 err_dma_channel_in:
 	if (asrc->m2m_unprepare)
 		asrc->m2m_unprepare(pair);
@@ -570,6 +575,8 @@ static int fsl_asrc_m2m_comp_task_free(struct snd_compr_stream *stream,
 		dma_release_channel(pair->dma_chan[IN]);
 	if (pair->dma_chan[OUT])
 		dma_release_channel(pair->dma_chan[OUT]);
+	pair->dma_chan[IN] = NULL;
+	pair->dma_chan[OUT] = NULL;
 
 	return 0;
 }
