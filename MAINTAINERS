@@ -7585,10 +7585,9 @@ F:	drivers/dma/dw-edma/
 F:	include/linux/dma/edma.h
 
 DESIGNWARE USB2 DRD IP DRIVER
-M:	Minas Harutyunyan <hminas@synopsys.com>
+M:	Thinh Nguyen <Thinh.Nguyen@synopsys.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 F:	drivers/usb/dwc2/
 
 DESIGNWARE USB3 DRD IP DRIVER

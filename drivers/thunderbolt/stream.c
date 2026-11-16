@@ -683,6 +683,12 @@ static int tbstream_dev_start(struct tbstream_dev *sdev)
 err_stop:
 	tb_ring_stop(sdev->rx_ring.ring);
 	tb_ring_stop(sdev->tx_ring.ring);
+	tb_xdomain_disable_paths(xd, sdev->out_hopid,
+				 sdev->tx_ring.ring->hop,
+				 sdev->in_hopid,
+				 sdev->rx_ring.ring->hop);
+	if (sdev->rx_ring.frames)
+		tbstream_ring_free(&sdev->rx_ring);
 err_free_rx:
 	tb_ring_free(sdev->rx_ring.ring);
 err_free_tx_buffers:

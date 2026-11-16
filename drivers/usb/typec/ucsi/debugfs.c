@@ -60,7 +60,8 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_GET_LPM_PPM_INFO:
 		ret = ucsi_send_command(ucsi, val,
 					&ucsi->debugfs->response,
-					sizeof(ucsi->debugfs->response));
+					min(sizeof(ucsi->debugfs->response),
+					    UCSI_MAX_DATA_LENGTH(ucsi)));
 		break;
 	default:
 		ret = -EOPNOTSUPP;

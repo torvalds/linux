@@ -1166,6 +1166,12 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd, struct xhci_bus_state *bus_
 	if (portsc & PORT_RESET)
 		status |= USB_PORT_STAT_RESET;
 
+	/* track connect and link error status when hub is polling */
+	if (!(portsc & PORT_RESET)) {
+		port->link_inactive = (portsc & PORT_PLS_MASK) == XDEV_INACTIVE;
+		port->connected = !!(portsc & PORT_CONNECT);
+	}
+
 	/* USB2 and USB3 specific bits, including Port Link State */
 	if (hcd->speed >= HCD_USB3)
 		xhci_get_usb3_port_status(port, &status, portsc);

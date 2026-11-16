@@ -141,6 +141,7 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 	),
 	TP_fast_assign(
 		__entry->base_address = req->dep->dwc->xhci_resources[0].start;
+		__assign_str(name);
 		__entry->req = req;
 		__entry->actual = req->request.actual;
 		__entry->length = req->request.length;
