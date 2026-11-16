@@ -361,15 +361,18 @@ out:
 
 static struct key *find_cs_keyring(void)
 {
+	struct key *cs_keyring, *us_keyring;
 	key_ref_t cs_keyring_ref;
-	struct key *cs_keyring;
 
-	cs_keyring_ref = keyring_search(make_key_ref(get_user_session_keyring(), true),
-					&key_type_keyring, CERT_STORE_KEYRING_NAME,
-					false);
-	if (!IS_ERR(cs_keyring_ref))
-		return key_ref_to_ptr(cs_keyring_ref);
-
+	us_keyring = get_user_session_keyring();
+	if (!IS_ERR(us_keyring)) {
+		cs_keyring_ref = keyring_search(make_key_ref(us_keyring, true),
+						&key_type_keyring,
+						CERT_STORE_KEYRING_NAME,
+						false);
+		if (!IS_ERR(cs_keyring_ref))
+			return key_ref_to_ptr(cs_keyring_ref);
+	}
 	/* Search default locations: thread, process, session keyrings */
 	cs_keyring = request_key(&key_type_keyring, CERT_STORE_KEYRING_NAME, NULL);
 	if (IS_ERR(cs_keyring))
@@ -379,7 +382,7 @@ static struct key *find_cs_keyring(void)
 
 static void cleanup_cs_keys(void)
 {
-	struct key *cs_keyring;
+	struct key *cs_keyring, *us_keyring;
 
 	cs_keyring = find_cs_keyring();
 	if (!cs_keyring)
@@ -395,21 +398,26 @@ static void cleanup_cs_keys(void)
 
 	keyring_clear(cs_keyring);
 	key_invalidate(cs_keyring);
+	us_keyring = get_user_session_keyring();
+	if (!IS_ERR(us_keyring))
+		key_unlink(us_keyring, cs_keyring);
 	key_put(cs_keyring);
-	key_unlink(get_user_session_keyring(), cs_keyring);
 }
 
 static struct key *create_cs_keyring(void)
 {
-	struct key *cs_keyring;
+	struct key *cs_keyring, *us_keyring;
 
 	/* Cleanup previous cs_keyring and all associated keys if any. */
 	cleanup_cs_keys();
+	us_keyring = get_user_session_keyring();
+	if (IS_ERR(us_keyring))
+		return NULL;
 	cs_keyring = keyring_alloc(CERT_STORE_KEYRING_NAME, GLOBAL_ROOT_UID,
 				   GLOBAL_ROOT_GID, current_cred(),
 				   (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ,
 				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
-				   NULL, get_user_session_keyring());
+				   NULL, us_keyring);
 	if (IS_ERR(cs_keyring)) {
 		pr_dbf_msg("Can't allocate cert_store keyring");
 		return NULL;
