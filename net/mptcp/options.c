@@ -982,6 +982,8 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 				    struct sk_buff *skb,
 				    struct mptcp_options_received *mp_opt)
 {
+	struct sock *sk = (struct sock *)msk;
+
 	/* here we can process OoO, in-window pkts, only in-sequence 4th ack
 	 * will make the subflow fully established
 	 */
@@ -1043,9 +1045,9 @@ set_fully_established:
 	if (mp_opt->deny_join_id0)
 		WRITE_ONCE(msk->pm.remote_deny_join_id0, true);
 
-	mptcp_data_lock((struct sock *)msk);
+	mptcp_data_lock(sk);
 	__mptcp_subflow_fully_established(msk, subflow, mp_opt);
-	mptcp_data_unlock((struct sock *)msk);
+	mptcp_data_unlock(sk);
 
 check_notify:
 	/* if the subflow is not already linked into the conn_list, we can't
