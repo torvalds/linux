@@ -2742,8 +2742,14 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 		imx_uart_writel(sport, ucr1, UCR1);
 	}
 
-	if (wake_active && irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq)))
-		pm_wakeup_event(tty_port_tty_get(port)->dev, 0);
+	if (wake_active && irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq))) {
+		struct tty_struct *tty = tty_port_tty_get(port);
+
+		if (tty) {
+			pm_wakeup_event(tty->dev, 0);
+			tty_kref_put(tty);
+		}
+	}
 
 	uart_port_unlock_irq(&sport->port);
 }

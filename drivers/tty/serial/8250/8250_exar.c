@@ -1181,7 +1181,7 @@ static int xr17v35x_register_gpio(struct exar8250 *priv, struct pci_dev *pcidev,
 
 static void xr17v35x_unregister_gpio(struct exar8250 *priv)
 {
-	if (priv->gpio) {
+	if (!IS_ERR_OR_NULL(priv->gpio)) {
 		__xr17v35x_unregister_gpio(priv->gpio);
 		priv->gpio = NULL;
 	}

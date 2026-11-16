@@ -34,29 +34,6 @@ struct hp300_port {
 static struct hp300_port *hp300_ports;
 #endif
 
-#ifdef CONFIG_HPDCA
-
-static int hpdca_init_one(struct dio_dev *d,
-					const struct dio_device_id *ent);
-static void hpdca_remove_one(struct dio_dev *d);
-
-static struct dio_device_id hpdca_dio_tbl[] = {
-	{ DIO_ID_DCA0 },
-	{ DIO_ID_DCA0REM },
-	{ DIO_ID_DCA1 },
-	{ DIO_ID_DCA1REM },
-	{ 0 }
-};
-
-static struct dio_driver hpdca_driver = {
-	.name      = "hpdca",
-	.id_table  = hpdca_dio_tbl,
-	.probe     = hpdca_init_one,
-	.remove    = hpdca_remove_one,
-};
-
-#endif
-
 static unsigned int num_ports;
 
 extern int hp300_uart_scode;
@@ -197,6 +174,32 @@ static int hpdca_init_one(struct dio_dev *d,
 
 	return 0;
 }
+
+static void hpdca_remove_one(struct dio_dev *d)
+{
+	struct uart_8250_port *uport = dio_get_drvdata(d);
+
+	if (d->resource.start) {
+		/* Disable board-interrupts */
+		out_8(d->resource.start + DIO_VIRADDRBASE + DCA_IC, 0);
+	}
+	serial8250_unregister_port(uport);
+}
+
+static struct dio_device_id hpdca_dio_tbl[] = {
+	{ DIO_ID_DCA0 },
+	{ DIO_ID_DCA0REM },
+	{ DIO_ID_DCA1 },
+	{ DIO_ID_DCA1REM },
+	{ 0 }
+};
+
+static struct dio_driver hpdca_driver = {
+	.name      = "hpdca",
+	.id_table  = hpdca_dio_tbl,
+	.probe     = hpdca_init_one,
+	.remove    = hpdca_remove_one,
+};
 #endif
 
 static int __init hp300_8250_init(void)
@@ -279,19 +282,6 @@ static int __init hp300_8250_init(void)
 
 	return 0;
 }
-
-#ifdef CONFIG_HPDCA
-static void hpdca_remove_one(struct dio_dev *d)
-{
-	struct uart_8250_port *uport = dio_get_drvdata(d);
-
-	if (d->resource.start) {
-		/* Disable board-interrupts */
-		out_8(d->resource.start + DIO_VIRADDRBASE + DCA_IC, 0);
-	}
-	serial8250_unregister_port(uport);
-}
-#endif
 
 static void __exit hp300_8250_exit(void)
 {
