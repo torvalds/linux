@@ -322,7 +322,7 @@ static int qt2160_probe(struct i2c_client *client)
 		return -ENODEV;
 
 	/* Chip is valid and active. Allocate structure */
-	qt2160 = devm_kzalloc(&client->dev, sizeof(*qt2160), GFP_KERNEL);
+	qt2160 = devm_kzalloc_obj(&client->dev, *qt2160);
 	if (!qt2160)
 		return -ENOMEM;
 

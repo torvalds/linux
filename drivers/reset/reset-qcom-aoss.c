@@ -95,7 +95,7 @@ static int qcom_aoss_reset_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

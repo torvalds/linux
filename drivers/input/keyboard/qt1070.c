@@ -148,8 +148,7 @@ static int qt1070_probe(struct i2c_client *client)
 	if (!qt1070_identify(client))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct qt1070_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct qt1070_data);
 	if (!data)
 		return -ENOMEM;
 

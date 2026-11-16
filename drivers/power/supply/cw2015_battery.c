@@ -642,7 +642,7 @@ static int cw_bat_probe(struct i2c_client *client)
 	struct cw_battery *cw_bat;
 	struct power_supply_config psy_cfg = { 0 };
 
-	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
+	cw_bat = devm_kzalloc_obj(&client->dev, *cw_bat);
 	if (!cw_bat)
 		return -ENOMEM;
 
@@ -685,9 +685,8 @@ static int cw_bat_probe(struct i2c_client *client)
 	ret = power_supply_get_battery_info(cw_bat->rk_bat, &cw_bat->battery);
 	if (ret) {
 		/* Allocate an empty battery */
-		cw_bat->battery = devm_kzalloc(&client->dev,
-					       sizeof(*cw_bat->battery),
-					       GFP_KERNEL);
+		cw_bat->battery = devm_kzalloc_obj(&client->dev,
+						   *cw_bat->battery);
 		if (!cw_bat->battery)
 			return -ENOMEM;
 		dev_warn(cw_bat->dev,

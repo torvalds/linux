@@ -220,7 +220,7 @@ static int s32g_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdog;
 	int ret;
 
-	wdev = devm_kzalloc(dev, sizeof(*wdev), GFP_KERNEL);
+	wdev = devm_kzalloc_obj(dev, *wdev);
 	if (!wdev)
 		return -ENOMEM;
 

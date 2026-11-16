@@ -1241,7 +1241,7 @@ static int mhi_pci_get_irqs(struct mhi_controller *mhi_cntrl,
 		mhi_cntrl->nr_irqs = 1;
 	}
 
-	irq = devm_kcalloc(&pdev->dev, mhi_cntrl->nr_irqs, sizeof(int), GFP_KERNEL);
+	irq = devm_kzalloc_objs(&pdev->dev, int, mhi_cntrl->nr_irqs);
 	if (!irq)
 		return -ENOMEM;
 
@@ -1392,7 +1392,7 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "MHI PCI device found: %s\n", info->name);
 
 	/* mhi_pdev.mhi_cntrl must be zero-initialized */
-	mhi_pdev = devm_kzalloc(&pdev->dev, sizeof(*mhi_pdev), GFP_KERNEL);
+	mhi_pdev = devm_kzalloc_obj(&pdev->dev, *mhi_pdev);
 	if (!mhi_pdev)
 		return -ENOMEM;
 

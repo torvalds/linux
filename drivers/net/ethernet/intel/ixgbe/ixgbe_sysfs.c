@@ -159,8 +159,7 @@ int ixgbe_sysfs_init(struct ixgbe_adapter *adapter)
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw))
 		goto exit;
 
-	ixgbe_hwmon = devm_kzalloc(&adapter->pdev->dev, sizeof(*ixgbe_hwmon),
-				   GFP_KERNEL);
+	ixgbe_hwmon = devm_kzalloc_obj(&adapter->pdev->dev, *ixgbe_hwmon);
 	if (ixgbe_hwmon == NULL) {
 		rc = -ENOMEM;
 		goto exit;

@@ -78,7 +78,7 @@ static int bmi323_i2c_probe(struct i2c_client *i2c)
 	struct bmi323_i2c_priv *priv;
 	struct regmap *regmap;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

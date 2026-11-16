@@ -147,7 +147,7 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	otp = devm_kzalloc(dev, sizeof(*otp), GFP_KERNEL);
+	otp = devm_kzalloc_obj(dev, *otp);
 	if (!otp)
 		return -ENOMEM;
 

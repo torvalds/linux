@@ -162,9 +162,8 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 		return -EINVAL;
 
 	if (!keymap) {
-		keymap = devm_kcalloc(input_dev->dev.parent,
-				      max_keys, sizeof(*keymap),
-				      GFP_KERNEL);
+		keymap = devm_kzalloc_objs(input_dev->dev.parent, *keymap,
+					   max_keys);
 		if (!keymap) {
 			dev_err(input_dev->dev.parent,
 				"Unable to allocate memory for keymap");

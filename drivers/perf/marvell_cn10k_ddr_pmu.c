@@ -1216,7 +1216,7 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	ddr_pmu = devm_kzalloc(&pdev->dev, sizeof(*ddr_pmu), GFP_KERNEL);
+	ddr_pmu = devm_kzalloc_obj(&pdev->dev, *ddr_pmu);
 	if (!ddr_pmu)
 		return -ENOMEM;
 

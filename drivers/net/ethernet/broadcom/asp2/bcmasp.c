@@ -1260,7 +1260,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 	int ret = 0, count = 0;
 	unsigned int i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1324,15 +1324,15 @@ static int bcmasp_probe(struct platform_device *pdev)
 	 */
 	bcmasp_core_init(priv);
 
-	priv->mda_filters = devm_kcalloc(dev, priv->num_mda_filters,
-					 sizeof(*priv->mda_filters), GFP_KERNEL);
+	priv->mda_filters = devm_kzalloc_objs(dev, *priv->mda_filters,
+					      priv->num_mda_filters);
 	if (!priv->mda_filters) {
 		ret = -ENOMEM;
 		goto err_clock_disable;
 	}
 
-	priv->net_filters = devm_kcalloc(dev, priv->num_net_filters,
-					 sizeof(*priv->net_filters), GFP_KERNEL);
+	priv->net_filters = devm_kzalloc_objs(dev, *priv->net_filters,
+					      priv->num_net_filters);
 	if (!priv->net_filters) {
 		ret = -ENOMEM;
 		goto err_clock_disable;

@@ -383,7 +383,7 @@ static int ltc3589_probe(struct i2c_client *client)
 	struct ltc3589 *ltc3589;
 	int i, ret;
 
-	ltc3589 = devm_kzalloc(dev, sizeof(*ltc3589), GFP_KERNEL);
+	ltc3589 = devm_kzalloc_obj(dev, *ltc3589);
 	if (!ltc3589)
 		return -ENOMEM;
 

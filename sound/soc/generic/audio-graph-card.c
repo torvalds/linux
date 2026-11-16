@@ -621,7 +621,7 @@ static int graph_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 
 	/* Allocate the private data and the DAI link array */
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

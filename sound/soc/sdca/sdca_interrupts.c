@@ -642,7 +642,7 @@ struct sdca_interrupt_info *devm_sdca_irq_allocate(struct device *sdev,
 	struct sdca_interrupt_info *info;
 	int ret, i;
 
-	info = devm_kzalloc(sdev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(sdev, *info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 

@@ -219,7 +219,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	unsigned long prescaler;
 	int wakeup_irq, ret;
 
-	rtcdev = devm_kzalloc(&pdev->dev, sizeof(struct mpfs_rtc_dev), GFP_KERNEL);
+	rtcdev = devm_kzalloc_obj(&pdev->dev, struct mpfs_rtc_dev);
 	if (!rtcdev)
 		return -ENOMEM;
 

@@ -1217,8 +1217,7 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l24_dai) > ARIZONA_MAX_DAI);
 
-	cs47l24 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l24_priv),
-			       GFP_KERNEL);
+	cs47l24 = devm_kzalloc_obj(&pdev->dev, struct cs47l24_priv);
 	if (!cs47l24)
 		return -ENOMEM;
 

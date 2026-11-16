@@ -209,7 +209,7 @@ static int x2apic_cluster_probe(void)
 		return 0;
 
 	slots = max_t(u32, L1_CACHE_BYTES/sizeof(u32), nr_cpu_ids);
-	x86_cpu_to_logical_apicid = kcalloc(slots, sizeof(u32), GFP_KERNEL);
+	x86_cpu_to_logical_apicid = kzalloc_objs(u32, slots);
 	if (!x86_cpu_to_logical_apicid)
 		return 0;
 

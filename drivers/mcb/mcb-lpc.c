@@ -25,7 +25,7 @@ static int mcb_lpc_probe(struct platform_device *pdev)
 	struct priv *priv;
 	int ret = 0, table_size;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

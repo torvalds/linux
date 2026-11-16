@@ -474,8 +474,7 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	struct sspa_priv *sspa;
 	int ret;
 
-	sspa = devm_kzalloc(&pdev->dev,
-				sizeof(struct sspa_priv), GFP_KERNEL);
+	sspa = devm_kzalloc_obj(&pdev->dev, struct sspa_priv);
 	if (!sspa)
 		return -ENOMEM;
 

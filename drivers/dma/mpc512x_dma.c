@@ -907,7 +907,7 @@ static int mpc_dma_probe(struct platform_device *op)
 	int retval, i;
 	u8 chancnt;
 
-	mdma = devm_kzalloc(dev, sizeof(struct mpc_dma), GFP_KERNEL);
+	mdma = devm_kzalloc_obj(dev, struct mpc_dma);
 	if (!mdma) {
 		retval = -ENOMEM;
 		goto err;

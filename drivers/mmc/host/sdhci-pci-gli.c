@@ -1797,7 +1797,7 @@ static int gl9763e_add_host(struct sdhci_pci_slot *slot)
 	if (ret)
 		return ret;
 
-	cq_host = devm_kzalloc(dev, sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(dev, *cq_host);
 	if (!cq_host) {
 		ret = -ENOMEM;
 		goto cleanup;

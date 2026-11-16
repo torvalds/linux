@@ -199,7 +199,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	u32 vals[3];
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1138,7 +1138,7 @@ static int lan966x_probe(struct platform_device *pdev)
 	u8 mac_addr[ETH_ALEN];
 	int err;
 
-	lan966x = devm_kzalloc(&pdev->dev, sizeof(*lan966x), GFP_KERNEL);
+	lan966x = devm_kzalloc_obj(&pdev->dev, *lan966x);
 	if (!lan966x)
 		return -ENOMEM;
 
@@ -1167,9 +1167,8 @@ static int lan966x_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, err, "Reset failed");
 
 	lan966x->num_phys_ports = NUM_PHYS_PORTS;
-	lan966x->ports = devm_kcalloc(&pdev->dev, lan966x->num_phys_ports,
-				      sizeof(struct lan966x_port *),
-				      GFP_KERNEL);
+	lan966x->ports = devm_kzalloc_objs(&pdev->dev, struct lan966x_port *,
+					   lan966x->num_phys_ports);
 	if (!lan966x->ports)
 		return -ENOMEM;
 

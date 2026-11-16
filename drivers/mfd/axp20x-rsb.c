@@ -27,7 +27,7 @@ static int axp20x_rsb_probe(struct sunxi_rsb_device *rdev)
 	struct axp20x_dev *axp20x;
 	int ret;
 
-	axp20x = devm_kzalloc(&rdev->dev, sizeof(*axp20x), GFP_KERNEL);
+	axp20x = devm_kzalloc_obj(&rdev->dev, *axp20x);
 	if (!axp20x)
 		return -ENOMEM;
 

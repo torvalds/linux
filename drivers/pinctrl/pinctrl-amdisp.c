@@ -178,7 +178,7 @@ static int amdisp_pinctrl_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

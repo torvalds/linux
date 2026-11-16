@@ -56,7 +56,7 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 	unsigned int val, reg = 0;
 	int error;
 
-	onkey = devm_kzalloc(dev, sizeof(*onkey), GFP_KERNEL);
+	onkey = devm_kzalloc_obj(dev, *onkey);
 	if (!onkey)
 		return -ENOMEM;
 

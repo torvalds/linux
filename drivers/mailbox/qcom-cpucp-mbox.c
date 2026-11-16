@@ -148,11 +148,11 @@ static int qcom_cpucp_mbox_probe(struct platform_device *pdev)
 	if (!data)
 		return dev_err_probe(dev, -EINVAL, "No match data found\n");
 
-	cpucp = devm_kzalloc(dev, sizeof(*cpucp), GFP_KERNEL);
+	cpucp = devm_kzalloc_obj(dev, *cpucp);
 	if (!cpucp)
 		return -ENOMEM;
 
-	cpucp->chans = devm_kcalloc(dev, data->num_chans, sizeof(*cpucp->chans), GFP_KERNEL);
+	cpucp->chans = devm_kzalloc_objs(dev, *cpucp->chans, data->num_chans);
 	if (!cpucp->chans)
 		return -ENOMEM;
 

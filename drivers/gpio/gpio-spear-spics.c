@@ -111,7 +111,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_spics *spics;
 
-	spics = devm_kzalloc(&pdev->dev, sizeof(*spics), GFP_KERNEL);
+	spics = devm_kzalloc_obj(&pdev->dev, *spics);
 	if (!spics)
 		return -ENOMEM;
 

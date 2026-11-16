@@ -243,7 +243,7 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	init_nec_8048_wvga_lcd(spi);
 
-	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&spi->dev, *ddata);
 	if (ddata == NULL)
 		return -ENOMEM;
 

@@ -66,7 +66,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	struct i2c_versatile *i2c;
 	int ret;
 
-	i2c = devm_kzalloc(&dev->dev, sizeof(struct i2c_versatile), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&dev->dev, struct i2c_versatile);
 	if (!i2c)
 		return -ENOMEM;
 

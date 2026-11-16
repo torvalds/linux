@@ -545,7 +545,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

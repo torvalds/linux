@@ -1362,7 +1362,7 @@ static int imx335_probe(struct i2c_client *client)
 	struct imx335 *imx335;
 	int ret;
 
-	imx335 = devm_kzalloc(&client->dev, sizeof(*imx335), GFP_KERNEL);
+	imx335 = devm_kzalloc_obj(&client->dev, *imx335);
 	if (!imx335)
 		return -ENOMEM;
 

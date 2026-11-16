@@ -44,7 +44,7 @@ static int axs10x_reset_probe(struct platform_device *pdev)
 {
 	struct axs10x_rst *rst;
 
-	rst = devm_kzalloc(&pdev->dev, sizeof(*rst), GFP_KERNEL);
+	rst = devm_kzalloc_obj(&pdev->dev, *rst);
 	if (!rst)
 		return -ENOMEM;
 

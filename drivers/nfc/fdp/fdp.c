@@ -707,7 +707,7 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, const struct nfc_phy_ops *phy_ops,
 	u32 protocols;
 	int r;
 
-	info = devm_kzalloc(dev, sizeof(struct fdp_nci_info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, struct fdp_nci_info);
 	if (!info)
 		return -ENOMEM;
 

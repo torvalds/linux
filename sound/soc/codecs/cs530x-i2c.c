@@ -55,7 +55,7 @@ static int cs530x_i2c_probe(struct i2c_client *client)
 {
 	struct cs530x_priv *cs530x;
 
-	cs530x = devm_kzalloc(&client->dev, sizeof(*cs530x), GFP_KERNEL);
+	cs530x = devm_kzalloc_obj(&client->dev, *cs530x);
 	if (!cs530x)
 		return -ENOMEM;
 

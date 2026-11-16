@@ -1246,7 +1246,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	if (pci_is_bridge(pdev))
 		return -ENODEV;
 
-	test = devm_kzalloc(dev, sizeof(*test), GFP_KERNEL);
+	test = devm_kzalloc_obj(dev, *test);
 	if (!test)
 		return -ENOMEM;
 

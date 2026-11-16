@@ -266,7 +266,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	int irq_base;
 	int err;
 
-	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(&pdev->dev, *port);
 	if (!port)
 		return -ENOMEM;
 

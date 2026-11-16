@@ -584,7 +584,7 @@ int vsp1_vspx_init(struct vsp1_device *vsp1)
 	struct vsp1_vspx_pipeline *vspx_pipe;
 	struct vsp1_pipeline *pipe;
 
-	vsp1->vspx = devm_kzalloc(vsp1->dev, sizeof(*vsp1->vspx), GFP_KERNEL);
+	vsp1->vspx = devm_kzalloc_obj(vsp1->dev, *vsp1->vspx);
 	if (!vsp1->vspx)
 		return -ENOMEM;
 

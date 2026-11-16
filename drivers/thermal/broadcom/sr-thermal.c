@@ -55,7 +55,7 @@ static int sr_thermal_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	sr_thermal = devm_kzalloc(dev, sizeof(*sr_thermal), GFP_KERNEL);
+	sr_thermal = devm_kzalloc_obj(dev, *sr_thermal);
 	if (!sr_thermal)
 		return -ENOMEM;
 

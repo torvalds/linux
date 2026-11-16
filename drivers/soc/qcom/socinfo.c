@@ -908,7 +908,7 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 		return PTR_ERR(info);
 	}
 
-	qs = devm_kzalloc(&pdev->dev, sizeof(*qs), GFP_KERNEL);
+	qs = devm_kzalloc_obj(&pdev->dev, *qs);
 	if (!qs)
 		return -ENOMEM;
 

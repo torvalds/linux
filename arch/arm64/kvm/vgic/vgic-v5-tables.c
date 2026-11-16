@@ -198,8 +198,7 @@ static int vgic_v5_alloc_vmt_two_level(unsigned int num_entries)
 		return -ENOMEM;
 
 	vmt_info->l2.l2ptrs = kzalloc_objs(*vmt_info->l2.l2ptrs,
-					   vmt_info->l2.num_l1_ents,
-					   GFP_KERNEL);
+					   vmt_info->l2.num_l1_ents);
 	if (!vmt_info->l2.l2ptrs) {
 		kfree(vmt_info->l2.vmt_base);
 		return -ENOMEM;
@@ -296,7 +295,7 @@ int vgic_v5_vmt_allocate(unsigned int max_vpes)
 	int ret;
 
 	/* Allocate the tracking structure */
-	vmt_info = kzalloc_obj(*vmt_info, GFP_KERNEL);
+	vmt_info = kzalloc_obj(*vmt_info);
 	if (!vmt_info)
 		return -ENOMEM;
 
@@ -1598,7 +1597,7 @@ static int vgic_v5_track_pending_irq(struct list_head *pending_irqs, u32 intid,
 {
 	struct vgic_v5_pending_irq *pirq;
 
-	pirq = kzalloc_obj(*pirq, GFP_KERNEL);
+	pirq = kzalloc_obj(*pirq);
 	if (!pirq)
 		return -ENOMEM;
 

@@ -706,7 +706,7 @@ static int mpam_ris_create_locked(struct mpam_msc *msc, u8 ris_idx,
 	if (test_and_set_bit(ris_idx, &msc->ris_idxs))
 		return -EBUSY;
 
-	ris = devm_kzalloc(&msc->pdev->dev, sizeof(*ris), GFP_KERNEL);
+	ris = devm_kzalloc_obj(&msc->pdev->dev, *ris);
 	if (!ris)
 		return -ENOMEM;
 	init_garbage(&ris->garbage);
@@ -2450,7 +2450,7 @@ static struct mpam_msc *do_mpam_msc_drv_probe(struct platform_device *pdev)
 
 	lockdep_assert_held(&mpam_list_lock);
 
-	msc = devm_kzalloc(&pdev->dev, sizeof(*msc), GFP_KERNEL);
+	msc = devm_kzalloc_obj(&pdev->dev, *msc);
 	if (!msc)
 		return ERR_PTR(-ENOMEM);
 	init_garbage(&msc->garbage);

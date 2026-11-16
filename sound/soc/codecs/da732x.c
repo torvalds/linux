@@ -1529,8 +1529,7 @@ static int da732x_i2c_probe(struct i2c_client *i2c)
 	unsigned int reg;
 	int ret;
 
-	da732x = devm_kzalloc(&i2c->dev, sizeof(struct da732x_priv),
-			      GFP_KERNEL);
+	da732x = devm_kzalloc_obj(&i2c->dev, struct da732x_priv);
 	if (!da732x)
 		return -ENOMEM;
 

@@ -173,7 +173,7 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 
 		of_node_put(np);
 
-		vm = devm_kzalloc(dev, sizeof(*ctx->vm), GFP_KERNEL);
+		vm = devm_kzalloc_obj(dev, *ctx->vm);
 		if (!vm)
 			return -ENOMEM;
 
@@ -227,7 +227,7 @@ struct drm_encoder *exynos_dpi_probe(struct device *dev)
 	struct exynos_dpi *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

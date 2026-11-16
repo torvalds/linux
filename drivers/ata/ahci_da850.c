@@ -178,7 +178,7 @@ static int ahci_da850_probe(struct platform_device *pdev)
 	 * getting procedure with the explicitly specified ids.
 	 */
 	if (hpriv->n_clks < 2) {
-		hpriv->clks = devm_kcalloc(dev, 2, sizeof(*hpriv->clks), GFP_KERNEL);
+		hpriv->clks = devm_kzalloc_objs(dev, *hpriv->clks, 2);
 		if (!hpriv->clks)
 			return -ENOMEM;
 

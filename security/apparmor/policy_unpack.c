@@ -785,7 +785,7 @@ static int unpack_tagsets(struct aa_ext *e, struct aa_tags_struct *tags)
 
 	if (!aa_unpack_array(e, "sets", &size))
 		goto fail_reset;
-	sets = kcalloc(size, sizeof(u32), GFP_KERNEL);
+	sets = kzalloc_objs(u32, size);
 	if (!sets) {
 		error = -ENOMEM;
 		goto fail_reset;

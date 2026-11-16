@@ -3135,9 +3135,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	msdc_init_hw(host);
 
 	if (mmc->caps2 & MMC_CAP2_CQE) {
-		host->cq_host = devm_kzalloc(mmc->parent,
-					     sizeof(*host->cq_host),
-					     GFP_KERNEL);
+		host->cq_host = devm_kzalloc_obj(mmc->parent, *host->cq_host);
 		if (!host->cq_host) {
 			ret = -ENOMEM;
 			goto release;
@@ -3156,7 +3154,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		msdc_cqe_cit_cal(host, 2350);
 	} else if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
 		/* Use HSQ on eMMC/SD (but not on SDIO) if HW CQE not supported */
-		struct mmc_hsq *hsq = devm_kzalloc(&pdev->dev, sizeof(*hsq), GFP_KERNEL);
+		struct mmc_hsq *hsq = devm_kzalloc_obj(&pdev->dev, *hsq);
 		if (!hsq) {
 			ret = -ENOMEM;
 			goto release;

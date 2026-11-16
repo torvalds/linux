@@ -784,8 +784,7 @@ static int atlantis_prcm_clocks_register(struct device *dev,
 	struct clk_hw_onecell_data *clk_data;
 	int i, ret;
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, data->num),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, data->num);
 	if (!clk_data)
 		return -ENOMEM;
 

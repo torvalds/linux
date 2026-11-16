@@ -477,7 +477,7 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 		/* The bitmap size is only the size of the map part without
 		 * its mask part.
 		 */
-		saved_bitmap = kcalloc(nwords, sizeof(u32), GFP_KERNEL);
+		saved_bitmap = kzalloc_objs(u32, nwords);
 		if (!saved_bitmap)
 			return -ENOMEM;
 		memcpy(saved_bitmap, bitmap, nbytes);
@@ -750,7 +750,7 @@ int ethnl_bitset_size(const unsigned long *val, const unsigned long *mask,
 	if (nbits > ETHNL_SMALL_BITMAP_BITS) {
 		unsigned int nwords = DIV_ROUND_UP(nbits, 32);
 
-		val32 = kmalloc_array(2 * nwords, sizeof(u32), GFP_KERNEL);
+		val32 = kmalloc_objs(u32, 2 * nwords);
 		if (!val32)
 			return -ENOMEM;
 		mask32 = val32 + nwords;
@@ -786,7 +786,7 @@ int ethnl_put_bitset(struct sk_buff *skb, int attrtype,
 	if (nbits > ETHNL_SMALL_BITMAP_BITS) {
 		unsigned int nwords = DIV_ROUND_UP(nbits, 32);
 
-		val32 = kmalloc_array(2 * nwords, sizeof(u32), GFP_KERNEL);
+		val32 = kmalloc_objs(u32, 2 * nwords);
 		if (!val32)
 			return -ENOMEM;
 		mask32 = val32 + nwords;
@@ -821,7 +821,7 @@ int ethnl_update_bitset(unsigned long *bitmap, unsigned int nbits,
 	if (nbits > ETHNL_SMALL_BITMAP_BITS) {
 		unsigned int dst_words = DIV_ROUND_UP(nbits, 32);
 
-		bitmap32 = kmalloc_array(dst_words, sizeof(u32), GFP_KERNEL);
+		bitmap32 = kmalloc_objs(u32, dst_words);
 		if (!bitmap32)
 			return -ENOMEM;
 	}

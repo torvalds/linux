@@ -171,7 +171,7 @@ int mdio_mux_init(struct device *dev,
 		get_device(&parent_bus->dev);
 	}
 
-	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
+	pb = devm_kzalloc_obj(dev, *pb);
 	if (!pb) {
 		ret_val = -ENOMEM;
 		goto err_pb_kz;
@@ -195,7 +195,7 @@ int mdio_mux_init(struct device *dev,
 			continue;
 		}
 
-		cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
+		cb = devm_kzalloc_obj(dev, *cb);
 		if (!cb) {
 			ret_val = -ENOMEM;
 			goto err_loop;

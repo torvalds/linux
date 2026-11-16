@@ -246,7 +246,7 @@ static int s32g_pcie_parse_port(struct s32g_pcie *s32g_pp, struct device_node *n
 	struct s32g_pcie_port *port;
 	int num_lanes;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 
@@ -324,7 +324,7 @@ static int s32g_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie_rp *pp;
 	int ret;
 
-	s32g_pp = devm_kzalloc(dev, sizeof(*s32g_pp), GFP_KERNEL);
+	s32g_pp = devm_kzalloc_obj(dev, *s32g_pp);
 	if (!s32g_pp)
 		return -ENOMEM;
 

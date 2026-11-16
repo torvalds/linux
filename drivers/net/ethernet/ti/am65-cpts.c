@@ -176,6 +176,9 @@ struct am65_cpts {
 	struct mutex ptp_clk_lock; /* PHC access sync */
 	u64 timestamp;
 	u32 genf_enable;
+	bool genf_neg_adj;
+	u32 genf_ppm_hi;
+	u32 genf_ppm_low;
 	u32 hw_ts_enable;
 	u32 estf_enable;
 	struct sk_buff_head txq;
@@ -436,9 +439,11 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct am65_cpts *cpts = container_of(ptp, struct am65_cpts, ptp_info);
 	u32 estf_ctrl_val = 0, estf_ppm_hi = 0, estf_ppm_low = 0;
+	u32 genf_ctrl_val[AM65_CPTS_GENF_MAX_NUM];
+	u32 genf_ppm_hi, genf_ppm_low;
 	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	int pps_index = cpts->pps_genf_idx;
-	u64 adj_period, pps_adj_period;
+	u64 adj_period, genf_adj_period;
 	u32 ctrl_val, ppm_hi, ppm_low;
 	unsigned long flags;
 	int neg_adj = 0, i;
@@ -470,20 +475,33 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	ppm_hi = upper_32_bits(adj_period) & 0x3FF;
 	ppm_low = lower_32_bits(adj_period);
 
-	if (cpts->pps_enabled) {
-		estf_ctrl_val = am65_cpts_read32(cpts, genf[pps_index].control);
-		if (neg_adj)
-			estf_ctrl_val &= ~BIT(1);
-		else
-			estf_ctrl_val |= BIT(1);
+	/* GenF PPM will do correction using cpts refclk tick which is
+	 * (cpts->ts_add_val + 1) ns, so GenF length PPM adj period
+	 * need to be corrected.
+	 */
+	genf_adj_period = adj_period * (cpts->ts_add_val + 1);
+	genf_ppm_hi = upper_32_bits(genf_adj_period) & 0x3FF;
+	genf_ppm_low = lower_32_bits(genf_adj_period);
+	cpts->genf_neg_adj = neg_adj;
+	cpts->genf_ppm_hi = genf_ppm_hi;
+	cpts->genf_ppm_low = genf_ppm_low;
 
-		/* GenF PPM will do correction using cpts refclk tick which is
-		 * (cpts->ts_add_val + 1) ns, so GenF length PPM adj period
-		 * need to be corrected.
-		 */
-		pps_adj_period = adj_period * (cpts->ts_add_val + 1);
-		estf_ppm_hi = upper_32_bits(pps_adj_period) & 0x3FF;
-		estf_ppm_low = lower_32_bits(pps_adj_period);
+	for (i = 0; i < AM65_CPTS_GENF_MAX_NUM; i++) {
+		if (cpts->genf_enable & BIT(i)) {
+			genf_ctrl_val[i] = am65_cpts_read32(cpts,
+							    genf[i].control);
+			if (neg_adj)
+				genf_ctrl_val[i] &= ~BIT(1);
+			else
+				genf_ctrl_val[i] |= BIT(1);
+		}
+	}
+
+	if (cpts->pps_enabled) {
+		/* am65_cpts_perout_enable_hw() sets pps_index in genf_enable */
+		estf_ctrl_val = genf_ctrl_val[pps_index];
+		estf_ppm_hi = genf_ppm_hi;
+		estf_ppm_low = genf_ppm_low;
 	}
 
 	spin_lock_irqsave(&cpts->lock, flags);
@@ -500,10 +518,13 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	am65_cpts_write32(cpts, ppm_hi, ts_ppm_hi);
 	am65_cpts_write32(cpts, ppm_low, ts_ppm_low);
 
-	if (cpts->pps_enabled) {
-		am65_cpts_write32(cpts, estf_ctrl_val, genf[pps_index].control);
-		am65_cpts_write32(cpts, estf_ppm_hi, genf[pps_index].ppm_hi);
-		am65_cpts_write32(cpts, estf_ppm_low, genf[pps_index].ppm_low);
+	for (i = 0; i < AM65_CPTS_GENF_MAX_NUM; i++) {
+		if (cpts->genf_enable & BIT(i)) {
+			am65_cpts_write32(cpts, genf_ctrl_val[i],
+					  genf[i].control);
+			am65_cpts_write32(cpts, genf_ppm_hi, genf[i].ppm_hi);
+			am65_cpts_write32(cpts, genf_ppm_low, genf[i].ppm_low);
+		}
 	}
 
 	for (i = 0; i < AM65_CPTS_ESTF_MAX_NUM; i++) {
@@ -513,7 +534,6 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 			am65_cpts_write32(cpts, estf_ppm_low, estf[i].ppm_low);
 		}
 	}
-	/* All GenF/EstF can be updated here the same way */
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
 	mutex_unlock(&cpts->ptp_clk_lock);
@@ -679,9 +699,12 @@ static void am65_cpts_perout_enable_hw(struct am65_cpts *cpts,
 		val = lower_32_bits(cycles);
 		am65_cpts_write32(cpts, val, genf[req->index].length);
 
-		am65_cpts_write32(cpts, 0, genf[req->index].control);
-		am65_cpts_write32(cpts, 0, genf[req->index].ppm_hi);
-		am65_cpts_write32(cpts, 0, genf[req->index].ppm_low);
+		am65_cpts_write32(cpts, cpts->genf_neg_adj ? 0 : BIT(1),
+				  genf[req->index].control);
+		am65_cpts_write32(cpts, cpts->genf_ppm_hi,
+				  genf[req->index].ppm_hi);
+		am65_cpts_write32(cpts, cpts->genf_ppm_low,
+				  genf[req->index].ppm_low);
 
 		cpts->genf_enable |= BIT(req->index);
 	} else {
@@ -788,6 +811,28 @@ static struct ptp_clock_info am65_ptp_info = {
 	.do_aux_work	= am65_cpts_ts_work,
 };
 
+/* The CPTS decodes the message type of an event using the PTPv2 header
+ * layout. For PTPv1 that nibble is part of versionPTP and always reads 0,
+ * while am65_skb_get_mtype_seqid() takes the message type from the PTPv1
+ * control field. For PTPv1 take the message type from the skb, but keep
+ * the event type, port number and sequence id of the event so that an
+ * event only matches a packet of the same direction on the same port.
+ */
+static u32 am65_cpts_event_mtype_seqid(struct am65_cpts_event *event,
+				       u32 skb_mtype_seqid,
+				       unsigned int ptp_class)
+{
+	u32 mtype_seqid = event->event1;
+
+	if (ptp_class & PTP_CLASS_V1) {
+		mtype_seqid &= ~AM65_CPTS_EVENT_1_MESSAGE_TYPE_MASK;
+		mtype_seqid |= skb_mtype_seqid &
+			       AM65_CPTS_EVENT_1_MESSAGE_TYPE_MASK;
+	}
+
+	return mtype_seqid;
+}
+
 static bool am65_cpts_match_tx_ts(struct am65_cpts *cpts,
 				  struct am65_cpts_event *event)
 {
@@ -797,7 +842,6 @@ static bool am65_cpts_match_tx_ts(struct am65_cpts *cpts,
 	bool found = false;
 	u32 mtype_seqid;
 
-	mtype_seqid = event->event1;
 	__skb_queue_head_init(&txq_list);
 
 	spin_lock_irqsave(&cpts->txq.lock, flags);
@@ -810,11 +854,9 @@ static bool am65_cpts_match_tx_ts(struct am65_cpts *cpts,
 		struct am65_cpts_skb_cb_data *skb_cb =
 					(struct am65_cpts_skb_cb_data *)skb->cb;
 
-		if ((ptp_classify_raw(skb) & PTP_CLASS_V1) &&
-		    ((mtype_seqid & AM65_CPTS_EVENT_1_SEQUENCE_ID_MASK) ==
-		     (skb_cb->skb_mtype_seqid & AM65_CPTS_EVENT_1_SEQUENCE_ID_MASK)))
-			mtype_seqid = skb_cb->skb_mtype_seqid;
-
+		mtype_seqid = am65_cpts_event_mtype_seqid(event,
+							  skb_cb->skb_mtype_seqid,
+							  ptp_classify_raw(skb));
 		if (mtype_seqid == skb_cb->skb_mtype_seqid) {
 			u64 ns = event->timestamp;
 
@@ -1154,7 +1196,7 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 	struct am65_cpts *cpts;
 	int ret, i;
 
-	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
+	cpts = devm_kzalloc_obj(dev, *cpts);
 	if (!cpts)
 		return ERR_PTR(-ENOMEM);
 

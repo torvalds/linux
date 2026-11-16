@@ -573,8 +573,12 @@ static void update_syscall_orig_x0_after_ptrace(struct task_struct *target)
 	if (regs->syscallno == NO_SYSCALL)
 		return;
 
-	/* We should only be called when target is in a ptrace stop */
-	if (WARN_ON_ONCE(!info))
+	/*
+	 * For exit-stops, info is always non-NULL, but that's not true for other
+	 * stops such as non-seized group-stops. In those cases, just return early
+	 * as there's no need to update orig_x0 anyway.
+	 */
+	if (!info)
 		return;
 
 	/*

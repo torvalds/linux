@@ -1814,7 +1814,7 @@ static int at91udc_probe(struct platform_device *pdev)
 	struct at91_ep	*ep;
 	int		i;
 
-	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 

@@ -985,7 +985,7 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 		ili210x_hardware_reset(reset_gpio);
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

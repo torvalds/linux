@@ -326,7 +326,7 @@ static int yoga_fan_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	cfg = dmi_id->driver_data;
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

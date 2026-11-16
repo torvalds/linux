@@ -706,9 +706,7 @@ mt76u_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 		return err;
 
 	spin_lock_init(&q->lock);
-	q->entry = devm_kcalloc(dev->dev,
-				MT_NUM_RX_ENTRIES, sizeof(*q->entry),
-				GFP_KERNEL);
+	q->entry = devm_kzalloc_objs(dev->dev, *q->entry, MT_NUM_RX_ENTRIES);
 	if (!q->entry)
 		return -ENOMEM;
 
@@ -1013,7 +1011,7 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 		struct mt76_queue *q;
 		int j, err;
 
-		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
+		q = devm_kzalloc_obj(dev->dev, *q);
 		if (!q)
 			return -ENOMEM;
 
@@ -1021,9 +1019,8 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 		mt76u_ac_to_hwq(dev, q, i);
 		dev->phy.q_tx[i] = q;
 
-		q->entry = devm_kcalloc(dev->dev,
-					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
-					GFP_KERNEL);
+		q->entry = devm_kzalloc_objs(dev->dev, *q->entry,
+					     MT_NUM_TX_ENTRIES);
 		if (!q->entry)
 			return -ENOMEM;
 

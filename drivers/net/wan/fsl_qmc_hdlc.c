@@ -712,7 +712,7 @@ static int qmc_hdlc_probe(struct platform_device *pdev)
 	hdlc_device *hdlc;
 	int ret;
 
-	qmc_hdlc = devm_kzalloc(dev, sizeof(*qmc_hdlc), GFP_KERNEL);
+	qmc_hdlc = devm_kzalloc_obj(dev, *qmc_hdlc);
 	if (!qmc_hdlc)
 		return -ENOMEM;
 

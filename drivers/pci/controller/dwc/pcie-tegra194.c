@@ -2150,7 +2150,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(dev);
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 
@@ -2232,7 +2232,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 		return PTR_ERR(pcie->core_apb_rst);
 	}
 
-	phys = devm_kcalloc(dev, pcie->phy_count, sizeof(*phys), GFP_KERNEL);
+	phys = devm_kzalloc_objs(dev, *phys, pcie->phy_count);
 	if (!phys)
 		return -ENOMEM;
 

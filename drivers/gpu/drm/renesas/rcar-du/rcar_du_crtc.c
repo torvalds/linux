@@ -917,7 +917,7 @@ static void rcar_du_crtc_crc_init(struct rcar_du_crtc *rcrtc)
 	/* Reserve 1 for "auto" source. */
 	count = rcrtc->vsp->num_planes + 1;
 
-	sources = kmalloc_array(count, sizeof(*sources), GFP_KERNEL);
+	sources = kmalloc_objs(*sources, count);
 	if (!sources)
 		return;
 

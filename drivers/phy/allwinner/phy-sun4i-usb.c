@@ -724,7 +724,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	int i, ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

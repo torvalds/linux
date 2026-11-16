@@ -66,6 +66,13 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* Lenovo Legion 5 15AGP11 (ACP 7.0) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83Q6"),
+		},
+	},
+	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK COMPUTER INC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FA401EA"),
@@ -99,10 +106,52 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* HP Cashmere-A */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8EF5"),
+		},
+	},
+	{
+		/* HP Sundae */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8F6D"),
+		},
+	},
+	{
+		/* HP SundaeWhip UMA */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8FA4"),
+		},
+	},
+	{
+		/* HP SundaeWhip DSC */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "8FA5"),
+		},
+	},
+	{
+		/* HP Kata-A */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+			DMI_MATCH(DMI_BOARD_NAME, "9056"),
+		},
+	},
+	{
 		/* Dell 14S DS14265 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Dell 14S DS14265"),
+		},
+	},
+	{
+		/* LG gram 16 16Z95U (ACP 7.2) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "16Z95U"),
 		},
 	},
 	{}
@@ -196,6 +245,20 @@ static const struct config_entry config_table[] = {
 				.matches = {
 					DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
 					DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BOM-WXX9"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1010"),
+				},
+			},
+			{}
+		},
+	},
+	{
+		.flags = FLAG_AMD_LEGACY,
+		.device = ACP_PCI_DEV_ID,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.matches = {
+					DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "NBM-WXX9"),
 					DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1010"),
 				},
 			},

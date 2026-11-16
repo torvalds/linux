@@ -321,8 +321,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	struct device_node *platform_node, *codec_node, *codec_node_bt_mrg;
 	struct device *dev = &pdev->dev;
 	struct mt2701_cs42448_private *priv =
-		devm_kzalloc(dev, sizeof(struct mt2701_cs42448_private),
-			     GFP_KERNEL);
+		devm_kzalloc_obj(dev, struct mt2701_cs42448_private);
 	struct snd_soc_dai_link *dai_link;
 
 	if (!priv)

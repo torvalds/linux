@@ -1759,7 +1759,7 @@ static int pci_fintek_f815xxa_setup(struct serial_private *priv,
 	struct pci_dev *pdev = priv->dev;
 	struct f815xxa_data *data;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -144,7 +144,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	if (!of_property_present(np, "fsl,usbmisc"))
 		return NULL;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -389,7 +389,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 	imx_platform_flag = of_device_get_match_data(&pdev->dev);
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

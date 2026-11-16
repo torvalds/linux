@@ -613,7 +613,7 @@ int t7xx_fsm_init(struct t7xx_modem *md)
 	struct device *dev = &md->t7xx_dev->pdev->dev;
 	struct t7xx_fsm_ctl *ctl;
 
-	ctl = devm_kzalloc(dev, sizeof(*ctl), GFP_KERNEL);
+	ctl = devm_kzalloc_obj(dev, *ctl);
 	if (!ctl)
 		return -ENOMEM;
 

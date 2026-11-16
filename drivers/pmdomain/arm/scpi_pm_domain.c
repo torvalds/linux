@@ -93,15 +93,15 @@ static int scpi_pm_domain_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	scpi_pd = devm_kcalloc(dev, num_domains, sizeof(*scpi_pd), GFP_KERNEL);
+	scpi_pd = devm_kzalloc_objs(dev, *scpi_pd, num_domains);
 	if (!scpi_pd)
 		return -ENOMEM;
 
-	scpi_pd_data = devm_kzalloc(dev, sizeof(*scpi_pd_data), GFP_KERNEL);
+	scpi_pd_data = devm_kzalloc_obj(dev, *scpi_pd_data);
 	if (!scpi_pd_data)
 		return -ENOMEM;
 
-	domains = devm_kcalloc(dev, num_domains, sizeof(*domains), GFP_KERNEL);
+	domains = devm_kzalloc_objs(dev, *domains, num_domains);
 	if (!domains)
 		return -ENOMEM;
 

@@ -282,7 +282,7 @@ static int ep93xx_setup_irqs(struct platform_device *pdev,
 		return PTR_ERR(intr);
 
 	gc->set_config = ep93xx_gpio_set_config;
-	egc->eic = devm_kzalloc(dev, sizeof(*egc->eic), GFP_KERNEL);
+	egc->eic = devm_kzalloc_obj(dev, *egc->eic);
 	if (!egc->eic)
 		return -ENOMEM;
 
@@ -292,8 +292,8 @@ static int ep93xx_setup_irqs(struct platform_device *pdev,
 	if (girq->num_parents == 0)
 		return -EINVAL;
 
-	girq->parents = devm_kcalloc(dev, girq->num_parents, sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(dev, *girq->parents,
+					  girq->num_parents);
 	if (!girq->parents)
 		return -ENOMEM;
 
@@ -337,7 +337,7 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 	void __iomem *dir;
 	int ret;
 
-	egc = devm_kzalloc(&pdev->dev, sizeof(*egc), GFP_KERNEL);
+	egc = devm_kzalloc_obj(&pdev->dev, *egc);
 	if (!egc)
 		return -ENOMEM;
 

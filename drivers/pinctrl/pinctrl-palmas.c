@@ -999,7 +999,7 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 					"ti,palmas-enable-dvfs2");
 	}
 
-	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(&pdev->dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

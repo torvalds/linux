@@ -857,7 +857,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata = devm_kzalloc(&pdev->dev, struct_size(pdata, regulator_data, num), GFP_KERNEL);
+	pdata = devm_kzalloc_flex(&pdev->dev, *pdata, regulator_data, num);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -930,8 +930,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		n_regulators--;    /* remove BMEM_BIO_MERGED */
 
 	/* Allocate memory required by usable regulators */
-	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators,
-				  regulator, n_regulators), GFP_KERNEL);
+	regulators = devm_kzalloc_flex(&pdev->dev, *regulators, regulator,
+				       n_regulators);
 	if (!regulators)
 		return -ENOMEM;
 

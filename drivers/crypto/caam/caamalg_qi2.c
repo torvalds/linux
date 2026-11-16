@@ -5223,7 +5223,7 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 
 	dev = &dpseci_dev->dev;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

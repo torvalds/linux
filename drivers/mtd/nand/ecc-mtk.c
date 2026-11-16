@@ -540,7 +540,7 @@ static int mtk_ecc_probe(struct platform_device *pdev)
 	u32 max_eccdata_size;
 	int irq, ret;
 
-	ecc = devm_kzalloc(dev, sizeof(*ecc), GFP_KERNEL);
+	ecc = devm_kzalloc_obj(dev, *ecc);
 	if (!ecc)
 		return -ENOMEM;
 

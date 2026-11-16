@@ -155,7 +155,7 @@ static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
 	struct clk_plt *pclk;
 	int ret;
 
-	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);
+	pclk = devm_kzalloc_obj(&pdev->dev, *pclk);
 	if (!pclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -209,7 +209,7 @@ static struct clk_plt_fixed *plt_clk_register_fixed_rate(struct platform_device 
 {
 	struct clk_plt_fixed *pclk;
 
-	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);
+	pclk = devm_kzalloc_obj(&pdev->dev, *pclk);
 	if (!pclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -268,13 +268,11 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
 	while (clks[nparents].name)
 		nparents++;
 
-	data->parents = devm_kcalloc(&pdev->dev, nparents,
-				     sizeof(*data->parents), GFP_KERNEL);
+	data->parents = devm_kzalloc_objs(&pdev->dev, *data->parents, nparents);
 	if (!data->parents)
 		return ERR_PTR(-ENOMEM);
 
-	parent_names = kcalloc(nparents, sizeof(*parent_names),
-			       GFP_KERNEL);
+	parent_names = kzalloc_objs(*parent_names, nparents);
 	if (!parent_names)
 		return ERR_PTR(-ENOMEM);
 
@@ -316,7 +314,7 @@ static int plt_clk_probe(struct platform_device *pdev)
 	if (!pmc_data || !pmc_data->clks)
 		return -EINVAL;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

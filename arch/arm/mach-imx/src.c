@@ -219,7 +219,7 @@ static int imx_src_probe(struct platform_device *pdev)
 {
 	struct reset_controller_dev *rcdev;
 
-	rcdev = devm_kzalloc(&pdev->dev, sizeof(*rcdev), GFP_KERNEL);
+	rcdev = devm_kzalloc_obj(&pdev->dev, *rcdev);
 	if (!rcdev)
 		return -ENOMEM;
 

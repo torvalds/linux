@@ -956,7 +956,7 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	i2c_set_clientdata(client, priv);

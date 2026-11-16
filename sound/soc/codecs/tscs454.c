@@ -3395,7 +3395,7 @@ static int tscs454_i2c_probe(struct i2c_client *i2c)
 	int src;
 	int ret;
 
-	tscs454 = devm_kzalloc(&i2c->dev, sizeof(*tscs454), GFP_KERNEL);
+	tscs454 = devm_kzalloc_obj(&i2c->dev, *tscs454);
 	if (!tscs454)
 		return -ENOMEM;
 

@@ -100,7 +100,7 @@ ath10k_swap_code_seg_alloc(struct ath10k *ar, size_t swap_bin_len)
 		return NULL;
 	}
 
-	seg_info = devm_kzalloc(ar->dev, sizeof(*seg_info), GFP_KERNEL);
+	seg_info = devm_kzalloc_obj(ar->dev, *seg_info);
 	if (!seg_info)
 		return NULL;
 

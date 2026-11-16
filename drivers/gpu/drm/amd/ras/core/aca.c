@@ -614,7 +614,7 @@ int ras_aca_sw_init(struct ras_core_context *ras_core)
 
 	memset(ras_aca, 0, sizeof(*ras_aca));
 
-	ras_aca->aca_blk = kcalloc(RAS_BLOCK_ID__LAST, sizeof(struct aca_block), GFP_KERNEL);
+	ras_aca->aca_blk = kzalloc_objs(struct aca_block, RAS_BLOCK_ID__LAST);
 	if (!ras_aca->aca_blk)
 		return -ENOMEM;
 

@@ -507,7 +507,7 @@ static int lp3972_i2c_probe(struct i2c_client *i2c)
 		return -ENODEV;
 	}
 
-	lp3972 = devm_kzalloc(&i2c->dev, sizeof(struct lp3972), GFP_KERNEL);
+	lp3972 = devm_kzalloc_obj(&i2c->dev, struct lp3972);
 	if (!lp3972)
 		return -ENOMEM;
 

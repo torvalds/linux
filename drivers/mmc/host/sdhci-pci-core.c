@@ -959,7 +959,7 @@ static int glk_emmc_add_host(struct sdhci_pci_slot *slot)
 	if (ret)
 		return ret;
 
-	cq_host = devm_kzalloc(dev, sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(dev, *cq_host);
 	if (!cq_host) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -2327,7 +2327,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

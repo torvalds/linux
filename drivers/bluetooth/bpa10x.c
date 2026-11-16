@@ -376,7 +376,7 @@ static int bpa10x_probe(struct usb_interface *intf,
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&intf->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

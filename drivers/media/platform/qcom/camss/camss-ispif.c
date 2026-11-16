@@ -1122,8 +1122,7 @@ int msm_ispif_subdev_init(struct camss *camss,
 	else
 		return -EINVAL;
 
-	ispif->line = devm_kcalloc(dev, ispif->line_num,
-				   sizeof(*ispif->line), GFP_KERNEL);
+	ispif->line = devm_kzalloc_objs(dev, *ispif->line, ispif->line_num);
 	if (!ispif->line)
 		return -ENOMEM;
 
@@ -1189,9 +1188,7 @@ int msm_ispif_subdev_init(struct camss *camss,
 	while (res->clock[ispif->nclocks])
 		ispif->nclocks++;
 
-	ispif->clock = devm_kcalloc(dev,
-				    ispif->nclocks, sizeof(*ispif->clock),
-				    GFP_KERNEL);
+	ispif->clock = devm_kzalloc_objs(dev, *ispif->clock, ispif->nclocks);
 	if (!ispif->clock)
 		return -ENOMEM;
 
@@ -1210,10 +1207,8 @@ int msm_ispif_subdev_init(struct camss *camss,
 	while (res->clock_for_reset[ispif->nclocks_for_reset])
 		ispif->nclocks_for_reset++;
 
-	ispif->clock_for_reset = devm_kcalloc(dev,
-					      ispif->nclocks_for_reset,
-					      sizeof(*ispif->clock_for_reset),
-					      GFP_KERNEL);
+	ispif->clock_for_reset = devm_kzalloc_objs(dev, *ispif->clock_for_reset,
+						   ispif->nclocks_for_reset);
 	if (!ispif->clock_for_reset)
 		return -ENOMEM;
 

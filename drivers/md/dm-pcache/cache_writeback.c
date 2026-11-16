@@ -18,12 +18,18 @@ static void writeback_ctx_end(struct pcache_cache *cache, int ret)
 		return;
 
 	if (!cache->writeback_ctx.ret) {
-		backing_dev_flush(cache->backing_dev);
-
-		mutex_lock(&cache->dirty_tail_lock);
-		cache_pos_advance(&cache->dirty_tail, cache->writeback_ctx.advance);
-		cache_encode_dirty_tail(cache);
-		mutex_unlock(&cache->dirty_tail_lock);
+		ret = backing_dev_flush(cache->backing_dev);
+		if (ret) {
+			pcache_dev_err(CACHE_TO_PCACHE(cache),
+				       "failed to flush backing device: %d", ret);
+			cache->writeback_ctx.ret = ret;
+		} else {
+			mutex_lock(&cache->dirty_tail_lock);
+			cache_pos_advance(&cache->dirty_tail,
+					  cache->writeback_ctx.advance);
+			cache_encode_dirty_tail(cache);
+			mutex_unlock(&cache->dirty_tail_lock);
+		}
 	}
 	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, 0);
 }
@@ -76,8 +82,16 @@ static inline bool is_cache_clean(struct pcache_cache *cache, struct pcache_cach
 
 void cache_writeback_exit(struct pcache_cache *cache)
 {
+	int ret;
+
 	cancel_delayed_work_sync(&cache->writeback_work);
-	backing_dev_flush(cache->backing_dev);
+
+	ret = backing_dev_flush(cache->backing_dev);
+	if (ret)
+		pcache_dev_err(CACHE_TO_PCACHE(cache),
+			       "failed to flush backing device during exit: %d",
+			       ret);
+
 	cache_tree_exit(&cache->writeback_key_tree);
 }
 

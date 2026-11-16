@@ -509,7 +509,7 @@ static int acp3x_probe(struct platform_device *pdev)
 	if (!card)
 		return -ENODEV;
 
-	machine = devm_kzalloc(&pdev->dev, sizeof(*machine), GFP_KERNEL);
+	machine = devm_kzalloc_obj(&pdev->dev, *machine);
 	if (!machine)
 		return -ENOMEM;
 

@@ -187,7 +187,7 @@ static int cxl_pmu_parse_caps(struct device *dev, struct cxl_pmu_info *info)
 		group_idx = FIELD_GET(CXL_PMU_COUNTER_CFG_EVENT_GRP_ID_IDX_MSK, val);
 		events_msk = FIELD_GET(CXL_PMU_COUNTER_CFG_EVENTS_MSK, val);
 		eval = readq(base + CXL_PMU_EVENT_CAP_REG(group_idx));
-		pmu_ev = devm_kzalloc(dev, sizeof(*pmu_ev), GFP_KERNEL);
+		pmu_ev = devm_kzalloc_obj(dev, *pmu_ev);
 		if (!pmu_ev)
 			return -ENOMEM;
 
@@ -211,7 +211,7 @@ static int cxl_pmu_parse_caps(struct device *dev, struct cxl_pmu_info *info)
 		/* Walk event capabilities unused by fixed counters */
 		for_each_clear_bit(j, &fixed_counter_event_cap_bm,
 				   info->num_event_capabilities) {
-			pmu_ev = devm_kzalloc(dev, sizeof(*pmu_ev), GFP_KERNEL);
+			pmu_ev = devm_kzalloc_obj(dev, *pmu_ev);
 			if (!pmu_ev)
 				return -ENOMEM;
 
@@ -978,7 +978,7 @@ static int cxl_pmu_probe(struct device *dev)
 	char *dev_name;
 	int rc, irq;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 
@@ -993,8 +993,8 @@ static int cxl_pmu_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	info->hw_events = devm_kcalloc(dev, info->num_counters,
-				       sizeof(*info->hw_events), GFP_KERNEL);
+	info->hw_events = devm_kzalloc_objs(dev, *info->hw_events,
+					    info->num_counters);
 	if (!info->hw_events)
 		return -ENOMEM;
 

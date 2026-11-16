@@ -554,7 +554,7 @@ static int acpi_pfru_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pfru_dev = devm_kzalloc(&pdev->dev, sizeof(*pfru_dev), GFP_KERNEL);
+	pfru_dev = devm_kzalloc_obj(&pdev->dev, *pfru_dev);
 	if (!pfru_dev)
 		return -ENOMEM;
 

@@ -63,8 +63,7 @@ static int sensehat_joystick_probe(struct platform_device *pdev)
 	struct sensehat_joystick *sensehat_joystick;
 	int error, i, irq;
 
-	sensehat_joystick = devm_kzalloc(&pdev->dev, sizeof(*sensehat_joystick),
-					 GFP_KERNEL);
+	sensehat_joystick = devm_kzalloc_obj(&pdev->dev, *sensehat_joystick);
 	if (!sensehat_joystick)
 		return -ENOMEM;
 

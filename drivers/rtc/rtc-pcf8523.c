@@ -424,7 +424,7 @@ static int pcf8523_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	pcf8523 = devm_kzalloc(&client->dev, sizeof(struct pcf8523), GFP_KERNEL);
+	pcf8523 = devm_kzalloc_obj(&client->dev, struct pcf8523);
 	if (!pcf8523)
 		return -ENOMEM;
 

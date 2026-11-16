@@ -1831,7 +1831,7 @@ int wave5_vpu_enc_register_device(struct vpu_device *dev)
 	struct video_device *vdev_enc;
 	int ret;
 
-	vdev_enc = devm_kzalloc(dev->v4l2_dev.dev, sizeof(*vdev_enc), GFP_KERNEL);
+	vdev_enc = devm_kzalloc_obj(dev->v4l2_dev.dev, *vdev_enc);
 	if (!vdev_enc)
 		return -ENOMEM;
 

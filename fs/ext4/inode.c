@@ -250,8 +250,6 @@ void ext4_evict_inode(struct inode *inode)
 	if (EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL)
 		ext4_evict_ea_inode(inode);
 	if (inode->i_nlink) {
-		struct mapping_metadata_bhs *mmb;
-
 		/*
 		 * If there's dirty page will lead to data loss, user
 		 * could see stale data.
@@ -261,9 +259,6 @@ void ext4_evict_inode(struct inode *inode)
 			ext4_warning_inode(inode, "data will be lost");
 
 		truncate_inode_pages_final(&inode->i_data);
-		mmb = ext4_i_metadata_bhs(inode);
-		if (mmb)
-			mmb_sync(mmb);
 		goto no_delete;
 	}
 
@@ -3519,7 +3514,7 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 		filemap_write_and_wait(mapping);
 	}
 
-	ret = iomap_bmap(mapping, block, &ext4_iomap_ops);
+	ret = iomap_bmap(mapping, block, ext4_iomap_next);
 
 out:
 	inode_unlock_shared(inode);
@@ -3994,11 +3989,7 @@ out:
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next, ext4_iomap_begin);
-
-const struct iomap_ops ext4_iomap_ops = {
-	.iomap_next		= ext4_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next, ext4_iomap_begin);
 
 static int ext4_iomap_begin_report(struct inode *inode, loff_t offset,
 				   loff_t length, unsigned int flags,
@@ -4051,11 +4042,7 @@ set_iomap:
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next_report, ext4_iomap_begin_report);
-
-const struct iomap_ops ext4_iomap_report_ops = {
-	.iomap_next = ext4_iomap_next_report,
-};
+DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next_report, ext4_iomap_begin_report);
 
 static int ext4_iomap_map_blocks(struct inode *inode, loff_t offset,
 				 loff_t length, struct ext4_map_blocks *map,
@@ -4260,45 +4247,29 @@ again:
 
 static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_zero_next, ext4_iomap_zero_begin);
 
-static const struct iomap_ops ext4_iomap_zero_ops = {
-	.iomap_next = ext4_iomap_zero_next,
-};
-
 /*
  * Since we always allocate unwritten extents, there is no need for
  * iomap_end to clean up allocated blocks on a short write.
  */
-static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_buffered_write_next,
-			      ext4_iomap_buffered_write_begin);
+DEFINE_IOMAP_ITER_NEXT(ext4_iomap_buffered_write_next,
+		       ext4_iomap_buffered_write_begin);
 
-const struct iomap_ops ext4_iomap_buffered_write_ops = {
-	.iomap_next = ext4_iomap_buffered_write_next,
-};
-
-static DEFINE_IOMAP_ITER_NEXT_END(ext4_iomap_buffered_da_write_next,
-				  ext4_iomap_buffered_da_write_begin,
-				  ext4_iomap_buffered_da_write_end);
-
-const struct iomap_ops ext4_iomap_buffered_da_write_ops = {
-	.iomap_next = ext4_iomap_buffered_da_write_next,
-};
+DEFINE_IOMAP_ITER_NEXT_END(ext4_iomap_buffered_da_write_next,
+			   ext4_iomap_buffered_da_write_begin,
+			   ext4_iomap_buffered_da_write_end);
 
 static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_buffered_read_next,
 			      ext4_iomap_buffered_read_begin);
 
-static const struct iomap_ops ext4_iomap_buffered_read_ops = {
-	.iomap_next = ext4_iomap_buffered_read_next,
-};
-
 static int ext4_iomap_read_folio(struct file *file, struct folio *folio)
 {
-	iomap_bio_read_folio(folio, &ext4_iomap_buffered_read_ops);
+	iomap_bio_read_folio(folio, ext4_iomap_buffered_read_next);
 	return 0;
 }
 
 static void ext4_iomap_readahead(struct readahead_control *rac)
 {
-	iomap_bio_readahead(rac, &ext4_iomap_buffered_read_ops);
+	iomap_bio_readahead(rac, ext4_iomap_buffered_read_next);
 }
 
 
@@ -4561,7 +4532,7 @@ static int ext4_iomap_swap_activate(struct swap_info_struct *sis,
 				    struct file *file, sector_t *span)
 {
 	return iomap_swapfile_activate(sis, file, span,
-				       &ext4_iomap_report_ops);
+				       ext4_iomap_next_report);
 }
 
 static const struct address_space_operations ext4_aops = {
@@ -4827,7 +4798,7 @@ static int ext4_block_iomap_zero_range(struct inode *inode, loff_t from,
 			!rwsem_is_locked(&inode->i_mapping->invalidate_lock));
 
 	ret = iomap_zero_range(inode, from, length, did_zero,
-			       &ext4_iomap_zero_ops, &ext4_iomap_write_ops,
+			       ext4_iomap_zero_next, &ext4_iomap_write_ops,
 			       NULL);
 	if (ret)
 		return ret;
@@ -4866,7 +4837,7 @@ static int ext4_block_zero_range(struct inode *inode,
 
 	if (IS_DAX(inode)) {
 		return dax_zero_range(inode, from, length, did_zero,
-				      &ext4_iomap_ops);
+				      ext4_iomap_next);
 	} else if (ext4_should_journal_data(inode)) {
 		return ext4_block_journalled_zero_range(inode, from, length,
 							did_zero);
@@ -5876,7 +5847,8 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 /*
  * ext4_get_inode_loc_noio() is a best-effort variant of ext4_get_inode_loc().
  * It looks up the inode table block in the buffer cache and returns -EAGAIN if
- * the block is not present or not uptodate, without starting any I/O.
+ * the block is not present or not uptodate, without starting any I/O. It may
+ * sleep on the folio lock of the block.
  */
 int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 {
@@ -5912,7 +5884,7 @@ int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 	}
 	block += inode_offset / inodes_per_block;
 
-	bh = sb_find_get_block(sb, block);
+	bh = sb_find_get_block_nonatomic(sb, block);
 	if (!bh)
 		return -EAGAIN;
 	if (!ext4_buffer_uptodate(bh)) {
@@ -6820,22 +6792,24 @@ int ext4_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 	if (WARN_ON_ONCE(EXT4_SB(inode->i_sb)->s_journal))
 		return -EFSCORRUPTED;
 
-	err = __ext4_get_inode_loc_noinmem(inode, &iloc);
-	if (err)
-		return err;
 	mmb = READ_ONCE(EXT4_I(inode)->i_metadata_bhs);
 	if (mmb) {
 		err = mmb_sync(mmb);
 		if (err)
-			goto out;
+			return err;
 	}
+	/* A block that isn't cached is neither dirty nor under writeback. */
+	err = ext4_get_inode_loc_noio(inode, &iloc);
+	if (err == -EAGAIN)
+		return 0;
+	if (err)
+		return err;
 	sync_dirty_buffer(iloc.bh);
 	if (buffer_write_io_error(iloc.bh)) {
 		ext4_error_inode_block(inode, iloc.bh->b_blocknr, EIO,
 				       "IO error syncing inode");
 		err = -EIO;
 	}
-out:
 	brelse(iloc.bh);
 	return err;
 }
@@ -7829,18 +7803,18 @@ out_error:
 static vm_fault_t ext4_iomap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
-	const struct iomap_ops *iomap_ops;
+	iomap_iter_next_fn next;
 
 	/*
 	 * ext4_nonda_switch() could writeback this folio, so have to
 	 * call it before lock folio.
 	 */
 	if (test_opt(inode->i_sb, DELALLOC) && !ext4_nonda_switch(inode->i_sb))
-		iomap_ops = &ext4_iomap_buffered_da_write_ops;
+		next = ext4_iomap_buffered_da_write_next;
 	else
-		iomap_ops = &ext4_iomap_buffered_write_ops;
+		next = ext4_iomap_buffered_write_next;
 
-	return iomap_page_mkwrite(vmf, iomap_ops, NULL);
+	return iomap_page_mkwrite(vmf, next, NULL);
 }
 
 vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)

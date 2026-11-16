@@ -74,7 +74,7 @@ static int max31722_probe(struct spi_device *spi)
 	int ret;
 	struct max31722_data *data;
 
-	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&spi->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

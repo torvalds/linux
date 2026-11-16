@@ -1072,8 +1072,7 @@ static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 		goto not_init;
 	}
 
-	tx_spare = devm_kzalloc(ring_to_dev(ring), sizeof(*tx_spare),
-				GFP_KERNEL);
+	tx_spare = devm_kzalloc_obj(ring_to_dev(ring), *tx_spare);
 	if (!tx_spare) {
 		/* The driver still work without the tx spare buffer */
 		dev_warn(ring_to_dev(ring), "failed to allocate hns3_tx_spare\n");
@@ -3153,7 +3152,7 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct hnae3_ae_dev *ae_dev;
 	int ret;
 
-	ae_dev = devm_kzalloc(&pdev->dev, sizeof(*ae_dev), GFP_KERNEL);
+	ae_dev = devm_kzalloc_obj(&pdev->dev, *ae_dev);
 	if (!ae_dev)
 		return -ENOMEM;
 
@@ -4592,7 +4591,7 @@ static int hns3_create_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
 	}
 
 	while (ring) {
-		chain = devm_kzalloc(&pdev->dev, sizeof(*chain), GFP_KERNEL);
+		chain = devm_kzalloc_obj(&pdev->dev, *chain);
 		if (!chain)
 			return -ENOMEM;
 		if (cur_chain)
@@ -4840,8 +4839,7 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 	/* Should consider 2p/4p later */
 	vector_num = min_t(u16, num_online_cpus(), tqp_num);
 
-	vector = devm_kcalloc(&pdev->dev, vector_num, sizeof(*vector),
-			      GFP_KERNEL);
+	vector = devm_kzalloc_objs(&pdev->dev, *vector, vector_num);
 	if (!vector)
 		return -ENOMEM;
 
@@ -4850,8 +4848,7 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 
 	priv->vector_num = vector_num;
 	priv->tqp_vector = (struct hns3_enet_tqp_vector *)
-		devm_kcalloc(&pdev->dev, vector_num, sizeof(*priv->tqp_vector),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(&pdev->dev, *priv->tqp_vector, vector_num);
 	if (!priv->tqp_vector) {
 		ret = -ENOMEM;
 		goto out;
@@ -5047,8 +5044,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 	if (ring->desc_num <= 0 || ring->buf_size <= 0)
 		return -EINVAL;
 
-	ring->desc_cb = devm_kcalloc(ring_to_dev(ring), ring->desc_num,
-				     sizeof(ring->desc_cb[0]), GFP_KERNEL);
+	ring->desc_cb = devm_kzalloc_objs(ring_to_dev(ring), ring->desc_cb[0],
+					  ring->desc_num);
 	if (!ring->desc_cb) {
 		ret = -ENOMEM;
 		goto out;

@@ -283,7 +283,7 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 	void __iomem			*regs;
 	int				ret;
 
-	priv_data = devm_kzalloc(dev, sizeof(*priv_data), GFP_KERNEL);
+	priv_data = devm_kzalloc_obj(dev, *priv_data);
 	if (!priv_data)
 		return -ENOMEM;
 

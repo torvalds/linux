@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/cpu.h>
 #include <linux/eventfd.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -1430,14 +1431,10 @@ static void vduse_vq_update_effective_cpu(struct vduse_virtqueue *vq)
 {
 	int curr_cpu = vq->irq_effective_cpu;
 
-	while (true) {
-		curr_cpu = cpumask_next(curr_cpu, &vq->irq_affinity);
-		if (cpu_online(curr_cpu))
-			break;
-
-		if (curr_cpu >= nr_cpu_ids)
-			curr_cpu = IRQ_UNBOUND;
-	}
+	curr_cpu = cpumask_next_and_wrap(curr_cpu, &vq->irq_affinity,
+					 cpu_online_mask);
+	if (curr_cpu >= nr_cpu_ids)
+		curr_cpu = IRQ_UNBOUND;
 
 	vq->irq_effective_cpu = curr_cpu;
 }
@@ -1672,10 +1669,12 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		ret = 0;
 		index = array_index_nospec(index, dev->vq_num);
 		if (!vduse_vq_signal_irqfd(dev->vqs[index])) {
+			cpus_read_lock();
 			vduse_vq_update_effective_cpu(dev->vqs[index]);
 			ret = vduse_dev_queue_irq_work(dev,
 						&dev->vqs[index]->inject,
 						dev->vqs[index]->irq_effective_cpu);
+			cpus_read_unlock();
 		}
 		break;
 	}

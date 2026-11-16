@@ -721,8 +721,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 
 	reg_irq_nb = desc->num_irq_types * (desc->num_buck_regs + desc->num_ldo_regs);
 
-	irq_data = devm_kmalloc_array(tps->dev, reg_irq_nb,
-				      sizeof(struct tps6594_regulator_irq_data), GFP_KERNEL);
+	irq_data = devm_kmalloc_objs(tps->dev,
+				     struct tps6594_regulator_irq_data,
+				     reg_irq_nb);
 	if (!irq_data)
 		return -ENOMEM;
 
@@ -810,10 +811,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 			return error;
 	}
 
-	irq_ext_reg_data = devm_kmalloc_array(tps->dev,
-					      desc->num_ext_irqs,
-					      sizeof(struct tps6594_ext_regulator_irq_data),
-					      GFP_KERNEL);
+	irq_ext_reg_data = devm_kmalloc_objs(tps->dev,
+					     struct tps6594_ext_regulator_irq_data,
+					     desc->num_ext_irqs);
 	if (!irq_ext_reg_data)
 		return -ENOMEM;
 

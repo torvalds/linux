@@ -269,7 +269,7 @@ static int st_es8336_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct acp_platform_info *machine;
 
-	machine = devm_kzalloc(&pdev->dev, sizeof(struct acp_platform_info), GFP_KERNEL);
+	machine = devm_kzalloc_obj(&pdev->dev, struct acp_platform_info);
 	if (!machine)
 		return -ENOMEM;
 

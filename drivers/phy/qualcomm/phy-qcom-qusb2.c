@@ -1009,7 +1009,7 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 	u32 value;
 	struct override_params *or;
 
-	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
+	qphy = devm_kzalloc_obj(dev, *qphy);
 	if (!qphy)
 		return -ENOMEM;
 	or = &qphy->overrides;

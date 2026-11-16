@@ -1345,7 +1345,7 @@ static int xsdfec_probe(struct platform_device *pdev)
 	int err;
 	bool irq_enabled = true;
 
-	xsdfec = devm_kzalloc(&pdev->dev, sizeof(*xsdfec), GFP_KERNEL);
+	xsdfec = devm_kzalloc_obj(&pdev->dev, *xsdfec);
 	if (!xsdfec)
 		return -ENOMEM;
 

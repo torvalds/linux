@@ -544,8 +544,7 @@ static int pm800_probe(struct i2c_client *client)
 
 	/* init subchip for PM800 */
 	subchip =
-	    devm_kzalloc(&client->dev, sizeof(struct pm80x_subchip),
-			 GFP_KERNEL);
+	    devm_kzalloc_obj(&client->dev, struct pm80x_subchip);
 	if (!subchip) {
 		ret = -ENOMEM;
 		goto err_subchip_alloc;

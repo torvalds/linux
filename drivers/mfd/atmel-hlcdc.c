@@ -83,11 +83,11 @@ static int atmel_hlcdc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct atmel_hlcdc *hlcdc;
 
-	hregmap = devm_kzalloc(dev, sizeof(*hregmap), GFP_KERNEL);
+	hregmap = devm_kzalloc_obj(dev, *hregmap);
 	if (!hregmap)
 		return -ENOMEM;
 
-	hlcdc = devm_kzalloc(dev, sizeof(*hlcdc), GFP_KERNEL);
+	hlcdc = devm_kzalloc_obj(dev, *hlcdc);
 	if (!hlcdc)
 		return -ENOMEM;
 

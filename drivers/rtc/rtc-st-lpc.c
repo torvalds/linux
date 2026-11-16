@@ -197,7 +197,7 @@ static int st_rtc_probe(struct platform_device *pdev)
 	if (mode != ST_LPC_MODE_RTC)
 		return -ENODEV;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(struct st_rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, struct st_rtc);
 	if (!rtc)
 		return -ENOMEM;
 

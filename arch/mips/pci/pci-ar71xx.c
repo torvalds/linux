@@ -331,8 +331,7 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 t;
 
-	apc = devm_kzalloc(&pdev->dev, sizeof(struct ar71xx_pci_controller),
-			   GFP_KERNEL);
+	apc = devm_kzalloc_obj(&pdev->dev, struct ar71xx_pci_controller);
 	if (!apc)
 		return -ENOMEM;
 

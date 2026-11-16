@@ -307,7 +307,7 @@ static int zxi2c_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	i2c->pltfm_priv = priv;

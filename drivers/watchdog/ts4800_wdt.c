@@ -129,7 +129,7 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	}
 
 	/* allocate memory for watchdog struct */
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt) {
 		of_node_put(syscon_np);
 		return -ENOMEM;

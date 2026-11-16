@@ -580,7 +580,7 @@ static int rmi_f34_probe(struct rmi_function *fn)
 	u8 version = fn->fd.function_version;
 	int error;
 
-	f34 = devm_kzalloc(&fn->dev, sizeof(struct f34_data), GFP_KERNEL);
+	f34 = devm_kzalloc_obj(&fn->dev, struct f34_data);
 	if (!f34)
 		return -ENOMEM;
 

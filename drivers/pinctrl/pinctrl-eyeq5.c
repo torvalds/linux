@@ -705,7 +705,7 @@ static int eq5p_probe(struct auxiliary_device *adev,
 	if (!match || !match->data)
 		return -ENODEV;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

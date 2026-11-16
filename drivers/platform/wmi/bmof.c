@@ -58,7 +58,7 @@ static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 	struct wmi_buffer *buffer;
 	int ret;
 
-	buffer = devm_kzalloc(&wdev->dev, sizeof(*buffer), GFP_KERNEL);
+	buffer = devm_kzalloc_obj(&wdev->dev, *buffer);
 	if (!buffer)
 		return -ENOMEM;
 

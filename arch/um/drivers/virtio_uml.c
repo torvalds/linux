@@ -1196,7 +1196,7 @@ virtio_uml_create_pdata(struct platform_device *pdev)
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 

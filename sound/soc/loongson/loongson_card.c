@@ -297,7 +297,7 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	int ret;
 
-	ls_priv = devm_kzalloc(dev, sizeof(*ls_priv), GFP_KERNEL);
+	ls_priv = devm_kzalloc_obj(dev, *ls_priv);
 	if (!ls_priv)
 		return -ENOMEM;
 

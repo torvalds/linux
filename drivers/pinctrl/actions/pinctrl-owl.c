@@ -903,8 +903,8 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	gpio_irq->num_parents = pctrl->num_irq;
 	gpio_irq->parents = pctrl->irq;
 
-	gpio_irq->map = devm_kcalloc(pctrl->dev, chip->ngpio,
-				sizeof(*gpio_irq->map), GFP_KERNEL);
+	gpio_irq->map = devm_kzalloc_objs(pctrl->dev, *gpio_irq->map,
+					  chip->ngpio);
 	if (!gpio_irq->map)
 		return -ENOMEM;
 
@@ -932,7 +932,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	struct owl_pinctrl *pctrl;
 	int ret, i;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 
@@ -983,8 +983,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 
 	pctrl->num_irq = ret;
 
-	pctrl->irq = devm_kcalloc(&pdev->dev, pctrl->num_irq,
-					sizeof(*pctrl->irq), GFP_KERNEL);
+	pctrl->irq = devm_kzalloc_objs(&pdev->dev, *pctrl->irq, pctrl->num_irq);
 	if (!pctrl->irq) {
 		ret = -ENOMEM;
 		goto err_exit;

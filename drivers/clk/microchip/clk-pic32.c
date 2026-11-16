@@ -218,7 +218,7 @@ struct clk *pic32_periph_clk_register(const struct pic32_periph_clk_data *desc,
 	struct pic32_periph_clk *pbclk;
 	struct clk *clk;
 
-	pbclk = devm_kzalloc(core->dev, sizeof(*pbclk), GFP_KERNEL);
+	pbclk = devm_kzalloc_obj(core->dev, *pbclk);
 	if (!pbclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -556,7 +556,7 @@ struct clk *pic32_refo_clk_register(const struct pic32_ref_osc_data *data,
 	struct pic32_ref_osc *refo;
 	struct clk *clk;
 
-	refo = devm_kzalloc(core->dev, sizeof(*refo), GFP_KERNEL);
+	refo = devm_kzalloc_obj(core->dev, *refo);
 	if (!refo)
 		return ERR_PTR(-ENOMEM);
 
@@ -733,7 +733,7 @@ struct clk *pic32_spll_clk_register(const struct pic32_sys_pll_data *data,
 	struct pic32_sys_pll *spll;
 	struct clk *clk;
 
-	spll = devm_kzalloc(core->dev, sizeof(*spll), GFP_KERNEL);
+	spll = devm_kzalloc_obj(core->dev, *spll);
 	if (!spll)
 		return ERR_PTR(-ENOMEM);
 
@@ -921,7 +921,7 @@ struct clk *pic32_sys_clk_register(const struct pic32_sys_clk_data *data,
 	struct pic32_sys_clk *sclk;
 	struct clk *clk;
 
-	sclk = devm_kzalloc(core->dev, sizeof(*sclk), GFP_KERNEL);
+	sclk = devm_kzalloc_obj(core->dev, *sclk);
 	if (!sclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -1003,7 +1003,7 @@ struct clk *pic32_sosc_clk_register(const struct pic32_sec_osc_data *data,
 {
 	struct pic32_sec_osc *sosc;
 
-	sosc = devm_kzalloc(core->dev, sizeof(*sosc), GFP_KERNEL);
+	sosc = devm_kzalloc_obj(core->dev, *sosc);
 	if (!sosc)
 		return ERR_PTR(-ENOMEM);
 

@@ -373,7 +373,7 @@ static int rx8010_probe(struct i2c_client *client)
 	struct rx8010_data *rx8010;
 	int err = 0;
 
-	rx8010 = devm_kzalloc(dev, sizeof(*rx8010), GFP_KERNEL);
+	rx8010 = devm_kzalloc_obj(dev, *rx8010);
 	if (!rx8010)
 		return -ENOMEM;
 

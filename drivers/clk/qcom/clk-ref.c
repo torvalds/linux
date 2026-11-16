@@ -123,9 +123,9 @@ static int qcom_clk_ref_register(struct device *dev, struct regmap *regmap,
 		clk_ref->desc = *desc;
 
 		if (clk_ref->desc.num_regulators) {
-			clk_ref->regulators = devm_kcalloc(dev, clk_ref->desc.num_regulators,
-							   sizeof(*clk_ref->regulators),
-							   GFP_KERNEL);
+			clk_ref->regulators = devm_kzalloc_objs(dev,
+								*clk_ref->regulators,
+								clk_ref->desc.num_regulators);
 			if (!clk_ref->regulators)
 				return -ENOMEM;
 
@@ -188,8 +188,7 @@ int qcom_clk_ref_probe(struct platform_device *pdev,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	provider = devm_kzalloc(dev, struct_size(provider, refs, num_clk_refs),
-				GFP_KERNEL);
+	provider = devm_kzalloc_flex(dev, *provider, refs, num_clk_refs);
 	if (!provider)
 		return -ENOMEM;
 

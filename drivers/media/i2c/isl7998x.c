@@ -1467,7 +1467,7 @@ static int isl7998x_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	isl7998x = devm_kzalloc(dev, sizeof(*isl7998x), GFP_KERNEL);
+	isl7998x = devm_kzalloc_obj(dev, *isl7998x);
 	if (!isl7998x)
 		return -ENOMEM;
 

@@ -2787,7 +2787,7 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	struct gpmi_nand_data *this;
 	int ret;
 
-	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
+	this = devm_kzalloc_obj(&pdev->dev, *this);
 	if (!this)
 		return -ENOMEM;
 

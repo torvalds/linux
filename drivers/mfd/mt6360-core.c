@@ -531,7 +531,7 @@ static int mt6360_probe(struct i2c_client *client)
 	struct mt6360_ddata *ddata;
 	int i, ret;
 
-	ddata = devm_kzalloc(&client->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&client->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

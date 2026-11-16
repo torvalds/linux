@@ -843,7 +843,7 @@ static int vt8231_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct vt8231_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct vt8231_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -378,8 +378,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	struct pcf2123_data *pcf2123;
 	int ret = 0;
 
-	pcf2123 = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_data),
-				GFP_KERNEL);
+	pcf2123 = devm_kzalloc_obj(&spi->dev, struct pcf2123_data);
 	if (!pcf2123)
 		return -ENOMEM;
 

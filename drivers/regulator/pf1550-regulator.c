@@ -357,7 +357,7 @@ static int pf1550_regulator_probe(struct platform_device *pdev)
 	struct pf1550_regulator_info *info;
 	int i, irq = -1, ret = 0;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

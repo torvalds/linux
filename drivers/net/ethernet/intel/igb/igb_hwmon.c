@@ -166,8 +166,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	if (rc)
 		goto exit;
 
-	igb_hwmon = devm_kzalloc(&adapter->pdev->dev, sizeof(*igb_hwmon),
-				 GFP_KERNEL);
+	igb_hwmon = devm_kzalloc_obj(&adapter->pdev->dev, *igb_hwmon);
 	if (!igb_hwmon) {
 		rc = -ENOMEM;
 		goto exit;

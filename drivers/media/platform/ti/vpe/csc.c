@@ -250,7 +250,7 @@ struct csc_data *csc_create(struct platform_device *pdev, const char *res_name)
 
 	dev_dbg(&pdev->dev, "csc_create\n");
 
-	csc = devm_kzalloc(&pdev->dev, sizeof(*csc), GFP_KERNEL);
+	csc = devm_kzalloc_obj(&pdev->dev, *csc);
 	if (!csc) {
 		dev_err(&pdev->dev, "couldn't alloc csc_data\n");
 		return ERR_PTR(-ENOMEM);

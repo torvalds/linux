@@ -195,7 +195,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd;
 	struct davinci_wdt_device *davinci_wdt;
 
-	davinci_wdt = devm_kzalloc(dev, sizeof(*davinci_wdt), GFP_KERNEL);
+	davinci_wdt = devm_kzalloc_obj(dev, *davinci_wdt);
 	if (!davinci_wdt)
 		return -ENOMEM;
 

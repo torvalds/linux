@@ -858,16 +858,14 @@ static int gpio_keys_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 	}
 
-	ddata = devm_kzalloc(dev, struct_size(ddata, data, pdata->nbuttons),
-			     GFP_KERNEL);
+	ddata = devm_kzalloc_flex(dev, *ddata, data, pdata->nbuttons);
 	if (!ddata) {
 		dev_err(dev, "failed to allocate state\n");
 		return -ENOMEM;
 	}
 
-	ddata->keymap = devm_kcalloc(dev,
-				     pdata->nbuttons, sizeof(ddata->keymap[0]),
-				     GFP_KERNEL);
+	ddata->keymap = devm_kzalloc_objs(dev, ddata->keymap[0],
+					  pdata->nbuttons);
 	if (!ddata->keymap)
 		return -ENOMEM;
 

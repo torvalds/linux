@@ -1947,7 +1947,7 @@ static int nau8821_i2c_probe(struct i2c_client *i2c)
 	int ret, value;
 
 	if (!nau8821) {
-		nau8821 = devm_kzalloc(dev, sizeof(*nau8821), GFP_KERNEL);
+		nau8821 = devm_kzalloc_obj(dev, *nau8821);
 		if (!nau8821)
 			return -ENOMEM;
 		nau8821_read_device_properties(dev, nau8821);

@@ -1119,7 +1119,7 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	if (!variant)
 		return -EINVAL;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 	dev_set_drvdata(dev, dsi);

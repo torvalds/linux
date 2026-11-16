@@ -47,7 +47,7 @@ static int atmel_sfr_probe(struct platform_device *pdev)
 	u8 sn[SFR_SN_SIZE];
 	int ret;
 
-	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kmalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

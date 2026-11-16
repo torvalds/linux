@@ -87,7 +87,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	struct drm_bridge *bridge;
 	struct drm_connector *connector;
 
-	rgb = devm_kzalloc(dev, sizeof(*rgb), GFP_KERNEL);
+	rgb = devm_kzalloc_obj(dev, *rgb);
 	if (!rgb)
 		return ERR_PTR(-ENOMEM);
 

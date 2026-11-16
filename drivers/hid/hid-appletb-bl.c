@@ -124,7 +124,7 @@ static int appletb_bl_probe(struct hid_device *hdev, const struct hid_device_id 
 	if (aux1_field->report != brightness_field->report)
 		return dev_err_probe(dev, -ENODEV, "Encountered unexpected report structure\n");
 
-	bl = devm_kzalloc(dev, sizeof(*bl), GFP_KERNEL);
+	bl = devm_kzalloc_obj(dev, *bl);
 	if (!bl)
 		return -ENOMEM;
 

@@ -297,7 +297,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 	 * DPLL core pin properties requires list of frequency ranges.
 	 * So read the frequency list into temporary array.
 	 */
-	freqs = kcalloc(num_freqs, sizeof(*freqs), GFP_KERNEL);
+	freqs = kzalloc_objs(*freqs, num_freqs);
 	if (!freqs) {
 		rc = -ENOMEM;
 		goto err_alloc_freqs;

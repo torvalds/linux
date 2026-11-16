@@ -236,13 +236,11 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	int err, irq;
 	unsigned long irqflags;
 
-	gpio_vbus = devm_kzalloc(&pdev->dev, sizeof(struct gpio_vbus_data),
-				 GFP_KERNEL);
+	gpio_vbus = devm_kzalloc_obj(&pdev->dev, struct gpio_vbus_data);
 	if (!gpio_vbus)
 		return -ENOMEM;
 
-	gpio_vbus->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
-					  GFP_KERNEL);
+	gpio_vbus->phy.otg = devm_kzalloc_obj(&pdev->dev, struct usb_otg);
 	if (!gpio_vbus->phy.otg)
 		return -ENOMEM;
 

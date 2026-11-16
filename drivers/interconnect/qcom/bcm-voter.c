@@ -395,7 +395,7 @@ static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct bcm_voter *voter;
 
-	voter = devm_kzalloc(&pdev->dev, sizeof(*voter), GFP_KERNEL);
+	voter = devm_kzalloc_obj(&pdev->dev, *voter);
 	if (!voter)
 		return -ENOMEM;
 

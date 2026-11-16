@@ -412,8 +412,7 @@ static int cv1800_pinctrl_init(struct platform_device *pdev,
 	const struct sophgo_pinctrl_data *pctrl_data = pctrl->data;
 	struct cv1800_priv *priv;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, power_cfg, pctrl_data->npds),
-			GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, power_cfg, pctrl_data->npds);
 	if (!priv)
 		return -ENOMEM;
 	priv->num_power_cfg = pctrl_data->npds;

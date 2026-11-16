@@ -1029,7 +1029,7 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	u32 num_cs = 1;
 
-	info = devm_kzalloc(dev, sizeof(struct sh_msiof_spi_info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, struct sh_msiof_spi_info);
 	if (!info)
 		return NULL;
 

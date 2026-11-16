@@ -573,8 +573,9 @@ static int macsmc_hwmon_populate_sensors(struct macsmc_hwmon *hwmon,
 	}
 
 	if (n_current) {
-		hwmon->curr.sensors = devm_kcalloc(hwmon->dev, n_current,
-						   sizeof(struct macsmc_hwmon_sensor), GFP_KERNEL);
+		hwmon->curr.sensors = devm_kzalloc_objs(hwmon->dev,
+							struct macsmc_hwmon_sensor,
+							n_current);
 		if (!hwmon->curr.sensors)
 			return -ENOMEM;
 
@@ -596,8 +597,9 @@ static int macsmc_hwmon_populate_sensors(struct macsmc_hwmon *hwmon,
 	}
 
 	if (n_fan) {
-		hwmon->fan.fans = devm_kcalloc(hwmon->dev, n_fan,
-					       sizeof(struct macsmc_hwmon_fan), GFP_KERNEL);
+		hwmon->fan.fans = devm_kzalloc_objs(hwmon->dev,
+						    struct macsmc_hwmon_fan,
+						    n_fan);
 		if (!hwmon->fan.fans)
 			return -ENOMEM;
 
@@ -613,8 +615,9 @@ static int macsmc_hwmon_populate_sensors(struct macsmc_hwmon *hwmon,
 	}
 
 	if (n_power) {
-		hwmon->power.sensors = devm_kcalloc(hwmon->dev, n_power,
-						    sizeof(struct macsmc_hwmon_sensor), GFP_KERNEL);
+		hwmon->power.sensors = devm_kzalloc_objs(hwmon->dev,
+							 struct macsmc_hwmon_sensor,
+							 n_power);
 		if (!hwmon->power.sensors)
 			return -ENOMEM;
 
@@ -636,8 +639,9 @@ static int macsmc_hwmon_populate_sensors(struct macsmc_hwmon *hwmon,
 	}
 
 	if (n_temperature) {
-		hwmon->temp.sensors = devm_kcalloc(hwmon->dev, n_temperature,
-						   sizeof(struct macsmc_hwmon_sensor), GFP_KERNEL);
+		hwmon->temp.sensors = devm_kzalloc_objs(hwmon->dev,
+							struct macsmc_hwmon_sensor,
+							n_temperature);
 		if (!hwmon->temp.sensors)
 			return -ENOMEM;
 
@@ -659,8 +663,9 @@ static int macsmc_hwmon_populate_sensors(struct macsmc_hwmon *hwmon,
 	}
 
 	if (n_voltage) {
-		hwmon->volt.sensors = devm_kcalloc(hwmon->dev, n_voltage,
-						   sizeof(struct macsmc_hwmon_sensor), GFP_KERNEL);
+		hwmon->volt.sensors = devm_kzalloc_objs(hwmon->dev,
+							struct macsmc_hwmon_sensor,
+							n_voltage);
 		if (!hwmon->volt.sensors)
 			return -ENOMEM;
 
@@ -711,8 +716,8 @@ static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 	if (hwmon->curr.count) {
 		channel_info = &hwmon->curr.channel_info;
 		channel_info->type = hwmon_curr;
-		channel_info->config = devm_kcalloc(hwmon->dev, hwmon->curr.count + 1,
-						    sizeof(u32), GFP_KERNEL);
+		channel_info->config = devm_kzalloc_objs(hwmon->dev, u32,
+							 hwmon->curr.count + 1);
 		if (!channel_info->config)
 			return -ENOMEM;
 
@@ -723,8 +728,8 @@ static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 	if (hwmon->fan.count) {
 		channel_info = &hwmon->fan.channel_info;
 		channel_info->type = hwmon_fan;
-		channel_info->config = devm_kcalloc(hwmon->dev, hwmon->fan.count + 1,
-						    sizeof(u32), GFP_KERNEL);
+		channel_info->config = devm_kzalloc_objs(hwmon->dev, u32,
+							 hwmon->fan.count + 1);
 		if (!channel_info->config)
 			return -ENOMEM;
 
@@ -735,8 +740,8 @@ static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 	if (hwmon->power.count) {
 		channel_info = &hwmon->power.channel_info;
 		channel_info->type = hwmon_power;
-		channel_info->config = devm_kcalloc(hwmon->dev, hwmon->power.count + 1,
-						    sizeof(u32), GFP_KERNEL);
+		channel_info->config = devm_kzalloc_objs(hwmon->dev, u32,
+							 hwmon->power.count + 1);
 		if (!channel_info->config)
 			return -ENOMEM;
 
@@ -747,8 +752,8 @@ static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 	if (hwmon->temp.count) {
 		channel_info = &hwmon->temp.channel_info;
 		channel_info->type = hwmon_temp;
-		channel_info->config = devm_kcalloc(hwmon->dev, hwmon->temp.count + 1,
-						    sizeof(u32), GFP_KERNEL);
+		channel_info->config = devm_kzalloc_objs(hwmon->dev, u32,
+							 hwmon->temp.count + 1);
 		if (!channel_info->config)
 			return -ENOMEM;
 
@@ -759,8 +764,8 @@ static int macsmc_hwmon_create_infos(struct macsmc_hwmon *hwmon)
 	if (hwmon->volt.count) {
 		channel_info = &hwmon->volt.channel_info;
 		channel_info->type = hwmon_in;
-		channel_info->config = devm_kcalloc(hwmon->dev, hwmon->volt.count + 1,
-						    sizeof(u32), GFP_KERNEL);
+		channel_info->config = devm_kzalloc_objs(hwmon->dev, u32,
+							 hwmon->volt.count + 1);
 		if (!channel_info->config)
 			return -ENOMEM;
 
@@ -785,8 +790,7 @@ static int macsmc_hwmon_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon),
-			     GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(&pdev->dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

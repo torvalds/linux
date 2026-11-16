@@ -618,7 +618,7 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 	unsigned long flags;
 	int c, ret;
 
-	ctl_mgr = devm_kzalloc(dev->dev, sizeof(*ctl_mgr), GFP_KERNEL);
+	ctl_mgr = devm_kzalloc_obj(dev->dev, *ctl_mgr);
 	if (!ctl_mgr) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate CTL manager\n");
 		return ERR_PTR(-ENOMEM);

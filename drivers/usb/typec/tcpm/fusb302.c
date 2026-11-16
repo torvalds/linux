@@ -1700,7 +1700,7 @@ static int fusb302_probe(struct i2c_client *client)
 			"I2C/SMBus block functionality not supported!\n");
 		return -ENODEV;
 	}
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

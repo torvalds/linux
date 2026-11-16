@@ -1827,7 +1827,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 	struct crypto_alg *alg;
 	struct ahash_alg *halg;
 
-	t_crypto_alg = devm_kzalloc(dev, sizeof(*t_crypto_alg), GFP_KERNEL);
+	t_crypto_alg = devm_kzalloc_obj(dev, *t_crypto_alg);
 	if (!t_crypto_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1956,7 +1956,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 	int rc = 0;
 	int alg;
 
-	hash_handle = devm_kzalloc(dev, sizeof(*hash_handle), GFP_KERNEL);
+	hash_handle = devm_kzalloc_obj(dev, *hash_handle);
 	if (!hash_handle)
 		return -ENOMEM;
 

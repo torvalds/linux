@@ -417,7 +417,7 @@ static int lwmi_cd_sub_master_add(struct lwmi_cd_priv *priv,
 	if (sub_component_type == CD_TYPE_NONE)
 		return 0;
 
-	priv->sub_master = devm_kzalloc(&priv->wdev->dev, sizeof(*priv->sub_master), GFP_KERNEL);
+	priv->sub_master = devm_kzalloc_obj(&priv->wdev->dev, *priv->sub_master);
 	if (!priv->sub_master)
 		return -ENOMEM;
 
@@ -856,7 +856,7 @@ static int lwmi_cd_fan_list_alloc_cache(struct lwmi_cd_priv *priv)
 	if (!count)
 		return 0;
 
-	list = devm_kzalloc(&priv->wdev->dev, struct_size(list, cd_fan, count), GFP_KERNEL);
+	list = devm_kzalloc_flex(&priv->wdev->dev, *list, cd_fan, count);
 	if (!list)
 		return -ENOMEM;
 
@@ -1032,7 +1032,7 @@ static int lwmi_cd_probe(struct wmi_device *wdev, const void *context)
 	if (!info)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -41,6 +41,7 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux_backlight.h"
+#include "intel_quirks.h"
 
 /*
  * DP AUX registers for Intel's proprietary HDR backlight interface. We define
@@ -693,11 +694,30 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 	struct drm_device *dev = connector->base.dev;
 	struct intel_panel *panel = &connector->panel;
 	bool try_intel_interface = false, try_vesa_interface = false;
+	int enable_dpcd_backlight;
+
+	/*
+	 * Some devices have a broken VBT in some Panels, but not others,
+	 * advertising INTEL_BACKLIGHT_DISPLAY_DDI, but actually failing to use
+	 * the Intel interface. Adding a fallback to the Vesa interface gives
+	 * these devices a working backlight for both the broken and non broken
+	 * panel VBTs.
+	 *
+	 * This fallback can not be made the general default as this has broken
+	 * other devices in the past whose VBT correctly reports
+	 * INTEL_BACKLIGHT_DISPLAY_DDI and whose PWM path is the actual
+	 * backlight control, but whose DPCD optimistically advertises
+	 * DP_EDP_BACKLIGHT_AUX_ENABLE_CAP / _BRIGHTNESS_AUX_SET_CAP.
+	 */
+	enable_dpcd_backlight = display->params.enable_dpcd_backlight;
+	if (enable_dpcd_backlight == INTEL_DP_AUX_BACKLIGHT_AUTO &&
+	    intel_has_dpcd_quirk(intel_dp, QUIRK_ENABLE_DPCD_BACKLIGHT))
+		enable_dpcd_backlight = INTEL_DP_AUX_BACKLIGHT_ON;
 
 	/* Check the VBT and user's module parameters to figure out which
 	 * interfaces to probe
 	 */
-	switch (display->params.enable_dpcd_backlight) {
+	switch (enable_dpcd_backlight) {
 	case INTEL_DP_AUX_BACKLIGHT_OFF:
 		return -ENODEV;
 	case INTEL_DP_AUX_BACKLIGHT_AUTO:

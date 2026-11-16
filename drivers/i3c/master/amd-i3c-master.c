@@ -1070,7 +1070,7 @@ static int xi3c_master_probe(struct platform_device *pdev)
 	struct xi3c_master *master;
 	int ret;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(&pdev->dev, *master);
 	if (!master)
 		return -ENOMEM;
 

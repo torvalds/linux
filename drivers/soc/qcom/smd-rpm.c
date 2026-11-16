@@ -196,7 +196,7 @@ static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 {
 	struct qcom_smd_rpm *rpm;
 
-	rpm = devm_kzalloc(&rpdev->dev, sizeof(*rpm), GFP_KERNEL);
+	rpm = devm_kzalloc_obj(&rpdev->dev, *rpm);
 	if (!rpm)
 		return -ENOMEM;
 

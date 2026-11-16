@@ -1321,13 +1321,10 @@ int nhi_probe(struct tb_nhi *nhi)
 	nhi->hop_count = ioread32(nhi->iobase + REG_CAPS) & 0x3ff;
 	dev_dbg(dev, "total paths: %d\n", nhi->hop_count);
 
-	nhi->tx_rings = devm_kcalloc(dev, nhi->hop_count,
-				     sizeof(*nhi->tx_rings), GFP_KERNEL);
-	nhi->rx_rings = devm_kcalloc(dev, nhi->hop_count,
-				     sizeof(*nhi->rx_rings), GFP_KERNEL);
-	nhi->interrupt_mask = devm_kcalloc(dev, RING_INTERRUPT_REG_COUNT(nhi),
-					   sizeof(*nhi->interrupt_mask),
-					   GFP_KERNEL);
+	nhi->tx_rings = devm_kzalloc_objs(dev, *nhi->tx_rings, nhi->hop_count);
+	nhi->rx_rings = devm_kzalloc_objs(dev, *nhi->rx_rings, nhi->hop_count);
+	nhi->interrupt_mask = devm_kzalloc_objs(dev, *nhi->interrupt_mask,
+						RING_INTERRUPT_REG_COUNT(nhi));
 	if (!nhi->tx_rings || !nhi->rx_rings || !nhi->interrupt_mask)
 		return -ENOMEM;
 

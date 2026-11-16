@@ -256,8 +256,6 @@ $(obj)/mips/poly1305-core.S: $(src)/mips/poly1305-mips.pl FORCE
 targets += mips/poly1305-core.S
 endif
 
-libpoly1305-$(CONFIG_PPC) += powerpc/poly1305-p10le_64.o
-
 ifeq ($(CONFIG_RISCV),y)
 libpoly1305-y += riscv/poly1305-core.o
 poly1305-perlasm-flavour-$(CONFIG_32BIT) := 32

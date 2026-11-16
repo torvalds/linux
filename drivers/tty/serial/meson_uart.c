@@ -736,7 +736,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 				     "port %d already allocated\n", pdev->id);
 	}
 
-	port = devm_kzalloc(&pdev->dev, sizeof(struct uart_port), GFP_KERNEL);
+	port = devm_kzalloc_obj(&pdev->dev, struct uart_port);
 	if (!port)
 		return -ENOMEM;
 

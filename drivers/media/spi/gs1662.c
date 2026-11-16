@@ -436,7 +436,7 @@ static int gs_probe(struct spi_device *spi)
 	struct gs *gs;
 	struct v4l2_subdev *sd;
 
-	gs = devm_kzalloc(&spi->dev, sizeof(struct gs), GFP_KERNEL);
+	gs = devm_kzalloc_obj(&spi->dev, struct gs);
 	if (!gs)
 		return -ENOMEM;
 

@@ -528,7 +528,7 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 		return -EIO;
 	}
 
-	priv = devm_kzalloc(&ofdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&ofdev->dev, *priv);
 	if (!priv) {
 		dev_err(&ofdev->dev, "memory allocation failed\n");
 		return -ENOMEM;

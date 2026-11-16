@@ -157,7 +157,7 @@ static int nct6775_i2c_probe(struct i2c_client *client)
 	struct nct6775_data *data;
 	struct device *dev = &client->dev;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

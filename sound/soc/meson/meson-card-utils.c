@@ -144,7 +144,7 @@ int meson_card_set_be_link(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	codec = devm_kcalloc(dev, num_codecs, sizeof(*codec), GFP_KERNEL);
+	codec = devm_kzalloc_objs(dev, *codec, num_codecs);
 	if (!codec)
 		return -ENOMEM;
 
@@ -272,7 +272,7 @@ int meson_card_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

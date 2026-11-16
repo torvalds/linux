@@ -162,7 +162,7 @@ static int max77705_add_led(struct device *dev, struct regmap *regmap, struct fw
 	struct mc_subled *info;
 	struct led_init_data init_data = {};
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led)
 		return -ENOMEM;
 
@@ -181,7 +181,7 @@ static int max77705_add_led(struct device *dev, struct regmap *regmap, struct fw
 		if (ret || reg >= MAX77705_LED_NUM_LEDS)
 			return -EINVAL;
 
-		info = devm_kcalloc(dev, num_channels, sizeof(*info), GFP_KERNEL);
+		info = devm_kzalloc_objs(dev, *info, num_channels);
 		if (!info)
 			return -ENOMEM;
 
@@ -211,7 +211,7 @@ static int max77705_add_led(struct device *dev, struct regmap *regmap, struct fw
 		if (ret)
 			return ret;
 	} else {
-		info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+		info = devm_kzalloc_obj(dev, *info);
 		if (!info)
 			return -ENOMEM;
 

@@ -1432,7 +1432,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	struct resource *res;
 	int ret, irq;
 
-	i2c = devm_kzalloc(&dev->dev, sizeof(struct pxa_i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&dev->dev, struct pxa_i2c);
 	if (!i2c)
 		return -ENOMEM;
 

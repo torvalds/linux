@@ -1138,7 +1138,7 @@ static int __init clk_rk3528_probe(struct platform_device *pdev)
 	rockchip_clk_register_branches(ctx, rk3528_clk_branches, nr_branches);
 
 	if (!IS_ERR(vo_grf)) {
-		vo_grf_e = devm_kzalloc(dev, sizeof(*vo_grf_e), GFP_KERNEL);
+		vo_grf_e = devm_kzalloc_obj(dev, *vo_grf_e);
 		if (!vo_grf_e)
 			return -ENOMEM;
 
@@ -1151,7 +1151,7 @@ static int __init clk_rk3528_probe(struct platform_device *pdev)
 	}
 
 	if (!IS_ERR(vpu_grf)) {
-		vpu_grf_e = devm_kzalloc(dev, sizeof(*vpu_grf_e), GFP_KERNEL);
+		vpu_grf_e = devm_kzalloc_obj(dev, *vpu_grf_e);
 		if (!vpu_grf_e)
 			return -ENOMEM;
 

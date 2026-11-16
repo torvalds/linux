@@ -223,8 +223,7 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 {
 	struct st33zp24_spi_phy *phy;
 
-	phy = devm_kzalloc(&dev->dev, sizeof(struct st33zp24_spi_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&dev->dev, struct st33zp24_spi_phy);
 	if (!phy)
 		return -ENOMEM;
 

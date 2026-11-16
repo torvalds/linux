@@ -593,7 +593,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 	struct ldb_channel *ldb_ch;
 	int ret, i;
 
-	imx8qxp_ldb = devm_kzalloc(dev, sizeof(*imx8qxp_ldb), GFP_KERNEL);
+	imx8qxp_ldb = devm_kzalloc_obj(dev, *imx8qxp_ldb);
 	if (!imx8qxp_ldb)
 		return -ENOMEM;
 

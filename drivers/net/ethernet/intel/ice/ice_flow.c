@@ -1472,8 +1472,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	if (!params)
 		return -ENOMEM;
 
-	params->prof = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*params->prof),
-				    GFP_KERNEL);
+	params->prof = devm_kzalloc_obj(ice_hw_to_dev(hw), *params->prof);
 	if (!params->prof) {
 		status = -ENOMEM;
 		goto free_params;
@@ -1819,7 +1818,7 @@ ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
 		/* Allocate memory for the entry being added and associate
 		 * the VSI to the found flow profile
 		 */
-		e = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*e), GFP_KERNEL);
+		e = devm_kzalloc_obj(ice_hw_to_dev(hw), *e);
 		if (!e)
 			status = -ENOMEM;
 		else
@@ -2258,8 +2257,7 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 			return 0;
 		}
 
-	rss_cfg = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*rss_cfg),
-			       GFP_KERNEL);
+	rss_cfg = devm_kzalloc_obj(ice_hw_to_dev(hw), *rss_cfg);
 	if (!rss_cfg)
 		return -ENOMEM;
 

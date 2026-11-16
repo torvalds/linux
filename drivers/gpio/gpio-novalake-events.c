@@ -266,7 +266,7 @@ static int nvl_gpio_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENOMEM;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	raw_spin_lock_init(&priv->lock);

@@ -359,7 +359,7 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *regs;
 
-	rtk = devm_kzalloc(dev, sizeof(*rtk), GFP_KERNEL);
+	rtk = devm_kzalloc_obj(dev, *rtk);
 	if (!rtk)
 		return -ENOMEM;
 

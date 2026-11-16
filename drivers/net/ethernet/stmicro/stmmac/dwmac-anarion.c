@@ -73,7 +73,7 @@ anarion_config_dt(struct platform_device *pdev,
 		return ERR_CAST(ctl_block);
 	}
 
-	gmac = devm_kzalloc(&pdev->dev, sizeof(*gmac), GFP_KERNEL);
+	gmac = devm_kzalloc_obj(&pdev->dev, *gmac);
 	if (!gmac)
 		return ERR_PTR(-ENOMEM);
 

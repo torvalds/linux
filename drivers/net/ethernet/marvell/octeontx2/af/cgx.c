@@ -1959,7 +1959,7 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct cgx *cgx;
 	int err, nvec;
 
-	cgx = devm_kzalloc(dev, sizeof(*cgx), GFP_KERNEL);
+	cgx = devm_kzalloc_obj(dev, *cgx);
 	if (!cgx)
 		return -ENOMEM;
 	cgx->pdev = pdev;

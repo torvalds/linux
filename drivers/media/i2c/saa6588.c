@@ -455,7 +455,7 @@ static int saa6588_probe(struct i2c_client *client)
 	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	s = devm_kzalloc(&client->dev, sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc_obj(&client->dev, *s);
 	if (s == NULL)
 		return -ENOMEM;
 

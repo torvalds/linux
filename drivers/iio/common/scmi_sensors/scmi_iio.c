@@ -509,10 +509,8 @@ static int scmi_iio_set_sampling_freq_avail(struct iio_dev *iio_dev)
 	int i;
 
 	sensor->freq_avail =
-		devm_kcalloc(&iio_dev->dev,
-			     array_size(sensor->sensor_info->intervals.count, 2),
-			     sizeof(*sensor->freq_avail),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(&iio_dev->dev, *sensor->freq_avail,
+				  array_size(sensor->sensor_info->intervals.count, 2));
 	if (!sensor->freq_avail)
 		return -ENOMEM;
 
@@ -585,9 +583,7 @@ scmi_alloc_iiodev(struct scmi_device *sdev,
 	iiodev->info = &scmi_iio_info;
 
 	iio_channels =
-		devm_kcalloc(dev, iiodev->num_channels,
-			     sizeof(*iio_channels),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(dev, *iio_channels, iiodev->num_channels);
 	if (!iio_channels)
 		return ERR_PTR(-ENOMEM);
 

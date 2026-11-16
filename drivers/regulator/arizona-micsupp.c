@@ -306,7 +306,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	const struct regulator_desc *desc;
 	struct arizona_micsupp *micsupp;
 
-	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
+	micsupp = devm_kzalloc_obj(&pdev->dev, *micsupp);
 	if (!micsupp)
 		return -ENOMEM;
 
@@ -342,7 +342,7 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_micsupp *micsupp;
 
-	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
+	micsupp = devm_kzalloc_obj(&pdev->dev, *micsupp);
 	if (!micsupp)
 		return -ENOMEM;
 

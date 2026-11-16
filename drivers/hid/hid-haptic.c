@@ -426,14 +426,12 @@ int hid_haptic_init(struct hid_device *hdev,
 	haptic->max_waveform_id = max(2u, haptic->max_waveform_id);
 	haptic->max_duration_id = max(2u, haptic->max_duration_id);
 
-	haptic->hid_usage_map = kcalloc(haptic->max_waveform_id + 1,
-					sizeof(u16), GFP_KERNEL);
+	haptic->hid_usage_map = kzalloc_objs(u16, haptic->max_waveform_id + 1);
 	if (!haptic->hid_usage_map) {
 		ret = -ENOMEM;
 		goto exit;
 	}
-	haptic->duration_map = kcalloc(haptic->max_duration_id + 1,
-				       sizeof(u32), GFP_KERNEL);
+	haptic->duration_map = kzalloc_objs(u32, haptic->max_duration_id + 1);
 	if (!haptic->duration_map) {
 		ret = -ENOMEM;
 		goto usage_map;

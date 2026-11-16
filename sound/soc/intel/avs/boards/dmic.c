@@ -30,12 +30,12 @@ static int avs_create_dai_links(struct device *dev, const char *codec_name,
 	struct snd_soc_dai_link *dl;
 	const int num_dl = 2;
 
-	dl = devm_kcalloc(dev, num_dl, sizeof(*dl), GFP_KERNEL);
-	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+	dl = devm_kzalloc_objs(dev, *dl, num_dl);
+	platform = devm_kzalloc_obj(dev, *platform);
 	if (!dl || !platform)
 		return -ENOMEM;
 
-	dl->codecs = devm_kzalloc(dev, sizeof(*dl->codecs), GFP_KERNEL);
+	dl->codecs = devm_kzalloc_obj(dev, *dl->codecs);
 	if (!dl->codecs)
 		return -ENOMEM;
 
@@ -78,7 +78,7 @@ static int avs_dmic_probe(struct platform_device *pdev)
 	mach = dev_get_platdata(dev);
 	pdata = mach->pdata;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

@@ -385,7 +385,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 	struct meson_pcie *mp;
 	int ret;
 
-	mp = devm_kzalloc(dev, sizeof(*mp), GFP_KERNEL);
+	mp = devm_kzalloc_obj(dev, *mp);
 	if (!mp)
 		return -ENOMEM;
 

@@ -278,7 +278,7 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	cpa_pmu = devm_kzalloc(&pdev->dev, sizeof(*cpa_pmu), GFP_KERNEL);
+	cpa_pmu = devm_kzalloc_obj(&pdev->dev, *cpa_pmu);
 	if (!cpa_pmu)
 		return -ENOMEM;
 

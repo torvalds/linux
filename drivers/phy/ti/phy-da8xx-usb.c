@@ -182,7 +182,7 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	struct da8xx_usb_phy	*d_phy;
 	int ret;
 
-	d_phy = devm_kzalloc(dev, sizeof(*d_phy), GFP_KERNEL);
+	d_phy = devm_kzalloc_obj(dev, *d_phy);
 	if (!d_phy)
 		return -ENOMEM;
 

@@ -5,7 +5,7 @@
  * SDIO over Sonics Silicon Backplane bus glue for b43.
  *
  * Copyright (C) 2009 Albert Herranz
- * Copyright (C) 2009 Michael Buesch <m@bues.ch>
+ * Copyright (C) 2009 Michael Buesch
  */
 
 #include <linux/kernel.h>

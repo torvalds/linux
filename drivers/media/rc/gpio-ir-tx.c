@@ -161,7 +161,7 @@ static int gpio_ir_tx_probe(struct platform_device *pdev)
 	struct rc_dev *rcdev;
 	int rc;
 
-	gpio_ir = devm_kmalloc(&pdev->dev, sizeof(*gpio_ir), GFP_KERNEL);
+	gpio_ir = devm_kmalloc_obj(&pdev->dev, *gpio_ir);
 	if (!gpio_ir)
 		return -ENOMEM;
 

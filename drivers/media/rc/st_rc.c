@@ -236,7 +236,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const char *rx_mode;
 
-	rc_dev = devm_kzalloc(dev, sizeof(struct st_rc_device), GFP_KERNEL);
+	rc_dev = devm_kzalloc_obj(dev, struct st_rc_device);
 
 	if (!rc_dev)
 		return -ENOMEM;

@@ -1011,7 +1011,7 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 	struct mhi_controller *mhi_cntrl;
 	int ret;
 
-	mhi_cntrl = devm_kzalloc(&pci_dev->dev, sizeof(*mhi_cntrl), GFP_KERNEL);
+	mhi_cntrl = devm_kzalloc_obj(&pci_dev->dev, *mhi_cntrl);
 	if (!mhi_cntrl)
 		return ERR_PTR(-ENOMEM);
 
@@ -1032,7 +1032,7 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 	mhi_cntrl->regs = mhi_bar;
 	mhi_cntrl->reg_len = SZ_4K;
 	mhi_cntrl->nr_irqs = 1;
-	mhi_cntrl->irq = devm_kmalloc(&pci_dev->dev, sizeof(*mhi_cntrl->irq), GFP_KERNEL);
+	mhi_cntrl->irq = devm_kmalloc_obj(&pci_dev->dev, *mhi_cntrl->irq);
 
 	if (!mhi_cntrl->irq)
 		return ERR_PTR(-ENOMEM);

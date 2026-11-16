@@ -377,7 +377,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 		spi_get_chipselect(func, 0), func->mode, func->bits_per_word,
 		func->max_speed_hz);
 
-	self = devm_kzalloc(&func->dev, sizeof(*self), GFP_KERNEL);
+	self = devm_kzalloc_obj(&func->dev, *self);
 	if (!self) {
 		pr_err("Can't allocate SPI hwbus_priv.");
 		return -ENOMEM;

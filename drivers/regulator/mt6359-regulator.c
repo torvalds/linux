@@ -1075,7 +1075,7 @@ static int mt6359_regulator_probe(struct platform_device *pdev)
 
 		/* Use vio18's actual name as supply_name for vbbck */
 		if (i == MT6359_ID_VBBCK && strcmp(desc->supply_name, vio18_name) != 0) {
-			_desc = devm_kzalloc(&pdev->dev, sizeof(*_desc), GFP_KERNEL);
+			_desc = devm_kzalloc_obj(&pdev->dev, *_desc);
 			if (!_desc)
 				return -ENOMEM;
 
@@ -1087,7 +1087,7 @@ static int mt6359_regulator_probe(struct platform_device *pdev)
 		/* Use vcn33_1's actual name as supply_name for vcn33_1_(bt|wifi) */
 		if ((i == MT6359_ID_VCN33_1_BT || i == MT6359_ID_VCN33_1_WIFI) &&
 		    strcmp(desc->supply_name, vcn33_1_name) != 0) {
-			_desc = devm_kzalloc(&pdev->dev, sizeof(*_desc), GFP_KERNEL);
+			_desc = devm_kzalloc_obj(&pdev->dev, *_desc);
 			if (!_desc)
 				return -ENOMEM;
 
@@ -1099,7 +1099,7 @@ static int mt6359_regulator_probe(struct platform_device *pdev)
 		/* Use vcn33_2's actual name as supply_name for vcn33_2_(bt|wifi) */
 		if ((i == MT6359_ID_VCN33_2_BT || i == MT6359_ID_VCN33_2_WIFI) &&
 		    strcmp(desc->supply_name, vcn33_2_name) != 0) {
-			_desc = devm_kzalloc(&pdev->dev, sizeof(*_desc), GFP_KERNEL);
+			_desc = devm_kzalloc_obj(&pdev->dev, *_desc);
 			if (!_desc)
 				return -ENOMEM;
 

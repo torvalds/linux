@@ -1213,15 +1213,11 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 		goto err_free;
 	}
 
-	qp->sq.wrid = kvmalloc_array(qp->sq.wqe_cnt,
-				     sizeof(*qp->sq.wrid), GFP_KERNEL);
-	qp->sq.wr_data = kvmalloc_array(qp->sq.wqe_cnt,
-					sizeof(*qp->sq.wr_data), GFP_KERNEL);
-	qp->rq.wrid = kvmalloc_array(qp->rq.wqe_cnt,
-				     sizeof(*qp->rq.wrid), GFP_KERNEL);
+	qp->sq.wrid = kvmalloc_objs(*qp->sq.wrid, qp->sq.wqe_cnt);
+	qp->sq.wr_data = kvmalloc_objs(*qp->sq.wr_data, qp->sq.wqe_cnt);
+	qp->rq.wrid = kvmalloc_objs(*qp->rq.wrid, qp->rq.wqe_cnt);
 	qp->sq.w_list = kvmalloc_objs(*qp->sq.w_list, qp->sq.wqe_cnt);
-	qp->sq.wqe_head = kvmalloc_array(qp->sq.wqe_cnt,
-					 sizeof(*qp->sq.wqe_head), GFP_KERNEL);
+	qp->sq.wqe_head = kvmalloc_objs(*qp->sq.wqe_head, qp->sq.wqe_cnt);
 
 	if (!qp->sq.wrid || !qp->sq.wr_data || !qp->rq.wrid ||
 	    !qp->sq.w_list || !qp->sq.wqe_head) {

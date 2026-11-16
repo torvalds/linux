@@ -407,8 +407,7 @@ static int pcf85363_probe(struct i2c_client *client)
 	if (data)
 		config = data;
 
-	pcf85363 = devm_kzalloc(&client->dev, sizeof(struct pcf85363),
-				GFP_KERNEL);
+	pcf85363 = devm_kzalloc_obj(&client->dev, struct pcf85363);
 	if (!pcf85363)
 		return -ENOMEM;
 

@@ -243,7 +243,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (func->max_speed_hz > 50000000)
 		dev_warn(&func->dev, "%dHz is a very high speed\n", func->max_speed_hz);
 
-	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(&func->dev, *bus);
 	if (!bus)
 		return -ENOMEM;
 	bus->func = func;

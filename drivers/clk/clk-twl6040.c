@@ -129,7 +129,7 @@ static int twl6040_pdmclk_probe(struct platform_device *pdev)
 	struct twl6040_pdmclk *clkdata;
 	int ret;
 
-	clkdata = devm_kzalloc(&pdev->dev, sizeof(*clkdata), GFP_KERNEL);
+	clkdata = devm_kzalloc_obj(&pdev->dev, *clkdata);
 	if (!clkdata)
 		return -ENOMEM;
 

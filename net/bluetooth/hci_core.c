@@ -1075,17 +1075,16 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	rcu_read_lock();
 	list_for_each_entry_rcu(k, &hdev->link_keys, list) {
 		if (bacmp(bdaddr, &k->bdaddr) == 0) {
-			rcu_read_unlock();
-
 			if (hci_is_blocked_key(hdev,
 					       HCI_BLOCKED_KEY_TYPE_LINKKEY,
 					       k->val)) {
 				bt_dev_warn_ratelimited(hdev,
 							"Link key blocked for %pMR",
 							&k->bdaddr);
-				return NULL;
+				k = NULL;
 			}
 
+			rcu_read_unlock();
 			return k;
 		}
 	}
@@ -1252,7 +1251,6 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 		key = kzalloc_obj(*key);
 		if (!key)
 			return NULL;
-		list_add_rcu(&key->list, &hdev->link_keys);
 	}
 
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
@@ -1276,6 +1274,9 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 	else
 		key->type = type;
 
+	if (!old_key)
+		list_add_rcu(&key->list, &hdev->link_keys);
+
 	if (persistent)
 		*persistent = hci_persistent_key(hdev, conn, type,
 						 old_key_type);
@@ -1297,7 +1298,6 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		key = kzalloc_obj(*key);
 		if (!key)
 			return NULL;
-		list_add_rcu(&key->list, &hdev->long_term_keys);
 	}
 
 	bacpy(&key->bdaddr, bdaddr);
@@ -1309,15 +1309,19 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	key->enc_size = enc_size;
 	key->type = type;
 
+	if (!old_key)
+		list_add_rcu(&key->list, &hdev->long_term_keys);
+
 	return key;
 }
 
 struct smp_irk *hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 addr_type, u8 val[16], bdaddr_t *rpa)
 {
-	struct smp_irk *irk;
+	struct smp_irk *irk, *old_irk;
 
-	irk = hci_find_irk_by_addr(hdev, bdaddr, addr_type);
+	old_irk = hci_find_irk_by_addr(hdev, bdaddr, addr_type);
+	irk = old_irk;
 	if (!irk) {
 		irk = kzalloc_obj(*irk);
 		if (!irk)
@@ -1326,11 +1330,13 @@ struct smp_irk *hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		bacpy(&irk->bdaddr, bdaddr);
 		irk->addr_type = addr_type;
 
-		list_add_rcu(&irk->list, &hdev->identity_resolving_keys);
 	}
 
 	memcpy(irk->val, val, 16);
 	bacpy(&irk->rpa, rpa);
+
+	if (!old_irk)
+		list_add_rcu(&irk->list, &hdev->identity_resolving_keys);
 
 	return irk;
 }
@@ -1694,6 +1700,9 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 		if (!adv)
 			return ERR_PTR(-ENOMEM);
 
+		INIT_DELAYED_WORK(&adv->rpa_expired_cb,
+				  adv_instance_rpa_expired);
+
 		adv->pending = true;
 		adv->instance = instance;
 
@@ -1729,8 +1738,6 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 		adv->duration = hdev->def_multi_adv_rotation_duration;
 	else
 		adv->duration = duration;
-
-	INIT_DELAYED_WORK(&adv->rpa_expired_cb, adv_instance_rpa_expired);
 
 	BT_DBG("%s for %dMR", hdev->name, instance);
 
@@ -2897,8 +2904,14 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	u8 dev_pkt_type;
 
+	/* Pairs with synchronize_rcu() in hci_dev_close_sync(), so rx_work is
+	 * not queued once the workqueue is being drained.
+	 */
+	rcu_read_lock();
+
 	if (!hdev || (!test_bit(HCI_UP, &hdev->flags)
 		      && !test_bit(HCI_INIT, &hdev->flags))) {
+		rcu_read_unlock();
 		kfree_skb(skb);
 		return -ENXIO;
 	}
@@ -2934,6 +2947,7 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	case HCI_DRV_PKT:
 		break;
 	default:
+		rcu_read_unlock();
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -2946,6 +2960,8 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&hdev->rx_q, skb);
 	queue_work(hdev->workqueue, &hdev->rx_work);
+
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -3159,7 +3175,8 @@ int __hci_cmd_send(struct hci_dev *hdev, u16 opcode, u32 plen,
 EXPORT_SYMBOL(__hci_cmd_send);
 
 /* Get data from the previously sent command */
-static void *hci_cmd_data(struct sk_buff *skb, __u16 opcode)
+static void *hci_cmd_data(struct sk_buff *skb, __u16 opcode,
+			  size_t *len)
 {
 	struct hci_command_hdr *hdr;
 
@@ -3171,21 +3188,30 @@ static void *hci_cmd_data(struct sk_buff *skb, __u16 opcode)
 	if (hdr->opcode != cpu_to_le16(opcode))
 		return NULL;
 
+	if (len)
+		*len = skb->len - HCI_COMMAND_HDR_SIZE;
+
 	return skb->data + HCI_COMMAND_HDR_SIZE;
+}
+
+/* Get data from the previously sent command */
+void *hci_sent_cmd_data_len(struct hci_dev *hdev, __u16 opcode, size_t *len)
+{
+	void *data;
+
+	/* Check if opcode matches last sent command */
+	data = hci_cmd_data(hdev->sent_cmd, opcode, len);
+	if (!data)
+		/* Check if opcode matches last request */
+		data = hci_cmd_data(hdev->req_skb, opcode, len);
+
+	return data;
 }
 
 /* Get data from the previously sent command */
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)
 {
-	void *data;
-
-	/* Check if opcode matches last sent command */
-	data = hci_cmd_data(hdev->sent_cmd, opcode);
-	if (!data)
-		/* Check if opcode matches last request */
-		data = hci_cmd_data(hdev->req_skb, opcode);
-
-	return data;
+	return hci_sent_cmd_data_len(hdev, opcode, NULL);
 }
 
 /* Get data from last received event */

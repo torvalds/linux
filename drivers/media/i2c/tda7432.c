@@ -351,7 +351,7 @@ static int tda7432_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
+	t = devm_kzalloc_obj(&client->dev, *t);
 	if (!t)
 		return -ENOMEM;
 	sd = &t->sd;

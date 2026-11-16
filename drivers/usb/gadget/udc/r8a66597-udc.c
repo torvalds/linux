@@ -1858,7 +1858,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 	}
 
 	/* initialize ucd */
-	r8a66597 = devm_kzalloc(dev, sizeof(struct r8a66597), GFP_KERNEL);
+	r8a66597 = devm_kzalloc_obj(dev, struct r8a66597);
 	if (r8a66597 == NULL)
 		return -ENOMEM;
 

@@ -194,7 +194,7 @@ static int ns_cmp_owner(struct rb_node *a, const struct rb_node *b)
 	return ns_id_cmp(node_to_ns_owner(a)->ns_id, node_to_ns_owner(b)->ns_id);
 }
 
-void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree_root *ns_tree)
+void __ns_tree_add(struct ns_common *ns, struct ns_tree_root *ns_tree)
 {
 	struct rb_node *node;
 	const struct proc_ns_operations *ops = ns->ops;

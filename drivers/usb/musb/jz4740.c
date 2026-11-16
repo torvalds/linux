@@ -241,7 +241,7 @@ static int jz4740_probe(struct platform_device *pdev)
 	struct clk			*clk;
 	int				ret;
 
-	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(dev, *glue);
 	if (!glue)
 		return -ENOMEM;
 

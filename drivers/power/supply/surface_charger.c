@@ -237,7 +237,7 @@ static int surface_ac_probe(struct ssam_device *sdev)
 	if (!p)
 		return -ENODEV;
 
-	ac = devm_kzalloc(&sdev->dev, sizeof(*ac), GFP_KERNEL);
+	ac = devm_kzalloc_obj(&sdev->dev, *ac);
 	if (!ac)
 		return -ENOMEM;
 

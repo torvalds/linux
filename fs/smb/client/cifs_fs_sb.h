@@ -57,6 +57,7 @@ struct cifs_sb_info {
 	atomic_t active;
 	atomic_t mnt_cifs_flags;
 	atomic_t outstanding_rreq;	/* nr of rreqs not yet fully deinitialized */
+	atomic_t umount_aborts;		/* nr of umount -f attempts */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
 
@@ -68,6 +69,7 @@ struct cifs_sb_info {
 	 * (cifs_autodisable_serverino) in order to match new mounts.
 	 */
 	bool mnt_cifs_serverino_autodisabled;
+	bool exiting;			/* umount -f committed: stop retries */
 	/*
 	 * Available once the mount has completed.
 	 */

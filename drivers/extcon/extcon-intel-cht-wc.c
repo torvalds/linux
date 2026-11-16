@@ -500,7 +500,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ext = devm_kzalloc(&pdev->dev, sizeof(*ext), GFP_KERNEL);
+	ext = devm_kzalloc_obj(&pdev->dev, *ext);
 	if (!ext)
 		return -ENOMEM;
 

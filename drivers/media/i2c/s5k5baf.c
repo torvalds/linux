@@ -362,7 +362,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	data += S5K5BAG_FW_TAG_LEN;
 	count -= S5K5BAG_FW_TAG_LEN;
 
-	d = devm_kcalloc(dev, count, sizeof(u16), GFP_KERNEL);
+	d = devm_kzalloc_objs(dev, u16, count);
 	if (!d)
 		return -ENOMEM;
 
@@ -1932,7 +1932,7 @@ static int s5k5baf_probe(struct i2c_client *c)
 	struct s5k5baf *state;
 	int ret;
 
-	state = devm_kzalloc(&c->dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(&c->dev, *state);
 	if (!state)
 		return -ENOMEM;
 

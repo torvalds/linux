@@ -619,7 +619,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
-	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
+	dwmac = devm_kzalloc_obj(dev, *dwmac);
 	if (!dwmac)
 		return -ENOMEM;
 

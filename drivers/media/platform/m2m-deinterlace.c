@@ -913,7 +913,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 	dma_cap_mask_t mask;
 	int ret = 0;
 
-	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
+	pcdev = devm_kzalloc_obj(&pdev->dev, *pcdev);
 	if (!pcdev)
 		return -ENOMEM;
 

@@ -172,7 +172,7 @@ static int lp8788_probe(struct i2c_client *cl)
 	struct lp8788_platform_data *pdata = dev_get_platdata(&cl->dev);
 	int ret;
 
-	lp = devm_kzalloc(&cl->dev, sizeof(struct lp8788), GFP_KERNEL);
+	lp = devm_kzalloc_obj(&cl->dev, struct lp8788);
 	if (!lp)
 		return -ENOMEM;
 

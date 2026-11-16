@@ -960,7 +960,7 @@ static int cpcap_battery_init_irq(struct platform_device *pdev,
 	if (error)
 		return error;
 
-	d = devm_kzalloc(ddata->dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(ddata->dev, *d);
 	if (!d)
 		return -ENOMEM;
 
@@ -1117,7 +1117,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	int error;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

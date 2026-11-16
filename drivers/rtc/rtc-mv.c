@@ -211,7 +211,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	u32 rtc_time;
 	int ret = 0;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

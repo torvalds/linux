@@ -427,7 +427,7 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENODEV;
 
-	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

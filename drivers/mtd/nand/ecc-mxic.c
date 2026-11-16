@@ -230,7 +230,7 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 	u32 spare_reg;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -799,7 +799,7 @@ static int mxic_ecc_probe(struct platform_device *pdev)
 	struct mxic_ecc_engine *mxic;
 	int ret;
 
-	mxic = devm_kzalloc(&pdev->dev, sizeof(*mxic), GFP_KERNEL);
+	mxic = devm_kzalloc_obj(&pdev->dev, *mxic);
 	if (!mxic)
 		return -ENOMEM;
 

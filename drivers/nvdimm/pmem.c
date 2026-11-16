@@ -483,7 +483,7 @@ static int pmem_attach_disk(struct device *dev,
 	void *addr;
 	int rc;
 
-	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
+	pmem = devm_kzalloc_obj(dev, *pmem);
 	if (!pmem)
 		return -ENOMEM;
 

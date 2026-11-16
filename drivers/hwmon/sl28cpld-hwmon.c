@@ -83,7 +83,7 @@ static int sl28cpld_hwmon_probe(struct platform_device *pdev)
 	if (!pdev->dev.parent)
 		return -ENODEV;
 
-	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(&pdev->dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

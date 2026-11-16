@@ -170,7 +170,7 @@ static int max7360_gpio_probe(struct platform_device *pdev)
 						     "Failed to get IRQ\n");
 
 			/* Create custom IRQ configuration. */
-			irq_chip = devm_kzalloc(dev, sizeof(*irq_chip), GFP_KERNEL);
+			irq_chip = devm_kzalloc_obj(dev, *irq_chip);
 			if (!irq_chip)
 				return -ENOMEM;
 

@@ -748,7 +748,7 @@ int ras_cper_sw_init(struct ras_core_context *ras_core)
 	uint32_t nr_profiles = RAS_LOG_EVENT_COUNT_MAX;
 	int i, ret = 0;
 
-	profiles = kcalloc(nr_profiles, sizeof(*profiles), GFP_KERNEL);
+	profiles = kzalloc_objs(*profiles, nr_profiles);
 	if (!profiles)
 		return -ENOMEM;
 

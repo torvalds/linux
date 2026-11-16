@@ -275,7 +275,7 @@ static int dell_uart_bl_serdev_probe(struct serdev_device *serdev)
 	struct device *dev = &serdev->dev;
 	int ret;
 
-	dell_bl = devm_kzalloc(dev, sizeof(*dell_bl), GFP_KERNEL);
+	dell_bl = devm_kzalloc_obj(dev, *dell_bl);
 	if (!dell_bl)
 		return -ENOMEM;
 

@@ -152,8 +152,7 @@ static int mt792x_setup_iface_combinations(struct mt792x_dev *dev,
 	}
 
 	/* CNM + NAN: dynamically build base + nan list */
-	comb = devm_kcalloc(&wiphy->dev, n_base + n_nan, sizeof(*comb),
-			    GFP_KERNEL);
+	comb = devm_kzalloc_objs(&wiphy->dev, *comb, n_base + n_nan);
 	if (!comb)
 		return -ENOMEM;
 

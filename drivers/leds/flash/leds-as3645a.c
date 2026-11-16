@@ -678,7 +678,7 @@ static int as3645a_probe(struct i2c_client *client)
 	if (!dev_fwnode(&client->dev))
 		return -ENODEV;
 
-	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc_obj(&client->dev, *flash);
 	if (flash == NULL)
 		return -ENOMEM;
 

@@ -564,7 +564,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 		height = display->height;
 	}
 
-	fbdefio = devm_kzalloc(dev, sizeof(struct fb_deferred_io), GFP_KERNEL);
+	fbdefio = devm_kzalloc_obj(dev, struct fb_deferred_io);
 	if (!fbdefio)
 		return NULL;
 
@@ -573,11 +573,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 		return NULL;
 
 	if (display->gamma_num && display->gamma_len) {
-		gamma_curves = devm_kcalloc(dev,
-					    display->gamma_num *
-					    display->gamma_len,
-					    sizeof(gamma_curves[0]),
-					    GFP_KERNEL);
+		gamma_curves = devm_kzalloc_objs(dev, gamma_curves[0],
+						 display->gamma_num * display->gamma_len);
 		if (!gamma_curves)
 			return NULL;
 	}
@@ -852,7 +849,7 @@ static int fbtft_init_display_from_property(struct fbtft_par *par)
 	if (count == 0)
 		return -EINVAL;
 
-	values = kmalloc_array(count + 1, sizeof(*values), GFP_KERNEL);
+	values = kmalloc_objs(*values, count + 1);
 	if (!values)
 		return -ENOMEM;
 
@@ -1095,7 +1092,7 @@ static struct fbtft_platform_data *fbtft_properties_read(struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 

@@ -534,7 +534,7 @@ static int mlxreg_dpu_probe(struct platform_device *pdev)
 	if (!data->hpdev.adapter)
 		return -EPROBE_DEFER;
 
-	mlxreg_dpu = devm_kzalloc(&pdev->dev, sizeof(*mlxreg_dpu), GFP_KERNEL);
+	mlxreg_dpu = devm_kzalloc_obj(&pdev->dev, *mlxreg_dpu);
 	if (!mlxreg_dpu) {
 		err = -ENOMEM;
 		goto alloc_fail;

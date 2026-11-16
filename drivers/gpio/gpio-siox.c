@@ -222,7 +222,7 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 	struct gpio_chip *gc;
 	int ret;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

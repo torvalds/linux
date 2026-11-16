@@ -289,6 +289,26 @@ __naked void callx_callee_writes_caller_stack(void)
 		: __clobber_all);
 }
 
+/* callee can store a pointer that is not FP-derived over a pointer spilled by the caller */
+SEC("socket")
+__success __log_level(2)
+__msg("r0 = *(u64 *)(r10 -16) // fp-16=fp0-8|fp0+0")
+__naked void callx_callee_can_overwrite_spilled_fp(void)
+{
+	asm volatile (
+		"r1 = r10;"
+		"r1 += -8;"
+		"*(u64 *)(r10 - 16) = r1;"
+		"r2 = %[write42] ll;"
+		"callx r2;"
+		"r0 = *(u64 *)(r10 - 16);"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm_addr(write42)
+		: __clobber_all);
+}
+
 SEC("socket")
 __failure __msg("R1 has type scalar, expected func")
 __naked void callx_scalar(void)

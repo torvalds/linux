@@ -2571,7 +2571,7 @@ static int pl08x_of_probe(struct amba_device *adev,
 	int ret;
 	int i;
 
-	pd = devm_kzalloc(&adev->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(&adev->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -2658,10 +2658,8 @@ static int pl08x_of_probe(struct amba_device *adev,
 	 * translation time.
 	 */
 	if (pl08x->vd->signals) {
-		chanp = devm_kcalloc(&adev->dev,
-				     pl08x->vd->signals,
-				     sizeof(struct pl08x_channel_data),
-				     GFP_KERNEL);
+		chanp = devm_kzalloc_objs(&adev->dev, struct pl08x_channel_data,
+					  pl08x->vd->signals);
 		if (!chanp)
 			return -ENOMEM;
 

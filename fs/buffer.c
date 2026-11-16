@@ -621,12 +621,15 @@ void write_boundary_block(struct block_device *bdev,
  * @bh: The buffer to mark dirty.
  * @mmb: The list of buffers to add the buffer to.
  *
- * Mark the buffer dirty and add it to the list if it is not already on
- * a list.
+ * Mark the buffer dirty, add it to the list if it is not already on a list
+ * and set I_METADATA_WRITEBACK on the inode so that fsync() and eviction
+ * write it out.
  */
 void mmb_mark_buffer_dirty(struct buffer_head *bh,
 			   struct mapping_metadata_bhs *mmb)
 {
+	struct inode *inode = mmb->mapping->host;
+
 	mark_buffer_dirty(bh);
 	if (!bh->b_mmb) {
 		spin_lock(&mmb->lock);
@@ -641,6 +644,15 @@ void mmb_mark_buffer_dirty(struct buffer_head *bh,
 		list_move_tail(&bh->b_assoc_buffers, &mmb->list);
 		spin_unlock(&mmb->lock);
 	}
+	/*
+	 * The inode itself may never have been dirtied, so attach it to a wb
+	 * before setting the bit or writeback_single_inode() has nothing to
+	 * lock when evict() syncs it.
+	 */
+	spin_lock(&inode->i_lock);
+	inode_attach_wb(inode, NULL);
+	inode_state_set(inode, I_METADATA_WRITEBACK);
+	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(mmb_mark_buffer_dirty);
 

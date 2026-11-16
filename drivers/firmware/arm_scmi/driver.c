@@ -2032,7 +2032,7 @@ scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 	*p_addr = addr;
 
 	if (p_db && SUPPORTS_DOORBELL(flags)) {
-		db = devm_kzalloc(ph->dev, sizeof(*db), GFP_KERNEL);
+		db = devm_kzalloc_obj(ph->dev, *db);
 		if (!db) {
 			ret = -ENOMEM;
 			goto err_db;
@@ -2275,7 +2275,7 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 		goto out;
 	}
 
-	pi = devm_kzalloc(handle->dev, sizeof(*pi), GFP_KERNEL);
+	pi = devm_kzalloc_obj(handle->dev, *pi);
 	if (!pi)
 		goto clean;
 
@@ -2718,7 +2718,7 @@ static int __scmi_xfer_info_init(struct scmi_info *sinfo,
 	 */
 	INIT_HLIST_HEAD(&info->free_xfers);
 	for (i = 0; i < info->max_msg; i++) {
-		xfer = devm_kzalloc(dev, sizeof(*xfer), GFP_KERNEL);
+		xfer = devm_kzalloc_obj(dev, *xfer);
 		if (!xfer)
 			return -ENOMEM;
 
@@ -2803,7 +2803,7 @@ static int scmi_chan_setup(struct scmi_info *info, struct fwnode_handle *fwnode,
 		goto idr_alloc;
 	}
 
-	cinfo = devm_kzalloc(info->dev, sizeof(*cinfo), GFP_KERNEL);
+	cinfo = devm_kzalloc_obj(info->dev, *cinfo);
 	if (!cinfo)
 		return -ENOMEM;
 
@@ -3121,7 +3121,7 @@ static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
 	struct scmi_debug_info *dbg;
 	const char *c_ptr = NULL;
 
-	dbg = devm_kzalloc(info->dev, sizeof(*dbg), GFP_KERNEL);
+	dbg = devm_kzalloc_obj(info->dev, *dbg);
 	if (!dbg)
 		return NULL;
 
@@ -3339,7 +3339,7 @@ static int scmi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

@@ -450,7 +450,7 @@ static int emc6w201_probe(struct i2c_client *client)
 	struct emc6w201_data *data;
 	struct device *hwmon_dev;
 
-	data = devm_kzalloc(dev, sizeof(struct emc6w201_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct emc6w201_data);
 	if (!data)
 		return -ENOMEM;
 

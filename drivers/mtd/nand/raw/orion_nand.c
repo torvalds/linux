@@ -106,9 +106,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 val = 0;
 
-	info = devm_kzalloc(&pdev->dev,
-			sizeof(struct orion_nand_info),
-			GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct orion_nand_info);
 	if (!info)
 		return -ENOMEM;
 	nc = &info->chip;
@@ -124,8 +122,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(io_base);
 
 	if (pdev->dev.of_node) {
-		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
-					GFP_KERNEL);
+		board = devm_kzalloc_obj(&pdev->dev, struct orion_nand_data);
 		if (!board)
 			return -ENOMEM;
 		if (!of_property_read_u32(pdev->dev.of_node, "cle", &val))

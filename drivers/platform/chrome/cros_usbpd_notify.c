@@ -106,7 +106,7 @@ static int cros_usbpd_notify_probe_acpi(struct platform_device *pdev)
 
 	adev = ACPI_COMPANION(dev);
 
-	pdnotify = devm_kzalloc(dev, sizeof(*pdnotify), GFP_KERNEL);
+	pdnotify = devm_kzalloc_obj(dev, *pdnotify);
 	if (!pdnotify)
 		return -ENOMEM;
 
@@ -203,7 +203,7 @@ static int cros_usbpd_notify_probe_plat(struct platform_device *pdev)
 	struct cros_usbpd_notify_data *pdnotify;
 	int ret;
 
-	pdnotify = devm_kzalloc(dev, sizeof(*pdnotify), GFP_KERNEL);
+	pdnotify = devm_kzalloc_obj(dev, *pdnotify);
 	if (!pdnotify)
 		return -ENOMEM;
 

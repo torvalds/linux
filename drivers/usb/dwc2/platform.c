@@ -442,7 +442,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct resource *res;
 	int retval;
 
-	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
+	hsotg = devm_kzalloc_obj(&dev->dev, *hsotg);
 	if (!hsotg)
 		return -ENOMEM;
 

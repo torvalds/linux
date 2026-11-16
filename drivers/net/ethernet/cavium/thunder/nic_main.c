@@ -1297,11 +1297,11 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	BUILD_BUG_ON(sizeof(union nic_mbx) > 16);
 
-	nic = devm_kzalloc(dev, sizeof(*nic), GFP_KERNEL);
+	nic = devm_kzalloc_obj(dev, *nic);
 	if (!nic)
 		return -ENOMEM;
 
-	nic->hw = devm_kzalloc(dev, sizeof(struct hw_info), GFP_KERNEL);
+	nic->hw = devm_kzalloc_obj(dev, struct hw_info);
 	if (!nic->hw)
 		return -ENOMEM;
 

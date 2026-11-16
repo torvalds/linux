@@ -136,7 +136,7 @@ static int pistachio_usb_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int ret;
 
-	p_phy = devm_kzalloc(&pdev->dev, sizeof(*p_phy), GFP_KERNEL);
+	p_phy = devm_kzalloc_obj(&pdev->dev, *p_phy);
 	if (!p_phy)
 		return -ENOMEM;
 	p_phy->dev = &pdev->dev;

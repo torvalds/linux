@@ -531,8 +531,7 @@ static int mal_probe(struct platform_device *ofdev)
 	unsigned long irqflags;
 	irq_handler_t hdlr_serr, hdlr_txde, hdlr_rxde;
 
-	mal = devm_kzalloc(&ofdev->dev, sizeof(struct mal_instance),
-			   GFP_KERNEL);
+	mal = devm_kzalloc_obj(&ofdev->dev, struct mal_instance);
 	if (!mal)
 		return -ENOMEM;
 

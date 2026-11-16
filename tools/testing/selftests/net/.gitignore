@@ -21,6 +21,7 @@ log.txt
 msg_zerocopy
 netlink-dumps
 nettest
+nsh_gso
 proc_net_pktgen
 psock_fanout
 psock_snd
@@ -34,6 +35,7 @@ reuseport_bpf_numa
 reuseport_dualstack
 rxtimestamp
 sctp_hello
+sctp_ifwdtsn
 sk_bind_sendto_listen
 sk_connect_zero_addr
 sk_so_peek_off

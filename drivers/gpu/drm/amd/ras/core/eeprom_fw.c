@@ -145,7 +145,7 @@ static int fw_eeprom_sw_init(struct ras_core_context *ras_core,
 	if (!param)
 		return -EINVAL;
 
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 

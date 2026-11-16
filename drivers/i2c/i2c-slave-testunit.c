@@ -237,7 +237,7 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 {
 	struct testunit_data *tu;
 
-	tu = devm_kzalloc(&client->dev, sizeof(struct testunit_data), GFP_KERNEL);
+	tu = devm_kzalloc_obj(&client->dev, struct testunit_data);
 	if (!tu)
 		return -ENOMEM;
 

@@ -721,7 +721,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	struct msm_iommu_dev *iommu;
 	int ret, par, val;
 
-	iommu = devm_kzalloc(&pdev->dev, sizeof(*iommu), GFP_KERNEL);
+	iommu = devm_kzalloc_obj(&pdev->dev, *iommu);
 	if (!iommu)
 		return -ENOMEM;
 

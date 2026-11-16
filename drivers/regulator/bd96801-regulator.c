@@ -1053,7 +1053,7 @@ static int initialize_pmic_data(struct platform_device *pdev,
 		template = pdata->regulator_data[r].irq_desc.irqinfo;
 		num_infos = pdata->regulator_data[r].irq_desc.num_irqs;
 
-		new = devm_kcalloc(dev, num_infos, sizeof(*new), GFP_KERNEL);
+		new = devm_kzalloc_objs(dev, *new, num_infos);
 		if (!new)
 			return -ENOMEM;
 

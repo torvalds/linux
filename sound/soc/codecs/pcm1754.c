@@ -143,7 +143,7 @@ static int pcm1754_probe(struct platform_device *pdev)
 	if (!dai_drv)
 		return -ENOMEM;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

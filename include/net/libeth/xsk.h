@@ -77,11 +77,17 @@ libeth_xsk_tx_queue_bulk(struct libeth_xdp_tx_bulk *bq,
 	if (!libeth_xsk_tx_queue_head(bq, xdp))
 		goto out;
 
-	for (const struct libeth_xdp_buff *head = xdp; ; ) {
+	for (struct libeth_xdp_buff *head = xdp; ; ) {
 		xdp = container_of(xsk_buff_get_frag(&head->base),
 				   typeof(*xdp), base);
-		if (!xdp)
+		if (!xdp) {
+			/* Each frag is now freed via its own SQE. Freeing
+			 * the head must not release what is on the pool's
+			 * frag list at that time.
+			 */
+			xdp_buff_clear_frags_flag(&head->base);
 			break;
+		}
 
 		if (unlikely(bq->count == LIBETH_XDP_TX_BULK) &&
 		    unlikely(!flush_bulk(bq, LIBETH_XDP_TX_XSK))) {

@@ -317,7 +317,7 @@ static struct amdisp_platform *prepare_amdisp_platform(struct device *dev,
 	struct amdisp_platform *isp4_platform;
 	int ret;
 
-	isp4_platform = devm_kzalloc(dev, sizeof(*isp4_platform), GFP_KERNEL);
+	isp4_platform = devm_kzalloc_obj(dev, *isp4_platform);
 	if (!isp4_platform)
 		return ERR_PTR(-ENOMEM);
 

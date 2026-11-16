@@ -134,7 +134,7 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 	void __iomem *base;
 	int err;
 
-	ptp_qoriq = devm_kzalloc(dev, sizeof(*ptp_qoriq), GFP_KERNEL);
+	ptp_qoriq = devm_kzalloc_obj(dev, *ptp_qoriq);
 	if (!ptp_qoriq)
 		return -ENOMEM;
 

@@ -280,7 +280,7 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 	int i, num_regulators;
 	bool voltage_select;
 
-	act8945a = devm_kzalloc(&pdev->dev, sizeof(*act8945a), GFP_KERNEL);
+	act8945a = devm_kzalloc_obj(&pdev->dev, *act8945a);
 	if (!act8945a)
 		return -ENOMEM;
 

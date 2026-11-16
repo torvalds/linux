@@ -67,7 +67,7 @@ struct fsl_tcon *fsl_tcon_init(struct device *dev)
 	if (!np)
 		return NULL;
 
-	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
+	tcon = devm_kzalloc_obj(dev, *tcon);
 	if (!tcon)
 		goto err_node_put;
 

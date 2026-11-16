@@ -1189,7 +1189,7 @@ static int ltc4162l_probe(struct i2c_client *client)
 		dev_err(dev, "No support for SMBUS_WORD_DATA\n");
 		return -ENODEV;
 	}
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

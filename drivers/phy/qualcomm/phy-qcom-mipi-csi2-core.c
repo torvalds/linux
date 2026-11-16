@@ -350,7 +350,7 @@ static int phy_qcom_mipi_csi2_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	int ret;
 
-	csi2phy = devm_kzalloc(dev, sizeof(*csi2phy), GFP_KERNEL);
+	csi2phy = devm_kzalloc_obj(dev, *csi2phy);
 	if (!csi2phy)
 		return -ENOMEM;
 

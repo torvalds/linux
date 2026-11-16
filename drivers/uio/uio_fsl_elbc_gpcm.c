@@ -324,7 +324,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		return irq;
 
 	/* allocate private data */
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
@@ -337,7 +337,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		return ret;
 
 	/* allocate UIO structure */
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

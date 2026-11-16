@@ -815,7 +815,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 	if (IS_ERR(base))
 		return NULL;
 
-	tx2_pmu = devm_kzalloc(dev, sizeof(*tx2_pmu), GFP_KERNEL);
+	tx2_pmu = devm_kzalloc_obj(dev, *tx2_pmu);
 	if (!tx2_pmu)
 		return NULL;
 

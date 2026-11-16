@@ -1783,7 +1783,7 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 			return -EINVAL;
 		}
 
-		svsb->dev = devm_kzalloc(svsp->dev, sizeof(*svsb->dev), GFP_KERNEL);
+		svsb->dev = devm_kzalloc_obj(svsp->dev, *svsb->dev);
 		if (!svsb->dev)
 			return -ENOMEM;
 
@@ -2844,7 +2844,7 @@ static int svs_probe(struct platform_device *pdev)
 
 	svsp_data = of_device_get_match_data(&pdev->dev);
 
-	svsp = devm_kzalloc(&pdev->dev, sizeof(*svsp), GFP_KERNEL);
+	svsp = devm_kzalloc_obj(&pdev->dev, *svsp);
 	if (!svsp)
 		return -ENOMEM;
 

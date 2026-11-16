@@ -309,7 +309,7 @@ struct viortc_ptp_clock *viortc_ptp_register(struct viortc_dev *viortc,
 	ssize_t len;
 	int ret;
 
-	vio_ptp = devm_kzalloc(parent_dev, sizeof(*vio_ptp), GFP_KERNEL);
+	vio_ptp = devm_kzalloc_obj(parent_dev, *vio_ptp);
 	if (!vio_ptp)
 		return ERR_PTR(-ENOMEM);
 

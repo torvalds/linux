@@ -950,7 +950,7 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client)
 
 	struct device *dev = &i2c_client->dev;
 
-	es8311 = devm_kzalloc(dev, sizeof(*es8311), GFP_KERNEL);
+	es8311 = devm_kzalloc_obj(dev, *es8311);
 	if (es8311 == NULL)
 		return -ENOMEM;
 

@@ -99,7 +99,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "abilis,ngpio", &ngpio))
 		return -EINVAL;
 
-	tb10x_gpio = devm_kzalloc(dev, sizeof(*tb10x_gpio), GFP_KERNEL);
+	tb10x_gpio = devm_kzalloc_obj(dev, *tb10x_gpio);
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 

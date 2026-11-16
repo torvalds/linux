@@ -290,7 +290,7 @@ static int qcom_ramp_controller_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	qrc = devm_kmalloc(&pdev->dev, sizeof(*qrc), GFP_KERNEL);
+	qrc = devm_kmalloc_obj(&pdev->dev, *qrc);
 	if (!qrc)
 		return -ENOMEM;
 

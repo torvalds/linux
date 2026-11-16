@@ -137,7 +137,7 @@ static int rpi_ts_probe(struct platform_device *pdev)
 	if (!fw)
 		return -EPROBE_DEFER;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 	ts->pdev = pdev;

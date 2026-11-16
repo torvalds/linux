@@ -145,8 +145,7 @@ static int pim4328_probe(struct i2c_client *client)
 				     | I2C_FUNC_SMBUS_BLOCK_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct pim4328_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct pim4328_data);
 	if (!data)
 		return -ENOMEM;
 
@@ -175,8 +174,7 @@ static int pim4328_probe(struct i2c_client *client)
 	info->read_byte_data = pim4328_read_byte_data;
 	info->read_word_data = pim4328_read_word_data;
 
-	pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, struct pmbus_platform_data);
 	if (!pdata)
 		return -ENOMEM;
 	dev->platform_data = pdata;

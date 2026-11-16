@@ -409,7 +409,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 	memset(&mappings, 0, sizeof(mappings));
 	memset(&ndr_desc, 0, sizeof(ndr_desc));
 
-	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
+	res = devm_kzalloc_obj(dev, *res);
 	if (!res)
 		return -ENOMEM;
 
@@ -438,7 +438,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 			NUMA_NO_NODE, ndr_desc.target_node);
 	}
 
-	nd_set = devm_kzalloc(dev, sizeof(*nd_set), GFP_KERNEL);
+	nd_set = devm_kzalloc_obj(dev, *nd_set);
 	if (!nd_set)
 		return -ENOMEM;
 

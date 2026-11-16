@@ -83,7 +83,7 @@ static int mcf_rcm_probe(struct platform_device *pdev)
 	void __iomem *base;
 	u8 rsr;
 
-	rcm = devm_kzalloc(&pdev->dev, sizeof(*rcm), GFP_KERNEL);
+	rcm = devm_kzalloc_obj(&pdev->dev, *rcm);
 	if (!rcm)
 		return -ENOMEM;
 

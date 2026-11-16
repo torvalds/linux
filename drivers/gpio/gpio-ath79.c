@@ -228,9 +228,7 @@ static int ath79_gpio_register_wifi_descriptors(struct device *dev,
 	int i;
 
 	/* Create a gpiod lookup using gpiochip-local offsets + 1 for NULL */
-	lookup = devm_kzalloc(dev,
-			      struct_size(lookup, table, ATH79K_WIFI_DESCS + 1),
-			      GFP_KERNEL);
+	lookup = devm_kzalloc_flex(dev, *lookup, table, ATH79K_WIFI_DESCS + 1);
 	if (!lookup)
 		return -ENOMEM;
 
@@ -274,7 +272,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	bool oe_inverted;
 	int err;
 
-	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -317,8 +315,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &ath79_gpio_irqchip);
 		girq->parent_handler = ath79_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(dev, *girq->parents, 1);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->parents[0] = platform_get_irq(pdev, 0);

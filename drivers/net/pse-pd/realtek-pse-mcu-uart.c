@@ -109,7 +109,7 @@ static int rtpse_mcu_uart_probe(struct serdev_device *serdev)
 	unsigned int baud;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

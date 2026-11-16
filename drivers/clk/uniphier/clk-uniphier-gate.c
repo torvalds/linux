@@ -65,7 +65,7 @@ struct clk_hw *uniphier_clk_register_gate(struct device *dev,
 	struct uniphier_clk_gate *gate;
 	int ret;
 
-	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
+	gate = devm_kzalloc_obj(dev, *gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

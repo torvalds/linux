@@ -592,7 +592,7 @@ static int pmic_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	hw = devm_kzalloc(&spi->dev, sizeof(struct tps6524x), GFP_KERNEL);
+	hw = devm_kzalloc_obj(&spi->dev, struct tps6524x);
 	if (!hw)
 		return -ENOMEM;
 

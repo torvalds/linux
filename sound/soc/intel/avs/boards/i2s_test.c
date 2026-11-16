@@ -20,14 +20,14 @@ static int avs_create_dai_link(struct device *dev, int ssp_port, int tdm_slot,
 	struct snd_soc_dai_link_component *platform;
 	struct snd_soc_dai_link *dl;
 
-	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
-	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+	dl = devm_kzalloc_obj(dev, *dl);
+	platform = devm_kzalloc_obj(dev, *platform);
 	if (!dl || !platform)
 		return -ENOMEM;
 
 	dl->name = devm_kasprintf(dev, GFP_KERNEL,
 				  AVS_STRING_FMT("SSP", "-Codec", ssp_port, tdm_slot));
-	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
+	dl->cpus = devm_kzalloc_obj(dev, *dl->cpus);
 	if (!dl->name || !dl->cpus)
 		return -ENOMEM;
 
@@ -75,7 +75,7 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 	}
 	tdm_slot = avs_mach_ssp_tdm(mach, ssp_port);
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

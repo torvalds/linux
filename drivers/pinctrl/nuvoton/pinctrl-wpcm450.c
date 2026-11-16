@@ -1084,8 +1084,8 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		girq = &gpio->chip.gc.irq;
 		gpio_irq_chip_set_chip(girq, &wpcm450_gpio_irqchip);
 		girq->parent_handler = wpcm450_gpio_irqhandler;
-		girq->parents = devm_kcalloc(dev, WPCM450_NUM_GPIO_IRQS,
-					     sizeof(*girq->parents), GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(dev, *girq->parents,
+						  WPCM450_NUM_GPIO_IRQS);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->default_type = IRQ_TYPE_NONE;
@@ -1119,7 +1119,7 @@ static int wpcm450_pinctrl_probe(struct platform_device *pdev)
 	struct wpcm450_pinctrl *pctrl;
 	int ret;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -185,7 +185,7 @@ static int owl_probe(struct pci_dev *pdev,
 	if (pci_enable_device(pdev))
 		return -EIO;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

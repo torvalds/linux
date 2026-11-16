@@ -332,7 +332,7 @@ struct typec_altmode *ucsi_register_displayport(struct ucsi_connector *con,
 	if (IS_ERR(alt))
 		return alt;
 
-	dp = devm_kzalloc(&alt->dev, sizeof(*dp), GFP_KERNEL);
+	dp = devm_kzalloc_obj(&alt->dev, *dp);
 	if (!dp) {
 		typec_unregister_altmode(alt);
 		return ERR_PTR(-ENOMEM);

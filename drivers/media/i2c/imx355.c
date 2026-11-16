@@ -1149,7 +1149,7 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct imx355 *imx355)
 	if (ret)
 		goto out_err;
 
-	cfg = devm_kzalloc(dev, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kzalloc_obj(dev, *cfg);
 	if (!cfg)
 		goto out_err;
 
@@ -1185,7 +1185,7 @@ static int imx355_probe(struct i2c_client *client)
 	unsigned long freq;
 	int ret;
 
-	imx355 = devm_kzalloc(&client->dev, sizeof(*imx355), GFP_KERNEL);
+	imx355 = devm_kzalloc_obj(&client->dev, *imx355);
 	if (!imx355)
 		return -ENOMEM;
 

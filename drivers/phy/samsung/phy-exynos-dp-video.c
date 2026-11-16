@@ -77,7 +77,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

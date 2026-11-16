@@ -1418,7 +1418,7 @@ All struct mnt_idmap pointers handed to filesystems are const now.
 ->create(), ->mkdir(), ->mknod(), ->symlink(), ->rename(), ->setattr(),
 ->getattr(), ->permission(), ->tmpfile(), ->get_acl(), ->set_acl() and
 ->fileattr_set() as well as the xattr ->set() handler and the vfs_*()
-helpers take a const struct mnt_idmap *. mnt_idmap() and file_mnt_idmap()
+helpers take a ``const struct mnt_idmap *``. mnt_idmap() and file_mnt_idmap()
 return one. The idmapping is immutable so nothing should have modified it
 anyway. References are taken and dropped via mnt_idmap_get() and
 mnt_idmap_put() as before, both accept a const pointer.

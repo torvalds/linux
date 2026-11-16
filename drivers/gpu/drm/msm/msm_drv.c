@@ -1137,7 +1137,7 @@ int msm_drv_probe(struct device *master_dev,
 	struct component_match *match = NULL;
 	int ret;
 
-	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(master_dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1178,7 +1178,7 @@ int msm_gpu_probe(struct platform_device *pdev,
 	struct msm_drm_private *priv;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

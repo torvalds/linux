@@ -209,7 +209,7 @@ static int mtk_soundcard_set_topology_name(struct device *dev,
 {
 	struct mtk_soundcard_name *saved;
 
-	saved = devm_kzalloc(dev, sizeof(*saved), GFP_KERNEL);
+	saved = devm_kzalloc_obj(dev, *saved);
 	if (!saved)
 		return -ENOMEM;
 
@@ -271,14 +271,14 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	soc_card_data = devm_kzalloc(&pdev->dev, sizeof(*soc_card_data), GFP_KERNEL);
+	soc_card_data = devm_kzalloc_obj(&pdev->dev, *soc_card_data);
 	if (!soc_card_data)
 		return -ENOMEM;
 
 	soc_card_data->card_data = pdata->card_data;
 
-	jacks = devm_kcalloc(card->dev, soc_card_data->card_data->num_jacks,
-			     sizeof(*jacks), GFP_KERNEL);
+	jacks = devm_kzalloc_objs(card->dev, *jacks,
+				  soc_card_data->card_data->num_jacks);
 	if (!jacks)
 		return -ENOMEM;
 

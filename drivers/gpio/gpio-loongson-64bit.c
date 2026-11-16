@@ -261,8 +261,8 @@ static int loongson_gpio_init_irqchip(struct platform_device *pdev,
 	gpio_irq_chip_set_chip(&chip->irq, data->girqchip);
 
 	chip->irq.num_parents = data->intr_num;
-	chip->irq.parents = devm_kcalloc(&pdev->dev, data->intr_num,
-					 sizeof(*chip->irq.parents), GFP_KERNEL);
+	chip->irq.parents = devm_kzalloc_objs(&pdev->dev, *chip->irq.parents,
+					      data->intr_num);
 	if (!chip->irq.parents)
 		return -ENOMEM;
 
@@ -336,7 +336,7 @@ static int loongson_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct reset_control *rst;
 
-	lgpio = devm_kzalloc(dev, sizeof(*lgpio), GFP_KERNEL);
+	lgpio = devm_kzalloc_obj(dev, *lgpio);
 	if (!lgpio)
 		return -ENOMEM;
 

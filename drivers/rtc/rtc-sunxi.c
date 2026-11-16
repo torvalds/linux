@@ -422,7 +422,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 	struct sunxi_rtc_dev *chip;
 	int ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

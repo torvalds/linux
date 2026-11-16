@@ -401,7 +401,7 @@ static int nct7363_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

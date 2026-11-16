@@ -129,7 +129,7 @@ static void mtu3_debugfs_regset(struct mtu3 *mtu, void __iomem *base,
 	struct debugfs_regset32 *regset;
 	struct mtu3_regset *mregs;
 
-	mregs = devm_kzalloc(mtu->dev, sizeof(*mregs), GFP_KERNEL);
+	mregs = devm_kzalloc_obj(mtu->dev, *mregs);
 	if (!mregs)
 		return;
 
@@ -149,7 +149,7 @@ static void mtu3_debugfs_ep_regset(struct mtu3 *mtu, struct mtu3_ep *mep,
 	int epnum = mep->epnum;
 	int in = mep->is_in;
 
-	regs = devm_kcalloc(mtu->dev, 7, sizeof(*regs), GFP_KERNEL);
+	regs = devm_kzalloc_objs(mtu->dev, *regs, 7);
 	if (!regs)
 		return;
 

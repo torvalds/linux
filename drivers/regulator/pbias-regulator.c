@@ -162,7 +162,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 	if (count < 0)
 		return count;
 
-	desc = devm_kcalloc(&pdev->dev, count, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_objs(&pdev->dev, *desc, count);
 	if (!desc)
 		return -ENOMEM;
 

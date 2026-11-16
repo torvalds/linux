@@ -442,7 +442,7 @@ static int slg51000_i2c_probe(struct i2c_client *client)
 	struct gpio_desc *cs_gpiod;
 	int error, ret;
 
-	chip = devm_kzalloc(dev, sizeof(struct slg51000), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, struct slg51000);
 	if (!chip)
 		return -ENOMEM;
 

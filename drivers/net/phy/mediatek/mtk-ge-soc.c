@@ -1415,8 +1415,7 @@ static int mt7981_phy_probe(struct phy_device *phydev)
 {
 	struct mtk_socphy_priv *priv;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct mtk_socphy_priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, struct mtk_socphy_priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1438,7 +1437,7 @@ static int an7581_phy_probe(struct phy_device *phydev)
 		dev_err(&phydev->mdio.bus->dev,
 			"Failed to setup PHY LED pinctrl\n");
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

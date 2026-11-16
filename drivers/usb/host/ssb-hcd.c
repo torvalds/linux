@@ -6,7 +6,7 @@
  * Copyright 2011-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Based on ssb-ohci driver
- * Copyright 2007 Michael Buesch <m@bues.ch>
+ * Copyright 2007 Michael Buesch
  *
  * Derived from the OHCI-PCI driver
  * Copyright 1999 Roman Weissgaerber
@@ -165,8 +165,7 @@ static int ssb_hcd_probe(struct ssb_device *dev,
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
 
-	usb_dev = devm_kzalloc(dev->dev, sizeof(struct ssb_hcd_device),
-			       GFP_KERNEL);
+	usb_dev = devm_kzalloc_obj(dev->dev, struct ssb_hcd_device);
 	if (!usb_dev)
 		return -ENOMEM;
 

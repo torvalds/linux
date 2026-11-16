@@ -238,8 +238,7 @@ struct viortc_class *viortc_class_init(struct viortc_dev *viortc,
 	struct viortc_class *viortc_class;
 	struct rtc_device *rtc;
 
-	viortc_class =
-		devm_kzalloc(parent_dev, sizeof(*viortc_class), GFP_KERNEL);
+	viortc_class = devm_kzalloc_obj(parent_dev, *viortc_class);
 	if (!viortc_class)
 		return ERR_PTR(-ENOMEM);
 

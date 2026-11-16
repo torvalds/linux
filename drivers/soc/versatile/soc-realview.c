@@ -101,7 +101,7 @@ static int realview_soc_probe(struct platform_device *pdev)
 	if (IS_ERR(syscon_regmap))
 		return PTR_ERR(syscon_regmap);
 
-	soc_dev_attr = devm_kzalloc(&pdev->dev, sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = devm_kzalloc_obj(&pdev->dev, *soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENOMEM;
 

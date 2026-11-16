@@ -105,7 +105,7 @@ static int dr1v90_reset_probe(struct auxiliary_device *adev,
 	struct dr1v90_reset_controller *rstc;
 	struct device *dev = &adev->dev;
 
-	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
+	rstc = devm_kzalloc_obj(dev, *rstc);
 	if (!rstc)
 		return -ENOMEM;
 

@@ -180,7 +180,7 @@ static int dw_mci_hi3798mv200_init(struct dw_mci *host)
 	struct dw_mci_hi3798mv200_priv *priv;
 	struct device_node *np = host->dev->of_node;
 
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(host->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

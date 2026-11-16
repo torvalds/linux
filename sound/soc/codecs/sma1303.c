@@ -1683,8 +1683,7 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	int ret, i = 0;
 	unsigned int device_info, status, otp_stat;
 
-	sma1303 = devm_kzalloc(&client->dev,
-				sizeof(struct sma1303_priv), GFP_KERNEL);
+	sma1303 = devm_kzalloc_obj(&client->dev, struct sma1303_priv);
 	if (!sma1303)
 		return -ENOMEM;
 	sma1303->dev = &client->dev;

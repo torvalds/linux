@@ -1631,8 +1631,7 @@ static int sun4i_codec_machine_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 							int *num_links)
 {
-	struct snd_soc_dai_link *link = devm_kzalloc(dev, sizeof(*link),
-						     GFP_KERNEL);
+	struct snd_soc_dai_link *link = devm_kzalloc_obj(dev, *link);
 	struct snd_soc_dai_link_component *dlc = devm_kzalloc(dev,
 						3 * sizeof(*dlc), GFP_KERNEL);
 	if (!link || !dlc)
@@ -1694,7 +1693,7 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 {
 	struct snd_soc_card *card;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -1727,7 +1726,7 @@ static struct snd_soc_card *sun6i_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -1773,7 +1772,7 @@ static struct snd_soc_card *sun8i_a23_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -1812,7 +1811,7 @@ static struct snd_soc_card *sun8i_h3_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -1851,7 +1850,7 @@ static struct snd_soc_card *sun8i_v3s_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -2000,7 +1999,7 @@ static struct snd_soc_card *sun50i_h616_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -2058,7 +2057,7 @@ static struct snd_soc_card *suniv_codec_create_card(struct device *dev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
@@ -2299,7 +2298,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	scodec = devm_kzalloc(&pdev->dev, sizeof(*scodec), GFP_KERNEL);
+	scodec = devm_kzalloc_obj(&pdev->dev, *scodec);
 	if (!scodec)
 		return -ENOMEM;
 

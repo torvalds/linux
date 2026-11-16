@@ -1806,9 +1806,9 @@ static int dcmi_framesizes_init(struct stm32_dcmi *dcmi)
 		return 0;
 
 	dcmi->num_of_sd_framesizes = num_fsize;
-	dcmi->sd_framesizes = devm_kcalloc(dcmi->dev, num_fsize,
-					   sizeof(struct dcmi_framesize),
-					   GFP_KERNEL);
+	dcmi->sd_framesizes = devm_kzalloc_objs(dcmi->dev,
+						struct dcmi_framesize,
+						num_fsize);
 	if (!dcmi->sd_framesizes) {
 		dev_err(dcmi->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1984,7 +1984,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	struct clk *mclk;
 	int ret = 0;
 
-	dcmi = devm_kzalloc(&pdev->dev, sizeof(struct stm32_dcmi), GFP_KERNEL);
+	dcmi = devm_kzalloc_obj(&pdev->dev, struct stm32_dcmi);
 	if (!dcmi)
 		return -ENOMEM;
 

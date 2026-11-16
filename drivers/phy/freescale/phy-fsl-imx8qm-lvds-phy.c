@@ -327,7 +327,7 @@ static int mixel_lvds_phy_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -356,7 +356,7 @@ static int mixel_lvds_phy_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < PHY_NUM; i++) {
-		lvds_phy = devm_kzalloc(dev, sizeof(*lvds_phy), GFP_KERNEL);
+		lvds_phy = devm_kzalloc_obj(dev, *lvds_phy);
 		if (!lvds_phy)
 			return -ENOMEM;
 

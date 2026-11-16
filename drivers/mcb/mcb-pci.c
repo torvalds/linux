@@ -34,7 +34,7 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret, table_size;
 	unsigned long flags;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct priv);
 	if (!priv)
 		return -ENOMEM;
 

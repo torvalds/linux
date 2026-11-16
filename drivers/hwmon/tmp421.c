@@ -429,7 +429,7 @@ static int tmp421_probe(struct i2c_client *client)
 	struct tmp421_data *data;
 	int i, err;
 
-	data = devm_kzalloc(dev, sizeof(struct tmp421_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct tmp421_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -864,7 +864,7 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 	np = dev->of_node;
 
-	inst = devm_kzalloc(dev, sizeof(*inst), GFP_KERNEL);
+	inst = devm_kzalloc_obj(dev, *inst);
 	if (!inst)
 		return -ENOMEM;
 
@@ -899,12 +899,12 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 	inst->num_valid_queues = queue_count;
 
-	qinst = devm_kcalloc(dev, queue_count, sizeof(*qinst), GFP_KERNEL);
+	qinst = devm_kzalloc_objs(dev, *qinst, queue_count);
 	if (!qinst)
 		return -ENOMEM;
 	inst->qinsts = qinst;
 
-	chans = devm_kcalloc(dev, queue_count, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(dev, *chans, queue_count);
 	if (!chans)
 		return -ENOMEM;
 	inst->chans = chans;

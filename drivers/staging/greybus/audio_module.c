@@ -205,7 +205,7 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 	struct gb_connection *connection;
 	struct gbaudio_data_connection *dai;
 
-	dai = devm_kzalloc(gbmodule->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(gbmodule->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 
@@ -250,7 +250,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	 * There can be only one Management connection and any number of data
 	 * connections.
 	 */
-	gbmodule = devm_kzalloc(dev, sizeof(*gbmodule), GFP_KERNEL);
+	gbmodule = devm_kzalloc_obj(dev, *gbmodule);
 	if (!gbmodule)
 		return -ENOMEM;
 

@@ -272,7 +272,7 @@ static int ts_nbus_probe(struct platform_device *pdev)
 	struct ts_nbus *ts_nbus;
 	int ret;
 
-	ts_nbus = devm_kzalloc(dev, sizeof(*ts_nbus), GFP_KERNEL);
+	ts_nbus = devm_kzalloc_obj(dev, *ts_nbus);
 	if (!ts_nbus)
 		return -ENOMEM;
 

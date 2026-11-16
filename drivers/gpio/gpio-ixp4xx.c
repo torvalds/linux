@@ -216,7 +216,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
+	g = devm_kzalloc_obj(dev, *g);
 	if (!g)
 		return -ENOMEM;
 	g->dev = dev;

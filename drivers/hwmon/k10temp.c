@@ -450,7 +450,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			 "unreliable CPU thermal sensor; check erratum 319\n");
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

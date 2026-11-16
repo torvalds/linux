@@ -61,7 +61,7 @@ static int mmc_pwrseq_emmc_probe(struct platform_device *pdev)
 	struct mmc_pwrseq_emmc *pwrseq;
 	struct device *dev = &pdev->dev;
 
-	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	pwrseq = devm_kzalloc_obj(dev, *pwrseq);
 	if (!pwrseq)
 		return -ENOMEM;
 

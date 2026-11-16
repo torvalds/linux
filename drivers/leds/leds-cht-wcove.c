@@ -348,7 +348,7 @@ static int cht_wc_leds_probe(struct platform_device *pdev)
 	if (pmic->cht_wc_model == INTEL_CHT_WC_LENOVO_YT3_X90)
 		return -ENODEV;
 
-	leds = devm_kzalloc(&pdev->dev, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc_obj(&pdev->dev, *leds);
 	if (!leds)
 		return -ENOMEM;
 

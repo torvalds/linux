@@ -35,8 +35,8 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	struct vbva_buffer *vbva;
 	unsigned int i;
 
-	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
-				       sizeof(*vbox->vbva_info), GFP_KERNEL);
+	vbox->vbva_info = devm_kzalloc_objs(vbox->ddev.dev, *vbox->vbva_info,
+					    vbox->num_crtcs);
 	if (!vbox->vbva_info)
 		return -ENOMEM;
 
@@ -156,9 +156,9 @@ int vbox_hw_init(struct vbox_private *vbox)
 		return ret;
 	}
 
-	vbox->last_mode_hints = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
-					     sizeof(struct vbva_modehint),
-					     GFP_KERNEL);
+	vbox->last_mode_hints = devm_kzalloc_objs(vbox->ddev.dev,
+						  struct vbva_modehint,
+						  vbox->num_crtcs);
 	if (!vbox->last_mode_hints)
 		return -ENOMEM;
 

@@ -837,7 +837,7 @@ static int pf0900_i2c_probe(struct i2c_client *i2c)
 	if (!i2c->irq)
 		return dev_err_probe(&i2c->dev, -EINVAL, "No IRQ configured?\n");
 
-	pf0900 = devm_kzalloc(&i2c->dev, sizeof(struct pf0900), GFP_KERNEL);
+	pf0900 = devm_kzalloc_obj(&i2c->dev, struct pf0900);
 	if (!pf0900)
 		return -ENOMEM;
 

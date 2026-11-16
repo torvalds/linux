@@ -144,7 +144,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	else if (irq < 0)
 		return irq;
 
-	dev = devm_kzalloc(device, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(device, *dev);
 	if (!dev)
 		return -ENOMEM;
 

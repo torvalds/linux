@@ -221,7 +221,7 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 	}
 
 	device_for_each_child_node(dev, fwnode) {
-		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		port = devm_kzalloc_obj(dev, *port);
 		if (!port) {
 			ret = -ENOMEM;
 			goto err_switch;
@@ -276,7 +276,7 @@ static int cros_typec_switch_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cros_typec_switch_data *sdata;
 
-	sdata = devm_kzalloc(dev, sizeof(*sdata), GFP_KERNEL);
+	sdata = devm_kzalloc_obj(dev, *sdata);
 	if (!sdata)
 		return -ENOMEM;
 

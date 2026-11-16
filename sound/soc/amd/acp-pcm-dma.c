@@ -1264,8 +1264,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	audio_drv_data = devm_kzalloc(&pdev->dev, sizeof(struct audio_drv_data),
-				      GFP_KERNEL);
+	audio_drv_data = devm_kzalloc_obj(&pdev->dev, struct audio_drv_data);
 	if (!audio_drv_data)
 		return -ENOMEM;
 

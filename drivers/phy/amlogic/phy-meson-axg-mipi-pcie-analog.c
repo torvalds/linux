@@ -201,7 +201,7 @@ static int phy_axg_mipi_pcie_analog_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node, *parent_np;
 	struct regmap *map;
 
-	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kmalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

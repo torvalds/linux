@@ -67,7 +67,7 @@ static int qemu_virt_ctrl_probe(struct platform_device *pdev)
 	struct qemu_virt_ctrl *ctrl;
 	int ret;
 
-	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(&pdev->dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 

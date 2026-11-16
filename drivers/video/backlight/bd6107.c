@@ -131,7 +131,7 @@ static int bd6107_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	bd = devm_kzalloc(&client->dev, sizeof(*bd), GFP_KERNEL);
+	bd = devm_kzalloc_obj(&client->dev, *bd);
 	if (!bd)
 		return -ENOMEM;
 

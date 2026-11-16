@@ -106,7 +106,7 @@ lgm_clk_register_pll(struct lgm_clk_provider *ctx,
 	init.parent_data = list->parent_data;
 	init.num_parents = list->num_parents;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

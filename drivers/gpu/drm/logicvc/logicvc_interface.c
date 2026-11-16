@@ -154,7 +154,7 @@ int logicvc_interface_init(struct logicvc_drm *logicvc)
 	bool native_connector = logicvc_interface_native_connector(logicvc);
 	int ret;
 
-	interface = devm_kzalloc(dev, sizeof(*interface), GFP_KERNEL);
+	interface = devm_kzalloc_obj(dev, *interface);
 	if (!interface) {
 		ret = -ENOMEM;
 		goto error_early;

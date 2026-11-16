@@ -273,7 +273,7 @@ static int mv88e6xxx_region_global_snapshot(struct devlink *dl,
 	u16 *registers;
 	int i, err;
 
-	registers = kmalloc_array(32, sizeof(u16), GFP_KERNEL);
+	registers = kmalloc_objs(u16, 32);
 	if (!registers)
 		return -ENOMEM;
 
@@ -578,7 +578,7 @@ static int mv88e6xxx_region_pvt_snapshot(struct devlink *dl,
 	int dev, port, err;
 	u16 *pvt, *cur;
 
-	pvt = kcalloc(MV88E6XXX_MAX_PVT_ENTRIES, sizeof(*pvt), GFP_KERNEL);
+	pvt = kzalloc_objs(*pvt, MV88E6XXX_MAX_PVT_ENTRIES);
 	if (!pvt)
 		return -ENOMEM;
 
@@ -617,7 +617,7 @@ static int mv88e6xxx_region_port_snapshot(struct devlink_port *devlink_port,
 	u16 *registers;
 	int i, err;
 
-	registers = kmalloc_array(32, sizeof(u16), GFP_KERNEL);
+	registers = kmalloc_objs(u16, 32);
 	if (!registers)
 		return -ENOMEM;
 

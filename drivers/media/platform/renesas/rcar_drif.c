@@ -1375,7 +1375,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Reserve memory for enabled channel */
-	ch = devm_kzalloc(&pdev->dev, sizeof(*ch), GFP_KERNEL);
+	ch = devm_kzalloc_obj(&pdev->dev, *ch);
 	if (!ch)
 		return -ENOMEM;
 
@@ -1409,7 +1409,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	}
 
 	/* Reserve memory for SDR structure */
-	sdr = devm_kzalloc(&pdev->dev, sizeof(*sdr), GFP_KERNEL);
+	sdr = devm_kzalloc_obj(&pdev->dev, *sdr);
 	if (!sdr) {
 		of_node_put(np);
 		return -ENOMEM;

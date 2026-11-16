@@ -279,7 +279,7 @@ static int configure_freq_table(int cpu)
 	boost_level = ret;
 
 	freq_level = min(max_level, FREQ_MAX_LEVEL);
-	data = devm_kzalloc(&pdev->dev, struct_size(data, table, freq_level + 1), GFP_KERNEL);
+	data = devm_kzalloc_flex(&pdev->dev, *data, table, freq_level + 1);
 	if (!data)
 		return -ENOMEM;
 

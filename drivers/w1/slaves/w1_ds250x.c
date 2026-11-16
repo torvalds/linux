@@ -177,7 +177,7 @@ static int w1_eprom_add_slave(struct w1_slave *sl)
 		.id = -1
 	};
 
-	data = devm_kzalloc(&sl->dev, sizeof(struct w1_eprom_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&sl->dev, struct w1_eprom_data);
 	if (!data)
 		return -ENOMEM;
 

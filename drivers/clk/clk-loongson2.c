@@ -326,7 +326,7 @@ static struct clk_hw *loongson2_clk_register(const char *parent,
 	struct loongson2_clk_data *clk;
 	struct clk_init_data init = { };
 
-	clk = devm_kzalloc(clp->dev, sizeof(*clk), GFP_KERNEL);
+	clk = devm_kzalloc_obj(clp->dev, *clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -373,8 +373,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 	for (p = data; p->name; p++)
 		clks_num = max(clks_num, p->id + 1);
 
-	clp = devm_kzalloc(dev, struct_size(clp, clk_data.hws, clks_num),
-			   GFP_KERNEL);
+	clp = devm_kzalloc_flex(dev, *clp, clk_data.hws, clks_num);
 	if (!clp)
 		return -ENOMEM;
 

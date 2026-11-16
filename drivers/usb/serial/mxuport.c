@@ -1419,8 +1419,7 @@ static int mxuport_port_probe(struct usb_serial_port *port)
 	struct mxuport_port *mxport;
 	int err;
 
-	mxport = devm_kzalloc(&port->dev, sizeof(struct mxuport_port),
-			      GFP_KERNEL);
+	mxport = devm_kzalloc_obj(&port->dev, struct mxuport_port);
 	if (!mxport)
 		return -ENOMEM;
 

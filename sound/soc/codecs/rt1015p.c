@@ -106,7 +106,7 @@ static int rt1015p_platform_probe(struct platform_device *pdev)
 {
 	struct rt1015p_priv *rt1015p;
 
-	rt1015p = devm_kzalloc(&pdev->dev, sizeof(*rt1015p), GFP_KERNEL);
+	rt1015p = devm_kzalloc_obj(&pdev->dev, *rt1015p);
 	if (!rt1015p)
 		return -ENOMEM;
 

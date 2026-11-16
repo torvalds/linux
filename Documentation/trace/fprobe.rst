@@ -101,6 +101,11 @@ handler.
 If the entry callback function returns !0, the corresponding exit callback
 will be cancelled.
 
+Since the callbacks run with preemption disabled under ftrace recursion
+protection, calling printk() or pr_*() from these callbacks is not safe
+and can cause deadlocks on console driver or scheduler locks. Use
+trace_printk() instead to log debugging output.
+
 @fp
         This is the address of `fprobe` data structure related to this handler.
         You can embed the `fprobe` to your data structure and get it by

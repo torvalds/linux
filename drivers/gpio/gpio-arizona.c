@@ -155,8 +155,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
 
-	arizona_gpio = devm_kzalloc(&pdev->dev, sizeof(*arizona_gpio),
-				    GFP_KERNEL);
+	arizona_gpio = devm_kzalloc_obj(&pdev->dev, *arizona_gpio);
 	if (!arizona_gpio)
 		return -ENOMEM;
 

@@ -798,7 +798,7 @@ static int adau1701_i2c_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret, i;
 
-	adau1701 = devm_kzalloc(dev, sizeof(*adau1701), GFP_KERNEL);
+	adau1701 = devm_kzalloc_obj(dev, *adau1701);
 	if (!adau1701)
 		return -ENOMEM;
 

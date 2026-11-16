@@ -623,7 +623,7 @@ static struct mt_usages *mt_allocate_usage(struct hid_device *hdev,
 {
 	struct mt_usages *usage;
 
-	usage = devm_kzalloc(&hdev->dev, sizeof(*usage), GFP_KERNEL);
+	usage = devm_kzalloc_obj(&hdev->dev, *usage);
 	if (!usage)
 		return NULL;
 
@@ -652,8 +652,7 @@ static struct mt_application *mt_allocate_application(struct mt_device *td,
 	unsigned int application = report->application;
 	struct mt_application *mt_application;
 
-	mt_application = devm_kzalloc(&td->hdev->dev, sizeof(*mt_application),
-				      GFP_KERNEL);
+	mt_application = devm_kzalloc_obj(&td->hdev->dev, *mt_application);
 	if (!mt_application)
 		return NULL;
 
@@ -711,7 +710,7 @@ static struct mt_report_data *mt_allocate_report_data(struct mt_device *td,
 	struct hid_field *field;
 	int r, n;
 
-	rdata = devm_kzalloc(&td->hdev->dev, sizeof(*rdata), GFP_KERNEL);
+	rdata = devm_kzalloc_obj(&td->hdev->dev, *rdata);
 	if (!rdata)
 		return NULL;
 
@@ -2127,12 +2126,12 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
-	td = devm_kzalloc(&hdev->dev, sizeof(struct mt_device), GFP_KERNEL);
+	td = devm_kzalloc_obj(&hdev->dev, struct mt_device);
 	if (!td) {
 		dev_err(&hdev->dev, "cannot allocate multitouch data\n");
 		return -ENOMEM;
 	}
-	td->haptic = devm_kzalloc(&hdev->dev, sizeof(*(td->haptic)), GFP_KERNEL);
+	td->haptic = devm_kzalloc_obj(&hdev->dev, *(td->haptic));
 	if (!td->haptic)
 		return -ENOMEM;
 

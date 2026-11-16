@@ -457,7 +457,7 @@ static int ds2482_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct ds2482_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct ds2482_data);
 	if (!data)
 		return -ENOMEM;
 

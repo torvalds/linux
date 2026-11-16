@@ -85,7 +85,7 @@ int xe_sysctrl_init(struct xe_device *xe)
 	if (!xe->info.has_sysctrl)
 		return 0;
 
-	sc->mmio = devm_kzalloc(xe->drm.dev, sizeof(*sc->mmio), GFP_KERNEL);
+	sc->mmio = devm_kzalloc_obj(xe->drm.dev, *sc->mmio);
 	if (!sc->mmio)
 		return -ENOMEM;
 

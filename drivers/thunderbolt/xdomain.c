@@ -398,7 +398,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 				goto err;
 			}
 
-			data = kcalloc(data_len, sizeof(u32), GFP_KERNEL);
+			data = kzalloc_objs(u32, data_len);
 			if (!data) {
 				ret = -ENOMEM;
 				goto err;
@@ -710,7 +710,7 @@ static void update_property_block(struct tb_xdomain *xd)
 		}
 
 		block_len = ret;
-		block = kcalloc(block_len, sizeof(*block), GFP_KERNEL);
+		block = kzalloc_objs(*block, block_len);
 		if (!block) {
 			tb_property_free_dir(dir);
 			goto out_unlock;

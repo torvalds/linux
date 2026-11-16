@@ -553,7 +553,11 @@ int cond_break5(const void *ctx)
 {
 	int cnt1 = zero, cnt2;
 
-	for (;;) {
+	/*
+	 * There is one time slice for all may_goto of the prog. When it's used up a function that
+	 * is called after that makes no iteration. So this loop has an end.
+	 */
+	for (; cnt1 < 100;) {
 		cond_break;
 		cnt1++;
 	}

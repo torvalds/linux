@@ -143,8 +143,7 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 	long rate;
 	int ret;
 
-	drvdata = devm_kzalloc(dev, sizeof(struct jz4740_wdt_drvdata),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, struct jz4740_wdt_drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

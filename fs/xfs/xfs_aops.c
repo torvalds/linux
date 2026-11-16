@@ -575,7 +575,7 @@ xfs_vm_bmap(
 	 */
 	if (xfs_is_cow_inode(ip) || XFS_IS_REALTIME_INODE(ip))
 		return 0;
-	return iomap_bmap(mapping, block, &xfs_read_iomap_ops);
+	return iomap_bmap(mapping, block, xfs_read_iomap_next);
 }
 
 static void
@@ -614,7 +614,7 @@ xfs_vm_read_folio(
 	struct iomap_read_folio_ctx	ctx = { .cur_folio = folio };
 
 	ctx.ops = xfs_get_iomap_read_ops(folio->mapping);
-	iomap_read_folio(&xfs_read_iomap_ops, &ctx, NULL);
+	iomap_read_folio(xfs_read_iomap_next, &ctx, NULL);
 	return 0;
 }
 
@@ -625,7 +625,7 @@ xfs_vm_readahead(
 	struct iomap_read_folio_ctx	ctx = { .rac = rac };
 
 	ctx.ops = xfs_get_iomap_read_ops(rac->mapping),
-	iomap_readahead(&xfs_read_iomap_ops, &ctx, NULL);
+	iomap_readahead(xfs_read_iomap_next, &ctx, NULL);
 }
 
 static int
@@ -671,7 +671,7 @@ xfs_vm_swap_activate(
 	sis->bdev = xfs_inode_buftarg(ip)->bt_bdev;
 
 	return iomap_swapfile_activate(sis, swap_file, span,
-			&xfs_read_iomap_ops);
+			xfs_read_iomap_next);
 }
 
 const struct address_space_operations xfs_address_space_operations = {

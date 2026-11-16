@@ -228,7 +228,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info)
 	if (rc)
 		return rc;
 
-	phy = devm_kzalloc(dev, sizeof(struct tpm_tis_tcg_phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, struct tpm_tis_tcg_phy);
 	if (phy == NULL)
 		return -ENOMEM;
 

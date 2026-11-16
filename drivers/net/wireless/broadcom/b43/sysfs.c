@@ -5,7 +5,7 @@
 
   SYSFS support routines
 
-  Copyright (c) 2006 Michael Buesch <m@bues.ch>
+  Copyright (c) 2006 Michael Buesch
 
 
 */

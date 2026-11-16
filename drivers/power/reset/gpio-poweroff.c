@@ -62,7 +62,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	int priority = SYS_OFF_PRIO_DEFAULT;
 	int ret;
 
-	gpio_poweroff = devm_kzalloc(&pdev->dev, sizeof(*gpio_poweroff), GFP_KERNEL);
+	gpio_poweroff = devm_kzalloc_obj(&pdev->dev, *gpio_poweroff);
 	if (!gpio_poweroff)
 		return -ENOMEM;
 

@@ -315,10 +315,8 @@ static int virtio_spi_find_vqs(struct virtio_spi_priv *priv)
 }
 
 /* Function must not be called before virtio_spi_find_vqs() has been run */
-static void virtio_spi_del_vq(void *data)
+static void virtio_spi_del_vq(struct virtio_device *vdev)
 {
-	struct virtio_device *vdev = data;
-
 	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 }
@@ -347,19 +345,24 @@ static int virtio_spi_probe(struct virtio_device *vdev)
 	if (ret)
 		return dev_err_probe(&vdev->dev, ret, "Cannot setup virtqueues\n");
 
-	/* Register cleanup for virtqueues using devm */
-	ret = devm_add_action_or_reset(&vdev->dev, virtio_spi_del_vq, vdev);
-	if (ret)
-		return dev_err_probe(&vdev->dev, ret, "Cannot register virtqueue cleanup\n");
-
 	virtio_device_ready(vdev);
 
-	/* Use devm version to register controller */
-	ret = devm_spi_register_controller(&vdev->dev, ctrl);
-	if (ret)
+	ret = spi_register_controller(ctrl);
+	if (ret) {
+		virtio_spi_del_vq(vdev);
 		return dev_err_probe(&vdev->dev, ret, "Cannot register controller\n");
+	}
 
 	return 0;
+}
+
+static void virtio_spi_remove(struct virtio_device *vdev)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(&vdev->dev);
+
+	spi_unregister_controller(ctrl);
+
+	virtio_spi_del_vq(vdev);
 }
 
 static int virtio_spi_freeze(struct device *dev)
@@ -415,6 +418,7 @@ static struct virtio_driver virtio_spi_driver = {
 	},
 	.id_table = virtio_spi_id_table,
 	.probe = virtio_spi_probe,
+	.remove = virtio_spi_remove,
 };
 module_virtio_driver(virtio_spi_driver);
 

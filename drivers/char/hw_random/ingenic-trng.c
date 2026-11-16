@@ -78,7 +78,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
+	trng = devm_kzalloc_obj(&pdev->dev, *trng);
 	if (!trng)
 		return -ENOMEM;
 

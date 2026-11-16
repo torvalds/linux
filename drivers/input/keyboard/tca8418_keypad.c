@@ -293,7 +293,7 @@ static int tca8418_keypad_probe(struct i2c_client *client)
 	row_shift = get_count_order(cols);
 
 	/* Allocate memory for keypad_data and input device */
-	keypad_data = devm_kzalloc(dev, sizeof(*keypad_data), GFP_KERNEL);
+	keypad_data = devm_kzalloc_obj(dev, *keypad_data);
 	if (!keypad_data)
 		return -ENOMEM;
 

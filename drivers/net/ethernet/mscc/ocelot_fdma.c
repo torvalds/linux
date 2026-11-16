@@ -817,7 +817,7 @@ void ocelot_fdma_init(struct platform_device *pdev, struct ocelot *ocelot)
 	struct ocelot_fdma *fdma;
 	int ret;
 
-	fdma = devm_kzalloc(dev, sizeof(*fdma), GFP_KERNEL);
+	fdma = devm_kzalloc_obj(dev, *fdma);
 	if (!fdma)
 		return;
 

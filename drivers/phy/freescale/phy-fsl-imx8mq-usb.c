@@ -262,7 +262,7 @@ static struct tca_blk *imx95_usb_phy_get_tca(struct platform_device *pdev,
 	if (!res)
 		return NULL;
 
-	tca = devm_kzalloc(dev, sizeof(*tca), GFP_KERNEL);
+	tca = devm_kzalloc_obj(dev, *tca);
 	if (!tca)
 		return ERR_PTR(-ENOMEM);
 
@@ -705,7 +705,7 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 	const struct imx8mq_usb_phy_drvdata *phy_data;
 	int ret;
 
-	imx_phy = devm_kzalloc(dev, sizeof(*imx_phy), GFP_KERNEL);
+	imx_phy = devm_kzalloc_obj(dev, *imx_phy);
 	if (!imx_phy)
 		return -ENOMEM;
 

@@ -199,7 +199,7 @@ static int surface_hid_probe(struct ssam_device *sdev)
 {
 	struct surface_hid_device *shid;
 
-	shid = devm_kzalloc(&sdev->dev, sizeof(*shid), GFP_KERNEL);
+	shid = devm_kzalloc_obj(&sdev->dev, *shid);
 	if (!shid)
 		return -ENOMEM;
 

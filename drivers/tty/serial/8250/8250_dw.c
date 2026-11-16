@@ -653,7 +653,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	p->set_termios	= dw8250_set_termios;
 	p->set_divisor	= dw8250_set_divisor;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

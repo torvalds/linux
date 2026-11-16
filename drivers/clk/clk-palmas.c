@@ -250,7 +250,7 @@ static int palmas_clks_probe(struct platform_device *pdev)
 	if (!match_data)
 		return 1;
 
-	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
+	cinfo = devm_kzalloc_obj(&pdev->dev, *cinfo);
 	if (!cinfo)
 		return -ENOMEM;
 

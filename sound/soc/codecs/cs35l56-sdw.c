@@ -269,7 +269,7 @@ static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
 	if (ret == 0)
 		prop->clk_stop_mode1 = !!clock_stop_1;
 
-	ports = devm_kcalloc(cs35l56->base.dev, 3, sizeof(*ports), GFP_KERNEL);
+	ports = devm_kzalloc_objs(cs35l56->base.dev, *ports, 3);
 	if (!ports)
 		return -ENOMEM;
 
@@ -428,7 +428,7 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	const struct regmap_config *regmap_config;
 	int ret;
 
-	cs35l56 = devm_kzalloc(dev, sizeof(*cs35l56), GFP_KERNEL);
+	cs35l56 = devm_kzalloc_obj(dev, *cs35l56);
 	if (!cs35l56)
 		return -ENOMEM;
 

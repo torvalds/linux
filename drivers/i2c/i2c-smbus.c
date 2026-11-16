@@ -172,8 +172,7 @@ static int smbalert_probe(struct i2c_client *ara)
 	struct gpio_desc *gpiod;
 	int res, irq;
 
-	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
-			     GFP_KERNEL);
+	alert = devm_kzalloc_obj(&ara->dev, struct i2c_smbus_alert);
 	if (!alert)
 		return -ENOMEM;
 

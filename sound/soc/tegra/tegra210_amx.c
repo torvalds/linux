@@ -726,7 +726,7 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err, i;
 
-	amx = devm_kzalloc(dev, sizeof(*amx), GFP_KERNEL);
+	amx = devm_kzalloc_obj(dev, *amx);
 	if (!amx)
 		return -ENOMEM;
 
@@ -746,14 +746,13 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 
 	regcache_cache_only(amx->regmap, true);
 
-	amx->map = devm_kcalloc(dev,
-				amx->soc_data->ram_depth * TEGRA_AMX_SLOTS_PER_WORD,
-				sizeof(*amx->map), GFP_KERNEL);
+	amx->map = devm_kzalloc_objs(dev, *amx->map,
+				     amx->soc_data->ram_depth * TEGRA_AMX_SLOTS_PER_WORD);
 	if (!amx->map)
 		return -ENOMEM;
 
-	amx->byte_mask = devm_kcalloc(dev, amx->soc_data->byte_mask_size,
-				      sizeof(*amx->byte_mask), GFP_KERNEL);
+	amx->byte_mask = devm_kzalloc_objs(dev, *amx->byte_mask,
+					   amx->soc_data->byte_mask_size);
 	if (!amx->byte_mask)
 		return -ENOMEM;
 

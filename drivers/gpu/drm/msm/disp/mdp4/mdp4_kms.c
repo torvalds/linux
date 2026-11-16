@@ -511,7 +511,7 @@ static int mdp4_probe(struct platform_device *pdev)
 	struct mdp4_kms *mdp4_kms;
 	int irq;
 
-	mdp4_kms = devm_kzalloc(dev, sizeof(*mdp4_kms), GFP_KERNEL);
+	mdp4_kms = devm_kzalloc_obj(dev, *mdp4_kms);
 	if (!mdp4_kms)
 		return -ENOMEM;
 

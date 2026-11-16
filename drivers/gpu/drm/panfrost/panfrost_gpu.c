@@ -94,11 +94,10 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 		  GPU_IRQ_CLEAN_CACHES_COMPLETED);
 
 	/*
-	 * All in-flight jobs should have released their cycle
-	 * counter references upon reset, but let us make sure
+	 * Even though all in-flight jobs should have released their cycle counter
+	 * references upon reset, perfcnt's might still hang about.
 	 */
-	if (drm_WARN_ON(&pfdev->base, atomic_read(&pfdev->cycle_counter.use_count) != 0))
-		atomic_set(&pfdev->cycle_counter.use_count, 0);
+	atomic_set(&pfdev->cycle_counter.use_count, 0);
 
 	return 0;
 }

@@ -306,8 +306,8 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 	struct hclge_comm_tqp *tqp;
 	int i;
 
-	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
-				  sizeof(struct hclge_comm_tqp), GFP_KERNEL);
+	hdev->htqp = devm_kzalloc_objs(&hdev->pdev->dev, struct hclge_comm_tqp,
+				       hdev->num_tqps);
 	if (!hdev->htqp)
 		return -ENOMEM;
 
@@ -372,8 +372,8 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 	new_tqps = kinfo->rss_size * num_tc;
 	kinfo->num_tqps = min(new_tqps, hdev->num_tqps);
 
-	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
-				  sizeof(struct hnae3_queue *), GFP_KERNEL);
+	kinfo->tqp = devm_kzalloc_objs(&hdev->pdev->dev, struct hnae3_queue *,
+				       hdev->num_tqps);
 	if (!kinfo->tqp)
 		return -ENOMEM;
 
@@ -2130,7 +2130,7 @@ static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)
 	struct pci_dev *pdev = ae_dev->pdev;
 	struct hclgevf_dev *hdev;
 
-	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(&pdev->dev, *hdev);
 	if (!hdev)
 		return -ENOMEM;
 
@@ -2385,8 +2385,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
 
-	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					   sizeof(u16), GFP_KERNEL);
+	hdev->vector_status = devm_kzalloc_objs(&pdev->dev, u16, hdev->num_msi);
 	if (!hdev->vector_status) {
 		pci_free_irq_vectors(pdev);
 		return -ENOMEM;
@@ -2395,8 +2394,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	for (i = 0; i < hdev->num_msi; i++)
 		hdev->vector_status[i] = HCLGEVF_INVALID_VPORT;
 
-	hdev->vector_irq = devm_kcalloc(&pdev->dev, hdev->num_msi,
-					sizeof(int), GFP_KERNEL);
+	hdev->vector_irq = devm_kzalloc_objs(&pdev->dev, int, hdev->num_msi);
 	if (!hdev->vector_irq) {
 		devm_kfree(&pdev->dev, hdev->vector_status);
 		pci_free_irq_vectors(pdev);
@@ -3184,8 +3182,7 @@ static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 		goto out;
 
 	/* Reinitializes the rss indirect table according to the new RSS size */
-	rss_indir = kcalloc(hdev->ae_dev->dev_specs.rss_ind_tbl_size,
-			    sizeof(u32), GFP_KERNEL);
+	rss_indir = kzalloc_objs(u32, hdev->ae_dev->dev_specs.rss_ind_tbl_size);
 	if (!rss_indir)
 		return -ENOMEM;
 

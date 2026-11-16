@@ -233,7 +233,7 @@ dfl_fme_create_bridge(struct dfl_feature_dev_data *fdata, int port_id)
 	struct dfl_fme_bridge *fme_br;
 	int ret = -ENOMEM;
 
-	fme_br = devm_kzalloc(dev, sizeof(*fme_br), GFP_KERNEL);
+	fme_br = devm_kzalloc_obj(dev, *fme_br);
 	if (!fme_br)
 		return ERR_PTR(ret);
 
@@ -306,7 +306,7 @@ dfl_fme_create_region(struct dfl_feature_dev_data *fdata,
 	struct dfl_fme_region *fme_region;
 	int ret = -ENOMEM;
 
-	fme_region = devm_kzalloc(dev, sizeof(*fme_region), GFP_KERNEL);
+	fme_region = devm_kzalloc_obj(dev, *fme_region);
 	if (!fme_region)
 		return ERR_PTR(ret);
 

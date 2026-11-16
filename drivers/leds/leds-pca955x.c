@@ -592,8 +592,7 @@ static int pca955x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	pca955x = devm_kzalloc(&client->dev,
-			       struct_size(pca955x, leds, chip->bits), GFP_KERNEL);
+	pca955x = devm_kzalloc_flex(&client->dev, *pca955x, leds, chip->bits);
 	if (!pca955x)
 		return -ENOMEM;
 

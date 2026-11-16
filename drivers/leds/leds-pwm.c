@@ -212,8 +212,7 @@ static int led_pwm_probe(struct platform_device *pdev)
 	if (!count)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, count),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, leds, count);
 	if (!priv)
 		return -ENOMEM;
 

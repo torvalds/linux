@@ -1558,7 +1558,7 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	samsung = devm_kzalloc(dev, sizeof(*samsung), GFP_KERNEL);
+	samsung = devm_kzalloc_obj(dev, *samsung);
 	if (!samsung)
 		return -ENOMEM;
 

@@ -294,8 +294,7 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 		return dev_err_probe(dev, -ENODEV,
 				     "num of child nodes is not supported\n");
 
-	lm3533_devices = devm_kcalloc(dev, nchilds, sizeof(*lm3533_devices),
-				      GFP_KERNEL);
+	lm3533_devices = devm_kzalloc_objs(dev, *lm3533_devices, nchilds);
 	if (!lm3533_devices)
 		return -ENOMEM;
 
@@ -442,7 +441,7 @@ static int lm3533_i2c_probe(struct i2c_client *i2c)
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
-	lm3533 = devm_kzalloc(&i2c->dev, sizeof(*lm3533), GFP_KERNEL);
+	lm3533 = devm_kzalloc_obj(&i2c->dev, *lm3533);
 	if (!lm3533)
 		return -ENOMEM;
 

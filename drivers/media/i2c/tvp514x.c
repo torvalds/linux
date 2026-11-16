@@ -956,7 +956,7 @@ tvp514x_get_pdata(struct i2c_client *client)
 	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
 		goto done;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&client->dev, *pdata);
 	if (!pdata)
 		goto done;
 
@@ -992,7 +992,7 @@ static int tvp514x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc_obj(&client->dev, *decoder);
 	if (!decoder)
 		return -ENOMEM;
 

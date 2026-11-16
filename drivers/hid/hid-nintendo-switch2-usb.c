@@ -359,7 +359,7 @@ static int switch2_usb_probe(struct usb_interface *intf, const struct usb_device
 		return ret;
 	}
 
-	ns2_usb = devm_kzalloc(&intf->dev, sizeof(*ns2_usb), GFP_KERNEL);
+	ns2_usb = devm_kzalloc_obj(&intf->dev, *ns2_usb);
 	if (!ns2_usb)
 		return -ENOMEM;
 

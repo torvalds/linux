@@ -119,7 +119,7 @@ static int max6959_i2c_probe(struct i2c_client *client)
 	struct max6959_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1463,8 +1463,7 @@ static const struct v4l2_async_notifier_operations ceu_notify_ops = {
 static int ceu_init_async_subdevs(struct ceu_device *ceudev, unsigned int n_sd)
 {
 	/* Reserve memory for 'n_sd' ceu_subdev descriptors. */
-	ceudev->subdevs = devm_kcalloc(ceudev->dev, n_sd,
-				       sizeof(*ceudev->subdevs), GFP_KERNEL);
+	ceudev->subdevs = devm_kzalloc_objs(ceudev->dev, *ceudev->subdevs, n_sd);
 	if (!ceudev->subdevs)
 		return -ENOMEM;
 

@@ -302,7 +302,7 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -450,7 +450,7 @@ static int da9211_i2c_probe(struct i2c_client *i2c)
 	int error, ret;
 	unsigned int data;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9211), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, struct da9211);
 	if (!chip)
 		return -ENOMEM;
 

@@ -1609,9 +1609,7 @@ static int safexcel_probe_generic(void *pdev,
 	}
 
 	/* Register the ring IRQ handlers and configure the rings */
-	priv->ring = devm_kcalloc(dev, priv->config.rings,
-				  sizeof(*priv->ring),
-				  GFP_KERNEL);
+	priv->ring = devm_kzalloc_objs(dev, *priv->ring, priv->config.rings);
 	if (!priv->ring)
 		return -ENOMEM;
 
@@ -1628,16 +1626,15 @@ static int safexcel_probe_generic(void *pdev,
 			goto err_cleanup_rings;
 		}
 
-		priv->ring[i].rdr_req = devm_kcalloc(dev,
-			EIP197_DEFAULT_RING_SIZE,
-			sizeof(*priv->ring[i].rdr_req),
-			GFP_KERNEL);
+		priv->ring[i].rdr_req = devm_kzalloc_objs(dev,
+							  *priv->ring[i].rdr_req,
+							  EIP197_DEFAULT_RING_SIZE);
 		if (!priv->ring[i].rdr_req) {
 			ret = -ENOMEM;
 			goto err_cleanup_rings;
 		}
 
-		ring_irq = devm_kzalloc(dev, sizeof(*ring_irq), GFP_KERNEL);
+		ring_irq = devm_kzalloc_obj(dev, *ring_irq);
 		if (!ring_irq) {
 			ret = -ENOMEM;
 			goto err_cleanup_rings;
@@ -1737,7 +1734,7 @@ static int safexcel_probe(struct platform_device *pdev)
 	struct safexcel_crypto_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1891,7 +1888,7 @@ static int safexcel_pci_probe(struct pci_dev *pdev,
 		ent->vendor, ent->device, ent->subvendor,
 		ent->subdevice, ent->driver_data);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

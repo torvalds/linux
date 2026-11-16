@@ -399,7 +399,7 @@ static int da9150_probe(struct i2c_client *client)
 	int qif_addr;
 	int ret;
 
-	da9150 = devm_kzalloc(&client->dev, sizeof(*da9150), GFP_KERNEL);
+	da9150 = devm_kzalloc_obj(&client->dev, *da9150);
 	if (!da9150)
 		return -ENOMEM;
 

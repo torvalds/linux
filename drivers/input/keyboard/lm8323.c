@@ -645,7 +645,7 @@ static int lm8323_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	lm = devm_kzalloc(&client->dev, sizeof(*lm), GFP_KERNEL);
+	lm = devm_kzalloc_obj(&client->dev, *lm);
 	if (!lm)
 		return -ENOMEM;
 

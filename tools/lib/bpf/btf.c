@@ -2222,6 +2222,7 @@ struct btf_pipe {
 
 static int btf_rewrite_str(struct btf_pipe *p, __u32 *str_off)
 {
+	struct btf *base;
 	long mapped_off;
 	int off, err;
 
@@ -2232,6 +2233,19 @@ static int btf_rewrite_str(struct btf_pipe *p, __u32 *str_off)
 	    hashmap__find(p->str_off_map, *str_off, &mapped_off)) {
 		*str_off = mapped_off;
 		return 0;
+	}
+
+	/*
+	 * btf__add_str() first looks the string up in the base BTFs of dst,
+	 * which makes each of them modifiable and frees its raw data. If src
+	 * shares a base with dst and the string lives in that base, the
+	 * pointer taken below would be left dangling. So make the bases
+	 * modifiable before the pointer is taken.
+	 */
+	for (base = p->dst->base_btf; base; base = base->base_btf) {
+		err = btf_ensure_modifiable(base);
+		if (err)
+			return err;
 	}
 
 	off = btf__add_str(p->dst, btf__str_by_offset(p->src, *str_off));

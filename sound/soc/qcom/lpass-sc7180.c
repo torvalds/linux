@@ -127,8 +127,8 @@ static int sc7180_lpass_init(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
-	drvdata->clks = devm_kcalloc(dev, variant->num_clks,
-				     sizeof(*drvdata->clks), GFP_KERNEL);
+	drvdata->clks = devm_kzalloc_objs(dev, *drvdata->clks,
+					  variant->num_clks);
 	if (!drvdata->clks)
 		return -ENOMEM;
 

@@ -988,8 +988,7 @@ static int cs42l84_i2c_probe(struct i2c_client *i2c_client)
 	int ret, devid;
 	unsigned int reg;
 
-	cs42l84 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l84_private),
-			       GFP_KERNEL);
+	cs42l84 = devm_kzalloc_obj(&i2c_client->dev, struct cs42l84_private);
 	if (!cs42l84)
 		return -ENOMEM;
 

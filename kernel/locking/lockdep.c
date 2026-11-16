@@ -811,7 +811,7 @@ static void lockdep_print_held_locks(struct task_struct *p)
 	 */
 	printk("locks held by %s/%d: %d, %s CPU#%d%s\n",
 		p->comm, task_pid_nr(p), depth,
-		task_is_running(p) ? "last" : "on", task_cpu(p),
+		task_is_running(p) ? "on" : "last", task_cpu(p),
 		depth > 0 ? ":" : "");
 
 	for (i = 0; i < depth; i++) {

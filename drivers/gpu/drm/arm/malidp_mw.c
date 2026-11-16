@@ -193,8 +193,7 @@ static u32 *get_writeback_formats(struct malidp_drm *malidp, int *n_formats)
 	u32 *formats;
 	int n, i;
 
-	formats = kcalloc(map->n_pixel_formats, sizeof(*formats),
-			  GFP_KERNEL);
+	formats = kzalloc_objs(*formats, map->n_pixel_formats);
 	if (!formats)
 		return NULL;
 

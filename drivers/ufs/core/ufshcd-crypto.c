@@ -168,8 +168,8 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	hba->crypto_cfg_register =
 		(u32)hba->crypto_capabilities.config_array_ptr * 0x100;
 	hba->crypto_cap_array =
-		devm_kcalloc(hba->dev, hba->crypto_capabilities.num_crypto_cap,
-			     sizeof(hba->crypto_cap_array[0]), GFP_KERNEL);
+		devm_kzalloc_objs(hba->dev, hba->crypto_cap_array[0],
+				  hba->crypto_capabilities.num_crypto_cap);
 	if (!hba->crypto_cap_array) {
 		err = -ENOMEM;
 		goto out;

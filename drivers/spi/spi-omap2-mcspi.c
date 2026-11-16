@@ -1635,9 +1635,9 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&mcspi->ctx.cs);
 
-	mcspi->dma_channels = devm_kcalloc(&pdev->dev, ctlr->num_chipselect,
-					   sizeof(struct omap2_mcspi_dma),
-					   GFP_KERNEL);
+	mcspi->dma_channels = devm_kzalloc_objs(&pdev->dev,
+						struct omap2_mcspi_dma,
+						ctlr->num_chipselect);
 	if (mcspi->dma_channels == NULL)
 		return -ENOMEM;
 

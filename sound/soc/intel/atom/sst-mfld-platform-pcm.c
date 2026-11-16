@@ -709,12 +709,12 @@ static int sst_platform_probe(struct platform_device *pdev)
 	int ret;
 	struct sst_platform_data *pdata;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&pdev->dev, *drv);
 	if (drv == NULL) {
 		return -ENOMEM;
 	}
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (pdata == NULL) {
 		return -ENOMEM;
 	}

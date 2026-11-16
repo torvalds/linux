@@ -91,7 +91,7 @@ static int mmc_pwrseq_sd8787_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 
-	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	pwrseq = devm_kzalloc_obj(dev, *pwrseq);
 	if (!pwrseq)
 		return -ENOMEM;
 

@@ -346,7 +346,7 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 	struct ipu_dp_priv *priv;
 	int i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

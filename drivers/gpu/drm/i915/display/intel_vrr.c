@@ -1147,7 +1147,7 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 		}
 
 		if (display->platform.novalake &&
-		    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+		    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 			crtc_state->hw.adjusted_mode.crtc_vtotal =
 				intel_vrr_vmin_vtotal(crtc_state);
 
@@ -1202,9 +1202,13 @@ int intel_vrr_safe_window_start(const struct intel_crtc_state *crtc_state)
 static int
 intel_vrr_dcb_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	return (intel_vrr_dcb_vmin_vblank_start_next(crtc_state) < 0) ?
-		intel_vrr_dcb_vmin_vblank_start_final(crtc_state) :
-		intel_vrr_dcb_vmin_vblank_start_next(crtc_state);
+	int vblank_start;
+
+	vblank_start = intel_vrr_dcb_vmin_vblank_start_next(crtc_state);
+	if (vblank_start < 0)
+		vblank_start = intel_vrr_dcb_vmin_vblank_start_final(crtc_state);
+
+	return vblank_start;
 }
 
 int intel_vrr_vmin_safe_window_end(const struct intel_crtc_state *crtc_state)

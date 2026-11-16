@@ -38,7 +38,7 @@ struct apple_tunable *devm_apple_tunable_parse(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	sz = prop->length / (3 * sizeof(u32));
 
-	tunable = devm_kzalloc(dev, struct_size(tunable, values, sz), GFP_KERNEL);
+	tunable = devm_kzalloc_flex(dev, *tunable, values, sz);
 	if (!tunable)
 		return ERR_PTR(-ENOMEM);
 	tunable->sz = sz;

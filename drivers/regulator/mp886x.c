@@ -319,7 +319,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	u32 freq;
 	int ret;
 
-	di = devm_kzalloc(dev, sizeof(struct mp886x_device_info), GFP_KERNEL);
+	di = devm_kzalloc_obj(dev, struct mp886x_device_info);
 	if (!di)
 		return -ENOMEM;
 

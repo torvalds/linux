@@ -397,7 +397,7 @@ static int s6sy761_probe(struct i2c_client *client)
 						I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -ENODEV;
 
-	sdata = devm_kzalloc(&client->dev, sizeof(*sdata), GFP_KERNEL);
+	sdata = devm_kzalloc_obj(&client->dev, *sdata);
 	if (!sdata)
 		return -ENOMEM;
 

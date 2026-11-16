@@ -1246,7 +1246,7 @@ static int clk_mt8195_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 
-	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
+	mfg_mux_nb = devm_kzalloc_obj(dev, *mfg_mux_nb);
 	if (!mfg_mux_nb)
 		return -ENOMEM;
 

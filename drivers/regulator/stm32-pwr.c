@@ -143,8 +143,7 @@ static int stm32_pwr_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 
 	for (i = 0; i < STM32PWR_REG_NUM_REGS; i++) {
-		priv = devm_kzalloc(&pdev->dev, sizeof(struct stm32_pwr_reg),
-				    GFP_KERNEL);
+		priv = devm_kzalloc_obj(&pdev->dev, struct stm32_pwr_reg);
 		if (!priv)
 			return -ENOMEM;
 		priv->base = base;

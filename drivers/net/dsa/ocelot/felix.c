@@ -1522,8 +1522,8 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	int port, i, err;
 
 	ocelot->num_phys_ports = num_phys_ports;
-	ocelot->ports = devm_kcalloc(ocelot->dev, num_phys_ports,
-				     sizeof(struct ocelot_port *), GFP_KERNEL);
+	ocelot->ports = devm_kzalloc_objs(ocelot->dev, struct ocelot_port *,
+					  num_phys_ports);
 	if (!ocelot->ports)
 		return -ENOMEM;
 
@@ -1572,9 +1572,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	for (port = 0; port < num_phys_ports; port++) {
 		struct ocelot_port *ocelot_port;
 
-		ocelot_port = devm_kzalloc(ocelot->dev,
-					   sizeof(struct ocelot_port),
-					   GFP_KERNEL);
+		ocelot_port = devm_kzalloc_obj(ocelot->dev, struct ocelot_port);
 		if (!ocelot_port) {
 			dev_err(ocelot->dev,
 				"failed to allocate port memory\n");
@@ -2398,11 +2396,11 @@ int felix_register_switch(struct device *dev, resource_size_t switch_base,
 	struct felix *felix;
 	int err;
 
-	felix = devm_kzalloc(dev, sizeof(*felix), GFP_KERNEL);
+	felix = devm_kzalloc_obj(dev, *felix);
 	if (!felix)
 		return -ENOMEM;
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 

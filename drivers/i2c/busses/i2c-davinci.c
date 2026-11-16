@@ -746,7 +746,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

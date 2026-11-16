@@ -2227,8 +2227,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	int err;
 
-	rt5651 = devm_kzalloc(&i2c->dev, sizeof(*rt5651),
-				GFP_KERNEL);
+	rt5651 = devm_kzalloc_obj(&i2c->dev, *rt5651);
 	if (NULL == rt5651)
 		return -ENOMEM;
 

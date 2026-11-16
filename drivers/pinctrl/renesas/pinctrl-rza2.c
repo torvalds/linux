@@ -346,10 +346,9 @@ static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 	npins = of_pins->length / sizeof(u32);
 
-	pins = devm_kcalloc(priv->dev, npins, sizeof(*pins), GFP_KERNEL);
-	psel_val = devm_kcalloc(priv->dev, npins, sizeof(*psel_val),
-				GFP_KERNEL);
-	pin_fn = devm_kzalloc(priv->dev, sizeof(*pin_fn), GFP_KERNEL);
+	pins = devm_kzalloc_objs(priv->dev, *pins, npins);
+	psel_val = devm_kzalloc_objs(priv->dev, *psel_val, npins);
+	pin_fn = devm_kzalloc_obj(priv->dev, *pin_fn);
 	if (!pins || !psel_val || !pin_fn)
 		return -ENOMEM;
 
@@ -482,7 +481,7 @@ static int rza2_pinctrl_probe(struct platform_device *pdev)
 	npins = (uintptr_t)of_device_get_match_data(&pdev->dev) *
 		      RZA2_PINS_PER_PORT;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, pins, npins), GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, pins, npins);
 	if (!priv)
 		return -ENOMEM;
 

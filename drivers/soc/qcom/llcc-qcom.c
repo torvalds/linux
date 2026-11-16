@@ -5628,8 +5628,7 @@ static int qcom_llcc_get_fw_config(struct platform_device *pdev)
 
 	sz = le32_to_cpu(slc_mem->slice_descs_count);
 
-	drv_data->desc = devm_kcalloc(dev, sz, sizeof(struct llcc_slice_desc),
-				      GFP_KERNEL);
+	drv_data->desc = devm_kzalloc_objs(dev, struct llcc_slice_desc, sz);
 	if (!drv_data->desc)
 		return -ENOMEM;
 
@@ -5688,7 +5687,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	if (!IS_ERR(drv_data))
 		return -EBUSY;
 
-	drv_data = devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(dev, *drv_data);
 	if (!drv_data) {
 		ret = -ENOMEM;
 		goto err;
@@ -5724,7 +5723,8 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	drv_data->num_banks = num_banks;
 
-	drv_data->regmaps = devm_kcalloc(dev, num_banks, sizeof(*drv_data->regmaps), GFP_KERNEL);
+	drv_data->regmaps = devm_kzalloc_objs(dev, *drv_data->regmaps,
+					      num_banks);
 	if (!drv_data->regmaps) {
 		ret = -ENOMEM;
 		goto err;
@@ -5781,8 +5781,8 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	} else {
 		drv_data->cfg = cfg->sct_data;
 		drv_data->cfg_size = cfg->size;
-		drv_data->desc = devm_kcalloc(dev, cfg->size,
-					      sizeof(struct llcc_slice_desc), GFP_KERNEL);
+		drv_data->desc = devm_kzalloc_objs(dev, struct llcc_slice_desc,
+						   cfg->size);
 
 		if (!drv_data->desc) {
 			ret = -ENOMEM;

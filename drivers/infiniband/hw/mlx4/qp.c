@@ -1154,10 +1154,8 @@ static int create_qp_common(struct ib_pd *pd, struct ib_qp_init_attr *init_attr,
 		if (err)
 			goto err_mtt;
 
-		qp->sq.wrid = kvmalloc_array(qp->sq.wqe_cnt,
-					     sizeof(u64), GFP_KERNEL);
-		qp->rq.wrid = kvmalloc_array(qp->rq.wqe_cnt,
-					     sizeof(u64), GFP_KERNEL);
+		qp->sq.wrid = kvmalloc_objs(u64, qp->sq.wqe_cnt);
+		qp->rq.wrid = kvmalloc_objs(u64, qp->rq.wqe_cnt);
 		if (!qp->sq.wrid || !qp->rq.wrid) {
 			err = -ENOMEM;
 			goto err_wrid;

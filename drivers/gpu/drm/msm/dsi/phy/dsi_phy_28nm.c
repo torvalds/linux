@@ -698,7 +698,7 @@ static int dsi_pll_28nm_init(struct msm_dsi_phy *phy)
 	if (!pdev)
 		return -ENODEV;
 
-	pll_28nm = devm_kzalloc(&pdev->dev, sizeof(*pll_28nm), GFP_KERNEL);
+	pll_28nm = devm_kzalloc_obj(&pdev->dev, *pll_28nm);
 	if (!pll_28nm)
 		return -ENOMEM;
 

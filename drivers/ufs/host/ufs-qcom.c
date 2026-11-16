@@ -1608,7 +1608,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	struct ufs_clk_info *clki;
 	const struct ufs_qcom_drvdata *drvdata = of_device_get_match_data(hba->dev);
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 
@@ -1713,7 +1713,7 @@ static int ufs_qcom_fw_managed_init(struct ufs_hba *hba)
 	struct ufs_qcom_host *host;
 	int err;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 
@@ -2457,7 +2457,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		return ret; /* Continue without ESI */
 	}
 
-	qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
+	qi = devm_kzalloc_objs(hba->dev, *qi, nr_irqs);
 	if (!qi) {
 		platform_device_msi_free_irqs_all(hba->dev);
 		return -ENOMEM;

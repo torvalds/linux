@@ -59,9 +59,8 @@ static int arizona_spi_acpi_windows_probe(struct arizona *arizona)
 	devm_acpi_dev_add_driver_gpios(arizona->dev, arizona_acpi_gpios);
 
 	/* Add lookups for the SoCs own GPIOs used for micdet-polarity and spkVDD-enable */
-	lookup = devm_kzalloc(arizona->dev,
-			      struct_size(lookup, table, ARRAY_SIZE(arizona_soc_gpios) + 1),
-			      GFP_KERNEL);
+	lookup = devm_kzalloc_flex(arizona->dev, *lookup, table,
+				   ARRAY_SIZE(arizona_soc_gpios) + 1);
 	if (!lookup)
 		return -ENOMEM;
 
@@ -222,7 +221,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	arizona = devm_kzalloc(&spi->dev, sizeof(*arizona), GFP_KERNEL);
+	arizona = devm_kzalloc_obj(&spi->dev, *arizona);
 	if (arizona == NULL)
 		return -ENOMEM;
 

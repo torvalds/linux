@@ -129,7 +129,7 @@ static int loongson2_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *tzd;
 	int ret, irq, i;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

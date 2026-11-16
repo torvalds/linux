@@ -1396,8 +1396,7 @@ static int idt82p33_probe(struct platform_device *pdev)
 	int err;
 	u8 i;
 
-	idt82p33 = devm_kzalloc(&pdev->dev,
-				sizeof(struct idt82p33), GFP_KERNEL);
+	idt82p33 = devm_kzalloc_obj(&pdev->dev, struct idt82p33);
 	if (!idt82p33)
 		return -ENOMEM;
 

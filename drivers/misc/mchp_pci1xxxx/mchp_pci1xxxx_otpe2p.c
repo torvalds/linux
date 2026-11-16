@@ -332,7 +332,7 @@ static int pci1xxxx_otp_eeprom_probe(struct auxiliary_device *aux_dev,
 	if (!pdata)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&aux_dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&aux_dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

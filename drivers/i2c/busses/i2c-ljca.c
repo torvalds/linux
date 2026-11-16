@@ -277,7 +277,7 @@ static int ljca_i2c_probe(struct auxiliary_device *auxdev,
 	struct ljca_i2c_dev *ljca_i2c;
 	int ret;
 
-	ljca_i2c = devm_kzalloc(&auxdev->dev, sizeof(*ljca_i2c), GFP_KERNEL);
+	ljca_i2c = devm_kzalloc_obj(&auxdev->dev, *ljca_i2c);
 	if (!ljca_i2c)
 		return -ENOMEM;
 

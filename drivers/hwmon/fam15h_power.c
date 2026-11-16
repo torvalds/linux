@@ -302,9 +302,8 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 	if (boot_cpu_has(X86_FEATURE_ACC_POWER))
 		n += 2;
 
-	fam15h_power_attrs = devm_kcalloc(&pdev->dev, n,
-					  sizeof(*fam15h_power_attrs),
-					  GFP_KERNEL);
+	fam15h_power_attrs = devm_kzalloc_objs(&pdev->dev, *fam15h_power_attrs,
+					       n);
 
 	if (!fam15h_power_attrs)
 		return -ENOMEM;
@@ -460,7 +459,7 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	if (!should_load_on_this_node(pdev))
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct fam15h_power_data);
 	if (!data)
 		return -ENOMEM;
 

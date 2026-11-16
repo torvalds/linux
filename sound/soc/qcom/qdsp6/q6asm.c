@@ -514,6 +514,8 @@ int q6asm_map_memory_regions(unsigned int dir, struct audio_client *ac,
 
 
 	ac->port[dir].buf = buf;
+	ac->port[dir].dsp_buf = 0;
+	atomic_set(&ac->port[dir].hw_ptr, 0);
 
 	buf[0].phys = phys;
 	buf[0].size = period_sz;
@@ -1650,7 +1652,7 @@ static int q6asm_probe(struct apr_device *adev)
 	struct device *dev = &adev->dev;
 	struct q6asm *q6asm;
 
-	q6asm = devm_kzalloc(dev, sizeof(*q6asm), GFP_KERNEL);
+	q6asm = devm_kzalloc_obj(dev, *q6asm);
 	if (!q6asm)
 		return -ENOMEM;
 

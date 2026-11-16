@@ -43,7 +43,7 @@ mtrr_file_add(unsigned long base, unsigned long size,
 
 	max = num_var_ranges;
 	if (fcount == NULL) {
-		fcount = kcalloc(max, sizeof(*fcount), GFP_KERNEL);
+		fcount = kzalloc_objs(*fcount, max);
 		if (!fcount)
 			return -ENOMEM;
 		FILE_FCOUNT(file) = fcount;

@@ -78,9 +78,9 @@ struct unix_vertex {
 	struct list_head edges;
 	struct list_head entry;
 	struct list_head scc_entry;
-	unsigned long out_degree;
-	unsigned long index;
-	unsigned long scc_index;
+	u64 out_degree;
+	u64 index;
+	u64 scc_index;
 };
 
 struct unix_edge {
@@ -148,8 +148,8 @@ enum unix_vertex_index {
 	UNIX_VERTEX_INDEX_START,
 };
 
-static unsigned long unix_vertex_unvisited_index = UNIX_VERTEX_INDEX_MARK1;
-static unsigned long unix_vertex_max_scc_index = UNIX_VERTEX_INDEX_START;
+static u64 unix_vertex_unvisited_index = UNIX_VERTEX_INDEX_MARK1;
+static u64 unix_vertex_max_scc_index = UNIX_VERTEX_INDEX_START;
 
 static void unix_add_edge(struct scm_fp_list *fpl, struct unix_edge *edge)
 {
@@ -329,9 +329,6 @@ void unix_peek_fpl(struct scm_fp_list *fpl)
 	if (!fpl || !fpl->count_unix)
 		return;
 
-	if (!READ_ONCE(gc_in_progress))
-		return;
-
 	/* Invalidate the final refcnt check in unix_vertex_dead(). */
 	spin_lock(&unix_peek_lock);
 	raw_write_seqcount_barrier(&unix_peek_seq);
@@ -372,7 +369,7 @@ static bool unix_vertex_dead(struct unix_vertex *vertex)
 }
 
 static LIST_HEAD(unix_visited_vertices);
-static unsigned long unix_vertex_grouped_index = UNIX_VERTEX_INDEX_MARK2;
+static u64 unix_vertex_grouped_index = UNIX_VERTEX_INDEX_MARK2;
 
 static bool unix_scc_dead(struct list_head *scc)
 {
@@ -450,14 +447,14 @@ static bool unix_scc_cyclic(struct list_head *scc)
 	return false;
 }
 
-static unsigned long __unix_walk_scc(struct unix_vertex *vertex,
-				     unsigned long *last_index,
-				     struct sk_buff_head *hitlist)
+static u64 __unix_walk_scc(struct unix_vertex *vertex,
+			   u64 *last_index,
+			   struct sk_buff_head *hitlist)
 {
-	unsigned long cyclic_sccs = 0;
 	LIST_HEAD(vertex_stack);
 	struct unix_edge *edge;
 	LIST_HEAD(edge_stack);
+	u64 cyclic_sccs = 0;
 
 next_vertex:
 	/* Push vertex to vertex_stack and mark it as on-stack
@@ -553,12 +550,12 @@ prev_vertex:
 	return cyclic_sccs;
 }
 
-static unsigned long unix_graph_cyclic_sccs;
+static u64 unix_graph_cyclic_sccs;
 
 static void unix_walk_scc(struct sk_buff_head *hitlist)
 {
-	unsigned long last_index = UNIX_VERTEX_INDEX_START;
-	unsigned long cyclic_sccs = 0;
+	u64 last_index = UNIX_VERTEX_INDEX_START;
+	u64 cyclic_sccs = 0;
 
 	unix_vertex_max_scc_index = UNIX_VERTEX_INDEX_START;
 
@@ -582,7 +579,7 @@ static void unix_walk_scc(struct sk_buff_head *hitlist)
 
 static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
 {
-	unsigned long cyclic_sccs = unix_graph_cyclic_sccs;
+	u64 cyclic_sccs = unix_graph_cyclic_sccs;
 
 	while (!list_empty(&unix_unvisited_vertices)) {
 		struct unix_vertex *vertex;

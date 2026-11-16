@@ -186,7 +186,7 @@ static int arm_smmu_register_legacy_master(struct device *dev,
 	if (err)
 		return err;
 
-	sids = kcalloc(it.cur_count, sizeof(*sids), GFP_KERNEL);
+	sids = kzalloc_objs(*sids, it.cur_count);
 	if (!sids)
 		return -ENOMEM;
 
@@ -1815,8 +1815,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		}
 
 		/* Zero-initialised to mark as invalid */
-		smmu->smrs = devm_kcalloc(smmu->dev, size, sizeof(*smmu->smrs),
-					  GFP_KERNEL);
+		smmu->smrs = devm_kzalloc_objs(smmu->dev, *smmu->smrs, size);
 		if (!smmu->smrs)
 			return -ENOMEM;
 
@@ -1824,8 +1823,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			   "\tstream matching with %u register groups", size);
 	}
 	/* s2cr->type == 0 means translation, so initialise explicitly */
-	smmu->s2crs = devm_kmalloc_array(smmu->dev, size, sizeof(*smmu->s2crs),
-					 GFP_KERNEL);
+	smmu->s2crs = devm_kmalloc_objs(smmu->dev, *smmu->s2crs, size);
 	if (!smmu->s2crs)
 		return -ENOMEM;
 	for (i = 0; i < size; i++)
@@ -1863,8 +1861,8 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	}
 	dev_notice(smmu->dev, "\t%u context banks (%u stage-2 only)\n",
 		   smmu->num_context_banks, smmu->num_s2_context_banks);
-	smmu->cbs = devm_kcalloc(smmu->dev, smmu->num_context_banks,
-				 sizeof(*smmu->cbs), GFP_KERNEL);
+	smmu->cbs = devm_kzalloc_objs(smmu->dev, *smmu->cbs,
+				      smmu->num_context_banks);
 	if (!smmu->cbs)
 		return -ENOMEM;
 
@@ -2124,7 +2122,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	u32 global_irqs, pmu_irqs;
 	irqreturn_t (*global_fault)(int irq, void *dev);
 
-	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
+	smmu = devm_kzalloc_obj(dev, *smmu);
 	if (!smmu) {
 		dev_err(dev, "failed to allocate arm_smmu_device\n");
 		return -ENOMEM;
@@ -2161,8 +2159,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 				"found %d interrupts but expected at least %d\n",
 				num_irqs, global_irqs + pmu_irqs + 1);
 
-	smmu->irqs = devm_kcalloc(dev, smmu->num_context_irqs,
-				  sizeof(*smmu->irqs), GFP_KERNEL);
+	smmu->irqs = devm_kzalloc_objs(dev, *smmu->irqs, smmu->num_context_irqs);
 	if (!smmu->irqs)
 		return dev_err_probe(dev, -ENOMEM, "failed to allocate %d irqs\n",
 				     smmu->num_context_irqs);

@@ -1847,7 +1847,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	bdaddr_t ba = {0};
 	int err;
 
-	nxpdev = devm_kzalloc(&serdev->dev, sizeof(*nxpdev), GFP_KERNEL);
+	nxpdev = devm_kzalloc_obj(&serdev->dev, *nxpdev);
 	if (!nxpdev)
 		return -ENOMEM;
 

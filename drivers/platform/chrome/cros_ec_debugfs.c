@@ -480,7 +480,7 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 	struct cros_ec_debugfs *debug_info;
 	int ret;
 
-	debug_info = devm_kzalloc(ec->dev, sizeof(*debug_info), GFP_KERNEL);
+	debug_info = devm_kzalloc_obj(ec->dev, *debug_info);
 	if (!debug_info)
 		return -ENOMEM;
 

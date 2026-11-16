@@ -87,8 +87,7 @@ static int tps6507x_i2c_probe(struct i2c_client *i2c)
 {
 	struct tps6507x_dev *tps6507x;
 
-	tps6507x = devm_kzalloc(&i2c->dev, sizeof(struct tps6507x_dev),
-				GFP_KERNEL);
+	tps6507x = devm_kzalloc_obj(&i2c->dev, struct tps6507x_dev);
 	if (tps6507x == NULL)
 		return -ENOMEM;
 

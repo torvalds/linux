@@ -460,7 +460,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	struct i2c_timings timings;
 	int irq, ret = 0;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(struct meson_i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, struct meson_i2c);
 	if (!i2c)
 		return -ENOMEM;
 

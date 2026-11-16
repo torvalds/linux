@@ -45,7 +45,7 @@ static int adxl367_i2c_probe(struct i2c_client *client)
 	struct adxl367_i2c_state *st;
 	struct regmap *regmap;
 
-	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(&client->dev, *st);
 	if (!st)
 		return -ENOMEM;
 

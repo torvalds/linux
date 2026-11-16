@@ -585,15 +585,12 @@ int enetc_init_sriov_resources(struct enetc_pf *pf)
 	if (!pf->total_vfs)
 		return 0;
 
-	pf->rxmsg = devm_kcalloc(dev, pf->total_vfs,
-				 sizeof(struct enetc_msg_swbd),
-				 GFP_KERNEL);
+	pf->rxmsg = devm_kzalloc_objs(dev, struct enetc_msg_swbd, pf->total_vfs);
 	if (!pf->rxmsg)
 		return -ENOMEM;
 
-	pf->vf_state = devm_kcalloc(dev, pf->total_vfs,
-				    sizeof(struct enetc_vf_state),
-				    GFP_KERNEL);
+	pf->vf_state = devm_kzalloc_objs(dev, struct enetc_vf_state,
+					 pf->total_vfs);
 	if (!pf->vf_state)
 		return -ENOMEM;
 

@@ -669,7 +669,7 @@ static int olpc_xo175_ec_probe(struct spi_device *spi)
 		return -EBUSY;
 	}
 
-	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&spi->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

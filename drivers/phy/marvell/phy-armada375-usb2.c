@@ -107,7 +107,7 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 	void __iomem *usb_cluster_base;
 	struct armada375_cluster_phy *cluster_phy;
 
-	cluster_phy = devm_kzalloc(dev, sizeof(*cluster_phy), GFP_KERNEL);
+	cluster_phy = devm_kzalloc_obj(dev, *cluster_phy);
 	if (!cluster_phy)
 		return  -ENOMEM;
 

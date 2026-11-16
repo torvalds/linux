@@ -125,7 +125,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	int possible_next_cpu;
 	int sdest;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		goto err_priv_alloc;
 

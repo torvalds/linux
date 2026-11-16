@@ -149,7 +149,7 @@ static int gpo_bd73800_probe(struct platform_device *pdev)
 	/* The device-tree and regmap come from MFD => use parent for that */
 	parent = dev->parent;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

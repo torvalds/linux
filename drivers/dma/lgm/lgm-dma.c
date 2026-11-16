@@ -1567,7 +1567,7 @@ static int intel_ldma_probe(struct platform_device *pdev)
 	u32 id, bitn = 32, j;
 	int i, ret;
 
-	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(dev, *d);
 	if (!d)
 		return -ENOMEM;
 
@@ -1641,12 +1641,12 @@ static int intel_ldma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dma_dev->channels);
 
 	/* Port Initializations */
-	d->ports = devm_kcalloc(dev, d->port_nrs, sizeof(*p), GFP_KERNEL);
+	d->ports = devm_kzalloc_objs(dev, *p, d->port_nrs);
 	if (!d->ports)
 		return -ENOMEM;
 
 	/* Channels Initializations */
-	d->chans = devm_kcalloc(d->dev, d->chan_nrs, sizeof(*c), GFP_KERNEL);
+	d->chans = devm_kzalloc_objs(d->dev, *c, d->chan_nrs);
 	if (!d->chans)
 		return -ENOMEM;
 

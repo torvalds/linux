@@ -209,7 +209,7 @@ struct sti_vid *sti_vid_create(struct device *dev, struct drm_device *drm_dev,
 {
 	struct sti_vid *vid;
 
-	vid = devm_kzalloc(dev, sizeof(*vid), GFP_KERNEL);
+	vid = devm_kzalloc_obj(dev, *vid);
 	if (!vid) {
 		DRM_ERROR("Failed to allocate memory for VID\n");
 		return NULL;

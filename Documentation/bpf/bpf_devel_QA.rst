@@ -304,31 +304,13 @@ downstream distributions.
 
 Q: Do you accept patches as well for iproute2's BPF loader?
 -----------------------------------------------------------
-A: Patches for the iproute2's BPF loader have to be sent to:
+A: Patches for iproute2, including its BPF loader, are sent to
+netdev@vger.kernel.org. For details on iproute2 patch submission, see
+"Co-posting iproute2 patches" in Documentation/process/maintainer-netdev.rst.
 
-  netdev@vger.kernel.org
-
-While those patches are not processed by the BPF kernel maintainers,
-please keep them in Cc as well, so they can be reviewed.
-
-The official git repository for iproute2 is run by Stephen Hemminger
-and can be found at:
-
-  https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/
-
-The patches need to have a subject prefix of '``[PATCH iproute2
-master]``' or '``[PATCH iproute2 net-next]``'. '``master``' or
-'``net-next``' describes the target branch where the patch should be
-applied to. Meaning, if kernel changes went into the net-next kernel
-tree, then the related iproute2 changes need to go into the iproute2
-net-next branch, otherwise they can be targeted at master branch. The
-iproute2 net-next branch will get merged into the master branch after
-the current iproute2 version from master has been released.
-
-Like BPF, the patches end up in patchwork under the netdev project and
-are delegated to 'shemminger' for further processing:
-
-  http://patchwork.ozlabs.org/project/netdev/list/?delegate=389
+While iproute2 BPF loader patches are not processed by the BPF kernel
+maintainers, please Cc bpf@vger.kernel.org and the BPF maintainers for
+review.
 
 Q: What is the minimum requirement before I submit my BPF patches?
 ------------------------------------------------------------------

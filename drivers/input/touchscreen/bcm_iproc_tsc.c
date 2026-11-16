@@ -420,7 +420,7 @@ static int iproc_ts_probe(struct platform_device *pdev)
 	int irq;
 	int error;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

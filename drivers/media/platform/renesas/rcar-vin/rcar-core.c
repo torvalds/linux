@@ -1180,7 +1180,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	struct rvin_dev *vin;
 	int irq, ret;
 
-	vin = devm_kzalloc(&pdev->dev, sizeof(*vin), GFP_KERNEL);
+	vin = devm_kzalloc_obj(&pdev->dev, *vin);
 	if (!vin)
 		return -ENOMEM;
 

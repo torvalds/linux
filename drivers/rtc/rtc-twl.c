@@ -518,7 +518,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 	if (irq <= 0)
 		return ret;
 
-	twl_rtc = devm_kzalloc(&pdev->dev, sizeof(*twl_rtc), GFP_KERNEL);
+	twl_rtc = devm_kzalloc_obj(&pdev->dev, *twl_rtc);
 	if (!twl_rtc)
 		return -ENOMEM;
 

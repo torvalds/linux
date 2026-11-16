@@ -650,7 +650,7 @@ static int sdhci_cdns4_phy_probe(struct platform_device *pdev, struct sdhci_cdns
 	unsigned int nr_phy_params;
 
 	nr_phy_params = sdhci_cdns4_phy_param_count(dev->of_node);
-	phy = devm_kzalloc(dev, struct_size(phy, phy_params, nr_phy_params), GFP_KERNEL);
+	phy = devm_kzalloc_flex(dev, *phy, phy_params, nr_phy_params);
 	if (!phy)
 		return -ENOMEM;
 

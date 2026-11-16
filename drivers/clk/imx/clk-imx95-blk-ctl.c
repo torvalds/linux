@@ -370,7 +370,7 @@ static int imx95_bc_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int i, ret;
 
-	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
+	bc = devm_kzalloc_obj(dev, *bc);
 	if (!bc)
 		return -ENOMEM;
 	bc->dev = dev;
@@ -397,8 +397,8 @@ static int imx95_bc_probe(struct platform_device *pdev)
 	if (!bc->pdata)
 		return devm_of_platform_populate(dev);
 
-	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, bc->pdata->num_clks),
-				   GFP_KERNEL);
+	clk_hw_data = devm_kzalloc_flex(dev, *clk_hw_data, hws,
+					bc->pdata->num_clks);
 	if (!clk_hw_data)
 		return -ENOMEM;
 

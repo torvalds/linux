@@ -89,7 +89,7 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 	if (!(pdata->rows_en_mask && pdata->cols_en_mask))
 		return -EINVAL;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to alloc memory\n");
 		return -ENOMEM;

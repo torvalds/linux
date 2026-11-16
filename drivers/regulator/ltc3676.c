@@ -312,7 +312,7 @@ static int ltc3676_regulator_probe(struct i2c_client *client)
 	struct ltc3676 *ltc3676;
 	int i, ret;
 
-	ltc3676 = devm_kzalloc(dev, sizeof(*ltc3676), GFP_KERNEL);
+	ltc3676 = devm_kzalloc_obj(dev, *ltc3676);
 	if (!ltc3676)
 		return -ENOMEM;
 

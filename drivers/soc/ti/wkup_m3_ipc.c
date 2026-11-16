@@ -616,7 +616,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	struct wkup_m3_ipc *m3_ipc;
 	struct device_node *np = dev->of_node;
 
-	m3_ipc = devm_kzalloc(dev, sizeof(*m3_ipc), GFP_KERNEL);
+	m3_ipc = devm_kzalloc_obj(dev, *m3_ipc);
 	if (!m3_ipc)
 		return -ENOMEM;
 

@@ -493,7 +493,7 @@ static int tegra210_dmic_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err;
 
-	dmic = devm_kzalloc(dev, sizeof(*dmic), GFP_KERNEL);
+	dmic = devm_kzalloc_obj(dev, *dmic);
 	if (!dmic)
 		return -ENOMEM;
 

@@ -180,7 +180,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "ci_hdrc_msm_probe\n");
 
-	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
+	ci = devm_kzalloc_obj(&pdev->dev, *ci);
 	if (!ci)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, ci);

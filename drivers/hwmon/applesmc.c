@@ -547,7 +547,7 @@ static int applesmc_init_index(struct applesmc_registers *s)
 	if (s->index)
 		return 0;
 
-	s->index = kcalloc(s->temp_count, sizeof(s->index[0]), GFP_KERNEL);
+	s->index = kzalloc_objs(s->index[0], s->temp_count);
 	if (!s->index)
 		return -ENOMEM;
 
@@ -1458,12 +1458,12 @@ static int __init applesmc_init(void)
 		goto out_smcreg;
 
 	/* allocate hwmon channel configs */
-	applesmc_temp_config = kcalloc(smcreg.index_count + 1,
-				   sizeof(*applesmc_temp_config), GFP_KERNEL);
-	applesmc_fan_config = kcalloc(smcreg.fan_count + 1,
-				  sizeof(*applesmc_fan_config), GFP_KERNEL);
-	applesmc_pwm_config = kcalloc(smcreg.fan_count + 1,
-				  sizeof(*applesmc_pwm_config), GFP_KERNEL);
+	applesmc_temp_config = kzalloc_objs(*applesmc_temp_config,
+					    smcreg.index_count + 1);
+	applesmc_fan_config = kzalloc_objs(*applesmc_fan_config,
+					   smcreg.fan_count + 1);
+	applesmc_pwm_config = kzalloc_objs(*applesmc_pwm_config,
+					   smcreg.fan_count + 1);
 	if (!applesmc_temp_config || !applesmc_fan_config || !applesmc_pwm_config) {
 		ret = -ENOMEM;
 		goto out_info;

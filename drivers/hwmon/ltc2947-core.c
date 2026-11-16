@@ -1071,7 +1071,7 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 	struct device *hwmon;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

@@ -898,7 +898,7 @@ static int rt9471_probe(struct i2c_client *i2c)
 	struct regmap *regmap;
 	int ret;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

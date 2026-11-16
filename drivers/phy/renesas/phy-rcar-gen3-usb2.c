@@ -1184,7 +1184,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	channel = devm_kzalloc(dev, sizeof(*channel), GFP_KERNEL);
+	channel = devm_kzalloc_obj(dev, *channel);
 	if (!channel)
 		return -ENOMEM;
 

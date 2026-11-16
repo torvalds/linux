@@ -1003,7 +1003,7 @@ sof_ipc4_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_I
 	int i;
 
 	/* init the volume table */
-	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
+	scontrol->volume_table = kzalloc_objs(u32, size);
 	if (!scontrol->volume_table)
 		return -ENOMEM;
 

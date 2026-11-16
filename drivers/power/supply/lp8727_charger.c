@@ -444,7 +444,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	struct power_supply_config psy_cfg = {}; /* Only for ac and usb */
 	struct lp8727_psy *psy;
 
-	psy = devm_kzalloc(pchg->dev, sizeof(*psy), GFP_KERNEL);
+	psy = devm_kzalloc_obj(pchg->dev, *psy);
 	if (!psy)
 		return -ENOMEM;
 
@@ -475,7 +475,7 @@ static struct lp8727_chg_param
 {
 	struct lp8727_chg_param *param;
 
-	param = devm_kzalloc(dev, sizeof(*param), GFP_KERNEL);
+	param = devm_kzalloc_obj(dev, *param);
 	if (!param)
 		goto out;
 
@@ -492,7 +492,7 @@ static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 	struct lp8727_platform_data *pdata;
 	const char *type;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -538,7 +538,7 @@ static int lp8727_probe(struct i2c_client *cl)
 		pdata = dev_get_platdata(&cl->dev);
 	}
 
-	pchg = devm_kzalloc(&cl->dev, sizeof(*pchg), GFP_KERNEL);
+	pchg = devm_kzalloc_obj(&cl->dev, *pchg);
 	if (!pchg)
 		return -ENOMEM;
 

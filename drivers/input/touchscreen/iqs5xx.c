@@ -1008,7 +1008,7 @@ static int iqs5xx_probe(struct i2c_client *client)
 	struct iqs5xx_private *iqs5xx;
 	int error;
 
-	iqs5xx = devm_kzalloc(&client->dev, sizeof(*iqs5xx), GFP_KERNEL);
+	iqs5xx = devm_kzalloc_obj(&client->dev, *iqs5xx);
 	if (!iqs5xx)
 		return -ENOMEM;
 

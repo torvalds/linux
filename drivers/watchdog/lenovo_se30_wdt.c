@@ -264,7 +264,7 @@ static int lenovo_se30_wdt_probe(struct platform_device *pdev)
 	if (base_phys == 0xFFFFFFFF || base_phys == 0)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

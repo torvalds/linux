@@ -146,7 +146,7 @@ static int ixp4xx_wdt_probe(struct platform_device *pdev)
 		iwdt_ops = &ixp4xx_wdt_ops;
 	}
 
-	iwdt = devm_kzalloc(dev, sizeof(*iwdt), GFP_KERNEL);
+	iwdt = devm_kzalloc_obj(dev, *iwdt);
 	if (!iwdt)
 		return -ENOMEM;
 	iwdt->base = (void __iomem *)dev->platform_data;

@@ -528,7 +528,7 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	num_ports = mxpcie8250_get_nports(device);
 
-	priv = devm_kzalloc(dev, struct_size(priv, port, num_ports), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, port, num_ports);
 	if (!priv)
 		return -ENOMEM;
 

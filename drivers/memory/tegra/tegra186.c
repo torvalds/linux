@@ -54,8 +54,8 @@ static int tegra186_mc_probe(struct tegra_mc *mc)
 		return PTR_ERR(mc->bcast_ch_regs);
 	}
 
-	mc->ch_regs = devm_kcalloc(mc->dev, mc->soc->num_channels, sizeof(*mc->ch_regs),
-				   GFP_KERNEL);
+	mc->ch_regs = devm_kzalloc_objs(mc->dev, *mc->ch_regs,
+					mc->soc->num_channels);
 	if (!mc->ch_regs)
 		return -ENOMEM;
 

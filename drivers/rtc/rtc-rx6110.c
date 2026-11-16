@@ -351,7 +351,7 @@ static int rx6110_spi_probe(struct spi_device *spi)
 		dev_warn(&spi->dev, "driving device in an unsupported mode");
 	}
 
-	rx6110 = devm_kzalloc(&spi->dev, sizeof(*rx6110), GFP_KERNEL);
+	rx6110 = devm_kzalloc_obj(&spi->dev, *rx6110);
 	if (!rx6110)
 		return -ENOMEM;
 
@@ -427,7 +427,7 @@ static int rx6110_i2c_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	rx6110 = devm_kzalloc(&client->dev, sizeof(*rx6110), GFP_KERNEL);
+	rx6110 = devm_kzalloc_obj(&client->dev, *rx6110);
 	if (!rx6110)
 		return -ENOMEM;
 

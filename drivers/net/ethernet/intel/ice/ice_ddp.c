@@ -692,7 +692,7 @@ struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw)
 	struct ice_buf_build *bld;
 	struct ice_buf_hdr *buf;
 
-	bld = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*bld), GFP_KERNEL);
+	bld = devm_kzalloc_obj(ice_hw_to_dev(hw), *bld);
 	if (!bld)
 		return NULL;
 
@@ -857,8 +857,7 @@ int ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
 			if (j >= hw->blk[ICE_BLK_SW].es.fvw)
 				break;
 			if (i + 1 == lkups->n_val_words) {
-				fvl = devm_kzalloc(ice_hw_to_dev(hw),
-						   sizeof(*fvl), GFP_KERNEL);
+				fvl = devm_kzalloc_obj(ice_hw_to_dev(hw), *fvl);
 				if (!fvl)
 					goto err;
 				fvl->fv_ptr = fv;

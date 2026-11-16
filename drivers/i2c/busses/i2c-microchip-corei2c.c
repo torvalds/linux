@@ -541,7 +541,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret;
 
-	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
+	idev = devm_kzalloc_obj(&pdev->dev, *idev);
 	if (!idev)
 		return -ENOMEM;
 

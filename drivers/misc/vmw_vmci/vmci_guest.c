@@ -621,7 +621,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		iobase = pcim_iomap_table(pdev)[0];
 	}
 
-	vmci_dev = devm_kzalloc(&pdev->dev, sizeof(*vmci_dev), GFP_KERNEL);
+	vmci_dev = devm_kzalloc_obj(&pdev->dev, *vmci_dev);
 	if (!vmci_dev) {
 		dev_err(&pdev->dev,
 			"Can't allocate memory for VMCI device\n");

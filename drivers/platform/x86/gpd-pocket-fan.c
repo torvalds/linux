@@ -148,7 +148,7 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 		speed_on_ac = SPEED_ON_AC_DEFAULT;
 	}
 
-	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
+	fan = devm_kzalloc_obj(&pdev->dev, *fan);
 	if (!fan)
 		return -ENOMEM;
 

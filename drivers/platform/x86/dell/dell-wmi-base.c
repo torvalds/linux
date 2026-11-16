@@ -795,8 +795,7 @@ static int dell_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (ret)
 		return ret;
 
-	priv = devm_kzalloc(
-		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, struct dell_wmi_priv);
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&wdev->dev, priv);

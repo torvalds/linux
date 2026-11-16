@@ -308,7 +308,7 @@ int zynqmp_audio_init(struct zynqmp_dpsub *dpsub)
 	if (!dpsub->aud_clk)
 		return 0;
 
-	audio = devm_kzalloc(dev, sizeof(*audio), GFP_KERNEL);
+	audio = devm_kzalloc_obj(dev, *audio);
 	if (!audio)
 		return -ENOMEM;
 

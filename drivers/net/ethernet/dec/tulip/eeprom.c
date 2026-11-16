@@ -224,8 +224,8 @@ subsequent_board:
 		        return;
 		}
 
-		mtable = devm_kmalloc(&tp->pdev->dev, struct_size(mtable, mleaf, count),
-				      GFP_KERNEL);
+		mtable = devm_kmalloc_flex(&tp->pdev->dev, *mtable, mleaf,
+					   count);
 		if (mtable == NULL)
 			return;				/* Horrible, impossible failure. */
 		last_mediatable = tp->mtable = mtable;

@@ -6,6 +6,7 @@
 #include "xe_sync.h"
 
 #include <linux/dma-fence-array.h>
+#include <linux/dma-fence-unwrap.h>
 #include <linux/error-injection.h>
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
@@ -234,11 +235,35 @@ ALLOW_ERROR_INJECTION(xe_sync_entry_parse, ERRNO);
 
 int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 {
-	if (sync->fence)
-		return  drm_sched_job_add_dependency(&job->drm,
-						     dma_fence_get(sync->fence));
+	struct dma_fence_unwrap iter;
+	struct dma_fence *fence;
+	int err = 0;
 
-	return 0;
+	if (!sync->fence)
+		return 0;
+
+	/*
+	 * Unwrap fence containers (e.g. dma_fence_chain from a timeline
+	 * syncobj) so the scheduler sees the underlying fences. That lets it
+	 * drop dependencies on jobs from the same entity and only wait for
+	 * jobs on the same scheduler to be scheduled, rather than waiting for
+	 * the container, which forces a full GPU completion wait and drains
+	 * the queue.
+	 */
+	dma_fence_unwrap_for_each(fence, &iter, sync->fence) {
+		/*
+		 * There is no dma_fence_unwrap_stop() helper to drop the
+		 * reference the iterator holds, so keep iterating without
+		 * doing anything once an error has occurred.
+		 */
+		if (err || dma_fence_is_signaled(fence))
+			continue;
+
+		err = drm_sched_job_add_dependency(&job->drm,
+						   dma_fence_get(fence));
+	}
+
+	return err;
 }
 
 /**

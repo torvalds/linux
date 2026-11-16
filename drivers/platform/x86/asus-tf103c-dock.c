@@ -725,7 +725,7 @@ static int tf103c_dock_probe(struct i2c_client *client)
 	if (!dmi_check_system(tf103c_dock_dmi_ids))
 		return -ENODEV;
 
-	dock = devm_kzalloc(dev, sizeof(*dock), GFP_KERNEL);
+	dock = devm_kzalloc_obj(dev, *dock);
 	if (!dock)
 		return -ENOMEM;
 

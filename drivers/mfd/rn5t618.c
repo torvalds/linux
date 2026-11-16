@@ -182,7 +182,7 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c)
 	struct rn5t618 *priv;
 	int ret;
 
-	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&i2c->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

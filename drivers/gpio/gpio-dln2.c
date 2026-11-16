@@ -453,7 +453,7 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 		dev_warn(dev, "clamping pins to %d\n", DLN2_GPIO_MAX_PINS);
 	}
 
-	dln2 = devm_kzalloc(&pdev->dev, sizeof(*dln2), GFP_KERNEL);
+	dln2 = devm_kzalloc_obj(&pdev->dev, *dln2);
 	if (!dln2)
 		return -ENOMEM;
 

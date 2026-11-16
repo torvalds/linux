@@ -941,7 +941,7 @@ static int imx208_probe(struct i2c_client *client)
 	int ret;
 	bool full_power;
 
-	imx208 = devm_kzalloc(&client->dev, sizeof(*imx208), GFP_KERNEL);
+	imx208 = devm_kzalloc_obj(&client->dev, *imx208);
 	if (!imx208)
 		return -ENOMEM;
 

@@ -183,7 +183,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	unsigned long clk_rate;
 	struct pdc_wdt_dev *pdc_wdt;
 
-	pdc_wdt = devm_kzalloc(dev, sizeof(*pdc_wdt), GFP_KERNEL);
+	pdc_wdt = devm_kzalloc_obj(dev, *pdc_wdt);
 	if (!pdc_wdt)
 		return -ENOMEM;
 

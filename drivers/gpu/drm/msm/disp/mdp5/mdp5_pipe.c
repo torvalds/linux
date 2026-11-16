@@ -157,7 +157,7 @@ struct mdp5_hw_pipe *mdp5_pipe_init(struct drm_device *dev,
 {
 	struct mdp5_hw_pipe *hwpipe;
 
-	hwpipe = devm_kzalloc(dev->dev, sizeof(*hwpipe), GFP_KERNEL);
+	hwpipe = devm_kzalloc_obj(dev->dev, *hwpipe);
 	if (!hwpipe)
 		return ERR_PTR(-ENOMEM);
 

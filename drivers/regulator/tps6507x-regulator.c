@@ -386,7 +386,7 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 	if (tps_board)
 		init_data = tps_board->tps6507x_pmic_init_data;
 
-	tps = devm_kzalloc(&pdev->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&pdev->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

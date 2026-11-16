@@ -737,9 +737,9 @@ static int hccs_init_type_name_maps(struct hccs_dev *hdev)
 	u16 idx = 0;
 
 	hdev->used_type_num = hccs_calc_used_type_num(hdev, hccs_ver);
-	hdev->type_name_maps = devm_kcalloc(hdev->dev, hdev->used_type_num,
-					    sizeof(struct hccs_type_name_map),
-					    GFP_KERNEL);
+	hdev->type_name_maps = devm_kzalloc_objs(hdev->dev,
+						 struct hccs_type_name_map,
+						 hdev->used_type_num);
 	if (!hdev->type_name_maps)
 		return -ENOMEM;
 
@@ -1741,7 +1741,7 @@ static int hccs_probe(struct platform_device *pdev)
 	if (!acpi_dev)
 		return -ENODEV;
 
-	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc_obj(&pdev->dev, *hdev);
 	if (!hdev)
 		return -ENOMEM;
 	hdev->acpi_dev = acpi_dev;

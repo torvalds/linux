@@ -441,7 +441,7 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 	u8 status;
 	int ret = 0;
 
-	wdt_data = devm_kzalloc(dev, sizeof(*wdt_data), GFP_KERNEL);
+	wdt_data = devm_kzalloc_obj(dev, *wdt_data);
 	if (!wdt_data)
 		return -ENOMEM;
 

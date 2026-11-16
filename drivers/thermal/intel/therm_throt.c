@@ -758,9 +758,8 @@ static __init void init_directed_pkg_intr(void)
 	if (!boot_cpu_has(X86_FEATURE_DPTI))
 		return;
 
-	directed_intr_handler_cpus = kmalloc_array(topology_max_packages(),
-						   sizeof(*directed_intr_handler_cpus),
-						   GFP_KERNEL);
+	directed_intr_handler_cpus = kmalloc_objs(*directed_intr_handler_cpus,
+						  topology_max_packages());
 	if (!directed_intr_handler_cpus)
 		return;
 

@@ -2284,7 +2284,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_1))
 		feature_check_enabled = true;
 
-	devinfo = devm_kzalloc(dev, sizeof(*devinfo), GFP_KERNEL);
+	devinfo = devm_kzalloc_obj(dev, *devinfo);
 	if (!devinfo)
 		return -ENOMEM;
 

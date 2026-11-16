@@ -1145,7 +1145,7 @@ static int hm1246_probe(struct i2c_client *client)
 	struct hm1246 *hm1246;
 	int ret;
 
-	hm1246 = devm_kzalloc(&client->dev, sizeof(*hm1246), GFP_KERNEL);
+	hm1246 = devm_kzalloc_obj(&client->dev, *hm1246);
 	if (!hm1246)
 		return -ENOMEM;
 

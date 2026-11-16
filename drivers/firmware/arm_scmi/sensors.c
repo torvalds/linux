@@ -319,10 +319,8 @@ static int iter_intervals_update_state(struct scmi_iterator_state *st,
 		/* Direct allocation when exceeding pre-allocated */
 		if (s->intervals.count >= SCMI_MAX_PREALLOC_POOL) {
 			s->intervals.desc =
-				devm_kcalloc(dev,
-					     s->intervals.count,
-					     sizeof(*s->intervals.desc),
-					     GFP_KERNEL);
+				devm_kzalloc_objs(dev, *s->intervals.desc,
+						  s->intervals.count);
 			if (!s->intervals.desc) {
 				s->intervals.segmented = false;
 				s->intervals.count = 0;
@@ -537,8 +535,7 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 		.s = s,
 	};
 
-	s->axis = devm_kcalloc(ph->dev, s->num_axis,
-			       sizeof(*s->axis), GFP_KERNEL);
+	s->axis = devm_kzalloc_objs(ph->dev, *s->axis, s->num_axis);
 	if (!s->axis)
 		return -ENOMEM;
 
@@ -1160,15 +1157,15 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Sensor Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	sinfo = devm_kzalloc(ph->dev, sizeof(*sinfo), GFP_KERNEL);
+	sinfo = devm_kzalloc_obj(ph->dev, *sinfo);
 	if (!sinfo)
 		return -ENOMEM;
 
 	ret = scmi_sensor_attributes_get(ph, sinfo);
 	if (ret)
 		return ret;
-	sinfo->sensors = devm_kcalloc(ph->dev, sinfo->num_sensors,
-				      sizeof(*sinfo->sensors), GFP_KERNEL);
+	sinfo->sensors = devm_kzalloc_objs(ph->dev, *sinfo->sensors,
+					   sinfo->num_sensors);
 	if (!sinfo->sensors)
 		return -ENOMEM;
 

@@ -50,7 +50,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EINVAL;
 	}
 
-	accel_dev = devm_kzalloc(&pdev->dev, sizeof(*accel_dev), GFP_KERNEL);
+	accel_dev = devm_kzalloc_obj(&pdev->dev, *accel_dev);
 	if (!accel_dev)
 		return -ENOMEM;
 
@@ -69,7 +69,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	accel_dev->owner = THIS_MODULE;
 	/* Allocate and initialise device hardware meta-data structure */
-	hw_data = devm_kzalloc(&pdev->dev, sizeof(*hw_data), GFP_KERNEL);
+	hw_data = devm_kzalloc_obj(&pdev->dev, *hw_data);
 	if (!hw_data) {
 		ret = -ENOMEM;
 		goto out_err;

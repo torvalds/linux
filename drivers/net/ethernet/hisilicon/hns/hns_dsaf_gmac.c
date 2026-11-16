@@ -697,7 +697,7 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 {
 	struct mac_driver *mac_drv;
 
-	mac_drv = devm_kzalloc(mac_cb->dev, sizeof(*mac_drv), GFP_KERNEL);
+	mac_drv = devm_kzalloc_obj(mac_cb->dev, *mac_drv);
 	if (!mac_drv)
 		return NULL;
 

@@ -118,7 +118,7 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 	bool wakeup;
 	int error;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, *keypad);
 	if (!keypad)
 		return -ENOMEM;
 

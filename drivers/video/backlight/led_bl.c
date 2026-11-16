@@ -90,8 +90,7 @@ static int led_bl_get_leds(struct device *dev,
 		return -EINVAL;
 	}
 
-	leds = devm_kcalloc(dev, nb_leds, sizeof(struct led_classdev *),
-			    GFP_KERNEL);
+	leds = devm_kzalloc_objs(dev, struct led_classdev *, nb_leds);
 	if (!leds)
 		return -ENOMEM;
 
@@ -138,8 +137,7 @@ static int led_bl_parse_levels(struct device *dev,
 		unsigned int db;
 		u32 *levels = NULL;
 
-		levels = devm_kcalloc(dev, num_levels, sizeof(u32),
-				      GFP_KERNEL);
+		levels = devm_kzalloc_objs(dev, u32, num_levels);
 		if (!levels)
 			return -ENOMEM;
 
@@ -179,7 +177,7 @@ static int led_bl_probe(struct platform_device *pdev)
 	struct led_bl_data *priv;
 	int ret, i;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

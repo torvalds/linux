@@ -164,9 +164,8 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 	/* 2. overwrite all BE fixups, and backup the existing fixup */
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->be_hw_params_fixup) {
-			mtk_dai_link = devm_kzalloc(card->dev,
-						    sizeof(*mtk_dai_link),
-						    GFP_KERNEL);
+			mtk_dai_link = devm_kzalloc_obj(card->dev,
+							*mtk_dai_link);
 			if (!mtk_dai_link)
 				return -ENOMEM;
 
@@ -243,7 +242,7 @@ int mtk_sof_dailink_parse_of(struct device *dev, struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	parsed_dai_link = devm_kcalloc(dev, num_links, sizeof(*parsed_dai_link), GFP_KERNEL);
+	parsed_dai_link = devm_kzalloc_objs(dev, *parsed_dai_link, num_links);
 	if (!parsed_dai_link)
 		return -ENOMEM;
 

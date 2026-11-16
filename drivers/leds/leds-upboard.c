@@ -88,7 +88,7 @@ static int upboard_led_probe(struct platform_device *pdev)
 			.msb = led_profile[i].bit,
 		};
 
-		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(dev, *led);
 		if (!led)
 			return -ENOMEM;
 

@@ -119,7 +119,7 @@ static int isys_fw_log_init(struct ipu7_isys *isys)
 	if (isys->fw_log)
 		return 0;
 
-	fw_log = devm_kzalloc(dev, sizeof(*fw_log), GFP_KERNEL);
+	fw_log = devm_kzalloc_obj(dev, *fw_log);
 	if (!fw_log)
 		return -ENOMEM;
 
@@ -706,7 +706,7 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	if (!isp->ipu7_bus_ready_to_probe)
 		return -EPROBE_DEFER;
 
-	isys = devm_kzalloc(&auxdev->dev, sizeof(*isys), GFP_KERNEL);
+	isys = devm_kzalloc_obj(&auxdev->dev, *isys);
 	if (!isys)
 		return -ENOMEM;
 
@@ -723,8 +723,8 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	INIT_LIST_HEAD(&isys->requests);
 	csi2_pdata = &isys->pdata->ipdata->csi2;
 
-	isys->csi2 = devm_kcalloc(&auxdev->dev, csi2_pdata->nports,
-				  sizeof(*isys->csi2), GFP_KERNEL);
+	isys->csi2 = devm_kzalloc_objs(&auxdev->dev, *isys->csi2,
+				       csi2_pdata->nports);
 	if (!isys->csi2) {
 		ret = -ENOMEM;
 		goto out_runtime_put;

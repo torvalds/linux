@@ -338,7 +338,7 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	misc_ctrl = devm_kzalloc(dev, sizeof(*misc_ctrl), GFP_KERNEL);
+	misc_ctrl = devm_kzalloc_obj(dev, *misc_ctrl);
 	if (!misc_ctrl)
 		return -ENOMEM;
 

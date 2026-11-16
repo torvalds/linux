@@ -18,7 +18,7 @@ struct stm32_i2c_dma *stm32_i2c_dma_request(struct device *dev,
 	struct dma_slave_config dma_sconfig;
 	int ret;
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma)
 		return ERR_PTR(-ENOMEM);
 

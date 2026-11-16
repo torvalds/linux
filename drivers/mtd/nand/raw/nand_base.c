@@ -5474,7 +5474,7 @@ int rawnand_dt_parse_gpio_cs(struct device *dev, struct gpio_desc ***cs_array,
 		return 0;
 	}
 
-	descs = devm_kcalloc(dev, ndescs, sizeof(*descs), GFP_KERNEL);
+	descs = devm_kzalloc_objs(dev, *descs, ndescs);
 	if (!descs)
 		return -ENOMEM;
 

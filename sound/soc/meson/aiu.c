@@ -195,7 +195,7 @@ static int aiu_clk_bulk_get(struct device *dev,
 	struct clk_bulk_data *clks;
 	int i, ret;
 
-	clks = devm_kcalloc(dev, num, sizeof(*clks), GFP_KERNEL);
+	clks = devm_kzalloc_objs(dev, *clks, num);
 	if (!clks)
 		return -ENOMEM;
 
@@ -260,7 +260,7 @@ static int aiu_probe(struct platform_device *pdev)
 	struct aiu *aiu;
 	int ret;
 
-	aiu = devm_kzalloc(dev, sizeof(*aiu), GFP_KERNEL);
+	aiu = devm_kzalloc_obj(dev, *aiu);
 	if (!aiu)
 		return -ENOMEM;
 

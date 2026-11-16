@@ -37,7 +37,7 @@ int abx500_register_ops(struct device *dev, struct abx500_ops *ops)
 {
 	struct abx500_device_entry *dev_entry;
 
-	dev_entry = devm_kzalloc(dev, sizeof(*dev_entry), GFP_KERNEL);
+	dev_entry = devm_kzalloc_obj(dev, *dev_entry);
 	if (!dev_entry)
 		return -ENOMEM;
 

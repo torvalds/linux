@@ -2594,7 +2594,7 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 	if (WARN_ON(CHSPEC_IS5G(pi->radio_chanspec)))
 		return;
 
-	values_to_save = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
+	values_to_save = kmalloc_objs(u16, 20, GFP_ATOMIC);
 	if (NULL == values_to_save)
 		return;
 
@@ -3602,7 +3602,7 @@ wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type, int num_levels,
 	if (NULL == ptr)
 		return;
 
-	phy_c32 = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
+	phy_c32 = kmalloc_objs(u16, 20, GFP_ATOMIC);
 	if (NULL == phy_c32) {
 		kfree(ptr);
 		return;

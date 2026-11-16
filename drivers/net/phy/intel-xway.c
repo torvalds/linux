@@ -323,7 +323,7 @@ static int xway_gphy_probe(struct phy_device *phydev)
 	struct device *dev = &phydev->mdio.dev;
 	struct xway_gphy_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;

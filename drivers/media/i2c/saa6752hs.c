@@ -669,7 +669,7 @@ static int saa6752hs_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	h = devm_kzalloc(&client->dev, sizeof(*h), GFP_KERNEL);
+	h = devm_kzalloc_obj(&client->dev, *h);
 	if (h == NULL)
 		return -ENOMEM;
 	sd = &h->sd;

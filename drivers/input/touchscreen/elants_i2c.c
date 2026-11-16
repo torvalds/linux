@@ -1410,7 +1410,7 @@ static int elants_i2c_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	ts = devm_kzalloc(&client->dev, sizeof(struct elants_data), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&client->dev, struct elants_data);
 	if (!ts)
 		return -ENOMEM;
 

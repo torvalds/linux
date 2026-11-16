@@ -92,7 +92,7 @@ int visconti_register_reset_controller(struct device *dev,
 {
 	struct visconti_reset *reset;
 
-	reset = devm_kzalloc(dev, sizeof(*reset), GFP_KERNEL);
+	reset = devm_kzalloc_obj(dev, *reset);
 	if (!reset)
 		return -ENOMEM;
 

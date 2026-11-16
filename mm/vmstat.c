@@ -1911,7 +1911,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 
 	BUILD_BUG_ON(ARRAY_SIZE(vmstat_text) != NR_VMSTAT_ITEMS);
 	fold_vm_numa_events();
-	v = kmalloc_array(NR_VMSTAT_ITEMS, sizeof(unsigned long), GFP_KERNEL);
+	v = kmalloc_objs(unsigned long, NR_VMSTAT_ITEMS);
 	m->private = v;
 	if (!v)
 		return ERR_PTR(-ENOMEM);

@@ -438,7 +438,7 @@ static int cap11xx_init_leds(struct device *dev,
 	if (cnt > num_leds)
 		return -EINVAL;
 
-	led = devm_kcalloc(dev, cnt, sizeof(struct cap11xx_led), GFP_KERNEL);
+	led = devm_kzalloc_objs(dev, struct cap11xx_led, cnt);
 	if (!led)
 		return -ENOMEM;
 
@@ -520,9 +520,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(dev,
-			    struct_size(priv, keycodes, cap->num_channels),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, keycodes, cap->num_channels);
 	if (!priv)
 		return -ENOMEM;
 

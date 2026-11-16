@@ -487,7 +487,7 @@ static int at25_probe(struct spi_mem *mem)
 	bool is_fram;
 	int err;
 
-	at25 = devm_kzalloc(&spi->dev, sizeof(*at25), GFP_KERNEL);
+	at25 = devm_kzalloc_obj(&spi->dev, *at25);
 	if (!at25)
 		return -ENOMEM;
 

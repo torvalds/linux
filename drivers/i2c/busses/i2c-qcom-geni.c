@@ -1183,7 +1183,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	int ret;
 	struct device *dev = &pdev->dev;
 
-	gi2c = devm_kzalloc(dev, sizeof(*gi2c), GFP_KERNEL);
+	gi2c = devm_kzalloc_obj(dev, *gi2c);
 	if (!gi2c)
 		return -ENOMEM;
 

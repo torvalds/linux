@@ -339,8 +339,8 @@ static int max77650_regulator_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		device_set_of_node_from_dev(dev, parent);
 
-	rdescs = devm_kcalloc(dev, MAX77650_REGULATOR_NUM_REGULATORS,
-			      sizeof(*rdescs), GFP_KERNEL);
+	rdescs = devm_kzalloc_objs(dev, *rdescs,
+				   MAX77650_REGULATOR_NUM_REGULATORS);
 	if (!rdescs)
 		return -ENOMEM;
 

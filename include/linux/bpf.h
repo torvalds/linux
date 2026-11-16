@@ -1752,12 +1752,22 @@ enum bpf_func_context {
 	BPF_FUNC_CTX_CNT,
 };
 
+struct bpf_subprog_arg_info {
+	enum bpf_arg_type arg_type;
+	union {
+		u32 mem_size;
+		u32 btf_id;
+	};
+};
+
 struct bpf_func_info_aux {
 	u16 linkage;
 	bool unreliable;
 	bool called[BPF_FUNC_CTX_CNT];
 	bool verified[BPF_FUNC_CTX_CNT];
 	bool called_with_pkt_ptrs;
+	/* what the callers of a global function are checked against */
+	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
 };
 
 enum bpf_jit_poke_reason {
@@ -1916,6 +1926,8 @@ struct bpf_prog_aux {
 	const char *attach_func_name;
 	struct bpf_prog **func;
 	struct bpf_prog_aux *main_prog_aux;
+	/* main prog: there when the prog has timed may_goto */
+	struct bpf_timed_may_goto __percpu *timed_may_goto;
 	void *jit_data; /* JIT specific data. arch dependent */
 	struct bpf_jit_poke_descriptor *poke_tab;
 	struct bpf_kfunc_desc_tab *kfunc_tab;
@@ -3043,6 +3055,8 @@ static inline void bpf_map_dec_elem_count(struct bpf_map *map)
 {
 	this_cpu_dec(*map->elem_count);
 }
+
+s64 bpf_map_sum_elem_count(const struct bpf_map *map);
 
 extern int sysctl_unprivileged_bpf_disabled;
 

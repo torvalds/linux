@@ -84,7 +84,7 @@ static int bcm74110_rng_probe(struct platform_device *pdev)
 	struct bcm74110_priv *priv;
 	int rc;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

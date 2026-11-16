@@ -650,7 +650,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c)
 	if (!drvdata)
 		return dev_err_probe(dev, -EINVAL, "Unknown device type\n");
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -34,7 +34,7 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	void __iomem *reg;
 	int err;
 
-	parents = kcalloc(num_parents, sizeof(*parents), GFP_KERNEL);
+	parents = kzalloc_objs(*parents, num_parents);
 	if (!parents)
 		return;
 

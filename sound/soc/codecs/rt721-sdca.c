@@ -1937,7 +1937,7 @@ int rt721_sdca_init(struct device *dev, struct regmap *regmap,
 {
 	struct rt721_sdca_priv *rt721;
 
-	rt721 = devm_kzalloc(dev, sizeof(*rt721), GFP_KERNEL);
+	rt721 = devm_kzalloc_obj(dev, *rt721);
 	if (!rt721)
 		return -ENOMEM;
 

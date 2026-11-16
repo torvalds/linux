@@ -211,7 +211,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	ath_rx_edma_init_queue(&sc->rx.rx_edma[ATH9K_RX_QUEUE_HP],
 			       ah->caps.rx_hp_qdepth);
 
-	bf = devm_kcalloc(sc->dev, sizeof(struct ath_rxbuf), nbufs, GFP_KERNEL);
+	bf = devm_kzalloc_objs(sc->dev, struct ath_rxbuf, nbufs);
 	if (!bf)
 		return -ENOMEM;
 

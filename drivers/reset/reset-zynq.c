@@ -91,7 +91,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct zynq_reset_data *priv;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

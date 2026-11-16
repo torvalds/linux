@@ -230,7 +230,7 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		.priv = &pdev->dev,
 	};
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

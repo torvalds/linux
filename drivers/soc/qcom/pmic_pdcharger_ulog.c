@@ -125,7 +125,7 @@ static int pmic_pdcharger_ulog_rpmsg_probe(struct rpmsg_device *rpdev)
 	struct pmic_pdcharger_ulog *pg;
 	struct device *dev = &rpdev->dev;
 
-	pg = devm_kzalloc(dev, sizeof(*pg), GFP_KERNEL);
+	pg = devm_kzalloc_obj(dev, *pg);
 	if (!pg)
 		return -ENOMEM;
 

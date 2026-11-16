@@ -605,8 +605,7 @@ static int as21xxx_probe(struct phy_device *phydev)
 	struct as21xxx_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&phydev->mdio.dev,
-			    sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;

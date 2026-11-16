@@ -740,7 +740,7 @@ static int erdma_kmem_alloc(struct erdma_dev *dev, struct erdma_mem *mem,
 	struct erdma_buf_list *buf_list;
 	u32 i;
 
-	buf_list = kcalloc(page_cnt, sizeof(*buf_list), GFP_KERNEL);
+	buf_list = kzalloc_objs(*buf_list, page_cnt);
 	if (!buf_list)
 		return -ENOMEM;
 

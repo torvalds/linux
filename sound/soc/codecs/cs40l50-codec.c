@@ -285,7 +285,7 @@ static int cs40l50_codec_driver_probe(struct platform_device *pdev)
 	struct cs40l50 *cs40l50 = dev_get_drvdata(pdev->dev.parent);
 	struct cs40l50_codec *codec;
 
-	codec = devm_kzalloc(&pdev->dev, sizeof(*codec), GFP_KERNEL);
+	codec = devm_kzalloc_obj(&pdev->dev, *codec);
 	if (!codec)
 		return -ENOMEM;
 

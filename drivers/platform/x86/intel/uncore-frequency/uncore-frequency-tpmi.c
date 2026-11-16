@@ -581,16 +581,16 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		return ret;
 
 	/* Allocate uncore instance per package */
-	tpmi_uncore = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_uncore), GFP_KERNEL);
+	tpmi_uncore = devm_kzalloc_obj(&auxdev->dev, *tpmi_uncore);
 	if (!tpmi_uncore) {
 		ret = -ENOMEM;
 		goto err_rem_common;
 	}
 
 	/* Allocate memory for all power domains in a package */
-	tpmi_uncore->pd_info = devm_kcalloc(&auxdev->dev, num_resources,
-					    sizeof(*tpmi_uncore->pd_info),
-					    GFP_KERNEL);
+	tpmi_uncore->pd_info = devm_kzalloc_objs(&auxdev->dev,
+						 *tpmi_uncore->pd_info,
+						 num_resources);
 	if (!tpmi_uncore->pd_info) {
 		ret = -ENOMEM;
 		goto err_rem_common;
@@ -666,9 +666,9 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		/* Find out number of clusters in this resource */
 		pd_info->cluster_count = hweight8(cluster_mask);
 
-		pd_info->cluster_infos = devm_kcalloc(&auxdev->dev, pd_info->cluster_count,
-						      sizeof(struct tpmi_uncore_cluster_info),
-						      GFP_KERNEL);
+		pd_info->cluster_infos = devm_kzalloc_objs(&auxdev->dev,
+							   struct tpmi_uncore_cluster_info,
+							   pd_info->cluster_count);
 		if (!pd_info->cluster_infos) {
 			ret = -ENOMEM;
 			goto remove_clusters;

@@ -1185,7 +1185,7 @@ static int gc08a3_probe(struct i2c_client *client)
 	struct gc08a3 *gc08a3;
 	int ret;
 
-	gc08a3 = devm_kzalloc(dev, sizeof(*gc08a3), GFP_KERNEL);
+	gc08a3 = devm_kzalloc_obj(dev, *gc08a3);
 	if (!gc08a3)
 		return -ENOMEM;
 

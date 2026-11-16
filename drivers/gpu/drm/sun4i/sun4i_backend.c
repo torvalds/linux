@@ -792,7 +792,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	void __iomem *regs;
 	int i, ret;
 
-	backend = devm_kzalloc(dev, sizeof(*backend), GFP_KERNEL);
+	backend = devm_kzalloc_obj(dev, *backend);
 	if (!backend)
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);

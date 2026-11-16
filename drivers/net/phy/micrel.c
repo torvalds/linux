@@ -2763,7 +2763,7 @@ static int kszphy_probe(struct phy_device *phydev)
 	struct kszphy_priv *priv;
 	struct clk *clk;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -4569,10 +4569,8 @@ static int __lan8814_ptp_probe_once(struct phy_device *phydev, char *pin_name,
 	/* Initialise shared lock for clock*/
 	mutex_init(&shared->shared_lock);
 
-	shared->pin_config = devm_kmalloc_array(&phydev->mdio.dev,
-						gpios,
-						sizeof(*shared->pin_config),
-						GFP_KERNEL);
+	shared->pin_config = devm_kmalloc_objs(&phydev->mdio.dev,
+					       *shared->pin_config, gpios);
 	if (!shared->pin_config)
 		return -ENOMEM;
 
@@ -4751,7 +4749,7 @@ static int lan8814_probe(struct phy_device *phydev)
 	u16 addr;
 	int err;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -6059,10 +6057,9 @@ static int lan8841_probe(struct phy_device *phydev)
 	priv = phydev->priv;
 	ptp_priv = &priv->ptp_priv;
 
-	ptp_priv->pin_config = devm_kcalloc(&phydev->mdio.dev,
-					    LAN8841_PTP_GPIO_NUM,
-					    sizeof(*ptp_priv->pin_config),
-					    GFP_KERNEL);
+	ptp_priv->pin_config = devm_kzalloc_objs(&phydev->mdio.dev,
+						 *ptp_priv->pin_config,
+						 LAN8841_PTP_GPIO_NUM);
 	if (!ptp_priv->pin_config)
 		return -ENOMEM;
 
@@ -6162,7 +6159,7 @@ static int lan8842_probe(struct phy_device *phydev)
 	int addr;
 	int ret;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

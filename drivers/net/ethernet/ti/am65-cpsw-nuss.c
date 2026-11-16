@@ -128,6 +128,7 @@
 #define AM65_CPSW_PN_TS_CTL_LTYPE2_TS_319	BIT(21)
 #define AM65_CPSW_PN_TS_CTL_LTYPE2_TS_320	BIT(22)
 #define AM65_CPSW_PN_TS_CTL_LTYPE2_TS_TTL_NONZERO BIT(23)
+#define AM65_CPSW_PN_TS_CTL_LTYPE2_TS_UNI_EN	BIT(24)
 
 /* The PTP event messages - Sync, Delay_Req, Pdelay_Req, and Pdelay_Resp. */
 #define AM65_CPSW_TS_EVENT_MSG_TYPE_BITS (BIT(0) | BIT(1) | BIT(2) | BIT(3))
@@ -1857,7 +1858,8 @@ static int am65_cpsw_nuss_hwtstamp_set(struct net_device *ndev,
 			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_132 |
 			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_319 |
 			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_320 |
-			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_TTL_NONZERO;
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_TTL_NONZERO |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_UNI_EN;
 
 	ts_ctrl = AM65_CPSW_TS_EVENT_MSG_TYPE_BITS <<
 		  AM65_CPSW_PN_TS_CTL_MSG_TYPE_EN_SHIFT;
@@ -3540,7 +3542,7 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 			 "TX SW_DATA size exceeds AM65_CPSW_NAV_SW_DATA_SIZE");
 	BUILD_BUG_ON_MSG(sizeof(struct am65_cpsw_swdata) > AM65_CPSW_NAV_SW_DATA_SIZE,
 			 "SW_DATA size exceeds AM65_CPSW_NAV_SW_DATA_SIZE");
-	common = devm_kzalloc(dev, sizeof(struct am65_cpsw_common), GFP_KERNEL);
+	common = devm_kzalloc_obj(dev, struct am65_cpsw_common);
 	if (!common)
 		return -ENOMEM;
 	common->dev = dev;
@@ -3576,9 +3578,7 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	common->pf_p0_rx_ptype_rrobin = true;
 	common->default_vlan = 1;
 
-	common->ports = devm_kcalloc(dev, common->port_num,
-				     sizeof(*common->ports),
-				     GFP_KERNEL);
+	common->ports = devm_kzalloc_objs(dev, *common->ports, common->port_num);
 	if (!common->ports)
 		return -ENOMEM;
 

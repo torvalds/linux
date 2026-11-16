@@ -974,7 +974,7 @@ static int og0ve1b_probe(struct i2c_client *client)
 	unsigned int i;
 	int ret;
 
-	og0ve1b = devm_kzalloc(&client->dev, sizeof(*og0ve1b), GFP_KERNEL);
+	og0ve1b = devm_kzalloc_obj(&client->dev, *og0ve1b);
 	if (!og0ve1b)
 		return -ENOMEM;
 

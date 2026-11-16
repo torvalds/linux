@@ -435,7 +435,7 @@ static int bigben_probe(struct hid_device *hid, const struct hid_device_id *id)
 	struct bigben_device *bigben;
 	int error;
 
-	bigben = devm_kzalloc(&hid->dev, sizeof(*bigben), GFP_KERNEL);
+	bigben = devm_kzalloc_obj(&hid->dev, *bigben);
 	if (!bigben)
 		return -ENOMEM;
 

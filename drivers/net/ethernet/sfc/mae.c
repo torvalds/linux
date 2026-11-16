@@ -1982,10 +1982,10 @@ int efx_mae_insert_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
 	if (!inbuf)
 		return -ENOMEM;
 
-	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	key = kzalloc_objs(__le32, kw);
 	if (!key)
 		goto out_free;
-	resp = kcalloc(rw, sizeof(__le32), GFP_KERNEL);
+	resp = kzalloc_objs(__le32, rw);
 	if (!resp)
 		goto out_free;
 
@@ -2053,7 +2053,7 @@ int efx_mae_remove_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
 	if (!inbuf)
 		return -ENOMEM;
 
-	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	key = kzalloc_objs(__le32, kw);
 	if (!key)
 		goto out_free;
 

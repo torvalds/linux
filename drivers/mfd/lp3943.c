@@ -107,7 +107,7 @@ static int lp3943_probe(struct i2c_client *cl)
 	struct lp3943 *lp3943;
 	struct device *dev = &cl->dev;
 
-	lp3943 = devm_kzalloc(dev, sizeof(*lp3943), GFP_KERNEL);
+	lp3943 = devm_kzalloc_obj(dev, *lp3943);
 	if (!lp3943)
 		return -ENOMEM;
 

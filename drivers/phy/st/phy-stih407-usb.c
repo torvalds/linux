@@ -94,7 +94,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 	unsigned int syscon_args[2];
 	struct phy *phy;
 
-	phy_dev = devm_kzalloc(dev, sizeof(*phy_dev), GFP_KERNEL);
+	phy_dev = devm_kzalloc_obj(dev, *phy_dev);
 	if (!phy_dev)
 		return -ENOMEM;
 

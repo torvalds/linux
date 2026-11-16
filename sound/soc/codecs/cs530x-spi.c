@@ -56,7 +56,7 @@ static int cs530x_spi_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	int ret;
 
-	cs530x = devm_kzalloc(dev, sizeof(struct cs530x_priv), GFP_KERNEL);
+	cs530x = devm_kzalloc_obj(dev, struct cs530x_priv);
 	if (cs530x == NULL)
 		return -ENOMEM;
 

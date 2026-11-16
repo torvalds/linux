@@ -607,17 +607,15 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	entity->source_pad = num_pads - 1;
 
 	/* Allocate and initialize pads. */
-	entity->pads = devm_kcalloc(vsp1->dev,
-				    num_pads, sizeof(*entity->pads),
-				    GFP_KERNEL);
+	entity->pads = devm_kzalloc_objs(vsp1->dev, *entity->pads, num_pads);
 	if (entity->pads == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < num_pads - 1; ++i)
 		entity->pads[i].flags = MEDIA_PAD_FL_SINK;
 
-	entity->sources = devm_kcalloc(vsp1->dev, max(num_pads - 1, 1U),
-				       sizeof(*entity->sources), GFP_KERNEL);
+	entity->sources = devm_kzalloc_objs(vsp1->dev, *entity->sources,
+					    max(num_pads - 1, 1U));
 	if (entity->sources == NULL)
 		return -ENOMEM;
 

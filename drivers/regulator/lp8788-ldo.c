@@ -529,7 +529,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct lp8788_ldo);
 	if (!ldo)
 		return -ENOMEM;
 
@@ -577,7 +577,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct lp8788_ldo);
 	if (!ldo)
 		return -ENOMEM;
 

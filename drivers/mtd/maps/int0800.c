@@ -37,7 +37,7 @@ static int int0800_probe(struct platform_device *pdev)
 	resource_size_t end;
 	int ret;
 
-	fw = devm_kzalloc(&pdev->dev, sizeof(*fw), GFP_KERNEL);
+	fw = devm_kzalloc_obj(&pdev->dev, *fw);
 	if (!fw)
 		return -ENOMEM;
 

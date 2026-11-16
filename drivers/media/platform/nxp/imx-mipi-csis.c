@@ -730,8 +730,8 @@ static int mipi_csis_clk_get(struct mipi_csis_device *csis)
 	unsigned int i;
 	int ret;
 
-	csis->clks = devm_kcalloc(csis->dev, csis->info->num_clocks,
-				  sizeof(*csis->clks), GFP_KERNEL);
+	csis->clks = devm_kzalloc_objs(csis->dev, *csis->clks,
+				       csis->info->num_clocks);
 
 	if (!csis->clks)
 		return -ENOMEM;
@@ -1507,7 +1507,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	csis = devm_kzalloc(dev, sizeof(*csis), GFP_KERNEL);
+	csis = devm_kzalloc_obj(dev, *csis);
 	if (!csis)
 		return -ENOMEM;
 

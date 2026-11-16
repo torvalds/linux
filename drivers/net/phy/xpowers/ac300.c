@@ -325,7 +325,7 @@ ac300_ephy_ctl_create(struct phy_device *phydev,
 	u8 bgs_effuse_code;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 	if (phydev->mdio.addr > FIELD_MAX(AC300_PACKAGE_PHY_ADDR_MASK))

@@ -2157,7 +2157,7 @@ static void mana_rx_skb(void *buf_va, bool from_pool,
 		return;
 	}
 
-	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, pkt_len);
+	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, from_pool, pkt_len);
 
 	if (act == XDP_REDIRECT && !rxq->xdp_rc)
 		return;
@@ -2179,10 +2179,9 @@ static void mana_rx_skb(void *buf_va, bool from_pool,
 	skb_checksum_none_assert(skb);
 	skb_record_rx_queue(skb, rxq_idx);
 
-	if ((ndev->features & NETIF_F_RXCSUM) && cqe->rx_iphdr_csum_succeed) {
-		if (cqe->rx_tcp_csum_succeed || cqe->rx_udp_csum_succeed)
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-	}
+	if ((ndev->features & NETIF_F_RXCSUM) &&
+	    (cqe->rx_tcp_csum_succeed || cqe->rx_udp_csum_succeed))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (cqe->rx_hashtype != 0 && (ndev->features & NETIF_F_RXHASH)) {
 		if (cqe->rx_hashtype & MANA_HASH_L4)
@@ -2703,6 +2702,7 @@ static void mana_deinit_txq(struct mana_port_context *apc, struct mana_txq *txq)
 
 static void mana_destroy_txq(struct mana_port_context *apc)
 {
+	struct gdma_context *gc = apc->ac->gdma_dev->gdma_context;
 	struct napi_struct *napi;
 	int i;
 
@@ -2721,8 +2721,6 @@ static void mana_destroy_txq(struct mana_port_context *apc)
 			napi_synchronize(napi);
 			napi_disable_locked(napi);
 			cancel_work_sync(&apc->tx_qp[i]->tx_cq.dim.work);
-			netif_napi_del_locked(napi);
-			apc->tx_qp[i]->txq.napi_initialized = false;
 		}
 
 		/* Forget the SKBs freed without being completed after a drain
@@ -2734,6 +2732,18 @@ static void mana_destroy_txq(struct mana_port_context *apc)
 
 		if (apc->tx_qp[i]->tx_object != INVALID_MANA_HANDLE)
 			mana_destroy_wq_obj(apc, GDMA_SQ, apc->tx_qp[i]->tx_object);
+
+		if (apc->tx_qp[i]->txq.napi_initialized) {
+			/* Detach the CQ only after the WQ object is destroyed,
+			 * so a completion EQE that arrives before then still
+			 * finds the CQ in cq_table[] rather than hitting the
+			 * WARN in mana_gd_process_eqe(). One grace period then
+			 * covers both mana_gd_intr() and NAPI users.
+			 */
+			mana_gd_detach_cq(gc, apc->tx_qp[i]->tx_cq.gdma_cq);
+			netif_napi_del_locked(napi);
+			apc->tx_qp[i]->txq.napi_initialized = false;
+		}
 
 		mana_deinit_cq(apc, &apc->tx_qp[i]->tx_cq);
 
@@ -2941,14 +2951,22 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 
 		napi_disable_locked(napi);
 		cancel_work_sync(&rxq->rx_cq.dim.work);
-		netif_napi_del_locked(napi);
 	}
 
 	if (xdp_rxq_info_is_reg(&rxq->xdp_rxq))
 		xdp_rxq_info_unreg(&rxq->xdp_rxq);
 
+	if (xdp_rxq_info_is_reg(&rxq->xdp_rxq_shared))
+		xdp_rxq_info_unreg(&rxq->xdp_rxq_shared);
+
 	if (rxq->rxobj != INVALID_MANA_HANDLE)
 		mana_destroy_wq_obj(apc, GDMA_RQ, rxq->rxobj);
+
+	if (napi_initialized) {
+		/* See the comment in mana_destroy_txq() */
+		mana_gd_detach_cq(gc, rxq->rx_cq.gdma_cq);
+		netif_napi_del_locked(napi);
+	}
 
 	mana_deinit_cq(apc, &rxq->rx_cq);
 
@@ -3225,6 +3243,12 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	WARN_ON(xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq, MEM_TYPE_PAGE_POOL,
 					   rxq->page_pool));
 
+	/* The pre-allocated buffers (mana_pre_alloc_rxbufs) are plain pages */
+	WARN_ON(xdp_rxq_info_reg(&rxq->xdp_rxq_shared, ndev, rxq_idx,
+				 cq->napi.napi_id));
+	WARN_ON(xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq_shared,
+					   MEM_TYPE_PAGE_SHARED, NULL));
+
 	/* Initialize the DIM work before enabling NAPI, so that a poll
 	 * cannot reach net_dim() with an uninitialized cq->dim.work.
 	 */
@@ -3355,7 +3379,7 @@ static int mana_rss_table_alloc(struct mana_port_context *apc)
 		return -EINVAL;
 	}
 
-	apc->indir_table = kcalloc(apc->indir_table_sz, sizeof(u32), GFP_KERNEL);
+	apc->indir_table = kzalloc_objs(u32, apc->indir_table_sz);
 	if (!apc->indir_table)
 		return -ENOMEM;
 

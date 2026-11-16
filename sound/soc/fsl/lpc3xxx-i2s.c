@@ -306,7 +306,7 @@ static int lpc32xx_i2s_probe(struct platform_device *pdev)
 	void __iomem *iomem;
 	int ret;
 
-	i2s_info_p = devm_kzalloc(dev, sizeof(*i2s_info_p), GFP_KERNEL);
+	i2s_info_p = devm_kzalloc_obj(dev, *i2s_info_p);
 	if (!i2s_info_p)
 		return -ENOMEM;
 

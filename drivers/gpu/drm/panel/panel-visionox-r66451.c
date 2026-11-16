@@ -36,7 +36,7 @@ static void visionox_r66451_reset(struct visionox_r66451 *ctx)
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	usleep_range(10000, 10100);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	usleep_range(10000, 10100);
+	usleep_range(20000, 21000);
 }
 
 static int visionox_r66451_on(struct visionox_r66451 *ctx)
@@ -227,7 +227,7 @@ static int visionox_r66451_bl_update_status(struct backlight_device *bl)
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
 	u16 brightness = backlight_get_brightness(bl);
 
-	return mipi_dsi_dcs_set_display_brightness(dsi, brightness);
+	return mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
 }
 
 static const struct backlight_ops visionox_r66451_bl_ops = {
@@ -261,7 +261,7 @@ static int visionox_r66451_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	dsc = devm_kzalloc(dev, sizeof(*dsc), GFP_KERNEL);
+	dsc = devm_kzalloc_obj(dev, *dsc);
 	if (!dsc)
 		return -ENOMEM;
 

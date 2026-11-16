@@ -407,7 +407,7 @@ static int rtl8261x_probe(struct phy_device *phydev)
 	struct rtl8261x_priv *priv;
 	int sub_phy_id, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -737,7 +737,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 	struct device *dev = &phydev->mdio.dev;
 	struct rtl821x_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

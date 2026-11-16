@@ -433,7 +433,7 @@ static int tux_ll_start(struct hid_device *hdev)
 	u8 keyboard_type;
 	int ret;
 
-	driver_data = devm_kzalloc(&hdev->dev, sizeof(*driver_data), GFP_KERNEL);
+	driver_data = devm_kzalloc_obj(&hdev->dev, *driver_data);
 	if (!driver_data)
 		return -ENOMEM;
 
@@ -868,7 +868,7 @@ static int tux_probe(struct wmi_device *wdev, const void *context __always_unuse
 {
 	struct tux_driver_data_t *driver_data;
 
-	driver_data = devm_kzalloc(&wdev->dev, sizeof(*driver_data), GFP_KERNEL);
+	driver_data = devm_kzalloc_obj(&wdev->dev, *driver_data);
 	if (!driver_data)
 		return -ENOMEM;
 

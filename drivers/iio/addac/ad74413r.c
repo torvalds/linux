@@ -1269,8 +1269,8 @@ static int ad74413r_setup_channels(struct iio_dev *indio_dev)
 	unsigned int i, num_chans, chan_i;
 	int ret;
 
-	channels = devm_kcalloc(st->dev, sizeof(*channels),
-				indio_dev->num_channels, GFP_KERNEL);
+	channels = devm_kzalloc_objs(st->dev, *channels,
+				     indio_dev->num_channels);
 	if (!channels)
 		return -ENOMEM;
 

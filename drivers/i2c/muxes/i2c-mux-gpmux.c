@@ -80,7 +80,7 @@ static int i2c_mux_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 

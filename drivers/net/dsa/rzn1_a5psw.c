@@ -1212,7 +1212,7 @@ static int a5psw_probe(struct platform_device *pdev)
 	struct a5psw *a5psw;
 	int ret;
 
-	a5psw = devm_kzalloc(dev, sizeof(*a5psw), GFP_KERNEL);
+	a5psw = devm_kzalloc_obj(dev, *a5psw);
 	if (!a5psw)
 		return -ENOMEM;
 

@@ -651,7 +651,7 @@ static int ks0127_probe(struct i2c_client *client)
 		client->addr == (I2C_KS0127_ADDON >> 1) ? "addon" : "on-board",
 		client->addr << 1, client->adapter->name);
 
-	ks = devm_kzalloc(&client->dev, sizeof(*ks), GFP_KERNEL);
+	ks = devm_kzalloc_obj(&client->dev, *ks);
 	if (ks == NULL)
 		return -ENOMEM;
 	sd = &ks->sd;

@@ -174,7 +174,7 @@ static int max11801_ts_probe(struct i2c_client *client)
 	struct input_dev *input_dev;
 	int error;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!data || !input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");

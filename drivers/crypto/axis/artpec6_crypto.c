@@ -2858,8 +2858,7 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
-	ac = devm_kzalloc(&pdev->dev, sizeof(struct artpec6_crypto),
-			  GFP_KERNEL);
+	ac = devm_kzalloc_obj(&pdev->dev, struct artpec6_crypto);
 	if (!ac)
 		return -ENOMEM;
 

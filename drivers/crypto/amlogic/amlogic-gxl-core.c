@@ -156,8 +156,7 @@ static int meson_allocate_chanlist(struct meson_dev *mc)
 {
 	int i, err;
 
-	mc->chanlist = devm_kcalloc(mc->dev, MAXFLOW,
-				    sizeof(struct meson_flow), GFP_KERNEL);
+	mc->chanlist = devm_kzalloc_objs(mc->dev, struct meson_flow, MAXFLOW);
 	if (!mc->chanlist)
 		return -ENOMEM;
 
@@ -233,7 +232,7 @@ static int meson_crypto_probe(struct platform_device *pdev)
 	struct meson_dev *mc;
 	int err, i;
 
-	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
+	mc = devm_kzalloc_obj(&pdev->dev, *mc);
 	if (!mc)
 		return -ENOMEM;
 

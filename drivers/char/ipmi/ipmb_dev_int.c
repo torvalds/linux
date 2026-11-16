@@ -305,8 +305,7 @@ static int ipmb_probe(struct i2c_client *client)
 	struct ipmb_dev *ipmb_dev;
 	int ret;
 
-	ipmb_dev = devm_kzalloc(&client->dev, sizeof(*ipmb_dev),
-					GFP_KERNEL);
+	ipmb_dev = devm_kzalloc_obj(&client->dev, *ipmb_dev);
 	if (!ipmb_dev)
 		return -ENOMEM;
 

@@ -2413,7 +2413,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs43130_digital =
 	.set_sysclk		= cs43130_component_set_sysclk,
 	.set_pll		= cs43130_set_pll,
 	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	/* Don't take into account the ending analog widgets and routes */
 	.dapm_widgets		= hp_widgets,
@@ -2429,7 +2428,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs43130_analog = 
 	.set_sysclk		= cs43130_component_set_sysclk,
 	.set_pll		= cs43130_set_pll,
 	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.dapm_widgets		= hp_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(hp_widgets),
@@ -2513,7 +2511,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 	unsigned int reg;
 	int i, devid;
 
-	cs43130 = devm_kzalloc(&client->dev, sizeof(*cs43130), GFP_KERNEL);
+	cs43130 = devm_kzalloc_obj(&client->dev, *cs43130);
 	if (!cs43130)
 		return -ENOMEM;
 

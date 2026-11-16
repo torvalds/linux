@@ -189,9 +189,7 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 	if (mem == NULL)
 		return -ENXIO;
 
-	data = devm_kzalloc(&mdev->dev,
-			    sizeof(struct serial_8250_men_mcb_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&mdev->dev, struct serial_8250_men_mcb_data);
 	if (!data)
 		return -ENOMEM;
 

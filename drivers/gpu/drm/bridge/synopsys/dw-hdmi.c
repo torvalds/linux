@@ -512,7 +512,7 @@ static struct i2c_adapter *dw_hdmi_i2c_adapter(struct dw_hdmi *hdmi)
 	struct dw_hdmi_i2c *i2c;
 	int ret;
 
-	i2c = devm_kzalloc(hdmi->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(hdmi->dev, *i2c);
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 
@@ -2670,8 +2670,7 @@ static u32 *dw_hdmi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 
 	*num_output_fmts = 0;
 
-	output_fmts = kcalloc(MAX_OUTPUT_SEL_FORMATS, sizeof(*output_fmts),
-			      GFP_KERNEL);
+	output_fmts = kzalloc_objs(*output_fmts, MAX_OUTPUT_SEL_FORMATS);
 	if (!output_fmts)
 		return NULL;
 
@@ -2794,8 +2793,7 @@ static u32 *dw_hdmi_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 
 	*num_input_fmts = 0;
 
-	input_fmts = kcalloc(MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
-			     GFP_KERNEL);
+	input_fmts = kzalloc_objs(*input_fmts, MAX_INPUT_SEL_FORMATS);
 	if (!input_fmts)
 		return NULL;
 

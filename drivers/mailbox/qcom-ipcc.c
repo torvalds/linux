@@ -201,7 +201,7 @@ static struct mbox_chan *qcom_ipcc_mbox_xlate(struct mbox_controller *mbox,
 
 	chan = free_chan;
 
-	mchan = devm_kzalloc(dev, sizeof(*mchan), GFP_KERNEL);
+	mchan = devm_kzalloc_obj(dev, *mchan);
 	if (!mchan)
 		return ERR_PTR(-ENOMEM);
 
@@ -249,8 +249,7 @@ static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
 	if (!ipcc->num_chans)
 		return 0;
 
-	ipcc->chans = devm_kcalloc(dev, ipcc->num_chans,
-					sizeof(struct mbox_chan), GFP_KERNEL);
+	ipcc->chans = devm_kzalloc_objs(dev, struct mbox_chan, ipcc->num_chans);
 	if (!ipcc->chans)
 		return -ENOMEM;
 
@@ -290,7 +289,7 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 	u32 config_value;
 	int ret;
 
-	ipcc = devm_kzalloc(&pdev->dev, sizeof(*ipcc), GFP_KERNEL);
+	ipcc = devm_kzalloc_obj(&pdev->dev, *ipcc);
 	if (!ipcc)
 		return -ENOMEM;
 

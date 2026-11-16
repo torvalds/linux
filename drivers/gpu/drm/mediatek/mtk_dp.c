@@ -2522,15 +2522,14 @@ static u32 *mtk_dp_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	if (((rate * 97 / 100) < (mode->clock * 24 / 8)) &&
 	    ((rate * 97 / 100) > (mode->clock * 16 / 8)) &&
 	    (display_info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422))) {
-		input_fmts = kcalloc(1, sizeof(*input_fmts), GFP_KERNEL);
+		input_fmts = kzalloc_objs(*input_fmts, 1);
 		if (!input_fmts)
 			return NULL;
 		*num_input_fmts = 1;
 		input_fmts[0] = MEDIA_BUS_FMT_YUYV8_1X16;
 	} else {
-		input_fmts = kcalloc(ARRAY_SIZE(mt8195_input_fmts),
-				     sizeof(*input_fmts),
-				     GFP_KERNEL);
+		input_fmts = kzalloc_objs(*input_fmts,
+					  ARRAY_SIZE(mt8195_input_fmts));
 		if (!input_fmts)
 			return NULL;
 

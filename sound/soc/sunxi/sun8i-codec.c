@@ -1621,7 +1621,7 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	scodec = devm_kzalloc(&pdev->dev, sizeof(*scodec), GFP_KERNEL);
+	scodec = devm_kzalloc_obj(&pdev->dev, *scodec);
 	if (!scodec)
 		return -ENOMEM;
 

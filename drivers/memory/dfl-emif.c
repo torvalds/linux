@@ -223,7 +223,7 @@ static int dfl_emif_probe(struct dfl_device *ddev)
 	struct device *dev = &ddev->dev;
 	struct dfl_emif *de;
 
-	de = devm_kzalloc(dev, sizeof(*de), GFP_KERNEL);
+	de = devm_kzalloc_obj(dev, *de);
 	if (!de)
 		return -ENOMEM;
 

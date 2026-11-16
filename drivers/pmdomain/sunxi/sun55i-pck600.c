@@ -139,7 +139,7 @@ static int sunxi_pck600_probe(struct platform_device *pdev)
 
 	desc = of_device_get_match_data(dev);
 
-	pck = devm_kzalloc(dev, struct_size(pck, pds, desc->num_domains), GFP_KERNEL);
+	pck = devm_kzalloc_flex(dev, *pck, pds, desc->num_domains);
 	if (!pck)
 		return -ENOMEM;
 
@@ -148,8 +148,8 @@ static int sunxi_pck600_probe(struct platform_device *pdev)
 
 	genpds = &pck->genpd_data;
 	genpds->num_domains = desc->num_domains;
-	genpds->domains = devm_kcalloc(dev, desc->num_domains,
-				       sizeof(*genpds->domains), GFP_KERNEL);
+	genpds->domains = devm_kzalloc_objs(dev, *genpds->domains,
+					    desc->num_domains);
 	if (!genpds->domains)
 		return -ENOMEM;
 

@@ -137,7 +137,7 @@ static int vsc73xx_spi_probe(struct spi_device *spi)
 	struct vsc73xx_spi *vsc_spi;
 	int ret;
 
-	vsc_spi = devm_kzalloc(dev, sizeof(*vsc_spi), GFP_KERNEL);
+	vsc_spi = devm_kzalloc_obj(dev, *vsc_spi);
 	if (!vsc_spi)
 		return -ENOMEM;
 

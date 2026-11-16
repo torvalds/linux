@@ -190,7 +190,7 @@ static int se10_wdt_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Found Lenovo SE10 0x%x\n", chip_id);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

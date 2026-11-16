@@ -34,8 +34,6 @@ int arena_htab_llvm(void *ctx)
 	cast_kern(htab);
 	htab_init(htab);
 
-	cast_kern(arr);
-
 	/* first run. No old elems in the table */
 	for (i = zero; i < 100000 && can_loop; i++) {
 		htab_update_elem(htab, i, i);

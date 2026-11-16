@@ -167,7 +167,7 @@ static int lpc18xx_eeprom_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	eeprom = devm_kzalloc(dev, sizeof(*eeprom), GFP_KERNEL);
+	eeprom = devm_kzalloc_obj(dev, *eeprom);
 	if (!eeprom)
 		return -ENOMEM;
 

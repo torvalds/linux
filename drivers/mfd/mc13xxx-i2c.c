@@ -56,7 +56,7 @@ static int mc13xxx_i2c_probe(struct i2c_client *client)
 	struct mc13xxx *mc13xxx;
 	int ret;
 
-	mc13xxx = devm_kzalloc(&client->dev, sizeof(*mc13xxx), GFP_KERNEL);
+	mc13xxx = devm_kzalloc_obj(&client->dev, *mc13xxx);
 	if (!mc13xxx)
 		return -ENOMEM;
 

@@ -136,7 +136,7 @@ int cc_fips_init(struct cc_drvdata *p_drvdata)
 	if (p_drvdata->hw_rev < CC_HW_REV_712)
 		return 0;
 
-	fips_h = devm_kzalloc(dev, sizeof(*fips_h), GFP_KERNEL);
+	fips_h = devm_kzalloc_obj(dev, *fips_h);
 	if (!fips_h)
 		return -ENOMEM;
 

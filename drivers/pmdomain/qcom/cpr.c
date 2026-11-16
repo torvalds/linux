@@ -1086,9 +1086,8 @@ static int cpr_corner_init(struct cpr_drv *drv)
 	corner = drv->corners;
 	end = &corner[drv->num_corners - 1];
 
-	cdata = devm_kcalloc(drv->dev, drv->num_corners,
-			     sizeof(struct corner_data),
-			     GFP_KERNEL);
+	cdata = devm_kzalloc_objs(drv->dev, struct corner_data,
+				  drv->num_corners);
 	if (!cdata)
 		return -ENOMEM;
 
@@ -1220,9 +1219,8 @@ static const struct cpr_fuse *cpr_get_fuses(struct cpr_drv *drv)
 	struct cpr_fuse *fuses;
 	int i;
 
-	fuses = devm_kcalloc(drv->dev, desc->num_fuse_corners,
-			     sizeof(struct cpr_fuse),
-			     GFP_KERNEL);
+	fuses = devm_kzalloc_objs(drv->dev, struct cpr_fuse,
+				  desc->num_fuse_corners);
 	if (!fuses)
 		return ERR_PTR(-ENOMEM);
 
@@ -1489,9 +1487,8 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 		return -EINVAL;
 	}
 
-	drv->corners = devm_kcalloc(drv->dev, drv->num_corners,
-				    sizeof(*drv->corners),
-				    GFP_KERNEL);
+	drv->corners = devm_kzalloc_objs(drv->dev, *drv->corners,
+					 drv->num_corners);
 	if (!drv->corners)
 		return -ENOMEM;
 
@@ -1601,9 +1598,8 @@ static int cpr_probe(struct platform_device *pdev)
 	if (!data || !data->cpr_desc || !data->acc_desc)
 		return -EINVAL;
 
-	drv = devm_kzalloc(dev,
-			struct_size(drv, fuse_corners, data->cpr_desc->num_fuse_corners),
-			GFP_KERNEL);
+	drv = devm_kzalloc_flex(dev, *drv, fuse_corners,
+				data->cpr_desc->num_fuse_corners);
 	if (!drv)
 		return -ENOMEM;
 	drv->dev = dev;

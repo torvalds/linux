@@ -297,7 +297,7 @@ int sun4i_hdmi_i2c_create(struct device *dev, struct sun4i_hdmi *hdmi)
 	if (ret)
 		return ret;
 
-	adap = devm_kzalloc(dev, sizeof(*adap), GFP_KERNEL);
+	adap = devm_kzalloc_obj(dev, *adap);
 	if (!adap)
 		return -ENOMEM;
 

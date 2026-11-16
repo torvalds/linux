@@ -190,7 +190,7 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

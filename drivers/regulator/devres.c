@@ -407,12 +407,11 @@ int devm_regulator_bulk_get_enable(struct device *dev, int num_consumers,
 	struct regulator_bulk_data *consumers;
 	int i, ret;
 
-	devres = devm_kmalloc(dev, sizeof(*devres), GFP_KERNEL);
+	devres = devm_kmalloc_obj(dev, *devres);
 	if (!devres)
 		return -ENOMEM;
 
-	devres->consumers = devm_kcalloc(dev, num_consumers, sizeof(*consumers),
-					 GFP_KERNEL);
+	devres->consumers = devm_kzalloc_objs(dev, *consumers, num_consumers);
 	consumers = devres->consumers;
 	if (!consumers)
 		return -ENOMEM;

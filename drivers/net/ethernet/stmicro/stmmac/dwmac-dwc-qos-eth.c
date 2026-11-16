@@ -40,9 +40,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 	u32 burst_map = 0;
 
 	if (!plat_dat->axi) {
-		plat_dat->axi = devm_kzalloc(&pdev->dev,
-					     sizeof(struct stmmac_axi),
-					     GFP_KERNEL);
+		plat_dat->axi = devm_kzalloc_obj(&pdev->dev, struct stmmac_axi);
 
 		if (!plat_dat->axi)
 			return -ENOMEM;
@@ -191,7 +189,7 @@ static int tegra_eqos_probe(struct platform_device *pdev,
 	struct tegra_eqos *eqos;
 	int err;
 
-	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
+	eqos = devm_kzalloc_obj(&pdev->dev, *eqos);
 	if (!eqos)
 		return -ENOMEM;
 

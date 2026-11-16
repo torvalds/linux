@@ -152,7 +152,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 	if (!count)
 		return ERR_PTR(-ENODEV);
 
-	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, leds, count);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 	priv->num_leds = count;
@@ -279,7 +279,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 	int i, ret;
 
 	if (pdata && pdata->num_leds) {
-		priv = devm_kzalloc(dev, struct_size(priv, leds, pdata->num_leds), GFP_KERNEL);
+		priv = devm_kzalloc_flex(dev, *priv, leds, pdata->num_leds);
 		if (!priv)
 			return -ENOMEM;
 

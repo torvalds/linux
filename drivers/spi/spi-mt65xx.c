@@ -1221,8 +1221,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, -EINVAL,
 				"No 'mediatek,pad-select' property\n");
 
-		mdata->pad_sel = devm_kmalloc_array(dev, mdata->pad_num,
-						    sizeof(u32), GFP_KERNEL);
+		mdata->pad_sel = devm_kmalloc_objs(dev, u32, mdata->pad_num);
 		if (!mdata->pad_sel)
 			return -ENOMEM;
 

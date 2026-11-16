@@ -72,7 +72,7 @@ static int ssd130x_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(dc),
 				     "Failed to get dc gpio\n");
 
-	t = devm_kzalloc(dev, sizeof(*t), GFP_KERNEL);
+	t = devm_kzalloc_obj(dev, *t);
 	if (!t)
 		return -ENOMEM;
 

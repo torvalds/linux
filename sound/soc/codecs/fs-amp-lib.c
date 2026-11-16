@@ -111,7 +111,7 @@ static int fs_parse_scene_tables(struct fs_amp_lib *amp_lib)
 	if (count <= 0)
 		return -EFAULT;
 
-	scene = devm_kcalloc(amp_lib->dev, count, sizeof(*scene), GFP_KERNEL);
+	scene = devm_kzalloc_objs(amp_lib->dev, *scene, count);
 	if (!scene)
 		return -ENOMEM;
 

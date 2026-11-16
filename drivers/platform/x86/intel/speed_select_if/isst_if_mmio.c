@@ -98,7 +98,7 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u64 base_addr;
 	int ret;
 
-	punit_dev = devm_kzalloc(&pdev->dev, sizeof(*punit_dev), GFP_KERNEL);
+	punit_dev = devm_kzalloc_obj(&pdev->dev, *punit_dev);
 	if (!punit_dev)
 		return -ENOMEM;
 

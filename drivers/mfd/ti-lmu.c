@@ -149,7 +149,7 @@ static int ti_lmu_probe(struct i2c_client *cl)
 	if (!data)
 		return -ENODEV;
 
-	lmu = devm_kzalloc(dev, sizeof(*lmu), GFP_KERNEL);
+	lmu = devm_kzalloc_obj(dev, *lmu);
 	if (!lmu)
 		return -ENOMEM;
 

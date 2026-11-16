@@ -83,8 +83,7 @@ static int  co_cache_error_event(struct notifier_block *this,
 
 static int co_cache_error_probe(struct platform_device *pdev)
 {
-	struct co_cache_error *p = devm_kzalloc(&pdev->dev, sizeof(*p),
-						GFP_KERNEL);
+	struct co_cache_error *p = devm_kzalloc_obj(&pdev->dev, *p);
 	if (!p)
 		return -ENOMEM;
 

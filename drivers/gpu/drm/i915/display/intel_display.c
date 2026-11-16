@@ -1854,15 +1854,22 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc *pipe_crtc;
 
-	if (crtc->cmtg.enabled && intel_cmtg_is_allowed(old_crtc_state)) {
-		intel_cmtg_set_clk_select(old_crtc_state);
-		intel_cmtg_disable(old_crtc_state);
-	}
 	/*
 	 * FIXME collapse everything to one hook.
 	 * Need care with mst->ddi interactions.
 	 */
 	intel_encoders_disable(state, crtc);
+
+	/*
+	 * Disable CMTG after the encoders are disabled, but before the
+	 * transcoder and port PLL are torn down in
+	 * intel_encoders_post_disable()/intel_dpll_disable().
+	 */
+	if (crtc->cmtg.enabled && intel_cmtg_is_allowed(old_crtc_state)) {
+		intel_cmtg_set_clk_select(old_crtc_state);
+		intel_cmtg_disable(old_crtc_state);
+	}
+
 	intel_encoders_post_disable(state, crtc);
 
 	intel_dpll_disable(old_crtc_state);
@@ -1897,6 +1904,11 @@ bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
 		return false;
 }
 
+static bool intel_phy_is_edp_on_tc(struct intel_display *display, enum phy phy)
+{
+	return DISPLAY_RUNTIME_INFO(display)->edp_typec_support && phy == PHY_B;
+}
+
 /*
  * This function returns true if the DDI port respective to the PHY enumeration
  * is a Type-C capable port.
@@ -1916,6 +1928,9 @@ bool intel_phy_is_tc(struct intel_display *display, enum phy phy)
 	 */
 	if (display->platform.dgfx)
 		return false;
+
+	if (intel_phy_is_edp_on_tc(display, phy))
+		return true;
 
 	if (DISPLAY_VER(display) >= 13)
 		return phy >= PHY_F && phy <= PHY_I;
@@ -1967,6 +1982,9 @@ enum phy intel_port_to_phy(struct intel_display *display, enum port port)
  */
 enum tc_port intel_port_to_tc(struct intel_display *display, enum port port)
 {
+	if (intel_phy_is_edp_on_tc(display, intel_port_to_phy(display, port)))
+		return TC_PORT_1;
+
 	if (DISPLAY_VER(display) >= 12)
 		return TC_PORT_1 + port - PORT_TC1;
 	else
@@ -2844,7 +2862,7 @@ void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state,
 		       HSYNC_END(adjusted_mode->crtc_hsync_end - 1));
 
 	if (display->platform.novalake &&
-	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 		crtc_vtotal = 1;
 
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),
@@ -2941,7 +2959,7 @@ void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc_state,
 	 * is the transcoder's undelayed vblank.
 	 */
 	if (display->platform.novalake &&
-	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 		crtc_vtotal = 1;
 
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),

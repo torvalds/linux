@@ -99,7 +99,7 @@ static int cbmem_entry_probe(struct coreboot_device *dev)
 {
 	struct cbmem_entry *entry;
 
-	entry = devm_kzalloc(&dev->dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(&dev->dev, *entry);
 	if (!entry)
 		return -ENOMEM;
 

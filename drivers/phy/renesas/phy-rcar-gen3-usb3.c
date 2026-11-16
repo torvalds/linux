@@ -141,7 +141,7 @@ static int rcar_gen3_phy_usb3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	r = devm_kzalloc(dev, sizeof(*r), GFP_KERNEL);
+	r = devm_kzalloc_obj(dev, *r);
 	if (!r)
 		return -ENOMEM;
 

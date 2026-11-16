@@ -239,7 +239,7 @@ static int k1_tsensor_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int i, irq, ret;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

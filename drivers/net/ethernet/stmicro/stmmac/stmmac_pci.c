@@ -85,7 +85,7 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 	plat->dma_cfg->pblx8 = true;
 
 	/* Axi Configuration */
-	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi), GFP_KERNEL);
+	plat->axi = devm_kzalloc_obj(&pdev->dev, *plat->axi);
 	if (!plat->axi)
 		return -ENOMEM;
 
@@ -128,15 +128,12 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	if (!plat)
 		return -ENOMEM;
 
-	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
-					   sizeof(*plat->mdio_bus_data),
-					   GFP_KERNEL);
+	plat->mdio_bus_data = devm_kzalloc_obj(&pdev->dev, *plat->mdio_bus_data);
 	if (!plat->mdio_bus_data)
 		return -ENOMEM;
 
-	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
-					     sizeof(*plat->safety_feat_cfg),
-					     GFP_KERNEL);
+	plat->safety_feat_cfg = devm_kzalloc_obj(&pdev->dev,
+						 *plat->safety_feat_cfg);
 	if (!plat->safety_feat_cfg)
 		return -ENOMEM;
 

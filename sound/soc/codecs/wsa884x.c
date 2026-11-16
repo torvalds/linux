@@ -2047,7 +2047,7 @@ static int wsa884x_probe(struct sdw_slave *pdev,
 	unsigned int i;
 	int ret;
 
-	wsa884x = devm_kzalloc(dev, sizeof(*wsa884x), GFP_KERNEL);
+	wsa884x = devm_kzalloc_obj(dev, *wsa884x);
 	if (!wsa884x)
 		return -ENOMEM;
 

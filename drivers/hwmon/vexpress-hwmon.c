@@ -209,7 +209,7 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 	struct vexpress_hwmon_data *data;
 	const struct vexpress_hwmon_type *type;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, data);

@@ -292,10 +292,9 @@ static int rzv2m_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto done;
 	}
 
-	pins = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*pins), GFP_KERNEL);
-	psel_val = devm_kcalloc(pctrl->dev, num_pinmux, sizeof(*psel_val),
-				GFP_KERNEL);
-	pin_fn = devm_kzalloc(pctrl->dev, sizeof(*pin_fn), GFP_KERNEL);
+	pins = devm_kzalloc_objs(pctrl->dev, *pins, num_pinmux);
+	psel_val = devm_kzalloc_objs(pctrl->dev, *psel_val, num_pinmux);
+	pin_fn = devm_kzalloc_obj(pctrl->dev, *pin_fn);
 	if (!pins || !psel_val || !pin_fn) {
 		ret = -ENOMEM;
 		goto done;
@@ -996,12 +995,11 @@ static int rzv2m_pinctrl_register(struct rzv2m_pinctrl *pctrl)
 	pctrl->desc.confops = &rzv2m_pinctrl_confops;
 	pctrl->desc.owner = THIS_MODULE;
 
-	pins = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(pctrl->dev, *pins, pctrl->desc.npins);
 	if (!pins)
 		return -ENOMEM;
 
-	pin_data = devm_kcalloc(pctrl->dev, pctrl->desc.npins,
-				sizeof(*pin_data), GFP_KERNEL);
+	pin_data = devm_kzalloc_objs(pctrl->dev, *pin_data, pctrl->desc.npins);
 	if (!pin_data)
 		return -ENOMEM;
 
@@ -1054,7 +1052,7 @@ static int rzv2m_pinctrl_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -181,7 +181,7 @@ static struct clk *bcm2835_i2c_register_div(struct device *dev,
 	init.num_parents = 1;
 	init.flags = 0;
 
-	priv = devm_kzalloc(dev, sizeof(struct clk_bcm2835_i2c), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct clk_bcm2835_i2c);
 	if (priv == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -413,7 +413,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	struct clk *mclk;
 	u32 bus_clk_rate;
 
-	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = devm_kzalloc_obj(&pdev->dev, *i2c_dev);
 	if (!i2c_dev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, i2c_dev);

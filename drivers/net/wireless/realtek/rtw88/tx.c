@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/ip.h>
+#include <linux/udp.h>
 #include "main.h"
 #include "tx.h"
 #include "fw.h"
@@ -745,3 +747,60 @@ enum rtw_tx_queue_type rtw_tx_queue_mapping(struct sk_buff *skb)
 	return queue;
 }
 EXPORT_SYMBOL(rtw_tx_queue_mapping);
+
+static bool rtw_tx_bmc_needs_dtim(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct udphdr *udphdr;
+
+	if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO)
+		return true;
+
+	if (skb->protocol == htons(ETH_P_ARP))
+		return true;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    ip_hdr(skb)->protocol == IPPROTO_UDP) {
+		udphdr = udp_hdr(skb);
+
+		return udphdr->dest == htons(67) || udphdr->dest == htons(68);
+	}
+
+	return false;
+}
+
+static bool rtw_tx_hiq_take_budget(struct rtw_dev *rtwdev)
+{
+	unsigned long flags, elapsed, add;
+	bool ok;
+
+	spin_lock_irqsave(&rtwdev->hiq_lock, flags);
+
+	elapsed = jiffies - rtwdev->hiq_refill;
+	add = elapsed / RTW_TX_HIQ_REFILL_INTERVAL;
+	if (add) {
+		rtwdev->hiq_budget = min_t(unsigned long, rtwdev->hiq_budget + add,
+					   RTW_TX_HIQ_BUDGET_MAX);
+
+		/* keep the unfinished part of the interval for the next unit */
+		rtwdev->hiq_refill = jiffies - elapsed % RTW_TX_HIQ_REFILL_INTERVAL;
+	}
+
+	ok = rtwdev->hiq_budget > 0;
+	if (ok)
+		rtwdev->hiq_budget--;
+
+	spin_unlock_irqrestore(&rtwdev->hiq_lock, flags);
+
+	return ok;
+}
+
+bool rtw_tx_bmc_use_hiq(struct rtw_dev *rtwdev, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	return (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) &&
+	       rtw_tx_bmc_needs_dtim(skb) &&
+	       rtw_tx_hiq_take_budget(rtwdev);
+}
+EXPORT_SYMBOL(rtw_tx_bmc_use_hiq);

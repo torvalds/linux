@@ -1733,7 +1733,7 @@ static int stm32_dma3_probe(struct platform_device *pdev)
 	u64 hwcfgr;
 	int ret;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, ddata);
@@ -1829,8 +1829,8 @@ static int stm32_dma3_probe(struct platform_device *pdev)
 			ddata->axi_max_burst_len);
 	}
 
-	ddata->chans = devm_kcalloc(&pdev->dev, ddata->dma_channels, sizeof(*ddata->chans),
-				    GFP_KERNEL);
+	ddata->chans = devm_kzalloc_objs(&pdev->dev, *ddata->chans,
+					 ddata->dma_channels);
 	if (!ddata->chans) {
 		ret = -ENOMEM;
 		goto err_clk_disable;

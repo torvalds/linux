@@ -937,13 +937,13 @@ static int tegra_xusb_init_context(struct tegra_xusb *tegra)
 {
 	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
 
-	tegra->context.ipfs = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
-					   sizeof(u32), GFP_KERNEL);
+	tegra->context.ipfs = devm_kzalloc_objs(tegra->dev, u32,
+						soc->ipfs.num_offsets);
 	if (!tegra->context.ipfs)
 		return -ENOMEM;
 
-	tegra->context.fpci = devm_kcalloc(tegra->dev, soc->fpci.num_offsets,
-					   sizeof(u32), GFP_KERNEL);
+	tegra->context.fpci = devm_kzalloc_objs(tegra->dev, u32,
+						soc->fpci.num_offsets);
 	if (!tegra->context.fpci)
 		return -ENOMEM;
 
@@ -1509,8 +1509,8 @@ static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
 {
 	unsigned int i;
 
-	tegra->usbphy = devm_kcalloc(tegra->dev, tegra->num_usb_phys,
-				   sizeof(*tegra->usbphy), GFP_KERNEL);
+	tegra->usbphy = devm_kzalloc_objs(tegra->dev, *tegra->usbphy,
+					  tegra->num_usb_phys);
 	if (!tegra->usbphy)
 		return -ENOMEM;
 
@@ -1560,9 +1560,8 @@ static int tegra_xusb_setup_wakeup(struct platform_device *pdev, struct tegra_xu
 	if (tegra->soc->max_num_wakes == 0)
 		return 0;
 
-	tegra->wake_irqs = devm_kcalloc(tegra->dev,
-					tegra->soc->max_num_wakes,
-					sizeof(*tegra->wake_irqs), GFP_KERNEL);
+	tegra->wake_irqs = devm_kzalloc_objs(tegra->dev, *tegra->wake_irqs,
+					     tegra->soc->max_num_wakes);
 	if (!tegra->wake_irqs)
 		return -ENOMEM;
 
@@ -1606,7 +1605,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 
 	BUILD_BUG_ON(sizeof(struct tegra_xusb_fw_header) != 256);
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(&pdev->dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 
@@ -1762,8 +1761,8 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 			goto put_powerdomains;
 	}
 
-	tegra->supplies = devm_kcalloc(&pdev->dev, tegra->soc->num_supplies,
-				       sizeof(*tegra->supplies), GFP_KERNEL);
+	tegra->supplies = devm_kzalloc_objs(&pdev->dev, *tegra->supplies,
+					    tegra->soc->num_supplies);
 	if (!tegra->supplies) {
 		err = -ENOMEM;
 		goto put_powerdomains;
@@ -1786,8 +1785,8 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		tegra->num_phys += tegra->soc->phy_types[i].num;
 	}
 
-	tegra->phys = devm_kcalloc(&pdev->dev, tegra->num_phys,
-				   sizeof(*tegra->phys), GFP_KERNEL);
+	tegra->phys = devm_kzalloc_objs(&pdev->dev, *tegra->phys,
+					tegra->num_phys);
 	if (!tegra->phys) {
 		err = -ENOMEM;
 		goto put_powerdomains;

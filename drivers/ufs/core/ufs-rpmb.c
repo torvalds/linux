@@ -189,7 +189,7 @@ int ufs_rpmb_probe(struct ufs_hba *hba)
 		if (!cap)
 			continue;
 
-		ufs_rpmb = devm_kzalloc(hba->dev, sizeof(*ufs_rpmb), GFP_KERNEL);
+		ufs_rpmb = devm_kzalloc_obj(hba->dev, *ufs_rpmb);
 		if (!ufs_rpmb) {
 			ret = -ENOMEM;
 			goto err_out;

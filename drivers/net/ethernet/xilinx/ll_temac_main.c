@@ -329,8 +329,7 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	dma_addr_t skb_dma_addr;
 	int i;
 
-	lp->rx_skb = devm_kcalloc(&ndev->dev, lp->rx_bd_num,
-				  sizeof(*lp->rx_skb), GFP_KERNEL);
+	lp->rx_skb = devm_kzalloc_objs(&ndev->dev, *lp->rx_skb, lp->rx_bd_num);
 	if (!lp->rx_skb)
 		goto out;
 
@@ -1434,9 +1433,8 @@ static int temac_probe(struct platform_device *pdev)
 		}
 		lp->indirect_lock = pdata->indirect_lock;
 	} else {
-		lp->indirect_lock = devm_kmalloc(&pdev->dev,
-						 sizeof(*lp->indirect_lock),
-						 GFP_KERNEL);
+		lp->indirect_lock = devm_kmalloc_obj(&pdev->dev,
+						     *lp->indirect_lock);
 		if (!lp->indirect_lock)
 			return -ENOMEM;
 		spin_lock_init(lp->indirect_lock);

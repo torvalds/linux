@@ -213,7 +213,7 @@ static int mtk_gpueb_mbox_probe(struct platform_device *pdev)
 	struct mtk_gpueb_mbox *ebm;
 	unsigned int i;
 
-	ebm = devm_kzalloc(&pdev->dev, sizeof(*ebm), GFP_KERNEL);
+	ebm = devm_kzalloc_obj(&pdev->dev, *ebm);
 	if (!ebm)
 		return -ENOMEM;
 
@@ -240,13 +240,12 @@ static int mtk_gpueb_mbox_probe(struct platform_device *pdev)
 			ebm->dev, PTR_ERR(ebm->mbox_ctl),
 			"Couldn't map mailbox control registers\n");
 
-	ebm->ch = devm_kmalloc_array(ebm->dev, ebm->v->num_channels,
-				     sizeof(*ebm->ch), GFP_KERNEL);
+	ebm->ch = devm_kmalloc_objs(ebm->dev, *ebm->ch, ebm->v->num_channels);
 	if (!ebm->ch)
 		return -ENOMEM;
 
-	ebm->mbox.chans = devm_kcalloc(ebm->dev, ebm->v->num_channels,
-				       sizeof(struct mbox_chan), GFP_KERNEL);
+	ebm->mbox.chans = devm_kzalloc_objs(ebm->dev, struct mbox_chan,
+					    ebm->v->num_channels);
 	if (!ebm->mbox.chans)
 		return -ENOMEM;
 

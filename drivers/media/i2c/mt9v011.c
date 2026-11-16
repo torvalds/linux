@@ -501,7 +501,7 @@ static int mt9v011_probe(struct i2c_client *c)
 	     I2C_FUNC_SMBUS_READ_BYTE | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -EIO;
 
-	core = devm_kzalloc(&c->dev, sizeof(struct mt9v011), GFP_KERNEL);
+	core = devm_kzalloc_obj(&c->dev, struct mt9v011);
 	if (!core)
 		return -ENOMEM;
 

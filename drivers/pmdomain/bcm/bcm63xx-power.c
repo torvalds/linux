@@ -96,7 +96,7 @@ static int bcm63xx_power_probe(struct platform_device *pdev)
 	uint8_t max_bit = 0;
 	int ret;
 
-	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
+	power = devm_kzalloc_obj(dev, *power);
 	if (!power)
 		return -ENOMEM;
 
@@ -120,15 +120,13 @@ static int bcm63xx_power_probe(struct platform_device *pdev)
 
 	power->genpd_data.num_domains = max_bit + 1;
 
-	power->dev = devm_kcalloc(dev, power->genpd_data.num_domains,
-				  sizeof(struct bcm63xx_power_dev),
-				  GFP_KERNEL);
+	power->dev = devm_kzalloc_objs(dev, struct bcm63xx_power_dev,
+				       power->genpd_data.num_domains);
 	if (!power->dev)
 		return -ENOMEM;
 
-	power->genpd = devm_kcalloc(dev, power->genpd_data.num_domains,
-				    sizeof(struct generic_pm_domain *),
-				    GFP_KERNEL);
+	power->genpd = devm_kzalloc_objs(dev, struct generic_pm_domain *,
+					 power->genpd_data.num_domains);
 	if (!power->genpd)
 		return -ENOMEM;
 

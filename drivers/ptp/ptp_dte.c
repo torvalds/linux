@@ -231,7 +231,7 @@ static int ptp_dte_probe(struct platform_device *pdev)
 	struct ptp_dte *ptp_dte;
 	struct device *dev = &pdev->dev;
 
-	ptp_dte = devm_kzalloc(dev, sizeof(struct ptp_dte), GFP_KERNEL);
+	ptp_dte = devm_kzalloc_obj(dev, struct ptp_dte);
 	if (!ptp_dte)
 		return -ENOMEM;
 

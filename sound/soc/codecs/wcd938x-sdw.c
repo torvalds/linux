@@ -1156,7 +1156,7 @@ static int wcd9380_probe(struct sdw_slave *pdev,
 	struct wcd938x_sdw_priv *wcd;
 	int ret;
 
-	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
+	wcd = devm_kzalloc_obj(dev, *wcd);
 	if (!wcd)
 		return -ENOMEM;
 

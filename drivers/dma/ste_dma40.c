@@ -3543,21 +3543,17 @@ static int __init d40_hw_detect_init(struct platform_device *pdev,
 		base->gen_dmac.init_reg_size = ARRAY_SIZE(dma_init_reg_v4a);
 	}
 
-	base->phy_res = devm_kcalloc(dev, num_phy_chans,
-				     sizeof(*base->phy_res),
-				     GFP_KERNEL);
+	base->phy_res = devm_kzalloc_objs(dev, *base->phy_res, num_phy_chans);
 	if (!base->phy_res)
 		return -ENOMEM;
 
-	base->lookup_phy_chans = devm_kcalloc(dev, num_phy_chans,
-					      sizeof(*base->lookup_phy_chans),
-					      GFP_KERNEL);
+	base->lookup_phy_chans = devm_kzalloc_objs(dev, *base->lookup_phy_chans,
+						   num_phy_chans);
 	if (!base->lookup_phy_chans)
 		return -ENOMEM;
 
-	base->lookup_log_chans = devm_kcalloc(dev, num_log_chans,
-					      sizeof(*base->lookup_log_chans),
-					      GFP_KERNEL);
+	base->lookup_log_chans = devm_kzalloc_objs(dev, *base->lookup_log_chans,
+						   num_log_chans);
 	if (!base->lookup_log_chans)
 		return -ENOMEM;
 
@@ -3567,16 +3563,14 @@ static int __init d40_hw_detect_init(struct platform_device *pdev,
 	if (!base->reg_val_backup_chan)
 		return -ENOMEM;
 
-	base->lcla_pool.alloc_map = devm_kcalloc(dev, num_phy_chans
-					    * D40_LCLA_LINK_PER_EVENT_GRP,
-					    sizeof(*base->lcla_pool.alloc_map),
-					    GFP_KERNEL);
+	base->lcla_pool.alloc_map = devm_kzalloc_objs(dev,
+						      *base->lcla_pool.alloc_map,
+						      num_phy_chans * D40_LCLA_LINK_PER_EVENT_GRP);
 	if (!base->lcla_pool.alloc_map)
 		return -ENOMEM;
 
-	base->regs_interrupt = devm_kmalloc_array(dev, base->gen_dmac.il_size,
-					     sizeof(*base->regs_interrupt),
-					     GFP_KERNEL);
+	base->regs_interrupt = devm_kmalloc_objs(dev, *base->regs_interrupt,
+						 base->gen_dmac.il_size);
 	if (!base->regs_interrupt)
 		return -ENOMEM;
 
@@ -3663,9 +3657,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	 * To full fill this hardware requirement without wasting 256 kb
 	 * we allocate pages until we get an aligned one.
 	 */
-	page_list = kmalloc_array(MAX_LCLA_ALLOC_ATTEMPTS,
-				  sizeof(*page_list),
-				  GFP_KERNEL);
+	page_list = kmalloc_objs(*page_list, MAX_LCLA_ALLOC_ATTEMPTS);
 	if (!page_list)
 		return -ENOMEM;
 
@@ -3740,7 +3732,7 @@ static int __init d40_of_probe(struct device *dev,
 	const __be32 *list;
 	int ret;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

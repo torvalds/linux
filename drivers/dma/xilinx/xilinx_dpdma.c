@@ -1656,7 +1656,7 @@ static int xilinx_dpdma_chan_init(struct xilinx_dpdma_device *xdev,
 {
 	struct xilinx_dpdma_chan *chan;
 
-	chan = devm_kzalloc(xdev->dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(xdev->dev, *chan);
 	if (!chan)
 		return -ENOMEM;
 
@@ -1730,7 +1730,7 @@ static int xilinx_dpdma_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(&pdev->dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

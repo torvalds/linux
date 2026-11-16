@@ -544,7 +544,7 @@ static int ucs1002_probe(struct i2c_client *client)
 	struct ucs1002_info *info;
 	unsigned int regval;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

@@ -333,7 +333,7 @@ static int exc3000_probe(struct i2c_client *client)
 	struct input_dev *input;
 	int error, max_xy, retry;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

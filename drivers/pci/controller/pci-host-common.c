@@ -75,7 +75,7 @@ static int pci_host_common_parse_perst(struct device *dev,
 		return PTR_ERR(reset);
 	}
 
-	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	perst = devm_kzalloc_obj(dev, *perst);
 	if (!perst)
 		return -ENOMEM;
 
@@ -119,7 +119,7 @@ static int pci_host_common_parse_port(struct device *dev,
 	struct pci_host_port *port;
 	int ret;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

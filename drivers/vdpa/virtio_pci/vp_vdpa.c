@@ -540,9 +540,8 @@ static int vp_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		goto err;
 	}
 
-	vp_vdpa->vring = devm_kcalloc(&pdev->dev, vp_vdpa->queues,
-				      sizeof(*vp_vdpa->vring),
-				      GFP_KERNEL);
+	vp_vdpa->vring = devm_kzalloc_objs(&pdev->dev, *vp_vdpa->vring,
+					   vp_vdpa->queues);
 	if (!vp_vdpa->vring) {
 		ret = -ENOMEM;
 		dev_err(&pdev->dev, "Fail to allocate virtqueues\n");

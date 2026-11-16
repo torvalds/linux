@@ -261,8 +261,8 @@ static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 	dev_dbg(aw87390->aw_pa->dev, "loaded %s - size: %zu\n",
 			AW87390_ACF_FILE, cont ? cont->size : 0);
 
-	aw87390->aw_cfg = devm_kzalloc(aw87390->aw_pa->dev,
-				struct_size(aw87390->aw_cfg, data, cont->size), GFP_KERNEL);
+	aw87390->aw_cfg = devm_kzalloc_flex(aw87390->aw_pa->dev,
+					    *aw87390->aw_cfg, data, cont->size);
 	if (!aw87390->aw_cfg)
 		return -ENOMEM;
 
@@ -488,7 +488,7 @@ static int aw87390_init(struct aw87390 *aw87390, struct i2c_client *i2c, struct 
 	unsigned int chip_id;
 	int ret;
 
-	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
+	aw_dev = devm_kzalloc_obj(&i2c->dev, *aw_dev);
 	if (!aw_dev)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static int aw87390_i2c_probe(struct i2c_client *i2c)
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return dev_err_probe(&i2c->dev, -ENXIO, "check_functionality failed\n");
 
-	aw87390 = devm_kzalloc(&i2c->dev, sizeof(*aw87390), GFP_KERNEL);
+	aw87390 = devm_kzalloc_obj(&i2c->dev, *aw87390);
 	if (!aw87390)
 		return -ENOMEM;
 

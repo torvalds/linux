@@ -220,7 +220,7 @@ static int sr_pcie_phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	unsigned int phy_idx = 0;
 
-	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(dev, *core);
 	if (!core)
 		return -ENOMEM;
 

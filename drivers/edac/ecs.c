@@ -149,14 +149,13 @@ static int ecs_create_desc(struct device *ecs_dev, const struct attribute_group 
 	struct edac_ecs_context *ecs_ctx;
 	u32 fru;
 
-	ecs_ctx = devm_kzalloc(ecs_dev, sizeof(*ecs_ctx), GFP_KERNEL);
+	ecs_ctx = devm_kzalloc_obj(ecs_dev, *ecs_ctx);
 	if (!ecs_ctx)
 		return -ENOMEM;
 
 	ecs_ctx->num_media_frus = num_media_frus;
-	ecs_ctx->fru_ctxs = devm_kcalloc(ecs_dev, num_media_frus,
-					 sizeof(*ecs_ctx->fru_ctxs),
-					 GFP_KERNEL);
+	ecs_ctx->fru_ctxs = devm_kzalloc_objs(ecs_dev, *ecs_ctx->fru_ctxs,
+					      num_media_frus);
 	if (!ecs_ctx->fru_ctxs)
 		return -ENOMEM;
 

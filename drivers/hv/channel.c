@@ -774,7 +774,7 @@ static u64 *request_arr_init(u32 size)
 	int i;
 	u64 *req_arr;
 
-	req_arr = kcalloc(size, sizeof(u64), GFP_KERNEL);
+	req_arr = kzalloc_objs(u64, size);
 	if (!req_arr)
 		return NULL;
 

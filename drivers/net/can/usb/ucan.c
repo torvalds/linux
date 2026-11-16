@@ -1379,9 +1379,7 @@ static int ucan_probe(struct usb_interface *intf,
 	 */
 
 	/* Prepare Memory for control transfers */
-	ctl_msg_buffer = devm_kzalloc(&intf->dev,
-				      sizeof(union ucan_ctl_payload),
-				      GFP_KERNEL);
+	ctl_msg_buffer = devm_kzalloc_obj(&intf->dev, union ucan_ctl_payload);
 	if (!ctl_msg_buffer) {
 		dev_err(&udev->dev,
 			"%s: failed to allocate control pipe memory\n",

@@ -601,12 +601,11 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 					   SNDRV_PCM_HW_PARAM_FRAME_BITS,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
-	constraints_no_pll = devm_kzalloc(dev, sizeof(*constraints_no_pll),
-					  GFP_KERNEL);
+	constraints_no_pll = devm_kzalloc_obj(dev, *constraints_no_pll);
 	if (!constraints_no_pll)
 		return -ENOMEM;
 	constraints_no_pll->nrats = 1;
-	rats_no_pll = devm_kzalloc(dev, sizeof(*rats_no_pll), GFP_KERNEL);
+	rats_no_pll = devm_kzalloc_obj(dev, *rats_no_pll);
 	if (!rats_no_pll)
 		return -ENOMEM;
 	constraints_no_pll->rats = rats_no_pll;
@@ -1574,7 +1573,7 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 	struct pcm512x_priv *pcm512x;
 	int i, ret;
 
-	pcm512x = devm_kzalloc(dev, sizeof(struct pcm512x_priv), GFP_KERNEL);
+	pcm512x = devm_kzalloc_obj(dev, struct pcm512x_priv);
 	if (!pcm512x)
 		return -ENOMEM;
 

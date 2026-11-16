@@ -277,7 +277,7 @@ static int acer_wmi_battery_probe(struct wmi_device *wdev, const void *context)
 {
 	struct acer_wmi_battery_data *data;
 
-	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

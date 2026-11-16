@@ -25,7 +25,7 @@ static int mpl115_spi_init(struct device *dev)
 	struct spi_device *spi = to_spi_device(dev);
 	struct mpl115_spi_buf *buf;
 
-	buf = devm_kzalloc(dev, sizeof(*buf), GFP_KERNEL);
+	buf = devm_kzalloc_obj(dev, *buf);
 	if (!buf)
 		return -ENOMEM;
 

@@ -405,7 +405,7 @@ static int i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx, dma_addr_t phy_ad
 	struct device *dev = i2c_imx->adapter.dev.parent;
 	int ret;
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma)
 		return -ENOMEM;
 
@@ -1837,7 +1837,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(base), "can't get IO memory\n");
 
 	phy_addr = (dma_addr_t)res->start;
-	i2c_imx = devm_kzalloc(&pdev->dev, sizeof(*i2c_imx), GFP_KERNEL);
+	i2c_imx = devm_kzalloc_obj(&pdev->dev, *i2c_imx);
 	if (!i2c_imx)
 		return -ENOMEM;
 

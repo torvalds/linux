@@ -60,8 +60,7 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
-	resource = devm_kzalloc(&mc_bus_dev->dev, sizeof(*resource),
-				GFP_KERNEL);
+	resource = devm_kzalloc_obj(&mc_bus_dev->dev, *resource);
 	if (!resource) {
 		error = -ENOMEM;
 		dev_err(&mc_bus_dev->dev,
@@ -375,9 +374,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 	if (error < 0)
 		return error;
 
-	irq_resources = devm_kcalloc(&mc_bus_dev->dev,
-				     irq_count, sizeof(*irq_resources),
-				     GFP_KERNEL);
+	irq_resources = devm_kzalloc_objs(&mc_bus_dev->dev, *irq_resources,
+					  irq_count);
 	if (!irq_resources) {
 		error = -ENOMEM;
 		goto cleanup_msi_irqs;
@@ -472,8 +470,7 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 		return -ENOSPC;
 	}
 
-	irqs = devm_kcalloc(&mc_dev->dev, irq_count, sizeof(irqs[0]),
-			    GFP_KERNEL);
+	irqs = devm_kzalloc_objs(&mc_dev->dev, irqs[0], irq_count);
 	if (!irqs)
 		return -ENOMEM;
 

@@ -32,7 +32,7 @@ static int amd_isp_dw_i2c_plat_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	int ret;
 
-	isp_i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*isp_i2c_dev), GFP_KERNEL);
+	isp_i2c_dev = devm_kzalloc_obj(&pdev->dev, *isp_i2c_dev);
 	if (!isp_i2c_dev)
 		return -ENOMEM;
 	isp_i2c_dev->dev = &pdev->dev;

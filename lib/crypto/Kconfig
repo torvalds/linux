@@ -197,8 +197,6 @@ config CRYPTO_LIB_POLY1305_ARCH
 	default y if ARM
 	default y if ARM64
 	default y if MIPS
-	# The PPC64 code needs to be fixed to work in softirq context.
-	default y if PPC64 && CPU_LITTLE_ENDIAN && VSX && BROKEN
 	default y if RISCV
 	default y if X86_64
 
@@ -209,9 +207,7 @@ config CRYPTO_LIB_POLY1305_ARCH
 config CRYPTO_LIB_POLY1305_GENERIC
 	bool
 	depends on CRYPTO_LIB_POLY1305
-	# Enable if there's no arch impl or the arch impl requires the generic
-	# impl as a fallback.  (Or if selected explicitly.)
-	default y if !CRYPTO_LIB_POLY1305_ARCH || PPC64
+	default y if !CRYPTO_LIB_POLY1305_ARCH
 
 config CRYPTO_LIB_POLY1305_RSIZE
 	int
@@ -237,7 +233,7 @@ config CRYPTO_LIB_SHA1_ARCH
 	depends on CRYPTO_LIB_SHA1 && !UML
 	default y if ARM
 	default y if ARM64
-	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if MIPS && CPU_CAVIUM_OCTEON && CPU_BIG_ENDIAN
 	default y if PPC
 	default y if S390
 	default y if SPARC64
@@ -255,7 +251,7 @@ config CRYPTO_LIB_SHA256_ARCH
 	depends on CRYPTO_LIB_SHA256 && !UML
 	default y if ARM && !CPU_V7M
 	default y if ARM64
-	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if MIPS && CPU_CAVIUM_OCTEON && CPU_BIG_ENDIAN
 	default y if PPC && SPE
 	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
 		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
@@ -275,7 +271,7 @@ config CRYPTO_LIB_SHA512_ARCH
 	depends on CRYPTO_LIB_SHA512 && !UML
 	default y if ARM && !CPU_V7M
 	default y if ARM64
-	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if MIPS && CPU_CAVIUM_OCTEON && CPU_BIG_ENDIAN
 	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
 		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
 	default y if S390

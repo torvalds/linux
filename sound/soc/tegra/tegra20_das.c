@@ -157,7 +157,7 @@ static int tegra20_das_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	struct tegra20_das *das;
 
-	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
+	das = devm_kzalloc_obj(&pdev->dev, struct tegra20_das);
 	if (!das)
 		return -ENOMEM;
 

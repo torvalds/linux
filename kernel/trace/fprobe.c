@@ -745,7 +745,7 @@ static int fprobe_module_callback(struct notifier_block *nb,
 	if (val != MODULE_STATE_GOING)
 		return NOTIFY_DONE;
 
-	alist.addrs = kcalloc(alist.size, sizeof(*alist.addrs), GFP_KERNEL);
+	alist.addrs = kzalloc_objs(*alist.addrs, alist.size);
 	/*
 	 * If failed to alloc memory, ftrace_ops will not be able to remove ips from
 	 * hash, but we can still remove nodes from fprobe_ip_table, so we can avoid
@@ -815,7 +815,7 @@ static unsigned long *get_ftrace_locations(const char **syms, int num)
 	unsigned long *addrs;
 
 	/* Convert symbols to symbol address */
-	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
+	addrs = kzalloc_objs(*addrs, num);
 	if (!addrs)
 		return ERR_PTR(-ENOMEM);
 
@@ -1082,7 +1082,7 @@ static int unregister_fprobe_nolock(struct fprobe *fp)
 	unsigned long *addrs = NULL;
 	int i, count;
 
-	addrs = kcalloc(hlist_array->size, sizeof(unsigned long), GFP_KERNEL);
+	addrs = kzalloc_objs(unsigned long, hlist_array->size);
 	/*
 	 * This will remove fprobe_hash_node from the hash table even if
 	 * memory allocation fails. However, ftrace_ops will not be updated.

@@ -747,7 +747,7 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 	struct ak4458_priv *ak4458;
 	int ret, i;
 
-	ak4458 = devm_kzalloc(&i2c->dev, sizeof(*ak4458), GFP_KERNEL);
+	ak4458 = devm_kzalloc_obj(&i2c->dev, *ak4458);
 	if (!ak4458)
 		return -ENOMEM;
 

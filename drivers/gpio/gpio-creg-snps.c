@@ -139,7 +139,7 @@ static int creg_gpio_probe(struct platform_device *pdev)
 	u32 ngpios;
 	int ret;
 
-	hcg = devm_kzalloc(dev, sizeof(struct creg_gpio), GFP_KERNEL);
+	hcg = devm_kzalloc_obj(dev, struct creg_gpio);
 	if (!hcg)
 		return -ENOMEM;
 

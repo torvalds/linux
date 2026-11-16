@@ -531,7 +531,7 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 	bool sof_parent;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -508,7 +508,7 @@ static int lm95234_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct lm95234_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm95234_data);
 	if (!data)
 		return -ENOMEM;
 

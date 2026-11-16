@@ -435,8 +435,7 @@ static const struct snd_soc_component_driver soc_codec_dev_aw88395 = {
 
 static struct aw88395 *aw88395_malloc_init(struct i2c_client *i2c)
 {
-	struct aw88395 *aw88395 = devm_kzalloc(&i2c->dev,
-			sizeof(struct aw88395), GFP_KERNEL);
+	struct aw88395 *aw88395 = devm_kzalloc_obj(&i2c->dev, struct aw88395);
 	if (!aw88395)
 		return NULL;
 
@@ -472,7 +471,8 @@ static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 	dev_info(aw88395->aw_pa->dev, "loaded %s - size: %zu\n",
 			AW88395_ACF_FILE, cont ? cont->size : 0);
 
-	aw_cfg = devm_kzalloc(aw88395->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
+	aw_cfg = devm_kzalloc_flex(aw88395->aw_pa->dev, *aw_cfg, data,
+				   cont->size);
 	if (!aw_cfg)
 		return -ENOMEM;
 

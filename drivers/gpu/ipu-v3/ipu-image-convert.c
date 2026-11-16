@@ -2428,7 +2428,7 @@ int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev)
 	struct ipu_image_convert_priv *priv;
 	int i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

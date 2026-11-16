@@ -219,8 +219,7 @@ static int st_nci_spi_probe(struct spi_device *dev)
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(&dev->dev, sizeof(struct st_nci_spi_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&dev->dev, struct st_nci_spi_phy);
 	if (!phy)
 		return -ENOMEM;
 

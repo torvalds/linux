@@ -199,7 +199,7 @@ int cpm2_gpiochip_add32(struct device *dev)
 	struct cpm2_gpio32_chip *cpm2_gc;
 	struct gpio_chip *gc;
 
-	cpm2_gc = devm_kzalloc(dev, sizeof(*cpm2_gc), GFP_KERNEL);
+	cpm2_gc = devm_kzalloc_obj(dev, *cpm2_gc);
 	if (!cpm2_gc)
 		return -ENOMEM;
 

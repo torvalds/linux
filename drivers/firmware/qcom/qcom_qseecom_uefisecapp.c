@@ -807,7 +807,7 @@ static int qcom_uefisecapp_probe(struct auxiliary_device *aux_dev,
 	struct qcuefi_client *qcuefi;
 	int status;
 
-	qcuefi = devm_kzalloc(&aux_dev->dev, sizeof(*qcuefi), GFP_KERNEL);
+	qcuefi = devm_kzalloc_obj(&aux_dev->dev, *qcuefi);
 	if (!qcuefi)
 		return -ENOMEM;
 

@@ -350,7 +350,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	u32 clkrate;
 	int ret;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

@@ -36,7 +36,6 @@ struct fuse_args {
 	bool user_pages:1;
 	bool out_argvar:1;
 	bool page_zeroing:1;
-	bool page_replace:1;
 	bool may_block:1;
 	bool is_ext:1;
 	bool is_pinned:1;

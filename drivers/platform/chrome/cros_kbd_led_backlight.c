@@ -188,7 +188,7 @@ static int keyboard_led_probe(struct platform_device *pdev)
 	if (!drvdata)
 		return -EINVAL;
 
-	keyboard_led = devm_kzalloc(&pdev->dev, sizeof(*keyboard_led), GFP_KERNEL);
+	keyboard_led = devm_kzalloc_obj(&pdev->dev, *keyboard_led);
 	if (!keyboard_led)
 		return -ENOMEM;
 

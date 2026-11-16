@@ -9,12 +9,13 @@
 #include <linux/types.h>
 
 struct xe_bo;
+struct xe_gt;
 struct xe_lmtt;
 struct xe_lmtt_ops;
 
 #ifdef CONFIG_PCI_IOV
 int xe_lmtt_init(struct xe_lmtt *lmtt);
-void xe_lmtt_init_hw(struct xe_lmtt *lmtt);
+void xe_lmtt_init_hw(struct xe_gt *gt);
 void xe_lmtt_invalidate_hw(struct xe_lmtt *lmtt);
 int xe_lmtt_prepare_pages(struct xe_lmtt *lmtt, unsigned int vfid, u64 range);
 int xe_lmtt_populate_pages(struct xe_lmtt *lmtt, unsigned int vfid, struct xe_bo *bo, u64 offset);
@@ -23,7 +24,7 @@ u64 xe_lmtt_estimate_pt_size(struct xe_lmtt *lmtt, u64 size);
 u64 xe_lmtt_page_size(struct xe_lmtt *lmtt);
 #else
 static inline int xe_lmtt_init(struct xe_lmtt *lmtt) { return 0; }
-static inline void xe_lmtt_init_hw(struct xe_lmtt *lmtt) { }
+static inline void xe_lmtt_init_hw(struct xe_gt *gt) { }
 #endif
 
 #endif

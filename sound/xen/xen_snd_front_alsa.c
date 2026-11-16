@@ -701,20 +701,18 @@ static int new_pcm_instance(struct xen_snd_front_card_info *card_info,
 
 	if (instance_cfg->num_streams_pb) {
 		pcm_instance_info->streams_pb =
-				devm_kcalloc(&card_info->card->card_dev,
-					     instance_cfg->num_streams_pb,
-					     sizeof(struct xen_snd_front_pcm_stream_info),
-					     GFP_KERNEL);
+				devm_kzalloc_objs(&card_info->card->card_dev,
+						  struct xen_snd_front_pcm_stream_info,
+						  instance_cfg->num_streams_pb);
 		if (!pcm_instance_info->streams_pb)
 			return -ENOMEM;
 	}
 
 	if (instance_cfg->num_streams_cap) {
 		pcm_instance_info->streams_cap =
-				devm_kcalloc(&card_info->card->card_dev,
-					     instance_cfg->num_streams_cap,
-					     sizeof(struct xen_snd_front_pcm_stream_info),
-					     GFP_KERNEL);
+				devm_kzalloc_objs(&card_info->card->card_dev,
+						  struct xen_snd_front_pcm_stream_info,
+						  instance_cfg->num_streams_cap);
 		if (!pcm_instance_info->streams_cap)
 			return -ENOMEM;
 	}
@@ -784,9 +782,9 @@ int xen_snd_front_alsa_init(struct xen_snd_front_info *front_info)
 	front_info->card_info = card_info;
 	card_info->card = card;
 	card_info->pcm_instances =
-			devm_kcalloc(dev, cfg->num_pcm_instances,
-				     sizeof(struct xen_snd_front_pcm_instance_info),
-				     GFP_KERNEL);
+			devm_kzalloc_objs(dev,
+					  struct xen_snd_front_pcm_instance_info,
+					  cfg->num_pcm_instances);
 	if (!card_info->pcm_instances) {
 		ret = -ENOMEM;
 		goto fail;

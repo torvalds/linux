@@ -690,7 +690,7 @@ static int m10bmc_sec_probe(struct platform_device *pdev)
 	unsigned int len;
 	int  ret;
 
-	sec = devm_kzalloc(&pdev->dev, sizeof(*sec), GFP_KERNEL);
+	sec = devm_kzalloc_obj(&pdev->dev, *sec);
 	if (!sec)
 		return -ENOMEM;
 

@@ -161,10 +161,8 @@ struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
 	}
 
 	iris->num_vregs = data->num_vregs;
-	iris->vregs = devm_kcalloc(&iris->dev,
-				   iris->num_vregs,
-				   sizeof(struct regulator_bulk_data),
-				   GFP_KERNEL);
+	iris->vregs = devm_kzalloc_objs(&iris->dev, struct regulator_bulk_data,
+					iris->num_vregs);
 	if (!iris->vregs) {
 		ret = -ENOMEM;
 		goto err_device_del;

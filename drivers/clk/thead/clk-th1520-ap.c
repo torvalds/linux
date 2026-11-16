@@ -1524,7 +1524,7 @@ static int th1520_clk_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -ENODEV,
 				     "No device match data found\n");
 
-	priv = devm_kzalloc(dev, struct_size(priv, hws, plat_data->nr_clks), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, hws, plat_data->nr_clks);
 	if (!priv)
 		return -ENOMEM;
 

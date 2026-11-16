@@ -1089,7 +1089,7 @@ static int owl_dma_probe(struct platform_device *pdev)
 	struct owl_dma *od;
 	int ret, i, nr_channels, nr_requests;
 
-	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
+	od = devm_kzalloc_obj(&pdev->dev, *od);
 	if (!od)
 		return -ENOMEM;
 
@@ -1164,8 +1164,8 @@ static int owl_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Init physical channel */
-	od->pchans = devm_kcalloc(&pdev->dev, od->nr_pchans,
-				  sizeof(struct owl_dma_pchan), GFP_KERNEL);
+	od->pchans = devm_kzalloc_objs(&pdev->dev, struct owl_dma_pchan,
+				       od->nr_pchans);
 	if (!od->pchans)
 		return -ENOMEM;
 
@@ -1177,8 +1177,8 @@ static int owl_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Init virtual channel */
-	od->vchans = devm_kcalloc(&pdev->dev, od->nr_vchans,
-				  sizeof(struct owl_dma_vchan), GFP_KERNEL);
+	od->vchans = devm_kzalloc_objs(&pdev->dev, struct owl_dma_vchan,
+				       od->nr_vchans);
 	if (!od->vchans)
 		return -ENOMEM;
 

@@ -284,6 +284,21 @@ static void alc662_fixup_csl_amp(struct hda_codec *codec,
 	}
 }
 
+static void alc897_fixup_asus_b650m_depop(struct hda_codec *codec,
+					  const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_INIT)
+		return;
+
+	alc_auto_setup_eapd(codec, false);
+	snd_hda_codec_write(codec, 0x1b, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, 0);
+	msleep(200);
+	alc_auto_setup_eapd(codec, true);
+	snd_hda_codec_write(codec, 0x1b, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, 2);
+}
+
 enum {
 	ALC662_FIXUP_ASPIRE,
 	ALC662_FIXUP_LED_GPIO1,
@@ -345,6 +360,7 @@ enum {
 	ALC662_FIXUP_CSL_GPIO,
 	ALC897_FIXUP_BEELINK_SER6_AMP,
 	ALC897_FIXUP_LIMIT_LINEIN_BOOST,
+	ALC897_FIXUP_ASUS_B650M_DEPOP,
 };
 
 static const struct hda_fixup alc662_fixups[] = {
@@ -810,6 +826,10 @@ static const struct hda_fixup alc662_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc897_fixup_limit_linein_boost,
 	},
+	[ALC897_FIXUP_ASUS_B650M_DEPOP] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc897_fixup_asus_b650m_depop,
+	},
 };
 
 static const struct hda_quirk alc662_fixup_tbl[] = {
@@ -858,6 +878,7 @@ static const struct hda_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1b73, "ASUS N55SF", ALC662_FIXUP_BASS_16),
 	SND_PCI_QUIRK(0x1043, 0x1bf3, "ASUS N76VZ", ALC662_FIXUP_BASS_MODE4_CHMAP),
 	SND_PCI_QUIRK(0x1043, 0x8469, "ASUS mobo", ALC662_FIXUP_NO_JACK_DETECT),
+	SND_PCI_QUIRK(0x1043, 0x87fb, "ASUS PRIME B650M-K", ALC897_FIXUP_ASUS_B650M_DEPOP),
 	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x14cd, 0x5003, "USI", ALC662_FIXUP_USI_HEADSET_MODE),

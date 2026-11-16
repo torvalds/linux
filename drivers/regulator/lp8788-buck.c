@@ -486,7 +486,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	if (id >= LP8788_NUM_BUCKS)
 		return -EINVAL;
 
-	buck = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
+	buck = devm_kzalloc_obj(&pdev->dev, struct lp8788_buck);
 	if (!buck)
 		return -ENOMEM;
 

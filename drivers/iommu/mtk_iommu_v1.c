@@ -615,7 +615,7 @@ static int mtk_iommu_v1_probe(struct platform_device *pdev)
 	void				*protect;
 	int				larb_nr, ret, i;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

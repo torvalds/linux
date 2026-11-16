@@ -203,7 +203,7 @@ struct vsp1_uif *vsp1_uif_create(struct vsp1_device *vsp1, unsigned int index)
 	char name[6];
 	int ret;
 
-	uif = devm_kzalloc(vsp1->dev, sizeof(*uif), GFP_KERNEL);
+	uif = devm_kzalloc_obj(vsp1->dev, *uif);
 	if (!uif)
 		return ERR_PTR(-ENOMEM);
 

@@ -227,7 +227,7 @@ static int powerz_probe(struct usb_interface *intf,
 
 	parent = &intf->dev;
 
-	priv = devm_kzalloc(parent, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(parent, *priv);
 	if (!priv)
 		return -ENOMEM;
 

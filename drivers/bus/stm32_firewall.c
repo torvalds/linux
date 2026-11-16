@@ -201,7 +201,7 @@ int stm32_firewall_get_grant_all_access(struct device *dev, struct stm32_firewal
 		return 0;
 	}
 
-	loc_firewall = devm_kcalloc(dev, *nb_firewall, sizeof(*loc_firewall), GFP_KERNEL);
+	loc_firewall = devm_kzalloc_objs(dev, *loc_firewall, *nb_firewall);
 	if (!loc_firewall)
 		return -ENOMEM;
 

@@ -418,6 +418,8 @@ static inline bool bio_may_need_split(struct bio *bio,
 
 	if (!bio->bi_io_vec)
 		return true;
+	if (op_is_dmabuf(bio->bi_opf))
+		return true;
 
 	bv = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
 	if (bio->bi_iter.bi_size > bv->bv_len - bio->bi_iter.bi_offset)

@@ -1595,7 +1595,7 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 lmac;
 	u16 sdevid;
 
-	bgx = devm_kzalloc(dev, sizeof(*bgx), GFP_KERNEL);
+	bgx = devm_kzalloc_obj(dev, *bgx);
 	if (!bgx)
 		return -ENOMEM;
 	bgx->pdev = pdev;

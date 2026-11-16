@@ -159,7 +159,7 @@ static int __init open_dice_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drvdata = devm_kmalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kmalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

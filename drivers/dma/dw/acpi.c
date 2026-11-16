@@ -31,7 +31,7 @@ void dw_dma_acpi_controller_register(struct dw_dma *dw)
 	if (!has_acpi_companion(dev))
 		return;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return;
 

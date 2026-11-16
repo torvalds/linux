@@ -2547,7 +2547,10 @@ static __cold void io_ring_ctx_wait_inflight(struct io_ring_ctx *ctx)
 
 	if (current->flags & (PF_KTHREAD | PF_EXITING))
 		return;
-	if (tctx && atomic_read(&tctx->in_cancel))
+	/* Only wait if this task has attached to the ring */
+	if (!tctx || !xa_load(&tctx->xa, (unsigned long)ctx))
+		return;
+	if (atomic_read(&tctx->in_cancel))
 		return;
 
 	while (io_ring_ctx_inflight(ctx) && !fatal_signal_pending(current)) {

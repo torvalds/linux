@@ -117,8 +117,7 @@ skl_int3472_fill_clk_pdata(struct device *dev, struct tps68470_clk_platform_data
 		return -ENODEV;
 	}
 
-	*clk_pdata = devm_kzalloc(dev, struct_size(*clk_pdata, consumers, n_consumers),
-				  GFP_KERNEL);
+	*clk_pdata = devm_kzalloc_flex(dev, **clk_pdata, consumers, n_consumers);
 	if (!*clk_pdata)
 		return -ENOMEM;
 
@@ -188,10 +187,9 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 				     "No board-data found for this model\n");
 
 	if (board_data->n_clk_consumers) {
-		clk_pdata = devm_kzalloc(&client->dev,
-					 struct_size(clk_pdata, consumers,
-						     board_data->n_clk_consumers),
-					 GFP_KERNEL);
+		clk_pdata = devm_kzalloc_flex(&client->dev, *clk_pdata,
+					      consumers,
+					      board_data->n_clk_consumers);
 		if (!clk_pdata)
 			return -ENOMEM;
 		clk_pdata->n_consumers = board_data->n_clk_consumers;

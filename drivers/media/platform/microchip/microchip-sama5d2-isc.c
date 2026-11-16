@@ -373,8 +373,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			goto err_cleanup;
 		}
 
-		subdev_entity = devm_kzalloc(dev, sizeof(*subdev_entity),
-					     GFP_KERNEL);
+		subdev_entity = devm_kzalloc_obj(dev, *subdev_entity);
 		if (!subdev_entity) {
 			of_node_put(epn);
 			ret = -ENOMEM;
@@ -418,7 +417,7 @@ static int microchip_isc_probe(struct platform_device *pdev)
 	int ret;
 	u32 ver;
 
-	isc = devm_kzalloc(dev, sizeof(*isc), GFP_KERNEL);
+	isc = devm_kzalloc_obj(dev, *isc);
 	if (!isc)
 		return -ENOMEM;
 

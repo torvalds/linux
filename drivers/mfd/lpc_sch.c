@@ -111,7 +111,7 @@ static int lpc_sch_populate_cell(struct pci_dev *pdev, int where,
 	struct resource *res;
 	int ret;
 
-	res = devm_kzalloc(&pdev->dev, sizeof(*res), GFP_KERNEL);
+	res = devm_kzalloc_obj(&pdev->dev, *res);
 	if (!res)
 		return -ENOMEM;
 

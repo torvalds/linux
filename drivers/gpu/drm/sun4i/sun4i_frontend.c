@@ -563,7 +563,7 @@ static int sun4i_frontend_bind(struct device *dev, struct device *master,
 	struct sun4i_drv *drv = drm->dev_private;
 	void __iomem *regs;
 
-	frontend = devm_kzalloc(dev, sizeof(*frontend), GFP_KERNEL);
+	frontend = devm_kzalloc_obj(dev, *frontend);
 	if (!frontend)
 		return -ENOMEM;
 

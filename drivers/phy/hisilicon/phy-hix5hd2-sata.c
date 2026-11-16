@@ -139,7 +139,7 @@ static int hix5hd2_sata_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct hix5hd2_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

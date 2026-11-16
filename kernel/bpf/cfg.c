@@ -868,8 +868,8 @@ int bpf_compute_scc(struct bpf_verifier_env *env)
 	stack = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
 	pre = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
 	low = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
-	dfs = kvcalloc(insn_cnt, sizeof(*dfs), GFP_KERNEL_ACCOUNT);
-	dfs_pos = kvcalloc(insn_cnt, sizeof(*dfs_pos), GFP_KERNEL_ACCOUNT);
+	dfs = kvzalloc_objs(*dfs, insn_cnt, GFP_KERNEL_ACCOUNT);
+	dfs_pos = kvzalloc_objs(*dfs_pos, insn_cnt, GFP_KERNEL_ACCOUNT);
 	if (!stack || !pre || !low || !dfs || !dfs_pos) {
 		err = -ENOMEM;
 		goto exit;

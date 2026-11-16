@@ -2427,7 +2427,7 @@ static int fastrpc_device_register(struct device *dev, struct fastrpc_channel_ct
 	struct fastrpc_device *fdev;
 	int err;
 
-	fdev = devm_kzalloc(dev, sizeof(*fdev), GFP_KERNEL);
+	fdev = devm_kzalloc_obj(dev, *fdev);
 	if (!fdev)
 		return -ENOMEM;
 

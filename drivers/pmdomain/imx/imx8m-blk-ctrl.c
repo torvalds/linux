@@ -206,7 +206,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		.reg_stride	= 4,
 	};
 
-	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
+	bc = devm_kzalloc_obj(dev, *bc);
 	if (!bc)
 		return -ENOMEM;
 
@@ -228,16 +228,15 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(bc->regmap),
 				     "failed to init regmap\n");
 
-	bc->domains = devm_kcalloc(dev, bc_data->num_domains,
-				   sizeof(struct imx8m_blk_ctrl_domain),
-				   GFP_KERNEL);
+	bc->domains = devm_kzalloc_objs(dev, struct imx8m_blk_ctrl_domain,
+					bc_data->num_domains);
 	if (!bc->domains)
 		return -ENOMEM;
 
 	bc->onecell_data.num_domains = bc_data->num_domains;
 	bc->onecell_data.domains =
-		devm_kcalloc(dev, bc_data->num_domains,
-			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
+		devm_kzalloc_objs(dev, struct generic_pm_domain *,
+				  bc_data->num_domains);
 	if (!bc->onecell_data.domains)
 		return -ENOMEM;
 

@@ -56,7 +56,7 @@ int pm80x_init(struct i2c_client *client)
 	int i, ret = 0;
 
 	chip =
-	    devm_kzalloc(&client->dev, sizeof(struct pm80x_chip), GFP_KERNEL);
+	    devm_kzalloc_obj(&client->dev, struct pm80x_chip);
 	if (!chip)
 		return -ENOMEM;
 

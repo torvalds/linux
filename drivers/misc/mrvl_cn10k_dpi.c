@@ -358,7 +358,8 @@ static int dpi_pfvf_mbox_setup(struct dpipf *dpi)
 	int vf;
 
 	for (vf = 0; vf < DPI_MAX_VFS; vf++) {
-		dpi->mbox[vf] = devm_kzalloc(&dpi->pdev->dev, sizeof(*dpi->mbox[vf]), GFP_KERNEL);
+		dpi->mbox[vf] = devm_kzalloc_obj(&dpi->pdev->dev,
+						 *dpi->mbox[vf]);
 
 		if (!dpi->mbox[vf])
 			return -ENOMEM;
@@ -584,7 +585,7 @@ static int dpi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct dpipf *dpi;
 	int ret;
 
-	dpi = devm_kzalloc(dev, sizeof(*dpi), GFP_KERNEL);
+	dpi = devm_kzalloc_obj(dev, *dpi);
 	if (!dpi)
 		return -ENOMEM;
 

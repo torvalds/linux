@@ -517,7 +517,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 		 /* legacy name */
 		 of_property_read_bool(np, "linux,keypad-wakeup");
 
-	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
+	kp = devm_kzalloc_obj(&pdev->dev, *kp);
 	if (!kp)
 		return -ENOMEM;
 

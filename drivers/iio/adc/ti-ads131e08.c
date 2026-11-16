@@ -722,13 +722,12 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	channels = devm_kcalloc(&st->spi->dev, num_channels,
-		sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(&st->spi->dev, *channels, num_channels);
 	if (!channels)
 		return -ENOMEM;
 
-	channel_config = devm_kcalloc(&st->spi->dev, num_channels,
-		sizeof(*channel_config), GFP_KERNEL);
+	channel_config = devm_kzalloc_objs(&st->spi->dev, *channel_config,
+					   num_channels);
 	if (!channel_config)
 		return -ENOMEM;
 

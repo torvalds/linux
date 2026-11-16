@@ -124,11 +124,11 @@ static int sercos3_pci_probe(struct pci_dev *dev,
 	struct sercos3_priv *priv;
 	int i;
 
-	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&dev->dev, struct uio_info);
 	if (!info)
 		return -ENOMEM;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(struct sercos3_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, struct sercos3_priv);
 	if (!priv)
 		return -ENOMEM;
 

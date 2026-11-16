@@ -171,8 +171,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	u32 cs_flag = 0;
 
 	/* Allocate memory for the device structure (and zero it) */
-	data = devm_kzalloc(&pdev->dev, sizeof(struct xway_nand_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct xway_nand_data);
 	if (!data)
 		return -ENOMEM;
 

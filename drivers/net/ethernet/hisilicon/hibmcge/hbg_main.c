@@ -339,8 +339,8 @@ static int hbg_mac_filter_init(struct hbg_priv *priv)
 	struct hbg_mac_filter *filter = &priv->filter;
 	struct hbg_mac_table_entry *tmp_table;
 
-	tmp_table = devm_kcalloc(&priv->pdev->dev, dev_specs->uc_mac_num,
-				 sizeof(*tmp_table), GFP_KERNEL);
+	tmp_table = devm_kzalloc_objs(&priv->pdev->dev, *tmp_table,
+				      dev_specs->uc_mac_num);
 	if (!tmp_table)
 		return -ENOMEM;
 

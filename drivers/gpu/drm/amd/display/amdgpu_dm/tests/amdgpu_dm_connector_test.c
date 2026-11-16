@@ -7646,7 +7646,7 @@ dm_test_uad_ctx_alloc(struct kunit *test, int connector_type)
 /* A real (non-kunit) sink the function is expected to free via dc_sink_release. */
 static struct dc_sink *dm_test_uad_owned_sink(void)
 {
-	struct dc_sink *sink = kzalloc_obj(*sink, GFP_KERNEL);
+	struct dc_sink *sink = kzalloc_obj(*sink);
 
 	if (sink)
 		kref_init(&sink->refcount);
@@ -7758,7 +7758,7 @@ static void dm_test_update_after_detect_disconnect(struct kunit *test)
 	struct dm_test_uad_ctx *ctx =
 		dm_test_uad_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
 	struct dc_sink *old_sink = dm_test_uad_owned_sink();
-	struct dc_crtc_timing *timing = kzalloc_obj(*timing, GFP_KERNEL);
+	struct dc_crtc_timing *timing = kzalloc_obj(*timing);
 
 	KUNIT_ASSERT_NOT_NULL(test, old_sink);
 	KUNIT_ASSERT_NOT_NULL(test, timing);

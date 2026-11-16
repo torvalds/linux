@@ -479,7 +479,7 @@ static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
 	u32 phase;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

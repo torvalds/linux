@@ -268,7 +268,7 @@ static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 	if (!map_sz)
 		return 0;
 
-	int_map = kcalloc(map_sz, sizeof(u32), GFP_KERNEL);
+	int_map = kzalloc_objs(u32, map_sz);
 	if (!int_map)
 		return -ENOMEM;
 	mapp = int_map;

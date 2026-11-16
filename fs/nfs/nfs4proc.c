@@ -1722,6 +1722,8 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 {
 	DEFINE_WAIT(wait);
 	int status = 0;
+	unsigned long deadline = jiffies + 5 * HZ;
+	signed long remaining;
 	for (;;) {
 
 		if (nfs_stateid_is_sequential(state, stateid))
@@ -1756,7 +1758,8 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 
 		if (!fatal_signal_pending(current) &&
 		    !nfs_current_task_exiting()) {
-			if (schedule_timeout(5*HZ) == 0)
+			remaining = (long)(deadline - jiffies);
+			if (remaining <= 0 || schedule_timeout(remaining) == 0)
 				status = -EAGAIN;
 			else
 				status = 0;
@@ -3093,6 +3096,8 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	if (server->caps & NFS_CAP_POSIX_LOCK)
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
 	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_MAY_NOTIFY_LOCK)
+		server->nfs_client->cl_may_notify_lock = true;
+	if (server->nfs_client->cl_may_notify_lock)
 		set_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags);
 	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_PRESERVE_UNLINKED)
 		set_bit(NFS_INO_PRESERVE_UNLINKED, &NFS_I(state->inode)->flags);
@@ -7287,8 +7292,15 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	if (status != 0)
 		goto out;
 	/* Is this a delegated lock? */
-	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) == 0)
+	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) == 0) {
+		struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+		struct cb_notify_lock_args cbnl = { .cbnl_valid = false };
+
+		/* The server never saw it, so it will not notify waiters */
+		nfs_copy_fh(&cbnl.cbnl_fh, NFS_FH(inode));
+		__wake_up(&clp->cl_lock_waitq, TASK_NORMAL, 0, &cbnl);
 		goto out;
+	}
 	alloc_seqid = NFS_SERVER(inode)->nfs_client->cl_mvops->alloc_seqid;
 	seqid = alloc_seqid(&lsp->ls_seqid, GFP_KERNEL);
 	status = -ENOMEM;
@@ -7708,8 +7720,14 @@ nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, vo
 		struct nfs_lowner		*lowner = &cbnl->cbnl_owner,
 						*wowner = &waiter->owner;
 
-		/* Only wake if the callback was for the same owner. */
-		if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
+		/*
+		 * Only wake the owner a CB_NOTIFY_LOCK names. A lock cached
+		 * under a delegation is released locally, and the releasing
+		 * thread cannot tell which waiter wants it, so those wakeups
+		 * (cbnl_valid false) name only the inode and wake them all.
+		 */
+		if (cbnl->cbnl_valid &&
+		    (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev))
 			return 0;
 
 		/* Make sure it's for the right inode */

@@ -972,7 +972,7 @@ static int tsa_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	tsa = devm_kzalloc(&pdev->dev, sizeof(*tsa), GFP_KERNEL);
+	tsa = devm_kzalloc_obj(&pdev->dev, *tsa);
 	if (!tsa)
 		return -ENOMEM;
 

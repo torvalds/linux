@@ -645,7 +645,7 @@ static int risp_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(&pdev->dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

@@ -768,7 +768,7 @@ static int rga_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rga = devm_kzalloc(&pdev->dev, sizeof(*rga), GFP_KERNEL);
+	rga = devm_kzalloc_obj(&pdev->dev, *rga);
 	if (!rga)
 		return -ENOMEM;
 

@@ -32,6 +32,16 @@ config NET_9P_VIRTIO
 	  This builds support for a transports between
 	  guest partitions and a host partition.
 
+config NET_9P_VSOCK
+	depends on NET_9P_FD
+	depends on VSOCKETS
+	bool "9P VSOCK Transport"
+	help
+	  This builds support for a transport for 9pfs over
+	  virtual sockets (vsock). This is useful for communication
+	  between virtual machines and their host without requiring
+	  TCP/IP networking configuration or additional userspace software.
+
 config NET_9P_XEN
 	depends on XEN
 	select XEN_XENBUS_FRONTEND

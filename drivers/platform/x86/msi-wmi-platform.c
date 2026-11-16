@@ -298,7 +298,7 @@ static void msi_wmi_platform_debugfs_add(struct msi_wmi_platform_data *drvdata, 
 	struct msi_wmi_platform_debugfs_data *data;
 	struct dentry *entry;
 
-	data = devm_kzalloc(&drvdata->wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&drvdata->wdev->dev, *data);
 	if (!data)
 		return;
 
@@ -410,7 +410,7 @@ static int msi_wmi_platform_probe(struct wmi_device *wdev, const void *context)
 	struct msi_wmi_platform_data *data;
 	int ret;
 
-	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

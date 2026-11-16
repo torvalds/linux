@@ -115,7 +115,7 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 	u32 ngpios;
 	int ret;
 
-	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

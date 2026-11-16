@@ -273,7 +273,7 @@ static int adp5585_keys_probe(struct platform_device *pdev)
 	const char *phys;
 	int error;
 
-	kpad = devm_kzalloc(dev, sizeof(*kpad), GFP_KERNEL);
+	kpad = devm_kzalloc_obj(dev, *kpad);
 	if (!kpad)
 		return -ENOMEM;
 

@@ -11,6 +11,7 @@
 #define TEST_BITMAP_BITS	(2 * BITS_PER_LONG_LONG)
 #define TEST_BITMAP_SYNC_SPINS	BPF_MAX_LOOPS
 #define TEST_BITMAP_ITERS	10 * 1000 * 1000
+#define TEST_BITMAP_NSEC	(50 * 1000 * 1000)
 
 static struct arena_bitmap __arena *bitmap;
 static volatile u64 started;
@@ -129,6 +130,7 @@ static int bitmap_test_common_single(int parity)
 
 static int bitmap_test_common(int parity)
 {
+	u64 start;
 	int ret;
 	u32 i;
 
@@ -138,6 +140,7 @@ static int bitmap_test_common(int parity)
 	if (ret)
 		return ret;
 
+	start = bpf_ktime_get_ns();
 	for (i = zero; i < TEST_BITMAP_ITERS && can_loop; i++) {
 		ret = bitmap_test_common_single(parity);
 		if (ret)
@@ -147,6 +150,13 @@ static int bitmap_test_common(int parity)
 			break;
 
 		bitmap_test_reset_single(parity);
+
+		/*
+		 * Stop before the time slice of may_goto is used up. After that the
+		 * bmp_*() functions can't retry a cmpxchg that fails.
+		 */
+		if (bpf_ktime_get_ns() - start > TEST_BITMAP_NSEC)
+			break;
 	}
 
 	return 0;

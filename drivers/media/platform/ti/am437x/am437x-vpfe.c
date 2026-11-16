@@ -2300,7 +2300,7 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
 		return dev->platform_data;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -2390,7 +2390,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	struct vpfe_ccdc *ccdc;
 	int ret;
 
-	vpfe = devm_kzalloc(&pdev->dev, sizeof(*vpfe), GFP_KERNEL);
+	vpfe = devm_kzalloc_obj(&pdev->dev, *vpfe);
 	if (!vpfe)
 		return -ENOMEM;
 
@@ -2447,10 +2447,8 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 
-	vpfe->sd = devm_kcalloc(&pdev->dev,
-				ARRAY_SIZE(vpfe->cfg->asd),
-				sizeof(struct v4l2_subdev *),
-				GFP_KERNEL);
+	vpfe->sd = devm_kzalloc_objs(&pdev->dev, struct v4l2_subdev *,
+				     ARRAY_SIZE(vpfe->cfg->asd));
 	if (!vpfe->sd) {
 		ret = -ENOMEM;
 		goto probe_out_cleanup;

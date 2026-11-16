@@ -184,7 +184,7 @@ struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1)
 	struct vsp1_hgt *hgt;
 	int ret;
 
-	hgt = devm_kzalloc(vsp1->dev, sizeof(*hgt), GFP_KERNEL);
+	hgt = devm_kzalloc_obj(vsp1->dev, *hgt);
 	if (hgt == NULL)
 		return ERR_PTR(-ENOMEM);
 

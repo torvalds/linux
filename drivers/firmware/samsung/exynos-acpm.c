@@ -630,8 +630,7 @@ static int acpm_channels_init(struct acpm_info *acpm)
 	int i, ret;
 
 	acpm->num_chans = readl(&shmem->num_chans);
-	acpm->chans = devm_kcalloc(dev, acpm->num_chans, sizeof(*acpm->chans),
-				   GFP_KERNEL);
+	acpm->chans = devm_kzalloc_objs(dev, *acpm->chans, acpm->num_chans);
 	if (!acpm->chans)
 		return -ENOMEM;
 
@@ -709,7 +708,7 @@ static int acpm_probe(struct platform_device *pdev)
 	struct resource res;
 	int ret;
 
-	acpm = devm_kzalloc(dev, sizeof(*acpm), GFP_KERNEL);
+	acpm = devm_kzalloc_obj(dev, *acpm);
 	if (!acpm)
 		return -ENOMEM;
 

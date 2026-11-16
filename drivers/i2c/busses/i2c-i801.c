@@ -1333,9 +1333,7 @@ static void i801_add_mux(struct i801_priv *priv)
 	gpio_data.idle = I2C_MUX_GPIO_NO_IDLE;
 
 	/* Register GPIO descriptor lookup table */
-	lookup = devm_kzalloc(dev,
-			      struct_size(lookup, table, mux_config->n_gpios + 1),
-			      GFP_KERNEL);
+	lookup = devm_kzalloc_flex(dev, *lookup, table, mux_config->n_gpios + 1);
 	if (!lookup)
 		return;
 	lookup->dev_id = "i2c-mux-gpio";
@@ -1547,7 +1545,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err, i, bar = SMBBAR;
 	struct i801_priv *priv;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

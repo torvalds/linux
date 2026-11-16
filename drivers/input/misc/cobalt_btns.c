@@ -65,7 +65,7 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 	struct resource *res;
 	int error, i;
 
-	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
+	bdev = devm_kzalloc_obj(&pdev->dev, *bdev);
 	if (!bdev)
 		return -ENOMEM;
 

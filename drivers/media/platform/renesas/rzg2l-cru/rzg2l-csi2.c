@@ -903,7 +903,7 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 	struct rzg2l_csi2 *csi2;
 	int ret;
 
-	csi2 = devm_kzalloc(dev, sizeof(*csi2), GFP_KERNEL);
+	csi2 = devm_kzalloc_obj(dev, *csi2);
 	if (!csi2)
 		return -ENOMEM;
 

@@ -493,7 +493,7 @@ static int dup_array(u64 **dst, __le64 *src, u32 num)
 
 	kfree(*dst);
 	if (num) {
-		*dst = kcalloc(num, sizeof(u64), GFP_NOFS);
+		*dst = kzalloc_objs(u64, num, GFP_NOFS);
 		if (!*dst)
 			return -ENOMEM;
 		for (i = 0; i < num; i++)

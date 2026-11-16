@@ -372,8 +372,7 @@ int msm_tpg_subdev_init(struct camss *camss,
 	if (!tpg->nclocks)
 		return 0;
 
-	tpg->clock = devm_kcalloc(dev, tpg->nclocks,
-				  sizeof(*tpg->clock), GFP_KERNEL);
+	tpg->clock = devm_kzalloc_objs(dev, *tpg->clock, tpg->nclocks);
 	if (!tpg->clock)
 		return -ENOMEM;
 
@@ -395,8 +394,8 @@ int msm_tpg_subdev_init(struct camss *camss,
 			continue;
 		}
 
-		clock->freq = devm_kcalloc(dev, clock->nfreqs,
-					   sizeof(*clock->freq), GFP_KERNEL);
+		clock->freq = devm_kzalloc_objs(dev, *clock->freq,
+						clock->nfreqs);
 		if (!clock->freq)
 			return -ENOMEM;
 

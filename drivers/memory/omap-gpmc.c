@@ -2526,7 +2526,7 @@ static int gpmc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct gpmc_device *gpmc;
 
-	gpmc = devm_kzalloc(&pdev->dev, sizeof(*gpmc), GFP_KERNEL);
+	gpmc = devm_kzalloc_obj(&pdev->dev, *gpmc);
 	if (!gpmc)
 		return -ENOMEM;
 

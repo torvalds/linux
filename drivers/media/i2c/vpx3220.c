@@ -469,7 +469,7 @@ static int vpx3220_probe(struct i2c_client *client)
 		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc_obj(&client->dev, *decoder);
 	if (decoder == NULL)
 		return -ENOMEM;
 	sd = &decoder->sd;

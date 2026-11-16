@@ -556,7 +556,7 @@ static int sun8i_ths_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret, irq;
 
-	tmdev = devm_kzalloc(dev, sizeof(*tmdev), GFP_KERNEL);
+	tmdev = devm_kzalloc_obj(dev, *tmdev);
 	if (!tmdev)
 		return -ENOMEM;
 

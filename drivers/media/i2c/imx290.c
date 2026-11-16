@@ -1576,7 +1576,7 @@ static int imx290_probe(struct i2c_client *client)
 	struct imx290 *imx290;
 	int ret;
 
-	imx290 = devm_kzalloc(dev, sizeof(*imx290), GFP_KERNEL);
+	imx290 = devm_kzalloc_obj(dev, *imx290);
 	if (!imx290)
 		return -ENOMEM;
 

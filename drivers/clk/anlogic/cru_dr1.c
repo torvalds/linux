@@ -183,7 +183,7 @@ int dr1_cru_clk_register(struct device *dev, void __iomem *base,
 	struct clk_hw_onecell_data *priv;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, struct_size(priv, hws, nr_clks), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, hws, nr_clks);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1092,7 +1092,7 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	chip = (uintptr_t)i2c_get_match_data(client);
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

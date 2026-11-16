@@ -580,7 +580,7 @@ static struct clk *meson_mx_mmc_register_clk(struct device *dev,
 	 * prevent use-after-free as meson_mx_mmc_host is free'd before
 	 * dev (controller dev, not mmc_host->dev) is free'd.
 	 */
-	host_clkc = devm_kzalloc(dev, sizeof(*host_clkc), GFP_KERNEL);
+	host_clkc = devm_kzalloc_obj(dev, *host_clkc);
 	if (!host_clkc)
 		return ERR_PTR(-ENOMEM);
 

@@ -278,8 +278,8 @@ int ocelot_mm_init(struct ocelot *ocelot)
 	if (!ocelot->mm_supported)
 		return 0;
 
-	ocelot->mm = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
-				  sizeof(*ocelot->mm), GFP_KERNEL);
+	ocelot->mm = devm_kzalloc_objs(ocelot->dev, *ocelot->mm,
+				       ocelot->num_phys_ports);
 	if (!ocelot->mm)
 		return -ENOMEM;
 

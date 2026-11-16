@@ -992,7 +992,7 @@ static int vdec_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(dev, *core);
 	if (!core)
 		return -ENOMEM;
 

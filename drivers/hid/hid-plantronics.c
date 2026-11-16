@@ -186,7 +186,7 @@ static int plantronics_probe(struct hid_device *hdev,
 	struct plt_drv_data *drv_data;
 	int ret;
 
-	drv_data = devm_kzalloc(&hdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&hdev->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

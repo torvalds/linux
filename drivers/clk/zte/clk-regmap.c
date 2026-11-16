@@ -63,7 +63,7 @@ struct clk_hw *zx_clk_register_gate(struct device *dev, struct regmap *regmap,
 	struct zte_clk_regmap *clk;
 	int res;
 
-	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
+	clk = devm_kzalloc_obj(dev, *clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -141,7 +141,7 @@ struct clk_hw *zx_clk_register_divider(struct device *dev, struct regmap *regmap
 	struct zte_clk_regmap *clk;
 	int res;
 
-	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
+	clk = devm_kzalloc_obj(dev, *clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -215,7 +215,7 @@ struct clk_hw *zx_clk_register_mux(struct device *dev, struct regmap *regmap,
 	for (i = 0; i < desc->num_parents; ++i)
 		parents[i] = zx_get_parent(&desc->parents[i], clocks);
 
-	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
+	clk = devm_kzalloc_obj(dev, *clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 

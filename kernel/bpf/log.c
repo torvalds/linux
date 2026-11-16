@@ -684,6 +684,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 	if (base_type(t) == PTR_TO_MEM) {
 		verbose_a("sz=");
 		verbose_unum(env, reg->mem_size);
+		if (reg->buf.size)
+			verbose_a("buf=fp[%u]%d+%u", reg->buf.frameno, reg->buf.off, reg->buf.size);
 	}
 	if (t == CONST_PTR_TO_DYNPTR)
 		verbose_a("type=%s",  dynptr_type_str(reg->dynptr.type));

@@ -517,7 +517,7 @@ static int mt6370_led_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -EINVAL,
 		       "No child node or node count over max led number %zu\n", count);
 
-	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, leds, count);
 	if (!priv)
 		return -ENOMEM;
 

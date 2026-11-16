@@ -819,7 +819,7 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	mlxreg_lc = devm_kzalloc(&pdev->dev, sizeof(*mlxreg_lc), GFP_KERNEL);
+	mlxreg_lc = devm_kzalloc_obj(&pdev->dev, *mlxreg_lc);
 	if (!mlxreg_lc)
 		return -ENOMEM;
 

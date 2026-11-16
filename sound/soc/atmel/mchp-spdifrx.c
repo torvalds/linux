@@ -1090,7 +1090,7 @@ static int mchp_spdifrx_probe(struct platform_device *pdev)
 	u32 vers;
 
 	/* Get memory for driver data. */
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

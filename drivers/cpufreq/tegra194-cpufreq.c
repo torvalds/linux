@@ -663,8 +663,7 @@ tegra_cpufreq_bpmp_read_lut(struct platform_device *pdev, struct tegra_bpmp *bpm
 
 	num_freqs += (delta_ndiv % freq_table_step_size) ? 1 : 0;
 
-	freq_table = devm_kcalloc(&pdev->dev, num_freqs + 1,
-				  sizeof(*freq_table), GFP_KERNEL);
+	freq_table = devm_kzalloc_objs(&pdev->dev, *freq_table, num_freqs + 1);
 	if (!freq_table)
 		return ERR_PTR(-ENOMEM);
 
@@ -713,7 +712,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 	int err, i;
 	u32 cpu;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -726,8 +725,8 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	data->bpmp_luts = devm_kcalloc(&pdev->dev, data->soc->num_clusters,
-				       sizeof(*data->bpmp_luts), GFP_KERNEL);
+	data->bpmp_luts = devm_kzalloc_objs(&pdev->dev, *data->bpmp_luts,
+					    data->soc->num_clusters);
 	if (!data->bpmp_luts)
 		return -ENOMEM;
 
@@ -738,9 +737,8 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 			return PTR_ERR(data->regs);
 	}
 
-	data->cpu_data = devm_kcalloc(&pdev->dev, data->soc->num_clusters *
-				      data->soc->maxcpus_per_cluster,
-				      sizeof(*data->cpu_data), GFP_KERNEL);
+	data->cpu_data = devm_kzalloc_objs(&pdev->dev, *data->cpu_data,
+					   data->soc->num_clusters * data->soc->maxcpus_per_cluster);
 	if (!data->cpu_data)
 		return -ENOMEM;
 

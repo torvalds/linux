@@ -1592,7 +1592,7 @@ static int ov13b10_probe(struct i2c_client *client)
 	bool full_power;
 	int ret;
 
-	ov13b = devm_kzalloc(&client->dev, sizeof(*ov13b), GFP_KERNEL);
+	ov13b = devm_kzalloc_obj(&client->dev, *ov13b);
 	if (!ov13b)
 		return -ENOMEM;
 

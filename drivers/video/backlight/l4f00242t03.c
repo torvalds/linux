@@ -168,8 +168,7 @@ static int l4f00242t03_probe(struct spi_device *spi)
 	struct l4f00242t03_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&spi->dev, sizeof(struct l4f00242t03_priv),
-				GFP_KERNEL);
+	priv = devm_kzalloc_obj(&spi->dev, struct l4f00242t03_priv);
 	if (priv == NULL)
 		return -ENOMEM;
 

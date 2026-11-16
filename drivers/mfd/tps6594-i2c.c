@@ -212,7 +212,7 @@ static int tps6594_i2c_probe(struct i2c_client *client)
 	struct tps6594 *tps;
 	const struct of_device_id *match;
 
-	tps = devm_kzalloc(dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

@@ -242,8 +242,7 @@ int pcm1789_common_init(struct device *dev, struct regmap *regmap)
 {
 	struct pcm1789_private *pcm1789;
 
-	pcm1789 = devm_kzalloc(dev, sizeof(struct pcm1789_private),
-			       GFP_KERNEL);
+	pcm1789 = devm_kzalloc_obj(dev, struct pcm1789_private);
 	if (!pcm1789)
 		return -ENOMEM;
 

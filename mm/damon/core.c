@@ -1516,15 +1516,14 @@ static int damos_commit_dests(struct damos_migrate_dests *dst,
 		kfree(dst->node_id_arr);
 		kfree(dst->weight_arr);
 
-		dst->node_id_arr = kmalloc_array(src->nr_dests,
-			sizeof(*dst->node_id_arr), GFP_KERNEL);
+		dst->node_id_arr = kmalloc_objs(*dst->node_id_arr,
+						src->nr_dests);
 		if (!dst->node_id_arr) {
 			dst->weight_arr = NULL;
 			return -ENOMEM;
 		}
 
-		dst->weight_arr = kmalloc_array(src->nr_dests,
-			sizeof(*dst->weight_arr), GFP_KERNEL);
+		dst->weight_arr = kmalloc_objs(*dst->weight_arr, src->nr_dests);
 		if (!dst->weight_arr) {
 			/* ->node_id_arr will be freed by scheme destruction */
 			return -ENOMEM;
@@ -3753,11 +3752,12 @@ static void damon_split_regions_of(struct damon_ctx *ctx,
 static void damon_split_some_regions(struct damon_ctx *ctx,
 				     unsigned long split_step)
 {
-	static unsigned long rotation;
 	struct damon_target *t;
 	struct damon_region *r, *next;
-	unsigned long offset = rotation++ % split_step;
+	unsigned long offset;
 	unsigned long idx = 0;
+
+	offset = ctx->region_split_rotation++ % split_step;
 
 	damon_for_each_target(t, ctx) {
 		damon_for_each_region_safe(r, next, t) {
@@ -3795,7 +3795,6 @@ static noinline_for_stack void kdamond_split_regions(struct damon_ctx *ctx)
 	struct damon_target *t;
 	unsigned long nr_regions = 0;
 	unsigned long max_nr_regions = ctx->attrs.max_nr_regions;
-	static unsigned long last_nr_regions;
 	int nr_subregions = 2;
 
 	damon_for_each_target(t, ctx)
@@ -3811,7 +3810,7 @@ static noinline_for_stack void kdamond_split_regions(struct damon_ctx *ctx)
 	}
 
 	/* Maybe the middle of the region has different access frequency */
-	if (last_nr_regions == nr_regions &&
+	if (ctx->last_nr_regions == nr_regions &&
 			nr_regions < max_nr_regions / 3)
 		nr_subregions = 3;
 
@@ -3820,7 +3819,7 @@ static noinline_for_stack void kdamond_split_regions(struct damon_ctx *ctx)
 				       ctx->min_region_sz);
 
 done:
-	last_nr_regions = nr_regions;
+	ctx->last_nr_regions = nr_regions;
 }
 
 /*
@@ -4038,8 +4037,8 @@ static int kdamond_fn(void *data)
 
 	if (ctx->ops.init)
 		ctx->ops.init(ctx);
-	ctx->regions_score_histogram = kmalloc_array(DAMOS_MAX_SCORE + 1,
-			sizeof(*ctx->regions_score_histogram), GFP_KERNEL);
+	ctx->regions_score_histogram = kmalloc_objs(*ctx->regions_score_histogram,
+						    DAMOS_MAX_SCORE + 1);
 	if (!ctx->regions_score_histogram)
 		goto done;
 

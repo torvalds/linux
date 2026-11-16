@@ -645,7 +645,7 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 	re_priv = dev_get_drvdata(dev);
 	dma_dev = &re_priv->dma_dev;
 
-	chan = devm_kzalloc(dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(dev, *chan);
 	if (!chan)
 		return -ENOMEM;
 
@@ -767,7 +767,7 @@ static int fsl_re_probe(struct platform_device *ofdev)
 	if (IS_ERR(re_regs))
 		return PTR_ERR(re_regs);
 
-	re_priv = devm_kzalloc(dev, sizeof(*re_priv), GFP_KERNEL);
+	re_priv = devm_kzalloc_obj(dev, *re_priv);
 	if (!re_priv)
 		return -ENOMEM;
 

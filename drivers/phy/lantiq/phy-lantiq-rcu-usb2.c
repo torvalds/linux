@@ -210,7 +210,7 @@ static int ltq_rcu_usb2_phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1120,7 +1120,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 	struct device *dev = xgene_pmu->dev;
 	struct xgene_pmu_dev *pmu;
 
-	pmu = devm_kzalloc(dev, sizeof(*pmu), GFP_KERNEL);
+	pmu = devm_kzalloc_obj(dev, *pmu);
 	if (!pmu)
 		return -ENOMEM;
 	pmu->parent = xgene_pmu;
@@ -1454,7 +1454,7 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 	int enable_bit;
 	int rc;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return NULL;
 
@@ -1620,7 +1620,7 @@ xgene_pmu_dev_ctx *fdt_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 	struct resource res;
 	int enable_bit;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return NULL;
 
@@ -1839,7 +1839,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	xgene_pmu = devm_kzalloc(&pdev->dev, sizeof(*xgene_pmu), GFP_KERNEL);
+	xgene_pmu = devm_kzalloc_obj(&pdev->dev, *xgene_pmu);
 	if (!xgene_pmu)
 		return -ENOMEM;
 	xgene_pmu->dev = &pdev->dev;

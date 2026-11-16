@@ -1240,7 +1240,7 @@ static int bcm_probe(struct platform_device *pdev)
 	struct bcm_device *dev;
 	int ret;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1509,7 +1509,7 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 	const struct bcm_device_data *data;
 	int err;
 
-	bcmdev = devm_kzalloc(&serdev->dev, sizeof(*bcmdev), GFP_KERNEL);
+	bcmdev = devm_kzalloc_obj(&serdev->dev, *bcmdev);
 	if (!bcmdev)
 		return -ENOMEM;
 

@@ -170,7 +170,7 @@ static int i2c_atmel_probe(struct i2c_client *client)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct priv_data);
 	if (!priv)
 		return -ENOMEM;
 

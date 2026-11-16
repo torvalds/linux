@@ -287,7 +287,7 @@ static int uda1342_i2c_probe(struct i2c_client *i2c)
 {
 	struct uda1342_priv *uda1342;
 
-	uda1342 = devm_kzalloc(&i2c->dev, sizeof(*uda1342), GFP_KERNEL);
+	uda1342 = devm_kzalloc_obj(&i2c->dev, *uda1342);
 	if (!uda1342)
 		return -ENOMEM;
 

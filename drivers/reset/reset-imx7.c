@@ -371,7 +371,7 @@ static int imx7_reset_probe(struct platform_device *pdev)
 	struct regmap_config config = { .name = "src" };
 	const struct imx7_src_variant *variant = of_device_get_match_data(dev);
 
-	imx7src = devm_kzalloc(dev, sizeof(*imx7src), GFP_KERNEL);
+	imx7src = devm_kzalloc_obj(dev, *imx7src);
 	if (!imx7src)
 		return -ENOMEM;
 

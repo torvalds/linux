@@ -1205,8 +1205,7 @@ static int qmp_pcie_pd_init(struct qmp_pcie *qmp, struct phy *phy)
 	if (!cfg->num_pds)
 		return 0;
 
-	qmp->pd_devs = devm_kcalloc(pd_dev, cfg->num_pds, sizeof(*qmp->pd_devs),
-				    GFP_KERNEL);
+	qmp->pd_devs = devm_kzalloc_objs(pd_dev, *qmp->pd_devs, cfg->num_pds);
 	if (!qmp->pd_devs)
 		return -ENOMEM;
 
@@ -1229,8 +1228,7 @@ static int qmp_pcie_vreg_init(struct qmp_pcie *qmp)
 	struct device *dev = qmp->dev;
 	int i;
 
-	qmp->vregs = devm_kcalloc(dev, cfg->num_vregs, sizeof(*qmp->vregs),
-				  GFP_KERNEL);
+	qmp->vregs = devm_kzalloc_objs(dev, *qmp->vregs, cfg->num_vregs);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
@@ -1247,8 +1245,8 @@ static int qmp_pcie_reset_init(struct qmp_pcie *qmp)
 	int i, ret;
 
 	if (cfg->num_resets) {
-		qmp->resets = devm_kcalloc(dev, cfg->num_resets,
-					   sizeof(*qmp->resets), GFP_KERNEL);
+		qmp->resets = devm_kzalloc_objs(dev, *qmp->resets,
+						cfg->num_resets);
 		if (!qmp->resets)
 			return -ENOMEM;
 
@@ -1262,9 +1260,8 @@ static int qmp_pcie_reset_init(struct qmp_pcie *qmp)
 	}
 
 	if (cfg->num_nocsr_resets) {
-		qmp->nocsr_resets = devm_kcalloc(dev, cfg->num_nocsr_resets,
-						 sizeof(*qmp->nocsr_resets),
-						 GFP_KERNEL);
+		qmp->nocsr_resets = devm_kzalloc_objs(dev, *qmp->nocsr_resets,
+						      cfg->num_nocsr_resets);
 		if (!qmp->nocsr_resets)
 			return -ENOMEM;
 
@@ -1287,8 +1284,7 @@ static int qmp_pcie_clk_init(struct qmp_pcie *qmp)
 	struct device *dev = qmp->dev;
 	int i, ret;
 
-	qmp->clks = devm_kcalloc(dev, cfg->num_clks, sizeof(*qmp->clks),
-				 GFP_KERNEL);
+	qmp->clks = devm_kzalloc_objs(dev, *qmp->clks, cfg->num_clks);
 	if (!qmp->clks)
 		return -ENOMEM;
 
@@ -1299,8 +1295,8 @@ static int qmp_pcie_clk_init(struct qmp_pcie *qmp)
 	if (ret)
 		return ret;
 
-	qmp->pipe_clks = devm_kcalloc(dev, cfg->num_pipe_clks,
-				      sizeof(*qmp->pipe_clks), GFP_KERNEL);
+	qmp->pipe_clks = devm_kzalloc_objs(dev, *qmp->pipe_clks,
+					   cfg->num_pipe_clks);
 	if (!qmp->pipe_clks)
 		return -ENOMEM;
 
@@ -1361,9 +1357,9 @@ static int qmp_pcie_multiphy_register_clocks(struct device *dev,
 				     "failed to read clock-output-names\n");
 
 	qmp_data->num_pipe_outputs = num_pipe_outputs;
-	qmp_data->pipe_out_clks = devm_kcalloc(dev, num_pipe_outputs,
-					       sizeof(*qmp_data->pipe_out_clks),
-					       GFP_KERNEL);
+	qmp_data->pipe_out_clks = devm_kzalloc_objs(dev,
+						    *qmp_data->pipe_out_clks,
+						    num_pipe_outputs);
 	if (!qmp_data->pipe_out_clks)
 		return -ENOMEM;
 
@@ -1385,8 +1381,7 @@ static int qmp_pcie_get_mmio(struct qmp_pcie *qmp)
 	void __iomem *base;
 	int i;
 
-	qmp->base = devm_kcalloc(dev, cfg->num_regs, sizeof(*qmp->base),
-				 GFP_KERNEL);
+	qmp->base = devm_kzalloc_objs(dev, *qmp->base, cfg->num_regs);
 	if (!qmp->base)
 		return -ENOMEM;
 
@@ -1479,7 +1474,7 @@ static int qmp_pcie_multiphy_probe(struct platform_device *pdev)
 	int phy_index;
 	int ret;
 
-	qmp_data = devm_kzalloc(dev, sizeof(*qmp_data), GFP_KERNEL);
+	qmp_data = devm_kzalloc_obj(dev, *qmp_data);
 	if (!qmp_data)
 		return -ENOMEM;
 
@@ -1497,11 +1492,11 @@ static int qmp_pcie_multiphy_probe(struct platform_device *pdev)
 
 	qmp_data->mode_cfg = &match_data->mode_cfgs[link_mode];
 
-	qmp = devm_kcalloc(dev, qmp_data->mode_cfg->num_phys, sizeof(*qmp), GFP_KERNEL);
+	qmp = devm_kzalloc_objs(dev, *qmp, qmp_data->mode_cfg->num_phys);
 	if (!qmp)
 		return -ENOMEM;
 
-	phys = devm_kcalloc(dev, qmp_data->mode_cfg->num_phys, sizeof(*phys), GFP_KERNEL);
+	phys = devm_kzalloc_objs(dev, *phys, qmp_data->mode_cfg->num_phys);
 	if (!phys)
 		return -ENOMEM;
 

@@ -336,7 +336,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id =
 		of_match_device(of_mtk_pmic_keys_match_tbl, &pdev->dev);
 
-	keys = devm_kzalloc(&pdev->dev, sizeof(*keys), GFP_KERNEL);
+	keys = devm_kzalloc_obj(&pdev->dev, *keys);
 	if (!keys)
 		return -ENOMEM;
 

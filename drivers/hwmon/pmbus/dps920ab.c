@@ -139,7 +139,7 @@ static int dps920ab_probe(struct i2c_client *client)
 	struct dps920ab_data *data;
 	int ret;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

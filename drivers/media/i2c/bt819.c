@@ -391,7 +391,7 @@ static int bt819_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc_obj(&client->dev, *decoder);
 	if (decoder == NULL)
 		return -ENOMEM;
 	sd = &decoder->sd;

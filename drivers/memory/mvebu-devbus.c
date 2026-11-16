@@ -271,7 +271,7 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int err;
 
-	devbus = devm_kzalloc(&pdev->dev, sizeof(struct devbus), GFP_KERNEL);
+	devbus = devm_kzalloc_obj(&pdev->dev, struct devbus);
 	if (!devbus)
 		return -ENOMEM;
 

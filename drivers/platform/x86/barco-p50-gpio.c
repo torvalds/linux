@@ -321,7 +321,7 @@ static int p50_gpio_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	p50 = devm_kzalloc(&pdev->dev, sizeof(*p50), GFP_KERNEL);
+	p50 = devm_kzalloc_obj(&pdev->dev, *p50);
 	if (!p50)
 		return -ENOMEM;
 

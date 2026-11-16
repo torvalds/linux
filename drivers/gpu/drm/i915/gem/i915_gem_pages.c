@@ -341,7 +341,7 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 
 	if (n_pfn > ARRAY_SIZE(stack)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pfns = kvmalloc_array(n_pfn, sizeof(*pfns), GFP_KERNEL);
+		pfns = kvmalloc_objs(*pfns, n_pfn);
 		if (!pfns)
 			return ERR_PTR(-ENOMEM);
 	}

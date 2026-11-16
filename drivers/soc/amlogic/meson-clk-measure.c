@@ -2002,8 +2002,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int i;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct meson_msr),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct meson_msr);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2013,10 +2012,9 @@ static int meson_msr_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv->data.msr_table = devm_kcalloc(&pdev->dev,
-					    match_data->msr_count,
-					    sizeof(struct meson_msr_id),
-					    GFP_KERNEL);
+	priv->data.msr_table = devm_kzalloc_objs(&pdev->dev,
+						 struct meson_msr_id,
+						 match_data->msr_count);
 	if (!priv->data.msr_table)
 		return -ENOMEM;
 
@@ -2034,8 +2032,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	priv->data.reg = devm_kzalloc(&pdev->dev, sizeof(struct msr_reg_offset),
-				      GFP_KERNEL);
+	priv->data.reg = devm_kzalloc_obj(&pdev->dev, struct msr_reg_offset);
 	if (!priv->data.reg)
 		return -ENOMEM;
 

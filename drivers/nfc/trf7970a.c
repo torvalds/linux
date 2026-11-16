@@ -2057,7 +2057,7 @@ static int trf7970a_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	trf = devm_kzalloc(&spi->dev, sizeof(*trf), GFP_KERNEL);
+	trf = devm_kzalloc_obj(&spi->dev, *trf);
 	if (!trf)
 		return -ENOMEM;
 

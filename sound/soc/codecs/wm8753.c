@@ -1538,8 +1538,7 @@ static int wm8753_spi_probe(struct spi_device *spi)
 	struct wm8753_priv *wm8753;
 	int ret;
 
-	wm8753 = devm_kzalloc(&spi->dev, sizeof(struct wm8753_priv),
-			      GFP_KERNEL);
+	wm8753 = devm_kzalloc_obj(&spi->dev, struct wm8753_priv);
 	if (wm8753 == NULL)
 		return -ENOMEM;
 
@@ -1576,8 +1575,7 @@ static int wm8753_i2c_probe(struct i2c_client *i2c)
 	struct wm8753_priv *wm8753;
 	int ret;
 
-	wm8753 = devm_kzalloc(&i2c->dev, sizeof(struct wm8753_priv),
-			      GFP_KERNEL);
+	wm8753 = devm_kzalloc_obj(&i2c->dev, struct wm8753_priv);
 	if (wm8753 == NULL)
 		return -ENOMEM;
 

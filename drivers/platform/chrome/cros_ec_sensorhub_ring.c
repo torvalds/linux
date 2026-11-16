@@ -1022,10 +1022,9 @@ int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
 	 * Allocate the callback area based on the number of sensors.
 	 * Add one for the sensor ring.
 	 */
-	sensorhub->push_data = devm_kcalloc(sensorhub->dev,
-			sensorhub->sensor_num,
-			sizeof(*sensorhub->push_data),
-			GFP_KERNEL);
+	sensorhub->push_data = devm_kzalloc_objs(sensorhub->dev,
+						 *sensorhub->push_data,
+						 sensorhub->sensor_num);
 	if (!sensorhub->push_data)
 		return -ENOMEM;
 
@@ -1034,10 +1033,9 @@ int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
 			EC_FEATURE_MOTION_SENSE_TIGHT_TIMESTAMPS);
 
 	if (sensorhub->tight_timestamps) {
-		sensorhub->batch_state = devm_kcalloc(sensorhub->dev,
-				sensorhub->sensor_num,
-				sizeof(*sensorhub->batch_state),
-				GFP_KERNEL);
+		sensorhub->batch_state = devm_kzalloc_objs(sensorhub->dev,
+							   *sensorhub->batch_state,
+							   sensorhub->sensor_num);
 		if (!sensorhub->batch_state)
 			return -ENOMEM;
 	}
@@ -1076,8 +1074,8 @@ int cros_ec_sensorhub_ring_add(struct cros_ec_sensorhub *sensorhub)
 	 * timestamps properly.
 	 */
 	sensorhub->fifo_size = sensorhub->resp->fifo_info.size;
-	sensorhub->ring = devm_kcalloc(sensorhub->dev, sensorhub->fifo_size,
-				       sizeof(*sensorhub->ring), GFP_KERNEL);
+	sensorhub->ring = devm_kzalloc_objs(sensorhub->dev, *sensorhub->ring,
+					    sensorhub->fifo_size);
 	if (!sensorhub->ring)
 		return -ENOMEM;
 

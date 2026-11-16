@@ -1178,12 +1178,11 @@ static int rpmhpd_probe(struct platform_device *pdev)
 	rpmhpds = desc->rpmhpds;
 	num_pds = desc->num_pds;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
-	data->domains = devm_kcalloc(dev, num_pds, sizeof(*data->domains),
-				     GFP_KERNEL);
+	data->domains = devm_kzalloc_objs(dev, *data->domains, num_pds);
 	if (!data->domains)
 		return -ENOMEM;
 

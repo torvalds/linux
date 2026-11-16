@@ -383,7 +383,7 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	int			ret = -ENODEV;
 	struct power_supply_config psy_cfg = {};
 
-	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
+	isp = devm_kzalloc_obj(&pdev->dev, *isp);
 	if (!isp)
 		return -ENOMEM;
 

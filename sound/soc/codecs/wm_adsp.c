@@ -46,6 +46,9 @@
 #define adsp_dbg(_dsp, fmt, ...) \
 	dev_dbg(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 
+#define adsp_warn_once(_dsp, fmt, ...) \
+	dev_warn_once(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
+
 #define compr_err(_obj, fmt, ...) \
 	adsp_err(_obj->dsp, "%s: " fmt, _obj->name ? _obj->name : "legacy", \
 		 ##__VA_ARGS__)
@@ -624,6 +627,13 @@ int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 
 		if (dsp->component->name_prefix)
 			avail -= strlen(dsp->component->name_prefix) + 1;
+
+		if (avail < 1) {
+			adsp_warn_once(dsp,
+				       "%.*s: ALSA prefix too long: control not created\n",
+				       cs_ctl->subname_len, cs_ctl->subname);
+			return -EINVAL;
+		}
 
 		/* Truncate the subname from the start if it is too long */
 		if (cs_ctl->subname_len > avail)

@@ -444,8 +444,7 @@ static int xdma_alloc_channels(struct xdma_device *xdev,
 		return -EINVAL;
 	}
 
-	*chans = devm_kcalloc(&xdev->pdev->dev, *chan_num, sizeof(**chans),
-			      GFP_KERNEL);
+	*chans = devm_kzalloc_objs(&xdev->pdev->dev, **chans, *chan_num);
 	if (!*chans)
 		return -ENOMEM;
 
@@ -1206,7 +1205,7 @@ static int xdma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(&pdev->dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

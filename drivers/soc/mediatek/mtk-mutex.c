@@ -1098,7 +1098,7 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 	struct resource *regs;
 	int i, ret;
 
-	mtx = devm_kzalloc(dev, sizeof(*mtx), GFP_KERNEL);
+	mtx = devm_kzalloc_obj(dev, *mtx);
 	if (!mtx)
 		return -ENOMEM;
 

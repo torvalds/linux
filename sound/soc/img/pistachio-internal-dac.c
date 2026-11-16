@@ -147,7 +147,7 @@ static int pistachio_internal_dac_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	u32 reg;
 
-	dac = devm_kzalloc(dev, sizeof(*dac), GFP_KERNEL);
+	dac = devm_kzalloc_obj(dev, *dac);
 
 	if (!dac)
 		return -ENOMEM;

@@ -617,11 +617,11 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	int rc;
 
 	/* Allocate memory for private data structure */
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 
-	dev->bsc_regmap = devm_kzalloc(&pdev->dev, sizeof(*dev->bsc_regmap), GFP_KERNEL);
+	dev->bsc_regmap = devm_kzalloc_obj(&pdev->dev, *dev->bsc_regmap);
 	if (!dev->bsc_regmap)
 		return -ENOMEM;
 

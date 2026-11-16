@@ -972,8 +972,7 @@ static int emc_load_timings_from_dt(struct tegra_emc *emc,
 		return -EINVAL;
 	}
 
-	emc->timings = devm_kcalloc(emc->dev, child_count, sizeof(*timing),
-				    GFP_KERNEL);
+	emc->timings = devm_kzalloc_objs(emc->dev, *timing, child_count);
 	if (!emc->timings)
 		return -ENOMEM;
 
@@ -1520,7 +1519,7 @@ static int tegra30_emc_probe(struct platform_device *pdev)
 	struct tegra_emc *emc;
 	int err;
 
-	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
+	emc = devm_kzalloc_obj(&pdev->dev, *emc);
 	if (!emc)
 		return -ENOMEM;
 

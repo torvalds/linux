@@ -128,7 +128,7 @@ static int sl28cpld_wdt_probe(struct platform_device *pdev)
 	if (!pdev->dev.parent)
 		return -ENODEV;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&pdev->dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

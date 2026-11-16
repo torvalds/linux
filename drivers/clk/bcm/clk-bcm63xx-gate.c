@@ -496,8 +496,7 @@ static int clk_bcm63xx_probe(struct platform_device *pdev)
 		maxbit = max_t(u8, maxbit, entry->bit);
 	maxbit++;
 
-	hw = devm_kzalloc(&pdev->dev, struct_size(hw, data.hws, maxbit),
-			  GFP_KERNEL);
+	hw = devm_kzalloc_flex(&pdev->dev, *hw, data.hws, maxbit);
 	if (!hw)
 		return -ENOMEM;
 

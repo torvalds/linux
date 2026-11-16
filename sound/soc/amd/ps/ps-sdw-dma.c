@@ -661,7 +661,7 @@ static int acp63_sdw_platform_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	sdw_data = devm_kzalloc(&pdev->dev, sizeof(*sdw_data), GFP_KERNEL);
+	sdw_data = devm_kzalloc_obj(&pdev->dev, *sdw_data);
 	if (!sdw_data)
 		return -ENOMEM;
 

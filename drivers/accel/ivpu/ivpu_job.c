@@ -914,7 +914,7 @@ static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, 
 	u32 *buf_handles;
 	int idx, ret;
 
-	buf_handles = kcalloc(buffer_count, sizeof(u32), GFP_KERNEL);
+	buf_handles = kzalloc_objs(u32, buffer_count);
 	if (!buf_handles)
 		return -ENOMEM;
 

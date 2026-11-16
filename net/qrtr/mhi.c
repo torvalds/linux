@@ -112,7 +112,7 @@ static int qcom_mhi_qrtr_probe(struct mhi_device *mhi_dev,
 	struct qrtr_mhi_dev *qdev;
 	int rc;
 
-	qdev = devm_kzalloc(&mhi_dev->dev, sizeof(*qdev), GFP_KERNEL);
+	qdev = devm_kzalloc_obj(&mhi_dev->dev, *qdev);
 	if (!qdev)
 		return -ENOMEM;
 

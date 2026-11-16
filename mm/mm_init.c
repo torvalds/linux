@@ -2478,8 +2478,6 @@ void __init memblock_free_pages(unsigned long pfn, unsigned int order)
 		return;
 	}
 
-	/* pages were reserved and not allocated */
-	clear_page_tag_ref(page);
 	__free_pages_core(page, order, MEMINIT_EARLY);
 }
 

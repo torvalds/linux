@@ -1217,8 +1217,7 @@ static int da7210_i2c_probe(struct i2c_client *i2c)
 	struct da7210_priv *da7210;
 	int ret;
 
-	da7210 = devm_kzalloc(&i2c->dev, sizeof(struct da7210_priv),
-			      GFP_KERNEL);
+	da7210 = devm_kzalloc_obj(&i2c->dev, struct da7210_priv);
 	if (!da7210)
 		return -ENOMEM;
 
@@ -1304,8 +1303,7 @@ static int da7210_spi_probe(struct spi_device *spi)
 	struct da7210_priv *da7210;
 	int ret;
 
-	da7210 = devm_kzalloc(&spi->dev, sizeof(struct da7210_priv),
-			      GFP_KERNEL);
+	da7210 = devm_kzalloc_obj(&spi->dev, struct da7210_priv);
 	if (!da7210)
 		return -ENOMEM;
 

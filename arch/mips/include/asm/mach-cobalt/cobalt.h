@@ -19,6 +19,7 @@ extern int cobalt_board_id;
 #define COBALT_BRD_ID_QUBE2    0x5
 #define COBALT_BRD_ID_RAQ2     0x6
 
+void cobalt_pci_init(void);
 void cobalt_machine_halt(void);
 void cobalt_machine_restart(char *command);
 

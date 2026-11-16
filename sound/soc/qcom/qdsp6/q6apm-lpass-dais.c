@@ -523,7 +523,7 @@ static int q6apm_lpass_dai_dev_probe(struct platform_device *pdev)
 	int num_dais;
 	int ret;
 
-	dai_data = devm_kzalloc(dev, sizeof(*dai_data), GFP_KERNEL);
+	dai_data = devm_kzalloc_obj(dev, *dai_data);
 	if (!dai_data)
 		return -ENOMEM;
 

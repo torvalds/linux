@@ -577,7 +577,7 @@ static int smpro_errmon_probe(struct platform_device *pdev)
 {
 	struct smpro_errmon *errmon;
 
-	errmon = devm_kzalloc(&pdev->dev, sizeof(struct smpro_errmon), GFP_KERNEL);
+	errmon = devm_kzalloc_obj(&pdev->dev, struct smpro_errmon);
 	if (!errmon)
 		return -ENOMEM;
 

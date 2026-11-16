@@ -216,7 +216,7 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	    req->buf_size > RAS_CMD_MAX_CPER_BUF_SZ)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	batch_logs = kcalloc(nr_batch_logs, sizeof(*batch_logs), GFP_KERNEL);
+	batch_logs = kzalloc_objs(*batch_logs, nr_batch_logs);
 	if (!batch_logs) {
 		ret = RAS_CMD__ERROR_GENERIC;
 		goto out;

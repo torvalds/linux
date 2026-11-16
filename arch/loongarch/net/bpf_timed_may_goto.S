@@ -22,14 +22,10 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	st.d		a4, sp, 48
 
 	/*
-	 * BPF_REG_AX (t0) holds the offset passed in by the verifier;
-	 * add it to BPF_REG_FP (s4) to get the pointer to the count and
-	 * timestamp, then pass it as the first argument in a0.
-	 *
-	 * The verifier emits a load using FP right before this call,
-	 * so BPF_REG_FP (s4) is always set up by the JIT in this case.
+	 * BPF_REG_AX (t0) holds the pointer to the count and timestamp;
+	 * pass it as the first argument in a0.
 	 */
-	add.d		a0, t0, s4
+	move		a0, t0
 	bl		bpf_check_timed_may_goto
 	/* BPF_REG_AX (t0) will be stored into count, so move the return value to it. */
 	move		t0, a0

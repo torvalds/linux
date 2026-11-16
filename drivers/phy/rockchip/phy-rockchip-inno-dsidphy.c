@@ -778,7 +778,7 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int ret;
 
-	inno = devm_kzalloc(dev, sizeof(*inno), GFP_KERNEL);
+	inno = devm_kzalloc_obj(dev, *inno);
 	if (!inno)
 		return -ENOMEM;
 

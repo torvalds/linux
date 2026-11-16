@@ -1863,7 +1863,7 @@ static int cdns_torrent_derived_refclk_register(struct cdns_torrent_phy *cdns_ph
 	struct clk *clk;
 	int ret;
 
-	derived_refclk = devm_kzalloc(dev, sizeof(*derived_refclk), GFP_KERNEL);
+	derived_refclk = devm_kzalloc_obj(dev, *derived_refclk);
 	if (!derived_refclk)
 		return -ENOMEM;
 
@@ -1946,7 +1946,7 @@ static int cdns_torrent_received_refclk_register(struct cdns_torrent_phy *cdns_p
 	struct clk *clk;
 	int ret;
 
-	received_refclk = devm_kzalloc(dev, sizeof(*received_refclk), GFP_KERNEL);
+	received_refclk = devm_kzalloc_obj(dev, *received_refclk);
 	if (!received_refclk)
 		return -ENOMEM;
 
@@ -2053,7 +2053,7 @@ static int cdns_torrent_refclk_driver_register(struct cdns_torrent_phy *cdns_phy
 	struct clk_hw *hw;
 	int i, ret;
 
-	refclk_driver = devm_kzalloc(dev, sizeof(*refclk_driver), GFP_KERNEL);
+	refclk_driver = devm_kzalloc_obj(dev, *refclk_driver);
 	if (!refclk_driver)
 		return -ENOMEM;
 
@@ -2115,7 +2115,7 @@ static struct regmap *cdns_regmap_init(struct device *dev, void __iomem *base,
 {
 	struct cdns_regmap_cdb_context *ctx;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -2752,7 +2752,7 @@ static int cdns_torrent_clk_register(struct cdns_torrent_phy *cdns_phy)
 	struct clk_hw_onecell_data *data;
 	int ret;
 
-	data = devm_kzalloc(dev, struct_size(data, hws, CDNS_TORRENT_OUTPUT_CLOCKS), GFP_KERNEL);
+	data = devm_kzalloc_flex(dev, *data, hws, CDNS_TORRENT_OUTPUT_CLOCKS);
 	if (!data)
 		return -ENOMEM;
 
@@ -2924,7 +2924,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	cdns_phy = devm_kzalloc(dev, sizeof(*cdns_phy), GFP_KERNEL);
+	cdns_phy = devm_kzalloc_obj(dev, *cdns_phy);
 	if (!cdns_phy)
 		return -ENOMEM;
 

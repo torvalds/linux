@@ -2564,7 +2564,7 @@ static struct cc_crypto_alg *cc_create_aead_alg(struct cc_alg_template *tmpl,
 	struct cc_crypto_alg *t_alg;
 	struct aead_alg *alg;
 
-	t_alg = devm_kzalloc(dev, sizeof(*t_alg), GFP_KERNEL);
+	t_alg = devm_kzalloc_obj(dev, *t_alg);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -2615,7 +2615,7 @@ int cc_aead_alloc(struct cc_drvdata *drvdata)
 	int alg;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	aead_handle = devm_kmalloc(dev, sizeof(*aead_handle), GFP_KERNEL);
+	aead_handle = devm_kmalloc_obj(dev, *aead_handle);
 	if (!aead_handle) {
 		rc = -ENOMEM;
 		goto fail0;

@@ -205,7 +205,7 @@ static int cy8ctma140_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int error;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

@@ -202,7 +202,7 @@ int ras_umc_alloc_row_pages(struct ras_core_context *ras_core,
 
 	page_num = ras_umc->max_pages_per_row;
 
-	address = kcalloc(page_num, sizeof(*address), GFP_KERNEL);
+	address = kzalloc_objs(*address, page_num);
 	if (!address)
 		return -ENOMEM;
 
@@ -599,7 +599,7 @@ static int ras_umc_log_record(struct ras_core_context *ras_core,
 	struct eeprom_umc_record *rec;
 	int ret;
 
-	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	rec = kzalloc_obj(*rec);
 	if (!rec)
 		return -ENOMEM;
 

@@ -530,7 +530,7 @@ static int pca963x_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
+	chip = devm_kzalloc_flex(dev, *chip, leds, count);
 	if (!chip)
 		return -ENOMEM;
 

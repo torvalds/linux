@@ -9,6 +9,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/gso.h>
+#include <net/ip_tunnels.h>
 #include <net/nsh.h>
 #include <net/tun_proto.h>
 
@@ -83,6 +84,12 @@ static struct sk_buff *nsh_gso_segment(struct sk_buff *skb,
 	__be16 outer_proto, proto;
 
 	skb_reset_network_header(skb);
+
+	/* NSH can carry NSH (directly, or in an inner Ethernet frame):
+	 * limit the recursion, as IPv4 and IPv6 do.
+	 */
+	if (unlikely(gso_recursion_inc_test(skb, IP_TUNNEL_RECURSION_LIMIT)))
+		goto out;
 
 	outer_proto = skb->protocol;
 	outer_hlen = skb_mac_header_len(skb);

@@ -232,7 +232,7 @@ struct cti_trig_con *cti_allocate_trig_con(struct device *dev, int in_sigs,
 	struct cti_trig_con *tc = NULL;
 	struct cti_trig_grp *in = NULL, *out = NULL;
 
-	tc = devm_kzalloc(dev, sizeof(struct cti_trig_con), GFP_KERNEL);
+	tc = devm_kzalloc_obj(dev, struct cti_trig_con);
 	if (!tc)
 		return tc;
 
@@ -664,7 +664,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res = &adev->res;
 
 	/* driver data*/
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

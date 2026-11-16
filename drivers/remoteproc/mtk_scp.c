@@ -1408,7 +1408,7 @@ static int scp_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	scp_cluster = devm_kzalloc(dev, sizeof(*scp_cluster), GFP_KERNEL);
+	scp_cluster = devm_kzalloc_obj(dev, *scp_cluster);
 	if (!scp_cluster)
 		return -ENOMEM;
 

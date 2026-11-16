@@ -489,7 +489,7 @@ static struct tcp_tx *ksmbd_tcp_alloc_tx(const struct ksmbd_transport_write *tx,
 	struct iov_iter iter;
 	size_t remaining = tx->size - offset;
 
-	msg = kvmalloc(struct_size(msg, data, remaining), KSMBD_DEFAULT_GFP);
+	msg = kvmalloc_flex(*msg, data, remaining, KSMBD_DEFAULT_GFP);
 	if (!msg)
 		return NULL;
 

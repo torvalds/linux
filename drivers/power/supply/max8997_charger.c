@@ -213,7 +213,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

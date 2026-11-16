@@ -2009,7 +2009,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 	unsigned int val, irq_pol;
 	int ret, i;
 
-	wm8903 = devm_kzalloc(&i2c->dev, sizeof(*wm8903), GFP_KERNEL);
+	wm8903 = devm_kzalloc_obj(&i2c->dev, *wm8903);
 	if (wm8903 == NULL)
 		return -ENOMEM;
 
@@ -2030,8 +2030,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 	if (pdata) {
 		wm8903->pdata = pdata;
 	} else {
-		wm8903->pdata = devm_kzalloc(&i2c->dev, sizeof(*wm8903->pdata),
-					     GFP_KERNEL);
+		wm8903->pdata = devm_kzalloc_obj(&i2c->dev, *wm8903->pdata);
 		if (!wm8903->pdata)
 			return -ENOMEM;
 

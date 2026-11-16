@@ -1128,8 +1128,7 @@ static int rt1305_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt1305 = devm_kzalloc(&i2c->dev, sizeof(struct rt1305_priv),
-				GFP_KERNEL);
+	rt1305 = devm_kzalloc_obj(&i2c->dev, struct rt1305_priv);
 	if (rt1305 == NULL)
 		return -ENOMEM;
 

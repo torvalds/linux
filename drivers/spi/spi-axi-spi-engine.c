@@ -818,6 +818,8 @@ static int spi_engine_optimize_message(struct spi_message *msg)
 	p = kzalloc_flex(*p, instructions, p_dry.length + 1);
 	if (!p)
 		return -ENOMEM;
+	/* spi_engine_program_add_cmd() counts the instructions as it adds them. */
+	p->length = 0;
 
 	spi_engine_compile_message(msg, false, p);
 

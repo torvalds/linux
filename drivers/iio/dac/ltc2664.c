@@ -619,10 +619,9 @@ static int ltc2664_setup(struct ltc2664_state *st)
 	 * Duplicate the default channel configuration as it can change during
 	 * @ltc2664_channel_config()
 	 */
-	st->iio_channels = devm_kcalloc(&st->spi->dev,
-					chip_info->num_channels,
-					sizeof(struct iio_chan_spec),
-					GFP_KERNEL);
+	st->iio_channels = devm_kzalloc_objs(&st->spi->dev,
+					     struct iio_chan_spec,
+					     chip_info->num_channels);
 	if (!st->iio_channels)
 		return -ENOMEM;
 

@@ -100,7 +100,7 @@ da8xx_cfgchip_gate_clk_register(struct device *dev,
 
 	parent_name = __clk_get_name(parent);
 
-	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
+	gate = devm_kzalloc_obj(dev, *gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -244,7 +244,7 @@ da8xx_cfgchip_mux_clk_register(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return ERR_PTR(-ENOMEM);
 
@@ -516,7 +516,7 @@ da8xx_cfgchip_register_usb0_clk48(struct device *dev,
 		return dev_err_cast_probe(dev, fck_clk, "Missing fck clock\n");
 	}
 
-	usb0 = devm_kzalloc(dev, sizeof(*usb0), GFP_KERNEL);
+	usb0 = devm_kzalloc_obj(dev, *usb0);
 	if (!usb0)
 		return ERR_PTR(-ENOMEM);
 
@@ -585,7 +585,7 @@ da8xx_cfgchip_register_usb1_clk48(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	usb1 = devm_kzalloc(dev, sizeof(*usb1), GFP_KERNEL);
+	usb1 = devm_kzalloc_obj(dev, *usb1);
 	if (!usb1)
 		return ERR_PTR(-ENOMEM);
 
@@ -651,8 +651,7 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 	struct da8xx_usb0_clk48 *usb0;
 	struct da8xx_usb1_clk48 *usb1;
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, 2),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, 2);
 	if (!clk_data)
 		return -ENOMEM;
 

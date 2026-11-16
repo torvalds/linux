@@ -178,9 +178,9 @@ int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template 
 	list_for_each_entry(path_template, &template->path_list, node)
 		i++;
 
-	rlist = kcalloc(i, sizeof(*rlist), GFP_KERNEL);
-	clist = kcalloc(i, sizeof(*clist), GFP_KERNEL);
-	slist = kcalloc(i, sizeof(*slist), GFP_KERNEL);
+	rlist = kzalloc_objs(*rlist, i);
+	clist = kzalloc_objs(*clist, i);
+	slist = kzalloc_objs(*slist, i);
 	if (!rlist || !clist || !slist)
 		return -ENOMEM;
 

@@ -1162,7 +1162,7 @@ static int q6afe_dai_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int num_dais;
 
-	dai_data = devm_kzalloc(dev, sizeof(*dai_data), GFP_KERNEL);
+	dai_data = devm_kzalloc_obj(dev, *dai_data);
 	if (!dai_data)
 		return -ENOMEM;
 

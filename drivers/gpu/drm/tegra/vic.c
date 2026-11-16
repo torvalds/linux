@@ -502,13 +502,13 @@ static int vic_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
+	vic = devm_kzalloc_obj(dev, *vic);
 	if (!vic)
 		return -ENOMEM;
 
 	vic->config = of_device_get_match_data(dev);
 
-	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
+	syncpts = devm_kzalloc_obj(dev, *syncpts);
 	if (!syncpts)
 		return -ENOMEM;
 

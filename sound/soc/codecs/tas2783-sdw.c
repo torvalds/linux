@@ -1383,7 +1383,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 		return dev_err_probe(dev, ret,
 				     "slave property read failed");
 
-	tas_dev = devm_kzalloc(dev, sizeof(*tas_dev), GFP_KERNEL);
+	tas_dev = devm_kzalloc_obj(dev, *tas_dev);
 	if (!tas_dev)
 		return dev_err_probe(dev, -ENOMEM,
 				     "Failed devm_kzalloc");
@@ -1405,8 +1405,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 
 	if (i >= 0 && i < peripheral->sdca_data.num_functions) {
 		/* Allocate memory for function data */
-		function_data = devm_kzalloc(dev, sizeof(*function_data),
-					     GFP_KERNEL);
+		function_data = devm_kzalloc_obj(dev, *function_data);
 		if (!function_data)
 			return dev_err_probe(dev, -ENOMEM,
 					     "failed to parse sdca functions");

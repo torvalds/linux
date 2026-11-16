@@ -52,7 +52,7 @@ static int riscv_iommu_platform_probe(struct platform_device *pdev)
 	struct resource *res = NULL;
 	int vec, ret;
 
-	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
+	iommu = devm_kzalloc_obj(dev, *iommu);
 	if (!iommu)
 		return -ENOMEM;
 

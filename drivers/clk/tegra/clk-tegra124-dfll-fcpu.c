@@ -675,7 +675,7 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	soc = devm_kzalloc(&pdev->dev, sizeof(*soc), GFP_KERNEL);
+	soc = devm_kzalloc_obj(&pdev->dev, *soc);
 	if (!soc)
 		return -ENOMEM;
 

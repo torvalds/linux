@@ -907,12 +907,12 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 			mbx->op_type = QLC_83XX_FW_MBX_CMD;
 			mbx->req.num = mbx_tbl[i].in_args;
 			mbx->rsp.num = mbx_tbl[i].out_args;
-			mbx->req.arg = kcalloc(mbx->req.num, sizeof(u32),
-					       GFP_ATOMIC);
+			mbx->req.arg = kzalloc_objs(u32, mbx->req.num,
+						    GFP_ATOMIC);
 			if (!mbx->req.arg)
 				return -ENOMEM;
-			mbx->rsp.arg = kcalloc(mbx->rsp.num, sizeof(u32),
-					       GFP_ATOMIC);
+			mbx->rsp.arg = kzalloc_objs(u32, mbx->rsp.num,
+						    GFP_ATOMIC);
 			if (!mbx->rsp.arg) {
 				kfree(mbx->req.arg);
 				mbx->req.arg = NULL;

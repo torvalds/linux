@@ -439,7 +439,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 	struct owl_i2c_dev *i2c_dev;
 	int ret, irq;
 
-	i2c_dev = devm_kzalloc(dev, sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = devm_kzalloc_obj(dev, *i2c_dev);
 	if (!i2c_dev)
 		return -ENOMEM;
 

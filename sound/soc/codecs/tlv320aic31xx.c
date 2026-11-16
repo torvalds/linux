@@ -1732,7 +1732,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 	unsigned int micbias_value = MICBIAS_2_0V;
 	int i, ret;
 
-	aic31xx = devm_kzalloc(&i2c->dev, sizeof(*aic31xx), GFP_KERNEL);
+	aic31xx = devm_kzalloc_obj(&i2c->dev, *aic31xx);
 	if (!aic31xx)
 		return -ENOMEM;
 

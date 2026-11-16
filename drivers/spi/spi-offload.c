@@ -68,7 +68,7 @@ struct spi_offload *devm_spi_offload_alloc(struct device *dev,
 	struct spi_offload *offload;
 	void *priv;
 
-	offload = devm_kzalloc(dev, sizeof(*offload), GFP_KERNEL);
+	offload = devm_kzalloc_obj(dev, *offload);
 	if (!offload)
 		return ERR_PTR(-ENOMEM);
 

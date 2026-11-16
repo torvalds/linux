@@ -191,7 +191,7 @@ static int ssam_temp_probe(struct ssam_device *sdev)
 	if (status)
 		return status;
 
-	ssam_temp = devm_kzalloc(&sdev->dev, sizeof(*ssam_temp), GFP_KERNEL);
+	ssam_temp = devm_kzalloc_obj(&sdev->dev, *ssam_temp);
 	if (!ssam_temp)
 		return -ENOMEM;
 

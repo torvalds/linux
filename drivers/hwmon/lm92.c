@@ -384,7 +384,7 @@ static int lm92_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	data = devm_kzalloc(dev, sizeof(struct lm92_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm92_data);
 	if (!data)
 		return -ENOMEM;
 

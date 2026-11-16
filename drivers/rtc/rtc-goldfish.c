@@ -158,7 +158,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 	struct goldfish_rtc *rtcdrv;
 	int err;
 
-	rtcdrv = devm_kzalloc(&pdev->dev, sizeof(*rtcdrv), GFP_KERNEL);
+	rtcdrv = devm_kzalloc_obj(&pdev->dev, *rtcdrv);
 	if (!rtcdrv)
 		return -ENOMEM;
 

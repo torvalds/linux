@@ -696,7 +696,7 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	struct nvmem_cell *bdaddr_cell;
 	u32 max_speed = 3000000;
 
-	lldev = devm_kzalloc(&serdev->dev, sizeof(struct ll_device), GFP_KERNEL);
+	lldev = devm_kzalloc_obj(&serdev->dev, struct ll_device);
 	if (!lldev)
 		return -ENOMEM;
 	hu = &lldev->hu;

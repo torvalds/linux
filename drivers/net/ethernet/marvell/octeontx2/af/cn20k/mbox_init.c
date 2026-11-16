@@ -42,8 +42,7 @@ int cn20k_register_afvf_mbox_intr(struct rvu *rvu, int pf_vec_start)
 	int err;
 
 	/* irq data for 4 VFPF intr vectors */
-	irq_data = devm_kcalloc(rvu->dev, 4,
-				sizeof(struct rvu_irq_data), GFP_KERNEL);
+	irq_data = devm_kzalloc_objs(rvu->dev, struct rvu_irq_data, 4);
 	if (!irq_data)
 		return -ENOMEM;
 
@@ -174,8 +173,7 @@ int cn20k_register_afpf_mbox_intr(struct rvu *rvu)
 	int intr_vec, ret, vec = 0;
 
 	/* irq data for 4 PF intr vectors */
-	irq_data = devm_kcalloc(rvu->dev, 4,
-				sizeof(struct rvu_irq_data), GFP_KERNEL);
+	irq_data = devm_kzalloc_objs(rvu->dev, struct rvu_irq_data, 4);
 	if (!irq_data)
 		return -ENOMEM;
 

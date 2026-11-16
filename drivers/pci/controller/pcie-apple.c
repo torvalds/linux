@@ -566,7 +566,7 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
-	port = devm_kzalloc(pcie->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(pcie->dev, *port);
 	if (!port)
 		return -ENOMEM;
 

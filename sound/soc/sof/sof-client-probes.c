@@ -461,7 +461,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -510,8 +510,8 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	priv->dfs_points = debugfs_create_file("probe_points_available", 0644, dfsroot,
 					       cdev, &sof_probes_available_points_fops);
 
-	links = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*links), GFP_KERNEL);
-	cpus = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*cpus), GFP_KERNEL);
+	links = devm_kzalloc_objs(dev, *links, SOF_PROBES_NUM_DAI_LINKS);
+	cpus = devm_kzalloc_objs(dev, *cpus, SOF_PROBES_NUM_DAI_LINKS);
 	if (!links || !cpus) {
 		debugfs_remove(priv->dfs_points);
 		debugfs_remove(priv->dfs_points_remove);

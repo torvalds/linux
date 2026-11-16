@@ -382,7 +382,7 @@ static int cxl_memdev_scrub_init(struct cxl_memdev *cxlmd,
 	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
 		return -EOPNOTSUPP;
 
-	cxl_ps_ctx = devm_kzalloc(&cxlmd->dev, sizeof(*cxl_ps_ctx), GFP_KERNEL);
+	cxl_ps_ctx = devm_kzalloc_obj(&cxlmd->dev, *cxl_ps_ctx);
 	if (!cxl_ps_ctx)
 		return -ENOMEM;
 
@@ -450,7 +450,7 @@ static int cxl_region_scrub_init(struct cxl_region *cxlr,
 		cxlmd->scrub_region_id = CXL_SCRUB_NO_REGION;
 	}
 
-	cxl_ps_ctx = devm_kzalloc(&cxlr->dev, sizeof(*cxl_ps_ctx), GFP_KERNEL);
+	cxl_ps_ctx = devm_kzalloc_obj(&cxlr->dev, *cxl_ps_ctx);
 	if (!cxl_ps_ctx)
 		return -ENOMEM;
 
@@ -801,8 +801,7 @@ static int cxl_memdev_ecs_init(struct cxl_memdev *cxlmd,
 	if (!num_media_frus)
 		return -EOPNOTSUPP;
 
-	cxl_ecs_ctx =
-		devm_kzalloc(&cxlmd->dev, sizeof(*cxl_ecs_ctx), GFP_KERNEL);
+	cxl_ecs_ctx = devm_kzalloc_obj(&cxlmd->dev, *cxl_ecs_ctx);
 	if (!cxl_ecs_ctx)
 		return -ENOMEM;
 
@@ -1641,8 +1640,7 @@ static int cxl_memdev_sparing_init(struct cxl_memdev *cxlmd,
 	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
 		return -EOPNOTSUPP;
 
-	cxl_sparing_ctx = devm_kzalloc(&cxlmd->dev, sizeof(*cxl_sparing_ctx),
-				       GFP_KERNEL);
+	cxl_sparing_ctx = devm_kzalloc_obj(&cxlmd->dev, *cxl_sparing_ctx);
 	if (!cxl_sparing_ctx)
 		return -ENOMEM;
 
@@ -1968,8 +1966,7 @@ static int cxl_memdev_soft_ppr_init(struct cxl_memdev *cxlmd,
 	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
 		return -EOPNOTSUPP;
 
-	cxl_sppr_ctx =
-		devm_kzalloc(&cxlmd->dev, sizeof(*cxl_sppr_ctx), GFP_KERNEL);
+	cxl_sppr_ctx = devm_kzalloc_obj(&cxlmd->dev, *cxl_sppr_ctx);
 	if (!cxl_sppr_ctx)
 		return -ENOMEM;
 

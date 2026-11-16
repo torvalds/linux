@@ -1534,7 +1534,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	int irq, ret, i;
 	char tmp[16];
 
-	spdif_priv = devm_kzalloc(&pdev->dev, sizeof(*spdif_priv), GFP_KERNEL);
+	spdif_priv = devm_kzalloc_obj(&pdev->dev, *spdif_priv);
 	if (!spdif_priv)
 		return -ENOMEM;
 

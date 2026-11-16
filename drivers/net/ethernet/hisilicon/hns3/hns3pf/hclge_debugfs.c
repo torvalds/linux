@@ -2049,7 +2049,7 @@ static int hclge_dbg_dump_fd_tcam(struct seq_file *s, void *data)
 	if (!hdev->hclge_fd_rule_num || !rule_num)
 		return 0;
 
-	rule_locs = kcalloc(rule_num, sizeof(u16), GFP_KERNEL);
+	rule_locs = kzalloc_objs(u16, rule_num);
 	if (!rule_locs)
 		return -ENOMEM;
 

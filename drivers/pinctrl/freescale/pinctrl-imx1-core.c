@@ -484,10 +484,8 @@ static int imx1_pinctrl_parse_groups(struct device_node *np,
 	}
 
 	grp->npins = size / 12;
-	grp->pins = devm_kcalloc(info->dev,
-			grp->npins, sizeof(struct imx1_pin), GFP_KERNEL);
-	grp->pin_ids = devm_kcalloc(info->dev,
-			grp->npins, sizeof(unsigned int), GFP_KERNEL);
+	grp->pins = devm_kzalloc_objs(info->dev, struct imx1_pin, grp->npins);
+	grp->pin_ids = devm_kzalloc_objs(info->dev, unsigned int, grp->npins);
 
 	if (!grp->pins || !grp->pin_ids)
 		return -ENOMEM;
@@ -590,12 +588,12 @@ static int imx1_pinctrl_parse_dt(struct platform_device *pdev,
 	}
 
 	info->nfunctions = nfuncs;
-	info->functions = devm_kcalloc(&pdev->dev,
-			nfuncs, sizeof(struct imx1_pmx_func), GFP_KERNEL);
+	info->functions = devm_kzalloc_objs(&pdev->dev, struct imx1_pmx_func,
+					    nfuncs);
 
 	info->ngroups = ngroups;
-	info->groups = devm_kcalloc(&pdev->dev,
-			ngroups, sizeof(struct imx1_pin_group), GFP_KERNEL);
+	info->groups = devm_kzalloc_objs(&pdev->dev, struct imx1_pin_group,
+					 ngroups);
 
 
 	if (!info->functions || !info->groups)
@@ -629,7 +627,7 @@ int imx1_pinctrl_core_probe(struct platform_device *pdev,
 	info->dev = &pdev->dev;
 
 	/* Create state holders etc for this driver */
-	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
+	ipctl = devm_kzalloc_obj(&pdev->dev, *ipctl);
 	if (!ipctl)
 		return -ENOMEM;
 

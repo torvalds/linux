@@ -193,7 +193,7 @@ static void dapm_pop_dbg(struct device *dev, const char *fmt, ...)
 
 struct snd_soc_dapm_context *snd_soc_dapm_alloc(struct device *dev)
 {
-	return devm_kzalloc(dev, sizeof(struct snd_soc_dapm_context), GFP_KERNEL);
+	return devm_kzalloc_obj(dev, struct snd_soc_dapm_context);
 }
 
 struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm)

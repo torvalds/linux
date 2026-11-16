@@ -2417,7 +2417,7 @@ int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 	if (!hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_DC))
 		return -ENXIO;
 
-	rdrv = devm_kzalloc(ci->dev, sizeof(*rdrv), GFP_KERNEL);
+	rdrv = devm_kzalloc_obj(ci->dev, *rdrv);
 	if (!rdrv)
 		return -ENOMEM;
 

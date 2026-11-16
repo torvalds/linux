@@ -1634,7 +1634,7 @@ static int ov7251_probe(struct i2c_client *client)
 	int ret;
 	int i;
 
-	ov7251 = devm_kzalloc(dev, sizeof(struct ov7251), GFP_KERNEL);
+	ov7251 = devm_kzalloc_obj(dev, struct ov7251);
 	if (!ov7251)
 		return -ENOMEM;
 

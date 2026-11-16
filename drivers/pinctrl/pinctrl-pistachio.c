@@ -1410,9 +1410,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		gpio_irq_chip_set_chip(girq, &pistachio_gpio_irq_chip);
 		girq->parent_handler = pistachio_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(pctl->dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(pctl->dev, *girq->parents, 1);
 		if (!girq->parents) {
 			ret = -ENOMEM;
 			goto err;
@@ -1457,7 +1455,7 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pistachio_pinctrl *pctl;
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 	pctl->dev = &pdev->dev;

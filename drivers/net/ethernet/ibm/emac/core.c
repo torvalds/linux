@@ -2601,8 +2601,7 @@ static int emac_dt_phy_connect(struct emac_instance *dev,
 {
 	struct phy_device *phy_dev;
 
-	dev->phy.def = devm_kzalloc(&dev->ofdev->dev, sizeof(*dev->phy.def),
-				    GFP_KERNEL);
+	dev->phy.def = devm_kzalloc_obj(&dev->ofdev->dev, *dev->phy.def);
 	if (!dev->phy.def)
 		return -ENOMEM;
 

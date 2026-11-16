@@ -1484,7 +1484,7 @@ static int ov965x_probe(struct i2c_client *client)
 		.max_register = 0xab,
 	};
 
-	ov965x = devm_kzalloc(&client->dev, sizeof(*ov965x), GFP_KERNEL);
+	ov965x = devm_kzalloc_obj(&client->dev, *ov965x);
 	if (!ov965x)
 		return -ENOMEM;
 

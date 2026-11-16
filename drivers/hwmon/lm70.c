@@ -176,7 +176,7 @@ static int lm70_probe(struct spi_device *spi)
 
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
 
-	p_lm70 = devm_kzalloc(&spi->dev, sizeof(*p_lm70), GFP_KERNEL);
+	p_lm70 = devm_kzalloc_obj(&spi->dev, *p_lm70);
 	if (!p_lm70)
 		return -ENOMEM;
 

@@ -200,7 +200,7 @@ static int eic7700_sata_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *regs;
 
-	sata_phy = devm_kzalloc(dev, sizeof(*sata_phy), GFP_KERNEL);
+	sata_phy = devm_kzalloc_obj(dev, *sata_phy);
 	if (!sata_phy)
 		return -ENOMEM;
 

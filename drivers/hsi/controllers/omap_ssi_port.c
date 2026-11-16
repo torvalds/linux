@@ -1142,7 +1142,7 @@ static int ssi_port_probe(struct platform_device *pd)
 		goto error;
 	}
 
-	omap_port = devm_kzalloc(&port->device, sizeof(*omap_port), GFP_KERNEL);
+	omap_port = devm_kzalloc_obj(&port->device, *omap_port);
 	if (!omap_port) {
 		err = -ENOMEM;
 		goto error;

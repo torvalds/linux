@@ -331,7 +331,7 @@ static int __init init_nsc(void)
 	if ((rc = platform_device_add(pdev)) < 0)
 		goto err_put_dev;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv) {
 		rc = -ENOMEM;
 		goto err_del_dev;

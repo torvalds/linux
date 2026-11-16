@@ -1329,7 +1329,7 @@ static int hi556_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	hi556 = devm_kzalloc(&client->dev, sizeof(*hi556), GFP_KERNEL);
+	hi556 = devm_kzalloc_obj(&client->dev, *hi556);
 	if (!hi556)
 		return -ENOMEM;
 

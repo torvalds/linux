@@ -98,7 +98,7 @@ static int spear_thermal_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	stdev = devm_kzalloc(&pdev->dev, sizeof(*stdev), GFP_KERNEL);
+	stdev = devm_kzalloc_obj(&pdev->dev, *stdev);
 	if (!stdev)
 		return -ENOMEM;
 

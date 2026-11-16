@@ -2199,7 +2199,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 
 	ctx.idx += ctx.imm_count;
 	if (ctx.imm_count) {
-		ctx.imms = kcalloc(ctx.imm_count, sizeof(u32), GFP_KERNEL);
+		ctx.imms = kzalloc_objs(u32, ctx.imm_count);
 		if (ctx.imms == NULL)
 			goto out_off;
 	}

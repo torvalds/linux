@@ -155,7 +155,7 @@ static int m48t35_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct m48t35_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct m48t35_priv);
 	if (!priv)
 		return -ENOMEM;
 

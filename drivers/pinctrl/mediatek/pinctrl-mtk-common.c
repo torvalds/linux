@@ -939,14 +939,14 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	pctl->ngroups = pctl->devdata->npins;
 
 	/* Allocate groups */
-	pctl->groups = devm_kcalloc(&pdev->dev, pctl->ngroups,
-				    sizeof(*pctl->groups), GFP_KERNEL);
+	pctl->groups = devm_kzalloc_objs(&pdev->dev, *pctl->groups,
+					 pctl->ngroups);
 	if (!pctl->groups)
 		return -ENOMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
-	pctl->grp_names = devm_kcalloc(&pdev->dev, pctl->ngroups,
-				       sizeof(*pctl->grp_names), GFP_KERNEL);
+	pctl->grp_names = devm_kzalloc_objs(&pdev->dev, *pctl->grp_names,
+					    pctl->ngroups);
 	if (!pctl->grp_names)
 		return -ENOMEM;
 
@@ -1026,14 +1026,13 @@ static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 	if (!of_property_read_bool(np, "interrupt-controller"))
 		return -ENODEV;
 
-	pctl->eint = devm_kzalloc(pctl->dev, sizeof(*pctl->eint), GFP_KERNEL);
+	pctl->eint = devm_kzalloc_obj(pctl->dev, *pctl->eint);
 	if (!pctl->eint)
 		return -ENOMEM;
 
 	pctl->eint->nbase = 1;
 	/* mtk-eint expects an array */
-	pctl->eint->base = devm_kzalloc(pctl->dev, sizeof(*pctl->eint->base),
-					GFP_KERNEL);
+	pctl->eint->base = devm_kzalloc_obj(pctl->dev, *pctl->eint->base);
 	if (!pctl->eint->base)
 		return -ENOMEM;
 
@@ -1069,7 +1068,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node, *node;
 	int ret, i;
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 
@@ -1101,8 +1100,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	if (ret)
 		return dev_err_probe(dev, ret, "build state failed\n");
 
-	pins = devm_kcalloc(&pdev->dev, pctl->devdata->npins, sizeof(*pins),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, *pins, pctl->devdata->npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -1124,7 +1122,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		return dev_err_probe(dev, PTR_ERR(pctl->pctl_dev),
 				     "Couldn't register pinctrl driver\n");
 
-	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
+	pctl->chip = devm_kzalloc_obj(&pdev->dev, *pctl->chip);
 	if (!pctl->chip)
 		return -ENOMEM;
 

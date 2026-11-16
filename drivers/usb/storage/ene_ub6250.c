@@ -805,12 +805,10 @@ static int ms_lib_alloc_logicalmap(struct us_data *us)
 	u32  i;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	info->MS_Lib.Phy2LogMap = kmalloc_array(info->MS_Lib.NumberOfPhyBlock,
-						sizeof(u16),
-						GFP_KERNEL);
-	info->MS_Lib.Log2PhyMap = kmalloc_array(info->MS_Lib.NumberOfLogBlock,
-						sizeof(u16),
-						GFP_KERNEL);
+	info->MS_Lib.Phy2LogMap = kmalloc_objs(u16,
+					       info->MS_Lib.NumberOfPhyBlock);
+	info->MS_Lib.Log2PhyMap = kmalloc_objs(u16,
+					       info->MS_Lib.NumberOfLogBlock);
 
 	if ((info->MS_Lib.Phy2LogMap == NULL) || (info->MS_Lib.Log2PhyMap == NULL)) {
 		ms_lib_free_logicalmap(us);

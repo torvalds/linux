@@ -108,8 +108,7 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);
 	struct rc5t583_gpio *rc5t583_gpio;
 
-	rc5t583_gpio = devm_kzalloc(&pdev->dev, sizeof(*rc5t583_gpio),
-					GFP_KERNEL);
+	rc5t583_gpio = devm_kzalloc_obj(&pdev->dev, *rc5t583_gpio);
 	if (!rc5t583_gpio)
 		return -ENOMEM;
 

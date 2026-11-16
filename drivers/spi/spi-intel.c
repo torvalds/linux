@@ -1383,13 +1383,13 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	if (ret)
 		return ret;
 
-	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(ispi->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
 	pdata->nr_parts = 1;
-	pdata->parts = devm_kcalloc(ispi->dev, pdata->nr_parts,
-				    sizeof(*pdata->parts), GFP_KERNEL);
+	pdata->parts = devm_kzalloc_objs(ispi->dev, *pdata->parts,
+					 pdata->nr_parts);
 	if (!pdata->parts)
 		return -ENOMEM;
 
@@ -1406,7 +1406,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	if (ispi->host->num_chipselect < 2)
 		return 0;
 
-	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(ispi->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -1416,8 +1416,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 		return -ENOMEM;
 
 	pdata->nr_parts = 1;
-	parts = devm_kcalloc(ispi->dev, pdata->nr_parts, sizeof(*parts),
-			     GFP_KERNEL);
+	parts = devm_kzalloc_objs(ispi->dev, *parts, pdata->nr_parts);
 	if (!parts)
 		return -ENOMEM;
 

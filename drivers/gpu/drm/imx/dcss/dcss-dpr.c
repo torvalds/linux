@@ -155,7 +155,7 @@ int dcss_dpr_init(struct dcss_dev *dcss, unsigned long dpr_base)
 {
 	struct dcss_dpr *dpr;
 
-	dpr = devm_kzalloc(dcss->dev, sizeof(*dpr), GFP_KERNEL);
+	dpr = devm_kzalloc_obj(dcss->dev, *dpr);
 	if (!dpr)
 		return -ENOMEM;
 

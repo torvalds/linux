@@ -427,7 +427,7 @@ static int hclge_ptp_create_clock(struct hclge_dev *hdev)
 {
 	struct hclge_ptp *ptp;
 
-	ptp = devm_kzalloc(&hdev->pdev->dev, sizeof(*ptp), GFP_KERNEL);
+	ptp = devm_kzalloc_obj(&hdev->pdev->dev, *ptp);
 	if (!ptp)
 		return -ENOMEM;
 

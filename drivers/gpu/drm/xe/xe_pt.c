@@ -3016,8 +3016,7 @@ struct xe_pt_job_ops *xe_pt_job_ops_alloc(u32 num_ops)
 	if (!pt_job_ops)
 		return NULL;
 
-	pt_job_ops->ops = kvmalloc_array(num_ops, sizeof(*pt_job_ops->ops),
-					 GFP_KERNEL);
+	pt_job_ops->ops = kvmalloc_objs(*pt_job_ops->ops, num_ops);
 	if (!pt_job_ops->ops) {
 		kfree(pt_job_ops);
 		return NULL;

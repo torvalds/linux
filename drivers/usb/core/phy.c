@@ -30,7 +30,7 @@ static int usb_phy_roothub_add_phy_by_name(struct device *dev, const char *name,
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 
-	roothub_entry = devm_kzalloc(dev, sizeof(*roothub_entry), GFP_KERNEL);
+	roothub_entry = devm_kzalloc_obj(dev, *roothub_entry);
 	if (!roothub_entry)
 		return -ENOMEM;
 
@@ -57,7 +57,7 @@ static int usb_phy_roothub_add_phy(struct device *dev, int index,
 			return PTR_ERR(phy);
 	}
 
-	roothub_entry = devm_kzalloc(dev, sizeof(*roothub_entry), GFP_KERNEL);
+	roothub_entry = devm_kzalloc_obj(dev, *roothub_entry);
 	if (!roothub_entry)
 		return -ENOMEM;
 
@@ -83,7 +83,7 @@ struct usb_phy_roothub *usb_phy_roothub_alloc(struct device *dev)
 	if (num_phys <= 0)
 		return NULL;
 
-	phy_roothub = devm_kzalloc(dev, sizeof(*phy_roothub), GFP_KERNEL);
+	phy_roothub = devm_kzalloc_obj(dev, *phy_roothub);
 	if (!phy_roothub)
 		return ERR_PTR(-ENOMEM);
 
@@ -134,7 +134,7 @@ struct usb_phy_roothub *usb_phy_roothub_alloc_usb3_phy(struct device *dev)
 	if (usb2_phy_index < 0)
 		return NULL;
 
-	phy_roothub = devm_kzalloc(dev, sizeof(*phy_roothub), GFP_KERNEL);
+	phy_roothub = devm_kzalloc_obj(dev, *phy_roothub);
 	if (!phy_roothub)
 		return ERR_PTR(-ENOMEM);
 

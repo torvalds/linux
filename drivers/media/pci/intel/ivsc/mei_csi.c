@@ -659,7 +659,7 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 		return -ENXIO;
 	}
 
-	csi = devm_kzalloc(dev, sizeof(struct mei_csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(dev, struct mei_csi);
 	if (!csi)
 		return -ENOMEM;
 

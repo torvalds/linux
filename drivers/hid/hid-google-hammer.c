@@ -342,8 +342,7 @@ static int hammer_register_leds(struct hid_device *hdev)
 {
 	struct hammer_kbd_leds *kbd_backlight;
 
-	kbd_backlight = devm_kzalloc(&hdev->dev, sizeof(*kbd_backlight),
-				     GFP_KERNEL);
+	kbd_backlight = devm_kzalloc_obj(&hdev->dev, *kbd_backlight);
 	if (!kbd_backlight)
 		return -ENOMEM;
 
@@ -482,7 +481,7 @@ static int hammer_probe(struct hid_device *hdev,
 	struct vivaldi_data *vdata;
 	int error;
 
-	vdata = devm_kzalloc(&hdev->dev, sizeof(*vdata), GFP_KERNEL);
+	vdata = devm_kzalloc_obj(&hdev->dev, *vdata);
 	if (!vdata)
 		return -ENOMEM;
 

@@ -287,10 +287,10 @@ static int keep_resources(struct snd_tscm *tscm, unsigned int rate,
 
 	if (stream == &tscm->tx_stream) {
 		resources = &tscm->tx_resources;
-		speed = fw_parent_device(tscm->unit)->max_speed;
+		speed = SCODE_400;
 	} else {
 		resources = &tscm->rx_resources;
-		speed = SCODE_400;
+		speed = fw_parent_device(tscm->unit)->max_speed;
 	}
 
 	err = amdtp_tscm_set_parameters(stream, rate);

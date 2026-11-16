@@ -463,7 +463,7 @@ static int mei_ace_probe(struct mei_cl_device *cldev,
 	struct mei_ace *ace;
 	int ret;
 
-	ace = devm_kzalloc(dev, sizeof(struct mei_ace), GFP_KERNEL);
+	ace = devm_kzalloc_obj(dev, struct mei_ace);
 	if (!ace)
 		return -ENOMEM;
 

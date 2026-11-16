@@ -352,8 +352,8 @@ int mmc_hsq_init(struct mmc_hsq *hsq, struct mmc_host *mmc)
 	hsq->next_tag = HSQ_INVALID_TAG;
 	hsq->tail_tag = HSQ_INVALID_TAG;
 
-	hsq->slot = devm_kcalloc(mmc_dev(mmc), hsq->num_slots,
-				 sizeof(struct hsq_slot), GFP_KERNEL);
+	hsq->slot = devm_kzalloc_objs(mmc_dev(mmc), struct hsq_slot,
+				      hsq->num_slots);
 	if (!hsq->slot)
 		return -ENOMEM;
 

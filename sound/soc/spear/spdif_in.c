@@ -212,7 +212,7 @@ static int spdif_in_probe(struct platform_device *pdev)
 	if (!res_fifo)
 		return -EINVAL;
 
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(&pdev->dev, *host);
 	if (!host)
 		return -ENOMEM;
 

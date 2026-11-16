@@ -26,7 +26,7 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	if ((id < 0) || (id > 4))
 		return -ENODEV;
 
-	gen_gc = devm_kzalloc(&pdev->dev, sizeof(*gen_gc), GFP_KERNEL);
+	gen_gc = devm_kzalloc_obj(&pdev->dev, *gen_gc);
 	if (!gen_gc)
 		return -ENOMEM;
 

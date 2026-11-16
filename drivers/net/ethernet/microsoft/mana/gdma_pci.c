@@ -202,7 +202,7 @@ static int mana_pci_schedule_serv_work(struct gdma_context *gc,
 		return -ENODEV;
 	}
 
-	mns_wk = kzalloc(sizeof(*mns_wk), GFP_ATOMIC);
+	mns_wk = kzalloc_obj(*mns_wk, GFP_ATOMIC);
 	if (!mns_wk) {
 		module_put(THIS_MODULE);
 		clear_bit(GC_IN_SERVICE, &gc->flags);

@@ -348,13 +348,11 @@ static int hisi_femac_init_queue(struct device *dev,
 				 struct hisi_femac_queue *queue,
 				 unsigned int num)
 {
-	queue->skb = devm_kcalloc(dev, num, sizeof(struct sk_buff *),
-				  GFP_KERNEL);
+	queue->skb = devm_kzalloc_objs(dev, struct sk_buff *, num);
 	if (!queue->skb)
 		return -ENOMEM;
 
-	queue->dma_phys = devm_kcalloc(dev, num, sizeof(dma_addr_t),
-				       GFP_KERNEL);
+	queue->dma_phys = devm_kzalloc_objs(dev, dma_addr_t, num);
 	if (!queue->dma_phys)
 		return -ENOMEM;
 

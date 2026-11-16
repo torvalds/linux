@@ -81,7 +81,7 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 	struct altr_a10sr_gpio *gpio;
 	struct altr_a10sr *a10sr = dev_get_drvdata(pdev->dev.parent);
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&pdev->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

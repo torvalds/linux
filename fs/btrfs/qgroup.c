@@ -1440,10 +1440,6 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 		goto out;
 	}
 
-	spin_lock(&fs_info->trans_lock);
-	list_del(&quota_root->dirty_list);
-	spin_unlock(&fs_info->trans_lock);
-
 	btrfs_tree_lock(quota_root->node);
 	btrfs_clear_buffer_dirty(trans, quota_root->node);
 	btrfs_tree_unlock(quota_root->node);
@@ -1454,7 +1450,13 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 		btrfs_abort_transaction(trans, ret);
 
 out:
-	btrfs_put_root(quota_root);
+	if (quota_root) {
+		spin_lock(&fs_info->trans_lock);
+		list_del(&quota_root->dirty_list);
+		spin_unlock(&fs_info->trans_lock);
+		btrfs_put_root(quota_root);
+	}
+
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	if (ret && trans)
 		btrfs_end_transaction(trans);

@@ -557,7 +557,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 	if (!np)
 		return -EINVAL;
 
-	info = devm_kzalloc(&i2c->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&i2c->dev, *info);
 	if (!info)
 		return -ENOMEM;
 	i2c_set_clientdata(i2c, info);

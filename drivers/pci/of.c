@@ -334,7 +334,7 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 	if (io_base)
 		*io_base = (resource_size_t)OF_BAD_ADDR;
 
-	bus_range = devm_kzalloc(dev, sizeof(*bus_range), GFP_KERNEL);
+	bus_range = devm_kzalloc_obj(dev, *bus_range);
 	if (!bus_range)
 		return -ENOMEM;
 

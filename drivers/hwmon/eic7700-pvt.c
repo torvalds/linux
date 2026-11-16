@@ -301,7 +301,7 @@ static struct pvt_hwmon *eic7700_pvt_create_data(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pvt_hwmon *pvt;
 
-	pvt = devm_kzalloc(dev, sizeof(*pvt), GFP_KERNEL);
+	pvt = devm_kzalloc_obj(dev, *pvt);
 	if (!pvt)
 		return ERR_PTR(-ENOMEM);
 

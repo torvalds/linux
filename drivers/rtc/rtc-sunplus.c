@@ -231,7 +231,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	struct sunplus_rtc *sp_rtc;
 	int ret;
 
-	sp_rtc = devm_kzalloc(&plat_dev->dev, sizeof(*sp_rtc), GFP_KERNEL);
+	sp_rtc = devm_kzalloc_obj(&plat_dev->dev, *sp_rtc);
 	if (!sp_rtc)
 		return -ENOMEM;
 

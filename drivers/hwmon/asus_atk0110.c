@@ -886,7 +886,7 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 	limit1 = atk_get_pack_member(data, obj, HWMON_PACK_LIMIT1);
 	limit2 = atk_get_pack_member(data, obj, HWMON_PACK_LIMIT2);
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 
@@ -1165,7 +1165,7 @@ static int atk_init_attribute_groups(struct atk_data *data)
 	int len = (data->voltage_count + data->temperature_count
 			+ data->fan_count) * 4 + 1;
 
-	attrs = devm_kcalloc(dev, len, sizeof(struct attribute *), GFP_KERNEL);
+	attrs = devm_kzalloc_objs(dev, struct attribute *, len);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -1284,7 +1284,7 @@ static int atk_probe(struct platform_device *pdev)
 	if (!handle)
 		return -ENODEV;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

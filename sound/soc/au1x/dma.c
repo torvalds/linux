@@ -303,7 +303,7 @@ static int alchemy_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct alchemy_pcm_ctx *ctx;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

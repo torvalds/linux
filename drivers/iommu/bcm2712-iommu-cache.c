@@ -53,7 +53,7 @@ static int bcm2712_iommu_cache_probe(struct platform_device *pdev)
 {
 	struct bcm2712_iommu_cache *cache;
 
-	cache = devm_kzalloc(&pdev->dev, sizeof(*cache), GFP_KERNEL);
+	cache = devm_kzalloc_obj(&pdev->dev, *cache);
 	if (!cache)
 		return -ENOMEM;
 

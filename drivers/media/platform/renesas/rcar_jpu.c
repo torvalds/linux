@@ -1574,7 +1574,7 @@ static int jpu_probe(struct platform_device *pdev)
 	int ret;
 	unsigned int i;
 
-	jpu = devm_kzalloc(&pdev->dev, sizeof(*jpu), GFP_KERNEL);
+	jpu = devm_kzalloc_obj(&pdev->dev, *jpu);
 	if (!jpu)
 		return -ENOMEM;
 

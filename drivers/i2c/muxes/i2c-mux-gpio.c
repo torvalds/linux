@@ -134,7 +134,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	unsigned int initial_state;
 	int i, ngpios, ret;
 
-	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(&pdev->dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 

@@ -1066,7 +1066,7 @@ int adau17x1_probe(struct device *dev, struct regmap *regmap,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	adau = devm_kzalloc(dev, sizeof(*adau), GFP_KERNEL);
+	adau = devm_kzalloc_obj(dev, *adau);
 	if (!adau)
 		return -ENOMEM;
 

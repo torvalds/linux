@@ -851,7 +851,7 @@ static int dsi_probe(struct platform_device *pdev)
 	struct dsi_hw_ctx *ctx;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data) {
 		DRM_ERROR("failed to allocate dsi data.\n");
 		return -ENOMEM;

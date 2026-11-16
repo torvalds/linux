@@ -397,7 +397,7 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	struct camif_dev *camif;
 	int ret = 0;
 
-	camif = devm_kzalloc(dev, sizeof(*camif), GFP_KERNEL);
+	camif = devm_kzalloc_obj(dev, *camif);
 	if (!camif)
 		return -ENOMEM;
 

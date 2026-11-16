@@ -247,7 +247,7 @@ static int mxsfb_load(struct drm_device *drm,
 	struct device_node *ep;
 	int ret;
 
-	mxsfb = devm_kzalloc(&pdev->dev, sizeof(*mxsfb), GFP_KERNEL);
+	mxsfb = devm_kzalloc_obj(&pdev->dev, *mxsfb);
 	if (!mxsfb)
 		return -ENOMEM;
 

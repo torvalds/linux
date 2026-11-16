@@ -249,8 +249,8 @@ static void xgene_get_extd_stats(struct xgene_enet_pdata *pdata)
 
 int xgene_extd_stats_init(struct xgene_enet_pdata *pdata)
 {
-	pdata->extd_stats = devm_kmalloc_array(&pdata->pdev->dev,
-			XGENE_EXTD_STATS_LEN, sizeof(u64), GFP_KERNEL);
+	pdata->extd_stats = devm_kmalloc_objs(&pdata->pdev->dev, u64,
+					      XGENE_EXTD_STATS_LEN);
 	if (!pdata->extd_stats)
 		return -ENOMEM;
 

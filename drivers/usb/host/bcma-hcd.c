@@ -7,7 +7,7 @@
  * Copyright 2015 Felix Fietkau <nbd@openwrt.org>
  *
  * Based on ssb-ohci driver
- * Copyright 2007 Michael Buesch <m@bues.ch>
+ * Copyright 2007 Michael Buesch
  *
  * Derived from the OHCI-PCI driver
  * Copyright 1999 Roman Weissgaerber
@@ -399,8 +399,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 
 	/* TODO: Probably need checks here; is the core connected? */
 
-	usb_dev = devm_kzalloc(&core->dev, sizeof(struct bcma_hcd_device),
-			       GFP_KERNEL);
+	usb_dev = devm_kzalloc_obj(&core->dev, struct bcma_hcd_device);
 	if (!usb_dev)
 		return -ENOMEM;
 	usb_dev->core = core;

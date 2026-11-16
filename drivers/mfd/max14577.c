@@ -368,7 +368,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c)
 	int irq_flags;
 
 	if (np) {
-		pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&i2c->dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 		i2c->dev.platform_data = pdata;
@@ -379,7 +379,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c)
 		return -EINVAL;
 	}
 
-	max14577 = devm_kzalloc(&i2c->dev, sizeof(*max14577), GFP_KERNEL);
+	max14577 = devm_kzalloc_obj(&i2c->dev, *max14577);
 	if (!max14577)
 		return -ENOMEM;
 

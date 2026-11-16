@@ -90,11 +90,11 @@ static int gpio_test_provider_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_chip *gc;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -572,7 +572,7 @@ static int gpio_unbind_consumer_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

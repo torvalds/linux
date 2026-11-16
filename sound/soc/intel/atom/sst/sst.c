@@ -230,7 +230,7 @@ static void sst_init_locks(struct intel_sst_drv *ctx)
 int sst_alloc_drv_context(struct intel_sst_drv **ctx,
 		struct device *dev, unsigned short dev_id)
 {
-	*ctx = devm_kzalloc(dev, sizeof(struct intel_sst_drv), GFP_KERNEL);
+	*ctx = devm_kzalloc_obj(dev, struct intel_sst_drv);
 	if (!(*ctx))
 		return -ENOMEM;
 
@@ -324,8 +324,7 @@ int sst_context_init(struct intel_sst_drv *ctx)
 	/* default intr are unmasked so set this as masked */
 	sst_shim_write64(ctx->shim, SST_IMRX, 0xFFFF0038);
 
-	ctx->qos = devm_kzalloc(ctx->dev,
-		sizeof(struct pm_qos_request), GFP_KERNEL);
+	ctx->qos = devm_kzalloc_obj(ctx->dev, struct pm_qos_request);
 	if (!ctx->qos) {
 		ret = -ENOMEM;
 		goto do_free_mem;

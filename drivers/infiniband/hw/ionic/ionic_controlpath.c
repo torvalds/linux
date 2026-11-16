@@ -2021,9 +2021,8 @@ static int ionic_qp_sq_init(struct ionic_ibdev *dev, struct ionic_ctx *ctx,
 			goto err_sq_meta;
 		}
 
-		qp->sq_msn_idx = kmalloc_array((u32)qp->sq.mask + 1,
-					       sizeof(*qp->sq_msn_idx),
-					       GFP_KERNEL);
+		qp->sq_msn_idx = kmalloc_objs(*qp->sq_msn_idx,
+					      (u32)qp->sq.mask + 1);
 		if (!qp->sq_msn_idx) {
 			rc = -ENOMEM;
 			goto err_sq_msn;

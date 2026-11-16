@@ -695,8 +695,7 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 		return ret;
 	}
 
-	front_info = devm_kzalloc(&xb_dev->dev,
-				  sizeof(*front_info), GFP_KERNEL);
+	front_info = devm_kzalloc_obj(&xb_dev->dev, *front_info);
 	if (!front_info)
 		return -ENOMEM;
 

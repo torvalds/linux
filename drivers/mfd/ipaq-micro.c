@@ -381,7 +381,7 @@ static int __init micro_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	micro = devm_kzalloc(&pdev->dev, sizeof(*micro), GFP_KERNEL);
+	micro = devm_kzalloc_obj(&pdev->dev, *micro);
 	if (!micro)
 		return -ENOMEM;
 

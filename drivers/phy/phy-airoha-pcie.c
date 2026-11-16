@@ -1218,7 +1218,7 @@ static int airoha_pcie_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct phy_provider *provider;
 
-	pcie_phy = devm_kzalloc(dev, sizeof(*pcie_phy), GFP_KERNEL);
+	pcie_phy = devm_kzalloc_obj(dev, *pcie_phy);
 	if (!pcie_phy)
 		return -ENOMEM;
 

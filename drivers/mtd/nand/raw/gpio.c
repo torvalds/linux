@@ -214,7 +214,7 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 				       "gpio-control-nand,io-sync-reg", &addr))
 		return NULL;
 
-	r = devm_kzalloc(&pdev->dev, sizeof(*r), GFP_KERNEL);
+	r = devm_kzalloc_obj(&pdev->dev, *r);
 	if (!r)
 		return NULL;
 
@@ -294,7 +294,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (!dev->of_node && !dev_get_platdata(dev))
 		return -EINVAL;
 
-	gpiomtd = devm_kzalloc(dev, sizeof(*gpiomtd), GFP_KERNEL);
+	gpiomtd = devm_kzalloc_obj(dev, *gpiomtd);
 	if (!gpiomtd)
 		return -ENOMEM;
 

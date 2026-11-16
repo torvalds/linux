@@ -1085,7 +1085,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 	h_adj = omap_dmm->container_height / ydiv;
 	w_adj = omap_dmm->container_width / xdiv;
 
-	map = kmalloc_array(h_adj, sizeof(*map), GFP_KERNEL);
+	map = kmalloc_objs(*map, h_adj);
 	global_map = kmalloc_array(w_adj + 1, h_adj, GFP_KERNEL);
 
 	if (!map || !global_map)

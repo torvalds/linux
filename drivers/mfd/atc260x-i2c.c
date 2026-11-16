@@ -18,7 +18,7 @@ static int atc260x_i2c_probe(struct i2c_client *client)
 	struct regmap_config regmap_cfg;
 	int ret;
 
-	atc260x = devm_kzalloc(&client->dev, sizeof(*atc260x), GFP_KERNEL);
+	atc260x = devm_kzalloc_obj(&client->dev, *atc260x);
 	if (!atc260x)
 		return -ENOMEM;
 

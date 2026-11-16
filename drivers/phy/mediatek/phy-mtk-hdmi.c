@@ -112,7 +112,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	int ret;
 
-	hdmi_phy = devm_kzalloc(dev, sizeof(*hdmi_phy), GFP_KERNEL);
+	hdmi_phy = devm_kzalloc_obj(dev, *hdmi_phy);
 	if (!hdmi_phy)
 		return -ENOMEM;
 

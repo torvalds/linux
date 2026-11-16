@@ -417,7 +417,7 @@ static int eeprom_93xx46_probe_fw(struct device *dev)
 	u32 tmp;
 	int ret;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -472,7 +472,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	edev = devm_kzalloc(&spi->dev, sizeof(*edev), GFP_KERNEL);
+	edev = devm_kzalloc_obj(&spi->dev, *edev);
 	if (!edev)
 		return -ENOMEM;
 

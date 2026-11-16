@@ -1411,7 +1411,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	int irq;
 	u8 i;
 
-	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
+	dmac = devm_kzalloc_obj(&pdev->dev, *dmac);
 	if (!dmac)
 		return -ENOMEM;
 
@@ -1423,8 +1423,8 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
-				      sizeof(*dmac->channels), GFP_KERNEL);
+	dmac->channels = devm_kzalloc_objs(&pdev->dev, *dmac->channels,
+					   dmac->n_channels);
 	if (!dmac->channels)
 		return -ENOMEM;
 

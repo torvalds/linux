@@ -351,7 +351,7 @@ static int mpfs_tvs_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	struct mpfs_tvs *data;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

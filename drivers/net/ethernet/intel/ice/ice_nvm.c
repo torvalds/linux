@@ -805,7 +805,7 @@ ice_get_netlist_info(struct ice_hw *hw, enum ice_bank_select bank,
 		return status;
 	node_count &= ICE_LINK_TOPO_NODE_COUNT_M;
 
-	id_blk = kcalloc(ICE_NETLIST_ID_BLK_SIZE, sizeof(*id_blk), GFP_KERNEL);
+	id_blk = kzalloc_objs(*id_blk, ICE_NETLIST_ID_BLK_SIZE);
 	if (!id_blk)
 		return -ENOMEM;
 

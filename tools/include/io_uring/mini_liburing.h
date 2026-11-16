@@ -3,6 +3,7 @@
 #include <linux/io_uring.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -269,7 +270,7 @@ static inline void io_uring_prep_cmd(struct io_uring_sqe *sqe, int op,
 
 	sqe->level = level;
 	sqe->optname = optname;
-	sqe->optval = (unsigned long long)optval;
+	sqe->optval = (unsigned long long)(uintptr_t)optval;
 	sqe->optlen = optlen;
 }
 

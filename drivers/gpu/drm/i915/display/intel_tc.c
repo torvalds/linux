@@ -1669,7 +1669,7 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 
 	mutex_lock(&tc->lock);
 
-	drm_WARN_ON(display->drm, tc->link_refcount != 1);
+	drm_WARN_ON(display->drm, tc->link_refcount < 1);
 	if (!tc_port_has_active_streams(tc, crtc_state)) {
 		/*
 		 * TBT-alt is the default mode in any case the PHY ownership is not
@@ -1683,7 +1683,12 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
 				    tc->port_name,
 				    tc_port_mode_name(tc->init_mode));
-		tc_phy_disconnect(tc);
+		/*
+		 * A link reference taken during a preceding (eDP) connector initialization will be
+		 * dropped later, also disconnecting the PHY.
+		 */
+		if (tc->link_refcount == 1)
+			tc_phy_disconnect(tc);
 		__intel_tc_port_put_link(tc);
 	}
 

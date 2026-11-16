@@ -533,7 +533,7 @@ static int rpm_clk_probe(struct platform_device *pdev)
 	rpm_clks = desc->clks;
 	num_clks = desc->num_clks;
 
-	rcc = devm_kzalloc(&pdev->dev, sizeof(*rcc), GFP_KERNEL);
+	rcc = devm_kzalloc_obj(&pdev->dev, *rcc);
 	if (!rcc)
 		return -ENOMEM;
 

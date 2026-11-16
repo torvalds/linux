@@ -240,8 +240,9 @@ static int validate_external_listmount(pid_t pid, uint64_t child_nr_mounts)
 	}
 
 	if (nr_mounts != child_nr_mounts) {
-		ksft_print_msg("listmount results is %zi != %zi\n", nr_mounts,
-			       child_nr_mounts);
+		ksft_print_msg("listmount results is %llu != %llu\n",
+			       (unsigned long long)nr_mounts,
+			       (unsigned long long)child_nr_mounts);
 		return NSID_FAIL;
 	}
 

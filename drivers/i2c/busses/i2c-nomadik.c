@@ -1099,7 +1099,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	if (match)
 		match_flags = (unsigned long)match->data;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

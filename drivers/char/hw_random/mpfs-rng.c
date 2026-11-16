@@ -67,7 +67,7 @@ static int mpfs_rng_probe(struct platform_device *pdev)
 	struct mpfs_rng *rng_priv;
 	int ret;
 
-	rng_priv = devm_kzalloc(dev, sizeof(*rng_priv), GFP_KERNEL);
+	rng_priv = devm_kzalloc_obj(dev, *rng_priv);
 	if (!rng_priv)
 		return -ENOMEM;
 

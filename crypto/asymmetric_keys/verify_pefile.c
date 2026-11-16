@@ -272,7 +272,7 @@ static int pefile_digest_pe_contents(const void *pebuf, unsigned int pelen,
 	if (ret < 0)
 		return ret;
 
-	canon = kcalloc(ctx->n_sections, sizeof(unsigned), GFP_KERNEL);
+	canon = kzalloc_objs(unsigned, ctx->n_sections);
 	if (!canon)
 		return -ENOMEM;
 

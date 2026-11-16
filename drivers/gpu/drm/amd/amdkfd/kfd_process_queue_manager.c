@@ -227,7 +227,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 										     pqm->process);
 			if (pdd) {
 				kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
-				kfd_queue_release_buffers(pdd, &pqn->q->properties);
+				kfd_queue_release_buffers(pdd, &pqn->q->properties, false);
 			} else {
 				WARN_ON(!pdd);
 			}
@@ -303,7 +303,8 @@ static int init_user_queue(struct process_queue_manager *pqm,
 		}
 
 		retval = amdgpu_amdkfd_map_gtt_bo_to_gart(q_properties->wptr_bo,
-							  &(*q)->wptr_bo_gart);
+							  &(*q)->wptr_bo_gart,
+							  pqm->process->kgd_process_info);
 		if (retval) {
 			pr_err("Failed to map wptr bo to GART\n");
 			goto free_gang_ctx_bo;
@@ -571,7 +572,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 				goto err_destroy_queue;
 		}
 		kfd_procfs_del_queue(pqn->q);
-		kfd_queue_release_buffers(pdd, &pqn->q->properties);
+		kfd_queue_release_buffers(pdd, &pqn->q->properties, false);
 		pqm_clean_queue_resource(pqm, pqn);
 		uninit_queue(pqn->q);
 	}
@@ -1094,9 +1095,17 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	print_queue_properties(&qp);
 
+	ret = kfd_queue_acquire_buffers(pdd, &qp, true);
+	if (ret) {
+		pr_err("Failed to acquire user queue buffers err:%d\n", ret);
+		goto exit;
+	}
+
 	ret = pqm_create_queue(&p->pqm, pdd->dev, &qp, &queue_id, q_data, mqd, ctl_stack, NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);
+		kfd_queue_unref_bo_vas(pdd, &qp);
+		kfd_queue_release_buffers(pdd, &qp, true);
 		goto exit;
 	}
 
@@ -1113,6 +1122,38 @@ exit:
 	kfree(q_extra_data);
 
 	return ret;
+}
+
+int kfd_criu_resume_queues(struct kfd_process *p)
+{
+	int ret, i;
+	u64 total_cwsr_size;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+		struct kfd_topology_device *topo_dev;
+		struct queue *q;
+
+		topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+
+		list_for_each_entry(q, &pdd->qpd.queues_list, list) {
+			total_cwsr_size = q->properties.ctx_save_restore_area_size +
+					  topo_dev->node_props.debug_memory_size;
+			if (check_mul_overflow(total_cwsr_size,
+					       NUM_XCC(pdd->dev->xcc_mask),
+					       &total_cwsr_size))
+				return -EINVAL;
+			total_cwsr_size = ALIGN(total_cwsr_size, PAGE_SIZE);
+
+			ret = kfd_queue_buffer_svm_get(pdd, q->properties.ctx_save_restore_area_address,
+						       total_cwsr_size);
+			if (ret)
+				return ret;
+		}
+
+	}
+
+	return 0;
 }
 
 int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,

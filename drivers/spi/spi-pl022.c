@@ -1839,7 +1839,7 @@ pl022_platform_data_dt_get(struct device *dev)
 		return NULL;
 	}
 
-	pd = devm_kzalloc(dev, sizeof(struct pl022_ssp_controller), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, struct pl022_ssp_controller);
 	if (!pd)
 		return NULL;
 

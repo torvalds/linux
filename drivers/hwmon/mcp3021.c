@@ -126,8 +126,7 @@ static int mcp3021_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mcp3021_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mcp3021_data);
 	if (!data)
 		return -ENOMEM;
 

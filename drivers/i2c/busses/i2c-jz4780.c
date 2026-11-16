@@ -766,7 +766,7 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	unsigned short tmp;
 	struct jz4780_i2c *i2c;
 
-	i2c = devm_kzalloc(&pdev->dev, sizeof(struct jz4780_i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(&pdev->dev, struct jz4780_i2c);
 	if (!i2c)
 		return -ENOMEM;
 

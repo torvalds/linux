@@ -713,8 +713,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 	u32 regulator_num;
 	u32 sw_check_start, sw_check_end, sw_hi = 0x40;
 
-	pfuze_chip = devm_kzalloc(&client->dev, sizeof(*pfuze_chip),
-			GFP_KERNEL);
+	pfuze_chip = devm_kzalloc_obj(&client->dev, *pfuze_chip);
 	if (!pfuze_chip)
 		return -ENOMEM;
 

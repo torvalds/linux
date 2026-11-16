@@ -26,7 +26,7 @@ static int wm8731_spi_probe(struct spi_device *spi)
 	struct wm8731_priv *wm8731;
 	int ret;
 
-	wm8731 = devm_kzalloc(&spi->dev, sizeof(*wm8731), GFP_KERNEL);
+	wm8731 = devm_kzalloc_obj(&spi->dev, *wm8731);
 	if (wm8731 == NULL)
 		return -ENOMEM;
 

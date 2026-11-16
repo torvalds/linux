@@ -164,7 +164,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	struct meson_wdt_dev *meson_wdt;
 	int err;
 
-	meson_wdt = devm_kzalloc(dev, sizeof(*meson_wdt), GFP_KERNEL);
+	meson_wdt = devm_kzalloc_obj(dev, *meson_wdt);
 	if (!meson_wdt)
 		return -ENOMEM;
 

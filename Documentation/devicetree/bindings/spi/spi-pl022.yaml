@@ -71,6 +71,9 @@ properties:
       - const: rx
       - const: tx
 
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 1
 

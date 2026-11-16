@@ -181,8 +181,7 @@ static int ak7375_probe(struct i2c_client *client)
 	int ret;
 	unsigned int i;
 
-	ak7375_dev = devm_kzalloc(&client->dev, sizeof(*ak7375_dev),
-				  GFP_KERNEL);
+	ak7375_dev = devm_kzalloc_obj(&client->dev, *ak7375_dev);
 	if (!ak7375_dev)
 		return -ENOMEM;
 

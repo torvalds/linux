@@ -101,7 +101,7 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 	if (IS_ERR(reset_ops))
 		return PTR_ERR(reset_ops);
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

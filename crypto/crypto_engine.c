@@ -439,7 +439,7 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 	if (!dev)
 		return NULL;
 
-	engine = devm_kzalloc(dev, sizeof(*engine), GFP_KERNEL);
+	engine = devm_kzalloc_obj(dev, *engine);
 	if (!engine)
 		return NULL;
 

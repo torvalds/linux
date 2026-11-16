@@ -248,7 +248,7 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	 * hardware device here, so that userspace can see the association
 	 * between the HDMI hardware and its associated CEC chardev.
 	 */
-	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
+	cec = devm_kzalloc_obj(&pdev->dev, *cec);
 	if (!cec)
 		return -ENOMEM;
 

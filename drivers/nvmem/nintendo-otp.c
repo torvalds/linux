@@ -85,7 +85,7 @@ static int nintendo_otp_probe(struct platform_device *pdev)
 		.root_only = true,
 	};
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -297,8 +297,7 @@ static u32 *tidss_oldi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	if (i == ARRAY_SIZE(oldi_bus_formats))
 		return NULL;
 
-	input_fmts = kcalloc(MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
-			     GFP_KERNEL);
+	input_fmts = kzalloc_objs(*input_fmts, MAX_INPUT_SEL_FORMATS);
 	if (!input_fmts)
 		return NULL;
 

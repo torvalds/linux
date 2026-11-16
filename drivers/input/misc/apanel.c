@@ -127,7 +127,7 @@ static int apanel_probe(struct i2c_client *client)
 	u8 cmd = device_chip[APANEL_DEV_APPBTN] == CHIP_OZ992C ? 0 : 8;
 	int i, err;
 
-	ap = devm_kzalloc(&client->dev, sizeof(*ap), GFP_KERNEL);
+	ap = devm_kzalloc_obj(&client->dev, *ap);
 	if (!ap)
 		return -ENOMEM;
 

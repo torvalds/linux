@@ -486,7 +486,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 	for (i = 0; i < npages; ++i)
 		eq->page_list[i].buf = NULL;
 
-	dma_list = kmalloc_array(npages, sizeof(*dma_list), GFP_KERNEL);
+	dma_list = kmalloc_objs(*dma_list, npages);
 	if (!dma_list)
 		goto err_out_free;
 

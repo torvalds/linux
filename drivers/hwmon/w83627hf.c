@@ -1686,7 +1686,7 @@ static int w83627hf_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	data = devm_kzalloc(dev, sizeof(struct w83627hf_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct w83627hf_data);
 	if (!data)
 		return -ENOMEM;
 

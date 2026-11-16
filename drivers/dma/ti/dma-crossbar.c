@@ -144,7 +144,7 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	xbar = devm_kzalloc(&pdev->dev, sizeof(*xbar), GFP_KERNEL);
+	xbar = devm_kzalloc_obj(&pdev->dev, *xbar);
 	if (!xbar)
 		return -ENOMEM;
 
@@ -340,7 +340,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	xbar = devm_kzalloc(&pdev->dev, sizeof(*xbar), GFP_KERNEL);
+	xbar = devm_kzalloc_obj(&pdev->dev, *xbar);
 	if (!xbar)
 		return -ENOMEM;
 
@@ -366,9 +366,8 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	}
 	of_node_put(dma_node);
 
-	xbar->dma_inuse = devm_kcalloc(&pdev->dev,
-				       BITS_TO_LONGS(xbar->dma_requests),
-				       sizeof(unsigned long), GFP_KERNEL);
+	xbar->dma_inuse = devm_kzalloc_objs(&pdev->dev, unsigned long,
+					    BITS_TO_LONGS(xbar->dma_requests));
 	if (!xbar->dma_inuse)
 		return -ENOMEM;
 

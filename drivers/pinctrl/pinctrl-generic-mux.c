@@ -72,11 +72,11 @@ static int mux_pinctrl_probe_dt(struct pinctrl_dev *pctldev,
 		const char **group_names;
 		int ret;
 
-		function = devm_kzalloc(dev, sizeof(*function), GFP_KERNEL);
+		function = devm_kzalloc_obj(dev, *function);
 		if (!function)
 			return -ENOMEM;
 
-		group_names = devm_kcalloc(dev, 1, sizeof(*group_names), GFP_KERNEL);
+		group_names = devm_kzalloc_objs(dev, *group_names, 1);
 		if (!group_names)
 			return -ENOMEM;
 
@@ -163,7 +163,7 @@ static int mux_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	int ret;
 
-	mpctl = devm_kzalloc(dev, sizeof(*mpctl), GFP_KERNEL);
+	mpctl = devm_kzalloc_obj(dev, *mpctl);
 	if (!mpctl)
 		return -ENOMEM;
 
@@ -171,7 +171,7 @@ static int mux_pinctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mpctl);
 
-	pctl_desc = devm_kzalloc(dev, sizeof(*pctl_desc), GFP_KERNEL);
+	pctl_desc = devm_kzalloc_obj(dev, *pctl_desc);
 	if (!pctl_desc)
 		return -ENOMEM;
 

@@ -613,8 +613,8 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 	}
 done:
 	npins = bitmap_weight(used_pins, zynqmp_desc.npins);
-	fgroups = devm_kcalloc(dev, size_add(func->ngroups, npins),
-			       sizeof(*fgroups), GFP_KERNEL);
+	fgroups = devm_kzalloc_objs(dev, *fgroups,
+				    size_add(func->ngroups, npins));
 	if (!fgroups)
 		return -ENOMEM;
 
@@ -790,7 +790,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 	if (ret)
 		return ret;
 
-	funcs = devm_kcalloc(dev, pctrl->nfuncs, sizeof(*funcs), GFP_KERNEL);
+	funcs = devm_kzalloc_objs(dev, *funcs, pctrl->nfuncs);
 	if (!funcs)
 		return -ENOMEM;
 
@@ -804,7 +804,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 		pctrl->ngroups += funcs[i].ngroups;
 	}
 
-	groups = devm_kcalloc(dev, pctrl->ngroups, sizeof(*groups), GFP_KERNEL);
+	groups = devm_kzalloc_objs(dev, *groups, pctrl->ngroups);
 	if (!groups)
 		return -ENOMEM;
 
@@ -866,7 +866,7 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 	if (ret)
 		return ret;
 
-	pins = devm_kcalloc(dev, *npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, *npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -918,7 +918,7 @@ static int versal_pinctrl_prepare_pin_desc(struct device *dev,
 	if (ret)
 		return ret;
 
-	pins = devm_kcalloc(dev, *npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, *npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -953,7 +953,7 @@ static int zynqmp_pinctrl_probe(struct platform_device *pdev)
 	struct zynqmp_pinctrl *pctrl;
 	int ret;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -165,7 +165,7 @@ static int max77541_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct max77541 *max77541;
 
-	max77541 = devm_kzalloc(dev, sizeof(*max77541), GFP_KERNEL);
+	max77541 = devm_kzalloc_obj(dev, *max77541);
 	if (!max77541)
 		return -ENOMEM;
 

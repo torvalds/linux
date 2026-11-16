@@ -299,10 +299,8 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 	row_shift = get_count_order(num_cols);
 
-	keypad = devm_kzalloc(&pdev->dev,
-			      struct_size(keypad, keycodes,
-					  num_rows << row_shift),
-			      GFP_KERNEL);
+	keypad = devm_kzalloc_flex(&pdev->dev, *keypad, keycodes,
+				   num_rows << row_shift);
 	if (!keypad)
 		return -ENOMEM;
 

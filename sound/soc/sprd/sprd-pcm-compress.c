@@ -341,7 +341,7 @@ static int sprd_platform_compr_open(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	stream = devm_kzalloc(dev, sizeof(*stream), GFP_KERNEL);
+	stream = devm_kzalloc_obj(dev, *stream);
 	if (!stream)
 		return -ENOMEM;
 

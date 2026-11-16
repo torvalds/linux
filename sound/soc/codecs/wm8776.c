@@ -475,8 +475,7 @@ static int wm8776_spi_probe(struct spi_device *spi)
 	struct wm8776_priv *wm8776;
 	int ret;
 
-	wm8776 = devm_kzalloc(&spi->dev, sizeof(struct wm8776_priv),
-			      GFP_KERNEL);
+	wm8776 = devm_kzalloc_obj(&spi->dev, struct wm8776_priv);
 	if (wm8776 == NULL)
 		return -ENOMEM;
 
@@ -507,8 +506,7 @@ static int wm8776_i2c_probe(struct i2c_client *i2c)
 	struct wm8776_priv *wm8776;
 	int ret;
 
-	wm8776 = devm_kzalloc(&i2c->dev, sizeof(struct wm8776_priv),
-			      GFP_KERNEL);
+	wm8776 = devm_kzalloc_obj(&i2c->dev, struct wm8776_priv);
 	if (wm8776 == NULL)
 		return -ENOMEM;
 

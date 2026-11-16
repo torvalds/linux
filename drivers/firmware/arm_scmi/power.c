@@ -331,7 +331,7 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Power Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc_obj(ph->dev, *pinfo);
 	if (!pinfo)
 		return -ENOMEM;
 
@@ -339,8 +339,8 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	pinfo->dom_info = devm_kcalloc(ph->dev, pinfo->num_domains,
-				       sizeof(*pinfo->dom_info), GFP_KERNEL);
+	pinfo->dom_info = devm_kzalloc_objs(ph->dev, *pinfo->dom_info,
+					    pinfo->num_domains);
 	if (!pinfo->dom_info)
 		return -ENOMEM;
 

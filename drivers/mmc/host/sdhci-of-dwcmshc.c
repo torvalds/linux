@@ -926,7 +926,7 @@ static int dwcmshc_rk35xx_init(struct device *dev, struct sdhci_host *host,
 	struct rk35xx_priv *priv;
 	int err;
 
-	priv = devm_kzalloc(dev, sizeof(struct rk35xx_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct rk35xx_priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1783,7 +1783,7 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 	struct regmap *hsp_regmap;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct eic7700_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct eic7700_priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1967,7 +1967,7 @@ static int dwcmshc_k230_init(struct device *dev, struct sdhci_host *host,
 	u32 data;
 	int ret;
 
-	k230_priv = devm_kzalloc(dev, sizeof(struct k230_priv), GFP_KERNEL);
+	k230_priv = devm_kzalloc_obj(dev, struct k230_priv);
 	if (!k230_priv)
 		return -ENOMEM;
 
@@ -2288,7 +2288,7 @@ static void dwcmshc_cqhci_init(struct sdhci_host *host, struct platform_device *
 	int err;
 
 	host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
-	cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(&pdev->dev, *cq_host);
 	if (!cq_host) {
 		dev_err(mmc_dev(host->mmc), "Unable to setup CQE: not enough memory\n");
 		goto dsbl_cqe_caps;

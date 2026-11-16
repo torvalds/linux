@@ -121,8 +121,7 @@ static int madera_gpio_probe(struct platform_device *pdev)
 	struct madera_gpio *madera_gpio;
 	int ret;
 
-	madera_gpio = devm_kzalloc(&pdev->dev, sizeof(*madera_gpio),
-				   GFP_KERNEL);
+	madera_gpio = devm_kzalloc_obj(&pdev->dev, *madera_gpio);
 	if (!madera_gpio)
 		return -ENOMEM;
 

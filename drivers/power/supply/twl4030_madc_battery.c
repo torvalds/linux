@@ -187,8 +187,7 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 	struct twl4030_madc_bat_platform_data *pdata = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 
-	twl4030_madc_bat = devm_kzalloc(&pdev->dev, sizeof(*twl4030_madc_bat),
-				GFP_KERNEL);
+	twl4030_madc_bat = devm_kzalloc_obj(&pdev->dev, *twl4030_madc_bat);
 	if (!twl4030_madc_bat)
 		return -ENOMEM;
 

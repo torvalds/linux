@@ -2194,8 +2194,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 
 	/* Allocate vop struct and its vop_win array */
-	vop = devm_kzalloc(dev, struct_size(vop, win, vop_data->win_size),
-			   GFP_KERNEL);
+	vop = devm_kzalloc_flex(dev, *vop, win, vop_data->win_size);
 	if (!vop)
 		return -ENOMEM;
 

@@ -19,7 +19,7 @@ struct nbl_adapter *nbl_core_init(struct pci_dev *pdev,
 	struct nbl_adapter *adapter;
 	int ret;
 
-	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
+	adapter = devm_kzalloc_obj(&pdev->dev, *adapter);
 	if (!adapter)
 		return ERR_PTR(-ENOMEM);
 

@@ -943,8 +943,7 @@ static int rv3028_probe(struct i2c_client *client)
 		.reg_write = rv3028_eeprom_write,
 	};
 
-	rv3028 = devm_kzalloc(&client->dev, sizeof(struct rv3028_data),
-			      GFP_KERNEL);
+	rv3028 = devm_kzalloc_obj(&client->dev, struct rv3028_data);
 	if (!rv3028)
 		return -ENOMEM;
 

@@ -504,7 +504,7 @@ static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 	struct adf4350_platform_data *pdata;
 	unsigned int tmp;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 

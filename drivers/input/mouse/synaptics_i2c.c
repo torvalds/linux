@@ -519,7 +519,7 @@ static int synaptics_i2c_probe(struct i2c_client *client)
 	struct synaptics_i2c *touch;
 	int error;
 
-	touch = devm_kzalloc(dev, sizeof(*touch), GFP_KERNEL);
+	touch = devm_kzalloc_obj(dev, *touch);
 	if (!touch)
 		return -ENOMEM;
 

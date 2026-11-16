@@ -417,7 +417,7 @@ static int si570_probe(struct i2c_client *client)
 	bool skip_recall;
 	int err;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

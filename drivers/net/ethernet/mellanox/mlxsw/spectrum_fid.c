@@ -2311,8 +2311,7 @@ mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_vni_init;
 
-	fid_core->port_fid_mappings = kcalloc(max_ports, sizeof(unsigned int),
-					      GFP_KERNEL);
+	fid_core->port_fid_mappings = kzalloc_objs(unsigned int, max_ports);
 	if (!fid_core->port_fid_mappings) {
 		err = -ENOMEM;
 		goto err_alloc_port_fid_mappings;

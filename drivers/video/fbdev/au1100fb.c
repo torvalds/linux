@@ -732,7 +732,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	struct clk *c;
 
 	/* Allocate new device private */
-	fbdev = devm_kzalloc(&dev->dev, sizeof(*fbdev), GFP_KERNEL);
+	fbdev = devm_kzalloc_obj(&dev->dev, *fbdev);
 	if (!fbdev)
 		return -ENOMEM;
 

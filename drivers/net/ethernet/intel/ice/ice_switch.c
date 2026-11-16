@@ -1463,8 +1463,8 @@ int ice_init_def_sw_recp(struct ice_hw *hw)
 	struct ice_sw_recipe *recps;
 	u8 i;
 
-	recps = devm_kcalloc(ice_hw_to_dev(hw), ICE_MAX_NUM_RECIPES,
-			     sizeof(*recps), GFP_KERNEL);
+	recps = devm_kzalloc_objs(ice_hw_to_dev(hw), *recps,
+				  ICE_MAX_NUM_RECIPES);
 	if (!recps)
 		return -ENOMEM;
 
@@ -1771,8 +1771,7 @@ ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 	tmp_vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!tmp_vsi_ctx) {
 		/* Create a new VSI context */
-		tmp_vsi_ctx = devm_kzalloc(ice_hw_to_dev(hw),
-					   sizeof(*tmp_vsi_ctx), GFP_KERNEL);
+		tmp_vsi_ctx = devm_kzalloc_obj(ice_hw_to_dev(hw), *tmp_vsi_ctx);
 		if (!tmp_vsi_ctx) {
 			ice_aq_free_vsi(hw, vsi_ctx, false, cd);
 			return -ENOMEM;
@@ -2851,7 +2850,7 @@ ice_create_vsi_list_map(struct ice_hw *hw, u16 *vsi_handle_arr, u16 num_vsi,
 	struct ice_vsi_list_map_info *v_map;
 	int i;
 
-	v_map = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*v_map), GFP_KERNEL);
+	v_map = devm_kzalloc_obj(ice_hw_to_dev(hw), *v_map);
 	if (!v_map)
 		return NULL;
 
@@ -2981,8 +2980,7 @@ ice_create_pkt_fwd_rule(struct ice_hw *hw,
 			      GFP_KERNEL);
 	if (!s_rule)
 		return -ENOMEM;
-	fm_entry = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*fm_entry),
-				GFP_KERNEL);
+	fm_entry = devm_kzalloc_obj(ice_hw_to_dev(hw), *fm_entry);
 	if (!fm_entry) {
 		status = -ENOMEM;
 		goto ice_create_pkt_fwd_rule_exit;
@@ -4121,7 +4119,7 @@ ice_add_entry_to_vsi_fltr_list(struct ice_hw *hw, u16 vsi_handle,
 	/* this memory is freed up in the caller function
 	 * once filters for this VSI are removed
 	 */
-	tmp = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*tmp), GFP_KERNEL);
+	tmp = devm_kzalloc_obj(ice_hw_to_dev(hw), *tmp);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -6231,9 +6229,8 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 				 NULL);
 	if (status)
 		goto err_ice_add_adv_rule;
-	adv_fltr = devm_kzalloc(ice_hw_to_dev(hw),
-				sizeof(struct ice_adv_fltr_mgmt_list_entry),
-				GFP_KERNEL);
+	adv_fltr = devm_kzalloc_obj(ice_hw_to_dev(hw),
+				    struct ice_adv_fltr_mgmt_list_entry);
 	if (!adv_fltr) {
 		status = -ENOMEM;
 		goto err_ice_add_adv_rule;

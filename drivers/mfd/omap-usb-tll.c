@@ -230,7 +230,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		break;
 	}
 
-	tll = devm_kzalloc(dev, struct_size(tll, ch_clk, nch), GFP_KERNEL);
+	tll = devm_kzalloc_flex(dev, *tll, ch_clk, nch);
 	if (!tll) {
 		pm_runtime_put_sync(dev);
 		pm_runtime_disable(dev);

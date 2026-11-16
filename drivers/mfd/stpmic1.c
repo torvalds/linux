@@ -152,7 +152,7 @@ static int stpmic1_probe(struct i2c_client *i2c)
 	struct device_node *np = dev->of_node;
 	u32 reg;
 
-	ddata = devm_kzalloc(dev, sizeof(struct stpmic1), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, struct stpmic1);
 	if (!ddata)
 		return -ENOMEM;
 

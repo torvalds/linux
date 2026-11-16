@@ -634,7 +634,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	}
 	if (!pfn_dev)
 		return -ENOMEM;
-	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+	pfn_sb = devm_kmalloc_obj(dev, *pfn_sb);
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
@@ -728,7 +728,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	u64 checksum;
 	int rc;
 
-	pfn_sb = devm_kmalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
+	pfn_sb = devm_kmalloc_obj(&nd_pfn->dev, *pfn_sb);
 	if (!pfn_sb)
 		return -ENOMEM;
 

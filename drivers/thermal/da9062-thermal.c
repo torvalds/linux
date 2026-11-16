@@ -182,8 +182,7 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 		}
 	}
 
-	thermal = devm_kzalloc(&pdev->dev, sizeof(struct da9062_thermal),
-			       GFP_KERNEL);
+	thermal = devm_kzalloc_obj(&pdev->dev, struct da9062_thermal);
 	if (!thermal) {
 		ret = -ENOMEM;
 		goto err;

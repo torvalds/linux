@@ -284,8 +284,8 @@ static int rs9_probe(struct i2c_client *client)
 	if (!chip_info)
 		return -EINVAL;
 
-	rs9 = devm_kzalloc(&client->dev, struct_size(rs9, onecell.hws,
-			   chip_info->num_clks), GFP_KERNEL);
+	rs9 = devm_kzalloc_flex(&client->dev, *rs9, onecell.hws,
+				chip_info->num_clks);
 	if (!rs9)
 		return -ENOMEM;
 

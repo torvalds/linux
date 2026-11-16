@@ -58,7 +58,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

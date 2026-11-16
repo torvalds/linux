@@ -791,8 +791,8 @@ static int mpxy_mbox_populate_channels(struct mpxy_mbox *mbox)
 		return dev_err_probe(mbox->dev, rc, "failed to get MPXY channel IDs\n");
 
 	/* Populate all channels */
-	mbox->channels = devm_kcalloc(mbox->dev, mbox->channel_count,
-				      sizeof(*mbox->channels), GFP_KERNEL);
+	mbox->channels = devm_kzalloc_objs(mbox->dev, *mbox->channels,
+					   mbox->channel_count);
 	if (!mbox->channels)
 		return -ENOMEM;
 	for (i = 0; i < mbox->channel_count; i++) {
@@ -882,7 +882,7 @@ static int mpxy_mbox_probe(struct platform_device *pdev)
 	mpxy_shmem_init_done = true;
 
 	/* Allocate mailbox instance */
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 	mbox->dev = dev;
@@ -900,9 +900,8 @@ static int mpxy_mbox_probe(struct platform_device *pdev)
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = mbox->channel_count;
 	mbox->controller.fw_xlate = mpxy_mbox_fw_xlate;
-	mbox->controller.chans = devm_kcalloc(dev, mbox->channel_count,
-					      sizeof(*mbox->controller.chans),
-					      GFP_KERNEL);
+	mbox->controller.chans = devm_kzalloc_objs(dev, *mbox->controller.chans,
+						   mbox->channel_count);
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 	for (i = 0; i < mbox->channel_count; i++)
@@ -939,9 +938,9 @@ static int mpxy_mbox_probe(struct platform_device *pdev)
 				return -EPROBE_DEFER;
 		}
 
-		mbox->msi_index_to_channel = devm_kcalloc(dev, mbox->msi_count,
-							  sizeof(*mbox->msi_index_to_channel),
-							  GFP_KERNEL);
+		mbox->msi_index_to_channel = devm_kzalloc_objs(dev,
+							       *mbox->msi_index_to_channel,
+							       mbox->msi_count);
 		if (!mbox->msi_index_to_channel)
 			return -ENOMEM;
 

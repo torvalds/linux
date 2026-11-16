@@ -192,8 +192,7 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 	int err;
 
 	for (i = 0; i < led_pdata->counter; i++, data++) {
-		led_data = devm_kzalloc(&priv->pdev->dev, sizeof(*led_data),
-					GFP_KERNEL);
+		led_data = devm_kzalloc_obj(&priv->pdev->dev, *led_data);
 		if (!led_data)
 			return -ENOMEM;
 
@@ -264,7 +263,7 @@ static int mlxreg_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

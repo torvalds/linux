@@ -272,7 +272,7 @@ static int atcrtc_probe(struct platform_device *pdev)
 	unsigned int rtc_id;
 	int ret;
 
-	atcrtc_dev = devm_kzalloc(&pdev->dev, sizeof(*atcrtc_dev), GFP_KERNEL);
+	atcrtc_dev = devm_kzalloc_obj(&pdev->dev, *atcrtc_dev);
 	if (!atcrtc_dev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, atcrtc_dev);

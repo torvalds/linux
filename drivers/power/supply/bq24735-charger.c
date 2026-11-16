@@ -328,7 +328,7 @@ static struct bq24735_platform *bq24735_parse_dt_data(struct i2c_client *client)
 	u32 val;
 	int ret;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&client->dev, *pdata);
 	if (!pdata) {
 		dev_err(&client->dev,
 			"Memory alloc for bq24735 pdata failed\n");
@@ -360,7 +360,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 	struct power_supply_config psy_cfg = {};
 	char *name;
 
-	charger = devm_kzalloc(&client->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&client->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

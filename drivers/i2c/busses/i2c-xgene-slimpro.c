@@ -440,7 +440,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	struct mbox_client *cl;
 	int rc;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -196,7 +196,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	struct qce_device *qce;
 	int ret;
 
-	qce = devm_kzalloc(dev, sizeof(*qce), GFP_KERNEL);
+	qce = devm_kzalloc_obj(dev, *qce);
 	if (!qce)
 		return -ENOMEM;
 

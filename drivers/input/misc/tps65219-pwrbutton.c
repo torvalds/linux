@@ -52,7 +52,7 @@ static int tps65219_pb_probe(struct platform_device *pdev)
 	int push_irq;
 	int release_irq;
 
-	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
+	pwr = devm_kzalloc_obj(dev, *pwr);
 	if (!pwr)
 		return -ENOMEM;
 

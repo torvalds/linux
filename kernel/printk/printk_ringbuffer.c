@@ -1237,11 +1237,9 @@ static unsigned int space_used(struct prb_data_ring *data_ring,
 	if (BLK_DATALESS(blk_lpos))
 		return 0;
 
-	if (!is_blk_wrapped(data_ring, blk_lpos->begin, blk_lpos->next)) {
-		/* Data block does not wrap. */
-		return (DATA_INDEX(data_ring, blk_lpos->next) -
-			DATA_INDEX(data_ring, blk_lpos->begin));
-	}
+	/* Data block does not wrap. */
+	if (!is_blk_wrapped(data_ring, blk_lpos->begin, blk_lpos->next))
+		return blk_lpos->next - blk_lpos->begin;
 
 	/*
 	 * For wrapping data blocks, the trailing (wasted) space is

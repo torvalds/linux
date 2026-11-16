@@ -612,7 +612,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	unsigned long freq;
 	struct resource *res;
 
-	alg_data = devm_kzalloc(&pdev->dev, sizeof(*alg_data), GFP_KERNEL);
+	alg_data = devm_kzalloc_obj(&pdev->dev, *alg_data);
 	if (!alg_data)
 		return -ENOMEM;
 

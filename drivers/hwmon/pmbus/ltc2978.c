@@ -720,8 +720,7 @@ static int ltc2978_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct ltc2978_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct ltc2978_data);
 	if (!data)
 		return -ENOMEM;
 

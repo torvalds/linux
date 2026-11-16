@@ -3123,7 +3123,7 @@ i3c_master_add_i2c_boardinfo(struct i3c_master_controller *master,
 	struct device *dev = &master->dev;
 	int ret;
 
-	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
+	boardinfo = devm_kzalloc_obj(dev, *boardinfo);
 	if (!boardinfo)
 		return -ENOMEM;
 
@@ -3169,7 +3169,7 @@ i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 	enum i3c_addr_slot_status addrstatus;
 	u32 init_dyn_addr = 0, static_addr_method = 0;
 
-	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
+	boardinfo = devm_kzalloc_obj(dev, *boardinfo);
 	if (!boardinfo)
 		return -ENOMEM;
 

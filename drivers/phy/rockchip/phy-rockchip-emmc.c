@@ -364,7 +364,7 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(grf);
 	}
 
-	rk_phy = devm_kzalloc(dev, sizeof(*rk_phy), GFP_KERNEL);
+	rk_phy = devm_kzalloc_obj(dev, *rk_phy);
 	if (!rk_phy)
 		return -ENOMEM;
 

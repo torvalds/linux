@@ -276,7 +276,7 @@ static int ufs_versal2_init(struct ufs_hba *hba)
 	int ret;
 	u32 cal;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 

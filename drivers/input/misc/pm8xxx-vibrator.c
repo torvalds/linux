@@ -207,7 +207,7 @@ static int pm8xxx_vib_probe(struct platform_device *pdev)
 	unsigned int val, reg_base = 0;
 	const struct pm8xxx_regs *regs;
 
-	vib = devm_kzalloc(&pdev->dev, sizeof(*vib), GFP_KERNEL);
+	vib = devm_kzalloc_obj(&pdev->dev, *vib);
 	if (!vib)
 		return -ENOMEM;
 

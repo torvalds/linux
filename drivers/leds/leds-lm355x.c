@@ -414,8 +414,7 @@ static int lm355x_probe(struct i2c_client *client)
 		return -ENODATA;
 	}
 
-	chip = devm_kzalloc(&client->dev,
-			    sizeof(struct lm355x_chip_data), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, struct lm355x_chip_data);
 	if (!chip)
 		return -ENOMEM;
 

@@ -279,7 +279,7 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 	if (WARN_ON(port_num != 1))
 		return -ENODEV;
 
-	hisi_gpio = devm_kzalloc(dev, sizeof(*hisi_gpio), GFP_KERNEL);
+	hisi_gpio = devm_kzalloc_obj(dev, *hisi_gpio);
 	if (!hisi_gpio)
 		return -ENOMEM;
 

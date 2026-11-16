@@ -455,7 +455,7 @@ yt921x_led_setup(struct yt921x_priv *priv, int port,
 	}
 	polarity = force_high ? 1 : force_low ? -1 : 0;
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led) {
 		res = -ENOMEM;
 		goto err;

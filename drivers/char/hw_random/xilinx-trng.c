@@ -291,7 +291,7 @@ static int xtrng_probe(struct platform_device *pdev)
 	struct xilinx_rng *rng;
 	int ret;
 
-	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
+	rng = devm_kzalloc_obj(&pdev->dev, *rng);
 	if (!rng)
 		return -ENOMEM;
 

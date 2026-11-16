@@ -181,7 +181,7 @@ static struct icc_node *imx_icc_node_add(struct imx_icc_provider *imx_provider,
 		return ERR_PTR(-EEXIST);
 	}
 
-	node_data = devm_kzalloc(dev, sizeof(*node_data), GFP_KERNEL);
+	node_data = devm_kzalloc_obj(dev, *node_data);
 	if (!node_data) {
 		icc_node_destroy(node->id);
 		return ERR_PTR(-ENOMEM);
@@ -279,13 +279,12 @@ int imx_icc_register(struct platform_device *pdev,
 
 	/* icc_onecell_data is indexed by node_id, unlike nodes param */
 	num_nodes = get_max_node_id(nodes, nodes_count) + 1;
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
-			    GFP_KERNEL);
+	data = devm_kzalloc_flex(dev, *data, nodes, num_nodes);
 	if (!data)
 		return -ENOMEM;
 	data->num_nodes = num_nodes;
 
-	imx_provider = devm_kzalloc(dev, sizeof(*imx_provider), GFP_KERNEL);
+	imx_provider = devm_kzalloc_obj(dev, *imx_provider);
 	if (!imx_provider)
 		return -ENOMEM;
 	provider = &imx_provider->provider;

@@ -116,7 +116,7 @@ static int qcom_usb_vbus_regulator_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	rdesc = devm_kzalloc(dev, sizeof(*rdesc), GFP_KERNEL);
+	rdesc = devm_kzalloc_obj(dev, *rdesc);
 	if (!rdesc)
 		return -ENOMEM;
 

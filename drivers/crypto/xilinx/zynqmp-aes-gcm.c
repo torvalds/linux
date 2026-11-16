@@ -928,7 +928,7 @@ static int xilinx_aes_aead_probe(struct platform_device *pdev)
 	if (aead_dev)
 		return -ENODEV;
 
-	aead_dev = devm_kzalloc(dev, sizeof(*aead_dev), GFP_KERNEL);
+	aead_dev = devm_kzalloc_obj(dev, *aead_dev);
 	if (!aead_dev)
 		return -ENOMEM;
 	aead_dev->dev = dev;

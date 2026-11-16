@@ -308,7 +308,7 @@ static int mv88e6060_probe(struct mdio_device *mdiodev)
 	struct dsa_switch *ds;
 	const char *name;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -321,7 +321,7 @@ static int mv88e6060_probe(struct mdio_device *mdiodev)
 
 	dev_info(dev, "switch %s detected\n", name);
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 

@@ -527,7 +527,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	if (pcie->msi)
 		return -EBUSY;
 
-	msi = devm_kzalloc(pcie->dev, sizeof(*msi), GFP_KERNEL);
+	msi = devm_kzalloc_obj(pcie->dev, *msi);
 	if (!msi)
 		return -ENOMEM;
 
@@ -589,8 +589,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	if (!msi->bitmap)
 		return -ENOMEM;
 
-	msi->grps = devm_kcalloc(pcie->dev, msi->nr_irqs, sizeof(*msi->grps),
-				 GFP_KERNEL);
+	msi->grps = devm_kzalloc_objs(pcie->dev, *msi->grps, msi->nr_irqs);
 	if (!msi->grps)
 		return -ENOMEM;
 

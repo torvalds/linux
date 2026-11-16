@@ -273,14 +273,11 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	 * DFS for AP806 is controlled per cluster (2 CPUs per cluster),
 	 * so allocate structs per cluster
 	 */
-	ap_cpu_clk = devm_kcalloc(dev, nclusters, sizeof(*ap_cpu_clk),
-				  GFP_KERNEL);
+	ap_cpu_clk = devm_kzalloc_objs(dev, *ap_cpu_clk, nclusters);
 	if (!ap_cpu_clk)
 		return -ENOMEM;
 
-	ap_cpu_data = devm_kzalloc(dev, struct_size(ap_cpu_data, hws,
-						    nclusters),
-				GFP_KERNEL);
+	ap_cpu_data = devm_kzalloc_flex(dev, *ap_cpu_data, hws, nclusters);
 	if (!ap_cpu_data)
 		return -ENOMEM;
 

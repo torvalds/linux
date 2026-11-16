@@ -347,7 +347,7 @@ static int max3191x_probe(struct spi_device *spi)
 	struct max3191x_chip *max3191x;
 	int n, ret;
 
-	max3191x = devm_kzalloc(dev, sizeof(*max3191x), GFP_KERNEL);
+	max3191x = devm_kzalloc_obj(dev, *max3191x);
 	if (!max3191x)
 		return -ENOMEM;
 	spi_set_drvdata(spi, max3191x);

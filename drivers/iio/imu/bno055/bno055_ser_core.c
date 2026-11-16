@@ -502,7 +502,7 @@ static int bno055_ser_probe(struct serdev_device *serdev)
 	struct regmap *regmap;
 	int ret;
 
-	priv = devm_kzalloc(&serdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&serdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

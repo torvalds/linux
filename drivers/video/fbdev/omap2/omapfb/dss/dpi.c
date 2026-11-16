@@ -778,7 +778,7 @@ static int dpi_bind(struct device *dev, struct device *master, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dpi_data *dpi;
 
-	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
+	dpi = devm_kzalloc_obj(&pdev->dev, *dpi);
 	if (!dpi)
 		return -ENOMEM;
 
@@ -841,7 +841,7 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	u32 datalines;
 	int r;
 
-	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
+	dpi = devm_kzalloc_obj(&pdev->dev, *dpi);
 	if (!dpi)
 		return -ENOMEM;
 

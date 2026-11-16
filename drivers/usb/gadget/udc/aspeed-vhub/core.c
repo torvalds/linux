@@ -306,7 +306,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	int i, rc = 0;
 	const struct device_node *np = pdev->dev.of_node;
 
-	vhub = devm_kzalloc(&pdev->dev, sizeof(*vhub), GFP_KERNEL);
+	vhub = devm_kzalloc_obj(&pdev->dev, *vhub);
 	if (!vhub)
 		return -ENOMEM;
 
@@ -315,8 +315,8 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	if (rc < 0)
 		vhub->max_ports = AST_VHUB_NUM_PORTS;
 
-	vhub->ports = devm_kcalloc(&pdev->dev, vhub->max_ports,
-				   sizeof(*vhub->ports), GFP_KERNEL);
+	vhub->ports = devm_kzalloc_objs(&pdev->dev, *vhub->ports,
+					vhub->max_ports);
 	if (!vhub->ports)
 		return -ENOMEM;
 
@@ -325,8 +325,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	if (rc < 0)
 		vhub->max_epns = AST_VHUB_NUM_GEN_EPs;
 
-	vhub->epns = devm_kcalloc(&pdev->dev, vhub->max_epns,
-				  sizeof(*vhub->epns), GFP_KERNEL);
+	vhub->epns = devm_kzalloc_objs(&pdev->dev, *vhub->epns, vhub->max_epns);
 	if (!vhub->epns)
 		return -ENOMEM;
 

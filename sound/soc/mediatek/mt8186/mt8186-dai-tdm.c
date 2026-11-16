@@ -599,8 +599,7 @@ static struct mtk_afe_tdm_priv *init_tdm_priv_data(struct mtk_base_afe *afe)
 {
 	struct mtk_afe_tdm_priv *tdm_priv;
 
-	tdm_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_afe_tdm_priv),
-				GFP_KERNEL);
+	tdm_priv = devm_kzalloc_obj(afe->dev, struct mtk_afe_tdm_priv);
 	if (!tdm_priv)
 		return NULL;
 
@@ -617,7 +616,7 @@ int mt8186_dai_tdm_register(struct mtk_base_afe *afe)
 	struct mtk_afe_tdm_priv *tdm_priv;
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

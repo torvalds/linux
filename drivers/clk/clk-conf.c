@@ -91,7 +91,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 	count_64 = of_property_count_u64_elems(node, "assigned-clock-rates-u64");
 	if (count_64 > 0) {
 		count = count_64;
-		rates_64 = kcalloc(count, sizeof(*rates_64), GFP_KERNEL);
+		rates_64 = kzalloc_objs(*rates_64, count);
 		if (!rates_64)
 			return -ENOMEM;
 
@@ -99,7 +99,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 						"assigned-clock-rates-u64",
 						rates_64, count);
 	} else if (count > 0) {
-		rates = kcalloc(count, sizeof(*rates), GFP_KERNEL);
+		rates = kzalloc_objs(*rates, count);
 		if (!rates)
 			return -ENOMEM;
 

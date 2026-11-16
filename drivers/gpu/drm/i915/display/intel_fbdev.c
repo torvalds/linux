@@ -75,9 +75,10 @@ static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
 	return ifbdev->fb->frontbuffer;
 }
 
-static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
+/* The console operation has already completed, hence flush not invalidate. */
+static void intel_fbdev_flush(struct intel_fbdev *ifbdev)
 {
-	intel_frontbuffer_invalidate(to_frontbuffer(ifbdev), ORIGIN_CPU);
+	intel_frontbuffer_flush(to_frontbuffer(ifbdev), ORIGIN_CPU);
 }
 
 FB_GEN_DEFAULT_DEFERRED_IOMEM_OPS(intel_fbdev,
@@ -91,7 +92,7 @@ static int intel_fbdev_set_par(struct fb_info *info)
 
 	ret = drm_fb_helper_set_par(info);
 	if (ret == 0)
-		intel_fbdev_invalidate(ifbdev);
+		intel_fbdev_flush(ifbdev);
 
 	return ret;
 }
@@ -103,7 +104,7 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 
 	ret = drm_fb_helper_blank(blank, info);
 	if (ret == 0)
-		intel_fbdev_invalidate(ifbdev);
+		intel_fbdev_flush(ifbdev);
 
 	return ret;
 }
@@ -116,7 +117,7 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 
 	ret = drm_fb_helper_pan_display(var, info);
 	if (ret == 0)
-		intel_fbdev_invalidate(ifbdev);
+		intel_fbdev_flush(ifbdev);
 
 	return ret;
 }
@@ -180,7 +181,7 @@ static void intelfb_restore(struct drm_fb_helper *fb_helper)
 {
 	struct intel_fbdev *ifbdev = to_intel_fbdev(fb_helper);
 
-	intel_fbdev_invalidate(ifbdev);
+	intel_fbdev_flush(ifbdev);
 }
 
 static void intelfb_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)

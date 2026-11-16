@@ -918,8 +918,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	 */
 	fbi->num_modes = 1;
 
-	fbi->mode = devm_kzalloc(&pdev->dev,
-			sizeof(struct imx_fb_videomode), GFP_KERNEL);
+	fbi->mode = devm_kzalloc_obj(&pdev->dev, struct imx_fb_videomode);
 	if (!fbi->mode) {
 		ret = -ENOMEM;
 		of_node_put(display_np);

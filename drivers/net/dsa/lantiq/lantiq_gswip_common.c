@@ -1688,7 +1688,7 @@ int gswip_probe_common(struct gswip_priv *priv, u32 version)
 
 	mutex_init(&priv->pce_table_lock);
 
-	priv->ds = devm_kzalloc(priv->dev, sizeof(*priv->ds), GFP_KERNEL);
+	priv->ds = devm_kzalloc_obj(priv->dev, *priv->ds);
 	if (!priv->ds)
 		return -ENOMEM;
 

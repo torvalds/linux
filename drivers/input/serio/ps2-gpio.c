@@ -404,7 +404,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	serio = kzalloc_obj(*serio);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;

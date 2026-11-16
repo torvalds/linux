@@ -300,8 +300,7 @@ static int da9034_touch_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int error;
 
-	touch = devm_kzalloc(&pdev->dev, sizeof(struct da9034_touch),
-			     GFP_KERNEL);
+	touch = devm_kzalloc_obj(&pdev->dev, struct da9034_touch);
 	if (!touch) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;

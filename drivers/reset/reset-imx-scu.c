@@ -61,7 +61,7 @@ static int imx_scu_reset_probe(struct platform_device *pdev)
 	struct imx_scu_reset *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

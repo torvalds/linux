@@ -335,7 +335,7 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	u32 val;
 
 	data = (struct cdns_salvo_data *)of_device_get_match_data(dev);
-	salvo_phy = devm_kzalloc(dev, sizeof(*salvo_phy), GFP_KERNEL);
+	salvo_phy = devm_kzalloc_obj(dev, *salvo_phy);
 	if (!salvo_phy)
 		return -ENOMEM;
 

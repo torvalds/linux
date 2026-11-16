@@ -371,7 +371,7 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 	size_t size;
 	int res;
 
-	cursor = devm_kzalloc(dev, sizeof(*cursor), GFP_KERNEL);
+	cursor = devm_kzalloc_obj(dev, *cursor);
 	if (!cursor) {
 		DRM_ERROR("Failed to allocate memory for cursor\n");
 		return NULL;

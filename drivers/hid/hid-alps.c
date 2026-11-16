@@ -788,7 +788,7 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct alps_dev *data = NULL;
 	int ret;
-	data = devm_kzalloc(&hdev->dev, sizeof(struct alps_dev), GFP_KERNEL);
+	data = devm_kzalloc_obj(&hdev->dev, struct alps_dev);
 	if (!data)
 		return -ENOMEM;
 

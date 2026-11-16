@@ -55,7 +55,7 @@ int sof_of_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "DT DSP detected");
 
-	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
+	sof_pdata = devm_kzalloc_obj(dev, *sof_pdata);
 	if (!sof_pdata)
 		return -ENOMEM;
 

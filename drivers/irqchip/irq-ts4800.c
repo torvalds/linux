@@ -109,7 +109,7 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 	struct ts4800_irq_data *data;
 	int parent_irq;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

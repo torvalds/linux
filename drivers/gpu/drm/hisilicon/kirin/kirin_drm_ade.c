@@ -850,7 +850,7 @@ static void *ade_hw_ctx_alloc(struct platform_device *pdev,
 	struct ade_hw_ctx *ctx = NULL;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx) {
 		DRM_ERROR("failed to alloc ade_hw_ctx\n");
 		return ERR_PTR(-ENOMEM);

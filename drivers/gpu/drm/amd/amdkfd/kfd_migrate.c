@@ -297,16 +297,26 @@ svm_migrate_copy_to_vram(struct kfd_node *node, struct svm_range *prange,
 	amdgpu_res_first(prange->ttm_res, ttm_res_offset,
 			 npages << PAGE_SHIFT, &cursor);
 	for (i = j = 0; (i < npages) && (mpages < migrate->cpages); i++) {
-		struct page *spage;
+		struct page *spage = migrate_pfn_to_page(migrate->src[i]);
 
 		if (migrate->src[i] & MIGRATE_PFN_MIGRATE) {
 			dst[i] = cursor.start + (j << PAGE_SHIFT);
 			migrate->dst[i] = svm_migrate_addr_to_pfn(adev, dst[i]);
-			svm_migrate_get_vram_page(prange, migrate->dst[i]);
-			migrate->dst[i] = migrate_pfn(migrate->dst[i]);
-			mpages++;
+			/*
+			 * A reused svm_bo page may still be held by a CPU fault.
+			 * Reinitializing it would free it under this migration,
+			 * so leave this page in system memory.
+			 */
+			if (page_ref_count(pfn_to_page(migrate->dst[i]))) {
+				dst[i] = 0;
+				migrate->dst[i] = 0;
+				spage = NULL;
+			} else {
+				svm_migrate_get_vram_page(prange, migrate->dst[i]);
+				migrate->dst[i] = migrate_pfn(migrate->dst[i]);
+				mpages++;
+			}
 		}
-		spage = migrate_pfn_to_page(migrate->src[i]);
 		if (spage && !is_zone_device_page(spage)) {
 			src[i] = dma_map_page(dev, spage, 0, PAGE_SIZE,
 					      DMA_BIDIRECTIONAL);

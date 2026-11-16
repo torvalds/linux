@@ -398,7 +398,7 @@ static int da9052_hwmon_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	int err, tsiref_uv;
 
-	hwmon = devm_kzalloc(dev, sizeof(struct da9052_hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(dev, struct da9052_hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

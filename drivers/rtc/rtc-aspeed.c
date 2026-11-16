@@ -86,7 +86,7 @@ static int aspeed_rtc_probe(struct platform_device *pdev)
 	struct aspeed_rtc *rtc;
 	struct rtc_device *rtc_dev;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

@@ -1253,10 +1253,8 @@ int sparx5_stats_init(struct sparx5 *sparx5)
 	sparx5->stats_layout = sparx5_stats_layout;
 	sparx5->num_stats = spx5_stats_count;
 	sparx5->num_ethtool_stats = ARRAY_SIZE(sparx5_stats_layout);
-	sparx5->stats = devm_kcalloc(sparx5->dev,
-				     consts->n_ports_all *
-				     sparx5->num_stats,
-				     sizeof(u64), GFP_KERNEL);
+	sparx5->stats = devm_kzalloc_objs(sparx5->dev, u64,
+					  consts->n_ports_all * sparx5->num_stats);
 	if (!sparx5->stats)
 		return -ENOMEM;
 

@@ -683,7 +683,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 	int ret;
 	u8 rx, tx;
 
-	f54 = devm_kzalloc(&fn->dev, sizeof(struct f54_data), GFP_KERNEL);
+	f54 = devm_kzalloc_obj(&fn->dev, struct f54_data);
 	if (!f54)
 		return -ENOMEM;
 

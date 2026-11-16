@@ -602,7 +602,7 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 	struct mpsse_quirk *quirk = (void *)id->driver_info;
 
 	dev = &interface->dev;
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

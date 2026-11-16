@@ -479,7 +479,7 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 		power_gpio = gpio_pwr[1];
 	}
 
-	octeon = devm_kzalloc(dev, sizeof(*octeon), GFP_KERNEL);
+	octeon = devm_kzalloc_obj(dev, *octeon);
 	if (!octeon)
 		return -ENOMEM;
 

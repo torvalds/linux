@@ -264,7 +264,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	void __iomem *mmio;
 	int ret;
 
-	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
+	cec = devm_kzalloc_obj(&pdev->dev, *cec);
 	if (!cec)
 		return -ENOMEM;
 

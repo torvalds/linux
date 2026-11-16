@@ -1025,8 +1025,7 @@ static int wm8580_i2c_probe(struct i2c_client *i2c)
 	struct wm8580_priv *wm8580;
 	int ret, i;
 
-	wm8580 = devm_kzalloc(&i2c->dev, sizeof(struct wm8580_priv),
-			      GFP_KERNEL);
+	wm8580 = devm_kzalloc_obj(&i2c->dev, struct wm8580_priv);
 	if (wm8580 == NULL)
 		return -ENOMEM;
 

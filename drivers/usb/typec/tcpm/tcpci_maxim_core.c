@@ -493,7 +493,7 @@ static int max_tcpci_probe(struct i2c_client *client)
 	struct max_tcpci_chip *chip;
 	u8 power_status;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -1801,7 +1801,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	hda = devm_kzalloc(&pci->dev, sizeof(*hda), GFP_KERNEL);
+	hda = devm_kzalloc_obj(&pci->dev, *hda);
 	if (!hda)
 		return -ENOMEM;
 

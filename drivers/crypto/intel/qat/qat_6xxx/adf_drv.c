@@ -103,7 +103,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return dev_err_probe(dev, -EINVAL, "Invalid NUMA configuration.\n");
 	}
 
-	accel_dev = devm_kzalloc(dev, sizeof(*accel_dev), GFP_KERNEL);
+	accel_dev = devm_kzalloc_obj(dev, *accel_dev);
 	if (!accel_dev)
 		return -ENOMEM;
 
@@ -113,7 +113,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	accel_pci_dev->pci_dev = pdev;
 	accel_dev->owner = THIS_MODULE;
 
-	hw_data = devm_kzalloc(dev, sizeof(*hw_data), GFP_KERNEL);
+	hw_data = devm_kzalloc_obj(dev, *hw_data);
 	if (!hw_data)
 		return -ENOMEM;
 

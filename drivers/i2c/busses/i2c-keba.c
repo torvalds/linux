@@ -512,12 +512,12 @@ static int ki2c_probe(struct auxiliary_device *auxdev,
 	struct ki2c *ki2c;
 	int ret;
 
-	ki2c = devm_kzalloc(dev, sizeof(*ki2c), GFP_KERNEL);
+	ki2c = devm_kzalloc_obj(dev, *ki2c);
 	if (!ki2c)
 		return -ENOMEM;
 	ki2c->auxdev = container_of(auxdev, struct keba_i2c_auxdev, auxdev);
-	ki2c->client = devm_kcalloc(dev, ki2c->auxdev->info_size,
-				    sizeof(*ki2c->client), GFP_KERNEL);
+	ki2c->client = devm_kzalloc_objs(dev, *ki2c->client,
+					 ki2c->auxdev->info_size);
 	if (!ki2c->client)
 		return -ENOMEM;
 	ki2c->client_size = ki2c->auxdev->info_size;

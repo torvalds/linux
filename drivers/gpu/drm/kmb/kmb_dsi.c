@@ -1412,7 +1412,7 @@ struct kmb_dsi *kmb_dsi_init(struct platform_device *pdev)
 	struct kmb_dsi *kmb_dsi;
 	struct device *dev = get_device(&pdev->dev);
 
-	kmb_dsi = devm_kzalloc(dev, sizeof(*kmb_dsi), GFP_KERNEL);
+	kmb_dsi = devm_kzalloc_obj(dev, *kmb_dsi);
 	if (!kmb_dsi) {
 		dev_err(dev, "failed to allocate kmb_dsi\n");
 		return ERR_PTR(-ENOMEM);

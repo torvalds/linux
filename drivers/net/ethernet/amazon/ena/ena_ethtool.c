@@ -1120,7 +1120,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 		return;
 	}
 
-	data_buf = kcalloc(strings_num, sizeof(u64), GFP_ATOMIC);
+	data_buf = kzalloc_objs(u64, strings_num, GFP_ATOMIC);
 	if (!data_buf) {
 		netif_err(adapter, drv, netdev,
 			  "Failed to allocate data buf\n");

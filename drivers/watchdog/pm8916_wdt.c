@@ -146,7 +146,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	int err, irq;
 	u8 poff[2];
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

@@ -897,7 +897,7 @@ static int th1520_reset_probe(struct platform_device *pdev)
 
 	data = device_get_match_data(dev);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

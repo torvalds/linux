@@ -239,6 +239,7 @@ struct stmmac_est {
 	u32 gcl[EST_GCL];
 	u32 gcl_size;
 	u32 max_sdu[MTL_MAX_TX_QUEUES];
+	u32 pclass;
 };
 
 struct stmmac_msi {

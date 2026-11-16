@@ -617,7 +617,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	sprd_eic = devm_kzalloc(dev, sizeof(*sprd_eic), GFP_KERNEL);
+	sprd_eic = devm_kzalloc_obj(dev, *sprd_eic);
 	if (!sprd_eic)
 		return -ENOMEM;
 

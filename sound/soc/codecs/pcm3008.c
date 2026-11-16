@@ -114,7 +114,7 @@ static int pcm3008_codec_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pcm3008 *pcm;
 
-	pcm = devm_kzalloc(dev, sizeof(*pcm), GFP_KERNEL);
+	pcm = devm_kzalloc_obj(dev, *pcm);
 	if (!pcm)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pcm);

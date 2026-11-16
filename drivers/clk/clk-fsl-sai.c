@@ -110,7 +110,7 @@ static int fsl_sai_clk_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	sai_clk = devm_kzalloc(dev, sizeof(*sai_clk), GFP_KERNEL);
+	sai_clk = devm_kzalloc_obj(dev, *sai_clk);
 	if (!sai_clk)
 		return -ENOMEM;
 

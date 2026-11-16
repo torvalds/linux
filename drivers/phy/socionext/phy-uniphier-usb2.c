@@ -130,7 +130,7 @@ static int uniphier_u2phy_probe(struct platform_device *pdev)
 	}
 
 	for_each_child_of_node_scoped(dev->of_node, child) {
-		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+		priv = devm_kzalloc_obj(dev, *priv);
 		if (!priv)
 			return -ENOMEM;
 

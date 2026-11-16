@@ -98,7 +98,7 @@ static int loongson_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	struct device *dev = &pdev->dev;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 

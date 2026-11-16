@@ -287,7 +287,7 @@ static u32 *decode_array_32_alloc(void **p, void *end, u32 *plen)
 	if (len) {
 		u32 i;
 
-		a = kmalloc_array(len, sizeof(u32), GFP_NOIO);
+		a = kmalloc_objs(u32, len, GFP_NOIO);
 		if (!a) {
 			ret = -ENOMEM;
 			goto fail;

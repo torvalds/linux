@@ -232,10 +232,9 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 	int i;
 	int button_count = min_t(u8, f30->gpioled_count, TRACKSTICK_RANGE_END);
 
-	f30->gpioled_key_map = devm_kcalloc(&fn->dev,
-					    f30->gpioled_count,
-					    sizeof(f30->gpioled_key_map[0]),
-					    GFP_KERNEL);
+	f30->gpioled_key_map = devm_kzalloc_objs(&fn->dev,
+						 f30->gpioled_key_map[0],
+						 f30->gpioled_count);
 	if (!f30->gpioled_key_map) {
 		dev_err(&fn->dev, "Failed to allocate gpioled map memory.\n");
 		return -ENOMEM;
@@ -380,7 +379,7 @@ static int rmi_f30_probe(struct rmi_function *fn)
 		return -ENXIO;
 	}
 
-	f30 = devm_kzalloc(&fn->dev, sizeof(*f30), GFP_KERNEL);
+	f30 = devm_kzalloc_obj(&fn->dev, *f30);
 	if (!f30)
 		return -ENOMEM;
 

@@ -984,7 +984,7 @@ static int ice_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv
 		return -EBUSY;
 
 	/* preallocate memory for ice_sched_node */
-	node = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*node), GFP_KERNEL);
+	node = devm_kzalloc_obj(ice_hw_to_dev(pi->hw), *node);
 	if (!node)
 		return -ENOMEM;
 

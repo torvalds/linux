@@ -358,7 +358,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
+	pwr = devm_kzalloc_obj(dev, *pwr);
 	if (!pwr)
 		return -ENOMEM;
 

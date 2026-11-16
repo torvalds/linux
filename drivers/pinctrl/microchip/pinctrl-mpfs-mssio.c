@@ -679,7 +679,7 @@ static int mpfs_pinctrl_probe(struct platform_device *pdev)
 	struct mpfs_pinctrl *pctrl;
 	int ret;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -167,7 +167,7 @@ static int gab_probe(struct platform_device *pdev)
 	int index = ARRAY_SIZE(gab_props);
 	bool any = false;
 
-	adc_bat = devm_kzalloc(&pdev->dev, sizeof(*adc_bat), GFP_KERNEL);
+	adc_bat = devm_kzalloc_obj(&pdev->dev, *adc_bat);
 	if (!adc_bat)
 		return -ENOMEM;
 
@@ -186,11 +186,8 @@ static int gab_probe(struct platform_device *pdev)
 	 * copying the static properties and allocating extra memory for holding
 	 * the extra configurable properties received from platform data.
 	 */
-	properties = devm_kcalloc(&pdev->dev,
-				  ARRAY_SIZE(gab_props) +
-				  ARRAY_SIZE(gab_chan_name),
-				  sizeof(*properties),
-				  GFP_KERNEL);
+	properties = devm_kzalloc_objs(&pdev->dev, *properties,
+				       ARRAY_SIZE(gab_props) + ARRAY_SIZE(gab_chan_name));
 	if (!properties)
 		return -ENOMEM;
 

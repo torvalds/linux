@@ -279,7 +279,7 @@ static int ti_emif_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ti_emif_data *emif_data;
 
-	emif_data = devm_kzalloc(dev, sizeof(*emif_data), GFP_KERNEL);
+	emif_data = devm_kzalloc_obj(dev, *emif_data);
 	if (!emif_data)
 		return -ENOMEM;
 

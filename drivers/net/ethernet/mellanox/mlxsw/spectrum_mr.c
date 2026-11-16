@@ -213,8 +213,7 @@ mlxsw_sp_mr_route_info_create(struct mlxsw_sp_mr_table *mr_table,
 	u16 irif_index;
 	u16 erif = 0;
 
-	erif_indices = kmalloc_array(MAXVIFS, sizeof(*erif_indices),
-				     GFP_KERNEL);
+	erif_indices = kmalloc_objs(*erif_indices, MAXVIFS);
 	if (!erif_indices)
 		return -ENOMEM;
 

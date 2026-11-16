@@ -652,7 +652,7 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 	unsigned int reg;
 	struct clk *clk;
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 
@@ -747,7 +747,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	am654_phy = devm_kzalloc(dev, sizeof(*am654_phy), GFP_KERNEL);
+	am654_phy = devm_kzalloc_obj(dev, *am654_phy);
 	if (!am654_phy)
 		return -ENOMEM;
 

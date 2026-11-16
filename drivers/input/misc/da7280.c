@@ -1153,7 +1153,7 @@ static int da7280_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
+	haptics = devm_kzalloc_obj(dev, *haptics);
 	if (!haptics)
 		return -ENOMEM;
 

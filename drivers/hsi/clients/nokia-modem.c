@@ -87,8 +87,7 @@ static int nokia_modem_gpio_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	modem->gpios = devm_kcalloc(dev, gpio_count, sizeof(*modem->gpios),
-				    GFP_KERNEL);
+	modem->gpios = devm_kzalloc_objs(dev, *modem->gpios, gpio_count);
 	if (!modem->gpios)
 		return -ENOMEM;
 
@@ -138,7 +137,7 @@ static int nokia_modem_probe(struct device *dev)
 		return -ENXIO;
 	}
 
-	modem = devm_kzalloc(dev, sizeof(*modem), GFP_KERNEL);
+	modem = devm_kzalloc_obj(dev, *modem);
 	if (!modem)
 		return -ENOMEM;
 

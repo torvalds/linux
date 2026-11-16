@@ -138,7 +138,7 @@ static int mx25_tsadc_probe(struct platform_device *pdev)
 	int ret;
 	void __iomem *iomem;
 
-	tsadc = devm_kzalloc(dev, sizeof(*tsadc), GFP_KERNEL);
+	tsadc = devm_kzalloc_obj(dev, *tsadc);
 	if (!tsadc)
 		return -ENOMEM;
 

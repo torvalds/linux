@@ -235,8 +235,7 @@ static int pcie_bwnotif_probe(struct pcie_device *srv)
 	if (!port->subordinate)
 		return -ENODEV;
 
-	struct pcie_bwctrl_data *data = devm_kzalloc(&srv->device,
-						     sizeof(*data), GFP_KERNEL);
+	struct pcie_bwctrl_data *data = devm_kzalloc_obj(&srv->device, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -1090,7 +1090,7 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	struct vsp1_dl_manager *dlm;
 	size_t header_size;
 
-	dlm = devm_kzalloc(vsp1->dev, sizeof(*dlm), GFP_KERNEL);
+	dlm = devm_kzalloc_obj(vsp1->dev, *dlm);
 	if (!dlm)
 		return NULL;
 

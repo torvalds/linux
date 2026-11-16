@@ -926,7 +926,7 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	struct mtu3 *mtu = NULL;
 	int ret = -ENOMEM;
 
-	mtu = devm_kzalloc(dev, sizeof(struct mtu3), GFP_KERNEL);
+	mtu = devm_kzalloc_obj(dev, struct mtu3);
 	if (mtu == NULL)
 		return -ENOMEM;
 

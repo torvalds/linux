@@ -306,7 +306,7 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	struct max77693_haptic *haptic;
 	int error;
 
-	haptic = devm_kzalloc(&pdev->dev, sizeof(*haptic), GFP_KERNEL);
+	haptic = devm_kzalloc_obj(&pdev->dev, *haptic);
 	if (!haptic)
 		return -ENOMEM;
 

@@ -210,8 +210,7 @@ static int p8_i2c_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len,
 static int p8_i2c_occ_probe(struct i2c_client *client)
 {
 	struct occ *occ;
-	struct p8_i2c_occ *ctx = devm_kzalloc(&client->dev, sizeof(*ctx),
-					      GFP_KERNEL);
+	struct p8_i2c_occ *ctx = devm_kzalloc_obj(&client->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

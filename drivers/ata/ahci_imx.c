@@ -863,7 +863,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	unsigned int reg_val;
 	int ret;
 
-	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
+	imxpriv = devm_kzalloc_obj(dev, *imxpriv);
 	if (!imxpriv)
 		return -ENOMEM;
 

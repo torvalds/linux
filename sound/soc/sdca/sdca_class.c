@@ -217,7 +217,7 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 	 * bare sdca_class_drv here and stash it in drvdata for the
 	 * built-in PM ops to fetch.
 	 */
-	drv = devm_kzalloc(&sdw->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&sdw->dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

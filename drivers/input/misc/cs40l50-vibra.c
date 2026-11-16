@@ -493,7 +493,7 @@ static int cs40l50_vibra_probe(struct platform_device *pdev)
 	struct cs40l50_vibra *vib;
 	int error;
 
-	vib = devm_kzalloc(pdev->dev.parent, sizeof(*vib), GFP_KERNEL);
+	vib = devm_kzalloc_obj(pdev->dev.parent, *vib);
 	if (!vib)
 		return -ENOMEM;
 

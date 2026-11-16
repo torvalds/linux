@@ -386,7 +386,7 @@ static int m10bmc_pmci_probe(struct dfl_device *ddev)
 	struct indirect_ctx *ctx;
 	int ret;
 
-	pmci = devm_kzalloc(dev, sizeof(*pmci), GFP_KERNEL);
+	pmci = devm_kzalloc_obj(dev, *pmci);
 	if (!pmci)
 		return -ENOMEM;
 
@@ -397,7 +397,7 @@ static int m10bmc_pmci_probe(struct dfl_device *ddev)
 	if (IS_ERR(pmci->base))
 		return PTR_ERR(pmci->base);
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

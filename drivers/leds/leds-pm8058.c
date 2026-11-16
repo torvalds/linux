@@ -95,7 +95,7 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	enum led_brightness maxbright;
 	enum led_default_state state;
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led)
 		return -ENOMEM;
 

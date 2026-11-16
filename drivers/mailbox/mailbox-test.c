@@ -333,7 +333,7 @@ mbox_test_request_channel(struct platform_device *pdev, const char *name)
 	struct mbox_client *client;
 	struct mbox_chan *channel;
 
-	client = devm_kzalloc(&pdev->dev, sizeof(*client), GFP_KERNEL);
+	client = devm_kzalloc_obj(&pdev->dev, *client);
 	if (!client)
 		return NULL;
 
@@ -377,7 +377,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 	struct mbox_test_device *tdev;
 	int ret;
 
-	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
+	tdev = devm_kzalloc_obj(&pdev->dev, *tdev);
 	if (!tdev)
 		return -ENOMEM;
 

@@ -375,7 +375,7 @@ int atmel_i2c_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	i2c_priv = devm_kmalloc(dev, sizeof(*i2c_priv), GFP_KERNEL);
+	i2c_priv = devm_kmalloc_obj(dev, *i2c_priv);
 	if (!i2c_priv)
 		return -ENOMEM;
 

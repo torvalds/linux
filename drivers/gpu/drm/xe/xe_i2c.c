@@ -360,7 +360,7 @@ int xe_i2c_probe(struct xe_device *xe)
 	if (ep.cookie != XE_I2C_EP_COOKIE_DEVICE)
 		return 0;
 
-	i2c = devm_kzalloc(drm_dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(drm_dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

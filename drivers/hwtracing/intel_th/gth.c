@@ -374,9 +374,8 @@ static int intel_th_master_attributes(struct gth_device *gth)
 	if (!attrs)
 		return -ENOMEM;
 
-	master_attrs = devm_kcalloc(gth->dev, nattrs,
-				    sizeof(struct master_attribute),
-				    GFP_KERNEL);
+	master_attrs = devm_kzalloc_objs(gth->dev, struct master_attribute,
+					 nattrs);
 	if (!master_attrs)
 		return -ENOMEM;
 
@@ -418,9 +417,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 	if (!attrs)
 		return -ENOMEM;
 
-	out_attrs = devm_kcalloc(gth->dev, nattrs,
-				 sizeof(struct output_attribute),
-				 GFP_KERNEL);
+	out_attrs = devm_kzalloc_objs(gth->dev, struct output_attribute, nattrs);
 	if (!out_attrs)
 		return -ENOMEM;
 
@@ -758,7 +755,7 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 	if (!base)
 		return -ENOMEM;
 
-	gth = devm_kzalloc(dev, sizeof(*gth), GFP_KERNEL);
+	gth = devm_kzalloc_obj(dev, *gth);
 	if (!gth)
 		return -ENOMEM;
 

@@ -374,7 +374,7 @@ static int wm9705_probe(struct platform_device *pdev)
 {
 	struct wm9705_priv *wm9705;
 
-	wm9705 = devm_kzalloc(&pdev->dev, sizeof(*wm9705), GFP_KERNEL);
+	wm9705 = devm_kzalloc_obj(&pdev->dev, *wm9705);
 	if (wm9705 == NULL)
 		return -ENOMEM;
 

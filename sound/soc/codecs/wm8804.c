@@ -579,7 +579,7 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 	unsigned int id1, id2;
 	int i, ret;
 
-	wm8804 = devm_kzalloc(dev, sizeof(*wm8804), GFP_KERNEL);
+	wm8804 = devm_kzalloc_obj(dev, *wm8804);
 	if (!wm8804)
 		return -ENOMEM;
 

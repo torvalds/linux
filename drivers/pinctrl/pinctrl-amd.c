@@ -1279,8 +1279,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	struct amd_gpio *gpio_dev;
 	struct gpio_irq_chip *girq;
 
-	gpio_dev = devm_kzalloc(&pdev->dev,
-				sizeof(struct amd_gpio), GFP_KERNEL);
+	gpio_dev = devm_kzalloc_obj(&pdev->dev, struct amd_gpio);
 	if (!gpio_dev)
 		return -ENOMEM;
 
@@ -1310,9 +1309,9 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return gpio_dev->irq;
 
 #ifdef CONFIG_SUSPEND
-	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
-					    sizeof(*gpio_dev->saved_regs),
-					    GFP_KERNEL);
+	gpio_dev->saved_regs = devm_kzalloc_objs(&pdev->dev,
+						 *gpio_dev->saved_regs,
+						 amd_pinctrl_desc.npins);
 	if (!gpio_dev->saved_regs)
 		return -ENOMEM;
 #endif

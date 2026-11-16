@@ -161,6 +161,7 @@ struct qca_data {
 	struct delayed_work ctrl_memdump_timeout;
 	struct qca_memdump_info *qca_memdump;
 	unsigned long flags;
+	struct dentry *debugfs_ibs_dir;
 	struct completion drop_ev_comp;
 	wait_queue_head_t suspend_wait_q;
 	enum qca_memdump_states memdump_state;
@@ -665,6 +666,7 @@ static void qca_debugfs_init(struct hci_dev *hdev)
 		return;
 
 	ibs_dir = debugfs_create_dir("ibs", hdev->debugfs);
+	qca->debugfs_ibs_dir = ibs_dir;
 
 	/* read only */
 	mode = 0444;
@@ -743,6 +745,9 @@ static int qca_close(struct hci_uart *hu)
 	kfree_skb(qca->rx_skb);
 
 	hu->priv = NULL;
+
+	debugfs_remove_recursive(qca->debugfs_ibs_dir);
+	qca->debugfs_ibs_dir = NULL;
 
 	kfree(qca);
 
@@ -2372,7 +2377,7 @@ static int qca_init_regulators(struct qca_power *qca,
 	int ret;
 	int i;
 
-	bulk = devm_kcalloc(qca->dev, num_vregs, sizeof(*bulk), GFP_KERNEL);
+	bulk = devm_kzalloc_objs(qca->dev, *bulk, num_vregs);
 	if (!bulk)
 		return -ENOMEM;
 
@@ -2403,7 +2408,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	int err;
 	bool power_ctrl_enabled = true;
 
-	qcadev = devm_kzalloc(&serdev->dev, sizeof(*qcadev), GFP_KERNEL);
+	qcadev = devm_kzalloc_obj(&serdev->dev, *qcadev);
 	if (!qcadev)
 		return -ENOMEM;
 
@@ -2435,9 +2440,8 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	case QCA_WCN6750:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
-		qcadev->bt_power = devm_kzalloc(&serdev->dev,
-						sizeof(struct qca_power),
-						GFP_KERNEL);
+		qcadev->bt_power = devm_kzalloc_obj(&serdev->dev,
+						    struct qca_power);
 		if (!qcadev->bt_power)
 			return -ENOMEM;
 		break;

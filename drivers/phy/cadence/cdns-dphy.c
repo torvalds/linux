@@ -471,7 +471,7 @@ static int cdns_dphy_probe(struct platform_device *pdev)
 	struct cdns_dphy *dphy;
 	int ret;
 
-	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
+	dphy = devm_kzalloc_obj(&pdev->dev, *dphy);
 	if (!dphy)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, dphy);

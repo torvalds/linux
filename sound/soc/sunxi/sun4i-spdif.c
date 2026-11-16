@@ -659,7 +659,7 @@ static int sun4i_spdif_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Entered %s\n", __func__);
 
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(&pdev->dev, *host);
 	if (!host)
 		return -ENOMEM;
 

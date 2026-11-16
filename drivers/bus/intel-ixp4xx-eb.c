@@ -351,7 +351,7 @@ static int ixp4xx_exp_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	eb = devm_kzalloc(dev, sizeof(*eb), GFP_KERNEL);
+	eb = devm_kzalloc_obj(dev, *eb);
 	if (!eb)
 		return -ENOMEM;
 

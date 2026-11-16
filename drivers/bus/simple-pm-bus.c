@@ -54,7 +54,7 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 			return -ENODEV;
 	}
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
+	bus = devm_kzalloc_obj(&pdev->dev, *bus);
 	if (!bus)
 		return -ENOMEM;
 

@@ -907,7 +907,7 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 			scnprintf(buf, sizeof(buf), "decomp_core%d",
 				  i - zip_comp_core_num);
 
-		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+		regset = devm_kzalloc_obj(dev, *regset);
 		if (!regset)
 			return -ENOENT;
 
@@ -1361,7 +1361,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	struct hisi_zip_ctrl *ctrl;
 	int ret;
 
-	ctrl = devm_kzalloc(&qm->pdev->dev, sizeof(*ctrl), GFP_KERNEL);
+	ctrl = devm_kzalloc_obj(&qm->pdev->dev, *ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -1389,7 +1389,7 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(zip_cap_query_info);
-	zip_cap = devm_kcalloc(&pdev->dev, size, sizeof(*zip_cap), GFP_KERNEL);
+	zip_cap = devm_kzalloc_objs(&pdev->dev, *zip_cap, size);
 	if (!zip_cap)
 		return -ENOMEM;
 
@@ -1524,7 +1524,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct hisi_qm *qm;
 	int ret;
 
-	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
+	hisi_zip = devm_kzalloc_obj(&pdev->dev, *hisi_zip);
 	if (!hisi_zip)
 		return -ENOMEM;
 

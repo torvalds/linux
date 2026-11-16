@@ -86,8 +86,7 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 
 	wx_init_eeprom_params(wx);
 
-	eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
-				     GFP_KERNEL);
+	eeprom_ptrs = kvmalloc_objs(u16, TXGBE_EEPROM_LAST_WORD);
 	if (!eeprom_ptrs)
 		return -ENOMEM;
 	/* Read pointer area */

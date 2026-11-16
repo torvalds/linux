@@ -537,7 +537,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 	u32 reg;
 	u8 max_leds;
 
-	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc_obj(dev, *leds);
 	if (!leds)
 		return -ENOMEM;
 
@@ -580,7 +580,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(dev, *led);
 		if (!led)
 			return -ENOMEM;
 

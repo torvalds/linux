@@ -669,7 +669,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct hid_report *output_report;
 	struct hid_report *feature_report;
 
-	data = devm_kzalloc(&hdev->dev, sizeof(struct rmi_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&hdev->dev, struct rmi_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -650,7 +650,7 @@ static int soc_tplg_control_dmixer_create(struct soc_tplg *tplg, struct snd_kcon
 	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
-	sm = devm_kzalloc(tplg->dev, sizeof(*sm), GFP_KERNEL);
+	sm = devm_kzalloc_obj(tplg->dev, *sm);
 	if (!sm)
 		return -ENOMEM;
 
@@ -746,9 +746,9 @@ static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *
 	if (le32_to_cpu(ec->items) > SND_SOC_TPLG_NUM_TEXTS)
 		return -EINVAL;
 
-	se->dobj.control.dvalues = devm_kcalloc(tplg->dev, le32_to_cpu(ec->items),
-					   sizeof(*se->dobj.control.dvalues),
-					   GFP_KERNEL);
+	se->dobj.control.dvalues = devm_kzalloc_objs(tplg->dev,
+						     *se->dobj.control.dvalues,
+						     le32_to_cpu(ec->items));
 	if (!se->dobj.control.dvalues)
 		return -ENOMEM;
 
@@ -774,7 +774,7 @@ static int soc_tplg_control_denum_create(struct soc_tplg *tplg, struct snd_kcont
 	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
-	se = devm_kzalloc(tplg->dev, sizeof(*se), GFP_KERNEL);
+	se = devm_kzalloc_obj(tplg->dev, *se);
 	if (!se)
 		return -ENOMEM;
 
@@ -843,7 +843,7 @@ static int soc_tplg_control_dbytes_create(struct soc_tplg *tplg, struct snd_kcon
 	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
-	sbe = devm_kzalloc(tplg->dev, sizeof(*sbe), GFP_KERNEL);
+	sbe = devm_kzalloc_obj(tplg->dev, *sbe);
 	if (!sbe)
 		return -ENOMEM;
 
@@ -1048,7 +1048,7 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		le32_to_cpu(hdr->index));
 
 	for (i = 0; i < count; i++) {
-		route = devm_kzalloc(tplg->dev, sizeof(*route), GFP_KERNEL);
+		route = devm_kzalloc_obj(tplg->dev, *route);
 		if (!route)
 			return -ENOMEM;
 		elem = (struct snd_soc_tplg_dapm_graph_elem *)tplg->pos;
@@ -1159,14 +1159,14 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	}
 
 	template.num_kcontrols = le32_to_cpu(w->num_kcontrols);
-	kc = devm_kcalloc(tplg->dev, le32_to_cpu(w->num_kcontrols), sizeof(*kc), GFP_KERNEL);
+	kc = devm_kzalloc_objs(tplg->dev, *kc, le32_to_cpu(w->num_kcontrols));
 	if (!kc) {
 		ret = -ENOMEM;
 		goto hdr_err;
 	}
 
-	kcontrol_type = devm_kcalloc(tplg->dev, le32_to_cpu(w->num_kcontrols), sizeof(unsigned int),
-				     GFP_KERNEL);
+	kcontrol_type = devm_kzalloc_objs(tplg->dev, unsigned int,
+					  le32_to_cpu(w->num_kcontrols));
 	if (!kcontrol_type) {
 		ret = -ENOMEM;
 		goto hdr_err;
@@ -1391,7 +1391,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(tplg->comp);
 	int ret;
 
-	dai_drv = devm_kzalloc(tplg->dev, sizeof(struct snd_soc_dai_driver), GFP_KERNEL);
+	dai_drv = devm_kzalloc_obj(tplg->dev, struct snd_soc_dai_driver);
 	if (dai_drv == NULL)
 		return -ENOMEM;
 

@@ -234,7 +234,7 @@ STATIC int
 xfs_fs_nfs_commit_metadata(
 	struct inode		*inode)
 {
-	return xfs_log_force_inode(XFS_I(inode));
+	return xfs_log_force_inode(XFS_I(inode), false, NULL);
 }
 
 const struct export_operations xfs_export_operations = {

@@ -1566,7 +1566,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	int i, ret;
 
-	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
+	dmadev = devm_kzalloc_obj(&pdev->dev, *dmadev);
 	if (!dmadev)
 		return -ENOMEM;
 

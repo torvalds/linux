@@ -151,9 +151,8 @@ static int sdw_mockup_read_prop(struct sdw_slave *slave)
 	prop->sink_ports = BIT(1);
 
 	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop),
-					  GFP_KERNEL);
+	prop->src_dpn_prop = devm_kzalloc_objs(&slave->dev, *prop->src_dpn_prop,
+					       nval);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 
@@ -169,9 +168,8 @@ static int sdw_mockup_read_prop(struct sdw_slave *slave)
 
 	/* do this again for sink now */
 	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+	prop->sink_dpn_prop = devm_kzalloc_objs(&slave->dev,
+						*prop->sink_dpn_prop, nval);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -219,7 +217,7 @@ static int sdw_mockup_sdw_probe(struct sdw_slave *slave,
 	struct sdw_mockup_priv *sdw_mockup;
 	int ret;
 
-	sdw_mockup = devm_kzalloc(dev, sizeof(*sdw_mockup), GFP_KERNEL);
+	sdw_mockup = devm_kzalloc_obj(dev, *sdw_mockup);
 	if (!sdw_mockup)
 		return -ENOMEM;
 

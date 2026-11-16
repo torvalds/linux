@@ -1409,7 +1409,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret, irq;
 
-	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
+	sai = devm_kzalloc_obj(&pdev->dev, *sai);
 	if (!sai)
 		return -ENOMEM;
 

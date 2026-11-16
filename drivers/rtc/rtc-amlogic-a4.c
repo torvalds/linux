@@ -328,7 +328,7 @@ static int aml_rtc_probe(struct platform_device *pdev)
 		.max_register = RTC_REAL_TIME,
 	};
 
-	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

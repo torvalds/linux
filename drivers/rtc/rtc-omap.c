@@ -730,7 +730,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	const struct platform_device_id *id_entry;
 	int ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

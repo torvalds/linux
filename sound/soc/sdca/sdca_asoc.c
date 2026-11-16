@@ -217,19 +217,19 @@ static int entity_early_parse_ge(struct device *dev,
 	if (!control_name)
 		return -ENOMEM;
 
-	kctl = devm_kzalloc(dev, sizeof(*kctl), GFP_KERNEL);
+	kctl = devm_kzalloc_obj(dev, *kctl);
 	if (!kctl)
 		return -ENOMEM;
 
-	soc_enum = devm_kzalloc(dev, sizeof(*soc_enum), GFP_KERNEL);
+	soc_enum = devm_kzalloc_obj(dev, *soc_enum);
 	if (!soc_enum)
 		return -ENOMEM;
 
-	texts = devm_kcalloc(dev, range->rows + 3, sizeof(*texts), GFP_KERNEL);
+	texts = devm_kzalloc_objs(dev, *texts, range->rows + 3);
 	if (!texts)
 		return -ENOMEM;
 
-	values = devm_kcalloc(dev, range->rows + 3, sizeof(*values), GFP_KERNEL);
+	values = devm_kzalloc_objs(dev, *values, range->rows + 3);
 	if (!values)
 		return -ENOMEM;
 
@@ -587,15 +587,15 @@ static int entity_parse_su_class(struct device *dev,
 	const char **texts;
 	int i;
 
-	kctl = devm_kzalloc(dev, sizeof(*kctl), GFP_KERNEL);
+	kctl = devm_kzalloc_obj(dev, *kctl);
 	if (!kctl)
 		return -ENOMEM;
 
-	soc_enum = devm_kzalloc(dev, sizeof(*soc_enum), GFP_KERNEL);
+	soc_enum = devm_kzalloc_obj(dev, *soc_enum);
 	if (!soc_enum)
 		return -ENOMEM;
 
-	texts = devm_kcalloc(dev, entity->num_sources + 1, sizeof(*texts), GFP_KERNEL);
+	texts = devm_kzalloc_objs(dev, *texts, entity->num_sources + 1);
 	if (!texts)
 		return -ENOMEM;
 
@@ -677,7 +677,7 @@ static int entity_parse_mu(struct device *dev,
 		dev_warn(dev, "%s: unexpected access layer: %x\n",
 			 entity->label, control->layers);
 
-	kctl = devm_kcalloc(dev, entity->num_sources, sizeof(*kctl), GFP_KERNEL);
+	kctl = devm_kzalloc_objs(dev, *kctl, entity->num_sources);
 	if (!kctl)
 		return -ENOMEM;
 
@@ -690,7 +690,7 @@ static int entity_parse_mu(struct device *dev,
 		if (!control_name)
 			return -ENOMEM;
 
-		mc = devm_kzalloc(dev, sizeof(*mc), GFP_KERNEL);
+		mc = devm_kzalloc_obj(dev, *mc);
 		if (!mc)
 			return -ENOMEM;
 
@@ -946,7 +946,7 @@ static int control_limit_kctl(struct device *dev,
 	min = sign_extend32(min, control->nbits - 1);
 	max = sign_extend32(max, control->nbits - 1);
 
-	tlv = devm_kcalloc(dev, 4, sizeof(*tlv), GFP_KERNEL);
+	tlv = devm_kzalloc_objs(dev, *tlv, 4);
 	if (!tlv)
 		return -ENOMEM;
 
@@ -1034,7 +1034,7 @@ static int populate_control(struct device *dev,
 	if (!control_name)
 		return -ENOMEM;
 
-	mc = devm_kzalloc(dev, sizeof(*mc), GFP_KERNEL);
+	mc = devm_kzalloc_obj(dev, *mc);
 	if (!mc)
 		return -ENOMEM;
 
@@ -1392,19 +1392,19 @@ int sdca_asoc_populate_component(struct device *dev,
 	if (ret)
 		return ret;
 
-	widgets = devm_kcalloc(dev, num_widgets, sizeof(*widgets), GFP_KERNEL);
+	widgets = devm_kzalloc_objs(dev, *widgets, num_widgets);
 	if (!widgets)
 		return -ENOMEM;
 
-	routes = devm_kcalloc(dev, num_routes, sizeof(*routes), GFP_KERNEL);
+	routes = devm_kzalloc_objs(dev, *routes, num_routes);
 	if (!routes)
 		return -ENOMEM;
 
-	controls = devm_kcalloc(dev, num_controls, sizeof(*controls), GFP_KERNEL);
+	controls = devm_kzalloc_objs(dev, *controls, num_controls);
 	if (!controls)
 		return -ENOMEM;
 
-	dais = devm_kcalloc(dev, num_dais, sizeof(*dais), GFP_KERNEL);
+	dais = devm_kzalloc_objs(dev, *dais, num_dais);
 	if (!dais)
 		return -ENOMEM;
 

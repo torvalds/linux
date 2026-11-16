@@ -256,7 +256,7 @@ int max_serdes_get_streams_masks(struct device *dev,
 	u64 *streams_masks;
 	unsigned int i;
 
-	streams_masks = devm_kcalloc(dev, num_pads, sizeof(*streams_masks), GFP_KERNEL);
+	streams_masks = devm_kzalloc_objs(dev, *streams_masks, num_pads);
 	if (!streams_masks)
 		return -ENOMEM;
 

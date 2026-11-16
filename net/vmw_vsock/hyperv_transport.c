@@ -697,6 +697,9 @@ static s64 hvs_stream_has_data(struct vsock_sock *vsk)
 	struct hvsock *hvs = vsk->trans;
 	s64 ret;
 
+	if (!hvs->chan)
+		return 0;
+
 	if (hvs->recv_data_len > 0)
 		return hvs->recv_data_len;
 

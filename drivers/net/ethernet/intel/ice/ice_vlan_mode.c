@@ -360,8 +360,7 @@ static int ice_set_svm(struct ice_hw *hw)
 		return status;
 	}
 
-	set_params = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*set_params),
-				  GFP_KERNEL);
+	set_params = devm_kzalloc_obj(ice_hw_to_dev(hw), *set_params);
 	if (!set_params)
 		return -ENOMEM;
 

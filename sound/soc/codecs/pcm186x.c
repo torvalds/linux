@@ -650,7 +650,7 @@ int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 	struct pcm186x_priv *priv;
 	int i, ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct pcm186x_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct pcm186x_priv);
 	if (!priv)
 		return -ENOMEM;
 

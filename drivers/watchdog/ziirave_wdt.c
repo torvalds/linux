@@ -609,7 +609,7 @@ static int ziirave_wdt_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WRITE_BLOCK_DATA))
 		return -ENODEV;
 
-	w_priv = devm_kzalloc(&client->dev, sizeof(*w_priv), GFP_KERNEL);
+	w_priv = devm_kzalloc_obj(&client->dev, *w_priv);
 	if (!w_priv)
 		return -ENOMEM;
 

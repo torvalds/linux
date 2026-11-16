@@ -5727,17 +5727,14 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		 */
 		if ((phba->vpi_bmask == NULL) && (phba->vpi_ids == NULL)) {
 			longs = (phba->max_vpi + BITS_PER_LONG) / BITS_PER_LONG;
-			phba->vpi_bmask = kcalloc(longs,
-						  sizeof(unsigned long),
-						  GFP_KERNEL);
+			phba->vpi_bmask = kzalloc_objs(unsigned long, longs);
 			if (!phba->vpi_bmask) {
 				rc = -ENOMEM;
 				goto lpfc_sli_hba_setup_error;
 			}
 
-			phba->vpi_ids = kcalloc(phba->max_vpi + 1,
-						sizeof(uint16_t),
-						GFP_KERNEL);
+			phba->vpi_ids = kzalloc_objs(uint16_t,
+						     phba->max_vpi + 1);
 			if (!phba->vpi_ids) {
 				kfree(phba->vpi_bmask);
 				rc = -ENOMEM;
@@ -6467,16 +6464,12 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	length = sizeof(struct lpfc_rsrc_blks);
 	switch (type) {
 	case LPFC_RSC_TYPE_FCOE_RPI:
-		phba->sli4_hba.rpi_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.rpi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
 			rc = -ENOMEM;
 			goto err_exit;
 		}
-		phba->sli4_hba.rpi_ids = kcalloc(rsrc_id_cnt,
-						 sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.rpi_ids = kzalloc_objs(uint16_t, rsrc_id_cnt);
 		if (unlikely(!phba->sli4_hba.rpi_ids)) {
 			kfree(phba->sli4_hba.rpi_bmask);
 			rc = -ENOMEM;
@@ -6496,14 +6489,12 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		ext_blk_list = &phba->sli4_hba.lpfc_rpi_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_VPI:
-		phba->vpi_bmask = kcalloc(longs, sizeof(unsigned long),
-					  GFP_KERNEL);
+		phba->vpi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->vpi_bmask)) {
 			rc = -ENOMEM;
 			goto err_exit;
 		}
-		phba->vpi_ids = kcalloc(rsrc_id_cnt, sizeof(uint16_t),
-					 GFP_KERNEL);
+		phba->vpi_ids = kzalloc_objs(uint16_t, rsrc_id_cnt);
 		if (unlikely(!phba->vpi_ids)) {
 			kfree(phba->vpi_bmask);
 			rc = -ENOMEM;
@@ -6516,17 +6507,13 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		ext_blk_list = &phba->lpfc_vpi_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_XRI:
-		phba->sli4_hba.xri_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.xri_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.xri_bmask)) {
 			rc = -ENOMEM;
 			goto err_exit;
 		}
 		phba->sli4_hba.max_cfg_param.xri_used = 0;
-		phba->sli4_hba.xri_ids = kcalloc(rsrc_id_cnt,
-						 sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.xri_ids = kzalloc_objs(uint16_t, rsrc_id_cnt);
 		if (unlikely(!phba->sli4_hba.xri_ids)) {
 			kfree(phba->sli4_hba.xri_bmask);
 			rc = -ENOMEM;
@@ -6539,16 +6526,12 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		ext_blk_list = &phba->sli4_hba.lpfc_xri_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_VFI:
-		phba->sli4_hba.vfi_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.vfi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
 			rc = -ENOMEM;
 			goto err_exit;
 		}
-		phba->sli4_hba.vfi_ids = kcalloc(rsrc_id_cnt,
-						 sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.vfi_ids = kzalloc_objs(uint16_t, rsrc_id_cnt);
 		if (unlikely(!phba->sli4_hba.vfi_ids)) {
 			kfree(phba->sli4_hba.vfi_bmask);
 			rc = -ENOMEM;
@@ -7232,15 +7215,12 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		}
 		base = phba->sli4_hba.max_cfg_param.rpi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
-		phba->sli4_hba.rpi_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.rpi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
 			rc = -ENOMEM;
 			goto err_exit;
 		}
-		phba->sli4_hba.rpi_ids = kcalloc(count, sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.rpi_ids = kzalloc_objs(uint16_t, count);
 		if (unlikely(!phba->sli4_hba.rpi_ids)) {
 			rc = -ENOMEM;
 			goto free_rpi_bmask;
@@ -7260,14 +7240,12 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		}
 		base = phba->sli4_hba.max_cfg_param.vpi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
-		phba->vpi_bmask = kcalloc(longs, sizeof(unsigned long),
-					  GFP_KERNEL);
+		phba->vpi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->vpi_bmask)) {
 			rc = -ENOMEM;
 			goto free_rpi_ids;
 		}
-		phba->vpi_ids = kcalloc(count, sizeof(uint16_t),
-					GFP_KERNEL);
+		phba->vpi_ids = kzalloc_objs(uint16_t, count);
 		if (unlikely(!phba->vpi_ids)) {
 			rc = -ENOMEM;
 			goto free_vpi_bmask;
@@ -7287,16 +7265,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		}
 		base = phba->sli4_hba.max_cfg_param.xri_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
-		phba->sli4_hba.xri_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.xri_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.xri_bmask)) {
 			rc = -ENOMEM;
 			goto free_vpi_ids;
 		}
 		phba->sli4_hba.max_cfg_param.xri_used = 0;
-		phba->sli4_hba.xri_ids = kcalloc(count, sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.xri_ids = kzalloc_objs(uint16_t, count);
 		if (unlikely(!phba->sli4_hba.xri_ids)) {
 			rc = -ENOMEM;
 			goto free_xri_bmask;
@@ -7316,15 +7291,12 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		}
 		base = phba->sli4_hba.max_cfg_param.vfi_base;
 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
-		phba->sli4_hba.vfi_bmask = kcalloc(longs,
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		phba->sli4_hba.vfi_bmask = kzalloc_objs(unsigned long, longs);
 		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
 			rc = -ENOMEM;
 			goto free_xri_ids;
 		}
-		phba->sli4_hba.vfi_ids = kcalloc(count, sizeof(uint16_t),
-						 GFP_KERNEL);
+		phba->sli4_hba.vfi_ids = kzalloc_objs(uint16_t, count);
 		if (unlikely(!phba->sli4_hba.vfi_ids)) {
 			rc = -ENOMEM;
 			goto free_vfi_bmask;

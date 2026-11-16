@@ -29,7 +29,7 @@ static int lp873x_probe(struct i2c_client *client)
 	int ret;
 	unsigned int otpid;
 
-	lp873 = devm_kzalloc(&client->dev, sizeof(*lp873), GFP_KERNEL);
+	lp873 = devm_kzalloc_obj(&client->dev, *lp873);
 	if (!lp873)
 		return -ENOMEM;
 

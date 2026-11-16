@@ -494,7 +494,7 @@ static int da9030_battery_probe(struct platform_device *pdev)
 	    pdata->charge_millivolt > 4350)
 		return -EINVAL;
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (charger == NULL)
 		return -ENOMEM;
 

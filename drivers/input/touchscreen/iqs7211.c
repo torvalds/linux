@@ -1622,7 +1622,7 @@ static int iqs7211_add_field(struct iqs7211_private *iqs7211,
 		return 0;
 	}
 
-	reg_field = devm_kzalloc(&client->dev, sizeof(*reg_field), GFP_KERNEL);
+	reg_field = devm_kzalloc_obj(&client->dev, *reg_field);
 	if (!reg_field)
 		return -ENOMEM;
 
@@ -2438,7 +2438,7 @@ static int iqs7211_probe(struct i2c_client *client)
 	bool shared_irq;
 	int error, irq;
 
-	iqs7211 = devm_kzalloc(&client->dev, sizeof(*iqs7211), GFP_KERNEL);
+	iqs7211 = devm_kzalloc_obj(&client->dev, *iqs7211);
 	if (!iqs7211)
 		return -ENOMEM;
 

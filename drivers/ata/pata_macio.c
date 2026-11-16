@@ -1146,8 +1146,7 @@ static int pata_macio_attach(struct macio_dev *mdev,
 	macio_enable_devres(mdev);
 
 	/* Allocate and init private data structure */
-	priv = devm_kzalloc(&mdev->ofdev.dev,
-			    sizeof(struct pata_macio_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&mdev->ofdev.dev, struct pata_macio_priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1288,8 +1287,7 @@ static int pata_macio_pci_attach(struct pci_dev *pdev,
 	}
 
 	/* Allocate and init private data structure */
-	priv = devm_kzalloc(&pdev->dev,
-			    sizeof(struct pata_macio_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct pata_macio_priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -878,7 +878,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 	struct mbox_chan *chans;
 	int protocol, windows = 0, next_window = 0, i, j, k;
 
-	chans = devm_kcalloc(dev, mbox->num_chans, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(dev, *chans, mbox->num_chans);
 	if (!chans)
 		return -ENOMEM;
 
@@ -891,7 +891,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 		windows = mhu->protocols[i + 1];
 
 		if (protocol == DATA_TRANSFER) {
-			priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+			priv = devm_kmalloc_obj(dev, *priv);
 			if (!priv)
 				return -ENOMEM;
 
@@ -904,7 +904,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 
 		for (j = 0; j < windows; j++) {
 			for (k = 0; k < MHUV2_STAT_BITS; k++) {
-				priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+				priv = devm_kmalloc_obj(dev, *priv);
 				if (!priv)
 					return -ENOMEM;
 
@@ -942,7 +942,7 @@ static int mhuv2_parse_channels(struct mhuv2 *mhu)
 		return -EINVAL;
 	}
 
-	protocols = devm_kmalloc_array(dev, count, sizeof(*protocols), GFP_KERNEL);
+	protocols = devm_kmalloc_objs(dev, *protocols, count);
 	if (!protocols)
 		return -ENOMEM;
 
@@ -1065,7 +1065,7 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	mhu = devm_kzalloc(dev, sizeof(*mhu), GFP_KERNEL);
+	mhu = devm_kzalloc_obj(dev, *mhu);
 	if (!mhu)
 		return -ENOMEM;
 

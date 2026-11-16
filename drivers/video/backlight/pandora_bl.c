@@ -112,7 +112,7 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	struct pandora_private *priv;
 	u8 r;
 
-	priv = devm_kmalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kmalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

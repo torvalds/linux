@@ -105,11 +105,11 @@ static int lpass_platform_alloc_rxtx_dmactl_fields(struct device *dev,
 	struct lpaif_dmactl *rd_dmactl, *wr_dmactl;
 	int rval;
 
-	rd_dmactl = devm_kzalloc(dev, sizeof(*rd_dmactl), GFP_KERNEL);
+	rd_dmactl = devm_kzalloc_obj(dev, *rd_dmactl);
 	if (!rd_dmactl)
 		return -ENOMEM;
 
-	wr_dmactl = devm_kzalloc(dev, sizeof(*wr_dmactl), GFP_KERNEL);
+	wr_dmactl = devm_kzalloc_obj(dev, *wr_dmactl);
 	if (!wr_dmactl)
 		return -ENOMEM;
 
@@ -132,7 +132,7 @@ static int lpass_platform_alloc_va_dmactl_fields(struct device *dev,
 	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *wr_dmactl;
 
-	wr_dmactl = devm_kzalloc(dev, sizeof(*wr_dmactl), GFP_KERNEL);
+	wr_dmactl = devm_kzalloc_obj(dev, *wr_dmactl);
 	if (!wr_dmactl)
 		return -ENOMEM;
 
@@ -150,13 +150,11 @@ static int lpass_platform_alloc_dmactl_fields(struct device *dev,
 	struct lpaif_dmactl *rd_dmactl, *wr_dmactl;
 	int rval;
 
-	drvdata->rd_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl),
-					  GFP_KERNEL);
+	drvdata->rd_dmactl = devm_kzalloc_obj(dev, struct lpaif_dmactl);
 	if (drvdata->rd_dmactl == NULL)
 		return -ENOMEM;
 
-	drvdata->wr_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl),
-					  GFP_KERNEL);
+	drvdata->wr_dmactl = devm_kzalloc_obj(dev, struct lpaif_dmactl);
 	if (drvdata->wr_dmactl == NULL)
 		return -ENOMEM;
 
@@ -179,7 +177,7 @@ static int lpass_platform_alloc_hdmidmactl_fields(struct device *dev,
 	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *rd_dmactl;
 
-	rd_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl), GFP_KERNEL);
+	rd_dmactl = devm_kzalloc_obj(dev, struct lpaif_dmactl);
 	if (rd_dmactl == NULL)
 		return -ENOMEM;
 

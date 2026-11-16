@@ -764,7 +764,7 @@ static int xtpg_probe(struct platform_device *pdev)
 	u32 i, bayer_phase;
 	int ret;
 
-	xtpg = devm_kzalloc(&pdev->dev, sizeof(*xtpg), GFP_KERNEL);
+	xtpg = devm_kzalloc_obj(&pdev->dev, *xtpg);
 	if (!xtpg)
 		return -ENOMEM;
 

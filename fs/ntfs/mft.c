@@ -3259,7 +3259,7 @@ static int ntfs_write_mft_block(struct folio *folio, struct writeback_control *w
 	file_limit = min_t(u64, i_size, allocated_size);
 	nr_records = PAGE_SIZE / vol->mft_record_size;
 	max_units = PAGE_SIZE / min(vol->cluster_size, vol->mft_record_size);
-	units = kmalloc_array(max_units, sizeof(*units), GFP_NOFS);
+	units = kmalloc_objs(*units, max_units, GFP_NOFS);
 	if (!locked_nis || !ref_inos || !units) {
 		err = -ENOMEM;
 		goto out_noio;

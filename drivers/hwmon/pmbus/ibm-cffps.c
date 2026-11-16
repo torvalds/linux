@@ -536,7 +536,7 @@ static int ibm_cffps_probe(struct i2c_client *client)
 	 * Don't fail the probe if there isn't enough memory for leds and
 	 * debugfs.
 	 */
-	psu = devm_kzalloc(&client->dev, sizeof(*psu), GFP_KERNEL);
+	psu = devm_kzalloc_obj(&client->dev, *psu);
 	if (!psu)
 		return 0;
 

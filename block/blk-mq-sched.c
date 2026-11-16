@@ -374,7 +374,7 @@ bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_insert_merge);
 
-/* called in queue's release handler, tagset has gone away */
+/* Clear scheduler tags and reset queue state. */
 static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int flags)
 {
 	struct blk_mq_hw_ctx *hctx;
@@ -385,6 +385,10 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int fla
 
 	if (blk_mq_is_shared_tags(flags))
 		q->sched_shared_tags = NULL;
+
+	blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
+	q->nr_requests = q->tag_set->queue_depth;
+	q->async_depth = q->tag_set->queue_depth;
 }
 
 void blk_mq_sched_reg_debugfs(struct request_queue *q)

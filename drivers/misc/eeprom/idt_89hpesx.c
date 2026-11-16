@@ -1130,8 +1130,7 @@ static struct idt_89hpesx_dev *idt_create_pdev(struct i2c_client *client)
 	struct idt_89hpesx_dev *pdev;
 
 	/* Allocate memory for driver data */
-	pdev = devm_kmalloc(&client->dev, sizeof(struct idt_89hpesx_dev),
-		GFP_KERNEL);
+	pdev = devm_kmalloc_obj(&client->dev, struct idt_89hpesx_dev);
 	if (pdev == NULL)
 		return ERR_PTR(-ENOMEM);
 

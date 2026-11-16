@@ -181,8 +181,7 @@ static int jornada680kbd_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int i, error;
 
-	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(struct jornadakbd),
-				  GFP_KERNEL);
+	jornadakbd = devm_kzalloc_obj(&pdev->dev, struct jornadakbd);
 	if (!jornadakbd)
 		return -ENOMEM;
 

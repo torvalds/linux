@@ -280,7 +280,7 @@ static const char * const *of_get_part_probes(struct platform_device *dev)
 	if (count < 0)
 		return of_default_part_probes;
 
-	res = devm_kcalloc(&dev->dev, count + 1, sizeof(*res), GFP_KERNEL);
+	res = devm_kzalloc_objs(&dev->dev, *res, count + 1);
 	if (!res)
 		return NULL;
 
@@ -447,7 +447,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (!dev->dev.of_node && !dev_get_platdata(&dev->dev))
 		return -EINVAL;
 
-	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&dev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

@@ -1261,8 +1261,7 @@ static int rt5514_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val = ~0;
 
-	rt5514 = devm_kzalloc(&i2c->dev, sizeof(struct rt5514_priv),
-				GFP_KERNEL);
+	rt5514 = devm_kzalloc_obj(&i2c->dev, struct rt5514_priv);
 	if (rt5514 == NULL)
 		return -ENOMEM;
 

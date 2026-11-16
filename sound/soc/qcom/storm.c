@@ -90,7 +90,7 @@ static int storm_platform_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	int ret;
 
-	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(&pdev->dev, *card);
 	if (!card)
 		return -ENOMEM;
 

@@ -1238,8 +1238,7 @@ static int ad7194_parse_channels(struct iio_dev *indio_dev)
 
 	num_channels += AD7194_CH_BASE_NR;
 
-	ad7194_channels = devm_kcalloc(dev, num_channels,
-				       sizeof(*ad7194_channels), GFP_KERNEL);
+	ad7194_channels = devm_kzalloc_objs(dev, *ad7194_channels, num_channels);
 	if (!ad7194_channels)
 		return -ENOMEM;
 

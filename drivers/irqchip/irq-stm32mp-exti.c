@@ -627,7 +627,7 @@ static int stm32mp_exti_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret, i;
 
-	host_data = devm_kzalloc(dev, sizeof(*host_data), GFP_KERNEL);
+	host_data = devm_kzalloc_obj(dev, *host_data);
 	if (!host_data)
 		return -ENOMEM;
 
@@ -660,9 +660,8 @@ static int stm32mp_exti_probe(struct platform_device *pdev)
 	}
 	host_data->drv_data = drv_data;
 
-	host_data->chips_data = devm_kcalloc(dev, drv_data->bank_nr,
-					     sizeof(*host_data->chips_data),
-					     GFP_KERNEL);
+	host_data->chips_data = devm_kzalloc_objs(dev, *host_data->chips_data,
+						  drv_data->bank_nr);
 	if (!host_data->chips_data)
 		return -ENOMEM;
 

@@ -1249,7 +1249,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret, i;
 
-	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
+	bdev = devm_kzalloc_obj(&pdev->dev, *bdev);
 	if (!bdev)
 		return -ENOMEM;
 
@@ -1318,8 +1318,8 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	tasklet_setup(&bdev->task, dma_tasklet);
 
-	bdev->channels = devm_kcalloc(bdev->dev, bdev->num_channels,
-				sizeof(*bdev->channels), GFP_KERNEL);
+	bdev->channels = devm_kzalloc_objs(bdev->dev, *bdev->channels,
+					   bdev->num_channels);
 
 	if (!bdev->channels) {
 		ret = -ENOMEM;

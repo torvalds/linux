@@ -284,7 +284,7 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 		else
 			count = ret;
 
-		txbuf = kmalloc_array(count, sizeof(unsigned int), GFP_KERNEL);
+		txbuf = kmalloc_objs(unsigned int, count);
 		if (!txbuf) {
 			ret = -ENOMEM;
 			goto out_kfree_raw;

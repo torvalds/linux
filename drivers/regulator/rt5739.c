@@ -263,7 +263,7 @@ static int rt5739_probe(struct i2c_client *i2c)
 	unsigned int vid;
 	int ret;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 

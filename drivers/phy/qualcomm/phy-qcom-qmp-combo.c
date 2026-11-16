@@ -4770,8 +4770,7 @@ static int qmp_combo_reset_init(struct qmp_combo *qmp)
 	int i;
 	int ret;
 
-	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
-				   sizeof(*qmp->resets), GFP_KERNEL);
+	qmp->resets = devm_kzalloc_objs(dev, *qmp->resets, cfg->num_resets);
 	if (!qmp->resets)
 		return -ENOMEM;
 
@@ -4791,7 +4790,7 @@ static int qmp_combo_clk_init(struct qmp_combo *qmp)
 	int num = ARRAY_SIZE(qmp_combo_phy_clk_l);
 	int i;
 
-	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
+	qmp->clks = devm_kzalloc_objs(dev, *qmp->clks, num);
 	if (!qmp->clks)
 		return -ENOMEM;
 
@@ -5507,7 +5506,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	int ret;
 
-	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
+	qmp = devm_kzalloc_obj(dev, *qmp);
 	if (!qmp)
 		return -ENOMEM;
 

@@ -397,8 +397,9 @@ struct erofs_iomap_iter_ctx {
 	struct inode *realinode;
 };
 
-extern const struct iomap_ops z_erofs_iomap_report_ops;
 extern const struct iomap_read_ops erofs_fileio_iomap_read_ops;
+
+DECLARE_IOMAP_ITER_NEXT(z_erofs_iomap_next_report);
 
 int erofs_setup_managed_cache(struct super_block *sb);
 #ifdef CONFIG_EROFS_FS_BACKED_BY_FILE

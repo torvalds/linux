@@ -47,6 +47,9 @@
 #define VCE_V1_0_STACK_SIZE	(64 * 1024)
 #define VCE_V1_0_DATA_SIZE	(ALIGN(7808 * (AMDGPU_MAX_VCE_HANDLES + 1), VCE_V1_0_ALIGNMENT))
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
+#define VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK   0x08
+#define VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK    0x10
+#define VCE_STATUS_VCPU_REPORT_RB1_BUSY_MASK    0x20
 
 static void vce_v1_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v1_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -349,19 +352,29 @@ static int vce_v1_0_mc_resume(struct amdgpu_device *adev)
  *
  * @ip_block: amdgpu_ip_block pointer
  *
- * Check whether VCE is busy according to VCE_STATUS.
+ * Check whether VCE is busy according to VCE_STATUS
+ * and whether the ring pointers match.
+ *
  * Also check whether the SRBM thinks VCE is busy, although
- * SRBM_STATUS.VCE_BUSY seems to be bogus because it
+ * SRBM_STATUS2.VCE_BUSY seems to be bogus because it
  * appears to mirror the VCE_STATUS.VCPU_REPORT_FW_LOADED bit.
  */
 static bool vce_v1_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	bool busy =
-		(RREG32(mmVCE_STATUS) & (VCE_STATUS__JOB_BUSY_MASK | VCE_STATUS__UENC_BUSY_MASK)) ||
-		(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
 
-	return !busy;
+	/* Check whether the rings are busy. */
+	if (RREG32(mmVCE_RB_RPTR) != RREG32(mmVCE_RB_WPTR) ||
+	    RREG32(mmVCE_RB_RPTR2) != RREG32(mmVCE_RB_WPTR2))
+		return false;
+
+	/* Check whether the VCPU is busy. */
+	if (RREG32(mmVCE_STATUS) & (VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK |
+				    VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK |
+				    VCE_STATUS_VCPU_REPORT_RB1_BUSY_MASK))
+		return false;
+
+	return !(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
 }
 
 static int vce_v1_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
@@ -651,12 +664,16 @@ static int vce_v1_0_hw_init(struct amdgpu_ip_block *ip_block)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
-			return r;
+			goto error;
 	}
 
 	dev_info(adev->dev, "VCE initialized successfully.\n");
 
 	return 0;
+
+error:
+	cancel_delayed_work_sync(&adev->vce.idle_work);
+	return r;
 }
 
 static int vce_v1_0_hw_fini(struct amdgpu_ip_block *ip_block)

@@ -1793,7 +1793,7 @@ static int adt7462_probe(struct i2c_client *client)
 	struct adt7462_data *data;
 	struct device *hwmon_dev;
 
-	data = devm_kzalloc(dev, sizeof(struct adt7462_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct adt7462_data);
 	if (!data)
 		return -ENOMEM;
 

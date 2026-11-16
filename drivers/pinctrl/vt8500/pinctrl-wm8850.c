@@ -336,7 +336,7 @@ static int wm8850_pinctrl_probe(struct platform_device *pdev)
 {
 	struct wmt_pinctrl_data *data;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

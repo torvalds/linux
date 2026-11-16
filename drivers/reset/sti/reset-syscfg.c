@@ -135,7 +135,7 @@ static int syscfg_reset_controller_register(struct device *dev,
 	struct syscfg_reset_controller *rc;
 	int i, err;
 
-	rc = devm_kzalloc(dev, struct_size(rc, channels, data->nr_channels), GFP_KERNEL);
+	rc = devm_kzalloc_flex(dev, *rc, channels, data->nr_channels);
 	if (!rc)
 		return -ENOMEM;
 

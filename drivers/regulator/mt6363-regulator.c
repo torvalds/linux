@@ -4,7 +4,6 @@
 // Copyright (c) 2025 Collabora Ltd
 //                    AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
 
-#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/devm-helpers.h>
 #include <linux/err.h>
@@ -147,7 +146,7 @@ struct mt6363_regulator_info {
 }
 
 #define MT6363_LDO_LINEAR_OPS(match, vreg, in_sup, vops, min, max,	\
-			      step, buck_reg, ocp_intn)			\
+			      step, en_reg, lp_reg, ocp_intn)		\
 [MT6363_ID_##vreg] = {							\
 	.desc = {							\
 		.name = match,						\
@@ -160,13 +159,13 @@ struct mt6363_regulator_info {
 		.n_voltages = (max - min) / step + 1,			\
 		.min_uV = min,						\
 		.uV_step = step,					\
-		.enable_reg = MT6363_RG_##buck_reg##_EN_ADDR,		\
+		.enable_reg = en_reg,					\
 		.enable_mask = BIT(MT6363_RG_LDO_##vreg##_EN_BIT),	\
 		.vsel_reg = MT6363_RG_LDO_##vreg##_VOSEL_ADDR,		\
 		.vsel_mask = MT6363_RG_LDO_##vreg##_VOSEL_MASK,		\
 		.of_map_mode = mt6363_map_mode,				\
 	},								\
-	.lp_mode_reg = MT6363_RG_##buck_reg##_LP_ADDR,			\
+	.lp_mode_reg = lp_reg,						\
 	.lp_mode_mask = BIT(MT6363_RG_LDO_##vreg##_LP_BIT),		\
 	.hw_lp_mode_reg = MT6363_LDO_##vreg##_HW_LP_MODE,		\
 	.hw_lp_mode_mask = 0x4,						\
@@ -176,12 +175,15 @@ struct mt6363_regulator_info {
 #define MT6363_LDO_L_SC(match, vreg, inp, min, max, step, buck_reg,	\
 			ocp_intn)					\
 	MT6363_LDO_LINEAR_OPS(match, vreg, inp, mt6363_vreg_setclr_ops,	\
-			      min, max, step, buck_reg, ocp_intn)
+			      min, max, step,				\
+			      MT6363_RG_##buck_reg##_EN_ADDR,		\
+			      MT6363_RG_##buck_reg##_LP_ADDR, ocp_intn)
 
-#define MT6363_LDO_L(match, vreg, inp, min, max, step, buck_reg,	\
-		     ocp_intn)						\
+#define MT6363_LDO_L(match, vreg, inp, min, max, step, ocp_intn)	\
 	MT6363_LDO_LINEAR_OPS(match, vreg, inp, mt6363_ldo_linear_ops,	\
-			      min, max, step, buck_reg, ocp_intn)
+			      min, max, step,				\
+			      MT6363_RG_LDO_##vreg##_ADDR,		\
+			      MT6363_RG_LDO_##vreg##_ADDR, ocp_intn)
 
 #define MT6363_LDO_LINEAR_CAL_OPS(match, vreg, in_sup, vops, vrnum,	\
 				  ocp_intn)				\
@@ -381,7 +383,7 @@ static unsigned int mt6363_regulator_get_mode(struct regulator_dev *rdev)
 
 static int mt6363_buck_unlock(struct regmap *map, bool unlock)
 {
-	u16 buf = unlock ? MT6363_BUCK_TOP_UNLOCK_VALUE : 0;
+	__le16 buf = cpu_to_le16(unlock ? MT6363_BUCK_TOP_UNLOCK_VALUE : 0);
 
 	return regmap_bulk_write(map, MT6363_BUCK_TOP_KEY_PROT_LO, &buf, sizeof(buf));
 }
@@ -482,31 +484,9 @@ static int mt6363_regulator_set_load(struct regulator_dev *rdev, int load_uA)
 
 static int mt6363_vemc_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
-	const u16 tma_unlock_key = MT6363_TMA_UNLOCK_VALUE;
-	const struct regulator_desc *rdesc = rdev->desc;
-	struct regmap *regmap = rdev->regmap;
-	unsigned int range, val;
-	int i, ret;
-	u16 mask;
-
-	for (i = 0; i < rdesc->n_linear_ranges; i++) {
-		const struct linear_range *r = &rdesc->linear_ranges[i];
-		unsigned int voltages_in_range = linear_range_values_in_range(r);
-
-		if (sel < voltages_in_range)
-			break;
-		sel -= voltages_in_range;
-	}
-
-	if (i == rdesc->n_linear_ranges)
-		return -EINVAL;
-
-	ret = regmap_read(rdev->regmap, MT6363_TOP_TRAP, &val);
-	if (ret)
-		return ret;
-
-	if (val > 1)
-		return -EINVAL;
+	const __le16 tma_unlock_key = cpu_to_le16(MT6363_TMA_UNLOCK_VALUE);
+	const __le16 tma_lock_key = cpu_to_le16(0);
+	int ret;
 
 	/* Unlock TMA for writing */
 	ret = regmap_bulk_write(rdev->regmap, MT6363_TOP_TMA_KEY_L,
@@ -514,74 +494,13 @@ static int mt6363_vemc_set_voltage_sel(struct regulator_dev *rdev, unsigned int 
 	if (ret)
 		return ret;
 
-	/* If HW trapping value is 1, use VEMC_VOSEL_1 instead of VEMC_VOSEL_0 */
-	if (val == 1) {
-		mask = MT6363_RG_VEMC_VOSEL_1_MASK;
-		sel = FIELD_PREP(MT6363_RG_VEMC_VOSEL_1_MASK, sel);
-	} else {
-		mask = rdesc->vsel_mask;
-	}
+	ret = regulator_set_voltage_sel_pickable_regmap(rdev, sel);
 
-	sel <<= ffs(rdesc->vsel_mask) - 1;
-	sel += rdesc->linear_ranges[i].min_sel;
-
-	range = rdesc->linear_range_selectors_bitfield[i];
-	range <<= ffs(rdesc->vsel_range_mask) - 1;
-
-	/* Write to the vreg calibration register for voltage finetuning */
-	ret = regmap_update_bits(regmap, rdesc->vsel_range_reg,
-				 rdesc->vsel_range_mask, range);
-	if (ret)
-		goto lock_tma;
-
-	/* Function must return the result of this write operation */
-	ret = regmap_update_bits(regmap, rdesc->vsel_reg, mask, sel);
-
-lock_tma:
 	/* Unconditionally re-lock TMA */
-	val = 0;
-	regmap_bulk_write(rdev->regmap, MT6363_TOP_TMA_KEY_L, &val, 2);
+	regmap_bulk_write(rdev->regmap, MT6363_TOP_TMA_KEY_L,
+			  &tma_lock_key, sizeof(tma_lock_key));
 
 	return ret;
-}
-
-static int mt6363_vemc_get_voltage_sel(struct regulator_dev *rdev)
-{
-	const struct regulator_desc *rdesc = rdev->desc;
-	unsigned int vosel, trap, calsel;
-	int vcal, vsel, range, ret;
-
-	ret = regmap_read(rdev->regmap, rdesc->vsel_reg, &vosel);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(rdev->regmap, rdesc->vsel_range_reg, &calsel);
-	if (ret)
-		return ret;
-
-	calsel &= rdesc->vsel_range_mask;
-	for (range = 0; range < rdesc->n_linear_ranges; range++)
-		if (rdesc->linear_range_selectors_bitfield[range] != calsel)
-			break;
-
-	if (range == rdesc->n_linear_ranges)
-		return -EINVAL;
-
-	ret = regmap_read(rdev->regmap, MT6363_TOP_TRAP, &trap);
-	if (ret)
-		return ret;
-
-	/* If HW trapping value is 1, use VEMC_VOSEL_1 instead of VEMC_VOSEL_0 */
-	if (trap > 1)
-		return -EINVAL;
-	else if (trap == 1)
-		vsel = FIELD_GET(MT6363_RG_VEMC_VOSEL_1_MASK, vosel);
-	else
-		vsel = vosel & rdesc->vsel_mask;
-
-	vcal = linear_range_values_in_range_array(rdesc->linear_ranges, range);
-
-	return vsel + vcal;
 }
 
 static int mt6363_va15_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
@@ -696,7 +615,7 @@ static const struct regulator_ops mt6363_ldo_vemc_ops = {
 	.list_voltage = regulator_list_voltage_pickable_linear_range,
 	.map_voltage = regulator_map_voltage_pickable_linear_range,
 	.set_voltage_sel = mt6363_vemc_set_voltage_sel,
-	.get_voltage_sel = mt6363_vemc_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -754,10 +673,10 @@ static struct mt6363_regulator_info mt6363_regulators[] = {
 	MT6363_LDO_VT("vio0p75", VIO075, "vs1-ldo1", 5, 36),
 	MT6363_LDO_VT("vio18", VIO18, "vs1-ldo2", 3, 35),
 	MT6363_LDO_VT("vm18", VM18, "vs1-ldo1", 4, 40),
-	MT6363_LDO_L("vsram-apu", VSRAM_APU, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 30),
-	MT6363_LDO_L("vsram-cpub", VSRAM_CPUB, "vs2-ldo1", 400000, 1193750, 6250, BUCK1, 27),
-	MT6363_LDO_L("vsram-cpum", VSRAM_CPUM, "vs2-ldo1", 400000, 1193750, 6250, BUCK1, 28),
-	MT6363_LDO_L("vsram-cpul", VSRAM_CPUL, "vs2-ldo2", 400000, 1193750, 6250, BUCK1, 29),
+	MT6363_LDO_L("vsram-apu", VSRAM_APU, "vs3-ldo1", 400000, 1193750, 6250, 30),
+	MT6363_LDO_L("vsram-cpub", VSRAM_CPUB, "vs2-ldo1", 400000, 1193750, 6250, 27),
+	MT6363_LDO_L("vsram-cpum", VSRAM_CPUM, "vs2-ldo1", 400000, 1193750, 6250, 28),
+	MT6363_LDO_L("vsram-cpul", VSRAM_CPUL, "vs2-ldo2", 400000, 1193750, 6250, 29),
 	MT6363_LDO_L_SC("vsram-digrf", VSRAM_DIGRF, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 23),
 	MT6363_LDO_L_SC("vsram-mdfe", VSRAM_MDFE, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 24),
 	MT6363_LDO_L_SC("vsram-modem", VSRAM_MODEM, "vs3-ldo2", 400000, 1193750, 6250, BUCK1, 25),
@@ -793,6 +712,30 @@ static int mt6363_backup_op_setting(struct regmap *map, struct mt6363_regulator_
 	return 0;
 }
 
+static int mt6363_vemc_select_bank(struct regmap *map, struct regulator_desc *desc)
+{
+	unsigned int trap;
+	int ret;
+
+	ret = regmap_read(map, MT6363_TOP_TRAP, &trap);
+	if (ret)
+		return ret;
+
+	/* The hardware trap value selects which VEMC voltage controls are used */
+	switch (trap) {
+	case 0:
+		desc->vsel_reg = MT6363_RG_VEMC_VOCAL_ADDR;
+		desc->vsel_range_mask = MT6363_RG_VEMC_VOSEL_MASK;
+		return 0;
+	case 1:
+		desc->vsel_reg = MT6363_RG_VEMC_VOCAL_1_ADDR;
+		desc->vsel_range_mask = MT6363_RG_VEMC_VOSEL_1_MASK;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void mt6363_irq_remove(void *data)
 {
 	int *virq = data;
@@ -811,7 +754,7 @@ static struct regmap *mt6363_spmi_register_regmap(struct device *dev)
 {
 	struct regmap_config mt6363_regmap_config = {
 		.reg_bits = 16,
-		.val_bits = 16,
+		.val_bits = 8,
 		.max_register = 0x1f90,
 		.fast_io = true,
 	};
@@ -876,6 +819,11 @@ static int mt6363_regulator_probe(struct platform_device *pdev)
 	 * This matches the MT6373 driver behavior.
 	 */
 	regmap_read(config.regmap, MT6363_TOP_TRAP, &val);
+
+	ret = mt6363_vemc_select_bank(config.regmap,
+				      &mt6363_regulators[MT6363_ID_VEMC].desc);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to select VEMC bank\n");
 
 	interrupt_parent = of_irq_find_parent(dev->of_node);
 	if (!interrupt_parent)

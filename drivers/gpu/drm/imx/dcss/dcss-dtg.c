@@ -150,7 +150,7 @@ int dcss_dtg_init(struct dcss_dev *dcss, unsigned long dtg_base)
 	int ret = 0;
 	struct dcss_dtg *dtg;
 
-	dtg = devm_kzalloc(dcss->dev, sizeof(*dtg), GFP_KERNEL);
+	dtg = devm_kzalloc_obj(dcss->dev, *dtg);
 	if (!dtg)
 		return -ENOMEM;
 

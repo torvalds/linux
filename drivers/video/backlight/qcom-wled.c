@@ -1725,7 +1725,7 @@ static int wled_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	wled = devm_kzalloc(&pdev->dev, sizeof(*wled), GFP_KERNEL);
+	wled = devm_kzalloc_obj(&pdev->dev, *wled);
 	if (!wled)
 		return -ENOMEM;
 

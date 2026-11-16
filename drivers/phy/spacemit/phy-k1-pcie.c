@@ -609,7 +609,7 @@ static int k1_pcie_phy_probe(struct platform_device *pdev)
 	if (!k1_phy_rterm_valid() && !probing_port_a)
 		return -EPROBE_DEFER;
 
-	k1_phy = devm_kzalloc(dev, sizeof(*k1_phy), GFP_KERNEL);
+	k1_phy = devm_kzalloc_obj(dev, *k1_phy);
 	if (!k1_phy)
 		return -ENOMEM;
 	k1_phy->dev = dev;

@@ -16,7 +16,7 @@ int hva_mem_alloc(struct hva_ctx *ctx, u32 size, const char *name,
 	dma_addr_t paddr;
 	void *base;
 
-	b = devm_kzalloc(dev, sizeof(*b), GFP_KERNEL);
+	b = devm_kzalloc_obj(dev, *b);
 	if (!b) {
 		ctx->sys_errors++;
 		return -ENOMEM;

@@ -792,7 +792,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	struct resource res;
 	int ret;
 
-	is = devm_kzalloc(&pdev->dev, sizeof(*is), GFP_KERNEL);
+	is = devm_kzalloc_obj(&pdev->dev, *is);
 	if (!is)
 		return -ENOMEM;
 

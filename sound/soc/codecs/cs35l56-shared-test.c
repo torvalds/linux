@@ -91,7 +91,7 @@ static int cs35l56_shared_test_mock_gpio_probe(struct faux_device *fdev)
 	struct device *dev = &fdev->dev;
 	int ret;
 
-	gpio_priv = devm_kzalloc(dev, sizeof(*gpio_priv), GFP_KERNEL);
+	gpio_priv = devm_kzalloc_obj(dev, *gpio_priv);
 	if (!gpio_priv)
 		return -ENOMEM;
 

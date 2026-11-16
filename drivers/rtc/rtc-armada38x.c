@@ -490,8 +490,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
 	struct armada38x_rtc *rtc;
 
-	rtc = devm_kzalloc(&pdev->dev, struct_size(rtc, val_to_freq, SAMPLE_NR),
-			    GFP_KERNEL);
+	rtc = devm_kzalloc_flex(&pdev->dev, *rtc, val_to_freq, SAMPLE_NR);
 	if (!rtc)
 		return -ENOMEM;
 

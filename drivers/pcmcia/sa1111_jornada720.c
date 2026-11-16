@@ -38,7 +38,7 @@ static int jornada720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	struct device *dev = skt->socket.dev.parent;
 	struct jornada720_data *j;
 
-	j = devm_kzalloc(dev, sizeof(*j), GFP_KERNEL);
+	j = devm_kzalloc_obj(dev, *j);
 	if (!j)
 		return -ENOMEM;
 

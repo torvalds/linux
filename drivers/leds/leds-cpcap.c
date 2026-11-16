@@ -161,7 +161,7 @@ static int cpcap_led_probe(struct platform_device *pdev)
 	struct cpcap_led *led;
 	int err;
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&pdev->dev, *led);
 	if (!led)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, led);

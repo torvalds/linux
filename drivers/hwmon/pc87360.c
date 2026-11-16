@@ -1445,7 +1445,7 @@ static int pc87360_probe(struct platform_device *pdev)
 	int use_thermistors = 0;
 	struct device *dev = &pdev->dev;
 
-	data = devm_kzalloc(dev, sizeof(struct pc87360_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct pc87360_data);
 	if (!data)
 		return -ENOMEM;
 

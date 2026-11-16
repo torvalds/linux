@@ -243,7 +243,7 @@ static int nvjpg_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	nvjpg = devm_kzalloc(dev, sizeof(*nvjpg), GFP_KERNEL);
+	nvjpg = devm_kzalloc_obj(dev, *nvjpg);
 	if (!nvjpg)
 		return -ENOMEM;
 

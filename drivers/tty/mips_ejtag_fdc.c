@@ -891,7 +891,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	struct tty_driver *driver;
 	unsigned int cfg, tx_fifo;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&dev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->cpu = dev->cpu;

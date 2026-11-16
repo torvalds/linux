@@ -2139,7 +2139,7 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 	if (!base)
 		return -ENOMEM;
 
-	msc = devm_kzalloc(dev, sizeof(*msc), GFP_KERNEL);
+	msc = devm_kzalloc_obj(dev, *msc);
 	if (!msc)
 		return -ENOMEM;
 

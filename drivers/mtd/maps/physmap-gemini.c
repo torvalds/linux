@@ -130,7 +130,7 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 	if (!of_device_is_compatible(np, "cortina,gemini-flash"))
 		return 0;
 
-	gf = devm_kzalloc(dev, sizeof(*gf), GFP_KERNEL);
+	gf = devm_kzalloc_obj(dev, *gf);
 	if (!gf)
 		return -ENOMEM;
 	gf->dev = dev;

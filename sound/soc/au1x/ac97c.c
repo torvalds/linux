@@ -233,7 +233,7 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 	struct resource *iores, *dmares;
 	struct au1xpsc_audio_data *ctx;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

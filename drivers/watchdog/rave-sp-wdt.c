@@ -259,7 +259,7 @@ static int rave_sp_wdt_probe(struct platform_device *pdev)
 	__le16 timeout = 0;
 	int ret;
 
-	sp_wd = devm_kzalloc(dev, sizeof(*sp_wd), GFP_KERNEL);
+	sp_wd = devm_kzalloc_obj(dev, *sp_wd);
 	if (!sp_wd)
 		return -ENOMEM;
 

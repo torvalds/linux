@@ -2271,7 +2271,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = devm_kzalloc_obj(&pdev->dev, *i2c_dev);
 	if (!i2c_dev)
 		return -ENOMEM;
 

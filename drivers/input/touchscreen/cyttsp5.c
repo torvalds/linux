@@ -827,7 +827,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	struct cyttsp5_sysinfo *si;
 	int error, i;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

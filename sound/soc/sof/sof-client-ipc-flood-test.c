@@ -290,7 +290,7 @@ static int sof_ipc_flood_probe(struct auxiliary_device *auxdev,
 	struct sof_ipc_flood_priv *priv;
 
 	/* allocate memory for client data */
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

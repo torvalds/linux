@@ -182,7 +182,7 @@ static int prom21_xhci_probe(struct auxiliary_device *auxdev,
 	    pdata->rsrc_len < PROM21_XHCI_DATA_OFFSET + sizeof(u32))
 		return dev_err_probe(dev, -ENODEV, "invalid MMIO resource\n");
 
-	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

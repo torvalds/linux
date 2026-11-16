@@ -192,7 +192,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	if (pdata->min_voltage >= 0)
 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
 
-	prop = devm_kcalloc(&dev->dev, props, sizeof(*prop), GFP_KERNEL);
+	prop = devm_kzalloc_objs(&dev->dev, *prop, props);
 	if (!prop)
 		return -ENOMEM;
 

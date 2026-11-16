@@ -709,7 +709,7 @@ static int mtk_dp_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int ret;
 
-	dp_phy = devm_kzalloc(dev, sizeof(*dp_phy), GFP_KERNEL);
+	dp_phy = devm_kzalloc_obj(dev, *dp_phy);
 	if (!dp_phy)
 		return -ENOMEM;
 

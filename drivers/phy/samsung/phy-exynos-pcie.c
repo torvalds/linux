@@ -147,7 +147,7 @@ static int exynos_pcie_phy_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
 
-	exynos_phy = devm_kzalloc(dev, sizeof(*exynos_phy), GFP_KERNEL);
+	exynos_phy = devm_kzalloc_obj(dev, *exynos_phy);
 	if (!exynos_phy)
 		return -ENOMEM;
 

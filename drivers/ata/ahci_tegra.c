@@ -523,7 +523,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(&pdev->dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 
@@ -578,9 +578,8 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(tegra->pmc),
 				     "failed to get PMC\n");
 
-	tegra->supplies = devm_kcalloc(&pdev->dev,
-				       tegra->soc->num_supplies,
-				       sizeof(*tegra->supplies), GFP_KERNEL);
+	tegra->supplies = devm_kzalloc_objs(&pdev->dev, *tegra->supplies,
+					    tegra->soc->num_supplies);
 	if (!tegra->supplies)
 		return -ENOMEM;
 

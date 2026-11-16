@@ -40,7 +40,7 @@ static int atmel_flexcom_probe(struct platform_device *pdev)
 	struct atmel_flexcom *ddata;
 	int err;
 
-	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&pdev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

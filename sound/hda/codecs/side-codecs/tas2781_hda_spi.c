@@ -772,18 +772,18 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 	const char *device_name;
 	int ret = 0;
 
-	tas_hda = devm_kzalloc(&spi->dev, sizeof(*tas_hda), GFP_KERNEL);
+	tas_hda = devm_kzalloc_obj(&spi->dev, *tas_hda);
 	if (!tas_hda)
 		return -ENOMEM;
 
-	hda_priv = devm_kzalloc(&spi->dev, sizeof(*hda_priv), GFP_KERNEL);
+	hda_priv = devm_kzalloc_obj(&spi->dev, *hda_priv);
 	if (!hda_priv)
 		return -ENOMEM;
 
 	tas_hda->hda_priv = hda_priv;
 	spi->max_speed_hz = TAS2781_SPI_MAX_FREQ;
 
-	tas_priv = devm_kzalloc(&spi->dev, sizeof(*tas_priv), GFP_KERNEL);
+	tas_priv = devm_kzalloc_obj(&spi->dev, *tas_priv);
 	if (!tas_priv)
 		return -ENOMEM;
 	tas_priv->dev = &spi->dev;

@@ -2950,7 +2950,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct v4l2_device *v4l2_dev;
 	int ret;
 
-	hdmirx_dev = devm_kzalloc(dev, sizeof(*hdmirx_dev), GFP_KERNEL);
+	hdmirx_dev = devm_kzalloc_obj(dev, *hdmirx_dev);
 	if (!hdmirx_dev)
 		return -ENOMEM;
 

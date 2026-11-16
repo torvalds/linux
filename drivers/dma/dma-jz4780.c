@@ -867,8 +867,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	if (!soc_data)
 		return -EINVAL;
 
-	jzdma = devm_kzalloc(dev, struct_size(jzdma, chan,
-			     soc_data->nb_channels), GFP_KERNEL);
+	jzdma = devm_kzalloc_flex(dev, *jzdma, chan, soc_data->nb_channels);
 	if (!jzdma)
 		return -ENOMEM;
 

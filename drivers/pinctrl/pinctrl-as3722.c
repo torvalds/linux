@@ -544,7 +544,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 
 	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
 
-	as_pci = devm_kzalloc(&pdev->dev, sizeof(*as_pci), GFP_KERNEL);
+	as_pci = devm_kzalloc_obj(&pdev->dev, *as_pci);
 	if (!as_pci)
 		return -ENOMEM;
 

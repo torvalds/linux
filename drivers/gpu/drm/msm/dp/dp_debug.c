@@ -210,7 +210,7 @@ int msm_dp_debug_init(struct device *dev, struct msm_dp_panel *panel,
 		return -EINVAL;
 	}
 
-	debug = devm_kzalloc(dev, sizeof(*debug), GFP_KERNEL);
+	debug = devm_kzalloc_obj(dev, *debug);
 	if (!debug)
 		return -ENOMEM;
 

@@ -1103,7 +1103,7 @@ int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
 	if (count < 2 || cachep->random_seq)
 		return 0;
 
-	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
+	cachep->random_seq = kzalloc_objs(unsigned int, count, gfp);
 	if (!cachep->random_seq)
 		return -ENOMEM;
 

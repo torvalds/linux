@@ -42,8 +42,8 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	struct device_node *anp;
 	int ret;
 
-	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
-					  IMXRT1050_CLK_END), GFP_KERNEL);
+	clk_hw_data = devm_kzalloc_flex(dev, *clk_hw_data, hws,
+					IMXRT1050_CLK_END);
 	if (WARN_ON(!clk_hw_data))
 		return -ENOMEM;
 

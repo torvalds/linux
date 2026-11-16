@@ -78,7 +78,7 @@ static int stm32_etzpc_probe(struct platform_device *pdev)
 	void __iomem *mmio;
 	int rc;
 
-	etzpc_controller = devm_kzalloc(&pdev->dev, sizeof(*etzpc_controller), GFP_KERNEL);
+	etzpc_controller = devm_kzalloc_obj(&pdev->dev, *etzpc_controller);
 	if (!etzpc_controller)
 		return -ENOMEM;
 

@@ -860,8 +860,8 @@ int hmm_dma_map_alloc(struct device *dev, struct hmm_dma_map *map,
 		return -EOPNOTSUPP;
 
 	map->dma_entry_size = dma_entry_size;
-	map->pfn_list = kvcalloc(nr_entries, sizeof(*map->pfn_list),
-				 GFP_KERNEL | __GFP_NOWARN);
+	map->pfn_list = kvzalloc_objs(*map->pfn_list, nr_entries,
+				      GFP_KERNEL | __GFP_NOWARN);
 	if (!map->pfn_list)
 		return -ENOMEM;
 

@@ -3066,9 +3066,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val;
 
-	rt5670 = devm_kzalloc(&i2c->dev,
-				sizeof(struct rt5670_priv),
-				GFP_KERNEL);
+	rt5670 = devm_kzalloc_obj(&i2c->dev, struct rt5670_priv);
 	if (NULL == rt5670)
 		return -ENOMEM;
 

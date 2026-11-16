@@ -1076,7 +1076,7 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

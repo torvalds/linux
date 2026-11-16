@@ -109,7 +109,7 @@ static struct psp_device *psp_alloc_struct(struct sp_device *sp)
 	struct device *dev = sp->dev;
 	struct psp_device *psp;
 
-	psp = devm_kzalloc(dev, sizeof(*psp), GFP_KERNEL);
+	psp = devm_kzalloc_obj(dev, *psp);
 	if (!psp)
 		return NULL;
 

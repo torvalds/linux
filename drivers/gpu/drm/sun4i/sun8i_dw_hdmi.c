@@ -112,7 +112,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc_obj(&pdev->dev, *hdmi);
 	if (!hdmi)
 		return -ENOMEM;
 

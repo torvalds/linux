@@ -147,7 +147,7 @@ struct tasdevice_priv *tasdevice_kzalloc(struct i2c_client *i2c)
 {
 	struct tasdevice_priv *tas_priv;
 
-	tas_priv = devm_kzalloc(&i2c->dev, sizeof(*tas_priv), GFP_KERNEL);
+	tas_priv = devm_kzalloc_obj(&i2c->dev, *tas_priv);
 	if (!tas_priv)
 		return NULL;
 	tas_priv->dev = &i2c->dev;

@@ -234,13 +234,11 @@ static int amd_hfi_alloc_class_data(struct platform_device *pdev)
 		struct amd_hfi_classes *classes;
 		int *ipcc_scores;
 
-		classes = devm_kcalloc(dev,
-				       nr_class_id,
-				       sizeof(struct amd_hfi_classes),
-				       GFP_KERNEL);
+		classes = devm_kzalloc_objs(dev, struct amd_hfi_classes,
+					    nr_class_id);
 		if (!classes)
 			return -ENOMEM;
-		ipcc_scores = devm_kcalloc(dev, nr_class_id, sizeof(int), GFP_KERNEL);
+		ipcc_scores = devm_kzalloc_objs(dev, int, nr_class_id);
 		if (!ipcc_scores)
 			return -ENOMEM;
 		hfi_cpuinfo = per_cpu_ptr(&amd_hfi_cpuinfo, idx);
@@ -367,13 +365,13 @@ static int amd_hfi_metadata_parser(struct platform_device *pdev,
 	acpi_status status;
 	int ret;
 
-	pcc_mbox_channels = devm_kcalloc(&pdev->dev, AMD_HFI_MAILBOX_COUNT,
-					 sizeof(*pcc_mbox_channels), GFP_KERNEL);
+	pcc_mbox_channels = devm_kzalloc_objs(&pdev->dev, *pcc_mbox_channels,
+					      AMD_HFI_MAILBOX_COUNT);
 	if (!pcc_mbox_channels)
 		return -ENOMEM;
 
-	pcc_chan = devm_kcalloc(&pdev->dev, AMD_HFI_MAILBOX_COUNT,
-				sizeof(*pcc_chan), GFP_KERNEL);
+	pcc_chan = devm_kzalloc_objs(&pdev->dev, *pcc_chan,
+				     AMD_HFI_MAILBOX_COUNT);
 	if (!pcc_chan)
 		return -ENOMEM;
 
@@ -481,7 +479,7 @@ static int amd_hfi_probe(struct platform_device *pdev)
 	if (!acpi_match_device(amd_hfi_platform_match, &pdev->dev))
 		return -ENODEV;
 
-	amd_hfi_data = devm_kzalloc(&pdev->dev, sizeof(*amd_hfi_data), GFP_KERNEL);
+	amd_hfi_data = devm_kzalloc_obj(&pdev->dev, *amd_hfi_data);
 	if (!amd_hfi_data)
 		return -ENOMEM;
 

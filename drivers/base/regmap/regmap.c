@@ -1237,8 +1237,7 @@ static void regmap_field_init(struct regmap_field *rm_field,
 struct regmap_field *devm_regmap_field_alloc(struct device *dev,
 		struct regmap *regmap, struct reg_field reg_field)
 {
-	struct regmap_field *rm_field = devm_kzalloc(dev,
-					sizeof(*rm_field), GFP_KERNEL);
+	struct regmap_field *rm_field = devm_kzalloc_obj(dev, *rm_field);
 	if (!rm_field)
 		return ERR_PTR(-ENOMEM);
 
@@ -1306,7 +1305,7 @@ int devm_regmap_field_bulk_alloc(struct device *dev,
 	struct regmap_field *rf;
 	int i;
 
-	rf = devm_kcalloc(dev, num_fields, sizeof(*rf), GFP_KERNEL);
+	rf = devm_kzalloc_objs(dev, *rf, num_fields);
 	if (!rf)
 		return -ENOMEM;
 

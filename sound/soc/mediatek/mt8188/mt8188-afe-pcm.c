@@ -3069,9 +3069,8 @@ static int init_memif_priv_data(struct mtk_base_afe *afe)
 	int i;
 
 	for (i = MT8188_AFE_MEMIF_START; i < MT8188_AFE_MEMIF_END; i++) {
-		memif_priv = devm_kzalloc(afe->dev,
-					  sizeof(struct mtk_dai_memif_priv),
-					  GFP_KERNEL);
+		memif_priv = devm_kzalloc_obj(afe->dev,
+					      struct mtk_dai_memif_priv);
 		if (!memif_priv)
 			return -ENOMEM;
 
@@ -3085,7 +3084,7 @@ static int mt8188_dai_memif_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 
@@ -3221,12 +3220,11 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
+	afe = devm_kzalloc_obj(&pdev->dev, *afe);
 	if (!afe)
 		return -ENOMEM;
 
-	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
-					  GFP_KERNEL);
+	afe->platform_priv = devm_kzalloc_obj(&pdev->dev, *afe_priv);
 	if (!afe->platform_priv)
 		return -ENOMEM;
 
@@ -3279,8 +3277,7 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	/* irq initialize */
 	afe->irqs_size = MT8188_AFE_IRQ_NUM;
-	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
-				 GFP_KERNEL);
+	afe->irqs = devm_kzalloc_objs(dev, *afe->irqs, afe->irqs_size);
 	if (!afe->irqs)
 		return -ENOMEM;
 
@@ -3289,8 +3286,7 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	/* init memif */
 	afe->memif_size = MT8188_AFE_MEMIF_NUM;
-	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
-				  GFP_KERNEL);
+	afe->memif = devm_kzalloc_objs(dev, *afe->memif, afe->memif_size);
 	if (!afe->memif)
 		return -ENOMEM;
 

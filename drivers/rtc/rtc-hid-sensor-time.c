@@ -223,8 +223,8 @@ static int hid_time_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
-	struct hid_time_state *time_state = devm_kzalloc(&pdev->dev,
-		sizeof(struct hid_time_state), GFP_KERNEL);
+	struct hid_time_state *time_state = devm_kzalloc_obj(&pdev->dev,
+							     struct hid_time_state);
 
 	if (time_state == NULL)
 		return -ENOMEM;

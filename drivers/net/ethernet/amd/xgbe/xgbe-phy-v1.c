@@ -572,7 +572,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data;
 	int ret;
 
-	phy_data = devm_kzalloc(pdata->dev, sizeof(*phy_data), GFP_KERNEL);
+	phy_data = devm_kzalloc_obj(pdata->dev, *phy_data);
 	if (!phy_data)
 		return -ENOMEM;
 

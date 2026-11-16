@@ -461,7 +461,7 @@ static int ch7322_probe(struct i2c_client *client)
 	if (hdmi_dev)
 		caps |= CEC_CAP_CONNECTOR_INFO;
 
-	ch7322 = devm_kzalloc(&client->dev, sizeof(*ch7322), GFP_KERNEL);
+	ch7322 = devm_kzalloc_obj(&client->dev, *ch7322);
 	if (!ch7322)
 		return -ENOMEM;
 

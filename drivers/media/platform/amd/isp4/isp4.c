@@ -123,7 +123,7 @@ static int isp4_capture_probe(struct platform_device *pdev)
 	struct isp4_device *isp_dev;
 	int ret;
 
-	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
+	isp_dev = devm_kzalloc_obj(dev, *isp_dev);
 	if (!isp_dev)
 		return -ENOMEM;
 

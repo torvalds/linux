@@ -1211,7 +1211,7 @@ static int pca953x_probe(struct i2c_client *client)
 	int ret;
 	const struct regmap_config *regmap_config;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (chip == NULL)
 		return -ENOMEM;
 

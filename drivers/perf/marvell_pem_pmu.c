@@ -319,7 +319,7 @@ static int pem_perf_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	pem_pmu = devm_kzalloc(&pdev->dev, sizeof(*pem_pmu), GFP_KERNEL);
+	pem_pmu = devm_kzalloc_obj(&pdev->dev, *pem_pmu);
 	if (!pem_pmu)
 		return -ENOMEM;
 

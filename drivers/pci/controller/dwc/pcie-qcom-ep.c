@@ -870,7 +870,7 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	pcie_ep = devm_kzalloc(dev, sizeof(*pcie_ep), GFP_KERNEL);
+	pcie_ep = devm_kzalloc_obj(dev, *pcie_ep);
 	if (!pcie_ep)
 		return -ENOMEM;
 

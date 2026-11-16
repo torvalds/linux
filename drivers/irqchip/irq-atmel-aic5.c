@@ -358,8 +358,8 @@ static int __init sama5d2_aic5_of_init(struct device_node *node,
 				       struct device_node *parent)
 {
 #ifdef CONFIG_PM
-	smr_cache = kcalloc(DIV_ROUND_UP(NR_SAMA5D2_IRQS, 32) * 32,
-			    sizeof(*smr_cache), GFP_KERNEL);
+	smr_cache = kzalloc_objs(*smr_cache,
+				 DIV_ROUND_UP(NR_SAMA5D2_IRQS, 32) * 32);
 	if (!smr_cache)
 		return -ENOMEM;
 #endif

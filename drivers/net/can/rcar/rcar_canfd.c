@@ -2157,7 +2157,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	}
 
 	/* Global controller context */
-	gpriv = devm_kzalloc(dev, sizeof(*gpriv), GFP_KERNEL);
+	gpriv = devm_kzalloc_obj(dev, *gpriv);
 	if (!gpriv)
 		return -ENOMEM;
 

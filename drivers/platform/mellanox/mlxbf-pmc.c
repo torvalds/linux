@@ -2028,15 +2028,15 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, unsigned int blk_
 		attr = NULL;
 	}
 
-	pmc->block[blk_num].attr_counter = devm_kcalloc(
-		dev, pmc->block[blk_num].counters,
-		sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
+	pmc->block[blk_num].attr_counter = devm_kzalloc_objs(dev,
+							     struct mlxbf_pmc_attribute,
+							     pmc->block[blk_num].counters);
 	if (!pmc->block[blk_num].attr_counter)
 		return -ENOMEM;
 
-	pmc->block[blk_num].attr_event = devm_kcalloc(
-		dev, pmc->block[blk_num].counters,
-		sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
+	pmc->block[blk_num].attr_event = devm_kzalloc_objs(dev,
+							   struct mlxbf_pmc_attribute,
+							   pmc->block[blk_num].counters);
 	if (!pmc->block[blk_num].attr_event)
 		return -ENOMEM;
 
@@ -2084,8 +2084,9 @@ static int mlxbf_pmc_init_perftype_reg(struct device *dev, unsigned int blk_num)
 	if (!events)
 		return -ENOENT;
 
-	pmc->block[blk_num].attr_event = devm_kcalloc(
-		dev, count, sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
+	pmc->block[blk_num].attr_event = devm_kzalloc_objs(dev,
+							   struct mlxbf_pmc_attribute,
+							   count);
 	if (!pmc->block[blk_num].attr_event)
 		return -ENOMEM;
 
@@ -2281,7 +2282,7 @@ static int mlxbf_pmc_probe(struct platform_device *pdev)
 	if (!mlxbf_pmc_guid_match(&guid, &res))
 		return -ENODEV;
 
-	pmc = devm_kzalloc(dev, sizeof(struct mlxbf_pmc_context), GFP_KERNEL);
+	pmc = devm_kzalloc_obj(dev, struct mlxbf_pmc_context);
 	if (!pmc)
 		return -ENOMEM;
 

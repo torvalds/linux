@@ -3894,8 +3894,7 @@ static int selinux_backing_file_alloc(struct file *backing_file,
 	 * mappings would have to be serialized.  Size it dynamically: erofs
 	 * inode sharing adds a backing file without bumping s_stack_depth.
 	 */
-	bfsec->layers = kmalloc_array(ubfsec->layer_count + 1,
-				      sizeof(*bfsec->layers), GFP_KERNEL);
+	bfsec->layers = kmalloc_objs(*bfsec->layers, ubfsec->layer_count + 1);
 	if (!bfsec->layers)
 		return -ENOMEM;
 

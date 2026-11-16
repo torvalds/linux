@@ -1298,7 +1298,7 @@ static int ov5693_probe(struct i2c_client *client)
 	u32 xvclk_rate;
 	int ret = 0;
 
-	ov5693 = devm_kzalloc(&client->dev, sizeof(*ov5693), GFP_KERNEL);
+	ov5693 = devm_kzalloc_obj(&client->dev, *ov5693);
 	if (!ov5693)
 		return -ENOMEM;
 

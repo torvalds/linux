@@ -230,9 +230,8 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev,
 
 		conn_info = ndev->rf_conn_info;
 		if (!conn_info) {
-			conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
-						 sizeof(struct nci_conn_info),
-						 GFP_KERNEL);
+			conn_info = devm_kzalloc_obj(&ndev->nfc_dev->dev,
+						     struct nci_conn_info);
 			if (!conn_info) {
 				status = NCI_STATUS_REJECTED;
 				goto exit;
@@ -314,16 +313,14 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 	if (status == NCI_STATUS_OK) {
 		rsp = (struct nci_core_conn_create_rsp *)skb->data;
 
-		conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
-					 sizeof(*conn_info), GFP_KERNEL);
+		conn_info = devm_kzalloc_obj(&ndev->nfc_dev->dev, *conn_info);
 		if (!conn_info) {
 			status = NCI_STATUS_REJECTED;
 			goto exit;
 		}
 
-		conn_info->dest_params = devm_kzalloc(&ndev->nfc_dev->dev,
-						sizeof(struct dest_spec_params),
-						GFP_KERNEL);
+		conn_info->dest_params = devm_kzalloc_obj(&ndev->nfc_dev->dev,
+							  struct dest_spec_params);
 		if (!conn_info->dest_params) {
 			status = NCI_STATUS_REJECTED;
 			goto free_conn_info;

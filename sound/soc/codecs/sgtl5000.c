@@ -1597,7 +1597,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client)
 	u32 value;
 	u16 ana_pwr;
 
-	sgtl5000 = devm_kzalloc(&client->dev, sizeof(*sgtl5000), GFP_KERNEL);
+	sgtl5000 = devm_kzalloc_obj(&client->dev, *sgtl5000);
 	if (!sgtl5000)
 		return -ENOMEM;
 

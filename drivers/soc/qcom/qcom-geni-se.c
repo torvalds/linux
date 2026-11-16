@@ -698,9 +698,8 @@ int geni_se_clk_tbl_get(struct geni_se *se, unsigned long **tbl)
 		return se->num_clk_levels;
 	}
 
-	se->clk_perf_tbl = devm_kcalloc(se->dev, MAX_CLK_PERF_LEVEL,
-					sizeof(*se->clk_perf_tbl),
-					GFP_KERNEL);
+	se->clk_perf_tbl = devm_kzalloc_objs(se->dev, *se->clk_perf_tbl,
+					     MAX_CLK_PERF_LEVEL);
 	if (!se->clk_perf_tbl)
 		return -ENOMEM;
 
@@ -1618,7 +1617,7 @@ static int geni_se_probe(struct platform_device *pdev)
 	const struct geni_se_desc *desc;
 	int ret;
 
-	wrapper = devm_kzalloc(dev, sizeof(*wrapper), GFP_KERNEL);
+	wrapper = devm_kzalloc_obj(dev, *wrapper);
 	if (!wrapper)
 		return -ENOMEM;
 

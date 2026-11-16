@@ -599,7 +599,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 	u32 trigger_type = 0;
 	int ret;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

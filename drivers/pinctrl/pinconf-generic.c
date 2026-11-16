@@ -336,8 +336,8 @@ int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 		return -EINVAL;
 	}
 
-	pid_t = devm_kcalloc(dev, npins_t, sizeof(*pid_t), GFP_KERNEL);
-	pmux_t = devm_kcalloc(dev, npins_t, sizeof(*pmux_t), GFP_KERNEL);
+	pid_t = devm_kzalloc_objs(dev, *pid_t, npins_t);
+	pmux_t = devm_kzalloc_objs(dev, *pmux_t, npins_t);
 	if (!pid_t || !pmux_t) {
 		dev_err(dev, "kalloc memory fail\n");
 		return -ENOMEM;
@@ -392,7 +392,7 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	max_cfg = ARRAY_SIZE(dt_params);
 	if (pctldev)
 		max_cfg += pctldev->desc->num_custom_params;
-	cfg = kcalloc(max_cfg, sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_objs(*cfg, max_cfg);
 	if (!cfg)
 		return -ENOMEM;
 

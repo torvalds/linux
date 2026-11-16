@@ -452,8 +452,7 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 			priv->reg_offset = __be32_to_cpu(*offset);
 	}
 
-	if_phys = devm_kcalloc(dev, priv->num_ports,
-			       sizeof(*if_phys), GFP_KERNEL);
+	if_phys = devm_kzalloc_objs(dev, *if_phys, priv->num_ports);
 	if (!if_phys)
 		return -ENOMEM;
 	dev_dbg(dev, "%s %d\n", __func__, priv->num_ports);
@@ -489,7 +488,7 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 	if (!of_id)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -362,7 +362,7 @@ static int uniphier_reset_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

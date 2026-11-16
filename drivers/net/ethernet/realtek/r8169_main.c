@@ -6880,8 +6880,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dash_enabled = rtl_dash_is_enabled(tp);
 
 	if (rtl_hw_support_rss(tp)) {
-		tp->rss_data = devm_kzalloc(&pdev->dev, sizeof(*tp->rss_data),
-					    GFP_KERNEL);
+		tp->rss_data = devm_kzalloc_obj(&pdev->dev, *tp->rss_data);
 		if (!tp->rss_data)
 			return -ENOMEM;
 	}
@@ -7009,8 +7008,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	tp->rx_ring = kcalloc(tp->num_rx_rings, sizeof(struct rtl8169_rx_ring),
-			      GFP_KERNEL);
+	tp->rx_ring = kzalloc_objs(struct rtl8169_rx_ring, tp->num_rx_rings);
 	if (!tp->rx_ring) {
 		rc = -ENOMEM;
 		goto err_destroy_phylink;
@@ -7019,8 +7017,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (int i = 0; i < tp->num_rx_rings; i++)
 		u64_stats_init(&tp->rx_ring[i].stats.syncp);
 
-	tp->rtl8169_napi = kcalloc(tp->irq_nvecs, sizeof(struct napi_struct),
-				   GFP_KERNEL);
+	tp->rtl8169_napi = kzalloc_objs(struct napi_struct, tp->irq_nvecs);
 	if (!tp->rtl8169_napi) {
 		rc = -ENOMEM;
 		goto err_free_rx_ring;

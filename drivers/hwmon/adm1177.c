@@ -199,7 +199,7 @@ static int adm1177_probe(struct i2c_client *client)
 	u32 prop;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

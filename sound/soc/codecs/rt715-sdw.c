@@ -406,9 +406,8 @@ static int rt715_read_prop(struct sdw_slave *slave)
 	prop->sink_ports = 0x0;	/* BITMAP:  00000000 */
 
 	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					sizeof(*prop->src_dpn_prop),
-					GFP_KERNEL);
+	prop->src_dpn_prop = devm_kzalloc_objs(&slave->dev, *prop->src_dpn_prop,
+					       nval);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 

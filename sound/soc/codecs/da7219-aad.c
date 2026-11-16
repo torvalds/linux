@@ -670,7 +670,7 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 	if (!aad_np)
 		return NULL;
 
-	aad_pdata = devm_kzalloc(dev, sizeof(*aad_pdata), GFP_KERNEL);
+	aad_pdata = devm_kzalloc_obj(dev, *aad_pdata);
 	if (!aad_pdata) {
 		fwnode_handle_put(aad_np);
 		return NULL;
@@ -1062,7 +1062,7 @@ int da7219_aad_probe(struct i2c_client *i2c)
 	struct device *dev = &i2c->dev;
 	struct da7219_aad_priv *da7219_aad;
 
-	da7219_aad = devm_kzalloc(dev, sizeof(*da7219_aad), GFP_KERNEL);
+	da7219_aad = devm_kzalloc_obj(dev, *da7219_aad);
 	if (!da7219_aad)
 		return -ENOMEM;
 

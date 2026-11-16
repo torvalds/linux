@@ -93,7 +93,7 @@ int rkvdec_allocate_rcb(struct rkvdec_ctx *ctx,
 		return 0;
 	}
 
-	ctx->rcb_config = devm_kzalloc(rkvdec->dev, sizeof(*ctx->rcb_config), GFP_KERNEL);
+	ctx->rcb_config = devm_kzalloc_obj(rkvdec->dev, *ctx->rcb_config);
 	if (!ctx->rcb_config)
 		return -ENOMEM;
 

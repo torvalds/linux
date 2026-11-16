@@ -370,9 +370,8 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 		st->magn[2].index, st->magn[2].report_id);
 
 	/* Setup IIO channel array */
-	_channels = devm_kcalloc(&pdev->dev, attr_count,
-				 sizeof(struct iio_chan_spec),
-				 GFP_KERNEL);
+	_channels = devm_kzalloc_objs(&pdev->dev, struct iio_chan_spec,
+				      attr_count);
 	if (!_channels) {
 		dev_err(&pdev->dev,
 			"failed to allocate space for iio channels\n");
@@ -380,9 +379,8 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 	}
 
 	/* attr_count include timestamp channel, and the iio_vals should be aligned to 8byte */
-	st->iio_vals = devm_kcalloc(&pdev->dev,
-				    ((attr_count + 1) % 2 + (attr_count + 1) / 2) * 2,
-				    sizeof(u32), GFP_KERNEL);
+	st->iio_vals = devm_kzalloc_objs(&pdev->dev, u32,
+					 ((attr_count + 1) % 2 + (attr_count + 1) / 2) * 2);
 	if (!st->iio_vals) {
 		dev_err(&pdev->dev,
 			"failed to allocate space for iio values array\n");

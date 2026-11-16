@@ -721,8 +721,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl->base))
 		return PTR_ERR(ctrl->base);
 
-	ctrl->clks = devm_kcalloc(dev, QSPI_NUM_CLKS,
-				  sizeof(*ctrl->clks), GFP_KERNEL);
+	ctrl->clks = devm_kzalloc_objs(dev, *ctrl->clks, QSPI_NUM_CLKS);
 	if (!ctrl->clks)
 		return -ENOMEM;
 

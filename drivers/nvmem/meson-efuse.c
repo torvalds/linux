@@ -73,7 +73,7 @@ static int meson_efuse_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	econfig = devm_kzalloc(dev, sizeof(*econfig), GFP_KERNEL);
+	econfig = devm_kzalloc_obj(dev, *econfig);
 	if (!econfig)
 		return -ENOMEM;
 

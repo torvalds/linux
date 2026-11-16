@@ -239,7 +239,7 @@ static int hci_pio_init(struct i3c_hci *hci)
 	u32 size_val;
 	u32 cmd_sz, resp_sz, ibi_val;
 
-	pio = devm_kzalloc(hci->master.dev.parent, sizeof(*pio), GFP_KERNEL);
+	pio = devm_kzalloc_obj(hci->master.dev.parent, *pio);
 	if (!pio)
 		return -ENOMEM;
 

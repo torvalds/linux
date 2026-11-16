@@ -431,7 +431,7 @@ int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 		if (WARN_ON(freqtbl[i].rate < freqtbl[i + 1].rate))
 			return -EINVAL;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return -ENOMEM;
 

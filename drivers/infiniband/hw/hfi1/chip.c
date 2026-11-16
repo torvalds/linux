@@ -12650,12 +12650,11 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	}
 
 	/* allocate space for the counter values */
-	dd->cntrs = kcalloc(dd->ndevcntrs + num_driver_cntrs, sizeof(u64),
-			    GFP_KERNEL);
+	dd->cntrs = kzalloc_objs(u64, dd->ndevcntrs + num_driver_cntrs);
 	if (!dd->cntrs)
 		goto bail;
 
-	dd->scntrs = kcalloc(dd->ndevcntrs, sizeof(u64), GFP_KERNEL);
+	dd->scntrs = kzalloc_objs(u64, dd->ndevcntrs);
 	if (!dd->scntrs)
 		goto bail;
 
@@ -12805,11 +12804,11 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	/* allocate per port storage for counter values */
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
-		ppd->cntrs = kcalloc(dd->nportcntrs, sizeof(u64), GFP_KERNEL);
+		ppd->cntrs = kzalloc_objs(u64, dd->nportcntrs);
 		if (!ppd->cntrs)
 			goto bail;
 
-		ppd->scntrs = kcalloc(dd->nportcntrs, sizeof(u64), GFP_KERNEL);
+		ppd->scntrs = kzalloc_objs(u64, dd->nportcntrs);
 		if (!ppd->scntrs)
 			goto bail;
 	}

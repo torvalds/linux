@@ -1662,7 +1662,7 @@ static int qcom_battmgr_probe(struct auxiliary_device *adev,
 	struct device *dev = &adev->dev;
 	int ret;
 
-	battmgr = devm_kzalloc(dev, sizeof(*battmgr), GFP_KERNEL);
+	battmgr = devm_kzalloc_obj(dev, *battmgr);
 	if (!battmgr)
 		return -ENOMEM;
 

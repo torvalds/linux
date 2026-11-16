@@ -782,7 +782,7 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	u32 absent_ms = 0;
 	int ret;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 	panel->desc = desc;

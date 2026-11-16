@@ -340,7 +340,7 @@ static int as3722_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	u8 val = 0;
 
-	as3722 = devm_kzalloc(&i2c->dev, sizeof(struct as3722), GFP_KERNEL);
+	as3722 = devm_kzalloc_obj(&i2c->dev, struct as3722);
 	if (!as3722)
 		return -ENOMEM;
 

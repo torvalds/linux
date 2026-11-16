@@ -2294,7 +2294,7 @@ static int mt8196_dai_memif_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 
@@ -2338,14 +2338,13 @@ static int mt8196_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(dev, "failed to assign memory region: %d\n", ret);
 
-	afe = devm_kzalloc(dev, sizeof(*afe), GFP_KERNEL);
+	afe = devm_kzalloc_obj(dev, *afe);
 	if (!afe)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, afe);
 
-	afe->platform_priv = devm_kzalloc(dev, sizeof(*afe_priv),
-					  GFP_KERNEL);
+	afe->platform_priv = devm_kzalloc_obj(dev, *afe_priv);
 	if (!afe->platform_priv)
 		return -ENOMEM;
 
@@ -2366,8 +2365,7 @@ static int mt8196_afe_pcm_dev_probe(struct platform_device *pdev)
 	/* IPM2.0 no need banding */
 	afe->memif_32bit_supported = 1;
 	afe->memif_size = MT8196_MEMIF_NUM;
-	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
-				  GFP_KERNEL);
+	afe->memif = devm_kzalloc_objs(dev, *afe->memif, afe->memif_size);
 
 	if (!afe->memif)
 		return -ENOMEM;
@@ -2382,8 +2380,7 @@ static int mt8196_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	/* init irq */
 	afe->irqs_size = MT8196_IRQ_NUM;
-	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
-				 GFP_KERNEL);
+	afe->irqs = devm_kzalloc_objs(dev, *afe->irqs, afe->irqs_size);
 
 	if (!afe->irqs)
 		return -ENOMEM;

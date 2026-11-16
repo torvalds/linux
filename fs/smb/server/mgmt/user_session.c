@@ -85,6 +85,8 @@ static const char *session_state_string(struct ksmbd_session *session)
 
 static const char *session_user_name(struct ksmbd_session *session)
 {
+	if (!session->user)
+		return "(Unauthenticated)";
 	if (user_guest(session->user))
 		return "(Guest)";
 	else if (ksmbd_anonymous_user(session->user))
@@ -94,6 +96,8 @@ static const char *session_user_name(struct ksmbd_session *session)
 
 static const char *session_account_type(struct ksmbd_session *session)
 {
+	if (!session->user)
+		return "unauthenticated";
 	if (user_guest(session->user))
 		return "guest";
 	if (ksmbd_anonymous_user(session->user))

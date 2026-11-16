@@ -287,7 +287,7 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

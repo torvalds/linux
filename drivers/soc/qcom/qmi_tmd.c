@@ -419,7 +419,7 @@ static void qmi_tmd_svc_arrive(struct work_struct *work)
 	int ret, i;
 	struct qmi_txn txn;
 
-	resp = kzalloc_obj(*resp, GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp) {
 		ret = -ENOMEM;
 		goto out;
@@ -535,7 +535,7 @@ struct qmi_tmd_client *qmi_tmd_init(struct device *dev,
 	if (!dev || !tmd_names || num_tmds <= 0)
 		return ERR_PTR(-EINVAL);
 
-	qmi_tmd_cli = devm_kzalloc(dev, struct_size(qmi_tmd_cli, tmds, num_tmds), GFP_KERNEL);
+	qmi_tmd_cli = devm_kzalloc_flex(dev, *qmi_tmd_cli, tmds, num_tmds);
 	if (!qmi_tmd_cli)
 		return ERR_PTR(-ENOMEM);
 

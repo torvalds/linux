@@ -139,8 +139,8 @@ int node_affinity_init(void)
 	 */
 	init_real_cpu_mask();
 
-	hfi1_per_node_cntr = kcalloc(node_affinity.num_possible_nodes,
-				     sizeof(*hfi1_per_node_cntr), GFP_KERNEL);
+	hfi1_per_node_cntr = kzalloc_objs(*hfi1_per_node_cntr,
+					  node_affinity.num_possible_nodes);
 	if (!hfi1_per_node_cntr)
 		return -ENOMEM;
 

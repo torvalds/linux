@@ -159,9 +159,8 @@ static int mt7921s_probe(struct sdio_func *func,
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
 	mdev->sdio.parse_irq = mt7921s_parse_intr;
-	mdev->sdio.intr_data = devm_kmalloc(mdev->dev,
-					    sizeof(struct mt7921_sdio_intr),
-					    GFP_KERNEL);
+	mdev->sdio.intr_data = devm_kmalloc_obj(mdev->dev,
+						struct mt7921_sdio_intr);
 	if (!mdev->sdio.intr_data) {
 		ret = -ENOMEM;
 		goto error;

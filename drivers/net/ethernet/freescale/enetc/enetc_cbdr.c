@@ -73,8 +73,7 @@ int enetc4_setup_cbdr(struct enetc_si *si)
 
 	user->cbdr_num = 1;
 	user->dev = dev;
-	user->ring = devm_kcalloc(dev, user->cbdr_num,
-				  sizeof(struct netc_cbdr), GFP_KERNEL);
+	user->ring = devm_kzalloc_objs(dev, struct netc_cbdr, user->cbdr_num);
 	if (!user->ring)
 		return -ENOMEM;
 

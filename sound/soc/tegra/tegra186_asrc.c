@@ -976,7 +976,7 @@ static int tegra186_asrc_platform_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	asrc = devm_kzalloc(dev, sizeof(*asrc), GFP_KERNEL);
+	asrc = devm_kzalloc_obj(dev, *asrc);
 	if (!asrc)
 		return -ENOMEM;
 

@@ -746,7 +746,7 @@ static int it821x_port_start(struct ata_port *ap)
 	if (ret < 0)
 		return ret;
 
-	itdev = devm_kzalloc(&pdev->dev, sizeof(struct it821x_dev), GFP_KERNEL);
+	itdev = devm_kzalloc_obj(&pdev->dev, struct it821x_dev);
 	if (itdev == NULL)
 		return -ENOMEM;
 	ap->private_data = itdev;

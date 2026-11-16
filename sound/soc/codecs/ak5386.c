@@ -169,7 +169,7 @@ static int ak5386_probe(struct platform_device *pdev)
 	struct ak5386_priv *priv;
 	int ret, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

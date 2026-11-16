@@ -290,7 +290,7 @@ static int ads112c04_parse_channels(struct iio_dev *indio_dev,
 				     "num of channel nodes exceeds %d\n",
 				     ADS112C04_MAX_CHANNELS);
 
-	channels = devm_kcalloc(dev, num_channels, sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, num_channels);
 	if (!channels)
 		return -ENOMEM;
 

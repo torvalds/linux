@@ -325,7 +325,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	struct power_supply_config psy_cfg = {};
 	struct max17211_device_info *info;
 
-	info = devm_kzalloc(&sl->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&sl->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

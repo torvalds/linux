@@ -185,16 +185,16 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 					break;
 				}
 		}
-	doi_def->map.std->lvl.local = kcalloc(doi_def->map.std->lvl.local_size,
-					      sizeof(u32),
-					      GFP_KERNEL | __GFP_NOWARN);
+	doi_def->map.std->lvl.local = kzalloc_objs(u32,
+						   doi_def->map.std->lvl.local_size,
+						   GFP_KERNEL | __GFP_NOWARN);
 	if (doi_def->map.std->lvl.local == NULL) {
 		ret_val = -ENOMEM;
 		goto add_std_failure;
 	}
-	doi_def->map.std->lvl.cipso = kcalloc(doi_def->map.std->lvl.cipso_size,
-					      sizeof(u32),
-					      GFP_KERNEL | __GFP_NOWARN);
+	doi_def->map.std->lvl.cipso = kzalloc_objs(u32,
+						   doi_def->map.std->lvl.cipso_size,
+						   GFP_KERNEL | __GFP_NOWARN);
 	if (doi_def->map.std->lvl.cipso == NULL) {
 		ret_val = -ENOMEM;
 		goto add_std_failure;
@@ -260,18 +260,16 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 						break;
 					}
 			}
-		doi_def->map.std->cat.local = kcalloc(
-					      doi_def->map.std->cat.local_size,
-					      sizeof(u32),
-					      GFP_KERNEL | __GFP_NOWARN);
+		doi_def->map.std->cat.local = kzalloc_objs(u32,
+							   doi_def->map.std->cat.local_size,
+							   GFP_KERNEL | __GFP_NOWARN);
 		if (doi_def->map.std->cat.local == NULL) {
 			ret_val = -ENOMEM;
 			goto add_std_failure;
 		}
-		doi_def->map.std->cat.cipso = kcalloc(
-					      doi_def->map.std->cat.cipso_size,
-					      sizeof(u32),
-					      GFP_KERNEL | __GFP_NOWARN);
+		doi_def->map.std->cat.cipso = kzalloc_objs(u32,
+							   doi_def->map.std->cat.cipso_size,
+							   GFP_KERNEL | __GFP_NOWARN);
 		if (doi_def->map.std->cat.cipso == NULL) {
 			ret_val = -ENOMEM;
 			goto add_std_failure;

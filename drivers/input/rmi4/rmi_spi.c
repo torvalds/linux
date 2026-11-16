@@ -93,10 +93,8 @@ static int rmi_spi_manage_pools(struct rmi_spi_xport *rmi_spi, int len)
 	 * per byte delays.
 	 */
 	tmp = rmi_spi->rx_xfers;
-	xfer_buf = devm_kcalloc(&spi->dev,
-		rmi_spi->rx_xfer_count + rmi_spi->tx_xfer_count,
-		sizeof(struct spi_transfer),
-		GFP_KERNEL);
+	xfer_buf = devm_kzalloc_objs(&spi->dev, struct spi_transfer,
+				     rmi_spi->rx_xfer_count + rmi_spi->tx_xfer_count);
 	if (!xfer_buf)
 		return -ENOMEM;
 
@@ -378,8 +376,7 @@ static int rmi_spi_probe(struct spi_device *spi)
 	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX)
 		return -EINVAL;
 
-	rmi_spi = devm_kzalloc(&spi->dev, sizeof(struct rmi_spi_xport),
-			GFP_KERNEL);
+	rmi_spi = devm_kzalloc_obj(&spi->dev, struct rmi_spi_xport);
 	if (!rmi_spi)
 		return -ENOMEM;
 

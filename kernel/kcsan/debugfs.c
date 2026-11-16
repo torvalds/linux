@@ -156,7 +156,7 @@ retry_alloc:
 	 */
 	if (data_race(report_filterlist.used == report_filterlist.size)) {
 		new_size = (report_filterlist.size ?: 4) * 2;
-		delay_free = new_addrs = kmalloc_array(new_size, sizeof(unsigned long), GFP_KERNEL);
+		delay_free = new_addrs = kmalloc_objs(unsigned long, new_size);
 		if (!new_addrs)
 			return -ENOMEM;
 	}

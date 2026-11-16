@@ -482,8 +482,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
 	tx_ring->tx_buf =
-		devm_kcalloc(dev, sizeof(*tx_ring->tx_buf), tx_ring->count,
-			     GFP_KERNEL);
+		devm_kzalloc_objs(dev, *tx_ring->tx_buf, tx_ring->count);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 

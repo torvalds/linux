@@ -136,7 +136,7 @@ static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct uio_info *info;
 
-	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&dev->dev, struct uio_info);
 	if (!info)
 		return -ENOMEM;
 

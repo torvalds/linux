@@ -298,7 +298,7 @@ static int usb3503_i2c_probe(struct i2c_client *i2c)
 	struct usb3503 *hub;
 	int err;
 
-	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
+	hub = devm_kzalloc_obj(&i2c->dev, struct usb3503);
 	if (!hub)
 		return -ENOMEM;
 
@@ -326,7 +326,7 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 {
 	struct usb3503 *hub;
 
-	hub = devm_kzalloc(&pdev->dev, sizeof(struct usb3503), GFP_KERNEL);
+	hub = devm_kzalloc_obj(&pdev->dev, struct usb3503);
 	if (!hub)
 		return -ENOMEM;
 	hub->dev = &pdev->dev;

@@ -372,7 +372,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int irq, err;
 
-	xspi = devm_kzalloc(&pdev->dev, sizeof(*xspi), GFP_KERNEL);
+	xspi = devm_kzalloc_obj(&pdev->dev, *xspi);
 	if (!xspi)
 		return -ENOMEM;
 

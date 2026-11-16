@@ -144,7 +144,7 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 	void *wcnss;
 	int ret;
 
-	btq = devm_kzalloc(&pdev->dev, sizeof(*btq), GFP_KERNEL);
+	btq = devm_kzalloc_obj(&pdev->dev, *btq);
 	if (!btq)
 		return -ENOMEM;
 

@@ -197,7 +197,7 @@ static int bcm_ns_usb3_mdio_probe(struct mdio_device *mdiodev)
 	struct resource res;
 	int err;
 
-	usb3 = devm_kzalloc(dev, sizeof(*usb3), GFP_KERNEL);
+	usb3 = devm_kzalloc_obj(dev, *usb3);
 	if (!usb3)
 		return -ENOMEM;
 

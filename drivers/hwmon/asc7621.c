@@ -1095,8 +1095,7 @@ asc7621_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct asc7621_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct asc7621_data);
 	if (data == NULL)
 		return -ENOMEM;
 

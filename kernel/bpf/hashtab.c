@@ -94,10 +94,10 @@ struct bpf_htab {
 		struct bpf_lru lru;
 	};
 	struct htab_elem *__percpu *extra_elems;
-	/* number of elements in non-preallocated hashtable are kept
-	 * in either pcount or count
+	/* number of elements in non-preallocated hashtable. With
+	 * use_percpu_counter it only follows map.elem_count in steps of
+	 * PERCPU_COUNTER_BATCH, see is_map_full()
 	 */
-	struct percpu_counter pcount;
 	atomic_t count;
 	bool use_percpu_counter;
 	bool has_hash;
@@ -739,28 +739,19 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 
 	htab_init_buckets(htab);
 
-/* compute_batch_value() computes batch value as num_online_cpus() * 2
- * and __percpu_counter_compare() needs
- * htab->max_entries - cur_number_of_elems to be more than batch * num_online_cpus()
- * for percpu_counter to be faster than atomic_t. In practice the average bpf
- * hash map size is 10k, which means that a system with 64 cpus will fill
- * hashmap to 20% of 10k before percpu_counter becomes ineffective. Therefore
- * define our own batch count as 32 then 10k hash map can be filled up to 80%:
+/* is_map_full() needs htab->max_entries - cur_number_of_elems to be more than
+ * batch * nr_cpu_ids for the percpu counter to be faster than atomic_t. In
+ * practice the average bpf hash map size is 10k. With batch count of 32 a 10k
+ * hash map on a system with 64 cpus can be filled up to 80%:
  * 10k - 8k > 32 _batch_ * 64 _cpus_
- * and __percpu_counter_compare() will still be fast. At that point hash map
+ * and is_map_full() will still be fast. At that point hash map
  * collisions will dominate its performance anyway. Assume that hash map filled
  * to 50+% isn't going to be O(1) and use the following formula to choose
- * between percpu_counter and atomic_t.
+ * between the percpu counter and atomic_t. The batch has to be a power of 2.
  */
 #define PERCPU_COUNTER_BATCH 32
-	if (attr->max_entries / 2 > num_online_cpus() * PERCPU_COUNTER_BATCH)
+	if (attr->max_entries / 2 > nr_cpu_ids * PERCPU_COUNTER_BATCH)
 		htab->use_percpu_counter = true;
-
-	if (htab->use_percpu_counter) {
-		err = percpu_counter_init(&htab->pcount, 0, GFP_KERNEL);
-		if (err)
-			goto free_map_locked;
-	}
 
 	if (prealloc) {
 		err = prealloc_init(htab);
@@ -789,8 +780,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 free_prealloc:
 	prealloc_destroy(htab);
 free_map_locked:
-	if (htab->use_percpu_counter)
-		percpu_counter_destroy(&htab->pcount);
 	bpf_map_area_free(htab->buckets);
 	bpf_mem_alloc_destroy(&htab->pcpu_ma);
 	bpf_mem_alloc_destroy(&htab->ma);
@@ -1162,30 +1151,33 @@ static void htab_put_fd_value(struct bpf_htab *htab, struct htab_elem *l)
 
 static bool is_map_full(struct bpf_htab *htab)
 {
-	if (htab->use_percpu_counter)
-		return __percpu_counter_compare(&htab->pcount, htab->map.max_entries,
-						PERCPU_COUNTER_BATCH) >= 0;
-	return atomic_read(&htab->count) >= htab->map.max_entries;
+	s64 count = atomic_read(&htab->count);
+
+	/* each cpu's elem_count is ahead of count by less than the batch */
+	if (htab->use_percpu_counter &&
+	    count + nr_cpu_ids * PERCPU_COUNTER_BATCH >= htab->map.max_entries)
+		count = bpf_map_sum_elem_count(&htab->map);
+	return count >= htab->map.max_entries;
 }
 
 static void inc_elem_count(struct bpf_htab *htab)
 {
-	bpf_map_inc_elem_count(&htab->map);
+	s64 cnt = this_cpu_inc_return(*htab->map.elem_count);
 
-	if (htab->use_percpu_counter)
-		percpu_counter_add_batch(&htab->pcount, 1, PERCPU_COUNTER_BATCH);
-	else
+	if (!htab->use_percpu_counter)
 		atomic_inc(&htab->count);
+	else if (!(cnt & (PERCPU_COUNTER_BATCH - 1)))
+		atomic_add(PERCPU_COUNTER_BATCH, &htab->count);
 }
 
 static void dec_elem_count(struct bpf_htab *htab)
 {
-	bpf_map_dec_elem_count(&htab->map);
+	s64 cnt = this_cpu_dec_return(*htab->map.elem_count);
 
-	if (htab->use_percpu_counter)
-		percpu_counter_add_batch(&htab->pcount, -1, PERCPU_COUNTER_BATCH);
-	else
+	if (!htab->use_percpu_counter)
 		atomic_dec(&htab->count);
+	else if (!((cnt + 1) & (PERCPU_COUNTER_BATCH - 1)))
+		atomic_sub(PERCPU_COUNTER_BATCH, &htab->count);
 }
 
 static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
@@ -1866,8 +1858,6 @@ static void htab_map_free(struct bpf_map *map)
 	bpf_map_area_free(htab->buckets);
 	bpf_mem_alloc_destroy(&htab->pcpu_ma);
 	bpf_mem_alloc_destroy(&htab->ma);
-	if (htab->use_percpu_counter)
-		percpu_counter_destroy(&htab->pcount);
 	bpf_map_area_free(htab);
 }
 
@@ -2577,9 +2567,7 @@ static u64 htab_map_mem_usage(const struct bpf_map *map)
 	} else {
 #define LLIST_NODE_SZ sizeof(struct llist_node)
 
-		num_entries = htab->use_percpu_counter ?
-					  percpu_counter_sum(&htab->pcount) :
-					  atomic_read(&htab->count);
+		num_entries = bpf_map_sum_elem_count(map);
 		usage += (htab->elem_size + LLIST_NODE_SZ) * num_entries;
 		if (percpu) {
 			usage += (LLIST_NODE_SZ + sizeof(void *)) * num_entries;

@@ -181,7 +181,7 @@ tegra_powergate_add(struct tegra_bpmp *bpmp,
 
 	off = !tegra_bpmp_powergate_is_powered(bpmp, info->id);
 
-	powergate = devm_kzalloc(bpmp->dev, sizeof(*powergate), GFP_KERNEL);
+	powergate = devm_kzalloc_obj(bpmp->dev, *powergate);
 	if (!powergate)
 		return ERR_PTR(-ENOMEM);
 

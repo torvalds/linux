@@ -443,7 +443,7 @@ u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 	if (count < 0)
 		return NULL;
 
-	pattern = kcalloc(count, sizeof(*pattern), GFP_KERNEL);
+	pattern = kzalloc_objs(*pattern, count);
 	if (!pattern)
 		return NULL;
 

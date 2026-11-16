@@ -181,10 +181,8 @@ static int of_get_max1586_platform_data(struct device *dev,
 	if (matched <= 0)
 		return matched;
 
-	pdata->subdevs = devm_kcalloc(dev,
-				      matched,
-				      sizeof(struct max1586_subdev_data),
-				      GFP_KERNEL);
+	pdata->subdevs = devm_kzalloc_objs(dev, struct max1586_subdev_data,
+					   matched);
 	if (!pdata->subdevs)
 		return -ENOMEM;
 
@@ -222,8 +220,7 @@ static int max1586_pmic_probe(struct i2c_client *client)
 		pdata = &pdata_of;
 	}
 
-	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data),
-			GFP_KERNEL);
+	max1586 = devm_kzalloc_obj(&client->dev, struct max1586_data);
 	if (!max1586)
 		return -ENOMEM;
 

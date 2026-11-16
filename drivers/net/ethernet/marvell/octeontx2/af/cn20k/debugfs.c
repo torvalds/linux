@@ -398,7 +398,7 @@ int npc_cn20k_debugfs_init(struct rvu *rvu)
 	debugfs_create_file("vidx2idx", 0444, rvu->rvu_dbg.npc,
 			    npc_priv, &npc_vidx2idx_map_fops);
 
-	dstats = devm_kzalloc(rvu->dev, sizeof(*dstats), GFP_KERNEL);
+	dstats = devm_kzalloc_obj(rvu->dev, *dstats);
 	if (!dstats)
 		return -ENOMEM;
 

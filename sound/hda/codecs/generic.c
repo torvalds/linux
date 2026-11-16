@@ -3910,7 +3910,7 @@ static int create_mute_led_cdev(struct hda_codec *codec,
 	int idx = micmute ? LED_AUDIO_MICMUTE : LED_AUDIO_MUTE;
 	int err;
 
-	cdev = devm_kzalloc(&codec->core.dev, sizeof(*cdev), GFP_KERNEL);
+	cdev = devm_kzalloc_obj(&codec->core.dev, *cdev);
 	if (!cdev)
 		return -ENOMEM;
 

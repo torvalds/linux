@@ -397,8 +397,7 @@ static int knav_acc_init_queue(struct knav_range_info *range,
 {
 	unsigned id = kq->id - range->queue_base;
 
-	kq->descs = devm_kcalloc(range->kdev->dev,
-				 ACC_DESCS_MAX, sizeof(u32), GFP_KERNEL);
+	kq->descs = devm_kzalloc_objs(range->kdev->dev, u32, ACC_DESCS_MAX);
 	if (!kq->descs)
 		return -ENOMEM;
 
@@ -544,8 +543,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	info->list_size = list_size;
 	mem_size   = PAGE_ALIGN(list_size * 2);
 	info->mem_size  = mem_size;
-	range->acc = devm_kcalloc(kdev->dev, channels, sizeof(*range->acc),
-				  GFP_KERNEL);
+	range->acc = devm_kzalloc_objs(kdev->dev, *range->acc, channels);
 	if (!range->acc)
 		return -ENOMEM;
 

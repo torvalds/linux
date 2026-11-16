@@ -643,8 +643,7 @@ static int sis5595_probe(struct platform_device *pdev)
 				 DRIVER_NAME))
 		return -EBUSY;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct sis5595_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct sis5595_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -209,7 +209,7 @@ static int efinix_spi_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, -EINVAL,
 				     "Unsupported SPI mode, set CPHA and CPOL\n");
 
-	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
+	conf = devm_kzalloc_obj(&spi->dev, *conf);
 	if (!conf)
 		return -ENOMEM;
 

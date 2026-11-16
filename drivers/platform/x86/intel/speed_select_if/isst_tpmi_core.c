@@ -335,7 +335,7 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 	u64 perf_level_offsets;
 	int i;
 
-	pd_info->perf_levels = devm_kcalloc(dev, levels, sizeof(struct perf_level), GFP_KERNEL);
+	pd_info->perf_levels = devm_kzalloc_objs(dev, struct perf_level, levels);
 	if (!pd_info->perf_levels) {
 		pd_info->pp_header.allowed_level_mask = 0;
 		pd_info->pp_header.level_en_mask = 0;
@@ -1686,7 +1686,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 
 	ret = 0;
 
-	pd_info = devm_kcalloc(dev, num_resources, sizeof(*pd_info), GFP_KERNEL);
+	pd_info = devm_kzalloc_objs(dev, *pd_info, num_resources);
 	if (!pd_info) {
 		ret = -ENOMEM;
 		goto unlock_free;

@@ -998,8 +998,7 @@ static int tas2764_i2c_probe(struct i2c_client *client)
 	struct tas2764_priv *tas2764;
 	int result;
 
-	tas2764 = devm_kzalloc(&client->dev, sizeof(struct tas2764_priv),
-			       GFP_KERNEL);
+	tas2764 = devm_kzalloc_obj(&client->dev, struct tas2764_priv);
 	if (!tas2764)
 		return -ENOMEM;
 

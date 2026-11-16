@@ -817,7 +817,7 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "initialization\n");
 
 	dev = &pdev->dev;
-	vpu = devm_kzalloc(dev, sizeof(*vpu), GFP_KERNEL);
+	vpu = devm_kzalloc_obj(dev, *vpu);
 	if (!vpu)
 		return -ENOMEM;
 

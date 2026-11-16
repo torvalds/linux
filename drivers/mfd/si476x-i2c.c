@@ -689,7 +689,7 @@ static int si476x_core_probe(struct i2c_client *client)
 	struct mfd_cell *cell;
 	int              cell_num;
 
-	core = devm_kzalloc(&client->dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(&client->dev, *core);
 	if (!core)
 		return -ENOMEM;
 

@@ -138,7 +138,7 @@ nxpwifi_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	int ret;
 	struct sdio_mmc_card *card = NULL;
 
-	card = devm_kzalloc(&func->dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(&func->dev, *card);
 	if (!card)
 		return -ENOMEM;
 
@@ -1744,8 +1744,8 @@ static int nxpwifi_init_sdio(struct nxpwifi_adapter *adapter)
 		return -ENOMEM;
 
 	card->mpa_rx.len_arr =
-		devm_kcalloc(&card->func->dev, card->mp_agg_pkt_limit,
-			     sizeof(*card->mpa_rx.len_arr), GFP_KERNEL);
+		devm_kzalloc_objs(&card->func->dev, *card->mpa_rx.len_arr,
+				  card->mp_agg_pkt_limit);
 
 	if (!card->mpa_rx.len_arr)
 		return -ENOMEM;

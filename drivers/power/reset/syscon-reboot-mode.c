@@ -41,7 +41,7 @@ static int syscon_reboot_mode_probe(struct platform_device *pdev)
 	int ret;
 	struct syscon_reboot_mode *syscon_rbm;
 
-	syscon_rbm = devm_kzalloc(&pdev->dev, sizeof(*syscon_rbm), GFP_KERNEL);
+	syscon_rbm = devm_kzalloc_obj(&pdev->dev, *syscon_rbm);
 	if (!syscon_rbm)
 		return -ENOMEM;
 

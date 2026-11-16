@@ -190,8 +190,7 @@ static int mtk_cpu_create_freq_table(struct platform_device *pdev,
 	u32 temp, i, freq, prev_freq = 0;
 	void __iomem *base_table;
 
-	data->table = devm_kcalloc(dev, LUT_MAX_ENTRIES + 1,
-				   sizeof(*data->table), GFP_KERNEL);
+	data->table = devm_kzalloc_objs(dev, *data->table, LUT_MAX_ENTRIES + 1);
 	if (!data->table)
 		return -ENOMEM;
 
@@ -229,7 +228,7 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 	int ret, i;
 	int index;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -392,7 +391,7 @@ static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

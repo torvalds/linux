@@ -94,8 +94,8 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 
 	map = &umem_odp->map;
 	if (ib_uses_virt_dma(dev)) {
-		map->pfn_list = kvcalloc(nr_entries, sizeof(*map->pfn_list),
-					 GFP_KERNEL | __GFP_NOWARN);
+		map->pfn_list = kvzalloc_objs(*map->pfn_list, nr_entries,
+					      GFP_KERNEL | __GFP_NOWARN);
 		if (!map->pfn_list)
 			ret = -ENOMEM;
 	} else

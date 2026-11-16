@@ -212,7 +212,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	if (!of_id)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv) {
 		dev_err(&pdev->dev, "unable to alloc memory for cpsw phy sel\n");
 		return -ENOMEM;

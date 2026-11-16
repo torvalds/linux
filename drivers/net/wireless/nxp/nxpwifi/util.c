@@ -623,6 +623,10 @@ int nxpwifi_recv_packet_to_monif(struct nxpwifi_private *priv,
 
 	has_ext = rxpd->flags & RXPD_FLAG_EXTRA_HEADER;
 
+	if (has_ext &&
+	    rx_pkt_offset < sizeof(*rxpd) + sizeof(ext))
+		return -EINVAL;
+
 	if (has_ext)
 		memcpy((void *)&ext, (void *)(rxpd + 1), sizeof(ext));
 

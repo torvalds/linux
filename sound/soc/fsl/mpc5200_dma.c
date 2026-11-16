@@ -329,7 +329,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 		return irq;
 
 	/* Allocate and initialize the driver private data */
-	psc_dma = devm_kzalloc(&op->dev, sizeof(*psc_dma), GFP_KERNEL);
+	psc_dma = devm_kzalloc_obj(&op->dev, *psc_dma);
 	if (!psc_dma)
 		return -ENOMEM;
 

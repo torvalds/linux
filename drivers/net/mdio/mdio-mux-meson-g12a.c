@@ -244,7 +244,7 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 	}
 
 	/* create the input mux */
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 
@@ -271,7 +271,7 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 	}
 
 	/* create the pll */
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return -ENOMEM;
 
@@ -308,7 +308,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	struct clk *pclk;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

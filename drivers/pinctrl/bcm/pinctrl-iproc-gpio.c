@@ -457,9 +457,8 @@ static int iproc_pinconf_disable_map_create(struct iproc_gpio *chip,
 	 * Allocate an array to store PINCONF parameters that need to be
 	 * disabled
 	 */
-	chip->pinconf_disable = devm_kcalloc(chip->dev, nbits,
-					     sizeof(*chip->pinconf_disable),
-					     GFP_KERNEL);
+	chip->pinconf_disable = devm_kzalloc_objs(chip->dev,
+						  *chip->pinconf_disable, nbits);
 	if (!chip->pinconf_disable)
 		return -ENOMEM;
 
@@ -764,7 +763,7 @@ static int iproc_gpio_register_pinconf(struct iproc_gpio *chip)
 	struct gpio_chip *gc = &chip->gc;
 	int i;
 
-	pins = devm_kcalloc(chip->dev, gc->ngpio, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(chip->dev, *pins, gc->ngpio);
 	if (!pins)
 		return -ENOMEM;
 
@@ -820,7 +819,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 					 "brcm,iproc-stingray-gpio"))
 		no_pinconf = true;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -880,9 +879,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &iproc_gpio_irq_chip);
 		girq->parent_handler = iproc_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(dev, *girq->parents, 1);
 		if (!girq->parents)
 			return -ENOMEM;
 		girq->parents[0] = irq;

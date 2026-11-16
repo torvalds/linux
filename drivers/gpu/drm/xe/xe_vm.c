@@ -272,8 +272,15 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	 * Check to see if a preemption on VM is in flight or userptr
 	 * invalidation, if so trigger this preempt fence to sync state with
 	 * other preempt fences on the VM.
+	 *
+	 * Also trigger it if eviction or rebinding is pending. BOs evicted
+	 * before the first exec queue was added had no preempt fence to
+	 * trigger. Suspend this queue until the rebind worker restores
+	 * the mappings.
 	 */
-	wait = __xe_vm_userptr_needs_repin(vm) || preempt_fences_waiting(vm);
+	wait = __xe_vm_userptr_needs_repin(vm) || preempt_fences_waiting(vm) ||
+		!list_empty(&vm->gpuvm.evict.list) ||
+		!list_empty(&vm->rebind_list);
 	if (wait)
 		dma_fence_enable_signaling(pfence);
 
@@ -701,7 +708,7 @@ static void xe_vm_clear_fault_entries(struct xe_vm *vm)
 	vm->faults.len = 0;
 }
 
-static int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
+static noinline int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
 {
 	int i;
 
@@ -1682,7 +1689,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 	 */
 	xe_assert(xe, !((flags & XE_VM_FLAG_GSC) && (flags & XE_VM_FLAG_FAULT_MODE)));
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
@@ -3287,8 +3294,8 @@ static int prefetch_ranges(struct xe_vm *vm, struct xe_vma_ops *vops,
 	thread = skip_threads ? &stack_thread : NULL;
 
 	if (!skip_threads) {
-		prefetches = kvmalloc_array(op->prefetch_range.ranges_count,
-					    sizeof(*prefetches), GFP_KERNEL);
+		prefetches = kvmalloc_objs(*prefetches,
+					   op->prefetch_range.ranges_count);
 		if (!prefetches)
 			return -ENOMEM;
 	}
@@ -3566,7 +3573,7 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 			++n_fence;
 	}
 
-	fences = kcalloc(n_fence, sizeof(*fences), GFP_KERNEL);
+	fences = kzalloc_objs(*fences, n_fence);
 	if (!fences) {
 		fence = ERR_PTR(-ENOMEM);
 		goto err_trace;

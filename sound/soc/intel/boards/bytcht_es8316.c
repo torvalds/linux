@@ -576,7 +576,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	int i;
 	int ret = 0;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

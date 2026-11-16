@@ -429,7 +429,7 @@ static int xvip_graph_dma_init_one(struct xvip_composite_device *xdev,
 
 	of_property_read_u32(node, "reg", &index);
 
-	dma = devm_kzalloc(xdev->dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(xdev->dev, *dma);
 	if (dma == NULL)
 		return -ENOMEM;
 
@@ -569,7 +569,7 @@ static int xvip_composite_probe(struct platform_device *pdev)
 	struct xvip_composite_device *xdev;
 	int ret;
 
-	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(&pdev->dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

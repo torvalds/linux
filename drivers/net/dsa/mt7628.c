@@ -569,11 +569,11 @@ static int mt7628_probe(struct platform_device *pdev)
 	struct dsa_switch *ds;
 	void __iomem *base;
 
-	ds = devm_kzalloc(&pdev->dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(&pdev->dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 
-	esw = devm_kzalloc(&pdev->dev, sizeof(*esw), GFP_KERNEL);
+	esw = devm_kzalloc_obj(&pdev->dev, *esw);
 	if (!esw)
 		return -ENOMEM;
 

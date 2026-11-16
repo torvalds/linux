@@ -804,9 +804,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 		goto free_privs_first;
 	}
 
-	g2h_bitmap = kcalloc(params.tlb_sizes[1],
-			     sizeof(*g2h_bitmap),
-			     GFP_KERNEL);
+	g2h_bitmap = kzalloc_objs(*g2h_bitmap, params.tlb_sizes[1]);
 	if (!g2h_bitmap) {
 		ret = -ENOMEM;
 		goto free_privs_second;
@@ -930,9 +928,8 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	if (!vcpu_e500->gtlb_priv[1])
 		goto free_vcpu;
 
-	vcpu_e500->g2h_tlb1_map = kcalloc(vcpu_e500->gtlb_params[1].entries,
-					  sizeof(*vcpu_e500->g2h_tlb1_map),
-					  GFP_KERNEL);
+	vcpu_e500->g2h_tlb1_map = kzalloc_objs(*vcpu_e500->g2h_tlb1_map,
+					       vcpu_e500->gtlb_params[1].entries);
 	if (!vcpu_e500->g2h_tlb1_map)
 		goto free_vcpu;
 

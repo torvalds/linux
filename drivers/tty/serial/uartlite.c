@@ -783,8 +783,7 @@ static int ulite_probe(struct platform_device *pdev)
 	int irq, ret;
 	int id = pdev->id;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(struct uartlite_data),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, struct uartlite_data);
 	if (!pdata)
 		return -ENOMEM;
 

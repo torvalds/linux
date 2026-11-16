@@ -141,7 +141,7 @@ static int mt6360_tcpc_probe(struct platform_device *pdev)
 	struct mt6360_tcpc_info *mti;
 	int ret;
 
-	mti = devm_kzalloc(&pdev->dev, sizeof(*mti), GFP_KERNEL);
+	mti = devm_kzalloc_obj(&pdev->dev, *mti);
 	if (!mti)
 		return -ENOMEM;
 

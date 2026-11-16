@@ -61,7 +61,7 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	a7cc = devm_kzalloc(dev, sizeof(*a7cc), GFP_KERNEL);
+	a7cc = devm_kzalloc_obj(dev, *a7cc);
 	if (!a7cc)
 		return -ENOMEM;
 

@@ -1537,7 +1537,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	struct exynos_ufs *ufs;
 	int ret;
 
-	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
+	ufs = devm_kzalloc_obj(dev, *ufs);
 	if (!ufs)
 		return -ENOMEM;
 
@@ -1880,7 +1880,7 @@ static int exynosauto_ufs_vh_init(struct ufs_hba *hba)
 	struct exynos_ufs *ufs;
 	int ret;
 
-	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
+	ufs = devm_kzalloc_obj(dev, *ufs);
 	if (!ufs)
 		return -ENOMEM;
 

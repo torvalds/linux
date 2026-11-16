@@ -1258,7 +1258,7 @@ static int ov5695_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 	int ret;
 
-	ov5695 = devm_kzalloc(dev, sizeof(*ov5695), GFP_KERNEL);
+	ov5695 = devm_kzalloc_obj(dev, *ov5695);
 	if (!ov5695)
 		return -ENOMEM;
 

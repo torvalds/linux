@@ -444,7 +444,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	for (i = 0; i < vioch->max_msg; i++) {
 		struct scmi_vio_msg *msg;
 
-		msg = devm_kzalloc(dev, sizeof(*msg), GFP_KERNEL);
+		msg = devm_kzalloc_obj(dev, *msg);
 		if (!msg)
 			return -ENOMEM;
 
@@ -838,7 +838,7 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	have_vq_rx = scmi_vio_have_vq_rx(vdev);
 	vq_cnt = have_vq_rx ? VIRTIO_SCMI_VQ_MAX_CNT : 1;
 
-	channels = devm_kcalloc(dev, vq_cnt, sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, vq_cnt);
 	if (!channels)
 		return -ENOMEM;
 

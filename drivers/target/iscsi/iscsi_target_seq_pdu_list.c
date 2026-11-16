@@ -129,7 +129,7 @@ redo:
 			seq_count++;
 			continue;
 		}
-		array = kcalloc(seq_count, sizeof(u32), GFP_KERNEL);
+		array = kzalloc_objs(u32, seq_count);
 		if (!array) {
 			pr_err("Unable to allocate memory"
 				" for random array.\n");
@@ -149,7 +149,7 @@ redo:
 	}
 
 	if (seq_count) {
-		array = kcalloc(seq_count, sizeof(u32), GFP_KERNEL);
+		array = kzalloc_objs(u32, seq_count);
 		if (!array) {
 			pr_err("Unable to allocate memory for"
 				" random array.\n");
@@ -181,7 +181,7 @@ static int iscsit_randomize_seq_lists(
 	if (!seq_count)
 		return 0;
 
-	array = kcalloc(seq_count, sizeof(u32), GFP_KERNEL);
+	array = kzalloc_objs(u32, seq_count);
 	if (!array) {
 		pr_err("Unable to allocate memory for random array.\n");
 		return -ENOMEM;

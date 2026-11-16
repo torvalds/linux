@@ -371,8 +371,7 @@ int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 	struct fw_scs1x *scs;
 	int err;
 
-	scs = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_scs1x),
-			   GFP_KERNEL);
+	scs = devm_kzalloc_obj(&oxfw->card->card_dev, struct fw_scs1x);
 	if (!scs)
 		return -ENOMEM;
 	scs->fw_dev = fw_parent_device(oxfw->unit);

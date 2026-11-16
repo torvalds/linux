@@ -360,7 +360,7 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	int ret;
 	int pipe;
 
-	vb_i2c = devm_kzalloc(&pdev->dev, sizeof(*vb_i2c), GFP_KERNEL);
+	vb_i2c = devm_kzalloc_obj(&pdev->dev, *vb_i2c);
 	if (vb_i2c == NULL)
 		return -ENOMEM;
 

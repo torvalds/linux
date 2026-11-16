@@ -126,7 +126,7 @@ static int mmc_pwrseq_simple_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ngpio;
 
-	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	pwrseq = devm_kzalloc_obj(dev, *pwrseq);
 	if (!pwrseq)
 		return -ENOMEM;
 

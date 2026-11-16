@@ -189,7 +189,7 @@ brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
 	struct dentry *dentry =  drvr->dbgfs_dir;
 	struct brcms_debugfs_entry *entry;
 
-	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
+	entry = devm_kzalloc_obj(dev, *entry);
 	if (!entry)
 		return;
 

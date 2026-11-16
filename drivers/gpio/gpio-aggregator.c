@@ -472,9 +472,8 @@ static int gpiochip_fwd_setup_delay_line(struct gpiochip_fwd *fwd)
 {
 	struct gpio_chip *chip = &fwd->chip;
 
-	fwd->delay_timings = devm_kcalloc(chip->parent, chip->ngpio,
-					  sizeof(*fwd->delay_timings),
-					  GFP_KERNEL);
+	fwd->delay_timings = devm_kzalloc_objs(chip->parent,
+					       *fwd->delay_timings, chip->ngpio);
 	if (!fwd->delay_timings)
 		return -ENOMEM;
 
@@ -695,11 +694,11 @@ struct gpiochip_fwd *devm_gpiochip_fwd_alloc(struct device *dev,
 	struct gpiochip_fwd *fwd;
 	struct gpio_chip *chip;
 
-	fwd = devm_kzalloc(dev, struct_size(fwd, tmp, fwd_tmp_size(ngpios)), GFP_KERNEL);
+	fwd = devm_kzalloc_flex(dev, *fwd, tmp, fwd_tmp_size(ngpios));
 	if (!fwd)
 		return ERR_PTR(-ENOMEM);
 
-	fwd->descs = devm_kcalloc(dev, ngpios, sizeof(*fwd->descs), GFP_KERNEL);
+	fwd->descs = devm_kzalloc_objs(dev, *fwd->descs, ngpios);
 	if (!fwd->descs)
 		return ERR_PTR(-ENOMEM);
 
@@ -1604,7 +1603,7 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 	if (n < 0)
 		return n;
 
-	descs = devm_kmalloc_array(dev, n, sizeof(*descs), GFP_KERNEL);
+	descs = devm_kmalloc_objs(dev, *descs, n);
 	if (!descs)
 		return -ENOMEM;
 

@@ -480,7 +480,7 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 	if (!pdata)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&aux_dev->dev, sizeof(struct pci1xxxx_gpio), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&aux_dev->dev, struct pci1xxxx_gpio);
 	if (!priv)
 		return -ENOMEM;
 

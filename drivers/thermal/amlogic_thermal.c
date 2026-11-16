@@ -307,7 +307,7 @@ static int amlogic_thermal_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

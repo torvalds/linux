@@ -159,7 +159,7 @@ static int rzg3e_phy_usb3_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int ret;
 
-	r = devm_kzalloc(dev, sizeof(*r), GFP_KERNEL);
+	r = devm_kzalloc_obj(dev, *r);
 	if (!r)
 		return -ENOMEM;
 

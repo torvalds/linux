@@ -1273,7 +1273,7 @@ static int fimc_probe(struct platform_device *pdev)
 	if (exynos_drm_check_fimc_device(dev) != 0)
 		return -ENODEV;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1282,8 +1282,7 @@ static int fimc_probe(struct platform_device *pdev)
 
 	/* construct formats/limits array */
 	num_formats = ARRAY_SIZE(fimc_formats) + ARRAY_SIZE(fimc_tiled_formats);
-	formats = devm_kcalloc(dev, num_formats, sizeof(*formats),
-			       GFP_KERNEL);
+	formats = devm_kzalloc_objs(dev, *formats, num_formats);
 	if (!formats)
 		return -ENOMEM;
 

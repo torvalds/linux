@@ -279,7 +279,7 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 	int max_id;
 	int err;
 
-	pmb = devm_kzalloc(dev, sizeof(*pmb), GFP_KERNEL);
+	pmb = devm_kzalloc_obj(dev, *pmb);
 	if (!pmb)
 		return -ENOMEM;
 
@@ -303,13 +303,13 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 
 	pmb->genpd_onecell_data.num_domains = max_id + 1;
 	pmb->genpd_onecell_data.domains =
-		devm_kcalloc(dev, pmb->genpd_onecell_data.num_domains,
-			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
+		devm_kzalloc_objs(dev, struct generic_pm_domain *,
+				  pmb->genpd_onecell_data.num_domains);
 	if (!pmb->genpd_onecell_data.domains)
 		return -ENOMEM;
 
 	for (e = table; e->name; e++) {
-		struct bcm_pmb_pm_domain *pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+		struct bcm_pmb_pm_domain *pd = devm_kzalloc_obj(dev, *pd);
 
 		if (!pd)
 			return -ENOMEM;

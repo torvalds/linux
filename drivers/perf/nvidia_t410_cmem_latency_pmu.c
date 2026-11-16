@@ -610,7 +610,7 @@ static int cmem_lat_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cmem_lat_pmu = devm_kzalloc(dev, sizeof(*cmem_lat_pmu), GFP_KERNEL);
+	cmem_lat_pmu = devm_kzalloc_obj(dev, *cmem_lat_pmu);
 	name = devm_kasprintf(dev, GFP_KERNEL, "nvidia_cmem_latency_pmu_%u", socket);
 	if (!cmem_lat_pmu || !name)
 		return -ENOMEM;

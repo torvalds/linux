@@ -1338,8 +1338,8 @@ static int __init pnv_parse_cpuidle_dt(void)
 						"ibm,cpu-idle-state-flags");
 
 	pnv_idle_states = kzalloc_objs(*pnv_idle_states, nr_idle_states);
-	temp_u32 = kcalloc(nr_idle_states, sizeof(u32),  GFP_KERNEL);
-	temp_u64 = kcalloc(nr_idle_states, sizeof(u64),  GFP_KERNEL);
+	temp_u32 = kzalloc_objs(u32, nr_idle_states);
+	temp_u64 = kzalloc_objs(u64, nr_idle_states);
 	temp_string = kcalloc(nr_idle_states, sizeof(char *),  GFP_KERNEL);
 
 	if (!(pnv_idle_states && temp_u32 && temp_u64 && temp_string)) {

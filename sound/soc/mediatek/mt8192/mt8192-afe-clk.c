@@ -666,8 +666,7 @@ int mt8192_init_clock(struct mtk_base_afe *afe)
 	struct device_node *of_node = afe->dev->of_node;
 	int i = 0;
 
-	afe_priv->clk = devm_kcalloc(afe->dev, CLK_NUM, sizeof(*afe_priv->clk),
-				     GFP_KERNEL);
+	afe_priv->clk = devm_kzalloc_objs(afe->dev, *afe_priv->clk, CLK_NUM);
 	if (!afe_priv->clk)
 		return -ENOMEM;
 

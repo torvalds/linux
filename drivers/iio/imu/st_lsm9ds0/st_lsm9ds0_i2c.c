@@ -59,7 +59,7 @@ static int st_lsm9ds0_i2c_probe(struct i2c_client *client)
 
 	st_sensors_dev_name_probe(dev, client->name, sizeof(client->name));
 
-	lsm9ds0 = devm_kzalloc(dev, sizeof(*lsm9ds0), GFP_KERNEL);
+	lsm9ds0 = devm_kzalloc_obj(dev, *lsm9ds0);
 	if (!lsm9ds0)
 		return -ENOMEM;
 

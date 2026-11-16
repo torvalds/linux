@@ -111,7 +111,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	struct serio *serio;
 	int irq, err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

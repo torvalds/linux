@@ -775,7 +775,7 @@ static int dln2_probe(struct usb_interface *interface,
 	if (ret)
 		return ret;
 
-	dln2 = devm_kzalloc(dev, sizeof(*dln2), GFP_KERNEL);
+	dln2 = devm_kzalloc_obj(dev, *dln2);
 	if (!dln2)
 		return -ENOMEM;
 

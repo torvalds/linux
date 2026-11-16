@@ -140,7 +140,7 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
 
-	gpios = devm_kzalloc(dev, sizeof(*gpios), GFP_KERNEL);
+	gpios = devm_kzalloc_obj(dev, *gpios);
 	if (!gpios)
 		return ERR_PTR(-ENOMEM);
 

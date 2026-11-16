@@ -915,7 +915,7 @@ static int qm_last_regs_init(struct hisi_qm *qm)
 	if (qm->fun_type == QM_HW_VF)
 		return 0;
 
-	debug->qm_last_words = kcalloc(dfx_regs_num, sizeof(unsigned int), GFP_KERNEL);
+	debug->qm_last_words = kzalloc_objs(unsigned int, dfx_regs_num);
 	if (!debug->qm_last_words)
 		return -ENOMEM;
 

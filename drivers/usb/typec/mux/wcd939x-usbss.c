@@ -590,7 +590,7 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 	struct wcd939x_usbss *usbss;
 	int ret;
 
-	usbss = devm_kzalloc(dev, sizeof(*usbss), GFP_KERNEL);
+	usbss = devm_kzalloc_obj(dev, *usbss);
 	if (!usbss)
 		return -ENOMEM;
 

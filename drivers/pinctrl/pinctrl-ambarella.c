@@ -420,8 +420,7 @@ static int amb_pinctrl_register(struct amb_pinctrl *ipc)
 	char **names;
 	int ret;
 
-	pindesc = devm_kcalloc(ipc->dev, ipc->data->npins, sizeof(*pindesc),
-			       GFP_KERNEL);
+	pindesc = devm_kzalloc_objs(ipc->dev, *pindesc, ipc->data->npins);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -463,7 +462,7 @@ static int amb_pinctrl_probe(struct platform_device *pdev)
 	struct amb_pinctrl *ipc;
 	int ret;
 
-	ipc = devm_kzalloc(dev, sizeof(*ipc), GFP_KERNEL);
+	ipc = devm_kzalloc_obj(dev, *ipc);
 	if (!ipc)
 		return -ENOMEM;
 

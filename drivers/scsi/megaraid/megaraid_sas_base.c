@@ -7157,8 +7157,7 @@ static inline int megasas_alloc_mfi_ctrl_mem(struct megasas_instance *instance)
  */
 static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
 {
-	instance->reply_map = kcalloc(nr_cpu_ids, sizeof(unsigned int),
-				      GFP_KERNEL);
+	instance->reply_map = kzalloc_objs(unsigned int, nr_cpu_ids);
 	if (!instance->reply_map)
 		return -ENOMEM;
 

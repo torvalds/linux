@@ -864,13 +864,12 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 
 	txq->max_sges = HINIC_MAX_SQ_BUFDESCS;
 
-	txq->sges = devm_kcalloc(&netdev->dev, txq->max_sges,
-				 sizeof(*txq->sges), GFP_KERNEL);
+	txq->sges = devm_kzalloc_objs(&netdev->dev, *txq->sges, txq->max_sges);
 	if (!txq->sges)
 		return -ENOMEM;
 
-	txq->free_sges = devm_kcalloc(&netdev->dev, txq->max_sges,
-				      sizeof(*txq->free_sges), GFP_KERNEL);
+	txq->free_sges = devm_kzalloc_objs(&netdev->dev, *txq->free_sges,
+					   txq->max_sges);
 	if (!txq->free_sges) {
 		err = -ENOMEM;
 		goto err_alloc_free_sges;

@@ -405,7 +405,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	}
 	dev_data = (struct sti_uniperiph_dev_data *)of_id->data;
 
-	uni = devm_kzalloc(dev, sizeof(*uni), GFP_KERNEL);
+	uni = devm_kzalloc_obj(dev, *uni);
 	if (!uni)
 		return -ENOMEM;
 
@@ -468,10 +468,10 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Allocate the private data and the CPU_DAI array */
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
-	priv->dai = devm_kzalloc(&pdev->dev, sizeof(*priv->dai), GFP_KERNEL);
+	priv->dai = devm_kzalloc_obj(&pdev->dev, *priv->dai);
 	if (!priv->dai)
 		return -ENOMEM;
 

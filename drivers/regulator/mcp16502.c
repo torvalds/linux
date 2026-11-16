@@ -513,7 +513,7 @@ static int mcp16502_probe(struct i2c_client *client)
 	dev = &client->dev;
 	config.dev = dev;
 
-	mcp = devm_kzalloc(dev, sizeof(*mcp), GFP_KERNEL);
+	mcp = devm_kzalloc_obj(dev, *mcp);
 	if (!mcp)
 		return -ENOMEM;
 

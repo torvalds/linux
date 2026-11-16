@@ -524,7 +524,7 @@ static int lm95245_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(struct lm95245_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm95245_data);
 	if (!data)
 		return -ENOMEM;
 

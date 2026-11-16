@@ -154,17 +154,17 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 	if (!nr_sensors)
 		return -ENODEV;
 
-	scpi_sensors = devm_kzalloc(dev, sizeof(*scpi_sensors), GFP_KERNEL);
+	scpi_sensors = devm_kzalloc_obj(dev, *scpi_sensors);
 	if (!scpi_sensors)
 		return -ENOMEM;
 
-	scpi_sensors->data = devm_kcalloc(dev, nr_sensors,
-				   sizeof(*scpi_sensors->data), GFP_KERNEL);
+	scpi_sensors->data = devm_kzalloc_objs(dev, *scpi_sensors->data,
+					       nr_sensors);
 	if (!scpi_sensors->data)
 		return -ENOMEM;
 
-	scpi_sensors->attrs = devm_kcalloc(dev, (nr_sensors * 2) + 1,
-				   sizeof(*scpi_sensors->attrs), GFP_KERNEL);
+	scpi_sensors->attrs = devm_kzalloc_objs(dev, *scpi_sensors->attrs,
+						(nr_sensors * 2) + 1);
 	if (!scpi_sensors->attrs)
 		return -ENOMEM;
 
@@ -269,7 +269,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 		if (sensor->info.class != TEMPERATURE)
 			continue;
 
-		zone = devm_kzalloc(dev, sizeof(*zone), GFP_KERNEL);
+		zone = devm_kzalloc_obj(dev, *zone);
 		if (!zone)
 			return -ENOMEM;
 

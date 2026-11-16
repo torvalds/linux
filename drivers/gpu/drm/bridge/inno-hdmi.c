@@ -1033,7 +1033,7 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 	struct inno_hdmi_i2c *i2c;
 	int ret;
 
-	i2c = devm_kzalloc(hdmi->dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(hdmi->dev, *i2c);
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 

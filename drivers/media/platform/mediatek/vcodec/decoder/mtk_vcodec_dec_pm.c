@@ -24,9 +24,8 @@ int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *
 	dec_clk->clk_num =
 		of_property_count_strings(pdev->dev.of_node, "clock-names");
 	if (dec_clk->clk_num > 0) {
-		dec_clk->clk_info = devm_kcalloc(&pdev->dev,
-			dec_clk->clk_num, sizeof(*clk_info),
-			GFP_KERNEL);
+		dec_clk->clk_info = devm_kzalloc_objs(&pdev->dev, *clk_info,
+						      dec_clk->clk_num);
 		if (!dec_clk->clk_info)
 			return -ENOMEM;
 	} else {

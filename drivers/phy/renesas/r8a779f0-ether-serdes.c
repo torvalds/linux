@@ -429,7 +429,7 @@ static int r8a779f0_eth_serdes_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	int i;
 
-	dd = devm_kzalloc(&pdev->dev, sizeof(*dd), GFP_KERNEL);
+	dd = devm_kzalloc_obj(&pdev->dev, *dd);
 	if (!dd)
 		return -ENOMEM;
 

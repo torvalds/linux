@@ -230,7 +230,7 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
+	cdev = devm_kzalloc_obj(dev, *cdev);
 	if (!cdev)
 		return -ENOMEM;
 

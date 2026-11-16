@@ -508,24 +508,24 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (rows < 0)
 		return rows;
 
-	*map = devm_kzalloc(iod->dev, sizeof(**map), GFP_KERNEL);
+	*map = devm_kzalloc_obj(iod->dev, **map);
 	if (!*map)
 		return -ENOMEM;
 	*num_maps = 0;
 
-	g = devm_kzalloc(iod->dev, sizeof(*g), GFP_KERNEL);
+	g = devm_kzalloc_obj(iod->dev, *g);
 	if (!g) {
 		error = -ENOMEM;
 		goto free_map;
 	}
 
-	pins = devm_kcalloc(iod->dev, rows, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(iod->dev, *pins, rows);
 	if (!pins) {
 		error = -ENOMEM;
 		goto free_group;
 	}
 
-	cfg = devm_kcalloc(iod->dev, rows, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kzalloc_objs(iod->dev, *cfg, rows);
 	if (!cfg) {
 		error = -ENOMEM;
 		goto free_pins;
@@ -759,7 +759,7 @@ static int ti_iodelay_alloc_pins(struct device *dev,
 	nr_pins = ti_iodelay_offset_to_pin(iod, r->regmap_config->max_register);
 	dev_dbg(dev, "Allocating %i pins\n", nr_pins);
 
-	iod->pa = devm_kcalloc(dev, nr_pins, sizeof(*iod->pa), GFP_KERNEL);
+	iod->pa = devm_kzalloc_objs(dev, *iod->pa, nr_pins);
 	if (!iod->pa)
 		return -ENOMEM;
 
@@ -838,7 +838,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	iod = devm_kzalloc(dev, sizeof(*iod), GFP_KERNEL);
+	iod = devm_kzalloc_obj(dev, *iod);
 	if (!iod)
 		return -ENOMEM;
 

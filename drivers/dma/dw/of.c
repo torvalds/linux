@@ -64,7 +64,7 @@ struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 	if (nr_channels > DW_DMA_MAX_NR_CHANNELS)
 		return NULL;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return NULL;
 

@@ -485,7 +485,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 	char *name;
 	struct ddr_pmu *pmu;
 
-	pmu = devm_kzalloc(&pdev->dev, sizeof(struct ddr_pmu), GFP_KERNEL);
+	pmu = devm_kzalloc_obj(&pdev->dev, struct ddr_pmu);
 	if (!pmu)
 		return -ENOMEM;
 

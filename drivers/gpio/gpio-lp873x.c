@@ -136,7 +136,7 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 	struct lp873x_gpio *gpio;
 	int ret;
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&pdev->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

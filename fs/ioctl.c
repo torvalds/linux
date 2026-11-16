@@ -7,6 +7,7 @@
 
 #include <linux/syscalls.h>
 #include <linux/mm.h>
+#include <linux/minmax.h>
 #include <linux/capability.h>
 #include <linux/compat.h>
 #include <linux/file.h>
@@ -550,8 +551,8 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		if (!S_ISREG(inode->i_mode) || IS_ANON_FILE(inode))
 			return vfs_ioctl(filp, cmd, arg);
 
-		return put_user(i_size_read(inode) - filp->f_pos,
-				(int __user *)argp);
+		return put_user(clamp_t(loff_t, i_size_read(inode) - filp->f_pos,
+					INT_MIN, INT_MAX), (int __user *)argp);
 
 	case FS_IOC_GETFLAGS:
 		return ioctl_getflags(filp, argp);

@@ -817,7 +817,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 	struct dentry *nvalue_dir;
 	int i, ret = 0;
 
-	sr_info = devm_kzalloc(&pdev->dev, sizeof(struct omap_sr), GFP_KERNEL);
+	sr_info = devm_kzalloc_obj(&pdev->dev, struct omap_sr);
 	if (!sr_info)
 		return -ENOMEM;
 

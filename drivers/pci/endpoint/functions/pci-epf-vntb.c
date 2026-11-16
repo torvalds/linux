@@ -1783,7 +1783,7 @@ static int pci_vntb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ntb_dev *ntb;
 	int ret;
 
-	ntb = devm_kzalloc(dev, sizeof(*ntb), GFP_KERNEL);
+	ntb = devm_kzalloc_obj(dev, *ntb);
 	if (!ntb)
 		return -ENOMEM;
 
@@ -1975,7 +1975,7 @@ static int epf_ntb_probe(struct pci_epf *epf,
 
 	dev = &epf->dev;
 
-	ntb = devm_kzalloc(dev, sizeof(*ntb), GFP_KERNEL);
+	ntb = devm_kzalloc_obj(dev, *ntb);
 	if (!ntb)
 		return -ENOMEM;
 

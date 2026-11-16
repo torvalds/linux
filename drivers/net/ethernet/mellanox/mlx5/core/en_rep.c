@@ -238,6 +238,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)
 		MLX5_GET_CTR(out, transmitted_ib_unicast.octets) +
 		MLX5_GET_CTR(out, transmitted_eth_unicast.octets) +
 		MLX5_GET_CTR(out, transmitted_ib_multicast.octets) +
+		MLX5_GET_CTR(out, transmitted_eth_multicast.octets) +
 		MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
 
 	rep_stats->vport_tx_bytes =
@@ -590,7 +591,7 @@ mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	if (is_uplink_rep)
 		sqs_per_channel += 2;
 
-	sqs = kvcalloc(nch * sqs_per_channel, sizeof(*sqs), GFP_KERNEL);
+	sqs = kvzalloc_objs(*sqs, nch * sqs_per_channel);
 	if (!sqs)
 		goto out;
 

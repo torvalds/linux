@@ -293,13 +293,11 @@ int host1x_syncpt_init(struct host1x *host)
 	struct host1x_syncpt *syncpt;
 	unsigned int i;
 
-	syncpt = devm_kcalloc(host->dev, host->info->nb_pts, sizeof(*syncpt),
-			      GFP_KERNEL);
+	syncpt = devm_kzalloc_objs(host->dev, *syncpt, host->info->nb_pts);
 	if (!syncpt)
 		return -ENOMEM;
 
-	bases = devm_kcalloc(host->dev, host->info->nb_bases, sizeof(*bases),
-			     GFP_KERNEL);
+	bases = devm_kzalloc_objs(host->dev, *bases, host->info->nb_bases);
 	if (!bases)
 		return -ENOMEM;
 

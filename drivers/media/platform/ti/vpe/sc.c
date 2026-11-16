@@ -278,7 +278,7 @@ struct sc_data *sc_create(struct platform_device *pdev, const char *res_name)
 
 	dev_dbg(&pdev->dev, "sc_create\n");
 
-	sc = devm_kzalloc(&pdev->dev, sizeof(*sc), GFP_KERNEL);
+	sc = devm_kzalloc_obj(&pdev->dev, *sc);
 	if (!sc) {
 		dev_err(&pdev->dev, "couldn't alloc sc_data\n");
 		return ERR_PTR(-ENOMEM);

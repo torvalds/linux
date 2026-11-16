@@ -312,8 +312,7 @@ static int zl6100_probe(struct i2c_client *client)
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
-	data = devm_kzalloc(&client->dev, sizeof(struct zl6100_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct zl6100_data);
 	if (!data)
 		return -ENOMEM;
 

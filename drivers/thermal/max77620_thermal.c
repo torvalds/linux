@@ -88,7 +88,7 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 	struct max77620_therm_info *mtherm;
 	int ret;
 
-	mtherm = devm_kzalloc(&pdev->dev, sizeof(*mtherm), GFP_KERNEL);
+	mtherm = devm_kzalloc_obj(&pdev->dev, *mtherm);
 	if (!mtherm)
 		return -ENOMEM;
 

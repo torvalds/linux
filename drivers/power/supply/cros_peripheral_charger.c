@@ -280,7 +280,7 @@ static int cros_pchg_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	charger = devm_kzalloc(dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 
@@ -319,7 +319,7 @@ static int cros_pchg_probe(struct platform_device *pdev)
 	for (i = 0; i < num_ports; i++) {
 		struct power_supply_config psy_cfg = {};
 
-		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		port = devm_kzalloc_obj(dev, *port);
 		if (!port)
 			return -ENOMEM;
 

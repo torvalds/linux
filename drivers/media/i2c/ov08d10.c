@@ -1487,7 +1487,7 @@ static int ov08d10_probe(struct i2c_client *client)
 	unsigned int i;
 	int ret;
 
-	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
+	ov08d10 = devm_kzalloc_obj(&client->dev, *ov08d10);
 	if (!ov08d10)
 		return -ENOMEM;
 

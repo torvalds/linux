@@ -395,7 +395,7 @@ int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv)
 	struct mvpp2_tai *tai;
 	int ret;
 
-	tai = devm_kzalloc(dev, sizeof(*tai), GFP_KERNEL);
+	tai = devm_kzalloc_obj(dev, *tai);
 	if (!tai)
 		return -ENOMEM;
 

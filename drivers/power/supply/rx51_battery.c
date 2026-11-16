@@ -193,7 +193,7 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct rx51_device_info *di;
 
-	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(&pdev->dev, *di);
 	if (!di)
 		return -ENOMEM;
 

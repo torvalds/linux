@@ -388,7 +388,7 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 	if (!configlen)
 		return NULL;
 
-	pinconfig = kcalloc(configlen, sizeof(*pinconfig), GFP_KERNEL);
+	pinconfig = kzalloc_objs(*pinconfig, configlen);
 	if (!pinconfig)
 		return ERR_PTR(-ENOMEM);
 
@@ -1402,9 +1402,8 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * this means that the number of pins is the maximum group
 	 * number we will ever see.
 	 */
-	pctl->groups = devm_kcalloc(&pdev->dev,
-				    pctl->desc->npins, sizeof(*pctl->groups),
-				    GFP_KERNEL);
+	pctl->groups = devm_kzalloc_objs(&pdev->dev, *pctl->groups,
+					 pctl->desc->npins);
 	if (!pctl->groups)
 		return -ENOMEM;
 
@@ -1488,10 +1487,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 
 			if (!func_item->groups) {
 				func_item->groups =
-					devm_kcalloc(&pdev->dev,
-						     func_item->ngroups,
-						     sizeof(*func_item->groups),
-						     GFP_KERNEL);
+					devm_kzalloc_objs(&pdev->dev,
+							  *func_item->groups,
+							  func_item->ngroups);
 				if (!func_item->groups) {
 					kfree(pctl->functions);
 					return -ENOMEM;
@@ -1605,7 +1603,7 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 	int i, ret, last_pin, pin_idx, nbanks;
 	struct clk *clk;
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pctl);
@@ -1643,10 +1641,8 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 	else
 		pctl->pow_mod_sel_offset = PIO_POW_MOD_SEL_REG;
 
-	pctl->irq_array = devm_kcalloc(&pdev->dev,
-				       IRQ_PER_BANK * pctl->desc->irq_banks,
-				       sizeof(*pctl->irq_array),
-				       GFP_KERNEL);
+	pctl->irq_array = devm_kzalloc_objs(&pdev->dev, *pctl->irq_array,
+					    IRQ_PER_BANK * pctl->desc->irq_banks);
 	if (!pctl->irq_array)
 		return -ENOMEM;
 
@@ -1669,8 +1665,8 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
 	nbanks = DIV_ROUND_UP(last_pin + 1 - pctl->desc->pin_base,
 			      PINS_PER_BANK);
-	pctl->dat_shadow = devm_kcalloc(&pdev->dev, nbanks,
-					sizeof(*pctl->dat_shadow), GFP_KERNEL);
+	pctl->dat_shadow = devm_kzalloc_objs(&pdev->dev, *pctl->dat_shadow,
+					     nbanks);
 	if (!pctl->dat_shadow)
 		return -ENOMEM;
 
@@ -1687,9 +1683,7 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 		return ret;
 	}
 
-	pins = devm_kcalloc(&pdev->dev,
-			    pctl->desc->npins, sizeof(*pins),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, *pins, pctl->desc->npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -1703,9 +1697,7 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 		pins[pin_idx++] = pin->pin;
 	}
 
-	pctrl_desc = devm_kzalloc(&pdev->dev,
-				  sizeof(*pctrl_desc),
-				  GFP_KERNEL);
+	pctrl_desc = devm_kzalloc_obj(&pdev->dev, *pctrl_desc);
 	if (!pctrl_desc)
 		return -ENOMEM;
 
@@ -1732,7 +1724,7 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 		return PTR_ERR(pctl->pctl_dev);
 	}
 
-	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
+	pctl->chip = devm_kzalloc_obj(&pdev->dev, *pctl->chip);
 	if (!pctl->chip)
 		return -ENOMEM;
 
@@ -1769,10 +1761,8 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 			goto gpiochip_error;
 	}
 
-	pctl->irq = devm_kcalloc(&pdev->dev,
-				 pctl->desc->irq_banks,
-				 sizeof(*pctl->irq),
-				 GFP_KERNEL);
+	pctl->irq = devm_kzalloc_objs(&pdev->dev, *pctl->irq,
+				      pctl->desc->irq_banks);
 	if (!pctl->irq) {
 		ret = -ENOMEM;
 		goto gpiochip_error;

@@ -260,7 +260,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	struct sunxi_ir *ir;
 	u32 b_clk_freq = SUNXI_IR_BASE_CLK;
 
-	ir = devm_kzalloc(dev, sizeof(struct sunxi_ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(dev, struct sunxi_ir);
 	if (!ir)
 		return -ENOMEM;
 

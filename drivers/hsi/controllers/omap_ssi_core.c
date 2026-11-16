@@ -342,7 +342,7 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 	struct omap_ssi_controller *omap_ssi;
 	int err;
 
-	omap_ssi = devm_kzalloc(&ssi->device, sizeof(*omap_ssi), GFP_KERNEL);
+	omap_ssi = devm_kzalloc_obj(&ssi->device, *omap_ssi);
 	if (!omap_ssi)
 		return -ENOMEM;
 
@@ -373,8 +373,8 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 	if (err < 0)
 		goto out_err;
 
-	omap_ssi->port = devm_kcalloc(&ssi->device, ssi->num_ports,
-				      sizeof(*omap_ssi->port), GFP_KERNEL);
+	omap_ssi->port = devm_kzalloc_objs(&ssi->device, *omap_ssi->port,
+					   ssi->num_ports);
 	if (!omap_ssi->port) {
 		err = -ENOMEM;
 		goto out_err;

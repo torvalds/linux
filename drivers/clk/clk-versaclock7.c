@@ -1108,7 +1108,7 @@ static int vc7_probe(struct i2c_client *client)
 	unsigned long apll_rate;
 	int ret;
 
-	vc7 = devm_kzalloc(&client->dev, sizeof(*vc7), GFP_KERNEL);
+	vc7 = devm_kzalloc_obj(&client->dev, *vc7);
 	if (!vc7)
 		return -ENOMEM;
 

@@ -808,7 +808,7 @@ static int aw9523_init_irq(struct aw9523 *awi, int irq)
 	if (!device_property_read_bool(dev, "interrupt-controller"))
 		return 0;
 
-	awi->irq = devm_kzalloc(dev, sizeof(*awi->irq), GFP_KERNEL);
+	awi->irq = devm_kzalloc_obj(dev, *awi->irq);
 	if (!awi->irq)
 		return -ENOMEM;
 
@@ -955,7 +955,7 @@ static int aw9523_probe(struct i2c_client *client)
 	struct aw9523 *awi;
 	int ret;
 
-	awi = devm_kzalloc(dev, sizeof(*awi), GFP_KERNEL);
+	awi = devm_kzalloc_obj(dev, *awi);
 	if (!awi)
 		return -ENOMEM;
 
@@ -981,7 +981,7 @@ static int aw9523_probe(struct i2c_client *client)
 
 	lockdep_set_subclass(&awi->i2c_lock, i2c_adapter_depth(client->adapter));
 
-	pdesc = devm_kzalloc(dev, sizeof(*pdesc), GFP_KERNEL);
+	pdesc = devm_kzalloc_obj(dev, *pdesc);
 	if (!pdesc)
 		return -ENOMEM;
 

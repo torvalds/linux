@@ -384,7 +384,7 @@ static int tps68470_pmic_opregion_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	opregion = devm_kzalloc(dev, sizeof(*opregion), GFP_KERNEL);
+	opregion = devm_kzalloc_obj(dev, *opregion);
 	if (!opregion)
 		return -ENOMEM;
 

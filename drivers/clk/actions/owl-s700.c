@@ -623,7 +623,7 @@ static int s700_clk_probe(struct platform_device *pdev)
 	 * FIXME: Reset controller registration should be moved to
 	 * common code, once all SoCs of Owl family supports it.
 	 */
-	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
+	reset = devm_kzalloc_obj(&pdev->dev, *reset);
 	if (!reset)
 		return -ENOMEM;
 

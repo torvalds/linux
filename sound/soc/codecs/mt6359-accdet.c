@@ -931,19 +931,16 @@ static int mt6359_accdet_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s(), dev name %s\n",
 		__func__, dev_name(&pdev->dev));
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct mt6359_accdet),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct mt6359_accdet);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->data = devm_kzalloc(&pdev->dev, sizeof(struct dts_data),
-				  GFP_KERNEL);
+	priv->data = devm_kzalloc_obj(&pdev->dev, struct dts_data);
 	if (!priv->data)
 		return -ENOMEM;
 
-	priv->data->pwm_deb = devm_kzalloc(&pdev->dev,
-					   sizeof(struct pwm_deb_settings),
-					   GFP_KERNEL);
+	priv->data->pwm_deb = devm_kzalloc_obj(&pdev->dev,
+					       struct pwm_deb_settings);
 	if (!priv->data->pwm_deb)
 		return -ENOMEM;
 

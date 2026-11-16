@@ -166,7 +166,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 	struct resource res;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -204,7 +204,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 	priv->ctlr.ops = &am654_hbmc_ops;
 	priv->hbdev.ctlr = &priv->ctlr;
 
-	dev_priv = devm_kzalloc(dev, sizeof(*dev_priv), GFP_KERNEL);
+	dev_priv = devm_kzalloc_obj(dev, *dev_priv);
 	if (!dev_priv) {
 		ret = -ENOMEM;
 		goto disable_mux;

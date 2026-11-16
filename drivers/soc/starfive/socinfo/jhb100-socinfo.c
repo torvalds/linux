@@ -51,7 +51,7 @@ static int jhb100_socinfo_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to read revision ID\n");
 
-	attrs = devm_kzalloc(dev, sizeof(*attrs), GFP_KERNEL);
+	attrs = devm_kzalloc_obj(dev, *attrs);
 	if (!attrs)
 		return -ENOMEM;
 

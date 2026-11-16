@@ -410,7 +410,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	int err;
 	int mode;
 
-	rpc = devm_kzalloc(dev, sizeof(*rpc), GFP_KERNEL);
+	rpc = devm_kzalloc_obj(dev, *rpc);
 	if (!rpc)
 		return -ENOMEM;
 

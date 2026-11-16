@@ -1103,7 +1103,7 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 	char name[20];
 	int err;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

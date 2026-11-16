@@ -1482,7 +1482,7 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	/* Allocate driver mailbox struct */
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1513,7 +1513,7 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate driver ring structs */
-	ring = devm_kcalloc(dev, mbox->num_rings, sizeof(*ring), GFP_KERNEL);
+	ring = devm_kzalloc_objs(dev, *ring, mbox->num_rings);
 	if (!ring) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1609,8 +1609,8 @@ skip_debugfs:
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = mbox->num_rings;
 	mbox->controller.of_xlate = flexrm_mbox_of_xlate;
-	mbox->controller.chans = devm_kcalloc(dev, mbox->num_rings,
-				sizeof(*mbox->controller.chans), GFP_KERNEL);
+	mbox->controller.chans = devm_kzalloc_objs(dev, *mbox->controller.chans,
+						   mbox->num_rings);
 	if (!mbox->controller.chans) {
 		ret = -ENOMEM;
 		goto fail_free_debugfs_root;

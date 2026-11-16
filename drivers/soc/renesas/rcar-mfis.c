@@ -300,12 +300,11 @@ static int mfis_mb_probe(struct mfis_priv *priv)
 		num_chan *= 2;
 	}
 
-	chan  = devm_kcalloc(dev, num_chan, sizeof(*chan), GFP_KERNEL);
+	chan  = devm_kzalloc_objs(dev, *chan, num_chan);
 	if (!chan)
 		return -ENOMEM;
 
-	priv->chan_privs = devm_kcalloc(dev, num_chan, sizeof(*priv->chan_privs),
-					    GFP_KERNEL);
+	priv->chan_privs = devm_kzalloc_objs(dev, *priv->chan_privs, num_chan);
 	if (!priv->chan_privs)
 		return -ENOMEM;
 
@@ -357,7 +356,7 @@ static int mfis_probe(struct platform_device *pdev)
 	struct mfis_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, struct_size(priv, bank.lock, MFIS_NUM_LOCKS), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, bank.lock, MFIS_NUM_LOCKS);
 	if (!priv)
 		return -ENOMEM;
 

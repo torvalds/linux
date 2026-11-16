@@ -566,7 +566,7 @@ static int mp2629_charger_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	int ret, i, irq;
 
-	charger = devm_kzalloc(dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

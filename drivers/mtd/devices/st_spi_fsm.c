@@ -2024,7 +2024,7 @@ static int stfsm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	fsm = devm_kzalloc(&pdev->dev, sizeof(*fsm), GFP_KERNEL);
+	fsm = devm_kzalloc_obj(&pdev->dev, *fsm);
 	if (!fsm)
 		return -ENOMEM;
 

@@ -245,7 +245,7 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 	struct moxart_rtc *moxart_rtc;
 	int ret = 0;
 
-	moxart_rtc = devm_kzalloc(&pdev->dev, sizeof(*moxart_rtc), GFP_KERNEL);
+	moxart_rtc = devm_kzalloc_obj(&pdev->dev, *moxart_rtc);
 	if (!moxart_rtc)
 		return -ENOMEM;
 

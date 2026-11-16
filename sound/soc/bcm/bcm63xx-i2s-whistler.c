@@ -229,7 +229,7 @@ static int bcm63xx_i2s_dev_probe(struct platform_device *pdev)
 	struct regmap *regmap_i2s;
 	struct clk *i2s_clk;
 
-	i2s_priv = devm_kzalloc(&pdev->dev, sizeof(*i2s_priv), GFP_KERNEL);
+	i2s_priv = devm_kzalloc_obj(&pdev->dev, *i2s_priv);
 	if (!i2s_priv)
 		return -ENOMEM;
 

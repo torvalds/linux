@@ -1634,8 +1634,7 @@ static int sdhci_tegra_add_host(struct sdhci_host *host)
 
 	host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
 
-	cq_host = devm_kzalloc(mmc_dev(host->mmc),
-				sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(mmc_dev(host->mmc), *cq_host);
 	if (!cq_host) {
 		ret = -ENOMEM;
 		goto cleanup;

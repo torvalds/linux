@@ -698,7 +698,7 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 	int ret;
 	int i;
 
-	tas6424 = devm_kzalloc(dev, sizeof(*tas6424), GFP_KERNEL);
+	tas6424 = devm_kzalloc_obj(dev, *tas6424);
 	if (!tas6424)
 		return -ENOMEM;
 	dev_set_drvdata(dev, tas6424);

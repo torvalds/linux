@@ -94,7 +94,7 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(gdp);
 	}
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct sy7636a_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct sy7636a_data);
 	if (!data)
 		return -ENOMEM;
 

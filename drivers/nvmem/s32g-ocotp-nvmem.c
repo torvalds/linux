@@ -68,7 +68,7 @@ static int s32g_ocotp_probe(struct platform_device *pdev)
 	struct nvmem_device *nvmem;
 	struct resource *res;
 
-	s32g_data = devm_kzalloc(dev, sizeof(*s32g_data), GFP_KERNEL);
+	s32g_data = devm_kzalloc_obj(dev, *s32g_data);
 	if (!s32g_data)
 		return -ENOMEM;
 

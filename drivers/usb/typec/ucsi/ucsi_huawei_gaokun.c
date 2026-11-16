@@ -413,8 +413,7 @@ static int gaokun_ucsi_ports_init(struct gaokun_ucsi *uec)
 
 	gaokun_ec_ucsi_get_reg(uec->ec, &ureg);
 	num_ports = ureg.num_ports;
-	uec->ports = devm_kcalloc(dev, num_ports, sizeof(*uec->ports),
-				  GFP_KERNEL);
+	uec->ports = devm_kzalloc_objs(dev, *uec->ports, num_ports);
 	if (!uec->ports)
 		return -ENOMEM;
 
@@ -500,7 +499,7 @@ static int gaokun_ucsi_probe(struct auxiliary_device *adev,
 	struct gaokun_ucsi *uec;
 	int ret;
 
-	uec = devm_kzalloc(dev, sizeof(*uec), GFP_KERNEL);
+	uec = devm_kzalloc_obj(dev, *uec);
 	if (!uec)
 		return -ENOMEM;
 

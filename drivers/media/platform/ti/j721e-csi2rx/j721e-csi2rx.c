@@ -1698,7 +1698,7 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 	struct ti_csi2rx_dev *csi;
 	int ret = 0, i, count;
 
-	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(&pdev->dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 

@@ -717,7 +717,7 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	if (id > 1)
 		return -ENODEV;
 
-	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(dev, *di);
 	if (!di)
 		return -ENOMEM;
 

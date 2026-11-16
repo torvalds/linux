@@ -351,7 +351,7 @@ mt7601u_eeprom_init(struct mt7601u_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->ee = devm_kzalloc(dev->dev, sizeof(*dev->ee), GFP_KERNEL);
+	dev->ee = devm_kzalloc_obj(dev->dev, *dev->ee);
 	if (!dev->ee)
 		return -ENOMEM;
 

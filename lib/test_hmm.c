@@ -195,8 +195,8 @@ static void dmirror_device_evict_chunk(struct dmirror_chunk *chunk)
 	unsigned long *dst_pfns;
 	unsigned int order = 0;
 
-	src_pfns = kvcalloc(npages, sizeof(*src_pfns), GFP_KERNEL | __GFP_NOFAIL);
-	dst_pfns = kvcalloc(npages, sizeof(*dst_pfns), GFP_KERNEL | __GFP_NOFAIL);
+	src_pfns = kvzalloc_objs(*src_pfns, npages, GFP_KERNEL | __GFP_NOFAIL);
+	dst_pfns = kvzalloc_objs(*dst_pfns, npages, GFP_KERNEL | __GFP_NOFAIL);
 
 	migrate_device_range(src_pfns, start_pfn, npages);
 	for (i = 0; i < npages; i++) {
@@ -1241,8 +1241,10 @@ static int dmirror_migrate_to_system(struct dmirror *dmirror,
 	if (!mmget_not_zero(mm))
 		return -EINVAL;
 
-	src_pfns = kvcalloc(PTRS_PER_PTE, sizeof(*src_pfns), GFP_KERNEL | __GFP_NOFAIL);
-	dst_pfns = kvcalloc(PTRS_PER_PTE, sizeof(*dst_pfns), GFP_KERNEL | __GFP_NOFAIL);
+	src_pfns = kvzalloc_objs(*src_pfns, PTRS_PER_PTE,
+				 GFP_KERNEL | __GFP_NOFAIL);
+	dst_pfns = kvzalloc_objs(*dst_pfns, PTRS_PER_PTE,
+				 GFP_KERNEL | __GFP_NOFAIL);
 
 	cmd->cpages = 0;
 	mmap_read_lock(mm);
@@ -1311,10 +1313,10 @@ static int dmirror_migrate_to_device(struct dmirror *dmirror,
 	if (!mmget_not_zero(mm))
 		return -EINVAL;
 
-	src_pfns = kvcalloc(PTRS_PER_PTE, sizeof(*src_pfns),
-			  GFP_KERNEL | __GFP_NOFAIL);
-	dst_pfns = kvcalloc(PTRS_PER_PTE, sizeof(*dst_pfns),
-			  GFP_KERNEL | __GFP_NOFAIL);
+	src_pfns = kvzalloc_objs(*src_pfns, PTRS_PER_PTE,
+				 GFP_KERNEL | __GFP_NOFAIL);
+	dst_pfns = kvzalloc_objs(*dst_pfns, PTRS_PER_PTE,
+				 GFP_KERNEL | __GFP_NOFAIL);
 
 	ret = 0;
 	mmap_read_lock(mm);
@@ -1788,8 +1790,8 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 	args.end = args.start + (PAGE_SIZE << order);
 
 	nr = (args.end - args.start) >> PAGE_SHIFT;
-	args.src = kcalloc(nr, sizeof(unsigned long), GFP_KERNEL);
-	args.dst = kcalloc(nr, sizeof(unsigned long), GFP_KERNEL);
+	args.src = kzalloc_objs(unsigned long, nr);
+	args.dst = kzalloc_objs(unsigned long, nr);
 	args.pgmap_owner = dmirror->mdevice;
 	args.flags = dmirror_select_device(dmirror);
 	args.fault_page = vmf->page;

@@ -717,7 +717,7 @@ static int sun6i_mipi_csi2_probe(struct platform_device *platform_dev)
 	struct device *dev = &platform_dev->dev;
 	int ret;
 
-	csi2_dev = devm_kzalloc(dev, sizeof(*csi2_dev), GFP_KERNEL);
+	csi2_dev = devm_kzalloc_obj(dev, *csi2_dev);
 	if (!csi2_dev)
 		return -ENOMEM;
 

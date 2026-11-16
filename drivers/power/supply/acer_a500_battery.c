@@ -226,7 +226,7 @@ static int a500_battery_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct a500_battery *bat;
 
-	bat = devm_kzalloc(&pdev->dev, sizeof(*bat), GFP_KERNEL);
+	bat = devm_kzalloc_obj(&pdev->dev, *bat);
 	if (!bat)
 		return -ENOMEM;
 

@@ -170,8 +170,7 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 		if (err)
 			goto err_mtt;
 
-		srq->wrid = kvmalloc_array(srq->msrq.max,
-					   sizeof(u64), GFP_KERNEL);
+		srq->wrid = kvmalloc_objs(u64, srq->msrq.max);
 		if (!srq->wrid) {
 			err = -ENOMEM;
 			goto err_mtt;

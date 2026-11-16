@@ -346,7 +346,7 @@ static int sta529_i2c_probe(struct i2c_client *i2c)
 	struct sta529 *sta529;
 	int ret;
 
-	sta529 = devm_kzalloc(&i2c->dev, sizeof(struct sta529), GFP_KERNEL);
+	sta529 = devm_kzalloc_obj(&i2c->dev, struct sta529);
 	if (!sta529)
 		return -ENOMEM;
 

@@ -207,7 +207,7 @@ static int ltq_wdt_probe(struct platform_device *pdev)
 	int ret;
 	u32 status;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

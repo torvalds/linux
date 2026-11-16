@@ -167,7 +167,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	struct vsp1_lut *lut;
 	int ret;
 
-	lut = devm_kzalloc(vsp1->dev, sizeof(*lut), GFP_KERNEL);
+	lut = devm_kzalloc_obj(vsp1->dev, *lut);
 	if (lut == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -131,10 +131,8 @@ static int rmi_f3a_map_gpios(struct rmi_function *fn, struct f3a_data *f3a,
 	int i;
 	int button_count = min_t(u8, f3a->gpio_count, TRACKSTICK_RANGE_END);
 
-	f3a->gpio_key_map = devm_kcalloc(&fn->dev,
-						f3a->gpio_count,
-						sizeof(f3a->gpio_key_map[0]),
-						GFP_KERNEL);
+	f3a->gpio_key_map = devm_kzalloc_objs(&fn->dev, f3a->gpio_key_map[0],
+					      f3a->gpio_count);
 	if (!f3a->gpio_key_map) {
 		dev_err(&fn->dev, "Failed to allocate gpio map memory.\n");
 		return -ENOMEM;
@@ -216,7 +214,7 @@ static int rmi_f3a_probe(struct rmi_function *fn)
 		return -ENXIO;
 	}
 
-	f3a = devm_kzalloc(&fn->dev, sizeof(*f3a), GFP_KERNEL);
+	f3a = devm_kzalloc_obj(&fn->dev, *f3a);
 	if (!f3a)
 		return -ENOMEM;
 

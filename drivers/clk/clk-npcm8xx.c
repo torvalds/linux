@@ -260,7 +260,7 @@ npcm8xx_clk_register_pll(struct device *dev, void __iomem *pllcon,
 	struct clk_init_data init = {};
 	int ret;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -291,9 +291,8 @@ static int npcm8xx_clk_probe(struct auxiliary_device *adev,
 	struct clk_hw *hw;
 	unsigned int i;
 
-	npcm8xx_clk_data = devm_kzalloc(dev, struct_size(npcm8xx_clk_data, hws,
-							 NPCM8XX_NUM_CLOCKS),
-					GFP_KERNEL);
+	npcm8xx_clk_data = devm_kzalloc_flex(dev, *npcm8xx_clk_data, hws,
+					     NPCM8XX_NUM_CLOCKS);
 	if (!npcm8xx_clk_data)
 		return -ENOMEM;
 

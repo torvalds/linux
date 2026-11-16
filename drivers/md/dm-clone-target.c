@@ -1727,7 +1727,7 @@ static int copy_ctr_args(struct clone *clone, int argc, const char **argv, char 
 	unsigned int i;
 	const char **copy;
 
-	copy = kcalloc(argc, sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_objs(*copy, argc);
 	if (!copy)
 		goto error;
 

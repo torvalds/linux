@@ -76,7 +76,7 @@ static int bq27xxx_battery_hdq_add_slave(struct w1_slave *sl)
 {
 	struct bq27xxx_device_info *di;
 
-	di = devm_kzalloc(&sl->dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(&sl->dev, *di);
 	if (!di)
 		return -ENOMEM;
 

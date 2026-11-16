@@ -1709,7 +1709,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 	if (!devm_request_region(dev, res->start, IOREGION_LENGTH, DRVNAME))
 		return -EBUSY;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -244,7 +244,7 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	struct rzg2l_cru_dev *cru;
 	int irq, ret;
 
-	cru = devm_kzalloc(dev, sizeof(*cru), GFP_KERNEL);
+	cru = devm_kzalloc_obj(dev, *cru);
 	if (!cru)
 		return -ENOMEM;
 

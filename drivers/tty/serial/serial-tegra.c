@@ -1582,7 +1582,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	tup = devm_kzalloc(&pdev->dev, sizeof(*tup), GFP_KERNEL);
+	tup = devm_kzalloc_obj(&pdev->dev, *tup);
 	if (!tup) {
 		dev_err(&pdev->dev, "Failed to allocate memory for tup\n");
 		return -ENOMEM;

@@ -481,7 +481,7 @@ static int atc260x_regulator_probe(struct platform_device *pdev)
 	bool atc2603c_ver_b = false;
 	int i, nregulators;
 
-	atc260x_data = devm_kzalloc(&pdev->dev, sizeof(*atc260x_data), GFP_KERNEL);
+	atc260x_data = devm_kzalloc_obj(&pdev->dev, *atc260x_data);
 	if (!atc260x_data)
 		return -ENOMEM;
 

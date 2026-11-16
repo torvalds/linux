@@ -473,12 +473,12 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 	if (!irq)
 		return -EINVAL;
 
-	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(dev, *hpriv);
 	if (!hpriv) {
 		dev_err(dev, "can't alloc ahci_host_priv\n");
 		return -ENOMEM;
 	}
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata) {
 		dev_err(dev, "can't alloc ecx_plat_data\n");
 		return -ENOMEM;

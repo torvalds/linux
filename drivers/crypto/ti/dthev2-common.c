@@ -143,7 +143,7 @@ static int dthe_probe(struct platform_device *pdev)
 	struct dthe_data *dev_data;
 	int ret;
 
-	dev_data = devm_kzalloc(dev, sizeof(*dev_data), GFP_KERNEL);
+	dev_data = devm_kzalloc_obj(dev, *dev_data);
 	if (!dev_data)
 		return -ENOMEM;
 

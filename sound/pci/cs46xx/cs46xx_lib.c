@@ -3901,10 +3901,8 @@ int snd_cs46xx_create(struct snd_card *card,
 	snd_cs46xx_proc_init(card, chip);
 
 #ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = devm_kmalloc_array(&pci->dev,
-					      ARRAY_SIZE(saved_regs),
-					      sizeof(*chip->saved_regs),
-					      GFP_KERNEL);
+	chip->saved_regs = devm_kmalloc_objs(&pci->dev, *chip->saved_regs,
+					     ARRAY_SIZE(saved_regs));
 	if (!chip->saved_regs)
 		return -ENOMEM;
 #endif

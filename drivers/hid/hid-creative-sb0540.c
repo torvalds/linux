@@ -223,8 +223,7 @@ static int creative_sb0540_probe(struct hid_device *hid,
 	int ret;
 	struct creative_sb0540 *creative_sb0540;
 
-	creative_sb0540 = devm_kzalloc(&hid->dev,
-		sizeof(struct creative_sb0540), GFP_KERNEL);
+	creative_sb0540 = devm_kzalloc_obj(&hid->dev, struct creative_sb0540);
 
 	if (!creative_sb0540)
 		return -ENOMEM;

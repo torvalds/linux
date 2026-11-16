@@ -1561,7 +1561,8 @@ static void diag_record_mod(struct bpf_verifier_env *env, u32 insn_idx,
 	if (origin) {
 		event.mod.origin = *origin;
 		event.mod.origin_valid = true;
-	} else if (diag_mod_insn_origin(env, insn_idx, &target, &event.mod.origin)) {
+	} else if (reason != BPF_DIAG_MOD_SLICE_BUF && /* the insn writes the buffer */
+		   diag_mod_insn_origin(env, insn_idx, &target, &event.mod.origin)) {
 		event.mod.origin_valid = true;
 	}
 	if (old_reg && new_reg && reason == BPF_DIAG_MOD_WRITE &&
@@ -2236,6 +2237,9 @@ static void diag_print_mod(struct bpf_verifier_env *env, const struct bpf_diag_h
 		break;
 	case BPF_DIAG_MOD_PKT_DATA_CHANGE:
 		reason = "packet data may have moved";
+		break;
+	case BPF_DIAG_MOD_SLICE_BUF:
+		reason = "the stack buffer of this dynptr slice was written, or its frame returned";
 		break;
 	case BPF_DIAG_MOD_NON_OWN_REF:
 		reason = "leaving the protected region invalidated this borrowed pointer";

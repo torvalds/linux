@@ -548,7 +548,7 @@ int ad193x_probe(struct device *dev, struct regmap *regmap,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ad193x = devm_kzalloc(dev, sizeof(*ad193x), GFP_KERNEL);
+	ad193x = devm_kzalloc_obj(dev, *ad193x);
 	if (ad193x == NULL)
 		return -ENOMEM;
 

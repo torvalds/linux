@@ -295,7 +295,7 @@ static int visconti_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 

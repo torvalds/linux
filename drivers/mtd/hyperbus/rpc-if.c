@@ -120,7 +120,7 @@ static int rpcif_hb_probe(struct platform_device *pdev)
 	struct rpcif_hyperbus *hyperbus;
 	int error;
 
-	hyperbus = devm_kzalloc(dev, sizeof(*hyperbus), GFP_KERNEL);
+	hyperbus = devm_kzalloc_obj(dev, *hyperbus);
 	if (!hyperbus)
 		return -ENOMEM;
 

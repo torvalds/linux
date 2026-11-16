@@ -199,7 +199,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	driver = &xhci_histb_hc_driver;
-	histb = devm_kzalloc(dev, sizeof(*histb), GFP_KERNEL);
+	histb = devm_kzalloc_obj(dev, *histb);
 	if (!histb)
 		return -ENOMEM;
 

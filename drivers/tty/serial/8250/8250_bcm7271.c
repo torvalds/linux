@@ -966,8 +966,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 		"uart", "dma_rx", "dma_tx", "dma_intr2", "dma_arb"
 	};
 
-	priv = devm_kzalloc(dev, sizeof(struct brcmuart_priv),
-			GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct brcmuart_priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -258,7 +258,7 @@ int sfs_dev_init(struct psp_device *psp)
 	struct page *page;
 	int ret = -ENOMEM;
 
-	sfs_dev = devm_kzalloc(dev, sizeof(*sfs_dev), GFP_KERNEL);
+	sfs_dev = devm_kzalloc_obj(dev, *sfs_dev);
 	if (!sfs_dev)
 		return -ENOMEM;
 

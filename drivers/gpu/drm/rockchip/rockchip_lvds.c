@@ -456,8 +456,7 @@ static int rk3288_lvds_probe(struct platform_device *pdev,
 		return dev_err_probe(lvds->dev, PTR_ERR(lvds->pclk),
 				     "could not get or prepare pclk_lvds\n");
 
-	lvds->pins = devm_kzalloc(lvds->dev, sizeof(*lvds->pins),
-				  GFP_KERNEL);
+	lvds->pins = devm_kzalloc_obj(lvds->dev, *lvds->pins);
 	if (!lvds->pins)
 		return -ENOMEM;
 
@@ -683,7 +682,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
+	lvds = devm_kzalloc_obj(&pdev->dev, *lvds);
 	if (!lvds)
 		return -ENOMEM;
 

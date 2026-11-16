@@ -589,7 +589,7 @@ static int max31827_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EOPNOTSUPP;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

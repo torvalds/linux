@@ -129,7 +129,7 @@ static int en75_pcie_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	ephy = devm_kzalloc(dev, sizeof(*ephy), GFP_KERNEL);
+	ephy = devm_kzalloc_obj(dev, *ephy);
 	if (!ephy)
 		return -ENOMEM;
 

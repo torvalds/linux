@@ -335,10 +335,10 @@ static void test_statmount_sb_basic(void)
 		return;
 	}
 
-	if (sm.sb_magic != sf.f_type) {
+	if (sm.sb_magic != (unsigned long)sf.f_type) {
 		ksft_test_result_fail("unexpected sb magic: 0x%llx != 0x%lx\n",
 				      (unsigned long long) sm.sb_magic,
-				      sf.f_type);
+				      (unsigned long) sf.f_type);
 		return;
 	}
 

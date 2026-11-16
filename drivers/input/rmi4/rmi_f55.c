@@ -109,7 +109,7 @@ static int rmi_f55_probe(struct rmi_function *fn)
 {
 	struct f55_data *f55;
 
-	f55 = devm_kzalloc(&fn->dev, sizeof(struct f55_data), GFP_KERNEL);
+	f55 = devm_kzalloc_obj(&fn->dev, struct f55_data);
 	if (!f55)
 		return -ENOMEM;
 

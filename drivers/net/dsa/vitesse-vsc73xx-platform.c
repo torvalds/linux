@@ -91,7 +91,7 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 	struct vsc73xx_platform *vsc_platform;
 	int ret;
 
-	vsc_platform = devm_kzalloc(dev, sizeof(*vsc_platform), GFP_KERNEL);
+	vsc_platform = devm_kzalloc_obj(dev, *vsc_platform);
 	if (!vsc_platform)
 		return -ENOMEM;
 

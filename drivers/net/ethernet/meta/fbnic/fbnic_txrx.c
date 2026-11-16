@@ -2072,7 +2072,7 @@ static int fbnic_alloc_rx_qt_resources(struct fbnic_net *fbn,
 
 	fbnic_bdq_set_page_size(&qt->sub1, rx_page_size);
 
-	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->sub0.q_idx,
+	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->cmpl.q_idx,
 			       nv->napi.napi_id);
 	if (err)
 		goto free_page_pools;
@@ -2349,15 +2349,19 @@ void fbnic_disable(struct fbnic_net *fbn)
 
 static void fbnic_tx_flush(struct fbnic_dev *fbd)
 {
+	u32 drop_ctrl = FBNIC_TMI_DROP_CTRL_EN | FBNIC_TMI_DROP_CTRL_CMPL_DIS;
+
 	netdev_warn(fbd->netdev, "triggering Tx flush\n");
 
-	fbnic_rmw32(fbd, FBNIC_TMI_DROP_CTRL, FBNIC_TMI_DROP_CTRL_EN,
-		    FBNIC_TMI_DROP_CTRL_EN);
+	/* Drop packets and retire their PTP completions */
+	fbnic_rmw32(fbd, FBNIC_TMI_DROP_CTRL, drop_ctrl, drop_ctrl);
 }
 
 static void fbnic_tx_flush_off(struct fbnic_dev *fbd)
 {
-	fbnic_rmw32(fbd, FBNIC_TMI_DROP_CTRL, FBNIC_TMI_DROP_CTRL_EN, 0);
+	u32 drop_ctrl = FBNIC_TMI_DROP_CTRL_EN | FBNIC_TMI_DROP_CTRL_CMPL_DIS;
+
+	fbnic_rmw32(fbd, FBNIC_TMI_DROP_CTRL, drop_ctrl, 0);
 }
 
 struct fbnic_idle_regs {

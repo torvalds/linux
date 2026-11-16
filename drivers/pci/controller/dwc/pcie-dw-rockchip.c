@@ -819,7 +819,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
+	rockchip = devm_kzalloc_obj(dev, *rockchip);
 	if (!rockchip)
 		return -ENOMEM;
 

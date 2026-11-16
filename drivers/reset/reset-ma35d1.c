@@ -199,7 +199,7 @@ static int ma35d1_reset_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	reset_data = devm_kzalloc(dev, sizeof(*reset_data), GFP_KERNEL);
+	reset_data = devm_kzalloc_obj(dev, *reset_data);
 	if (!reset_data)
 		return -ENOMEM;
 

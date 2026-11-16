@@ -94,7 +94,7 @@ static int lv5207lp_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	lv = devm_kzalloc(&client->dev, sizeof(*lv), GFP_KERNEL);
+	lv = devm_kzalloc_obj(&client->dev, *lv);
 	if (!lv)
 		return -ENOMEM;
 

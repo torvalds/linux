@@ -291,7 +291,7 @@ static int fu740_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct fu740_pcie *afp;
 
-	afp = devm_kzalloc(dev, sizeof(*afp), GFP_KERNEL);
+	afp = devm_kzalloc_obj(dev, *afp);
 	if (!afp)
 		return -ENOMEM;
 	pci = &afp->pci;

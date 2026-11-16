@@ -316,11 +316,11 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	unsigned int i;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 
-	ddata->priv_data = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	ddata->priv_data = devm_kzalloc_obj(dev, *priv);
 	if (!ddata->priv_data)
 		return -ENOMEM;
 

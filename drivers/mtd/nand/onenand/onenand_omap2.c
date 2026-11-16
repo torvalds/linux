@@ -473,7 +473,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 		return r;
 	}
 
-	c = devm_kzalloc(dev, sizeof(struct omap2_onenand), GFP_KERNEL);
+	c = devm_kzalloc_obj(dev, struct omap2_onenand);
 	if (!c)
 		return -ENOMEM;
 

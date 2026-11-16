@@ -509,7 +509,7 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 		return;
 	}
 
-	data = devm_kzalloc(parent, sizeof(struct sch56xx_watchdog_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(parent, struct sch56xx_watchdog_data);
 	if (!data)
 		return;
 

@@ -459,8 +459,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	tpm_dev = devm_kzalloc(dev, sizeof(struct st33zp24_dev),
-			       GFP_KERNEL);
+	tpm_dev = devm_kzalloc_obj(dev, struct st33zp24_dev);
 	if (!tpm_dev)
 		return -ENOMEM;
 

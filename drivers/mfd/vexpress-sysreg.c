@@ -115,8 +115,7 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	 * Duplicated SYS_MCI pseudo-GPIO controller for compatibility with
 	 * older trees using sysreg node for MMC control lines.
 	 */
-	mmc_gpio_chip = devm_kzalloc(&pdev->dev, sizeof(*mmc_gpio_chip),
-			GFP_KERNEL);
+	mmc_gpio_chip = devm_kzalloc_obj(&pdev->dev, *mmc_gpio_chip);
 	if (!mmc_gpio_chip)
 		return -ENOMEM;
 

@@ -180,8 +180,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 		goto disable_pci;
 	}
 
-	adata = devm_kzalloc(&pci->dev, sizeof(struct acp6x_dev_data),
-			     GFP_KERNEL);
+	adata = devm_kzalloc_obj(&pci->dev, struct acp6x_dev_data);
 	if (!adata) {
 		ret = -ENOMEM;
 		goto release_regions;
@@ -221,9 +220,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 		}
 		fallthrough;
 	default:
-		adata->res = devm_kzalloc(&pci->dev,
-					  sizeof(struct resource),
-					  GFP_KERNEL);
+		adata->res = devm_kzalloc_obj(&pci->dev, struct resource);
 		if (!adata->res) {
 			ret = -ENOMEM;
 			goto de_init;

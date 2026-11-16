@@ -748,7 +748,7 @@ static int wiz_phy_en_refclk_register(struct wiz *wiz)
 	char *clk_name;
 	unsigned int sz;
 
-	wiz_phy_en_refclk = devm_kzalloc(dev, sizeof(*wiz_phy_en_refclk), GFP_KERNEL);
+	wiz_phy_en_refclk = devm_kzalloc_obj(dev, *wiz_phy_en_refclk);
 	if (!wiz_phy_en_refclk)
 		return -ENOMEM;
 
@@ -819,7 +819,7 @@ static int wiz_mux_clk_register(struct wiz *wiz, struct regmap_field *field,
 	struct clk *clk;
 	int ret = 0, i;
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 
@@ -880,7 +880,7 @@ static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_node *node,
 	struct clk *clk;
 	int ret;
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 
@@ -975,7 +975,7 @@ static int wiz_div_clk_register(struct wiz *wiz, struct device_node *node,
 	struct clk *clk;
 	int ret;
 
-	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	div = devm_kzalloc_obj(dev, *div);
 	if (!div)
 		return -ENOMEM;
 
@@ -1483,7 +1483,7 @@ static int wiz_probe(struct platform_device *pdev)
 	u32 num_lanes;
 	const struct wiz_data *data;
 
-	wiz = devm_kzalloc(dev, sizeof(*wiz), GFP_KERNEL);
+	wiz = devm_kzalloc_obj(dev, *wiz);
 	if (!wiz)
 		return -ENOMEM;
 

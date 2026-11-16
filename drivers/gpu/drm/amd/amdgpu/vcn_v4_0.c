@@ -349,11 +349,19 @@ static int vcn_v4_0_hw_init(struct amdgpu_ip_block *ip_block)
 
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
-				return r;
+				goto error;
 		}
 	}
 
 	return 0;
+
+error:
+	while (i >= 0) {
+		if (!(adev->vcn.harvest_config & (1 << i)))
+			amdgpu_vcn_cancel_idle_work(&adev->vcn.inst[i]);
+		i--;
+	}
+	return r;
 }
 
 /**
@@ -374,7 +382,9 @@ static int vcn_v4_0_hw_fini(struct amdgpu_ip_block *ip_block)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		cancel_delayed_work_sync(&vinst->idle_work);
+		/* Teardown cancelled it synchronously in early_fini */
+		if (!adev->shutdown)
+			amdgpu_vcn_cancel_idle_work(vinst);
 
 		if (!amdgpu_sriov_vf(adev)) {
 			if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
@@ -2279,6 +2289,7 @@ static const struct amd_ip_funcs vcn_v4_0_ip_funcs = {
 	.early_init = vcn_v4_0_early_init,
 	.sw_init = vcn_v4_0_sw_init,
 	.sw_fini = vcn_v4_0_sw_fini,
+	.early_fini = amdgpu_vcn_early_fini,
 	.hw_init = vcn_v4_0_hw_init,
 	.hw_fini = vcn_v4_0_hw_fini,
 	.suspend = vcn_v4_0_suspend,

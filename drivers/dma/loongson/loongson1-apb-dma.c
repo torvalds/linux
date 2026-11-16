@@ -565,7 +565,7 @@ static int ls1x_dma_probe(struct platform_device *pdev)
 				     "Invalid number of IRQ channels: %d\n",
 				     ret);
 
-	dma = devm_kzalloc(dev, struct_size(dma, chan, ret), GFP_KERNEL);
+	dma = devm_kzalloc_flex(dev, *dma, chan, ret);
 	if (!dma)
 		return -ENOMEM;
 	dma->nr_chans = ret;

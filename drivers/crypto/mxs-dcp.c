@@ -1076,7 +1076,7 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	if (dcp_irq < 0)
 		return dcp_irq;
 
-	sdcp = devm_kzalloc(dev, sizeof(*sdcp), GFP_KERNEL);
+	sdcp = devm_kzalloc_obj(dev, *sdcp);
 	if (!sdcp)
 		return -ENOMEM;
 

@@ -483,7 +483,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	stmpe_gpio = devm_kzalloc(dev, sizeof(*stmpe_gpio), GFP_KERNEL);
+	stmpe_gpio = devm_kzalloc_obj(dev, *stmpe_gpio);
 	if (!stmpe_gpio)
 		return -ENOMEM;
 

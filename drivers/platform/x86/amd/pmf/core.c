@@ -455,7 +455,7 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (id->driver_data == 0x100 && !force_load)
 		return -ENODEV;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

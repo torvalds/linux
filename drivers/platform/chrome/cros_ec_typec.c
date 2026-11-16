@@ -512,7 +512,7 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 
 		dev_dbg(dev, "Registering port %d\n", port_num);
 
-		cros_port = devm_kzalloc(dev, sizeof(*cros_port), GFP_KERNEL);
+		cros_port = devm_kzalloc_obj(dev, *cros_port);
 		if (!cros_port) {
 			ret = -ENOMEM;
 			goto unregister_ports;
@@ -958,7 +958,7 @@ static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_
 			}
 
 			/* If no memory is available we should unregister and exit. */
-			node = devm_kzalloc(typec->dev, sizeof(*node), GFP_KERNEL);
+			node = devm_kzalloc_obj(typec->dev, *node);
 			if (!node) {
 				ret = -ENOMEM;
 				typec_unregister_altmode(amode);
@@ -1400,7 +1400,7 @@ static int cros_typec_probe(struct platform_device *pdev)
 	struct ec_response_usb_pd_ports resp;
 	int ret, i;
 
-	typec = devm_kzalloc(dev, sizeof(*typec), GFP_KERNEL);
+	typec = devm_kzalloc_obj(dev, *typec);
 	if (!typec)
 		return -ENOMEM;
 

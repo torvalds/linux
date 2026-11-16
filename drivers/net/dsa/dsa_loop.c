@@ -362,14 +362,14 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	if (!pdata)
 		return -ENODEV;
 
-	ds = devm_kzalloc(&mdiodev->dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(&mdiodev->dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 
 	ds->dev = &mdiodev->dev;
 	ds->num_ports = DSA_LOOP_NUM_PORTS;
 
-	ps = devm_kzalloc(&mdiodev->dev, sizeof(*ps), GFP_KERNEL);
+	ps = devm_kzalloc_obj(&mdiodev->dev, *ps);
 	if (!ps)
 		return -ENOMEM;
 

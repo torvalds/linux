@@ -152,7 +152,7 @@ static int arcxcnn_backlight_register(struct arcxcnn *lp)
 	struct backlight_properties *props;
 	const char *name = lp->pdata->name ? : "arctic_bl";
 
-	props = devm_kzalloc(lp->dev, sizeof(*props), GFP_KERNEL);
+	props = devm_kzalloc_obj(lp->dev, *props);
 	if (!props)
 		return -ENOMEM;
 
@@ -246,7 +246,7 @@ static int arcxcnn_probe(struct i2c_client *cl)
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	lp = devm_kzalloc(&cl->dev, sizeof(*lp), GFP_KERNEL);
+	lp = devm_kzalloc_obj(&cl->dev, *lp);
 	if (!lp)
 		return -ENOMEM;
 
@@ -261,8 +261,7 @@ static int arcxcnn_probe(struct i2c_client *cl)
 		goto probe_err;
 
 	if (!lp->pdata) {
-		lp->pdata = devm_kzalloc(lp->dev,
-				sizeof(*lp->pdata), GFP_KERNEL);
+		lp->pdata = devm_kzalloc_obj(lp->dev, *lp->pdata);
 		if (!lp->pdata)
 			return -ENOMEM;
 

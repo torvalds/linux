@@ -219,8 +219,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 	struct rgmii_instance *dev;
 	int err;
 
-	dev = devm_kzalloc(&ofdev->dev, sizeof(struct rgmii_instance),
-			   GFP_KERNEL);
+	dev = devm_kzalloc_obj(&ofdev->dev, struct rgmii_instance);
 	if (!dev)
 		return -ENOMEM;
 

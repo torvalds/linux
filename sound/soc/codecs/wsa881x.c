@@ -1111,7 +1111,7 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 	struct wsa881x_priv *wsa881x;
 	struct device *dev = &pdev->dev;
 
-	wsa881x = devm_kzalloc(dev, sizeof(*wsa881x), GFP_KERNEL);
+	wsa881x = devm_kzalloc_obj(dev, *wsa881x);
 	if (!wsa881x)
 		return -ENOMEM;
 

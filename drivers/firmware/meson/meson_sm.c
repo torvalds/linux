@@ -314,7 +314,7 @@ static int __init meson_sm_probe(struct platform_device *pdev)
 	const struct meson_sm_chip *chip;
 	struct meson_sm_firmware *fw;
 
-	fw = devm_kzalloc(dev, sizeof(*fw), GFP_KERNEL);
+	fw = devm_kzalloc_obj(dev, *fw);
 	if (!fw)
 		return -ENOMEM;
 

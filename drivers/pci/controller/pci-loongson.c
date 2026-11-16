@@ -418,11 +418,11 @@ static int loongson_pci_ecam_init(struct pci_config_window *cfg)
 	struct loongson_pci *priv;
 	struct loongson_pci_data *data;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

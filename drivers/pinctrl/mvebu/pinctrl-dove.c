@@ -788,8 +788,8 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 		goto err_probe;
 	}
 
-	mpp_data = devm_kcalloc(&pdev->dev, dove_pinctrl_info.ncontrols,
-				sizeof(*mpp_data), GFP_KERNEL);
+	mpp_data = devm_kzalloc_objs(&pdev->dev, *mpp_data,
+				     dove_pinctrl_info.ncontrols);
 	if (!mpp_data) {
 		ret = -ENOMEM;
 		goto err_probe;

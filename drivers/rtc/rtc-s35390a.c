@@ -704,7 +704,7 @@ static int s35390a_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	s35390a = devm_kzalloc(dev, sizeof(struct s35390a), GFP_KERNEL);
+	s35390a = devm_kzalloc_obj(dev, struct s35390a);
 	if (!s35390a)
 		return -ENOMEM;
 

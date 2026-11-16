@@ -443,7 +443,7 @@ static int ams369fg06_probe(struct spi_device *spi)
 	struct backlight_device *bd = NULL;
 	struct backlight_properties props;
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct ams369fg06), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(&spi->dev, struct ams369fg06);
 	if (!lcd)
 		return -ENOMEM;
 

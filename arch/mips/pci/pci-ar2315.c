@@ -413,7 +413,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, err;
 
-	apc = devm_kzalloc(dev, sizeof(*apc), GFP_KERNEL);
+	apc = devm_kzalloc_obj(dev, *apc);
 	if (!apc)
 		return -ENOMEM;
 

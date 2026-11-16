@@ -507,8 +507,8 @@ static int rad_init_regulators(struct rad_panel *rad)
 	int i;
 
 	rad->num_supplies = ARRAY_SIZE(rad_supply_names);
-	rad->supplies = devm_kcalloc(dev, rad->num_supplies,
-				     sizeof(*rad->supplies), GFP_KERNEL);
+	rad->supplies = devm_kzalloc_objs(dev, *rad->supplies,
+					  rad->num_supplies);
 	if (!rad->supplies)
 		return -ENOMEM;
 

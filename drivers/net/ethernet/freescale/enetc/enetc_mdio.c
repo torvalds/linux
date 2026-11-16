@@ -221,7 +221,7 @@ struct enetc_hw *enetc_hw_alloc(struct device *dev, void __iomem *port_regs)
 {
 	struct enetc_hw *hw;
 
-	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc_obj(dev, *hw);
 	if (!hw)
 		return ERR_PTR(-ENOMEM);
 

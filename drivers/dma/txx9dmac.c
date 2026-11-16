@@ -1083,7 +1083,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	int ch = pdev->id % TXX9_DMA_MAX_NR_CHANNELS;
 	int irq;
 
-	dc = devm_kzalloc(&pdev->dev, sizeof(*dc), GFP_KERNEL);
+	dc = devm_kzalloc_obj(&pdev->dev, *dc);
 	if (!dc)
 		return -ENOMEM;
 
@@ -1171,7 +1171,7 @@ static int __init txx9dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	ddev = devm_kzalloc(&pdev->dev, sizeof(*ddev), GFP_KERNEL);
+	ddev = devm_kzalloc_obj(&pdev->dev, *ddev);
 	if (!ddev)
 		return -ENOMEM;
 

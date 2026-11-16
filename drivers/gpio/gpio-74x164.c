@@ -128,7 +128,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Missing 'registers-number' property.\n");
 
-	chip = devm_kzalloc(dev, struct_size(chip, buffer, nregs), GFP_KERNEL);
+	chip = devm_kzalloc_flex(dev, *chip, buffer, nregs);
 	if (!chip)
 		return -ENOMEM;
 

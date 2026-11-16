@@ -878,7 +878,7 @@ static void *nv_c2c_pmu_init_pmu(struct platform_device *pdev)
 	if (!acpi_dev)
 		return ERR_PTR(-ENODEV);
 
-	c2c_pmu = devm_kzalloc(dev, sizeof(*c2c_pmu), GFP_KERNEL);
+	c2c_pmu = devm_kzalloc_obj(dev, *c2c_pmu);
 	if (!c2c_pmu)
 		return ERR_PTR(-ENOMEM);
 

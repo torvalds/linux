@@ -78,7 +78,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pt_gpio = devm_kzalloc(dev, sizeof(struct pt_gpio_chip), GFP_KERNEL);
+	pt_gpio = devm_kzalloc_obj(dev, struct pt_gpio_chip);
 	if (!pt_gpio)
 		return -ENOMEM;
 

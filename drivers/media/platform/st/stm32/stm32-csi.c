@@ -984,7 +984,7 @@ static int stm32_csi_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	int ret;
 
-	csidev = devm_kzalloc(&pdev->dev, sizeof(*csidev), GFP_KERNEL);
+	csidev = devm_kzalloc_obj(&pdev->dev, *csidev);
 	if (!csidev)
 		return -ENOMEM;
 

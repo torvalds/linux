@@ -46,7 +46,7 @@ static int mctp_usblib_test_tx_send(struct mctp_usblib_tx_ctx *tx_ctx,
 	ctx = mctp_usblib_tx_ctx_priv(tx_ctx);
 	ndev = ctx->dev->ndev;
 
-	new_node = kzalloc_flex(*new_node, data, len, GFP_KERNEL);
+	new_node = kzalloc_flex(*new_node, data, len);
 	if (!new_node)
 		return -ENOMEM;
 

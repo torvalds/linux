@@ -126,8 +126,7 @@ static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
 		return -ENXIO;
 	}
 
-	cximsd = devm_kzalloc(dev, struct_size(cximsd, xormaps, nr_maps),
-			      GFP_KERNEL);
+	cximsd = devm_kzalloc_flex(dev, *cximsd, xormaps, nr_maps);
 	if (!cximsd)
 		return -ENOMEM;
 	cximsd->nr_maps = nr_maps;
@@ -909,7 +908,7 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	cxl_res = devm_kzalloc(host, sizeof(*cxl_res), GFP_KERNEL);
+	cxl_res = devm_kzalloc_obj(host, *cxl_res);
 	if (!cxl_res)
 		return -ENOMEM;
 	cxl_res->name = "CXL mem";

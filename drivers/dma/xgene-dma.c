@@ -1701,7 +1701,7 @@ static int xgene_dma_probe(struct platform_device *pdev)
 	struct xgene_dma *pdma;
 	int ret, i;
 
-	pdma = devm_kzalloc(&pdev->dev, sizeof(*pdma), GFP_KERNEL);
+	pdma = devm_kzalloc_obj(&pdev->dev, *pdma);
 	if (!pdma)
 		return -ENOMEM;
 

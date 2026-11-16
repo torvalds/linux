@@ -457,7 +457,7 @@ static int acp5x_probe(struct platform_device *pdev)
 	if (!dmi_id || !dmi_id->driver_data)
 		return -ENODEV;
 
-	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
+	machine = devm_kzalloc_obj(dev, *machine);
 	if (!machine)
 		return -ENOMEM;
 

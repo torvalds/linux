@@ -163,8 +163,7 @@ static int ad5686_spi_probe(struct spi_device *spi)
 
 	/* read operation requires at least 2 transfers */
 	capacity = max(info->num_channels, 2);
-	bus_data = devm_kzalloc(dev, struct_size(bus_data, xfers, capacity),
-				GFP_KERNEL);
+	bus_data = devm_kzalloc_flex(dev, *bus_data, xfers, capacity);
 	if (!bus_data)
 		return -ENOMEM;
 

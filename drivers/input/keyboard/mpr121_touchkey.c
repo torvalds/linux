@@ -208,7 +208,7 @@ static int mpr_touchkey_probe(struct i2c_client *client)
 	if (vdd_uv < 0)
 		return dev_err_probe(dev, vdd_uv, "failed to get vdd voltage\n");
 
-	mpr121 = devm_kzalloc(dev, sizeof(*mpr121), GFP_KERNEL);
+	mpr121 = devm_kzalloc_obj(dev, *mpr121);
 	if (!mpr121)
 		return -ENOMEM;
 

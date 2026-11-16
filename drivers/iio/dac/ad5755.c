@@ -707,7 +707,7 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 	if (!dev_fwnode(dev))
 		return NULL;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 

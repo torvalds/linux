@@ -278,7 +278,7 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	struct tegra_usb *usb;
 	int err;
 
-	usb = devm_kzalloc(&pdev->dev, sizeof(*usb), GFP_KERNEL);
+	usb = devm_kzalloc_obj(&pdev->dev, *usb);
 	if (!usb)
 		return -ENOMEM;
 

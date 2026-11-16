@@ -7700,7 +7700,9 @@ _scsih_determine_disposition(struct MPT3SAS_ADAPTER *ioc,
 				u16 scode = scsi_sense_code(sense_info.asc,
 							    sense_info.ascq);
 
-				if (scode ==
+				if (scode == LU_NOT_READY_SANITIZE_IN_PROGRESS)
+					rc = DEVICE_READY;
+				else if (scode ==
 				    LU_NOT_READY_MANUAL_INTERVENTION_REQUIRED ||
 				    scode ==
 				    LU_NOT_ACCESSIBLE_TARGET_PORT_IN_STANDBY_STATE ||

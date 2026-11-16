@@ -232,7 +232,7 @@ static int smsc47b397_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	data = devm_kzalloc(dev, sizeof(struct smsc47b397_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct smsc47b397_data);
 	if (!data)
 		return -ENOMEM;
 

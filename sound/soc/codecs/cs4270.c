@@ -673,8 +673,7 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client)
 	unsigned int val;
 	int ret, i;
 
-	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
-			      GFP_KERNEL);
+	cs4270 = devm_kzalloc_obj(&i2c_client->dev, struct cs4270_private);
 	if (!cs4270)
 		return -ENOMEM;
 

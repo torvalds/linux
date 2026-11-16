@@ -40,6 +40,7 @@ void __quota_error(struct super_block *sb, const char *func,
 /*
  * declaration of quota_function calls in kernel.
  */
+void dquot_cache_init(void);
 int dquot_initialize(struct inode *inode);
 bool dquot_initialize_needed(struct inode *inode);
 void dquot_drop(struct inode *inode);
@@ -204,6 +205,10 @@ static inline int sb_any_quota_loaded(struct super_block *sb)
 static inline int sb_has_quota_active(struct super_block *sb, int type)
 {
 	return 0;
+}
+
+static inline void dquot_cache_init(void)
+{
 }
 
 static inline int dquot_initialize(struct inode *inode)

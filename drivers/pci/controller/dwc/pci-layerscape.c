@@ -331,11 +331,11 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	struct resource *dbi_base;
 	u32 index[2];
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc_obj(dev, *pcie);
 	if (!pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

@@ -447,7 +447,7 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 
@@ -479,7 +479,7 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*pctrl_desc), GFP_KERNEL);
+	pctrl_desc = devm_kzalloc_obj(&pdev->dev, *pctrl_desc);
 	if (!pctrl_desc)
 		return -ENOMEM;
 

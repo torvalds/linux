@@ -921,8 +921,7 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 	int i, ret;
 
 	num_mems = data->num_mems;
-	kproc->mem = devm_kcalloc(kproc->dev, num_mems, sizeof(*kproc->mem),
-				  GFP_KERNEL);
+	kproc->mem = devm_kzalloc_objs(kproc->dev, *kproc->mem, num_mems);
 	if (!kproc->mem)
 		return -ENOMEM;
 
@@ -972,7 +971,7 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 		return 0;
 	}
 
-	core->sram = devm_kcalloc(dev, num_sram, sizeof(*core->sram), GFP_KERNEL);
+	core->sram = devm_kzalloc_objs(dev, *core->sram, num_sram);
 	if (!core->sram)
 		return -ENOMEM;
 
@@ -1216,7 +1215,7 @@ static int k3_r5_core_of_init(struct platform_device *pdev)
 	if (!devres_open_group(dev, k3_r5_core_of_init, GFP_KERNEL))
 		return -ENOMEM;
 
-	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(dev, *core);
 	if (!core) {
 		ret = -ENOMEM;
 		goto err;
@@ -1345,7 +1344,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	cluster = devm_kzalloc(dev, sizeof(*cluster), GFP_KERNEL);
+	cluster = devm_kzalloc_obj(dev, *cluster);
 	if (!cluster)
 		return -ENOMEM;
 

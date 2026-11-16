@@ -1800,7 +1800,7 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	struct tegra_hdmi *hdmi;
 	int err;
 
-	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc_obj(&pdev->dev, *hdmi);
 	if (!hdmi)
 		return -ENOMEM;
 

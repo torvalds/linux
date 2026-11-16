@@ -20,6 +20,7 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
+#include <linux/iomap.h>
 #include <linux/magic.h>
 #include <linux/jbd2.h>
 #include <linux/quota.h>
@@ -4105,10 +4106,11 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 		io_end->flag &= ~EXT4_IO_END_UNWRITTEN;
 }
 
-extern const struct iomap_ops ext4_iomap_ops;
-extern const struct iomap_ops ext4_iomap_report_ops;
-extern const struct iomap_ops ext4_iomap_buffered_write_ops;
-extern const struct iomap_ops ext4_iomap_buffered_da_write_ops;
+DECLARE_IOMAP_ITER_NEXT(ext4_iomap_next);
+DECLARE_IOMAP_ITER_NEXT(ext4_iomap_next_report);
+DECLARE_IOMAP_ITER_NEXT(ext4_iomap_buffered_write_next);
+DECLARE_IOMAP_ITER_NEXT(ext4_iomap_buffered_da_write_next);
+
 extern const struct iomap_write_ops ext4_iomap_write_ops;
 
 int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,

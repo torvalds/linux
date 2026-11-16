@@ -156,7 +156,7 @@ static int rcar_fcp_probe(struct platform_device *pdev)
 {
 	struct rcar_fcp_device *fcp;
 
-	fcp = devm_kzalloc(&pdev->dev, sizeof(*fcp), GFP_KERNEL);
+	fcp = devm_kzalloc_obj(&pdev->dev, *fcp);
 	if (fcp == NULL)
 		return -ENOMEM;
 

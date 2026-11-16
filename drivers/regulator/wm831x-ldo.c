@@ -229,7 +229,7 @@ static int wm831x_gp_ldo_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct wm831x_ldo);
 	if (!ldo)
 		return -ENOMEM;
 
@@ -440,7 +440,7 @@ static int wm831x_aldo_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct wm831x_ldo);
 	if (!ldo)
 		return -ENOMEM;
 
@@ -586,7 +586,7 @@ static int wm831x_alive_ldo_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct wm831x_ldo);
 	if (!ldo)
 		return -ENOMEM;
 

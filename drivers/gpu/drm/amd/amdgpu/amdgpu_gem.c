@@ -826,8 +826,10 @@ amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 
 	/* Always update PDEs after we touched the mappings. */
 	r = amdgpu_vm_update_pdes(adev, vm, false);
-	if (r)
-		goto error;
+
+error:
+	if (r && r != -ERESTARTSYS)
+		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 
 	if ((operation == AMDGPU_VA_OP_MAP ||
 	     operation == AMDGPU_VA_OP_REPLACE) &&
@@ -836,27 +838,27 @@ amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		/*
 		 * For MAP/REPLACE of non per-VM BOs we need to sync to both the
 		 * bo_va->last_pt_update and vm->last_update or otherwise we
-		 * potentially miss the PDE updates.
+		 * potentially miss the PDE updates or TLB invalidation.
 		 */
 		fence = dma_fence_unwrap_merge(vm->last_update,
+					       vm->last_tlb_inv,
 					       bo_va->last_pt_update);
-		if (!fence) {
-			/* As fallback in OOM situations */
-			dma_fence_wait(vm->last_update, false);
+		if (!fence)
 			dma_fence_wait(bo_va->last_pt_update, false);
-			fence = dma_fence_get_stub();
-		}
+
 	} else {
-		fence = dma_fence_get(vm->last_update);
+		fence = dma_fence_unwrap_merge(vm->last_update,
+					       vm->last_tlb_inv);
+	}
+
+	if (!fence) {
+		/* As fallback in OOM situations */
+		dma_fence_wait(vm->last_update, false);
+		dma_fence_wait(vm->last_tlb_inv, false);
+		fence = dma_fence_get_stub();
 	}
 
 	return fence;
-
-error:
-	if (r && r != -ERESTARTSYS)
-		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
-
-	return dma_fence_get(vm->last_update);
 }
 
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
@@ -1064,6 +1066,7 @@ error_put_gobj:
 int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *filp)
 {
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_gem_op *args = data;
 	struct drm_gem_object *gobj;
 	struct amdgpu_vm_bo_base *base;
@@ -1162,7 +1165,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			goto out_exec;
 		}
 
-		vm_entries = kvcalloc(args->num_entries, sizeof(*vm_entries), GFP_KERNEL);
+		vm_entries = kvzalloc_objs(*vm_entries, args->num_entries);
 		if (!vm_entries) {
 			r = -ENOMEM;
 			goto out_exec;
@@ -1170,7 +1173,8 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 		amdgpu_vm_bo_va_for_each_valid_mapping(bo_va, mapping) {
 			if (num_mappings < args->num_entries) {
-				vm_entries[num_mappings].addr = mapping->start * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].addr =
+					amdgpu_gmc_sign_extend(mapping->start * AMDGPU_GPU_PAGE_SIZE);
 				vm_entries[num_mappings].size = (mapping->last - mapping->start + 1) * AMDGPU_GPU_PAGE_SIZE;
 				vm_entries[num_mappings].offset = mapping->offset;
 				vm_entries[num_mappings].flags = mapping->flags;
@@ -1180,7 +1184,8 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 		amdgpu_vm_bo_va_for_each_invalid_mapping(bo_va, mapping) {
 			if (num_mappings < args->num_entries) {
-				vm_entries[num_mappings].addr = mapping->start * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].addr =
+					amdgpu_gmc_sign_extend(mapping->start * AMDGPU_GPU_PAGE_SIZE);
 				vm_entries[num_mappings].size = (mapping->last - mapping->start + 1) * AMDGPU_GPU_PAGE_SIZE;
 				vm_entries[num_mappings].offset = mapping->offset;
 				vm_entries[num_mappings].flags = mapping->flags;

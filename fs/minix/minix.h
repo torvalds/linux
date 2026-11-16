@@ -47,6 +47,7 @@ void __minix_error_inode(struct inode *inode, const char *function,
 			 unsigned int line, const char *fmt, ...);
 
 struct inode *minix_iget(struct super_block *, unsigned long);
+int minix_inode_block(struct super_block *sb, ino_t ino);
 struct minix_inode *minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 struct minix2_inode *minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 struct inode *minix_new_inode(const struct inode *, umode_t);

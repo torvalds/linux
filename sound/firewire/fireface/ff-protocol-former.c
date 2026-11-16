@@ -95,7 +95,7 @@ static int former_switch_fetching_mode(struct snd_ff *ff, bool enable)
 	for (i = 0; i < SND_FF_STREAM_MODE_COUNT; ++i)
 		count = max(count, ff->spec->pcm_playback_channels[i]);
 
-	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);
+	reg = kzalloc_objs(__le32, count);
 	if (!reg)
 		return -ENOMEM;
 

@@ -232,8 +232,7 @@ static int pm860x_touch_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	touch = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_touch),
-			     GFP_KERNEL);
+	touch = devm_kzalloc_obj(&pdev->dev, struct pm860x_touch);
 	if (!touch)
 		return -ENOMEM;
 

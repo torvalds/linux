@@ -1758,7 +1758,7 @@ static int steam_probe(struct hid_device *hdev,
 	if (!steam_is_valve_interface(hdev, id->driver_data))
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
-	steam = devm_kzalloc(&hdev->dev, sizeof(*steam), GFP_KERNEL);
+	steam = devm_kzalloc_obj(&hdev->dev, *steam);
 	if (!steam)
 		return -ENOMEM;
 

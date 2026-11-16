@@ -95,7 +95,7 @@ static int bcm_iproc_probe(struct platform_device *pdev)
 	struct bcm_iproc_intc *priv;
 	struct bcm_qspi_soc_intc *soc_intc;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	soc_intc = &priv->soc_intc;

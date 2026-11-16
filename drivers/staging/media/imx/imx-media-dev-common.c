@@ -85,7 +85,7 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 	dev_dbg(imxmd->md.dev, "adding %s to pad %s:%u\n",
 		vdev->vfd->entity.name, entity->name, srcpad->index);
 
-	pad_vdev = devm_kzalloc(imxmd->md.dev, sizeof(*pad_vdev), GFP_KERNEL);
+	pad_vdev = devm_kzalloc_obj(imxmd->md.dev, *pad_vdev);
 	if (!pad_vdev)
 		return -ENOMEM;
 
@@ -127,9 +127,8 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		entity = &sd->entity;
-		vdev_lists = devm_kcalloc(imxmd->md.dev,
-					  entity->num_pads, sizeof(*vdev_lists),
-					  GFP_KERNEL);
+		vdev_lists = devm_kzalloc_objs(imxmd->md.dev, *vdev_lists,
+					       entity->num_pads);
 		if (!vdev_lists)
 			return -ENOMEM;
 
@@ -335,7 +334,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 	struct imx_media_dev *imxmd;
 	int ret;
 
-	imxmd = devm_kzalloc(dev, sizeof(*imxmd), GFP_KERNEL);
+	imxmd = devm_kzalloc_obj(dev, *imxmd);
 	if (!imxmd)
 		return ERR_PTR(-ENOMEM);
 

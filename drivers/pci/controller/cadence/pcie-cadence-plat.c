@@ -75,7 +75,7 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_PLAT_EP))
 			return -ENODEV;
 
-		ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
+		ep = devm_kzalloc_obj(dev, *ep);
 		if (!ep)
 			return -ENOMEM;
 

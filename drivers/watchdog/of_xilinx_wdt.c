@@ -161,7 +161,7 @@ static int xwdt_probe(struct platform_device *pdev)
 	struct xwdt_device *xdev;
 	struct watchdog_device *xilinx_wdt_wdd;
 
-	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

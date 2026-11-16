@@ -554,7 +554,7 @@ static int optee_rtc_probe(struct tee_client_device *rtc_device)
 	struct tee_shm *shm;
 	int ret, err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

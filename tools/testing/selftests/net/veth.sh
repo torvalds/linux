@@ -41,13 +41,16 @@ create_ns() {
 		ip -n $ns link set dev lo up
 	done
 
-	ip link add name veth$SRC type veth peer name veth$DST
+	ip link add name "veth$SRC" "$@" type veth \
+		peer name "veth$DST" "$@" || return 1
 
 	for ns in $SRC $DST; do
 		ip link set dev veth$ns netns $BASE$ns up
 		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V4$ns/24
 		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V6$ns/64 nodad
 	done
+
+	return 0
 }
 
 __chk_flag() {
@@ -129,6 +132,78 @@ chk_channels() {
 		echo " fail rx:$rx:$cur_rx tx:$tx:$cur_tx combined:n/a:$cur_combined"
 	fi
 }
+
+chk_carrier() (
+	target=$1
+	state=$2
+	expected=$3
+	carrier=0
+
+	# IFF_LOWER_UP is reported only for running interfaces.
+	[ "$state" = up ] || return 0
+
+	if ! link=$(ip -n "$BASE$target" -o link show dev "veth$target"); then
+		echo " fail - cannot read veth$target link state"
+		return 1
+	fi
+	case "$link" in
+		*LOWER_UP*) carrier=1 ;;
+	esac
+	if [ "$carrier" -ne "$expected" ]; then
+		printf ' fail - veth%s carrier is %s, expected %s\n' \
+			"$target" "$carrier" "$expected"
+		return 1
+	fi
+)
+
+# Keep per-case variables separate from the other tests.
+chk_channels_carrier() (
+	src_state=$1
+	dst_state=$2
+	expected=0
+	err=0
+	msg="carrier after channel change ($src_state/$dst_state)"
+
+	if ! create_ns numtxqueues 2 numrxqueues 2; then
+		printf "%-60s" "$msg"
+		echo " skip - cannot create veth pair"
+		cleanup
+		return 0
+	fi
+
+	ip -n "$NS_SRC" link set dev "veth$SRC" "$src_state" || err=1
+	ip -n "$NS_DST" link set dev "veth$DST" "$dst_state" || err=1
+	[ "$src_state" = up ] && [ "$dst_state" = up ] && expected=1
+	chk_carrier "$SRC" "$src_state" "$expected" || err=1
+	chk_carrier "$DST" "$dst_state" "$expected" || err=1
+
+	for target in "$SRC" "$DST"; do
+		for count in 1 2; do
+			ip netns exec "$BASE$target" ethtool -L "veth$target" \
+				rx "$count" tx "$count" || err=1
+			chk_carrier "$SRC" "$src_state" "$expected" || err=1
+			chk_carrier "$DST" "$dst_state" "$expected" || err=1
+		done
+
+		if ip netns exec "$BASE$target" ethtool -L "veth$target" \
+			rx 3 tx 3 \
+			>/dev/null 2>&1; then
+			echo " fail - out-of-range channel counts were accepted"
+			err=1
+		fi
+		chk_carrier "$SRC" "$src_state" "$expected" || err=1
+		chk_carrier "$DST" "$dst_state" "$expected" || err=1
+	done
+
+	cleanup
+	printf "%-60s" "$msg"
+	if [ "$err" -eq 0 ]; then
+		echo " ok "
+	else
+		echo " fail "
+	fi
+	return "$err"
+)
 
 chk_gro() {
 	local msg="$1"
@@ -256,6 +331,10 @@ fi
 [ $CPUS -lt 2 ] && echo "Only one CPU available, some tests will be skipped"
 [ $STRESS -gt 0 -a $CPUS -lt 3 ] && echo " stress test will be skipped, too"
 [ ! -f "$YNL" ] && echo "ynl cli not found, ndo-xmit tests will be skipped"
+
+chk_channels_carrier up up || ret=1
+chk_channels_carrier up down || ret=1
+chk_channels_carrier down up || ret=1
 
 create_ns
 chk_gro_flag "default - gro flag" $SRC off

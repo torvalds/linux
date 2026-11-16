@@ -112,7 +112,7 @@ static int bme680_spi_probe(struct spi_device *spi)
 	struct bme680_spi_bus_context *bus_context;
 	struct regmap *regmap;
 
-	bus_context = devm_kzalloc(&spi->dev, sizeof(*bus_context), GFP_KERNEL);
+	bus_context = devm_kzalloc_obj(&spi->dev, *bus_context);
 	if (!bus_context)
 		return -ENOMEM;
 

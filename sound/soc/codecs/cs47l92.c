@@ -1982,7 +1982,7 @@ static int cs47l92_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	cs47l92 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l92), GFP_KERNEL);
+	cs47l92 = devm_kzalloc_obj(&pdev->dev, struct cs47l92);
 	if (!cs47l92)
 		return -ENOMEM;
 

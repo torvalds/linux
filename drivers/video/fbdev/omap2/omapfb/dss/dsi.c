@@ -5259,7 +5259,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	struct resource *res;
 	struct resource temp_res;
 
-	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(&dsidev->dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

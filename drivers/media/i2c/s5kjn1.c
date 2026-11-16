@@ -1295,7 +1295,7 @@ static int s5kjn1_probe(struct i2c_client *client)
 	unsigned long freq;
 	int ret;
 
-	s5kjn1 = devm_kzalloc(&client->dev, sizeof(*s5kjn1), GFP_KERNEL);
+	s5kjn1 = devm_kzalloc_obj(&client->dev, *s5kjn1);
 	if (!s5kjn1)
 		return -ENOMEM;
 

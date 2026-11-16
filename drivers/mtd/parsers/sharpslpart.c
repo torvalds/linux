@@ -179,8 +179,7 @@ static int sharpsl_nand_init_ftl(struct mtd_info *mtd, struct sharpsl_ftl *ftl)
 	/* FTL reserves 5% of the blocks + 1 spare  */
 	ftl->logmax = ((phymax * 95) / 100) - 1;
 
-	ftl->log2phy = kmalloc_array(ftl->logmax, sizeof(*ftl->log2phy),
-				     GFP_KERNEL);
+	ftl->log2phy = kmalloc_objs(*ftl->log2phy, ftl->logmax);
 	if (!ftl->log2phy) {
 		ret = -ENOMEM;
 		goto exit;

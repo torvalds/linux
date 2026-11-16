@@ -137,7 +137,7 @@ static int ufs_sprd_common_init(struct ufs_hba *hba)
 	const struct of_device_id *of_id;
 	int ret = 0;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 

@@ -1041,7 +1041,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ci = devm_kzalloc(dev, sizeof(*ci), GFP_KERNEL);
+	ci = devm_kzalloc_obj(dev, *ci);
 	if (!ci)
 		return -ENOMEM;
 

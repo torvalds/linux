@@ -70,7 +70,7 @@ static int redmi_wmi_probe(struct wmi_device *wdev, const void *context)
 	int err;
 
 	/* Init dev */
-	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&wdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

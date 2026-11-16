@@ -549,7 +549,7 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	int port;
 
 	nphys = of_get_child_count(np);
-	xsphy = devm_kzalloc(dev, struct_size(xsphy, phys, nphys), GFP_KERNEL);
+	xsphy = devm_kzalloc_flex(dev, *xsphy, phys, nphys);
 	if (!xsphy)
 		return -ENOMEM;
 
@@ -581,7 +581,7 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 		struct phy *phy;
 		int retval;
 
-		inst = devm_kzalloc(dev, sizeof(*inst), GFP_KERNEL);
+		inst = devm_kzalloc_obj(dev, *inst);
 		if (!inst)
 			return -ENOMEM;
 

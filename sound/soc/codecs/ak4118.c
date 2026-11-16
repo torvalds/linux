@@ -359,8 +359,7 @@ static int ak4118_i2c_probe(struct i2c_client *i2c)
 	struct ak4118_priv *ak4118;
 	int ret;
 
-	ak4118 = devm_kzalloc(&i2c->dev, sizeof(struct ak4118_priv),
-			      GFP_KERNEL);
+	ak4118 = devm_kzalloc_obj(&i2c->dev, struct ak4118_priv);
 	if (ak4118 == NULL)
 		return -ENOMEM;
 

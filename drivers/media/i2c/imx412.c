@@ -983,7 +983,7 @@ static int imx412_probe(struct i2c_client *client)
 	const char *name;
 	int ret;
 
-	imx412 = devm_kzalloc(&client->dev, sizeof(*imx412), GFP_KERNEL);
+	imx412 = devm_kzalloc_obj(&client->dev, *imx412);
 	if (!imx412)
 		return -ENOMEM;
 

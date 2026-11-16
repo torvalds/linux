@@ -166,7 +166,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 	struct ti_syscon_reset_control *controls;
 	int size, nr_controls, i;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -181,8 +181,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 	}
 
 	nr_controls = (size / sizeof(*list)) / 7;
-	controls = devm_kcalloc(dev, nr_controls, sizeof(*controls),
-				GFP_KERNEL);
+	controls = devm_kzalloc_objs(dev, *controls, nr_controls);
 	if (!controls)
 		return -ENOMEM;
 

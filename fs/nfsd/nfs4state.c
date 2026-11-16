@@ -1361,7 +1361,7 @@ alloc_init_dir_deleg(struct nfs4_client *clp, struct nfs4_file *fp)
 		nfs4_put_stid(&dp->dl_stid);
 		return NULL;
 	}
-	ncn->ncn_masks = kcalloc(NOTIFY4_EVENT_QUEUE_SIZE, sizeof(*ncn->ncn_masks), GFP_KERNEL);
+	ncn->ncn_masks = kzalloc_objs(*ncn->ncn_masks, NOTIFY4_EVENT_QUEUE_SIZE);
 	if (!ncn->ncn_masks) {
 		nfs4_put_stid(&dp->dl_stid);
 		return NULL;

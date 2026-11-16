@@ -1060,7 +1060,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	dd = devm_kzalloc(dev, sizeof(struct omap_aes_dev), GFP_KERNEL);
+	dd = devm_kzalloc_obj(dev, struct omap_aes_dev);
 	if (dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		goto err_data;

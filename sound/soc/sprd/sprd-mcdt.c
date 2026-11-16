@@ -913,7 +913,7 @@ static int sprd_mcdt_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	mcdt = devm_kzalloc(&pdev->dev, sizeof(*mcdt), GFP_KERNEL);
+	mcdt = devm_kzalloc_obj(&pdev->dev, *mcdt);
 	if (!mcdt)
 		return -ENOMEM;
 

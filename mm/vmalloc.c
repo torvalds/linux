@@ -5374,7 +5374,7 @@ static void show_busy_info(struct seq_file *m)
 	unsigned int *counters;
 
 	if (IS_ENABLED(CONFIG_NUMA))
-		counters = kmalloc_array(nr_node_ids, sizeof(unsigned int), GFP_KERNEL);
+		counters = kmalloc_objs(unsigned int, nr_node_ids);
 
 	for_each_vmap_node(vn) {
 		spin_lock(&vn->busy.lock);

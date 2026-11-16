@@ -700,7 +700,7 @@ static int n2rng_probe(struct platform_device *op)
 	struct n2rng *np;
 
 	n2rng_driver_version();
-	np = devm_kzalloc(&op->dev, sizeof(*np), GFP_KERNEL);
+	np = devm_kzalloc_obj(&op->dev, *np);
 	if (!np)
 		goto out;
 	np->op = op;
@@ -745,8 +745,7 @@ static int n2rng_probe(struct platform_device *op)
 
 	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
 		 np->hvapi_major, np->hvapi_minor);
-	np->units = devm_kcalloc(&op->dev, np->num_units, sizeof(*np->units),
-				 GFP_KERNEL);
+	np->units = devm_kzalloc_objs(&op->dev, *np->units, np->num_units);
 	err = -ENOMEM;
 	if (!np->units)
 		goto out_hvapi_unregister;

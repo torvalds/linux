@@ -182,18 +182,19 @@ static int raw_v4_input(struct net *net, struct sk_buff *skb,
 				  iph->saddr, iph->daddr, dif, sdif))
 			continue;
 
-		if (atomic_read(&sk->sk_rmem_alloc) >=
-		    READ_ONCE(sk->sk_rcvbuf)) {
-			sk_drops_inc(sk);
-			continue;
-		}
-
 		delivered = 1;
 		if ((iph->protocol != IPPROTO_ICMP || !icmp_filter(sk, skb)) &&
 		    ip_mc_sf_allow(sk, iph->daddr, iph->saddr,
 				   skb->dev->ifindex, sdif)) {
-			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
+			struct sk_buff *clone;
 
+			if (atomic_read(&sk->sk_rmem_alloc) >=
+			    READ_ONCE(sk->sk_rcvbuf)) {
+				sk_drops_inc(sk);
+				continue;
+			}
+
+			clone = skb_clone(skb, GFP_ATOMIC);
 			/* Not releasing hash table! */
 			if (clone)
 				raw_rcv(sk, clone);

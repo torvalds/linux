@@ -659,11 +659,8 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 			err = -EINVAL;
 			goto free_vmas;
 		}
-	}
 
-	if (args->type == DRM_XE_MEM_RANGE_ATTR_PAT) {
-		if (!check_pat_args_are_sane(xe, &madvise_range,
-					     args->pat_index.val)) {
+		if (!check_pat_args_are_sane(xe, &madvise_range, pat_index)) {
 			err = -EINVAL;
 			goto free_vmas;
 		}

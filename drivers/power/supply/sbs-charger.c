@@ -178,7 +178,7 @@ static int sbs_probe(struct i2c_client *client)
 	if (!sbs_desc->name)
 		return -ENOMEM;
 
-	chip = devm_kzalloc(&client->dev, sizeof(struct sbs_info), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, struct sbs_info);
 	if (!chip)
 		return -ENOMEM;
 

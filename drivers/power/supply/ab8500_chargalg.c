@@ -1772,7 +1772,7 @@ static int ab8500_chargalg_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct ab8500_chargalg *di;
 
-	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc_obj(dev, *di);
 	if (!di)
 		return -ENOMEM;
 

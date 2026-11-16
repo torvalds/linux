@@ -248,7 +248,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	if (irq_1hz < 0 || irq_alarm < 0)
 		return -ENODEV;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct sa1100_rtc), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct sa1100_rtc);
 	if (!info)
 		return -ENOMEM;
 	info->irq_1hz = irq_1hz;

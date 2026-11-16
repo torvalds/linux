@@ -731,7 +731,7 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

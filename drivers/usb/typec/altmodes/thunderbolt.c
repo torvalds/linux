@@ -274,7 +274,7 @@ static int tbt_altmode_probe(struct typec_altmode *alt)
 {
 	struct tbt_altmode *tbt;
 
-	tbt = devm_kzalloc(&alt->dev, sizeof(*tbt), GFP_KERNEL);
+	tbt = devm_kzalloc_obj(&alt->dev, *tbt);
 	if (!tbt)
 		return -ENOMEM;
 

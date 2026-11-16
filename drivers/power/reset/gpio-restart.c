@@ -53,8 +53,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	u32 property;
 	int ret;
 
-	gpio_restart = devm_kzalloc(&pdev->dev, sizeof(*gpio_restart),
-			GFP_KERNEL);
+	gpio_restart = devm_kzalloc_obj(&pdev->dev, *gpio_restart);
 	if (!gpio_restart)
 		return -ENOMEM;
 

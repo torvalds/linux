@@ -1283,7 +1283,7 @@ static int cdns_allocate_pdi(struct sdw_cdns *cdns,
 	if (!num)
 		return 0;
 
-	pdi = devm_kcalloc(cdns->dev, num, sizeof(*pdi), GFP_KERNEL);
+	pdi = devm_kzalloc_objs(cdns->dev, *pdi, num);
 	if (!pdi)
 		return -ENOMEM;
 

@@ -816,7 +816,7 @@ static void asus_work(struct work_struct *work)
 
 static int asus_worker_create(struct hid_device *hdev, struct asus_drvdata *drvdata)
 {
-	drvdata->worker = devm_kzalloc(&hdev->dev, sizeof(struct asus_worker), GFP_KERNEL);
+	drvdata->worker = devm_kzalloc_obj(&hdev->dev, struct asus_worker);
 	if (!drvdata->worker)
 		return -ENOMEM;
 
@@ -1439,7 +1439,7 @@ static int asus_xgm_init(struct hid_device *hdev, struct asus_drvdata *drvdata)
 	const char *name;
 	int ret;
 
-	drvdata->xgm_led = devm_kzalloc(&hdev->dev, sizeof(*drvdata->xgm_led), GFP_KERNEL);
+	drvdata->xgm_led = devm_kzalloc_obj(&hdev->dev, *drvdata->xgm_led);
 	if (drvdata->xgm_led == NULL)
 		return -ENOMEM;
 
@@ -1513,7 +1513,7 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	bool is_vendor = false;
 	int ret;
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, *drvdata);
 	if (drvdata == NULL)
 		return -ENOMEM;
 

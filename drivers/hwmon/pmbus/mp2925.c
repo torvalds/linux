@@ -295,7 +295,7 @@ static int mp2925_probe(struct i2c_client *client)
 {
 	struct mp2925_data *data;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mp2925_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mp2925_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -1595,7 +1595,7 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(soc_data))
 		return PTR_ERR(soc_data);
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 
@@ -1616,16 +1616,15 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	community->pad_regs = community->regs + FAMILY_PAD_REGS_OFF;
 
 #ifdef CONFIG_PM_SLEEP
-	pctrl->context.pads = devm_kcalloc(dev, pctrl->soc->npins,
-					   sizeof(*pctrl->context.pads),
-					   GFP_KERNEL);
+	pctrl->context.pads = devm_kzalloc_objs(dev, *pctrl->context.pads,
+						pctrl->soc->npins);
 	if (!pctrl->context.pads)
 		return -ENOMEM;
 #endif
 
-	pctrl->context.communities = devm_kcalloc(dev, pctrl->soc->ncommunities,
-						  sizeof(*pctrl->context.communities),
-						  GFP_KERNEL);
+	pctrl->context.communities = devm_kzalloc_objs(dev,
+						       *pctrl->context.communities,
+						       pctrl->soc->ncommunities);
 	if (!pctrl->context.communities)
 		return -ENOMEM;
 

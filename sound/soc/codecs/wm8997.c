@@ -1113,8 +1113,7 @@ static int wm8997_probe(struct platform_device *pdev)
 	struct wm8997_priv *wm8997;
 	int i, ret;
 
-	wm8997 = devm_kzalloc(&pdev->dev, sizeof(struct wm8997_priv),
-			      GFP_KERNEL);
+	wm8997 = devm_kzalloc_obj(&pdev->dev, struct wm8997_priv);
 	if (wm8997 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8997);

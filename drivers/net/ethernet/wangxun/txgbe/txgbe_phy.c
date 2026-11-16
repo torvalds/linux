@@ -390,7 +390,7 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 
 	raw_spin_lock_init(&wx->gpio_lock);
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 

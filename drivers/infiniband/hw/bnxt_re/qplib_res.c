@@ -561,7 +561,7 @@ static int bnxt_qplib_alloc_sgid_tbl(struct bnxt_qplib_res *res,
 	if (!sgid_tbl->tbl)
 		return -ENOMEM;
 
-	sgid_tbl->hw_id = kcalloc(max, sizeof(u16), GFP_KERNEL);
+	sgid_tbl->hw_id = kzalloc_objs(u16, max);
 	if (!sgid_tbl->hw_id)
 		goto out_free1;
 

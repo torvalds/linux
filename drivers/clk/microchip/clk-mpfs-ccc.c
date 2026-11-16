@@ -234,8 +234,8 @@ static int mpfs_ccc_probe(struct platform_device *pdev)
 	void __iomem *pll_base[ARRAY_SIZE(mpfs_ccc_pll_clks)];
 	int ret;
 
-	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hw_data.hws, MPFS_CCC_NUM_CLKS),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(&pdev->dev, *clk_data, hw_data.hws,
+				     MPFS_CCC_NUM_CLKS);
 	if (!clk_data)
 		return -ENOMEM;
 

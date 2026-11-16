@@ -1152,11 +1152,11 @@ static int ks_pcie_probe(struct platform_device *pdev)
 	ep_ops = data->ep_ops;
 	mode = data->mode;
 
-	ks_pcie = devm_kzalloc(dev, sizeof(*ks_pcie), GFP_KERNEL);
+	ks_pcie = devm_kzalloc_obj(dev, *ks_pcie);
 	if (!ks_pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 
@@ -1197,7 +1197,7 @@ static int ks_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		num_lanes = 1;
 
-	phy = devm_kcalloc(dev, num_lanes, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_objs(dev, *phy, num_lanes);
 	if (!phy)
 		return -ENOMEM;
 

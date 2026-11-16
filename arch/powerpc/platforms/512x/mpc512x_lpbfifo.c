@@ -382,8 +382,8 @@ static int get_cs_ranges(struct device *dev)
 	of_range_parser_init(&parser, lb_node);
 	lpbfifo.cs_n = of_range_count(&parser);
 
-	lpbfifo.cs_ranges = devm_kcalloc(dev, lpbfifo.cs_n,
-					sizeof(struct cs_range), GFP_KERNEL);
+	lpbfifo.cs_ranges = devm_kzalloc_objs(dev, struct cs_range,
+					      lpbfifo.cs_n);
 	if (!lpbfifo.cs_ranges)
 		goto end;
 

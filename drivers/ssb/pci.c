@@ -1,7 +1,7 @@
 /*
  * Sonics Silicon Backplane PCI-Hostbus related functions.
  *
- * Copyright (C) 2005-2006 Michael Buesch <m@bues.ch>
+ * Copyright (C) 2005-2006 Michael Buesch
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
  * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
@@ -882,7 +882,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	}
 	pr_debug("SPROM offset is 0x%x\n", bus->sprom_offset);
 
-	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
+	buf = kzalloc_objs(u16, SSB_SPROMSIZE_WORDS_R123);
 	if (!buf)
 		return -ENOMEM;
 	bus->sprom_size = SSB_SPROMSIZE_WORDS_R123;
@@ -891,8 +891,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	if (err) {
 		/* try for a 440 byte SPROM - revision 4 and higher */
 		kfree(buf);
-		buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
-			      GFP_KERNEL);
+		buf = kzalloc_objs(u16, SSB_SPROMSIZE_WORDS_R4);
 		if (!buf)
 			return -ENOMEM;
 		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;

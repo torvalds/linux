@@ -2199,7 +2199,7 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 	struct snd_soc_dai_link_component *dlc;
 
 	/* Allocate three DLCs one for the CPU, one for platform and one for the CODEC */
-	dlc = devm_kcalloc(dev, 3, sizeof(*dlc), GFP_KERNEL);
+	dlc = devm_kzalloc_objs(dev, *dlc, 3);
 	if (!dlc || !name || !cpu_dai_name || !platform_comp_name || !codec_name || !codec_dai_name)
 		return -ENOMEM;
 

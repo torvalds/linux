@@ -267,8 +267,7 @@ static int tpm_tis_spi_probe(struct spi_device *dev)
 	struct tpm_tis_spi_phy *phy;
 	int irq;
 
-	phy = devm_kzalloc(&dev->dev, sizeof(struct tpm_tis_spi_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&dev->dev, struct tpm_tis_spi_phy);
 	if (!phy)
 		return -ENOMEM;
 

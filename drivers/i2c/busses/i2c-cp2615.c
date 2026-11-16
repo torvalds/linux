@@ -293,7 +293,7 @@ cp2615_i2c_probe(struct usb_interface *usbif, const struct usb_device_id *id)
 	if (ret)
 		return ret;
 
-	adap = devm_kzalloc(&usbif->dev, sizeof(struct i2c_adapter), GFP_KERNEL);
+	adap = devm_kzalloc_obj(&usbif->dev, struct i2c_adapter);
 	if (!adap)
 		return -ENOMEM;
 

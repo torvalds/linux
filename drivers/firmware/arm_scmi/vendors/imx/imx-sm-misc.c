@@ -553,7 +553,7 @@ static int scmi_imx_misc_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_info(ph->dev, "NXP SM MISC Version %d.%d\n",
 		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	minfo = devm_kzalloc(ph->dev, sizeof(*minfo), GFP_KERNEL);
+	minfo = devm_kzalloc_obj(ph->dev, *minfo);
 	if (!minfo)
 		return -ENOMEM;
 

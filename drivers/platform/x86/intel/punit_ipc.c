@@ -236,8 +236,7 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 {
 	int irq, ret;
 
-	punit_ipcdev = devm_kzalloc(&pdev->dev,
-				    sizeof(*punit_ipcdev), GFP_KERNEL);
+	punit_ipcdev = devm_kzalloc_obj(&pdev->dev, *punit_ipcdev);
 	if (!punit_ipcdev)
 		return -ENOMEM;
 

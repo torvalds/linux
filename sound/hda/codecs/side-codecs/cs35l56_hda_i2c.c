@@ -17,7 +17,7 @@ static int cs35l56_hda_i2c_probe(struct i2c_client *clt)
 	struct cs35l56_hda *cs35l56;
 	int ret;
 
-	cs35l56 = devm_kzalloc(&clt->dev, sizeof(*cs35l56), GFP_KERNEL);
+	cs35l56 = devm_kzalloc_obj(&clt->dev, *cs35l56);
 	if (!cs35l56)
 		return -ENOMEM;
 

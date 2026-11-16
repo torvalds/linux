@@ -1881,13 +1881,11 @@ static int npc_alloc_kpu_cam2_n_action2(struct rvu *rvu, int kpu_num,
 
 	kpu = &adapter->kpu[kpu_num];
 
-	kpu->cam2 = devm_kcalloc(rvu->dev, num_entries,
-				 sizeof(*kpu->cam2), GFP_KERNEL);
+	kpu->cam2 = devm_kzalloc_objs(rvu->dev, *kpu->cam2, num_entries);
 	if (!kpu->cam2)
 		return -ENOMEM;
 
-	kpu->action2 = devm_kcalloc(rvu->dev, num_entries,
-				    sizeof(*kpu->action2), GFP_KERNEL);
+	kpu->action2 = devm_kzalloc_objs(rvu->dev, *kpu->action2, num_entries);
 	if (!kpu->action2)
 		return -ENOMEM;
 
@@ -1959,10 +1957,8 @@ static int npc_apply_custom_kpu_from_fs(struct rvu *rvu,
 	fw = rvu->kpu_fwdata;
 
 	/* Binary blob contains ikpu actions entries at start of data[0] */
-	profile->ikpu2 = devm_kcalloc(rvu->dev,
-				      ARRAY_SIZE(ikpu_action_entries),
-				      sizeof(*profile->ikpu2),
-				      GFP_KERNEL);
+	profile->ikpu2 = devm_kzalloc_objs(rvu->dev, *profile->ikpu2,
+					   ARRAY_SIZE(ikpu_action_entries));
 	if (!profile->ikpu2)
 		return -ENOMEM;
 
@@ -2088,7 +2084,7 @@ static int npc_apply_custom_kpu(struct rvu *rvu,
 
 	*fw_kpus = fw->kpus;
 
-	sfw = devm_kcalloc(rvu->dev, 1, sizeof(*sfw), GFP_KERNEL);
+	sfw = devm_kzalloc_objs(rvu->dev, *sfw, 1);
 	if (!sfw)
 		return -ENOMEM;
 
@@ -2443,8 +2439,7 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->bmap_fcnt = mcam->bmap_entries;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
-	mcam->entry2pfvf_map = kcalloc(mcam->bmap_entries, sizeof(u16),
-				       GFP_KERNEL);
+	mcam->entry2pfvf_map = kzalloc_objs(u16, mcam->bmap_entries);
 
 	if (!mcam->entry2pfvf_map)
 		goto free_bmap_reverse;
@@ -2470,27 +2465,23 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	if (err)
 		goto free_entry_map;
 
-	mcam->cntr2pfvf_map = kcalloc(mcam->counters.max, sizeof(u16),
-				      GFP_KERNEL);
+	mcam->cntr2pfvf_map = kzalloc_objs(u16, mcam->counters.max);
 	if (!mcam->cntr2pfvf_map)
 		goto free_cntr_bmap;
 
 	/* Alloc memory for MCAM entry to counter mapping and for tracking
 	 * counter's reference count.
 	 */
-	mcam->entry2cntr_map = kcalloc(mcam->total_entries, sizeof(u16),
-				       GFP_KERNEL);
+	mcam->entry2cntr_map = kzalloc_objs(u16, mcam->total_entries);
 	if (!mcam->entry2cntr_map)
 		goto free_cntr_map;
 
-	mcam->cntr_refcnt = kcalloc(mcam->counters.max, sizeof(u16),
-				    GFP_KERNEL);
+	mcam->cntr_refcnt = kzalloc_objs(u16, mcam->counters.max);
 	if (!mcam->cntr_refcnt)
 		goto free_entry_cntr_map;
 
 	/* Alloc memory for saving target device of mcam rule */
-	mcam->entry2target_pffunc = kcalloc(mcam->total_entries,
-					    sizeof(u16), GFP_KERNEL);
+	mcam->entry2target_pffunc = kzalloc_objs(u16, mcam->total_entries);
 	if (!mcam->entry2target_pffunc)
 		goto free_cntr_refcnt;
 
@@ -2704,8 +2695,7 @@ int rvu_npc_init(struct rvu *rvu)
 	rvu_alloc_rsrc(&pkind->rsrc);
 
 	/* Allocate mem for pkind to PF and channel mapping info */
-	pkind->pfchan_map = devm_kcalloc(rvu->dev, pkind->rsrc.max,
-					 sizeof(u32), GFP_KERNEL);
+	pkind->pfchan_map = devm_kzalloc_objs(rvu->dev, u32, pkind->rsrc.max);
 	if (!pkind->pfchan_map)
 		return -ENOMEM;
 

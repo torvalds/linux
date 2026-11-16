@@ -1463,7 +1463,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	u8 i;
 	u32 sr;
 
-	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc_obj(dev, *i2c);
 	if (!i2c)
 		return -ENOMEM;
 

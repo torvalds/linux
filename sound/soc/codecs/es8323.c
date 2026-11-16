@@ -772,7 +772,7 @@ static int es8323_i2c_probe(struct i2c_client *i2c_client)
 	struct es8323_priv *es8323;
 	struct device *dev = &i2c_client->dev;
 
-	es8323 = devm_kzalloc(dev, sizeof(*es8323), GFP_KERNEL);
+	es8323 = devm_kzalloc_obj(dev, *es8323);
 	if (!es8323)
 		return -ENOMEM;
 

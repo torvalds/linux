@@ -242,7 +242,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!sp)
 		goto e_err;
 
-	sp_pci = devm_kzalloc(dev, sizeof(*sp_pci), GFP_KERNEL);
+	sp_pci = devm_kzalloc_obj(dev, *sp_pci);
 	if (!sp_pci)
 		goto e_err;
 

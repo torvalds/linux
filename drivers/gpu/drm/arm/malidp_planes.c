@@ -954,7 +954,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 		modifiers = supported_modifiers;
 	}
 
-	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
+	formats = kzalloc_objs(*formats, map->n_pixel_formats);
 	if (!formats) {
 		ret = -ENOMEM;
 		goto cleanup;

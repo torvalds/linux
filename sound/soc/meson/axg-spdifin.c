@@ -410,7 +410,7 @@ axg_spdifin_get_dai_drv(struct device *dev, struct axg_spdifin *priv)
 	struct snd_soc_dai_driver *drv;
 	int i;
 
-	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, *drv);
 	if (!drv)
 		return ERR_PTR(-ENOMEM);
 
@@ -441,7 +441,7 @@ static int axg_spdifin_probe(struct platform_device *pdev)
 	struct snd_soc_dai_driver *dai_drv;
 	void __iomem *regs;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);

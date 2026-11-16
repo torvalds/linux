@@ -2076,7 +2076,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	/* allocate the private data struct so that we can probe the switches
 	 * ID register
 	 */
-	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&mdiodev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2112,7 +2112,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (ret)
 		return ret;
 
-	priv->ds = devm_kzalloc(&mdiodev->dev, sizeof(*priv->ds), GFP_KERNEL);
+	priv->ds = devm_kzalloc_obj(&mdiodev->dev, *priv->ds);
 	if (!priv->ds)
 		return -ENOMEM;
 

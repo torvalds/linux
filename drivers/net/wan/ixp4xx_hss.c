@@ -1416,7 +1416,7 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

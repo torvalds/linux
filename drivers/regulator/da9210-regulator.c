@@ -136,7 +136,7 @@ static int da9210_i2c_probe(struct i2c_client *i2c)
 	struct regulator_config config = { };
 	int error;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9210), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, struct da9210);
 	if (!chip)
 		return -ENOMEM;
 

@@ -785,7 +785,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	 * the chained irq with all of them.
 	 */
 	girq->num_parents = nr_irq_parent;
-	girq->parents = devm_kcalloc(dev, nr_irq_parent, sizeof(*girq->parents), GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(dev, *girq->parents, nr_irq_parent);
 	if (!girq->parents)
 		return -ENOMEM;
 	for (i = 0; i < nr_irq_parent; i++) {
@@ -880,9 +880,8 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 		struct armada_37xx_pin_group *grp = &info->groups[n];
 		int i, j, f;
 
-		grp->pins = devm_kcalloc(dev, grp->npins + grp->extra_npins,
-					 sizeof(*grp->pins),
-					 GFP_KERNEL);
+		grp->pins = devm_kzalloc_objs(dev, *grp->pins,
+					      grp->npins + grp->extra_npins);
 		if (!grp->pins)
 			return -ENOMEM;
 
@@ -932,9 +931,8 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 		const char **groups;
 		int g;
 
-		funcs[n].groups = devm_kcalloc(dev, funcs[n].ngroups,
-					       sizeof(*(funcs[n].groups)),
-					       GFP_KERNEL);
+		funcs[n].groups = devm_kzalloc_objs(dev, *(funcs[n].groups),
+						    funcs[n].ngroups);
 		if (!funcs[n].groups)
 			return -ENOMEM;
 
@@ -974,7 +972,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
 	ctrldesc->confops = &armada_37xx_pinconf_ops;
 
-	pindesc = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*pindesc), GFP_KERNEL);
+	pindesc = devm_kzalloc_objs(dev, *pindesc, pin_data->nr_pins);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -996,7 +994,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 * we allocate functions for number of pins and hope there are
 	 * fewer unique functions than pins available
 	 */
-	info->funcs = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*info->funcs), GFP_KERNEL);
+	info->funcs = devm_kzalloc_objs(dev, *info->funcs, pin_data->nr_pins);
 	if (!info->funcs)
 		return -ENOMEM;
 
@@ -1151,7 +1149,7 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

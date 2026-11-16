@@ -2005,6 +2005,23 @@ static void mm81x_rx_h_add_rt_s1g_tlv(struct sk_buff *skb,
 	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
 
+/*
+ * This is a hack to workaround how our firmware reports frequencies.
+ * For any 1MHz frames report them directly (i.e during scanning), else
+ * report the 1MHz control channel we are tuned to.
+ */
+static void mm81x_rx_h_fill_freq(struct mm81x *mors, u32 rx_khz,
+				 struct ieee80211_rx_status *rx_status)
+{
+	struct ieee80211_channel *chan = mors->chandef.chan;
+
+	if (rx_status->bw != RATE_INFO_BW_1)
+		rx_khz = ieee80211_channel_to_khz(chan);
+
+	rx_status->freq = KHZ_TO_MHZ(rx_khz);
+	rx_status->freq_offset = (rx_khz % 1000) ? 1 : 0;
+}
+
 static void mm81x_rx_h_fill_status(struct mm81x *mors,
 				   struct mm81x_skb_rx_status *hdr_rx_status,
 				   struct ieee80211_rx_status *rx_status,
@@ -2018,11 +2035,10 @@ static void mm81x_rx_h_fill_status(struct mm81x *mors,
 	rx_status->signal = le16_to_cpu(hdr_rx_status->rssi);
 	rx_status->encoding = RX_ENC_S1G;
 	rx_status->band = NL80211_BAND_S1GHZ;
-	rx_status->freq = KHZ100_TO_MHZ(freq_100khz);
-	rx_status->freq_offset = (freq_100khz % 10) ? 1 : 0;
 	rx_status->nss = NSS_IDX_TO_NSS(mm81x_ratecode_nss_index_get(ratecode));
 	rx_status->rate_idx = mm81x_ratecode_mcs_index_get(ratecode);
 	rx_status->bw = mm81x_rx_h_rc_bw_to_rx_bw(ratecode);
+	mm81x_rx_h_fill_freq(mors, KHZ100_TO_KHZ(freq_100khz), rx_status);
 	rx_status->mactime = timestamp;
 	rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
 

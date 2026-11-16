@@ -300,7 +300,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	ocmem = devm_kzalloc(dev, sizeof(*ocmem), GFP_KERNEL);
+	ocmem = devm_kzalloc_obj(dev, *ocmem);
 	if (!ocmem)
 		return -ENOMEM;
 
@@ -369,8 +369,8 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 		 ocmem->num_ports, ocmem->config->num_regions,
 		 ocmem->num_macros, ocmem->interleaved ? "" : "not ");
 
-	ocmem->regions = devm_kcalloc(dev, ocmem->config->num_regions,
-				      sizeof(struct ocmem_region), GFP_KERNEL);
+	ocmem->regions = devm_kzalloc_objs(dev, struct ocmem_region,
+					   ocmem->config->num_regions);
 	if (!ocmem->regions) {
 		ret = -ENOMEM;
 		goto err_clk_disable;

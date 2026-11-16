@@ -28,6 +28,7 @@ static u32 ibs_caps;
 #include <linux/hardirq.h>
 
 #include <asm/nmi.h>
+#include <asm/delay.h>
 #include <asm/amd/ibs.h>
 
 /* attr.config2 */
@@ -73,7 +74,12 @@ static u32 ibs_caps;
  *
  * XXX: we could probably be using !atomic bitops for all this.
  */
-
+/*
+ * NOTE: IBS_CAPS_DIS eliminates the RMW race on the IBS_{FETCH|OP}_CTL, making
+ * IBS_STARTED and IBS_STOPPED states unnecessary. We use only IBS_ENABLED and
+ * IBS_STOPPING states when IBS_CAPS_DIS is present. Semantics of IBS_STOPPING
+ * changes a bit as well.
+ */
 enum ibs_states {
 	IBS_ENABLED	= 0,
 	IBS_STARTED	= 1,
@@ -557,7 +563,9 @@ static void perf_ibs_start(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
 	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+	unsigned int delay = 50;
 	u64 period, config = 0;
+	u64 ctl;
 
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
@@ -575,23 +583,87 @@ static void perf_ibs_start(struct perf_event *event, int flags)
 	}
 	config |= period >> 4;
 
-	/*
-	 * Reset the IBS_{FETCH|OP}_CTL MSR before updating pcpu->state.
-	 * Doing so prevents a race condition in which an NMI due to other
-	 * source might accidentally activate the event before we enable
-	 * it ourselves.
-	 */
-	perf_ibs_disable_event(perf_ibs, hwc, 0);
-
-	/*
-	 * Set STARTED before enabling the hardware, such that a subsequent NMI
-	 * must observe it.
-	 */
-	set_bit(IBS_STARTED,    pcpu->state);
-	clear_bit(IBS_STOPPING, pcpu->state);
+	if (ibs_caps & IBS_CAPS_DIS) {
+		/*
+		 *      IBS HW                     SW
+		 *
+		 *  o Capture sample       o ->stop()
+		 *  o Set VAL bit            CTL2[Dis] = 1
+		 *  o Raise NMI --.        o ...
+		 *                 \       o ->start()
+		 *                  \        wrmsr(IBS_{FETCH|OP}_CTL, new value);
+		 *                   \       (wrmsr clears the VAL bit)
+		 *                    `--> o Receives delayed NMI
+		 *                           (Unknown NMI since VAL bit is cleared)
+		 *
+		 * Handle this with induced delay.
+		 */
+		rdmsrq(hwc->config_base, ctl);
+		while ((ctl & perf_ibs->valid_mask) && delay--) {
+			udelay(1);
+			rdmsrq(hwc->config_base, ctl);
+		}
+	} else {
+		/*
+		 * Reset the IBS_{FETCH|OP}_CTL MSR before updating pcpu->state.
+		 * Doing so prevents a race condition in which an NMI due to
+		 * other source might accidentally activate the event before we
+		 * enable it ourselves.
+		 */
+		perf_ibs_disable_event(perf_ibs, hwc, 0);
+		/*
+		 * Set STARTED before enabling the hardware, such that a
+		 * subsequent NMI must observe it.
+		 */
+		set_bit(IBS_STARTED,    pcpu->state);
+		clear_bit(IBS_STOPPING, pcpu->state);
+	}
 	perf_ibs_enable_event(perf_ibs, hwc, config);
 
 	perf_event_update_userpage(event);
+}
+
+/* ->stop() for platforms with additional CTL2[Dis] bit. */
+static void perf_ibs_stop_dis(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+	u64 config;
+	u64 ctl2;
+
+	WARN_ON_ONCE(test_bit(IBS_STOPPING, pcpu->state));
+
+	set_bit(IBS_STOPPING, pcpu->state);
+
+	rdmsrq(hwc->extra_reg.reg, ctl2);
+	if (ctl2 & perf_ibs->disable_mask)
+		goto reset_state;
+
+	wrmsrq(hwc->extra_reg.reg, perf_ibs->disable_mask);
+
+	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
+	hwc->state |= PERF_HES_STOPPED;
+
+	if (hwc->state & PERF_HES_UPTODATE)
+		goto reset_state;
+
+	rdmsrq(hwc->config_base, config);
+
+	config &= ~perf_ibs->valid_mask;
+
+	/*
+	 * Clear the Val bit otherwise ->start() will unnecessarily
+	 * wait for 50us.
+	 */
+	if (in_nmi())
+		wrmsrq(hwc->config_base, config);
+
+	perf_ibs_event_update(perf_ibs, event, &config);
+	hwc->state |= PERF_HES_UPTODATE;
+
+reset_state:
+	clear_bit(IBS_STOPPING, pcpu->state);
 }
 
 static void perf_ibs_stop(struct perf_event *event, int flags)
@@ -601,6 +673,9 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
 	u64 config;
 	int stopping;
+
+	if (ibs_caps & IBS_CAPS_DIS)
+		return perf_ibs_stop_dis(event, flags);
 
 	if (test_and_set_bit(IBS_STOPPING, pcpu->state))
 		return;
@@ -1416,19 +1491,43 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	unsigned int msr;
 	u64 *buf, *config, period, new_config = 0;
 	int br_target_idx = -1;
+	u64 ctl2, ctl;
 
-	if (!test_bit(IBS_STARTED, pcpu->state)) {
-fail:
+	if (ibs_caps & IBS_CAPS_DIS) {
 		/*
-		 * Catch spurious interrupts after stopping IBS: After
-		 * disabling IBS there could be still incoming NMIs
-		 * with samples that even have the valid bit cleared.
-		 * Mark all this NMIs as handled.
+		 * ->stop() {
+		 *     set_bit(IBS_STOPPING);
+		 *                               <-- NMI (race 1)
+		 *     CTL2[Dis]=1;
+		 *     ...                       <-- NMI (race 2)
+		 * }
 		 */
-		if (test_and_clear_bit(IBS_STOPPED, pcpu->state))
-			return 1;
+		rdmsrq(perf_ibs->msr2, ctl2);
+		if (test_bit(IBS_STOPPING, pcpu->state) /* race 1 */ ||
+		    (ctl2 & perf_ibs->disable_mask) /* race 2 */) {
+			rdmsrq(perf_ibs->msr, ctl);
+			if (ctl & perf_ibs->valid_mask) {
+				ctl &= ~(perf_ibs->enable_mask |
+					 perf_ibs->valid_mask);
+				wrmsrq(perf_ibs->msr, ctl);
+				return 1;
+			}
+			return 0;
+		}
+	} else {
+		if (!test_bit(IBS_STARTED, pcpu->state)) {
+fail:
+			/*
+			 * Catch spurious interrupts after stopping IBS: After
+			 * disabling IBS there could be still incoming NMIs
+			 * with samples that even have the valid bit cleared.
+			 * Mark all this NMIs as handled.
+			 */
+			if (test_and_clear_bit(IBS_STOPPED, pcpu->state))
+				return 1;
 
-		return 0;
+			return 0;
+		}
 	}
 
 	if (WARN_ON_ONCE(!event))
@@ -1533,6 +1632,56 @@ fail:
 		throttle = perf_event_account_interrupt(event);
 		goto out;
 	}
+
+	/*
+	 * IBS captured RIP is out of sync with NMI pt_regs due to NMI
+	 * delivery latency. Use NMI pt_regs for PERF_SAMPLE_REGS_USER.
+	 *
+	 * Note: Valid user regs are required for PERF_SAMPLE_STACK_USER.
+	 */
+	if (event->attr.sample_type & (PERF_SAMPLE_REGS_USER |
+				       PERF_SAMPLE_STACK_USER)) {
+		perf_sample_regs_user(&data.regs_user, iregs);
+
+		/*
+		 * Don't update dyn_size if user has not requested for
+		 * PERF_SAMPLE_REGS_USER.
+		 */
+		if (event->attr.sample_type & PERF_SAMPLE_REGS_USER) {
+			/* regs dump ABI info */
+			int size = sizeof(u64);
+
+			if (data.regs_user.regs) {
+				u64 mask = event->attr.sample_regs_user;
+				size += hweight64(mask) * sizeof(u64);
+			}
+
+			data.dyn_size += size;
+		}
+
+		data.sample_flags |= PERF_SAMPLE_REGS_USER;
+	}
+
+	/*
+	 * IBS captured RIP is out of sync with NMI pt_regs due to NMI
+	 * delivery latency. Use NMI pt_regs for PERF_SAMPLE_REGS_INTR.
+	 */
+	if (event->attr.sample_type & PERF_SAMPLE_REGS_INTR) {
+		/* regs dump ABI info */
+		int size = sizeof(u64);
+
+		perf_sample_regs_intr(&data.regs_intr, iregs,
+				      event->attr.exclude_kernel);
+
+		if (data.regs_intr.regs) {
+			u64 mask = event->attr.sample_regs_intr;
+			size += hweight64(mask) * sizeof(u64);
+		}
+
+		data.dyn_size += size;
+		data.sample_flags |= PERF_SAMPLE_REGS_INTR;
+	}
+
 	/*
 	 * Prevent leaking physical addresses to unprivileged users. Skip
 	 * PERF_SAMPLE_PHYS_ADDR check since generic code prevents it for
@@ -1948,7 +2097,7 @@ static int perf_ibs_suspend(void *data)
 static void perf_ibs_resume(void *data)
 {
 	ibs_eilvt_setup();
-	setup_APIC_ibs();
+	x86_pmu_amd_ibs_starting_cpu(smp_processor_id());
 }
 
 static const struct syscore_ops perf_ibs_syscore_ops = {

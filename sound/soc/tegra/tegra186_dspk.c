@@ -483,7 +483,7 @@ static int tegra186_dspk_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err;
 
-	dspk = devm_kzalloc(dev, sizeof(*dspk), GFP_KERNEL);
+	dspk = devm_kzalloc_obj(dev, *dspk);
 	if (!dspk)
 		return -ENOMEM;
 

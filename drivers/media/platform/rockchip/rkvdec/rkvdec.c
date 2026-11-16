@@ -1774,7 +1774,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 	if (!variant)
 		return -EINVAL;
 
-	rkvdec = devm_kzalloc(&pdev->dev, sizeof(*rkvdec), GFP_KERNEL);
+	rkvdec = devm_kzalloc_obj(&pdev->dev, *rkvdec);
 	if (!rkvdec)
 		return -ENOMEM;
 

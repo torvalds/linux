@@ -293,7 +293,7 @@ static efi_char16_t *coreboot_cfr_efi_name(const char *name)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	efi_char16_t *efi_name __free(kfree) =
-		kcalloc(len + 1, sizeof(*efi_name), GFP_KERNEL);
+		kzalloc_objs(*efi_name, len + 1);
 	if (!efi_name)
 		return ERR_PTR(-ENOMEM);
 
@@ -341,7 +341,7 @@ static int coreboot_cfr_read_value(const struct coreboot_cfr_setting *setting,
 	int ret;
 
 	if (IS_ERR(efi_name))
-		return PTR_ERR(no_free_ptr(efi_name));
+		return PTR_ERR(efi_name);
 
 	ret = efivar_lock();
 	if (ret)
@@ -724,8 +724,8 @@ static int coreboot_cfr_copy_bool_values(struct coreboot_cfr_setting *setting)
 	};
 	unsigned int i;
 
-	setting->values = kcalloc(ARRAY_SIZE(bool_values), sizeof(*setting->values),
-				  GFP_KERNEL);
+	setting->values = kzalloc_objs(*setting->values,
+				       ARRAY_SIZE(bool_values));
 	if (!setting->values)
 		return -ENOMEM;
 
@@ -779,7 +779,7 @@ static int coreboot_cfr_copy_enum_values(struct coreboot_cfr_setting *setting,
 	if (count <= 0)
 		return count ?: -EINVAL;
 
-	setting->values = kcalloc(count, sizeof(*setting->values), GFP_KERNEL);
+	setting->values = kzalloc_objs(*setting->values, count);
 	if (!setting->values)
 		return -ENOMEM;
 
@@ -902,7 +902,7 @@ static int coreboot_cfr_add_numeric_option(struct coreboot_cfr_drvdata *data,
 	if (option->dependency_id)
 		return 0;
 
-	setting = kzalloc_obj(*setting, GFP_KERNEL);
+	setting = kzalloc_obj(*setting);
 	if (!setting)
 		return -ENOMEM;
 
@@ -1116,7 +1116,7 @@ static int coreboot_cfr_probe(struct coreboot_device *dev)
 	if (!efivar_is_available())
 		return -EPROBE_DEFER;
 
-	data = devm_kzalloc(&dev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&dev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

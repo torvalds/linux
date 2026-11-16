@@ -540,7 +540,7 @@ static int sppctl_gpio_new(struct platform_device *pdev, struct sppctl_pdata *pc
 	struct gpio_chip *gchip;
 	int err;
 
-	spp_gchip = devm_kzalloc(&pdev->dev, sizeof(*spp_gchip), GFP_KERNEL);
+	spp_gchip = devm_kzalloc_obj(&pdev->dev, *spp_gchip);
 	if (!spp_gchip)
 		return -ENOMEM;
 	pctl->spp_gchip = spp_gchip;
@@ -1014,13 +1014,13 @@ static int sppctl_group_groups(struct platform_device *pdev)
 		if (sppctl_list_funcs[i].type == pinmux_type_grp)
 			sppctl->unq_grps_sz += sppctl_list_funcs[i].gnum;
 
-	sppctl->unq_grps = devm_kcalloc(&pdev->dev, sppctl->unq_grps_sz + 1,
-					sizeof(*sppctl->unq_grps), GFP_KERNEL);
+	sppctl->unq_grps = devm_kzalloc_objs(&pdev->dev, *sppctl->unq_grps,
+					     sppctl->unq_grps_sz + 1);
 	if (!sppctl->unq_grps)
 		return -ENOMEM;
 
-	sppctl->g2fp_maps = devm_kcalloc(&pdev->dev, sppctl->unq_grps_sz + 1,
-					 sizeof(*sppctl->g2fp_maps), GFP_KERNEL);
+	sppctl->g2fp_maps = devm_kzalloc_objs(&pdev->dev, *sppctl->g2fp_maps,
+					      sppctl->unq_grps_sz + 1);
 	if (!sppctl->g2fp_maps)
 		return -ENOMEM;
 
@@ -1100,7 +1100,7 @@ static int sppctl_probe(struct platform_device *pdev)
 	struct sppctl_pdata *sppctl;
 	int ret;
 
-	sppctl = devm_kzalloc(&pdev->dev, sizeof(*sppctl), GFP_KERNEL);
+	sppctl = devm_kzalloc_obj(&pdev->dev, *sppctl);
 	if (!sppctl)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, sppctl);

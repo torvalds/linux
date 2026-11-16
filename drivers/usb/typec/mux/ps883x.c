@@ -416,7 +416,7 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 	unsigned int val;
 	int ret;
 
-	retimer = devm_kzalloc(dev, sizeof(*retimer), GFP_KERNEL);
+	retimer = devm_kzalloc_obj(dev, *retimer);
 	if (!retimer)
 		return -ENOMEM;
 

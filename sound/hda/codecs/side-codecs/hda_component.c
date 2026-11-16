@@ -165,7 +165,7 @@ int hda_component_manager_init(struct hda_codec *cdc,
 	mutex_init(&parent->mutex);
 
 	for (i = 0; i < count; i++) {
-		sm = devm_kmalloc(dev, sizeof(*sm), GFP_KERNEL);
+		sm = devm_kmalloc_obj(dev, *sm);
 		if (!sm)
 			return -ENOMEM;
 

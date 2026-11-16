@@ -475,6 +475,7 @@ static void ssd2825_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 					     struct drm_atomic_commit *state)
 {
 	struct ssd2825_priv *priv = bridge_to_ssd2825(bridge);
+	struct drm_bridge *next_bridge = priv->output.bridge;
 	struct mipi_dsi_device *dsi_dev = priv->output.dev;
 	const struct drm_crtc_state *crtc_state;
 	const struct drm_display_mode *mode;
@@ -569,6 +570,14 @@ static void ssd2825_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	/* Initial DSI configuration register set */
 	ssd2825_write_reg(priv, SSD2825_CONFIGURATION_REG, config);
 	ssd2825_write_reg(priv, SSD2825_VC_CTRL_REG, 0);
+
+	/*
+	 * The SSD2825 requires that the next bridge be enabled first;
+	 * otherwise, the SSD2825 cannot complete its configuration and
+	 * there will be no output.
+	 */
+	if (next_bridge->funcs && next_bridge->funcs->atomic_enable)
+		next_bridge->funcs->atomic_enable(next_bridge, state);
 }
 
 static void ssd2825_bridge_atomic_enable(struct drm_bridge *bridge,

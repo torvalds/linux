@@ -204,7 +204,7 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&spi->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 
@@ -229,9 +229,8 @@ static int sprd_pmic_probe(struct spi_device *spi)
 	ddata->irq_chip.num_regs = 1;
 	ddata->irq_chip.num_irqs = pdata->num_irqs;
 
-	ddata->irqs = devm_kcalloc(&spi->dev,
-				   pdata->num_irqs, sizeof(struct regmap_irq),
-				   GFP_KERNEL);
+	ddata->irqs = devm_kzalloc_objs(&spi->dev, struct regmap_irq,
+					pdata->num_irqs);
 	if (!ddata->irqs)
 		return -ENOMEM;
 

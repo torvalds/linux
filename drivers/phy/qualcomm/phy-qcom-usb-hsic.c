@@ -107,7 +107,7 @@ static int qcom_usb_hsic_phy_probe(struct ulpi *ulpi)
 	struct phy_provider *p;
 	struct clk *clk;
 
-	uphy = devm_kzalloc(&ulpi->dev, sizeof(*uphy), GFP_KERNEL);
+	uphy = devm_kzalloc_obj(&ulpi->dev, *uphy);
 	if (!uphy)
 		return -ENOMEM;
 	ulpi_set_drvdata(ulpi, uphy);

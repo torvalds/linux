@@ -778,7 +778,7 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	}
 
 	if (!chip) {
-		chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+		chip = devm_kzalloc_obj(&pdev->dev, *chip);
 		if (!chip)
 			return -ENOMEM;
 

@@ -468,7 +468,7 @@ static int ls2k_bmc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	ddata = devm_kzalloc(&dev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&dev->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

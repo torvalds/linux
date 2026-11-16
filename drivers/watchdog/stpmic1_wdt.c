@@ -94,7 +94,7 @@ static int pmic_wdt_probe(struct platform_device *pdev)
 	if (!pmic)
 		return -EINVAL;
 
-	wdt = devm_kzalloc(dev, sizeof(struct stpmic1_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, struct stpmic1_wdt);
 	if (!wdt)
 		return -ENOMEM;
 

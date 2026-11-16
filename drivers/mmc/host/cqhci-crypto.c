@@ -182,8 +182,8 @@ int cqhci_crypto_init(struct cqhci_host *cq_host)
 		(u32)cq_host->crypto_capabilities.config_array_ptr * 0x100;
 
 	cq_host->crypto_cap_array =
-		devm_kcalloc(dev, cq_host->crypto_capabilities.num_crypto_cap,
-			     sizeof(cq_host->crypto_cap_array[0]), GFP_KERNEL);
+		devm_kzalloc_objs(dev, cq_host->crypto_cap_array[0],
+				  cq_host->crypto_capabilities.num_crypto_cap);
 	if (!cq_host->crypto_cap_array) {
 		err = -ENOMEM;
 		goto out;

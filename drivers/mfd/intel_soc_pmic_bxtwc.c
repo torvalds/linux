@@ -482,7 +482,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 	if (hrv != BROXTON_PMIC_WC_HRV)
 		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
 
-	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc_obj(dev, *pmic);
 	if (!pmic)
 		return -ENOMEM;
 

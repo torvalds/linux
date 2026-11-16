@@ -546,7 +546,7 @@ int adau7118_probe(struct device *dev, struct regmap *map, bool hw_mode)
 	struct adau7118_data *st;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

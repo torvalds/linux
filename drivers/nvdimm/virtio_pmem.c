@@ -74,7 +74,7 @@ static int virtio_pmem_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	vpmem = devm_kzalloc(&vdev->dev, sizeof(*vpmem), GFP_KERNEL);
+	vpmem = devm_kzalloc_obj(&vdev->dev, *vpmem);
 	if (!vpmem) {
 		err = -ENOMEM;
 		goto out_err;

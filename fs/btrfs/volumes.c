@@ -3097,7 +3097,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	mutex_unlock(&fs_info->chunk_mutex);
 
 	/* Add sysfs device entry */
-	btrfs_sysfs_add_device(device);
+	ret = btrfs_sysfs_add_device(device);
+	if (ret) {
+		mutex_unlock(&fs_devices->device_list_mutex);
+		goto error_unwind_device;
+	}
 
 	mutex_unlock(&fs_devices->device_list_mutex);
 
@@ -3178,6 +3182,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 error_sysfs:
 	btrfs_sysfs_remove_device(device);
+error_unwind_device:
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	if (seeding_dev)
 		btrfs_assign_next_active_device(device, seed_devices->latest_dev);

@@ -2293,7 +2293,7 @@ dm_test_setup_hpd_rx_offload_work(struct kunit *test,
 	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 	aconn->dc_link = link;
 
-	offload_work = kzalloc_obj(*offload_work, GFP_KERNEL);
+	offload_work = kzalloc_obj(*offload_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, offload_work);
 	offload_work->offload_wq = offload_wq;
 	offload_work->adev = adev;
@@ -3766,7 +3766,7 @@ static void dm_test_pflip_high_irq_completes_flip(struct kunit *test)
 	acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 
 	/* drm_crtc_send_vblank_event() consumes (kfree()s) the event. */
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 	acrtc->event = event;
 
@@ -3842,7 +3842,7 @@ static void dm_test_pflip_high_irq_vrr_no_scanoutpos(struct kunit *test)
 	adev = drm_to_adev(acrtc->base.dev);
 
 	/* drm_crtc_send_vblank_event() consumes (kfree()s) the event. */
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 	acrtc->event = event;
 
@@ -3882,7 +3882,7 @@ static void dm_test_pflip_high_irq_vrr_front_porch(struct kunit *test)
 	acrtc = dm_test_setup_vrr_pflip_crtc(test, tg);
 	adev = drm_to_adev(acrtc->base.dev);
 
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 	acrtc->event = event;
 
@@ -3943,7 +3943,7 @@ static void dm_test_vupdate_high_irq_dcn_completes_flip(struct kunit *test)
 	acrtc = dm_test_add_crtc(test, adev);
 	acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 	acrtc->event = event;
 
@@ -4217,7 +4217,7 @@ static void dm_test_crtc_high_irq_writeback_completes(struct kunit *test)
 	 * The job carries no framebuffer or fence, so the deferred DRM cleanup
 	 * work only kfree()s it; it needs nothing from this test.
 	 */
-	job = kzalloc_obj(*job, GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, job);
 	list_add_tail(&job->list_entry, &wb_conn->job_queue);
 
@@ -4309,7 +4309,7 @@ static void dm_test_handle_hpd_work_null_notify(struct kunit *test)
 	struct amdgpu_device *adev;
 
 	adev = dm_kunit_alloc_adev(test);
-	hpd_work = kzalloc_obj(*hpd_work, GFP_KERNEL);
+	hpd_work = kzalloc_obj(*hpd_work);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hpd_work);
 	hpd_work->adev = adev;
 	INIT_WORK(&hpd_work->handle_hpd_work, dm_handle_hpd_work);

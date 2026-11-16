@@ -697,11 +697,11 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	mode = (enum dw_pcie_device_mode)data->mode;
 	b1co_mode_sel_mask = data->b1co_mode_sel_mask;
 
-	dra7xx = devm_kzalloc(dev, sizeof(*dra7xx), GFP_KERNEL);
+	dra7xx = devm_kzalloc_obj(dev, *dra7xx);
 	if (!dra7xx)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 
@@ -722,7 +722,7 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 		return phy_count;
 	}
 
-	phy = devm_kcalloc(dev, phy_count, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_objs(dev, *phy, phy_count);
 	if (!phy)
 		return -ENOMEM;
 

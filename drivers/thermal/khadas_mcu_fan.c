@@ -109,7 +109,7 @@ static int khadas_mcu_fan_probe(struct platform_device *pdev)
 	if (!id)
 		return -EINVAL;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

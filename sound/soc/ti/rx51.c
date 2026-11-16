@@ -410,7 +410,7 @@ static int rx51_soc_probe(struct platform_device *pdev)
 		rx51_codec_conf[1].dlc.of_node = dai_node;
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (pdata == NULL)
 		return -ENOMEM;
 

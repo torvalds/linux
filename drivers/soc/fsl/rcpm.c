@@ -150,7 +150,7 @@ static int rcpm_probe(struct platform_device *pdev)
 	struct rcpm	*rcpm;
 	int ret;
 
-	rcpm = devm_kzalloc(dev, sizeof(*rcpm), GFP_KERNEL);
+	rcpm = devm_kzalloc_obj(dev, *rcpm);
 	if (!rcpm)
 		return -ENOMEM;
 

@@ -270,14 +270,19 @@ static void ops_undo_single(struct pernet_operations *ops,
 /* should be called with nsid_lock held */
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
-	int min = 0, max = 0;
+	int ret;
+	u32 id;
 
 	if (reqid >= 0) {
-		min = reqid;
-		max = reqid + 1;
+		id = reqid;
+		ret = idr_alloc_u32(&net->netns_ids, peer, &id, id,
+				    GFP_ATOMIC);
+		if (ret)
+			return ret;
+		return id;
 	}
 
-	return idr_alloc(&net->netns_ids, peer, min, max, GFP_ATOMIC);
+	return idr_alloc(&net->netns_ids, peer, 0, 0, GFP_ATOMIC);
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
@@ -437,7 +442,7 @@ static __net_init int setup_net(struct net *net)
 	LIST_HEAD(net_exit_list);
 	int error = 0;
 
-	net->net_cookie = ns_tree_gen_id(net);
+	net->net_cookie = to_ns_common(net)->ns_id;
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -449,7 +454,7 @@ static __net_init int setup_net(struct net *net)
 	up_write(&net_rwsem);
 	/* Without CONFIG_NET_NS init_net isn't exposed as a namespace. */
 	if (IS_ENABLED(CONFIG_NET_NS))
-		ns_tree_add_raw(net);
+		ns_tree_add(net);
 out:
 	return error;
 
@@ -639,10 +644,10 @@ static void unhash_nsid(struct net *last)
 	 * use for_each_net_rcu() or net_rwsem.
 	 */
 	for_each_net(tmp) {
-		int id = 0;
+		unsigned long id = 0;
 
 		spin_lock(&tmp->nsid_lock);
-		while ((peer = idr_get_next(&tmp->netns_ids, &id))) {
+		while ((peer = idr_get_next_ul(&tmp->netns_ids, &id))) {
 			int curr_id = id;
 
 			id++;

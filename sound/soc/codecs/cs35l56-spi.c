@@ -20,7 +20,7 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 	struct cs35l56_private *cs35l56;
 	int ret;
 
-	cs35l56 = devm_kzalloc(&spi->dev, sizeof(struct cs35l56_private), GFP_KERNEL);
+	cs35l56 = devm_kzalloc_obj(&spi->dev, struct cs35l56_private);
 	if (!cs35l56)
 		return -ENOMEM;
 

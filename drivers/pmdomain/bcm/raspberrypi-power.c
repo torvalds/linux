@@ -164,15 +164,13 @@ static int rpi_power_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rpi_power_domains *rpi_domains;
 
-	rpi_domains = devm_kzalloc(dev, sizeof(*rpi_domains), GFP_KERNEL);
+	rpi_domains = devm_kzalloc_obj(dev, *rpi_domains);
 	if (!rpi_domains)
 		return -ENOMEM;
 
 	rpi_domains->xlate.domains =
-		devm_kcalloc(dev,
-			     RPI_POWER_DOMAIN_COUNT,
-			     sizeof(*rpi_domains->xlate.domains),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(dev, *rpi_domains->xlate.domains,
+				  RPI_POWER_DOMAIN_COUNT);
 	if (!rpi_domains->xlate.domains)
 		return -ENOMEM;
 

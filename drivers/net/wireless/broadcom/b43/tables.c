@@ -5,7 +5,7 @@
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
   Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (c) 2006, 2006 Michael Buesch <m@bues.ch>
+  Copyright (c) 2006, 2006 Michael Buesch
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 

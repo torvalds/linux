@@ -193,7 +193,7 @@ static int otx_cpt_probe(struct pci_dev *pdev,
 	struct otx_cpt_device *cpt;
 	int err;
 
-	cpt = devm_kzalloc(dev, sizeof(*cpt), GFP_KERNEL);
+	cpt = devm_kzalloc_obj(dev, *cpt);
 	if (!cpt)
 		return -ENOMEM;
 

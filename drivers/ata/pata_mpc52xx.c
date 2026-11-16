@@ -737,7 +737,7 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	}
 
 	/* Prepare our private structure */
-	priv = devm_kzalloc(&op->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&op->dev, *priv);
 	if (!priv) {
 		rv = -ENOMEM;
 		goto err1;

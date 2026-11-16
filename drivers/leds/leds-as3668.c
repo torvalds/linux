@@ -140,7 +140,7 @@ static int as3668_probe(struct i2c_client *client)
 				     "expected chip ID 0x%02x, got 0x%02x\n",
 				     AS3668_CHIP_ID, chip_id);
 
-	as3668 = devm_kzalloc(&client->dev, sizeof(*as3668), GFP_KERNEL);
+	as3668 = devm_kzalloc_obj(&client->dev, *as3668);
 	if (!as3668)
 		return -ENOMEM;
 

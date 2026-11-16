@@ -108,7 +108,7 @@ static struct gpu_mem_block *ras_psp_alloc_mem(struct ras_core_context *ras_core
 	if ((mem_type >= GPU_MEM_TYPE_MAX) || (mem_size < PAGE_SIZE))
 		return NULL;
 
-	gpu_mem = kzalloc(sizeof(*gpu_mem), GFP_KERNEL);
+	gpu_mem = kzalloc_obj(*gpu_mem);
 	if (!gpu_mem)
 		return NULL;
 

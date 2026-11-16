@@ -127,10 +127,10 @@ static int mac_probe(struct platform_device *_of_dev)
 	mac_node = dev->of_node;
 	init = of_device_get_match_data(dev);
 
-	mac_dev = devm_kzalloc(dev, sizeof(*mac_dev), GFP_KERNEL);
+	mac_dev = devm_kzalloc_obj(dev, *mac_dev);
 	if (!mac_dev)
 		return -ENOMEM;
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(_of_dev, mac_dev);

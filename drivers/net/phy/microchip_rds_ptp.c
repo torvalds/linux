@@ -1246,7 +1246,7 @@ struct mchp_rds_ptp_clock *mchp_rds_ptp_probe(struct phy_device *phydev, u8 mmd,
 	struct mchp_rds_ptp_clock *clock;
 	int rc;
 
-	clock = devm_kzalloc(&phydev->mdio.dev, sizeof(*clock), GFP_KERNEL);
+	clock = devm_kzalloc_obj(&phydev->mdio.dev, *clock);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 
@@ -1255,10 +1255,9 @@ struct mchp_rds_ptp_clock *mchp_rds_ptp_probe(struct phy_device *phydev, u8 mmd,
 	clock->mmd		= mmd;
 
 	mutex_init(&clock->ptp_lock);
-	clock->pin_config = devm_kmalloc_array(&phydev->mdio.dev,
-					       MCHP_RDS_PTP_N_PIN,
-					       sizeof(*clock->pin_config),
-					       GFP_KERNEL);
+	clock->pin_config = devm_kmalloc_objs(&phydev->mdio.dev,
+					      *clock->pin_config,
+					      MCHP_RDS_PTP_N_PIN);
 	if (!clock->pin_config)
 		return ERR_PTR(-ENOMEM);
 

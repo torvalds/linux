@@ -414,7 +414,7 @@ static int adp1653_of_init(struct i2c_client *client,
 	struct device_node *node_indicator = NULL;
 	struct device_node *node_flash;
 
-	pd = devm_kzalloc(&client->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(&client->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 	flash->platform_data = pd;
@@ -470,7 +470,7 @@ static int adp1653_probe(struct i2c_client *client)
 	struct adp1653_flash *flash;
 	int ret;
 
-	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc_obj(&client->dev, *flash);
 	if (flash == NULL)
 		return -ENOMEM;
 

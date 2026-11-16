@@ -1441,7 +1441,7 @@ int mt8189_dai_i2s_register(struct mtk_base_afe *afe)
 	struct mtk_base_afe_dai *dai;
 	int ret;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

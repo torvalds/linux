@@ -608,7 +608,7 @@ static int mlxreg_fan_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	fan = devm_kzalloc(dev, sizeof(*fan), GFP_KERNEL);
+	fan = devm_kzalloc_obj(dev, *fan);
 	if (!fan)
 		return -ENOMEM;
 

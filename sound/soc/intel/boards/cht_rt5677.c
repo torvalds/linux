@@ -336,7 +336,7 @@ static int cht_rt5677_headset_init(struct snd_soc_component *component)
 	int jack_type;
 	int ret;
 
-	jack = devm_kzalloc(card->dev, sizeof(*jack), GFP_KERNEL);
+	jack = devm_kzalloc_obj(card->dev, *jack);
 	if (!jack)
 		return -ENOMEM;
 
@@ -531,7 +531,7 @@ static int snd_cht_rt5677_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -221,9 +221,8 @@ twl4030_get_board_params(struct device *dev)
 						  "codec");
 
 	if (twl4030_codec_node) {
-		board_params = devm_kzalloc(dev,
-					    sizeof(struct twl4030_board_params),
-					    GFP_KERNEL);
+		board_params = devm_kzalloc_obj(dev,
+						struct twl4030_board_params);
 		if (!board_params) {
 			of_node_put(twl4030_codec_node);
 			return ERR_PTR(-ENOMEM);
@@ -2192,7 +2191,7 @@ static int twl4030_codec_probe(struct platform_device *pdev)
 	struct twl4030_priv *twl4030;
 	int ret;
 
-	twl4030 = devm_kzalloc(&pdev->dev, sizeof(*twl4030), GFP_KERNEL);
+	twl4030 = devm_kzalloc_obj(&pdev->dev, *twl4030);
 	if (!twl4030)
 		return -ENOMEM;
 

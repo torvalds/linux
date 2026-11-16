@@ -332,8 +332,8 @@ int mtk_afe_suspend(struct snd_soc_component *component)
 
 	if (!afe->reg_back_up)
 		afe->reg_back_up =
-			devm_kcalloc(dev, afe->reg_back_up_list_num,
-				     sizeof(unsigned int), GFP_KERNEL);
+			devm_kzalloc_objs(dev, unsigned int,
+					  afe->reg_back_up_list_num);
 
 	if (afe->reg_back_up) {
 		for (i = 0; i < afe->reg_back_up_list_num; i++)

@@ -246,9 +246,8 @@ static int netc_init_all_ports(struct netc_switch *priv)
 	int ett_offset = 0;
 	int err;
 
-	priv->ports = devm_kcalloc(dev, priv->info->num_ports,
-				   sizeof(struct netc_port *),
-				   GFP_KERNEL);
+	priv->ports = devm_kzalloc_objs(dev, struct netc_port *,
+					priv->info->num_ports);
 	if (!priv->ports)
 		return -ENOMEM;
 
@@ -260,7 +259,7 @@ static int netc_init_all_ports(struct netc_switch *priv)
 	 * difficult for us to cover.
 	 */
 	for (int i = 0; i < priv->info->num_ports; i++) {
-		np = devm_kzalloc(dev, sizeof(*np), GFP_KERNEL);
+		np = devm_kzalloc_obj(dev, *np);
 		if (!np)
 			return -ENOMEM;
 
@@ -308,9 +307,8 @@ static int netc_init_all_cbdrs(struct netc_switch *priv)
 
 	ntmp->cbdr_num = NETC_CBDR_NUM;
 	ntmp->dev = priv->dev;
-	ntmp->ring = devm_kcalloc(ntmp->dev, ntmp->cbdr_num,
-				  sizeof(struct netc_cbdr),
-				  GFP_KERNEL);
+	ntmp->ring = devm_kzalloc_objs(ntmp->dev, struct netc_cbdr,
+				       ntmp->cbdr_num);
 	if (!ntmp->ring)
 		return -ENOMEM;
 
@@ -847,9 +845,8 @@ static int netc_switch_bpt_default_config(struct netc_switch *priv)
 	if (priv->num_bp < priv->info->num_ports)
 		return -EINVAL;
 
-	priv->bpt_list = devm_kcalloc(priv->dev, priv->num_bp,
-				      sizeof(struct bpt_cfge_data),
-				      GFP_KERNEL);
+	priv->bpt_list = devm_kzalloc_objs(priv->dev, struct bpt_cfge_data,
+					   priv->num_bp);
 	if (!priv->bpt_list)
 		return -ENOMEM;
 
@@ -1071,7 +1068,7 @@ static int netc_switch_pci_init(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2460,7 +2457,7 @@ static int netc_switch_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 

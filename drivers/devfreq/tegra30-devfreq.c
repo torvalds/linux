@@ -842,7 +842,7 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		.config_clks = tegra_devfreq_config_clks_nop,
 	};
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(&pdev->dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 

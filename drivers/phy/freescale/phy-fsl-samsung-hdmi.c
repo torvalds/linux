@@ -643,7 +643,7 @@ static int fsl_samsung_hdmi_phy_probe(struct platform_device *pdev)
 	struct fsl_samsung_hdmi_phy *phy;
 	int ret;
 
-	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(&pdev->dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

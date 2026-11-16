@@ -653,6 +653,9 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	}
 	args->servername = xprt->servername;
 	args->nodename = clnt->cl_nodename;
+	args->xprtsec = clnt->cl_xprtsec;
+	if (!args->timeout)
+		args->timeout = clnt->cl_timeout;
 
 	new = rpc_new_client(args, xps, xprt, clnt);
 	if (IS_ERR(new))
@@ -901,6 +904,59 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 }
 EXPORT_SYMBOL_GPL(rpc_killall_tasks);
 
+struct rpc_cancel_disconnect_ctx {
+	bool (*fnmatch)(const struct rpc_task *task, const void *data);
+	const void *data;
+};
+
+static int rpc_mark_xprt_disconnect_on_release(struct rpc_clnt *clnt,
+					       struct rpc_xprt *xprt,
+					       void *arg)
+{
+	struct rpc_cancel_disconnect_ctx *ctx = arg;
+
+	xprt_mark_matching_reqs_disconnect_on_release(xprt, clnt,
+						      ctx->fnmatch,
+						      ctx->data);
+	return 0;
+}
+
+static unsigned long
+__rpc_cancel_tasks(struct rpc_clnt *clnt, int error,
+		   bool (*fnmatch)(const struct rpc_task *,
+				   const void *),
+		   const void *data,
+		   bool disconnect)
+{
+	struct rpc_task *task;
+	unsigned long count = 0;
+
+	if (list_empty(&clnt->cl_tasks))
+		return 0;
+
+	spin_lock(&clnt->cl_lock);
+	list_for_each_entry(task, &clnt->cl_tasks, tk_task) {
+		if (!RPC_IS_ACTIVATED(task))
+			continue;
+		if (!fnmatch(task, data))
+			continue;
+		rpc_task_try_cancel(task, error);
+		count++;
+	}
+	spin_unlock(&clnt->cl_lock);
+
+	if (disconnect && count) {
+		struct rpc_cancel_disconnect_ctx ctx = {
+			.fnmatch = fnmatch,
+			.data = data,
+		};
+		rpc_clnt_iterate_for_each_xprt(clnt,
+					       rpc_mark_xprt_disconnect_on_release,
+					       &ctx);
+	}
+	return count;
+}
+
 /**
  * rpc_cancel_tasks - try to cancel a set of RPC tasks
  * @clnt: Pointer to RPC client
@@ -916,27 +972,34 @@ unsigned long rpc_cancel_tasks(struct rpc_clnt *clnt, int error,
 					       const void *),
 			       const void *data)
 {
-	struct rpc_task *task;
-	unsigned long count = 0;
-
-	if (list_empty(&clnt->cl_tasks))
-		return 0;
-	/*
-	 * Spin lock all_tasks to prevent changes...
-	 */
-	spin_lock(&clnt->cl_lock);
-	list_for_each_entry(task, &clnt->cl_tasks, tk_task) {
-		if (!RPC_IS_ACTIVATED(task))
-			continue;
-		if (!fnmatch(task, data))
-			continue;
-		rpc_task_try_cancel(task, error);
-		count++;
-	}
-	spin_unlock(&clnt->cl_lock);
-	return count;
+	return __rpc_cancel_tasks(clnt, error, fnmatch, data, false);
 }
 EXPORT_SYMBOL_GPL(rpc_cancel_tasks);
+
+/**
+ * rpc_cancel_tasks_and_disconnect - cancel matching RPC tasks
+ * @clnt: Pointer to RPC client
+ * @error: RPC task error value to set
+ * @fnmatch: Pointer to selector function
+ * @data: User data
+ *
+ * Like rpc_cancel_tasks(), but after cancelling matching tasks, marks
+ * matching in-flight requests so that xprt_release() conditionally
+ * disconnects the connection generation on which each request was sent.
+ *
+ * @fnmatch is called while holding spinlocks and must not sleep.
+ *
+ * Returns the number of active tasks matched by @fnmatch.
+ */
+unsigned long
+rpc_cancel_tasks_and_disconnect(struct rpc_clnt *clnt, int error,
+				bool (*fnmatch)(const struct rpc_task *,
+						const void *),
+				const void *data)
+{
+	return __rpc_cancel_tasks(clnt, error, fnmatch, data, true);
+}
+EXPORT_SYMBOL_GPL(rpc_cancel_tasks_and_disconnect);
 
 static int rpc_clnt_disconnect_xprt(struct rpc_clnt *clnt,
 				    struct rpc_xprt *xprt, void *dummy)
@@ -1194,7 +1257,7 @@ void rpc_task_set_transport(struct rpc_task *task, struct rpc_clnt *clnt)
 		      (task->tk_flags & RPC_TASK_MOVEABLE)))
 			return;
 		xprt_release(task);
-		xprt_put(task->tk_xprt);
+		rpc_task_release_xprt(clnt, task->tk_xprt);
 	}
 	if (task->tk_flags & RPC_TASK_NO_ROUND_ROBIN)
 		task->tk_xprt = rpc_task_get_first_xprt(clnt);
@@ -2125,8 +2188,10 @@ call_bind_status(struct rpc_task *task)
 		goto retry_timeout;
 	case -ENETDOWN:
 	case -ENETUNREACH:
-		if (task->tk_flags & RPC_TASK_NETUNREACH_FATAL)
+		if (task->tk_flags & RPC_TASK_NETUNREACH_FATAL) {
+			status = task->tk_status;
 			break;
+		}
 		fallthrough;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
@@ -2257,6 +2322,7 @@ call_connect_status(struct rpc_task *task)
 
 				xprt_release(task);
 				value = atomic_long_dec_return(&xprt->queuelen);
+				atomic_long_dec(&xps->xps_queuelen);
 				if (value == 0)
 					rpc_xprt_switch_remove_xprt(xps, saved,
 								    true);

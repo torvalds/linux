@@ -833,8 +833,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	int fn, gn, gfn;
 	unsigned long backup_regs_size = 0;
 
-	pmx = devm_kzalloc(&pdev->dev,
-			struct_size(pmx, pingroup_configs, soc_data->ngroups), GFP_KERNEL);
+	pmx = devm_kzalloc_flex(&pdev->dev, *pmx, pingroup_configs,
+				soc_data->ngroups);
 	if (!pmx)
 		return -ENOMEM;
 
@@ -846,13 +846,13 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	 * Each mux group will appear in 4 functions' list of groups.
 	 * This over-allocates slightly, since not all groups are mux groups.
 	 */
-	pmx->group_pins = devm_kcalloc(&pdev->dev, pmx->soc->ngroups * 4,
-				       sizeof(*pmx->group_pins), GFP_KERNEL);
+	pmx->group_pins = devm_kzalloc_objs(&pdev->dev, *pmx->group_pins,
+					    pmx->soc->ngroups * 4);
 	if (!pmx->group_pins)
 		return -ENOMEM;
 
-	pmx->functions = devm_kcalloc(&pdev->dev, pmx->soc->nfunctions,
-				      sizeof(*pmx->functions), GFP_KERNEL);
+	pmx->functions = devm_kzalloc_objs(&pdev->dev, *pmx->functions,
+					   pmx->soc->nfunctions);
 	if (!pmx->functions)
 		return -ENOMEM;
 
@@ -904,8 +904,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	}
 	pmx->nbanks = i;
 
-	pmx->regs = devm_kcalloc(&pdev->dev, pmx->nbanks, sizeof(*pmx->regs),
-				 GFP_KERNEL);
+	pmx->regs = devm_kzalloc_objs(&pdev->dev, *pmx->regs, pmx->nbanks);
 	if (!pmx->regs)
 		return -ENOMEM;
 

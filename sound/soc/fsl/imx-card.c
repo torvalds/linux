@@ -570,11 +570,11 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	num_links = of_get_child_count(dev->of_node);
 
 	/* Allocate the DAI link array */
-	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
+	card->dai_link = devm_kzalloc_objs(dev, *link, num_links);
 	if (!card->dai_link)
 		return -ENOMEM;
 
-	data->link_data = devm_kcalloc(dev, num_links, sizeof(*link_data), GFP_KERNEL);
+	data->link_data = devm_kzalloc_objs(dev, *link_data, num_links);
 	if (!data->link_data)
 		return -ENOMEM;
 
@@ -769,11 +769,11 @@ static int imx_card_probe(struct platform_device *pdev)
 	struct imx_card_data *data;
 	int ret, i;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 
-	plat_data = devm_kzalloc(&pdev->dev, sizeof(*plat_data), GFP_KERNEL);
+	plat_data = devm_kzalloc_obj(&pdev->dev, *plat_data);
 	if (!plat_data)
 		return -ENOMEM;
 
@@ -788,9 +788,9 @@ static int imx_card_probe(struct platform_device *pdev)
 		return ret;
 
 	data->num_dapm_routes = plat_data->num_codecs + 1;
-	data->dapm_routes = devm_kcalloc(&pdev->dev, data->num_dapm_routes,
-					 sizeof(struct snd_soc_dapm_route),
-					 GFP_KERNEL);
+	data->dapm_routes = devm_kzalloc_objs(&pdev->dev,
+					      struct snd_soc_dapm_route,
+					      data->num_dapm_routes);
 	if (!data->dapm_routes)
 		return -ENOMEM;
 

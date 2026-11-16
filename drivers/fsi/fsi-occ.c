@@ -629,7 +629,7 @@ static int occ_probe(struct platform_device *pdev)
 		.name = "occ-hwmon",
 	};
 
-	occ = devm_kzalloc(dev, sizeof(*occ), GFP_KERNEL);
+	occ = devm_kzalloc_obj(dev, *occ);
 	if (!occ)
 		return -ENOMEM;
 

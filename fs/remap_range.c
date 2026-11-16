@@ -277,7 +277,7 @@ int
 __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				struct file *file_out, loff_t pos_out,
 				loff_t *len, unsigned int remap_flags,
-				const struct iomap_ops *dax_read_ops)
+				iomap_iter_next_fn dax_read_next)
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
@@ -340,10 +340,10 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		if (!IS_DAX(inode_in))
 			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
 					file_out, pos_out, *len, &is_same);
-		else if (dax_read_ops)
+		else if (dax_read_next)
 			ret = dax_dedupe_file_range_compare(inode_in, pos_in,
 					inode_out, pos_out, *len, &is_same,
-					dax_read_ops);
+					dax_read_next);
 		else
 			return -EINVAL;
 		if (ret)

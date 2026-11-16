@@ -183,7 +183,7 @@ static int rzv2h_ivc_probe(struct platform_device *pdev)
 	struct rzv2h_ivc *ivc;
 	int ret;
 
-	ivc = devm_kzalloc(dev, sizeof(*ivc), GFP_KERNEL);
+	ivc = devm_kzalloc_obj(dev, *ivc);
 	if (!ivc)
 		return -ENOMEM;
 

@@ -567,18 +567,16 @@ ice_fdir_alloc_flow_prof(struct ice_hw *hw, enum ice_fltr_ptype flow)
 		return -EINVAL;
 
 	if (!hw->fdir_prof) {
-		hw->fdir_prof = devm_kcalloc(ice_hw_to_dev(hw),
-					     ICE_FLTR_PTYPE_MAX,
-					     sizeof(*hw->fdir_prof),
-					     GFP_KERNEL);
+		hw->fdir_prof = devm_kzalloc_objs(ice_hw_to_dev(hw),
+						  *hw->fdir_prof,
+						  ICE_FLTR_PTYPE_MAX);
 		if (!hw->fdir_prof)
 			return -ENOMEM;
 	}
 
 	if (!hw->fdir_prof[flow]) {
-		hw->fdir_prof[flow] = devm_kzalloc(ice_hw_to_dev(hw),
-						   sizeof(**hw->fdir_prof),
-						   GFP_KERNEL);
+		hw->fdir_prof[flow] = devm_kzalloc_obj(ice_hw_to_dev(hw),
+						       **hw->fdir_prof);
 		if (!hw->fdir_prof[flow])
 			return -ENOMEM;
 	}
@@ -845,12 +843,11 @@ ice_create_init_fdir_rule(struct ice_pf *pf, enum ice_fltr_ptype flow)
 	    hw->fdir_prof[flow]->fdir_seg[0])
 		return -EINVAL;
 
-	seg = devm_kzalloc(dev, sizeof(*seg), GFP_KERNEL);
+	seg = devm_kzalloc_obj(dev, *seg);
 	if (!seg)
 		return -ENOMEM;
 
-	tun_seg = devm_kcalloc(dev, ICE_FD_HW_SEG_MAX, sizeof(*tun_seg),
-			       GFP_KERNEL);
+	tun_seg = devm_kzalloc_objs(dev, *tun_seg, ICE_FD_HW_SEG_MAX);
 	if (!tun_seg) {
 		devm_kfree(dev, seg);
 		return -ENOMEM;
@@ -1311,12 +1308,11 @@ ice_cfg_fdir_xtrct_seq(struct ice_pf *pf, struct ethtool_rx_flow_spec *fsp,
 	bool perfect_filter = false;
 	int ret;
 
-	seg = devm_kzalloc(dev, sizeof(*seg), GFP_KERNEL);
+	seg = devm_kzalloc_obj(dev, *seg);
 	if (!seg)
 		return -ENOMEM;
 
-	tun_seg = devm_kcalloc(dev, ICE_FD_HW_SEG_MAX, sizeof(*tun_seg),
-			       GFP_KERNEL);
+	tun_seg = devm_kzalloc_objs(dev, *tun_seg, ICE_FD_HW_SEG_MAX);
 	if (!tun_seg) {
 		devm_kfree(dev, seg);
 		return -ENOMEM;
@@ -2023,7 +2019,7 @@ int ice_add_ntuple_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 		return -ENOSPC;
 	}
 
-	input = devm_kzalloc(dev, sizeof(*input), GFP_KERNEL);
+	input = devm_kzalloc_obj(dev, *input);
 	if (!input)
 		return -ENOMEM;
 

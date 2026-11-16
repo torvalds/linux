@@ -175,7 +175,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	struct zevio_gpio *controller;
 	int status, i;
 
-	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
+	controller = devm_kzalloc_obj(&pdev->dev, *controller);
 	if (!controller)
 		return -ENOMEM;
 

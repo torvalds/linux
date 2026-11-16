@@ -505,7 +505,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	imx_ldb = devm_kzalloc(dev, sizeof(*imx_ldb), GFP_KERNEL);
+	imx_ldb = devm_kzalloc_obj(dev, *imx_ldb);
 	if (!imx_ldb)
 		return -ENOMEM;
 

@@ -372,6 +372,7 @@ static int local_ata_check_ready(struct ata_link *link)
 	}
 }
 
+__printf(3, 4)
 static int sas_ata_printk(const char *level, const struct domain_device *ddev,
 			  const char *fmt, ...)
 {

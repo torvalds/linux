@@ -698,7 +698,7 @@ static int adp5061_probe(struct i2c_client *client)
 	struct power_supply_config psy_cfg = {};
 	struct adp5061_state *st;
 
-	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(&client->dev, *st);
 	if (!st)
 		return -ENOMEM;
 

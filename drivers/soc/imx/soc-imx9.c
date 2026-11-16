@@ -26,7 +26,7 @@ static int imx9_soc_probe(struct platform_device *pdev)
 	u64 uid127_64, uid63_0;
 	int err;
 
-	attr = devm_kzalloc(dev, sizeof(*attr), GFP_KERNEL);
+	attr = devm_kzalloc_obj(dev, *attr);
 	if (!attr)
 		return -ENOMEM;
 

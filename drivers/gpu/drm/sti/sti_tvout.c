@@ -660,7 +660,7 @@ sti_tvout_create_dvo_encoder(struct drm_device *dev,
 	struct sti_tvout_encoder *encoder;
 	struct drm_encoder *drm_encoder;
 
-	encoder = devm_kzalloc(tvout->dev, sizeof(*encoder), GFP_KERNEL);
+	encoder = devm_kzalloc_obj(tvout->dev, *encoder);
 	if (!encoder)
 		return NULL;
 
@@ -712,7 +712,7 @@ static struct drm_encoder *sti_tvout_create_hda_encoder(struct drm_device *dev,
 	struct sti_tvout_encoder *encoder;
 	struct drm_encoder *drm_encoder;
 
-	encoder = devm_kzalloc(tvout->dev, sizeof(*encoder), GFP_KERNEL);
+	encoder = devm_kzalloc_obj(tvout->dev, *encoder);
 	if (!encoder)
 		return NULL;
 
@@ -760,7 +760,7 @@ static struct drm_encoder *sti_tvout_create_hdmi_encoder(struct drm_device *dev,
 	struct sti_tvout_encoder *encoder;
 	struct drm_encoder *drm_encoder;
 
-	encoder = devm_kzalloc(tvout->dev, sizeof(*encoder), GFP_KERNEL);
+	encoder = devm_kzalloc_obj(tvout->dev, *encoder);
 	if (!encoder)
 		return NULL;
 
@@ -844,7 +844,7 @@ static int sti_tvout_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	tvout = devm_kzalloc(dev, sizeof(*tvout), GFP_KERNEL);
+	tvout = devm_kzalloc_obj(dev, *tvout);
 	if (!tvout)
 		return -ENOMEM;
 

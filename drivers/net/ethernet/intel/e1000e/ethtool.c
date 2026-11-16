@@ -512,8 +512,7 @@ static int e1000_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
-				    GFP_KERNEL);
+	eeprom_buff = kmalloc_objs(u16, last_word - first_word + 1);
 	if (!eeprom_buff)
 		return -ENOMEM;
 

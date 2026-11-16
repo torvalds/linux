@@ -2285,10 +2285,8 @@ mt7925_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			mconf = &mvif->bss_conf;
 			mlink = &mvif->sta.deflink;
 		} else {
-			mconf = devm_kzalloc(dev->mt76.dev, sizeof(*mconf),
-					     GFP_KERNEL);
-			mlink = devm_kzalloc(dev->mt76.dev, sizeof(*mlink),
-					     GFP_KERNEL);
+			mconf = devm_kzalloc_obj(dev->mt76.dev, *mconf);
+			mlink = devm_kzalloc_obj(dev->mt76.dev, *mlink);
 			if (!mconf || !mlink) {
 				mt792x_mutex_release(dev);
 				return -ENOMEM;

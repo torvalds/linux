@@ -1268,6 +1268,33 @@ static void dm_test_get_max_frl_rate_4lanes_12gbps(struct kunit *test)
 }
 
 /**
+ * dm_test_get_max_frl_rate_4lanes_16gbps - Test Get max frl rate 4lanes 16gbps
+ * @test: The KUnit test context
+ */
+static void dm_test_get_max_frl_rate_4lanes_16gbps(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, get_max_frl_rate(4, 16), 7);
+}
+
+/**
+ * dm_test_get_max_frl_rate_4lanes_20gbps - Test Get max frl rate 4lanes 20gbps
+ * @test: The KUnit test context
+ */
+static void dm_test_get_max_frl_rate_4lanes_20gbps(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, get_max_frl_rate(4, 20), 8);
+}
+
+/**
+ * dm_test_get_max_frl_rate_4lanes_24gbps - Test Get max frl rate 4lanes 24gbps
+ * @test: The KUnit test context
+ */
+static void dm_test_get_max_frl_rate_4lanes_24gbps(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, get_max_frl_rate(4, 24), 9);
+}
+
+/**
  * dm_test_get_max_frl_rate_unknown - Test Get max frl rate unknown
  * @test: The KUnit test context
  */
@@ -4875,6 +4902,9 @@ static struct kunit_case amdgpu_dm_helpers_test_cases[] = {
 	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_8gbps),
 	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_10gbps),
 	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_12gbps),
+	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_16gbps),
+	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_20gbps),
+	KUNIT_CASE(dm_test_get_max_frl_rate_4lanes_24gbps),
 	KUNIT_CASE(dm_test_get_max_frl_rate_unknown),
 	/* dm_dtn_log_begin / dm_dtn_log_append_v / dm_dtn_log_end */
 	KUNIT_CASE(dm_test_dtn_log_buffer_accumulates),

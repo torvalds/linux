@@ -51,7 +51,7 @@ static int int3402_thermal_probe(struct platform_device *pdev)
 	if (!acpi_has_method(adev->handle, "_TMP"))
 		return -ENODEV;
 
-	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(&pdev->dev, *d);
 	if (!d)
 		return -ENOMEM;
 

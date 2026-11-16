@@ -67,8 +67,7 @@ int virtsnd_chmap_parse_cfg(struct virtio_snd *snd)
 	if (!snd->nchmaps)
 		return 0;
 
-	snd->chmaps = devm_kcalloc(&vdev->dev, snd->nchmaps,
-				   sizeof(*snd->chmaps), GFP_KERNEL);
+	snd->chmaps = devm_kzalloc_objs(&vdev->dev, *snd->chmaps, snd->nchmaps);
 	if (!snd->chmaps)
 		return -ENOMEM;
 
@@ -155,9 +154,8 @@ int virtsnd_chmap_build_devs(struct virtio_snd *snd)
 			if (!vs->nchmaps)
 				continue;
 
-			vs->chmaps = devm_kcalloc(&vdev->dev, vs->nchmaps + 1,
-						  sizeof(*vs->chmaps),
-						  GFP_KERNEL);
+			vs->chmaps = devm_kzalloc_objs(&vdev->dev, *vs->chmaps,
+						       vs->nchmaps + 1);
 			if (!vs->chmaps)
 				return -ENOMEM;
 

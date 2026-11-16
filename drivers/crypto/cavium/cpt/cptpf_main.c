@@ -553,7 +553,7 @@ static int cpt_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		num_vfs = 4;
 	}
 
-	cpt = devm_kzalloc(dev, sizeof(*cpt), GFP_KERNEL);
+	cpt = devm_kzalloc_obj(dev, *cpt);
 	if (!cpt)
 		return -ENOMEM;
 

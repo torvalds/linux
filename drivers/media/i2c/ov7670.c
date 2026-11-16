@@ -1828,7 +1828,7 @@ static int ov7670_probe(struct i2c_client *client)
 	struct ov7670_info *info;
 	int ret;
 
-	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, *info);
 	if (info == NULL)
 		return -ENOMEM;
 	sd = &info->sd;

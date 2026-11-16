@@ -365,7 +365,7 @@ static int ppkb_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	ppkb = devm_kzalloc(dev, sizeof(*ppkb), GFP_KERNEL);
+	ppkb = devm_kzalloc_obj(dev, *ppkb);
 	if (!ppkb)
 		return -ENOMEM;
 

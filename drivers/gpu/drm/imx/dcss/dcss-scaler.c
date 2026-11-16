@@ -321,7 +321,7 @@ int dcss_scaler_init(struct dcss_dev *dcss, unsigned long scaler_base)
 {
 	struct dcss_scaler *scaler;
 
-	scaler = devm_kzalloc(dcss->dev, sizeof(*scaler), GFP_KERNEL);
+	scaler = devm_kzalloc_obj(dcss->dev, *scaler);
 	if (!scaler)
 		return -ENOMEM;
 

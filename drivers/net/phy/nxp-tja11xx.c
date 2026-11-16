@@ -534,7 +534,7 @@ static int tja11xx_probe(struct phy_device *phydev)
 	struct tja11xx_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -615,7 +615,7 @@ static int tja1102_p0_probe(struct phy_device *phydev)
 	struct tja11xx_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

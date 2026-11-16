@@ -37,7 +37,7 @@ static int brcmf_of_get_country_codes(struct device *dev,
 		return (count == -EINVAL) ? 0 : count;
 	}
 
-	cc = devm_kzalloc(dev, struct_size(cc, table, count), GFP_KERNEL);
+	cc = devm_kzalloc_flex(dev, *cc, table, count);
 	if (!cc)
 		return -ENOMEM;
 

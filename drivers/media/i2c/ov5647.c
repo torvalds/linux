@@ -1163,7 +1163,7 @@ static int ov5647_probe(struct i2c_client *client)
 	u32 xclk_freq;
 	int ret;
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

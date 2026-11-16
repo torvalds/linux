@@ -112,8 +112,7 @@ static int ucd9200_probe(struct i2c_client *client)
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
-	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, struct pmbus_driver_info);
 	if (!info)
 		return -ENOMEM;
 

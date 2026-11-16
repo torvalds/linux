@@ -172,8 +172,7 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	struct rk_drvdata *machine;
 	struct of_phandle_args args;
 
-	machine = devm_kzalloc(&pdev->dev, sizeof(struct rk_drvdata),
-			       GFP_KERNEL);
+	machine = devm_kzalloc_obj(&pdev->dev, struct rk_drvdata);
 	if (!machine)
 		return -ENOMEM;
 

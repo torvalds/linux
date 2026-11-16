@@ -2140,7 +2140,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc) {
 		/* New entry */
-		mc = devm_kzalloc(ocelot->dev, sizeof(*mc), GFP_KERNEL);
+		mc = devm_kzalloc_obj(ocelot->dev, *mc);
 		if (!mc)
 			return -ENOMEM;
 

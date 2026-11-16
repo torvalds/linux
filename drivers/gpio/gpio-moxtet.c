@@ -125,7 +125,7 @@ static int moxtet_gpio_probe(struct device *dev)
 		return -ENOTSUPP;
 	}
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

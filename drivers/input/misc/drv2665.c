@@ -161,7 +161,7 @@ static int drv2665_probe(struct i2c_client *client)
 	struct drv2665_data *haptics;
 	int error;
 
-	haptics = devm_kzalloc(&client->dev, sizeof(*haptics), GFP_KERNEL);
+	haptics = devm_kzalloc_obj(&client->dev, *haptics);
 	if (!haptics)
 		return -ENOMEM;
 

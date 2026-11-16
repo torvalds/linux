@@ -980,9 +980,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	for (i = 0; i < IPC_TX_FIFO_SIZE; i++) {
 		struct wr_msg_ctl_info	*tx_buf;
 
-		tx_buf = devm_kzalloc(&pdev->dev,
-				      sizeof(struct wr_msg_ctl_info),
-				      GFP_KERNEL);
+		tx_buf = devm_kzalloc_obj(&pdev->dev, struct wr_msg_ctl_info);
 		if (!tx_buf) {
 			/*
 			 * IPC buffers may be limited or not available

@@ -141,7 +141,7 @@ static int vmgenid_add(struct platform_device *pdev)
 	struct vmgenid_state *state;
 	int ret;
 
-	state = devm_kmalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kmalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

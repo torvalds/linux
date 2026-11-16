@@ -1189,7 +1189,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	struct vb2_queue *q;
 	int ret, i;
 
-	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
+	isi = devm_kzalloc_obj(&pdev->dev, struct atmel_isi);
 	if (!isi)
 		return -ENOMEM;
 

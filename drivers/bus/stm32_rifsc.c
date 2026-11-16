@@ -608,7 +608,7 @@ static int stm32_rifsc_register_debugfs(struct stm32_firewall_controller *rifsc_
 	struct rifsc_dbg_private *rifsc_priv;
 	struct dentry *root = NULL;
 
-	rifsc_priv = devm_kzalloc(rifsc_controller->dev, sizeof(*rifsc_priv), GFP_KERNEL);
+	rifsc_priv = devm_kzalloc_obj(rifsc_controller->dev, *rifsc_priv);
 	if (!rifsc_priv)
 		return -ENOMEM;
 
@@ -736,7 +736,7 @@ static int stm32_rifsc_probe(struct platform_device *pdev)
 	void __iomem *mmio;
 	int rc;
 
-	rifsc_controller = devm_kzalloc(&pdev->dev, sizeof(*rifsc_controller), GFP_KERNEL);
+	rifsc_controller = devm_kzalloc_obj(&pdev->dev, *rifsc_controller);
 	if (!rifsc_controller)
 		return -ENOMEM;
 

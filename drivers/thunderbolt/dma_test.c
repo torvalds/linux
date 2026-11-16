@@ -641,7 +641,7 @@ static int dma_test_probe(struct tb_service *svc)
 	struct tb_xdomain *xd = tb_service_parent(svc);
 	struct dma_test *dt;
 
-	dt = devm_kzalloc(&svc->dev, sizeof(*dt), GFP_KERNEL);
+	dt = devm_kzalloc_obj(&svc->dev, *dt);
 	if (!dt)
 		return -ENOMEM;
 

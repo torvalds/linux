@@ -694,7 +694,7 @@ static struct t7xx_modem *t7xx_md_alloc(struct t7xx_pci_dev *t7xx_dev)
 	struct device *dev = &t7xx_dev->pdev->dev;
 	struct t7xx_modem *md;
 
-	md = devm_kzalloc(dev, sizeof(*md), GFP_KERNEL);
+	md = devm_kzalloc_obj(dev, *md);
 	if (!md)
 		return NULL;
 

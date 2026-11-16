@@ -206,7 +206,7 @@ static int xenon_alloc_emmc_phy(struct sdhci_host *host)
 	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	struct xenon_emmc_phy_params *params;
 
-	params = devm_kzalloc(mmc_dev(host->mmc), sizeof(*params), GFP_KERNEL);
+	params = devm_kzalloc_obj(mmc_dev(host->mmc), *params);
 	if (!params)
 		return -ENOMEM;
 

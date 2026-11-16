@@ -1304,7 +1304,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	struct mtk_iommu_bank_data *bank;
 	void __iomem		*base;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 	data->dev = dev;

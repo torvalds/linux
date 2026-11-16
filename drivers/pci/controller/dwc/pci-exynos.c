@@ -288,7 +288,7 @@ static int exynos_pcie_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
+	ep = devm_kzalloc_obj(dev, *ep);
 	if (!ep)
 		return -ENOMEM;
 

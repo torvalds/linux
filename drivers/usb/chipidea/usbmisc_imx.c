@@ -1514,7 +1514,7 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 	struct imx_usbmisc *data;
 	struct resource *res;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -3762,7 +3762,7 @@ struct ksz_device *ksz_switch_alloc(struct device *base,
 	struct dsa_switch *ds;
 	struct ksz_device *swdev;
 
-	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(base, *ds);
 	if (!ds)
 		return NULL;
 
@@ -3770,7 +3770,7 @@ struct ksz_device *ksz_switch_alloc(struct device *base,
 	ds->num_ports = DSA_MAX_PORTS;
 	ds->ops = chip->switch_ops;
 
-	swdev = devm_kzalloc(base, sizeof(*swdev), GFP_KERNEL);
+	swdev = devm_kzalloc_obj(base, *swdev);
 	if (!swdev)
 		return NULL;
 
@@ -4023,6 +4023,7 @@ int ksz_switch_register(struct ksz_device *dev)
 	mutex_init(&dev->regmap_mutex);
 	mutex_init(&dev->alu_mutex);
 	mutex_init(&dev->vlan_mutex);
+	mutex_init(&dev->lock_irq);
 
 	ret = ksz_switch_detect(dev);
 	if (ret)

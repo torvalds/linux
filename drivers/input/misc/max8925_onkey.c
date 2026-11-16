@@ -78,8 +78,7 @@ static int max8925_onkey_probe(struct platform_device *pdev)
 	if (irq[1] < 0)
 		return -EINVAL;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_onkey_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct max8925_onkey_info);
 	if (!info)
 		return -ENOMEM;
 

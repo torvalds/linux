@@ -50,7 +50,7 @@ static int bxt_wcove_tmu_probe(struct platform_device *pdev)
 	struct wcove_tmu *wctmu;
 	int ret;
 
-	wctmu = devm_kzalloc(&pdev->dev, sizeof(*wctmu), GFP_KERNEL);
+	wctmu = devm_kzalloc_obj(&pdev->dev, *wctmu);
 	if (!wctmu)
 		return -ENOMEM;
 

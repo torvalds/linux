@@ -83,9 +83,11 @@ void __init plat_mem_setup(void)
 	/* I/O port resource */
 	ioport_resource.end = 0x01ffffff;
 
+	cobalt_pci_init();
+
 	/* These resources have been reserved by VIA SuperI/O chip. */
 	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)
-		request_resource(&ioport_resource, cobalt_reserved_resources + i);
+		insert_resource(&ioport_resource, cobalt_reserved_resources + i);
 }
 
 /*

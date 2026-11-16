@@ -719,8 +719,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Can't get dma-channels.\n");
 
-	fsl_edma = devm_kzalloc(&pdev->dev, struct_size(fsl_edma, chans, chans),
-				GFP_KERNEL);
+	fsl_edma = devm_kzalloc_flex(&pdev->dev, *fsl_edma, chans, chans);
 	if (!fsl_edma)
 		return -ENOMEM;
 

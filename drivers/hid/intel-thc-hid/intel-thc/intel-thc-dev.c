@@ -197,7 +197,7 @@ struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr)
 	struct thc_device *thc_dev;
 	int ret;
 
-	thc_dev = devm_kzalloc(device, sizeof(*thc_dev), GFP_KERNEL);
+	thc_dev = devm_kzalloc_obj(device, *thc_dev);
 	if (!thc_dev)
 		return ERR_PTR(-ENOMEM);
 

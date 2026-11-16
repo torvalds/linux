@@ -492,8 +492,7 @@ static int mxic_nfc_probe(struct platform_device *pdev)
 	int err;
 	int irq;
 
-	nfc = devm_kzalloc(&pdev->dev, sizeof(struct mxic_nand_ctlr),
-			   GFP_KERNEL);
+	nfc = devm_kzalloc_obj(&pdev->dev, struct mxic_nand_ctlr);
 	if (!nfc)
 		return -ENOMEM;
 

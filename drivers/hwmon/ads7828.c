@@ -112,7 +112,7 @@ static int ads7828_probe(struct i2c_client *client)
 	unsigned int regval;
 	enum ads7828_chips chip;
 
-	data = devm_kzalloc(dev, sizeof(struct ads7828_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct ads7828_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -151,7 +151,7 @@ static struct clk_hw *ultrarisc_clk_register_pll(struct device *dev,
 	};
 	int ret;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -182,7 +182,7 @@ ultrarisc_clk_register_divider(struct device *dev,
 	if (!lock)
 		return ERR_PTR(-EINVAL);
 
-	divider = devm_kzalloc(dev, sizeof(*divider), GFP_KERNEL);
+	divider = devm_kzalloc_obj(dev, *divider);
 	if (!divider)
 		return ERR_PTR(-ENOMEM);
 
@@ -350,15 +350,13 @@ int ultrarisc_clk_probe(struct platform_device *pdev,
 	if (!soc_data)
 		return -EINVAL;
 
-	lock = devm_kzalloc(dev, sizeof(*lock), GFP_KERNEL);
+	lock = devm_kzalloc_obj(dev, *lock);
 	if (!lock)
 		return -ENOMEM;
 
 	spin_lock_init(lock);
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws,
-						 soc_data->num_clks),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, soc_data->num_clks);
 	if (!clk_data)
 		return -ENOMEM;
 

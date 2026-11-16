@@ -357,7 +357,7 @@ static int mp2888_probe(struct i2c_client *client)
 	struct mp2888_data *data;
 	int ret;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mp2888_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mp2888_data);
 	if (!data)
 		return -ENOMEM;
 

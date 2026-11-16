@@ -1243,8 +1243,8 @@ static int max_des_update_pipe_vc_remaps(struct max_des_priv *priv,
 	if (!des->ops->set_pipe_vc_remap)
 		return 0;
 
-	vc_remaps = devm_kcalloc(priv->dev, MAX_SERDES_VC_ID_NUM,
-				 sizeof(*vc_remaps), GFP_KERNEL);
+	vc_remaps = devm_kzalloc_objs(priv->dev, *vc_remaps,
+				      MAX_SERDES_VC_ID_NUM);
 	if (!vc_remaps)
 		return -ENOMEM;
 
@@ -1285,8 +1285,8 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 	if (!des->ops->set_pipe_remap)
 		return 0;
 
-	remaps = devm_kcalloc(priv->dev, des->info->num_remaps_per_pipe,
-			      sizeof(*remaps), GFP_KERNEL);
+	remaps = devm_kzalloc_objs(priv->dev, *remaps,
+				   des->info->num_remaps_per_pipe);
 	if (!remaps)
 		return -ENOMEM;
 
@@ -3210,39 +3210,37 @@ static int max_des_allocate(struct max_des_priv *priv)
 	struct max_des *des = priv->des;
 	unsigned int num_pads = max_des_num_pads(des);
 
-	des->phys = devm_kcalloc(priv->dev, des->info->num_phys,
-				 sizeof(*des->phys), GFP_KERNEL);
+	des->phys = devm_kzalloc_objs(priv->dev, *des->phys,
+				      des->info->num_phys);
 	if (!des->phys)
 		return -ENOMEM;
 
-	des->pipes = devm_kcalloc(priv->dev, des->info->num_pipes,
-				  sizeof(*des->pipes), GFP_KERNEL);
+	des->pipes = devm_kzalloc_objs(priv->dev, *des->pipes,
+				       des->info->num_pipes);
 	if (!des->pipes)
 		return -ENOMEM;
 
-	des->links = devm_kcalloc(priv->dev, des->info->num_links,
-				  sizeof(*des->links), GFP_KERNEL);
+	des->links = devm_kzalloc_objs(priv->dev, *des->links,
+				       des->info->num_links);
 	if (!des->links)
 		return -ENOMEM;
 
-	priv->sources = devm_kcalloc(priv->dev, des->info->num_links,
-				     sizeof(*priv->sources), GFP_KERNEL);
+	priv->sources = devm_kzalloc_objs(priv->dev, *priv->sources,
+					  des->info->num_links);
 	if (!priv->sources)
 		return -ENOMEM;
 
-	priv->pocs = devm_kcalloc(priv->dev, des->info->num_links,
-				  sizeof(*priv->pocs), GFP_KERNEL);
+	priv->pocs = devm_kzalloc_objs(priv->dev, *priv->pocs,
+				       des->info->num_links);
 	if (!priv->pocs)
 		return -ENOMEM;
 
-	priv->pads = devm_kcalloc(priv->dev, num_pads,
-				  sizeof(*priv->pads), GFP_KERNEL);
+	priv->pads = devm_kzalloc_objs(priv->dev, *priv->pads, num_pads);
 	if (!priv->pads)
 		return -ENOMEM;
 
-	priv->streams_masks = devm_kcalloc(priv->dev, num_pads,
-					   sizeof(*priv->streams_masks),
-					   GFP_KERNEL);
+	priv->streams_masks = devm_kzalloc_objs(priv->dev, *priv->streams_masks,
+						num_pads);
 	if (!priv->streams_masks)
 		return -ENOMEM;
 
@@ -3267,7 +3265,7 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (des->info->num_links > des->info->num_pipes)
 		return -E2BIG;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

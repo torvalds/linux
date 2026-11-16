@@ -86,7 +86,7 @@ static int rockchip_dp_phy_probe(struct platform_device *pdev)
 	if (!dev->parent || !dev->parent->of_node)
 		return -ENODEV;
 
-	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
+	dp = devm_kzalloc_obj(dev, *dp);
 	if (!dp)
 		return -ENOMEM;
 

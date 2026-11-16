@@ -672,18 +672,21 @@ static void arc_pmu_add_raw_event_attr(int j, char *str)
 
 static int arc_pmu_raw_alloc(struct device *dev)
 {
-	arc_pmu->attr = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
-		sizeof(*arc_pmu->attr), GFP_KERNEL | __GFP_ZERO);
+	arc_pmu->attr = devm_kmalloc_objs(dev, *arc_pmu->attr,
+					  arc_pmu->n_events + 1,
+					  GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->attr)
 		return -ENOMEM;
 
-	arc_pmu->attrs = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
-		sizeof(*arc_pmu->attrs), GFP_KERNEL | __GFP_ZERO);
+	arc_pmu->attrs = devm_kmalloc_objs(dev, *arc_pmu->attrs,
+					   arc_pmu->n_events + 1,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->attrs)
 		return -ENOMEM;
 
-	arc_pmu->raw_entry = devm_kmalloc_array(dev, arc_pmu->n_events,
-		sizeof(*arc_pmu->raw_entry), GFP_KERNEL | __GFP_ZERO);
+	arc_pmu->raw_entry = devm_kmalloc_objs(dev, *arc_pmu->raw_entry,
+					       arc_pmu->n_events,
+					       GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->raw_entry)
 		return -ENOMEM;
 
@@ -747,7 +750,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	if (WARN(!cc_bcr.v, "Counters exist but No countable conditions?"))
 		return -EINVAL;
 
-	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
+	arc_pmu = devm_kzalloc_obj(&pdev->dev, struct arc_pmu);
 	if (!arc_pmu)
 		return -ENOMEM;
 

@@ -4853,8 +4853,4 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(f2fs_iomap_next, f2fs_iomap_begin);
-
-const struct iomap_ops f2fs_iomap_ops = {
-	.iomap_next	= f2fs_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(f2fs_iomap_next, f2fs_iomap_begin);

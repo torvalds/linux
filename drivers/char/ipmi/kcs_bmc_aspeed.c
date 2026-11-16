@@ -586,7 +586,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 
 	have_upstream_irq = !rc;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

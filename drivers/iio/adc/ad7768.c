@@ -1424,7 +1424,7 @@ static int ad7768_parse_config(struct iio_dev *indio_dev,
 	if (num_channels > st->chip_info->num_channels)
 		return dev_err_probe(dev, -ENOSPC, "Invalid number of channels\n");
 
-	chan = devm_kcalloc(dev, num_channels, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_objs(dev, *chan, num_channels);
 	if (!chan)
 		return -ENOMEM;
 

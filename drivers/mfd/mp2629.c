@@ -38,7 +38,7 @@ static int mp2629_probe(struct i2c_client *client)
 	struct mp2629_data *ddata;
 	int ret;
 
-	ddata = devm_kzalloc(&client->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(&client->dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

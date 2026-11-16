@@ -537,7 +537,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	int i;
 	const char *mclk_name;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&pdev->dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

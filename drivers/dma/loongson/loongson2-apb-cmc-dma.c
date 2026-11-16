@@ -546,7 +546,7 @@ static int loongson2_cmc_dma_acpi_controller_register(struct loongson2_cmc_dma_d
 	if (!is_acpi_node(dev_fwnode(dev)))
 		return 0;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 
@@ -616,7 +616,7 @@ static int loongson2_cmc_dma_probe(struct platform_device *pdev)
 		nr_chans = config->max_channels;
 	}
 
-	lddev = devm_kzalloc(dev, struct_size(lddev, chan, nr_chans), GFP_KERNEL);
+	lddev = devm_kzalloc_flex(dev, *lddev, chan, nr_chans);
 	if (!lddev)
 		return -ENOMEM;
 

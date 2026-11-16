@@ -863,7 +863,7 @@ static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 	struct dsi_pll_7nm *pll_7nm;
 	int ret;
 
-	pll_7nm = devm_kzalloc(&pdev->dev, sizeof(*pll_7nm), GFP_KERNEL);
+	pll_7nm = devm_kzalloc_obj(&pdev->dev, *pll_7nm);
 	if (!pll_7nm)
 		return -ENOMEM;
 

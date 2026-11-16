@@ -171,7 +171,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	struct olpc_apsp *priv;
 	int error;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

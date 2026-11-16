@@ -146,7 +146,7 @@ static int da850_pupd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct da850_pupd_data *data;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

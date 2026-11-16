@@ -546,7 +546,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	tve = devm_kzalloc(dev, sizeof(*tve), GFP_KERNEL);
+	tve = devm_kzalloc_obj(dev, *tve);
 	if (!tve)
 		return -ENOMEM;
 

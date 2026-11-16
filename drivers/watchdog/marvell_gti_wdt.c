@@ -255,7 +255,7 @@ static int gti_wdt_probe(struct platform_device *pdev)
 	int irq;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

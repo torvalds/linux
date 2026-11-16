@@ -163,7 +163,7 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct mv_hsic_phy *mv_phy;
 
-	mv_phy = devm_kzalloc(&pdev->dev, sizeof(*mv_phy), GFP_KERNEL);
+	mv_phy = devm_kzalloc_obj(&pdev->dev, *mv_phy);
 	if (!mv_phy)
 		return -ENOMEM;
 

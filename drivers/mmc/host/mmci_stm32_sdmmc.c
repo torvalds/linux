@@ -190,7 +190,7 @@ static int sdmmc_idma_setup(struct mmci_host *host)
 	struct sdmmc_idma *idma;
 	struct device *dev = mmc_dev(host->mmc);
 
-	idma = devm_kzalloc(dev, sizeof(*idma), GFP_KERNEL);
+	idma = devm_kzalloc_obj(dev, *idma);
 	if (!idma)
 		return -ENOMEM;
 
@@ -734,7 +734,7 @@ void sdmmc_variant_init(struct mmci_host *host)
 	if (IS_ERR(base_dlyb))
 		return;
 
-	dlyb = devm_kzalloc(mmc_dev(host->mmc), sizeof(*dlyb), GFP_KERNEL);
+	dlyb = devm_kzalloc_obj(mmc_dev(host->mmc), *dlyb);
 	if (!dlyb)
 		return;
 

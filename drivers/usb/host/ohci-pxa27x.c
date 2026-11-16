@@ -348,7 +348,7 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

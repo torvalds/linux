@@ -340,7 +340,7 @@ static int lan966x_hwmon_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	int ret;
 
-	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

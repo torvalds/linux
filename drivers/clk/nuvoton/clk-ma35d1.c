@@ -467,9 +467,8 @@ static int ma35d1_clocks_probe(struct platform_device *pdev)
 	u32 pllmode[PLL_MAX_NUM];
 	int ret;
 
-	ma35d1_hw_data = devm_kzalloc(dev,
-				      struct_size(ma35d1_hw_data, hws, MA35D1_CLK_COUNT),
-				      GFP_KERNEL);
+	ma35d1_hw_data = devm_kzalloc_flex(dev, *ma35d1_hw_data, hws,
+					   MA35D1_CLK_COUNT);
 	if (!ma35d1_hw_data)
 		return -ENOMEM;
 

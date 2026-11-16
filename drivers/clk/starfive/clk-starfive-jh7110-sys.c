@@ -410,9 +410,7 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 	int ret;
 	struct clk *pllclk;
 
-	priv = devm_kzalloc(&pdev->dev,
-			    struct_size(priv, reg, JH7110_SYSCLK_END),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(&pdev->dev, *priv, reg, JH7110_SYSCLK_END);
 	if (!priv)
 		return -ENOMEM;
 

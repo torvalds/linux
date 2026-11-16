@@ -303,7 +303,7 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 
 	nr_irqs = TWL6030_NR_IRQS;
 
-	twl6030_irq = devm_kzalloc(dev, sizeof(*twl6030_irq), GFP_KERNEL);
+	twl6030_irq = devm_kzalloc_obj(dev, *twl6030_irq);
 	if (!twl6030_irq)
 		return -ENOMEM;
 

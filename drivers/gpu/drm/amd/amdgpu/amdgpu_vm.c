@@ -271,19 +271,27 @@ static void amdgpu_vm_bo_reset_state_machine(struct amdgpu_vm *vm)
 
 	/*
 	 * Don't use list splice here, we need the special handling for the root
-	 * PD and set the moved flag appropriately.
+	 * PD. All mappings must be written again, also of the vm_bos which are
+	 * already waiting for an update of some of them, e.g. after a map with
+	 * a delayed update, so set the moved flag for everything that needs an
+	 * update.
 	 */
 	amdgpu_vm_assert_locked(vm);
 	list_for_each_entry_safe(vm_bo, tmp, &vm->kernel.idle, vm_status)
 		amdgpu_vm_bo_needs_update(vm_bo);
+	list_for_each_entry(vm_bo, &vm->kernel.needs_update, vm_status)
+		vm_bo->moved = true;
+
 	list_for_each_entry_safe(vm_bo, tmp, &vm->always_valid.idle, vm_status)
 		amdgpu_vm_bo_needs_update(vm_bo);
+	list_for_each_entry(vm_bo, &vm->always_valid.needs_update, vm_status)
+		vm_bo->moved = true;
 
 	spin_lock(&vm->individual_lock);
-	list_for_each_entry_safe(vm_bo, tmp, &vm->individual.idle, vm_status) {
-		vm_bo->moved = true;
+	list_for_each_entry_safe(vm_bo, tmp, &vm->individual.idle, vm_status)
 		list_move(&vm_bo->vm_status, &vm->individual.needs_update);
-	}
+	list_for_each_entry(vm_bo, &vm->individual.needs_update, vm_status)
+		vm_bo->moved = true;
 	spin_unlock(&vm->individual_lock);
 }
 
@@ -526,11 +534,15 @@ static int amdgpu_vm_init_entities(struct amdgpu_device *adev,
 				  adev->vm_manager.vm_pte_scheds,
 				  adev->vm_manager.vm_pte_num_scheds, NULL);
 	if (r)
+		return r;
+
+	r = drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_NORMAL,
+				  adev->vm_manager.vm_pte_scheds,
+				  adev->vm_manager.vm_pte_num_scheds, NULL);
+	if (r)
 		goto error;
 
-	return drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_NORMAL,
-				     adev->vm_manager.vm_pte_scheds,
-				     adev->vm_manager.vm_pte_num_scheds, NULL);
+	return 0;
 
 error:
 	drm_sched_entity_destroy(&vm->immediate);
@@ -1071,21 +1083,16 @@ static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
  */
 static void
 amdgpu_vm_tlb_flush(struct amdgpu_vm_update_params *params,
-		    struct dma_fence **fence,
+		    struct dma_fence *fence,
 		    struct amdgpu_vm_tlb_seq_struct *tlb_cb)
 {
 	struct amdgpu_vm *vm = params->vm;
 
 	tlb_cb->vm = vm;
-	if (!fence || !*fence) {
-		amdgpu_vm_tlb_seq_cb(NULL, &tlb_cb->cb);
-		return;
-	}
-
-	if (!dma_fence_add_callback(*fence, &tlb_cb->cb,
-				    amdgpu_vm_tlb_seq_cb)) {
-		dma_fence_put(vm->last_tlb_flush);
-		vm->last_tlb_flush = dma_fence_get(*fence);
+	if (fence && !dma_fence_add_callback(fence, &tlb_cb->cb,
+					     amdgpu_vm_tlb_seq_cb)) {
+		dma_fence_put(vm->last_seq_flush);
+		vm->last_seq_flush = dma_fence_get(fence);
 	} else {
 		amdgpu_vm_tlb_seq_cb(NULL, &tlb_cb->cb);
 	}
@@ -1095,11 +1102,12 @@ amdgpu_vm_tlb_flush(struct amdgpu_vm_update_params *params,
 	 * sort out the issues with KIQ/MES TLB invalidation timeouts.
 	 */
 	if (!params->unlocked && vm->need_tlb_fence) {
-		amdgpu_vm_tlb_fence_create(params->adev, vm, fence);
+		amdgpu_vm_tlb_fence_create(params->adev, vm, fence,
+					   &vm->last_tlb_inv);
 
 		/* Makes sure no PD/PT is freed before the flush */
-		dma_resv_add_fence(vm->root.bo->tbo.base.resv, *fence,
-				   DMA_RESV_USAGE_BOOKKEEP);
+		dma_resv_add_fence(vm->root.bo->tbo.base.resv,
+				   vm->last_tlb_inv, DMA_RESV_USAGE_BOOKKEEP);
 	}
 }
 
@@ -1248,7 +1256,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error_free;
 
 	if (params.needs_flush) {
-		amdgpu_vm_tlb_flush(&params, fence, tlb_cb);
+		amdgpu_vm_tlb_flush(&params, *fence, tlb_cb);
 		tlb_cb = NULL;
 	}
 
@@ -2647,7 +2655,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	vm->last_update = dma_fence_get_stub();
 	vm->last_unlocked = dma_fence_get_stub();
-	vm->last_tlb_flush = dma_fence_get_stub();
+	vm->last_seq_flush = dma_fence_get_stub();
+	vm->last_tlb_inv = dma_fence_get_stub();
 	vm->generation = amdgpu_vm_generation(adev, NULL);
 
 	mutex_init(&vm->eviction_lock);
@@ -2691,7 +2700,8 @@ error_free_root:
 
 error_free_delayed:
 	dma_fence_put(vm->last_update);
-	dma_fence_put(vm->last_tlb_flush);
+	dma_fence_put(vm->last_seq_flush);
+	dma_fence_put(vm->last_tlb_inv);
 	dma_fence_put(vm->last_unlocked);
 	ttm_lru_bulk_move_fini(&adev->mman.bdev, &vm->lru_bulk_move);
 	amdgpu_vm_fini_entities(vm);
@@ -2832,11 +2842,12 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	amdgpu_bo_reserve(root, true);
 	dma_fence_wait(vm->last_unlocked, false);
 	dma_fence_put(vm->last_unlocked);
-	dma_fence_wait(vm->last_tlb_flush, false);
+	dma_fence_wait(vm->last_seq_flush, false);
 	/* Make sure that all fence callbacks have completed */
-	dma_fence_lock_irqsave(vm->last_tlb_flush, flags);
-	dma_fence_unlock_irqrestore(vm->last_tlb_flush, flags);
-	dma_fence_put(vm->last_tlb_flush);
+	dma_fence_lock_irqsave(vm->last_seq_flush, flags);
+	dma_fence_unlock_irqrestore(vm->last_seq_flush, flags);
+	dma_fence_put(vm->last_seq_flush);
+	dma_fence_put(vm->last_tlb_inv);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
 		if (mapping->flags & AMDGPU_VM_PAGE_PRT && prt_fini_needed) {

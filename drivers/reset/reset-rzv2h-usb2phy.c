@@ -136,7 +136,7 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int error;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

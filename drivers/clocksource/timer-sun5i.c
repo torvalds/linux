@@ -264,7 +264,7 @@ static int sun5i_timer_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int irq, ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

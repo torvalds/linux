@@ -929,7 +929,7 @@ struct bcm_ptp_private *bcm_ptp_probe(struct phy_device *phydev)
 		return NULL;
 	}
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

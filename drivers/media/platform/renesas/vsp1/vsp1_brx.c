@@ -393,7 +393,7 @@ struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
 	const char *name;
 	int ret;
 
-	brx = devm_kzalloc(vsp1->dev, sizeof(*brx), GFP_KERNEL);
+	brx = devm_kzalloc_obj(vsp1->dev, *brx);
 	if (brx == NULL)
 		return ERR_PTR(-ENOMEM);
 

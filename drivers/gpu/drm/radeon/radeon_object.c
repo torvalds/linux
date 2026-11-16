@@ -147,7 +147,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	}
 	*bo_ptr = NULL;
 
-	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
+	bo = kzalloc_obj(struct radeon_bo);
 	if (bo == NULL)
 		return -ENOMEM;
 	drm_gem_private_object_init(rdev_to_drm(rdev), &bo->tbo.base, size);

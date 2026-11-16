@@ -336,8 +336,7 @@ static int tpm_tis_i2c_probe(struct i2c_client *dev)
 	const u8 locality = 0;
 	int ret;
 
-	phy = devm_kzalloc(&dev->dev, sizeof(struct tpm_tis_i2c_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&dev->dev, struct tpm_tis_i2c_phy);
 	if (!phy)
 		return -ENOMEM;
 

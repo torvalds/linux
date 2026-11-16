@@ -409,7 +409,7 @@ static int udraw_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct udraw *udraw;
 	int ret;
 
-	udraw = devm_kzalloc(&hdev->dev, sizeof(struct udraw), GFP_KERNEL);
+	udraw = devm_kzalloc_obj(&hdev->dev, struct udraw);
 	if (!udraw)
 		return -ENOMEM;
 

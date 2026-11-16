@@ -99,7 +99,7 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 	u32 svr;
 
 	/* Initialize guts */
-	guts = devm_kzalloc(dev, sizeof(*guts), GFP_KERNEL);
+	guts = devm_kzalloc_obj(dev, *guts);
 	if (!guts)
 		return -ENOMEM;
 

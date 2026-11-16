@@ -68,7 +68,7 @@ static int octeon_rng_probe(struct platform_device *pdev)
 		.data_read = octeon_rng_data_read
 	};
 
-	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
+	rng = devm_kzalloc_obj(&pdev->dev, *rng);
 	if (!rng)
 		return -ENOMEM;
 

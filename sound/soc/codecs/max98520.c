@@ -697,7 +697,7 @@ static int max98520_i2c_probe(struct i2c_client *i2c)
 		return -ENXIO;
 	}
 
-	max98520 = devm_kzalloc(&i2c->dev, sizeof(*max98520), GFP_KERNEL);
+	max98520 = devm_kzalloc_obj(&i2c->dev, *max98520);
 
 	if (!max98520)
 		return -ENOMEM;

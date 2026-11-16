@@ -919,7 +919,7 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 	const struct zynqmp_dma_config *match_data;
 	int err, ret;
 
-	chan = devm_kzalloc(zdev->dev, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_obj(zdev->dev, *chan);
 	if (!chan)
 		return -ENOMEM;
 	chan->dev = zdev->dev;
@@ -1089,7 +1089,7 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	struct dma_device *p;
 	int ret;
 
-	zdev = devm_kzalloc(&pdev->dev, sizeof(*zdev), GFP_KERNEL);
+	zdev = devm_kzalloc_obj(&pdev->dev, *zdev);
 	if (!zdev)
 		return -ENOMEM;
 

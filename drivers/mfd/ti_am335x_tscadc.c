@@ -126,7 +126,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	int readouts = 0, mag_tracks = 0;
 
 	/* Allocate memory for device */
-	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
+	tscadc = devm_kzalloc_obj(&pdev->dev, *tscadc);
 	if (!tscadc)
 		return -ENOMEM;
 

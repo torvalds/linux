@@ -192,8 +192,7 @@ static int menf21bmc_hwmon_probe(struct platform_device *pdev)
 	struct i2c_client *i2c_client = to_i2c_client(pdev->dev.parent);
 	struct device *hwmon_dev;
 
-	drv_data = devm_kzalloc(&pdev->dev, sizeof(struct menf21bmc_hwmon),
-				GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&pdev->dev, struct menf21bmc_hwmon);
 	if (!drv_data)
 		return -ENOMEM;
 

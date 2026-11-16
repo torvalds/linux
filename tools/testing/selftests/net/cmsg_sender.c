@@ -34,6 +34,7 @@ enum {
 	ERN_CMSG_RD,
 	ERN_CMSG_RCV,
 	ERN_SEND_MORE,
+	ERN_CONNECT,
 };
 
 struct option_cmsg_u32 {
@@ -48,6 +49,7 @@ struct options {
 	unsigned int size;
 	unsigned int num_pkt;
 	bool msg_more;
+	bool connected;
 	struct {
 		unsigned int mark;
 		unsigned int dontfrag;
@@ -93,6 +95,7 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	printf("Usage: %s [opts] <dst host> <dst port / service>\n", bin);
 	printf("Options:\n"
 	       "\t\t-s      Silent send() failures\n"
+	       "\t\t-k      Connect before sending\n"
 	       "\t\t-S      send() size\n"
 	       "\t\t-4/-6   Force IPv4 / IPv6 only\n"
 	       "\t\t-p prot Socket protocol\n"
@@ -121,8 +124,12 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	int o;
 
-	while ((o = getopt(argc, argv, "46sS:p:P:m:M:n:d:tf:F:c:C:l:L:H:Q:")) != -1) {
+	while ((o = getopt(argc, argv,
+			   "46ksS:p:P:m:M:n:d:tf:F:c:C:l:L:H:Q:")) != -1) {
 		switch (o) {
+		case 'k':
+			opt.connected = true;
+			break;
 		case 's':
 			opt.silent_send = true;
 			break;
@@ -521,6 +528,12 @@ int main(int argc, char *argv[])
 
 	ca_set_sockopts(fd);
 
+	if (opt.connected && connect(fd, ai->ai_addr, ai->ai_addrlen)) {
+		fprintf(stderr, "Can't connect socket: %s\n", strerror(errno));
+		err = ERN_CONNECT;
+		goto err_out;
+	}
+
 	if (clock_gettime(CLOCK_REALTIME, &time_start_real))
 		error(ERN_GETTIME, errno, "gettime REALTIME");
 	if (clock_gettime(CLOCK_MONOTONIC, &time_start_mono))
@@ -530,8 +543,10 @@ int main(int argc, char *argv[])
 	iov[0].iov_len = opt.size;
 
 	memset(&msg, 0, sizeof(msg));
-	msg.msg_name = ai->ai_addr;
-	msg.msg_namelen = ai->ai_addrlen;
+	if (!opt.connected) {
+		msg.msg_name = ai->ai_addr;
+		msg.msg_namelen = ai->ai_addrlen;
+	}
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 

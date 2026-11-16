@@ -783,8 +783,8 @@ static int s32_pinctrl_parse_groups(struct device_node *np,
 
 	grp->data.npins = npins;
 
-	pins = devm_kcalloc(info->dev, npins, sizeof(*pins), GFP_KERNEL);
-	sss = devm_kcalloc(info->dev, npins, sizeof(*sss), GFP_KERNEL);
+	pins = devm_kzalloc_objs(info->dev, *pins, npins);
+	sss = devm_kzalloc_objs(info->dev, *sss, npins);
 	if (!pins || !sss)
 		return -ENOMEM;
 
@@ -824,8 +824,7 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 		return dev_err_probe(info->dev, -EINVAL,
 				     "No groups defined in %pOF\n", np);
 
-	groups = devm_kcalloc(info->dev, func->ngroups,
-				    sizeof(*groups), GFP_KERNEL);
+	groups = devm_kzalloc_objs(info->dev, *groups, func->ngroups);
 	if (!groups)
 		return -ENOMEM;
 
@@ -864,8 +863,8 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	ipctl->regions = devm_kcalloc(&pdev->dev, mem_regions,
-				      sizeof(*ipctl->regions), GFP_KERNEL);
+	ipctl->regions = devm_kzalloc_objs(&pdev->dev, *ipctl->regions,
+					   mem_regions);
 	if (!ipctl->regions)
 		return -ENOMEM;
 
@@ -898,8 +897,8 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 				     "No functions defined\n");
 
 	info->nfunctions = nfuncs;
-	info->functions = devm_kcalloc(&pdev->dev, nfuncs,
-				       sizeof(*info->functions), GFP_KERNEL);
+	info->functions = devm_kzalloc_objs(&pdev->dev, *info->functions,
+					    nfuncs);
 	if (!info->functions)
 		return -ENOMEM;
 
@@ -907,8 +906,8 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 	for_each_child_of_node_scoped(np, child)
 		info->ngroups += of_get_child_count(child);
 
-	info->groups = devm_kcalloc(&pdev->dev, info->ngroups,
-				    sizeof(*info->groups), GFP_KERNEL);
+	info->groups = devm_kzalloc_objs(&pdev->dev, *info->groups,
+					 info->ngroups);
 	if (!info->groups)
 		return -ENOMEM;
 
@@ -937,7 +936,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "Wrong pinctrl info\n");
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 
@@ -945,7 +944,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	info->dev = &pdev->dev;
 
 	/* Create state holders etc for this driver */
-	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
+	ipctl = devm_kzalloc_obj(&pdev->dev, *ipctl);
 	if (!ipctl)
 		return -ENOMEM;
 
@@ -956,8 +955,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	INIT_LIST_HEAD(&ipctl->gpio_configs);
 	spin_lock_init(&ipctl->gpio_configs_lock);
 
-	s32_pinctrl_desc =
-		devm_kzalloc(&pdev->dev, sizeof(*s32_pinctrl_desc), GFP_KERNEL);
+	s32_pinctrl_desc = devm_kzalloc_obj(&pdev->dev, *s32_pinctrl_desc);
 	if (!s32_pinctrl_desc)
 		return -ENOMEM;
 
@@ -983,9 +981,8 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 #ifdef CONFIG_PM_SLEEP
 	saved_context = &ipctl->saved_context;
 	saved_context->pads =
-		devm_kcalloc(&pdev->dev, info->soc_data->npins,
-			     sizeof(*saved_context->pads),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(&pdev->dev, *saved_context->pads,
+				  info->soc_data->npins);
 	if (!saved_context->pads)
 		return -ENOMEM;
 #endif

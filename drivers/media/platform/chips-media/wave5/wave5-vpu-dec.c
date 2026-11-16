@@ -2028,7 +2028,7 @@ int wave5_vpu_dec_register_device(struct vpu_device *dev)
 	if (dev->product_code == WAVE515_CODE)
 		wave5_vdi_allocate_sram(dev);
 
-	vdev_dec = devm_kzalloc(dev->v4l2_dev.dev, sizeof(*vdev_dec), GFP_KERNEL);
+	vdev_dec = devm_kzalloc_obj(dev->v4l2_dev.dev, *vdev_dec);
 	if (!vdev_dec)
 		return -ENOMEM;
 

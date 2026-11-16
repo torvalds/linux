@@ -1186,7 +1186,7 @@ static int rk_iommu_of_xlate(struct device *dev,
 
 	iommu_dev = of_find_device_by_node(args->np);
 
-	data = devm_kzalloc(&iommu_dev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&iommu_dev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -1222,7 +1222,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	int num_res = pdev->num_resources;
 	int err, i;
 
-	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
+	iommu = devm_kzalloc_obj(dev, *iommu);
 	if (!iommu)
 		return -ENOMEM;
 
@@ -1236,8 +1236,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (!iommu->rk_ops)
 		return -ENOENT;
 
-	iommu->bases = devm_kcalloc(dev, num_res, sizeof(*iommu->bases),
-				    GFP_KERNEL);
+	iommu->bases = devm_kzalloc_objs(dev, *iommu->bases, num_res);
 	if (!iommu->bases)
 		return -ENOMEM;
 

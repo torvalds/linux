@@ -211,7 +211,7 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	if (!chip)
 		return -EINVAL;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

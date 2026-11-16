@@ -62,7 +62,7 @@ void trace_syscall_enter(struct pt_regs *regs);
 void trace_syscall_exit(struct pt_regs *regs, long ret);
 void syscall_enter_audit(struct pt_regs *regs);
 
-static __always_inline long syscall_trace_enter(struct pt_regs *regs, unsigned long work,
+static __always_inline bool syscall_trace_enter(struct pt_regs *regs, unsigned long work,
 						long syscall)
 {
 	/*
@@ -202,7 +202,7 @@ do {									\
 									\
 	instrumentation_begin();					\
 	local_irq_enable();						\
-	long _ret = syscall_enter_from_user_mode_work(regs, syscall);	\
+	bool _ret = syscall_enter_from_user_mode_work(regs, syscall);	\
 	instrumentation_end();						\
 									\
 	_ret;								\

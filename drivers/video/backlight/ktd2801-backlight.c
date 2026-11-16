@@ -64,7 +64,7 @@ static int ktd2801_backlight_probe(struct platform_device *pdev)
 	u32 brightness, max_brightness;
 	int ret;
 
-	ktd2801 = devm_kzalloc(dev, sizeof(*ktd2801), GFP_KERNEL);
+	ktd2801 = devm_kzalloc_obj(dev, *ktd2801);
 	if (!ktd2801)
 		return -ENOMEM;
 	ktd2801->was_on = true;

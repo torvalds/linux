@@ -262,7 +262,7 @@ static int es7241_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct es7241_data *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);

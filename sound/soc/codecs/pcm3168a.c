@@ -718,7 +718,7 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 	struct pcm3168a_priv *pcm3168a;
 	int ret, i;
 
-	pcm3168a = devm_kzalloc(dev, sizeof(*pcm3168a), GFP_KERNEL);
+	pcm3168a = devm_kzalloc_obj(dev, *pcm3168a);
 	if (pcm3168a == NULL)
 		return -ENOMEM;
 

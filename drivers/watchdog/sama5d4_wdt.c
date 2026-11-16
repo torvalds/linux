@@ -249,7 +249,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	u32 reg;
 	int ret;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

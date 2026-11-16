@@ -606,7 +606,7 @@ static int mhuv3_dbe_channels_init(struct mhuv3 *mhu)
 		int k;
 
 		for (k = 0; k < MHUV3_FLAG_BITS; k++) {
-			priv = devm_kmalloc(mbox->dev, sizeof(*priv), GFP_KERNEL);
+			priv = devm_kmalloc_obj(mbox->dev, *priv);
 			if (!priv)
 				return -ENOMEM;
 
@@ -713,7 +713,7 @@ static int mhuv3_dbe_init(struct mhuv3 *mhu)
 
 	dev_dbg(dev, "%s: Initializing DBE Extension.\n", mhuv3_str[mhu->frame]);
 
-	e = devm_kzalloc(dev, sizeof(*e), GFP_KERNEL);
+	e = devm_kzalloc_obj(dev, *e);
 	if (!e)
 		return -ENOMEM;
 
@@ -772,8 +772,7 @@ static int mhuv3_initialize_channels(struct device *dev, struct mhuv3 *mhu)
 	struct mbox_controller *mbox = &mhu->mbox;
 	int i, ret = 0;
 
-	mbox->chans = devm_kcalloc(dev, mhu->num_chans,
-				   sizeof(*mbox->chans), GFP_KERNEL);
+	mbox->chans = devm_kzalloc_objs(dev, *mbox->chans, mhu->num_chans);
 	if (!mbox->chans)
 		return dev_err_probe(dev, -ENOMEM,
 				     "Failed to initialize channels\n");
@@ -1054,7 +1053,7 @@ static int mhuv3_probe(struct platform_device *pdev)
 	struct mhuv3 *mhu;
 	int ret;
 
-	mhu = devm_kzalloc(dev, sizeof(*mhu), GFP_KERNEL);
+	mhu = devm_kzalloc_obj(dev, *mhu);
 	if (!mhu)
 		return -ENOMEM;
 

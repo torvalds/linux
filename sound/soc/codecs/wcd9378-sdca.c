@@ -892,7 +892,7 @@ int wcd9378_sdca_read_prop(struct sdw_slave *slave)
 	/* Sink ports: DP6 (HPH audio), DP7 (HPH envelope), DP8 (optimisation RX). */
 	prop->sink_ports = BIT(6) | BIT(7) | BIT(8);
 
-	src = devm_kcalloc(dev, 2, sizeof(*src), GFP_KERNEL);
+	src = devm_kzalloc_objs(dev, *src, 2);
 	if (!src)
 		return -ENOMEM;
 
@@ -912,7 +912,7 @@ int wcd9378_sdca_read_prop(struct sdw_slave *slave)
 
 	prop->src_dpn_prop = src;
 
-	sink = devm_kcalloc(dev, 3, sizeof(*sink), GFP_KERNEL);
+	sink = devm_kzalloc_objs(dev, *sink, 3);
 	if (!sink)
 		return -ENOMEM;
 
@@ -987,7 +987,7 @@ int wcd9378_sdca_probe(struct sdw_slave *slave,
 	if (!device_property_read_bool(dev, "qcom,sdca-compliant"))
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

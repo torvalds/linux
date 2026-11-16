@@ -383,7 +383,7 @@ static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *de
 	if (!tx)
 		return -ENODEV;
 
-	channel = devm_kzalloc(dev, sizeof(*channel), GFP_KERNEL);
+	channel = devm_kzalloc_obj(dev, *channel);
 	if (!channel)
 		return -ENOMEM;
 
@@ -553,7 +553,7 @@ static int scmi_optee_service_probe(struct tee_client_device *scmi_pta)
 	if (IS_ERR(tee_ctx))
 		return -ENODEV;
 
-	agent = devm_kzalloc(dev, sizeof(*agent), GFP_KERNEL);
+	agent = devm_kzalloc_obj(dev, *agent);
 	if (!agent) {
 		ret = -ENOMEM;
 		goto err;

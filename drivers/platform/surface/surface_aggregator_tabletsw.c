@@ -126,7 +126,7 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 		return -EINVAL;
 	}
 
-	sw = devm_kzalloc(&sdev->dev, sizeof(*sw), GFP_KERNEL);
+	sw = devm_kzalloc_obj(&sdev->dev, *sw);
 	if (!sw)
 		return -ENOMEM;
 

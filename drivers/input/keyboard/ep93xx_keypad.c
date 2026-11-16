@@ -206,7 +206,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int err;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, *keypad);
 	if (!keypad)
 		return -ENOMEM;
 

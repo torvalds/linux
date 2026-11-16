@@ -583,6 +583,78 @@ static const struct snd_soc_acpi_link_adr acp70_rt722_l0_rt1320_l1[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_endpoint rt713_jack_dmic_endpoints[] = {
+	/* Jack Endpoint (AIF1) */
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	/* DMIC Endpoint (AIF3, SmartMic function) */
+	{
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
+static const struct snd_soc_acpi_adr_device rt713_vb_0_single_adr[] = {
+	{
+		.adr = 0x000030025D071301ull,
+		.num_endpoints = ARRAY_SIZE(rt713_jack_dmic_endpoints),
+		.endpoints = rt713_jack_dmic_endpoints,
+		.name_prefix = "rt713"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt713_0_single_adr[] = {
+	{
+		.adr = 0x000030025D071301ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "rt713"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt1320_1_u1_single_adr[] = {
+	{
+		.adr = 0x000131025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "rt1320-1"
+	}
+};
+
+static const struct snd_soc_acpi_link_adr acp70_rt713_vb_l0_rt1320_l1u1[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt713_vb_0_single_adr),
+		.adr_d = rt713_vb_0_single_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1320_1_u1_single_adr),
+		.adr_d = rt1320_1_u1_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr acp70_rt713_l0_rt1320_l1u1[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt713_0_single_adr),
+		.adr_d = rt713_0_single_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1320_1_u1_single_adr),
+		.adr_d = rt1320_1_u1_single_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_adr_device tas2783_2_adr[] = {
 	{
 		/* left */
@@ -818,6 +890,17 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(1),
 		.links = acp70_rt722_l0_rt1320_l1,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = acp70_rt713_vb_l0_rt1320_l1u1,
+		.machine_check = snd_soc_acpi_amd_sdca_is_device_rt712_vb,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = acp70_rt713_l0_rt1320_l1u1,
 		.drv_name = "amd_sdw",
 	},
 	{

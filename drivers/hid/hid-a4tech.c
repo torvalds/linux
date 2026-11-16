@@ -115,7 +115,7 @@ static int a4_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct a4tech_sc *a4;
 	int ret;
 
-	a4 = devm_kzalloc(&hdev->dev, sizeof(*a4), GFP_KERNEL);
+	a4 = devm_kzalloc_obj(&hdev->dev, *a4);
 	if (a4 == NULL) {
 		hid_err(hdev, "can't alloc device descriptor\n");
 		return -ENOMEM;

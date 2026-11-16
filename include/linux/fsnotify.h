@@ -135,7 +135,7 @@ int fsnotify_open_perm_and_set_mode(struct file *file);
  * fsnotify_file_area_perm - permission hook before access to file range
  */
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
-					  const loff_t *ppos, size_t count)
+					  const loff_t *ppos, u64 count)
 {
 	/*
 	 * filesystem may be modified in the context of permission events
@@ -213,7 +213,7 @@ static inline int fsnotify_open_perm_and_set_mode(struct file *file)
 }
 
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
-					  const loff_t *ppos, size_t count)
+					  const loff_t *ppos, u64 count)
 {
 	return 0;
 }

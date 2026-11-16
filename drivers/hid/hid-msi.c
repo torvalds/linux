@@ -1829,7 +1829,7 @@ static int claw_probe(struct hid_device *hdev, u8 ep)
 	struct claw_drvdata *drvdata;
 	int ret;
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

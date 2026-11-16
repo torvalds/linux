@@ -102,7 +102,7 @@ static int clk_pwm_probe(struct platform_device *pdev)
 	const char *clk_name;
 	int ret;
 
-	clk_pwm = devm_kzalloc(&pdev->dev, sizeof(*clk_pwm), GFP_KERNEL);
+	clk_pwm = devm_kzalloc_obj(&pdev->dev, *clk_pwm);
 	if (!clk_pwm)
 		return -ENOMEM;
 

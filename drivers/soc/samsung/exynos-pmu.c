@@ -527,8 +527,7 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	if (IS_ERR(pmu_base_addr))
 		return PTR_ERR(pmu_base_addr);
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(struct exynos_pmu_context),
-			   GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, struct exynos_pmu_context);
 	if (!ctx)
 		return -ENOMEM;
 

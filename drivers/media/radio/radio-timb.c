@@ -96,7 +96,7 @@ static int timbradio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	tr = devm_kzalloc(&pdev->dev, sizeof(*tr), GFP_KERNEL);
+	tr = devm_kzalloc_obj(&pdev->dev, *tr);
 	if (!tr) {
 		err = -ENOMEM;
 		goto err;

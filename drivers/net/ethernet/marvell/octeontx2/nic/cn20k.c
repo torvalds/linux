@@ -176,8 +176,7 @@ int cn20k_register_pfvf_mbox_intr(struct otx2_nic *pf, int numvfs)
 	char *irq_name;
 
 	/* irq data for 4 PF intr vectors */
-	irq_data = devm_kcalloc(pf->dev, 4,
-				sizeof(struct pf_irq_data), GFP_KERNEL);
+	irq_data = devm_kzalloc_objs(pf->dev, struct pf_irq_data, 4);
 	if (!irq_data)
 		return -ENOMEM;
 

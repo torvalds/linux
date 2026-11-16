@@ -56,7 +56,7 @@ static int adv_swbutton_probe(struct platform_device *device)
 	if (!handle)
 		return -ENODEV;
 
-	button = devm_kzalloc(&device->dev, sizeof(*button), GFP_KERNEL);
+	button = devm_kzalloc_obj(&device->dev, *button);
 	if (!button)
 		return -ENOMEM;
 

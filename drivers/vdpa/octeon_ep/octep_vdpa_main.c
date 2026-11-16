@@ -156,7 +156,7 @@ static int octep_request_irqs(struct octep_hw *oct_hw, irqreturn_t (*irq_handler
 	else
 		return 0;
 
-	oct_hw->irqs = devm_kcalloc(&pdev->dev, nb_irqs, sizeof(int), GFP_KERNEL);
+	oct_hw->irqs = devm_kzalloc_objs(&pdev->dev, int, nb_irqs);
 	if (!oct_hw->irqs)
 		return -ENOMEM;
 
@@ -770,7 +770,7 @@ static int octep_vdpa_probe_vf(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 
-	mgmt_dev = devm_kzalloc(dev, sizeof(struct octep_vdpa_mgmt_dev), GFP_KERNEL);
+	mgmt_dev = devm_kzalloc_obj(dev, struct octep_vdpa_mgmt_dev);
 	if (!mgmt_dev)
 		return -ENOMEM;
 
@@ -935,7 +935,7 @@ static int octep_vdpa_probe_pf(struct pci_dev *pdev)
 		dev_err(dev, "No usable DMA configuration\n");
 		goto disable_pci;
 	}
-	octpf = devm_kzalloc(dev, sizeof(*octpf), GFP_KERNEL);
+	octpf = devm_kzalloc_obj(dev, *octpf);
 	if (!octpf) {
 		ret = -ENOMEM;
 		goto disable_pci;

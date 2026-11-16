@@ -1017,13 +1017,12 @@ static int rtk_usb2phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rtk_phy = devm_kzalloc(dev, sizeof(*rtk_phy), GFP_KERNEL);
+	rtk_phy = devm_kzalloc_obj(dev, *rtk_phy);
 	if (!rtk_phy)
 		return -ENOMEM;
 
 	rtk_phy->dev			= &pdev->dev;
-	rtk_phy->phy_cfg = devm_kzalloc(dev, sizeof(*rtk_phy->phy_cfg),
-					GFP_KERNEL);
+	rtk_phy->phy_cfg = devm_kzalloc_obj(dev, *rtk_phy->phy_cfg);
 	if (!rtk_phy->phy_cfg)
 		return -ENOMEM;
 

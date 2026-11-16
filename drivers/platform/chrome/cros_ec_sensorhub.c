@@ -156,7 +156,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 
 	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 
-	data = devm_kzalloc(dev, sizeof(struct cros_ec_sensorhub), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct cros_ec_sensorhub);
 	if (!data)
 		return -ENOMEM;
 

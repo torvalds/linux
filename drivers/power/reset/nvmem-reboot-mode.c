@@ -47,7 +47,7 @@ static int nvmem_reboot_mode_probe(struct platform_device *pdev)
 	int ret;
 	struct nvmem_reboot_mode *nvmem_rbm;
 
-	nvmem_rbm = devm_kzalloc(&pdev->dev, sizeof(*nvmem_rbm), GFP_KERNEL);
+	nvmem_rbm = devm_kzalloc_obj(&pdev->dev, *nvmem_rbm);
 	if (!nvmem_rbm)
 		return -ENOMEM;
 

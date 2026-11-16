@@ -850,7 +850,7 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 		return err;
 	}
 
-	cluster = devm_kzalloc(&pdev->dev, sizeof(*cluster), GFP_KERNEL);
+	cluster = devm_kzalloc_obj(&pdev->dev, *cluster);
 	if (!cluster)
 		return -ENOMEM;
 
@@ -888,8 +888,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 	int err;
 	struct l2cache_pmu *l2cache_pmu;
 
-	l2cache_pmu =
-		devm_kzalloc(&pdev->dev, sizeof(*l2cache_pmu), GFP_KERNEL);
+	l2cache_pmu = devm_kzalloc_obj(&pdev->dev, *l2cache_pmu);
 	if (!l2cache_pmu)
 		return -ENOMEM;
 

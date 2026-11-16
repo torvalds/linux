@@ -398,7 +398,7 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 	int err, irq;
 	u32 v;
 
-	ce = devm_kzalloc(&pdev->dev, sizeof(*ce), GFP_KERNEL);
+	ce = devm_kzalloc_obj(&pdev->dev, *ce);
 	if (!ce)
 		return -ENOMEM;
 

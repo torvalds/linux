@@ -101,7 +101,7 @@ static int i2c_hid_of_elan_probe(struct i2c_client *client)
 	int ret;
 	u32 quirks = 0;
 
-	ihid_elan = devm_kzalloc(&client->dev, sizeof(*ihid_elan), GFP_KERNEL);
+	ihid_elan = devm_kzalloc_obj(&client->dev, *ihid_elan);
 	if (!ihid_elan)
 		return -ENOMEM;
 

@@ -1463,7 +1463,7 @@ static int imx283_probe(struct i2c_client *client)
 	unsigned int xclk_freq;
 	int ret;
 
-	imx283 = devm_kzalloc(&client->dev, sizeof(*imx283), GFP_KERNEL);
+	imx283 = devm_kzalloc_obj(&client->dev, *imx283);
 	if (!imx283)
 		return -ENOMEM;
 

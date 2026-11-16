@@ -450,7 +450,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	u32 value;
 	int err;
 
-	dpaux = devm_kzalloc(&pdev->dev, sizeof(*dpaux), GFP_KERNEL);
+	dpaux = devm_kzalloc_obj(&pdev->dev, *dpaux);
 	if (!dpaux)
 		return -ENOMEM;
 

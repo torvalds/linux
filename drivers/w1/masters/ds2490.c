@@ -718,7 +718,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	 * We are holding the bus mutex during the scan, but adding devices via the
 	 * callback needs the bus to be unlocked. So we queue up found ids here.
 	 */
-	found_ids = kmalloc_array(master->max_slave_count, sizeof(u64), GFP_KERNEL);
+	found_ids = kmalloc_objs(u64, master->max_slave_count);
 	if (!found_ids) {
 		kfree(buf);
 		return;

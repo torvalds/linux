@@ -1811,7 +1811,7 @@ static int delta_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	delta = devm_kzalloc(dev, sizeof(*delta), GFP_KERNEL);
+	delta = devm_kzalloc_obj(dev, *delta);
 	if (!delta) {
 		ret = -ENOMEM;
 		goto err;

@@ -812,6 +812,17 @@ xprt_request_retransmit_after_disconnect(struct rpc_task *task)
 		!xprt_connected(xprt);
 }
 
+static void xprt_conditional_disconnect_locked(struct rpc_xprt *xprt,
+					       unsigned int cookie)
+	__must_hold(&xprt->transport_lock)
+{
+	if (cookie != xprt->connect_cookie)
+		return;
+	if (test_bit(XPRT_CLOSING, &xprt->state))
+		return;
+	xprt_schedule_autoclose_locked(xprt);
+}
+
 /**
  * xprt_conditional_disconnect - force a transport to disconnect
  * @xprt: transport to disconnect
@@ -827,12 +838,7 @@ void xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie)
 {
 	/* Don't race with the test_bit() in xprt_clear_locked() */
 	spin_lock(&xprt->transport_lock);
-	if (cookie != xprt->connect_cookie)
-		goto out;
-	if (test_bit(XPRT_CLOSING, &xprt->state))
-		goto out;
-	xprt_schedule_autoclose_locked(xprt);
-out:
+	xprt_conditional_disconnect_locked(xprt, cookie);
 	spin_unlock(&xprt->transport_lock);
 }
 
@@ -1434,6 +1440,79 @@ xprt_request_dequeue_transmit(struct rpc_task *task)
 	spin_unlock(&xprt->queue_lock);
 }
 
+static bool
+xprt_request_matches(const struct rpc_rqst *req,
+		     const struct rpc_clnt *clnt,
+		     bool (*fnmatch)(const struct rpc_task *, const void *),
+		     const void *data)
+{
+	const struct rpc_task *task = req->rq_task;
+
+	return task && task->tk_client == clnt && fnmatch(task, data);
+}
+
+static void
+xprt_request_mark_disconnect_on_release(struct rpc_xprt *xprt,
+					struct rpc_rqst *req)
+	__must_hold(&xprt->queue_lock)
+{
+	spin_lock(&xprt->transport_lock);
+	req->rq_disconnect_on_release = true;
+	spin_unlock(&xprt->transport_lock);
+}
+
+/**
+ * xprt_mark_matching_reqs_disconnect_on_release - mark matching in-flight
+ *                                     requests for connection-generation
+ *                                     teardown at release
+ * @xprt: transport whose queues to walk
+ * @clnt: RPC client whose requests are eligible
+ * @fnmatch: selector called with the request's owning rpc_task
+ * @data: caller data forwarded to @fnmatch
+ *
+ * @fnmatch must not sleep and must be safe to call while xprt->queue_lock
+ * is held.
+ *
+ * Walks the transmit queue (including per-owner rq_xmit2 chains) and the
+ * receive tree under xprt->queue_lock and marks each matching rpc_rqst so
+ * that xprt_release() will conditionally disconnect the transport against
+ * that request's rq_connect_cookie. Requests remain eligible for marking
+ * while they are present on a transport queue. The marker is set under
+ * xprt->transport_lock, nested inside xprt->queue_lock, and xprt_release()
+ * consumes it with xprt->transport_lock held after removing queue membership.
+ *
+ * The @clnt qualification preserves the selection domain of
+ * rpc_cancel_tasks(). An rpc_xprt may be shared by multiple rpc_clnt
+ * instances, so requests belonging to other clients must not be marked.
+ */
+void
+xprt_mark_matching_reqs_disconnect_on_release(struct rpc_xprt *xprt,
+					      const struct rpc_clnt *clnt,
+					      bool (*fnmatch)(const struct rpc_task *,
+							      const void *),
+					      const void *data)
+{
+	struct rpc_rqst *req, *pos;
+	struct rb_node *n;
+
+	spin_lock(&xprt->queue_lock);
+	list_for_each_entry(req, &xprt->xmit_queue, rq_xmit) {
+		if (xprt_request_matches(req, clnt, fnmatch, data))
+			xprt_request_mark_disconnect_on_release(xprt, req);
+		list_for_each_entry(pos, &req->rq_xmit2, rq_xmit2) {
+			if (xprt_request_matches(pos, clnt, fnmatch, data))
+				xprt_request_mark_disconnect_on_release(xprt,
+									pos);
+		}
+	}
+	for (n = rb_first(&xprt->recv_queue); n; n = rb_next(n)) {
+		req = rb_entry(n, struct rpc_rqst, rq_recv);
+		if (xprt_request_matches(req, clnt, fnmatch, data))
+			xprt_request_mark_disconnect_on_release(xprt, req);
+	}
+	spin_unlock(&xprt->queue_lock);
+}
+
 /**
  * xprt_request_dequeue_xprt - remove a task from the transmit+receive queue
  * @task: pointer to rpc_task
@@ -1915,6 +1994,7 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_rcv_buf.bvec = NULL;
 	req->rq_release_snd_buf = NULL;
 	req->rq_seqno_count = 0;
+	req->rq_disconnect_on_release = false;
 	xprt_init_majortimeo(task, req, task->tk_client->cl_timeout);
 
 	trace_xprt_reserve(req);
@@ -1991,6 +2071,20 @@ void xprt_release(struct rpc_task *task)
 	xprt = req->rq_xprt;
 	xprt_request_dequeue_xprt(task);
 	spin_lock(&xprt->transport_lock);
+	if (unlikely(req->rq_disconnect_on_release)) {
+		req->rq_disconnect_on_release = false;
+		/*
+		 * Dequeue may skip queue_lock. Pair with the fully ordered
+		 * test_and_clear_bit(RPC_TASK_NEED_XMIT) in
+		 * xprt_request_dequeue_transmit_locked() to order the runstate
+		 * check before reading the sender's rq_ntrans and
+		 * rq_connect_cookie updates.
+		 */
+		smp_rmb();
+		if (req->rq_ntrans > 0)
+			xprt_conditional_disconnect_locked(xprt,
+							   req->rq_connect_cookie);
+	}
 	xprt->ops->release_xprt(xprt, task);
 	if (xprt->ops->release_request)
 		xprt->ops->release_request(task);
@@ -2020,6 +2114,7 @@ xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task,
 	task->tk_rqstp = req;
 	req->rq_task = task;
 	xprt_init_connect_cookie(req, req->rq_xprt);
+	req->rq_disconnect_on_release = false;
 	/*
 	 * Set up the xdr_buf length.
 	 * This also indicates that the buffer is XDR encoded already.

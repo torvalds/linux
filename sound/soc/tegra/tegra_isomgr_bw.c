@@ -82,7 +82,7 @@ int tegra_isomgr_adma_register(struct device *dev)
 	struct tegra_adma_isomgr *adma_isomgr;
 	int i;
 
-	adma_isomgr = devm_kzalloc(dev, sizeof(struct tegra_adma_isomgr), GFP_KERNEL);
+	adma_isomgr = devm_kzalloc_obj(dev, struct tegra_adma_isomgr);
 	if (!adma_isomgr)
 		return -ENOMEM;
 

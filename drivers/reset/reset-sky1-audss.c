@@ -92,7 +92,7 @@ static int sky1_audss_reset_probe(struct auxiliary_device *adev,
 	struct sky1_audss_reset *priv;
 	struct device *dev = &adev->dev;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

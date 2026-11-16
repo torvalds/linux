@@ -281,8 +281,7 @@ static int otx2_pf_flr_init(struct otx2_nic *pf, int num_vfs)
 	if (!pf->flr_wq)
 		return -ENOMEM;
 
-	pf->flr_wrk = devm_kcalloc(pf->dev, num_vfs,
-				   sizeof(struct flr_work), GFP_KERNEL);
+	pf->flr_wrk = devm_kzalloc_objs(pf->dev, struct flr_work, num_vfs);
 	if (!pf->flr_wrk) {
 		destroy_workqueue(pf->flr_wq);
 		return -ENOMEM;
@@ -603,8 +602,7 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 	if (!numvfs)
 		return -EINVAL;
 
-	pf->mbox_pfvf = devm_kcalloc(&pf->pdev->dev, numvfs,
-				     sizeof(struct mbox), GFP_KERNEL);
+	pf->mbox_pfvf = devm_kzalloc_objs(&pf->pdev->dev, struct mbox, numvfs);
 	if (!pf->mbox_pfvf)
 		return -ENOMEM;
 
@@ -3108,9 +3106,8 @@ static int otx2_sriov_vfcfg_init(struct otx2_nic *pf)
 {
 	int i;
 
-	pf->vf_configs = devm_kcalloc(pf->dev, pf->total_vfs,
-				      sizeof(struct otx2_vf_config),
-				      GFP_KERNEL);
+	pf->vf_configs = devm_kzalloc_objs(pf->dev, struct otx2_vf_config,
+					   pf->total_vfs);
 	if (!pf->vf_configs)
 		return -ENOMEM;
 
@@ -3150,8 +3147,8 @@ int otx2_init_rsrc(struct pci_dev *pdev, struct otx2_nic *pf)
 	if (!hw->irq_name)
 		return -ENOMEM;
 
-	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
-					 sizeof(cpumask_var_t), GFP_KERNEL);
+	hw->affinity_mask = devm_kzalloc_objs(&hw->pdev->dev, cpumask_var_t,
+					      num_vec);
 	if (!hw->affinity_mask)
 		return -ENOMEM;
 

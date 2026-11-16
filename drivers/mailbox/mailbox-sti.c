@@ -361,7 +361,7 @@ static struct mbox_chan *sti_mbox_xlate(struct mbox_controller *mbox,
 		return ERR_PTR(-EBUSY);
 	}
 
-	chan_info = devm_kzalloc(mbox->dev, sizeof(*chan_info), GFP_KERNEL);
+	chan_info = devm_kzalloc_obj(mbox->dev, *chan_info);
 	if (!chan_info)
 		return ERR_PTR(-ENOMEM);
 
@@ -414,7 +414,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	mdev = devm_kzalloc(&pdev->dev, sizeof(*mdev), GFP_KERNEL);
+	mdev = devm_kzalloc_obj(&pdev->dev, *mdev);
 	if (!mdev)
 		return -ENOMEM;
 
@@ -428,12 +428,11 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	if (ret)
 		mdev->name = np->full_name;
 
-	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(&pdev->dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 
-	chans = devm_kcalloc(&pdev->dev,
-			     STI_MBOX_CHAN_MAX, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(&pdev->dev, *chans, STI_MBOX_CHAN_MAX);
 	if (!chans)
 		return -ENOMEM;
 

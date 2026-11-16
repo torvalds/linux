@@ -2256,7 +2256,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	di->dm_regs    = bq27xxx_chip_data[di->chip].dm_regs;
 	di->opts       = bq27xxx_chip_data[di->chip].opts;
 
-	psy_desc = devm_kzalloc(di->dev, sizeof(*psy_desc), GFP_KERNEL);
+	psy_desc = devm_kzalloc_obj(di->dev, *psy_desc);
 	if (!psy_desc)
 		return -ENOMEM;
 

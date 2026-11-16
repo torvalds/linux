@@ -305,8 +305,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret = 0;
 
-	ac97 = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_ac97),
-			    GFP_KERNEL);
+	ac97 = devm_kzalloc_obj(&pdev->dev, struct tegra20_ac97);
 	if (!ac97) {
 		ret = -ENOMEM;
 		goto err;

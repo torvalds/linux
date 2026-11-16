@@ -2258,7 +2258,7 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err;
 
-	ahub = devm_kzalloc(&pdev->dev, sizeof(*ahub), GFP_KERNEL);
+	ahub = devm_kzalloc_obj(&pdev->dev, *ahub);
 	if (!ahub)
 		return -ENOMEM;
 

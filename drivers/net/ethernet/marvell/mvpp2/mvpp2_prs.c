@@ -2157,15 +2157,13 @@ int mvpp2_prs_default_init(struct platform_device *pdev, struct mvpp2 *priv)
 {
 	int err, index, i;
 
-	priv->prs_shadow = devm_kcalloc(&pdev->dev, MVPP2_PRS_TCAM_SRAM_SIZE,
-					sizeof(*priv->prs_shadow),
-					GFP_KERNEL);
+	priv->prs_shadow = devm_kzalloc_objs(&pdev->dev, *priv->prs_shadow,
+					     MVPP2_PRS_TCAM_SRAM_SIZE);
 	if (!priv->prs_shadow)
 		return -ENOMEM;
 
-	priv->prs_double_vlans = devm_kcalloc(&pdev->dev, sizeof(bool),
-					      MVPP2_PRS_DBL_VLANS_MAX,
-					      GFP_KERNEL);
+	priv->prs_double_vlans = devm_kzalloc_objs(&pdev->dev, bool,
+						   MVPP2_PRS_DBL_VLANS_MAX);
 	if (!priv->prs_double_vlans)
 		return -ENOMEM;
 

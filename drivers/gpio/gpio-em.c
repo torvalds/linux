@@ -273,7 +273,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	unsigned int ngpios;
 	int irq[2], ret;
 
-	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(dev, *p);
 	if (!p)
 		return -ENOMEM;
 

@@ -721,7 +721,7 @@ static void scmi_powercap_domain_init_fc(const struct scmi_protocol_handle *ph,
 {
 	struct scmi_fc_info *fc;
 
-	fc = devm_kcalloc(ph->dev, POWERCAP_FC_MAX, sizeof(*fc), GFP_KERNEL);
+	fc = devm_kzalloc_objs(ph->dev, *fc, POWERCAP_FC_MAX);
 	if (!fc)
 		return;
 
@@ -975,7 +975,7 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Powercap Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc_obj(ph->dev, *pinfo);
 	if (!pinfo)
 		return -ENOMEM;
 
@@ -983,14 +983,13 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	pinfo->powercaps = devm_kcalloc(ph->dev, pinfo->num_domains,
-					sizeof(*pinfo->powercaps),
-					GFP_KERNEL);
+	pinfo->powercaps = devm_kzalloc_objs(ph->dev, *pinfo->powercaps,
+					     pinfo->num_domains);
 	if (!pinfo->powercaps)
 		return -ENOMEM;
 
-	pinfo->states = devm_kcalloc(ph->dev, pinfo->num_domains,
-				     sizeof(*pinfo->states), GFP_KERNEL);
+	pinfo->states = devm_kzalloc_objs(ph->dev, *pinfo->states,
+					  pinfo->num_domains);
 	if (!pinfo->states)
 		return -ENOMEM;
 

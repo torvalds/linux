@@ -642,8 +642,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 	int id;
 	int ret;
 
-	as3722_regs = devm_kzalloc(&pdev->dev, sizeof(*as3722_regs),
-				GFP_KERNEL);
+	as3722_regs = devm_kzalloc_obj(&pdev->dev, *as3722_regs);
 	if (!as3722_regs)
 		return -ENOMEM;
 

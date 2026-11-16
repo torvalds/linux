@@ -62,7 +62,7 @@ static int hps_i2c_probe(struct i2c_client *client)
 	struct hps_drvdata *hps;
 	int ret;
 
-	hps = devm_kzalloc(&client->dev, sizeof(*hps), GFP_KERNEL);
+	hps = devm_kzalloc_obj(&client->dev, *hps);
 	if (!hps)
 		return -ENOMEM;
 

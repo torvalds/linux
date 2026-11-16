@@ -1272,7 +1272,7 @@ static int mt9m111_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	mt9m111 = devm_kzalloc(&client->dev, sizeof(struct mt9m111), GFP_KERNEL);
+	mt9m111 = devm_kzalloc_obj(&client->dev, struct mt9m111);
 	if (!mt9m111)
 		return -ENOMEM;
 

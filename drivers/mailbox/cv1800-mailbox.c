@@ -165,7 +165,7 @@ static int cv1800_mbox_probe(struct platform_device *pdev)
 	struct cv1800_mbox *mb;
 	int irq, idx, err;
 
-	mb = devm_kzalloc(dev, sizeof(*mb), GFP_KERNEL);
+	mb = devm_kzalloc_obj(dev, *mb);
 	if (!mb)
 		return -ENOMEM;
 

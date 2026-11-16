@@ -479,7 +479,7 @@ static int ltc2945_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	struct ltc2945_data *data;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 	dev_set_drvdata(dev, data);

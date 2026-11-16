@@ -618,7 +618,7 @@ static int gl518_probe(struct i2c_client *client)
 	struct gl518_data *data;
 	int revision;
 
-	data = devm_kzalloc(dev, sizeof(struct gl518_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct gl518_data);
 	if (!data)
 		return -ENOMEM;
 

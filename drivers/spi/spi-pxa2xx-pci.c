@@ -273,7 +273,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&dev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

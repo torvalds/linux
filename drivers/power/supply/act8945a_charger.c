@@ -577,7 +577,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	int irq, ret;
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(&pdev->dev, *charger);
 	if (!charger)
 		return -ENOMEM;
 

@@ -886,9 +886,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 	else
 		only_sec_inst = 0;
 
-	spi_bus = devm_kzalloc(&pdev->dev,
-			       struct_size(spi_bus, spi_int, hw_inst_cnt),
-			       GFP_KERNEL);
+	spi_bus = devm_kzalloc_flex(&pdev->dev, *spi_bus, spi_int, hw_inst_cnt);
 	if (!spi_bus)
 		return -ENOMEM;
 
@@ -897,9 +895,8 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 	pci_set_master(pdev);
 
 	for (iter = 0; iter < hw_inst_cnt; iter++) {
-		spi_bus->spi_int[iter] = devm_kzalloc(&pdev->dev,
-						      sizeof(struct pci1xxxx_spi_internal),
-						      GFP_KERNEL);
+		spi_bus->spi_int[iter] = devm_kzalloc_obj(&pdev->dev,
+							  struct pci1xxxx_spi_internal);
 		if (!spi_bus->spi_int[iter])
 			return -ENOMEM;
 		spi_sub_ptr = spi_bus->spi_int[iter];

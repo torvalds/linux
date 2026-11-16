@@ -1804,7 +1804,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV; /* we don't support non DT */
 
-	prueth = devm_kzalloc(dev, sizeof(*prueth), GFP_KERNEL);
+	prueth = devm_kzalloc_obj(dev, *prueth);
 	if (!prueth)
 		return -ENOMEM;
 

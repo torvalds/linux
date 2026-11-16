@@ -1438,8 +1438,7 @@ static int pdc_mb_init(struct pdc_state *pdcs)
 	mbc->dev = dev;
 	mbc->ops = &pdc_mbox_chan_ops;
 	mbc->num_chans = 1;
-	mbc->chans = devm_kcalloc(dev, mbc->num_chans, sizeof(*mbc->chans),
-				  GFP_KERNEL);
+	mbc->chans = devm_kzalloc_objs(dev, *mbc->chans, mbc->num_chans);
 	if (!mbc->chans)
 		return -ENOMEM;
 
@@ -1527,7 +1526,7 @@ static int pdc_probe(struct platform_device *pdev)
 	struct pdc_state *pdcs;
 
 	/* PDC state for one SPU */
-	pdcs = devm_kzalloc(dev, sizeof(*pdcs), GFP_KERNEL);
+	pdcs = devm_kzalloc_obj(dev, *pdcs);
 	if (!pdcs) {
 		err = -ENOMEM;
 		goto cleanup;

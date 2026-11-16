@@ -1147,7 +1147,7 @@ struct cqhci_host *cqhci_pltfm_init(struct platform_device *pdev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	cq_host = devm_kzalloc(&pdev->dev, sizeof(*cq_host), GFP_KERNEL);
+	cq_host = devm_kzalloc_obj(&pdev->dev, *cq_host);
 	if (!cq_host)
 		return ERR_PTR(-ENOMEM);
 	cq_host->mmio = devm_ioremap(&pdev->dev,
@@ -1193,8 +1193,8 @@ int cqhci_init(struct cqhci_host *cq_host, struct mmc_host *mmc,
 	if (mmc->caps2 & MMC_CAP2_CQE_DCMD)
 		mmc->cqe_qdepth -= 1;
 
-	cq_host->slot = devm_kcalloc(mmc_dev(mmc), cq_host->num_slots,
-				     sizeof(*cq_host->slot), GFP_KERNEL);
+	cq_host->slot = devm_kzalloc_objs(mmc_dev(mmc), *cq_host->slot,
+					  cq_host->num_slots);
 	if (!cq_host->slot) {
 		err = -ENOMEM;
 		goto out_err;

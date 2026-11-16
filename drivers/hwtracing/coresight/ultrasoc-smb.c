@@ -538,7 +538,7 @@ static int smb_probe(struct platform_device *pdev)
 	struct smb_drv_data *drvdata;
 	int ret;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

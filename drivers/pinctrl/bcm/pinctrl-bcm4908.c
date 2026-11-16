@@ -476,7 +476,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 	char **pin_names;
 	int i;
 
-	bcm4908_pinctrl = devm_kzalloc(dev, sizeof(*bcm4908_pinctrl), GFP_KERNEL);
+	bcm4908_pinctrl = devm_kzalloc_obj(dev, *bcm4908_pinctrl);
 	if (!bcm4908_pinctrl)
 		return -ENOMEM;
 	pctldesc = &bcm4908_pinctrl->pctldesc;
@@ -500,7 +500,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pin_names))
 		return PTR_ERR(pin_names);
 
-	pins = devm_kcalloc(dev, BCM4908_NUM_PINS, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(dev, *pins, BCM4908_NUM_PINS);
 	if (!pins)
 		return -ENOMEM;
 	for (i = 0; i < BCM4908_NUM_PINS; i++) {
@@ -524,7 +524,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 		int *pins;
 		int j;
 
-		pins = devm_kcalloc(dev, group->num_pins, sizeof(*pins), GFP_KERNEL);
+		pins = devm_kzalloc_objs(dev, *pins, group->num_pins);
 		if (!pins)
 			return -ENOMEM;
 		for (j = 0; j < group->num_pins; j++)

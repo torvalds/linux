@@ -337,7 +337,7 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 	if (!cesa->caps->has_tdma)
 		return 0;
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma)
 		return -ENOMEM;
 
@@ -436,8 +436,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 			return -ENOTSUPP;
 	}
 
-	cesa = devm_kzalloc(dev, struct_size(cesa, engines, caps->nengines),
-			GFP_KERNEL);
+	cesa = devm_kzalloc_flex(dev, *cesa, engines, caps->nengines);
 	if (!cesa)
 		return -ENOMEM;
 

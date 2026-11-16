@@ -385,7 +385,7 @@ static int dw_mipi_dsi2_rockchip_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int i;
 
-	dsi2 = devm_kzalloc(dev, sizeof(*dsi2), GFP_KERNEL);
+	dsi2 = devm_kzalloc_obj(dev, *dsi2);
 	if (!dsi2)
 		return -ENOMEM;
 

@@ -45,7 +45,7 @@ static int rave_sp_pwrbutton_probe(struct platform_device *pdev)
 	struct input_dev *idev;
 	int error;
 
-	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
+	pb = devm_kzalloc_obj(dev, *pb);
 	if (!pb)
 		return -ENOMEM;
 

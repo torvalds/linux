@@ -2793,6 +2793,7 @@ int cs_dsp_power_up(struct cs_dsp *dsp,
 		    const struct firmware *coeff_firmware, const char *coeff_filename,
 		    const char *fw_name)
 {
+	struct cs_dsp_coeff_ctl *ctl;
 	int ret;
 
 	mutex_lock(&dsp->pwr_lock);
@@ -2838,6 +2839,11 @@ int cs_dsp_power_up(struct cs_dsp *dsp,
 
 	return 0;
 err_ena:
+	list_for_each_entry(ctl, &dsp->ctl_list, list)
+		ctl->enabled = 0;
+
+	cs_dsp_free_alg_regions(dsp);
+
 	if (dsp->ops->disable_core)
 		dsp->ops->disable_core(dsp);
 err_mem:
@@ -3608,7 +3614,7 @@ static int cs_dsp_populate_wseq(struct cs_dsp *dsp, struct cs_dsp_wseq *wseq)
 	chunk = cs_dsp_chunk(words, wseq->ctl->len);
 
 	while (!cs_dsp_chunk_end(&chunk)) {
-		op = devm_kzalloc(dsp->dev, sizeof(*op), GFP_KERNEL);
+		op = devm_kzalloc_obj(dsp->dev, *op);
 		if (!op) {
 			ret = -ENOMEM;
 			goto err_free;
@@ -3738,7 +3744,7 @@ int cs_dsp_wseq_write(struct cs_dsp *dsp, struct cs_dsp_wseq *wseq,
 			return -EINVAL;
 		}
 
-		op_new = devm_kzalloc(dsp->dev, sizeof(*op_new), GFP_KERNEL);
+		op_new = devm_kzalloc_obj(dsp->dev, *op_new);
 		if (!op_new)
 			return -ENOMEM;
 

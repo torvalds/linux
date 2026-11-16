@@ -653,7 +653,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 ver;
 
-	csi2dc = devm_kzalloc(dev, sizeof(*csi2dc), GFP_KERNEL);
+	csi2dc = devm_kzalloc_obj(dev, *csi2dc);
 	if (!csi2dc)
 		return -ENOMEM;
 

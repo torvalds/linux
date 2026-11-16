@@ -59,15 +59,14 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 	if (!clk_parent)
 		return -EINVAL;
 
-	clk_data = devm_kzalloc(&pdev->dev, sizeof(struct clk_onecell_data),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_obj(&pdev->dev, struct clk_onecell_data);
 	if (!clk_data)
 		return -ENOMEM;
 
 	/* Worst-case size approximation and memory allocation */
 	ngates = find_last_bit(data->mask, SUN6I_APB0_GATES_MAX_SIZE);
-	clk_data->clks = devm_kcalloc(&pdev->dev, (ngates + 1),
-				      sizeof(struct clk *), GFP_KERNEL);
+	clk_data->clks = devm_kzalloc_objs(&pdev->dev, struct clk *,
+					   (ngates + 1));
 	if (!clk_data->clks)
 		return -ENOMEM;
 

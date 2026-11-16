@@ -910,7 +910,7 @@ static int hva_h264_open(struct hva_ctx *pctx)
 	}
 
 	/* allocate context for codec */
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto err;

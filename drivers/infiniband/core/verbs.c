@@ -3186,8 +3186,8 @@ struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 	if (!stats)
 		return NULL;
 
-	stats->is_disabled = kcalloc(BITS_TO_LONGS(num_counters),
-				     sizeof(*stats->is_disabled), GFP_KERNEL);
+	stats->is_disabled = kzalloc_objs(*stats->is_disabled,
+					  BITS_TO_LONGS(num_counters));
 	if (!stats->is_disabled)
 		goto err;
 

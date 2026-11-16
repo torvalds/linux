@@ -221,7 +221,7 @@ ac200_ephy_ctl_create(struct phy_device *phydev,
 	struct clk *clk;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 	priv->dev = dev;

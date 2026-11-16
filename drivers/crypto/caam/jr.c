@@ -542,8 +542,7 @@ static int caam_jr_init(struct device *dev)
 	if (!jrp->outring)
 		return -ENOMEM;
 
-	jrp->entinfo = devm_kcalloc(dev, JOBR_DEPTH, sizeof(*jrp->entinfo),
-				    GFP_KERNEL);
+	jrp->entinfo = devm_kzalloc_objs(dev, *jrp->entinfo, JOBR_DEPTH);
 	if (!jrp->entinfo)
 		return -ENOMEM;
 
@@ -612,7 +611,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 		return irq;
 
 	jrdev = &pdev->dev;
-	jrpriv = devm_kzalloc(jrdev, sizeof(*jrpriv), GFP_KERNEL);
+	jrpriv = devm_kzalloc_obj(jrdev, *jrpriv);
 	if (!jrpriv)
 		return -ENOMEM;
 

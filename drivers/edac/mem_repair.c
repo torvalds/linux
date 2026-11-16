@@ -314,7 +314,7 @@ static int mem_repair_create_desc(struct device *dev,
 	struct edac_mem_repair_context *ctx;
 	struct attribute_group *group;
 	int i;
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -260,7 +260,7 @@ static int sht21_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	sht21 = devm_kzalloc(dev, sizeof(*sht21), GFP_KERNEL);
+	sht21 = devm_kzalloc_obj(dev, *sht21);
 	if (!sht21)
 		return -ENOMEM;
 

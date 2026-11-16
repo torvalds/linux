@@ -50,7 +50,7 @@ static int riscv_iommu_pci_probe(struct pci_dev *pdev, const struct pci_device_i
 	if (rc)
 		return dev_err_probe(dev, rc, "pcim_iomap_regions failed\n");
 
-	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
+	iommu = devm_kzalloc_obj(dev, *iommu);
 	if (!iommu)
 		return -ENOMEM;
 

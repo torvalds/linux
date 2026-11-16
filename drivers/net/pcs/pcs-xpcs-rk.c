@@ -225,7 +225,7 @@ static struct dw_xpcs_rk *xpcs_rk_create_data(struct platform_device *pdev)
 {
 	struct dw_xpcs_rk *pxpcs;
 
-	pxpcs = devm_kzalloc(&pdev->dev, sizeof(*pxpcs), GFP_KERNEL);
+	pxpcs = devm_kzalloc_obj(&pdev->dev, *pxpcs);
 	if (!pxpcs)
 		return ERR_PTR(-ENOMEM);
 

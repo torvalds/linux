@@ -666,7 +666,7 @@ static int gpiochip_set_names(struct gpio_chip *chip)
 		return 0;
 	}
 
-	names = kcalloc(count, sizeof(*names), GFP_KERNEL);
+	names = kzalloc_objs(*names, count);
 	if (!names)
 		return -ENOMEM;
 
@@ -752,7 +752,7 @@ static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 	if (size == 0)
 		return 0;
 
-	ranges = kmalloc_array(size, sizeof(*ranges), GFP_KERNEL);
+	ranges = kmalloc_objs(*ranges, size);
 	if (!ranges)
 		return -ENOMEM;
 

@@ -341,7 +341,7 @@ static int scmi_syspower_probe(struct scmi_device *sdev)
 	if (ret)
 		return ret;
 
-	sc = devm_kzalloc(&sdev->dev, sizeof(*sc), GFP_KERNEL);
+	sc = devm_kzalloc_obj(&sdev->dev, *sc);
 	if (!sc)
 		return -ENOMEM;
 

@@ -180,7 +180,7 @@ static int exynos_chipid_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	soc_dev_attr = devm_kzalloc(dev, sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = devm_kzalloc_obj(dev, *soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENOMEM;
 

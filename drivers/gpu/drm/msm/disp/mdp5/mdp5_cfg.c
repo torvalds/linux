@@ -1108,7 +1108,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 	const struct mdp5_cfg_handler *cfg_handlers;
 	int i, num_handlers;
 
-	cfg_handler = devm_kzalloc(dev->dev, sizeof(*cfg_handler), GFP_KERNEL);
+	cfg_handler = devm_kzalloc_obj(dev->dev, *cfg_handler);
 	if (unlikely(!cfg_handler)) {
 		return ERR_PTR(-ENOMEM);
 	}

@@ -156,7 +156,7 @@ int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
 		hlist_del(&f->by_id);
 		hlist_del(&f->by_hash);
 	} else {
-		f = devm_kzalloc(dev, sizeof(*f), GFP_ATOMIC);
+		f = devm_kzalloc_obj(dev, *f, GFP_ATOMIC);
 		if (!f)
 			return -ENOMEM;
 	}
@@ -578,8 +578,8 @@ void ionic_rx_filter_sync(struct ionic_lif *lif)
 		hlist_for_each_entry_safe(f, tmp, head, by_id) {
 			if (f->state == IONIC_FILTER_STATE_NEW ||
 			    f->state == IONIC_FILTER_STATE_OLD) {
-				sync_item = devm_kzalloc(dev, sizeof(*sync_item),
-							 GFP_ATOMIC);
+				sync_item = devm_kzalloc_obj(dev, *sync_item,
+							     GFP_ATOMIC);
 				if (!sync_item)
 					goto loop_out;
 

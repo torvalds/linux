@@ -4809,8 +4809,8 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 		return -ENOMEM;
 	}
 
-	cfg->l2.l2ptrs = devm_kcalloc(smmu->dev, cfg->l2.num_l1_ents,
-				      sizeof(*cfg->l2.l2ptrs), GFP_KERNEL);
+	cfg->l2.l2ptrs = devm_kzalloc_objs(smmu->dev, *cfg->l2.l2ptrs,
+					   cfg->l2.num_l1_ents);
 	if (!cfg->l2.l2ptrs)
 		return -ENOMEM;
 
@@ -5787,7 +5787,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 
-	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
+	smmu = devm_kzalloc_obj(dev, *smmu);
 	if (!smmu)
 		return -ENOMEM;
 	smmu->dev = dev;

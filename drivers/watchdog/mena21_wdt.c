@@ -135,7 +135,7 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	drv = devm_kzalloc(dev, sizeof(struct a21_wdt_drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(dev, struct a21_wdt_drv);
 	if (!drv)
 		return -ENOMEM;
 

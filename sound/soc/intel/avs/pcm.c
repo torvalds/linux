@@ -1397,7 +1397,7 @@ int avs_register_component(struct device *dev, const char *name,
 	struct avs_soc_component *acomp;
 	const char *comp_name;
 
-	acomp = devm_kzalloc(dev, sizeof(*acomp), GFP_KERNEL);
+	acomp = devm_kzalloc_obj(dev, *acomp);
 	if (!acomp)
 		return -ENOMEM;
 
@@ -1507,7 +1507,7 @@ int avs_register_i2s_component(struct avs_dev *adev, const char *name, unsigned 
 		for_each_set_bit(i, &port_mask, ssp_count)
 			cpu_count += hweight_long(tdms[i]);
 
-	cpus = devm_kcalloc(adev->dev, cpu_count, sizeof(*cpus), GFP_KERNEL);
+	cpus = devm_kzalloc_objs(adev->dev, *cpus, cpu_count);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -1627,8 +1627,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 	if (!pcm_count)
 		return -EINVAL;
 
-	dais = devm_kcalloc(component->dev, pcm_count, sizeof(*dais),
-			    GFP_KERNEL);
+	dais = devm_kzalloc_objs(component->dev, *dais, pcm_count);
 	if (!dais)
 		return -ENOMEM;
 

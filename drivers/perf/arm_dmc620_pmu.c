@@ -667,8 +667,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 	int irq_num;
 	int i, ret;
 
-	dmc620_pmu = devm_kzalloc(&pdev->dev,
-			sizeof(struct dmc620_pmu), GFP_KERNEL);
+	dmc620_pmu = devm_kzalloc_obj(&pdev->dev, struct dmc620_pmu);
 	if (!dmc620_pmu)
 		return -ENOMEM;
 

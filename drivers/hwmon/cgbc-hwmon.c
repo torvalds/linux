@@ -309,7 +309,7 @@ static int cgbc_hwmon_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -780,15 +780,12 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	unsigned int i;
 
 	/* Allocate and initialize the pins and configs arrays. */
-	pmx->pins = devm_kcalloc(pfc->dev,
-				 pfc->info->nr_pins, sizeof(*pmx->pins),
-				 GFP_KERNEL);
+	pmx->pins = devm_kzalloc_objs(pfc->dev, *pmx->pins, pfc->info->nr_pins);
 	if (unlikely(!pmx->pins))
 		return -ENOMEM;
 
-	pmx->configs = devm_kcalloc(pfc->dev,
-				    pfc->info->nr_pins, sizeof(*pmx->configs),
-				    GFP_KERNEL);
+	pmx->configs = devm_kzalloc_objs(pfc->dev, *pmx->configs,
+					 pfc->info->nr_pins);
 	if (unlikely(!pmx->configs))
 		return -ENOMEM;
 
@@ -809,7 +806,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	struct sh_pfc_pinctrl *pmx;
 	int ret;
 
-	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
+	pmx = devm_kzalloc_obj(pfc->dev, *pmx);
 	if (unlikely(!pmx))
 		return -ENOMEM;
 

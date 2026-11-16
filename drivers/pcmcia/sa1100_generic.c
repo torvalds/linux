@@ -141,7 +141,7 @@ static int sa11x0_drv_pcmcia_probe(struct platform_device *pdev)
 	if (pdev->id == -1)
 		return sa11x0_drv_pcmcia_legacy_probe(pdev);
 
-	skt = devm_kzalloc(dev, sizeof(*skt), GFP_KERNEL);
+	skt = devm_kzalloc_obj(dev, *skt);
 	if (!skt)
 		return -ENOMEM;
 

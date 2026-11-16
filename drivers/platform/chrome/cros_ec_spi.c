@@ -745,7 +745,7 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	ec_spi = devm_kzalloc(dev, sizeof(*ec_spi), GFP_KERNEL);
+	ec_spi = devm_kzalloc_obj(dev, *ec_spi);
 	if (ec_spi == NULL)
 		return -ENOMEM;
 	ec_spi->spi = spi;

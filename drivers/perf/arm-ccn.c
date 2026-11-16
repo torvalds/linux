@@ -1453,7 +1453,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	int irq;
 	int err;
 
-	ccn = devm_kzalloc(&pdev->dev, sizeof(*ccn), GFP_KERNEL);
+	ccn = devm_kzalloc_obj(&pdev->dev, *ccn);
 	if (!ccn)
 		return -ENOMEM;
 	ccn->dev = &pdev->dev;
@@ -1491,10 +1491,8 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ccn->node = devm_kcalloc(ccn->dev, ccn->num_nodes, sizeof(*ccn->node),
-				 GFP_KERNEL);
-	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->node),
-			       GFP_KERNEL);
+	ccn->node = devm_kzalloc_objs(ccn->dev, *ccn->node, ccn->num_nodes);
+	ccn->xp = devm_kzalloc_objs(ccn->dev, *ccn->node, ccn->num_xps);
 	if (!ccn->node || !ccn->xp)
 		return -ENOMEM;
 

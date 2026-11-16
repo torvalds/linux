@@ -485,10 +485,8 @@ static int k230_pinctrl_parse_groups(struct device_node *np,
 	size /= sizeof(*list);
 
 	grp->num_pins = size;
-	grp->pins = devm_kcalloc(dev, grp->num_pins, sizeof(*grp->pins),
-				 GFP_KERNEL);
-	grp->data = devm_kcalloc(dev, grp->num_pins, sizeof(*grp->data),
-				 GFP_KERNEL);
+	grp->pins = devm_kzalloc_objs(dev, *grp->pins, grp->num_pins);
+	grp->data = devm_kzalloc_objs(dev, *grp->data, grp->num_pins);
 	if (!grp->pins || !grp->data)
 		return -ENOMEM;
 
@@ -525,10 +523,9 @@ static int k230_pinctrl_parse_functions(struct device_node *np,
 	if (func->ngroups <= 0)
 		return 0;
 
-	func->groups = devm_kcalloc(dev, func->ngroups,
-				    sizeof(*func->groups), GFP_KERNEL);
-	func->group_idx = devm_kcalloc(dev, func->ngroups,
-				       sizeof(*func->group_idx), GFP_KERNEL);
+	func->groups = devm_kzalloc_objs(dev, *func->groups, func->ngroups);
+	func->group_idx = devm_kzalloc_objs(dev, *func->group_idx,
+					    func->ngroups);
 	if (!func->groups || !func->group_idx)
 		return -ENOMEM;
 
@@ -566,10 +563,9 @@ static int k230_pinctrl_parse_dt(struct platform_device *pdev,
 
 	k230_pinctrl_child_count(info, np);
 
-	info->functions = devm_kcalloc(dev, info->nfunctions,
-				       sizeof(*info->functions), GFP_KERNEL);
-	info->groups = devm_kcalloc(dev, info->ngroups,
-				    sizeof(*info->groups), GFP_KERNEL);
+	info->functions = devm_kzalloc_objs(dev, *info->functions,
+					    info->nfunctions);
+	info->groups = devm_kzalloc_objs(dev, *info->groups, info->ngroups);
 	if (!info->functions || !info->groups)
 		return -ENOMEM;
 
@@ -593,7 +589,7 @@ static int k230_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl;
 	int ret;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

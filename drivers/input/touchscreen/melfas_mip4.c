@@ -1403,7 +1403,7 @@ static int mip4_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&client->dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

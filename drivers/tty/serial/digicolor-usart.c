@@ -463,7 +463,7 @@ static int digicolor_uart_probe(struct platform_device *pdev)
 	if (index < 0 || index >= DIGICOLOR_USART_NR)
 		return -EINVAL;
 
-	dp = devm_kzalloc(&pdev->dev, sizeof(*dp), GFP_KERNEL);
+	dp = devm_kzalloc_obj(&pdev->dev, *dp);
 	if (!dp)
 		return -ENOMEM;
 

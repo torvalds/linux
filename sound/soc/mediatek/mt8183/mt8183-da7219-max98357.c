@@ -822,7 +822,7 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 		goto put_hdmi_codec;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto put_hdmi_codec;

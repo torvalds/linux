@@ -770,8 +770,7 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 	dma_chan_count		= dma_lch_count;
 	enable_1510_mode	= d->dev_caps & ENABLE_1510_MODE;
 
-	dma_chan = devm_kcalloc(&pdev->dev, dma_lch_count,
-				sizeof(*dma_chan), GFP_KERNEL);
+	dma_chan = devm_kzalloc_objs(&pdev->dev, *dma_chan, dma_lch_count);
 	if (!dma_chan)
 		return -ENOMEM;
 

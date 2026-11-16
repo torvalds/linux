@@ -236,7 +236,7 @@ static int cs4341_i2c_probe(struct i2c_client *i2c)
 {
 	struct cs4341_priv *cs4341;
 
-	cs4341 = devm_kzalloc(&i2c->dev, sizeof(*cs4341), GFP_KERNEL);
+	cs4341 = devm_kzalloc_obj(&i2c->dev, *cs4341);
 	if (!cs4341)
 		return -ENOMEM;
 
@@ -282,7 +282,7 @@ static int cs4341_spi_probe(struct spi_device *spi)
 	struct cs4341_priv *cs4341;
 	int ret;
 
-	cs4341 = devm_kzalloc(&spi->dev, sizeof(*cs4341), GFP_KERNEL);
+	cs4341 = devm_kzalloc_obj(&spi->dev, *cs4341);
 	if (!cs4341)
 		return -ENOMEM;
 

@@ -284,7 +284,7 @@ static int txx9ndfmc_probe(struct platform_device *dev)
 	struct txx9ndfmc_drvdata *drvdata;
 	unsigned long gbusclk = plat->gbus_clock;
 
-	drvdata = devm_kzalloc(&dev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&dev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 	drvdata->base = devm_platform_ioremap_resource(dev, 0);

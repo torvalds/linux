@@ -350,7 +350,7 @@ static int scmi_imx_bbm_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_info(ph->dev, "NXP SM BBM Version %d.%d\n",
 		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	binfo = devm_kzalloc(ph->dev, sizeof(*binfo), GFP_KERNEL);
+	binfo = devm_kzalloc_obj(ph->dev, *binfo);
 	if (!binfo)
 		return -ENOMEM;
 

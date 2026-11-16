@@ -105,7 +105,7 @@ static int starfive_dwmac_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(plat_dat),
 				     "dt configuration failed\n");
 
-	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
+	dwmac = devm_kzalloc_obj(&pdev->dev, *dwmac);
 	if (!dwmac)
 		return -ENOMEM;
 

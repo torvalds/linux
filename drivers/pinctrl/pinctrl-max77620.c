@@ -556,7 +556,7 @@ static int max77620_pinctrl_probe(struct platform_device *pdev)
 
 	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
 
-	mpci = devm_kzalloc(&pdev->dev, sizeof(*mpci), GFP_KERNEL);
+	mpci = devm_kzalloc_obj(&pdev->dev, *mpci);
 	if (!mpci)
 		return -ENOMEM;
 

@@ -171,6 +171,15 @@ static void verity_hash_at_level(struct dm_verity *v, sector_t block, int level,
 }
 
 /*
+ * Skip verity work in response to I/O error when system is shutting down.
+ */
+static inline bool verity_is_system_shutting_down(void)
+{
+	return system_state == SYSTEM_HALT || system_state == SYSTEM_POWER_OFF
+		|| system_state == SYSTEM_RESTART;
+}
+
+/*
  * Handle verification errors.
  */
 static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
@@ -218,6 +227,15 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 out:
 	if (v->mode == DM_VERITY_MODE_LOGGING)
 		return 0;
+
+	/*
+	 * Devices may already be quiesced (e.g. UFS set offline by its
+	 * shutdown hook), so a failure here does not imply corruption.  Fail
+	 * the I/O but do not restart or panic, which would also override the
+	 * reboot reason of the shutdown already in progress.
+	 */
+	if (verity_is_system_shutting_down())
+		return 1;
 
 	if (v->mode == DM_VERITY_MODE_RESTART)
 		kernel_restart("dm-verity device corrupted");
@@ -591,15 +609,6 @@ static int verity_verify_io(struct dm_verity_io *io)
 error:
 	verity_clear_pending_blocks(io);
 	return r;
-}
-
-/*
- * Skip verity work in response to I/O error when system is shutting down.
- */
-static inline bool verity_is_system_shutting_down(void)
-{
-	return system_state == SYSTEM_HALT || system_state == SYSTEM_POWER_OFF
-		|| system_state == SYSTEM_RESTART;
 }
 
 static void restart_io_error(struct work_struct *w)
@@ -1106,9 +1115,8 @@ static int verity_alloc_most_once(struct dm_verity *v)
 		return -E2BIG;
 	}
 
-	v->validated_blocks = kvcalloc(BITS_TO_LONGS(v->data_blocks),
-				       sizeof(unsigned long),
-				       GFP_KERNEL);
+	v->validated_blocks = kvzalloc_objs(unsigned long,
+					    BITS_TO_LONGS(v->data_blocks));
 	if (!v->validated_blocks) {
 		ti->error = "failed to allocate bitset for check_at_most_once";
 		return -ENOMEM;

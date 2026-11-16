@@ -136,8 +136,7 @@ static int keyscan_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	keypad_data = devm_kzalloc(&pdev->dev, sizeof(*keypad_data),
-				   GFP_KERNEL);
+	keypad_data = devm_kzalloc_obj(&pdev->dev, *keypad_data);
 	if (!keypad_data)
 		return -ENOMEM;
 

@@ -304,7 +304,7 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
-	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
+	mgn_chip = devm_kzalloc_obj(&pdev->dev, *mgn_chip);
 	if (!mgn_chip)
 		return -ENOMEM;
 

@@ -409,7 +409,7 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Voltage Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	vinfo = devm_kzalloc(ph->dev, sizeof(*vinfo), GFP_KERNEL);
+	vinfo = devm_kzalloc_obj(ph->dev, *vinfo);
 	if (!vinfo)
 		return -ENOMEM;
 
@@ -418,9 +418,8 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	if (vinfo->num_domains) {
-		vinfo->domains = devm_kcalloc(ph->dev, vinfo->num_domains,
-					      sizeof(*vinfo->domains),
-					      GFP_KERNEL);
+		vinfo->domains = devm_kzalloc_objs(ph->dev, *vinfo->domains,
+						   vinfo->num_domains);
 		if (!vinfo->domains)
 			return -ENOMEM;
 		ret = scmi_voltage_descriptors_get(ph, vinfo);

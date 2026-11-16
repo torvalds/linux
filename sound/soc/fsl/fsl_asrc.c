@@ -1271,11 +1271,11 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	char tmp[16];
 	u32 width;
 
-	asrc = devm_kzalloc(&pdev->dev, sizeof(*asrc), GFP_KERNEL);
+	asrc = devm_kzalloc_obj(&pdev->dev, *asrc);
 	if (!asrc)
 		return -ENOMEM;
 
-	asrc_priv = devm_kzalloc(&pdev->dev, sizeof(*asrc_priv), GFP_KERNEL);
+	asrc_priv = devm_kzalloc_obj(&pdev->dev, *asrc_priv);
 	if (!asrc_priv)
 		return -ENOMEM;
 

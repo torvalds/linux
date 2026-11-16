@@ -4,7 +4,7 @@
   Broadcom B43 wireless driver
   RFKILL support
 
-  Copyright (c) 2007 Michael Buesch <m@bues.ch>
+  Copyright (c) 2007 Michael Buesch
 
 
 */

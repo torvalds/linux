@@ -131,7 +131,7 @@ static int sy8824_i2c_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	int ret;
 
-	di = devm_kzalloc(dev, sizeof(struct sy8824_device_info), GFP_KERNEL);
+	di = devm_kzalloc_obj(dev, struct sy8824_device_info);
 	if (!di)
 		return -ENOMEM;
 

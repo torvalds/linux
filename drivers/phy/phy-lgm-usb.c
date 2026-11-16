@@ -192,7 +192,7 @@ static int phy_probe(struct platform_device *pdev)
 	struct tca_apb *ta;
 	int i;
 
-	ta = devm_kzalloc(dev, sizeof(*ta), GFP_KERNEL);
+	ta = devm_kzalloc_obj(dev, *ta);
 	if (!ta)
 		return -ENOMEM;
 

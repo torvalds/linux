@@ -815,7 +815,7 @@ static int bcm54616s_probe(struct phy_device *phydev)
 	struct bcm54616s_phy_priv *priv;
 	int val;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1180,7 +1180,7 @@ static int bcm54xx_phy_probe(struct phy_device *phydev)
 	struct gpio_desc *wakeup_gpio;
 	int ret = 0;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1188,9 +1188,8 @@ static int bcm54xx_phy_probe(struct phy_device *phydev)
 
 	phydev->priv = priv;
 
-	priv->stats = devm_kcalloc(&phydev->mdio.dev,
-				   bcm_phy_get_sset_count(phydev), sizeof(u64),
-				   GFP_KERNEL);
+	priv->stats = devm_kzalloc_objs(&phydev->mdio.dev, u64,
+					bcm_phy_get_sset_count(phydev));
 	if (!priv->stats)
 		return -ENOMEM;
 

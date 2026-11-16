@@ -483,7 +483,7 @@ static int ili922x_probe(struct spi_device *spi)
 	int ret;
 	u16 reg = 0;
 
-	ili = devm_kzalloc(&spi->dev, sizeof(*ili), GFP_KERNEL);
+	ili = devm_kzalloc_obj(&spi->dev, *ili);
 	if (!ili)
 		return -ENOMEM;
 

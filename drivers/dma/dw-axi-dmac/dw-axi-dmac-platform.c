@@ -1477,15 +1477,15 @@ static int dw_probe(struct platform_device *pdev)
 	u32 i;
 	int ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
-	dw = devm_kzalloc(&pdev->dev, sizeof(*dw), GFP_KERNEL);
+	dw = devm_kzalloc_obj(&pdev->dev, *dw);
 	if (!dw)
 		return -ENOMEM;
 
-	hdata = devm_kzalloc(&pdev->dev, sizeof(*hdata), GFP_KERNEL);
+	hdata = devm_kzalloc_obj(&pdev->dev, *hdata);
 	if (!hdata)
 		return -ENOMEM;
 
@@ -1528,8 +1528,7 @@ static int dw_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dw->chan = devm_kcalloc(chip->dev, hdata->nr_channels,
-				sizeof(*dw->chan), GFP_KERNEL);
+	dw->chan = devm_kzalloc_objs(chip->dev, *dw->chan, hdata->nr_channels);
 	if (!dw->chan)
 		return -ENOMEM;
 

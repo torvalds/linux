@@ -483,7 +483,7 @@ int mlx5e_mqprio_rl_init(struct mlx5e_mqprio_rl *rl, struct mlx5_core_dev *mdev,
 
 	rl->mdev = mdev;
 	rl->num_tc = num_tc;
-	rl->leaves_id = kvcalloc(num_tc, sizeof(*rl->leaves_id), GFP_KERNEL);
+	rl->leaves_id = kvzalloc_objs(*rl->leaves_id, num_tc);
 	if (!rl->leaves_id)
 		return -ENOMEM;
 

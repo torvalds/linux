@@ -1115,7 +1115,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->uvd.entity,
+	r = amdgpu_job_alloc_with_ib(ring->adev,
+				     direct ? NULL : &adev->uvd.entity,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     64, direct ? AMDGPU_IB_POOL_DIRECT :
 				     AMDGPU_IB_POOL_DELAYED,
@@ -1160,11 +1161,11 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			goto err_free;
 
 		f = amdgpu_job_submit(job);
-	}
 
-	amdgpu_bo_reserve(bo, true);
-	amdgpu_bo_fence(bo, f, false);
-	amdgpu_bo_unreserve(bo);
+		amdgpu_bo_reserve(bo, true);
+		amdgpu_bo_fence(bo, f, false);
+		amdgpu_bo_unreserve(bo);
+	}
 
 	if (fence)
 		*fence = dma_fence_get(f);

@@ -1651,7 +1651,7 @@ int nxp_c45_macsec_probe(struct phy_device *phydev)
 	struct nxp_c45_phy *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 
-	priv->macsec = devm_kzalloc(dev, sizeof(*priv->macsec), GFP_KERNEL);
+	priv->macsec = devm_kzalloc_obj(dev, *priv->macsec);
 	if (!priv->macsec)
 		return -ENOMEM;
 

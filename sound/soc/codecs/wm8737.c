@@ -622,8 +622,7 @@ static int wm8737_i2c_probe(struct i2c_client *i2c)
 	struct wm8737_priv *wm8737;
 	int ret, i;
 
-	wm8737 = devm_kzalloc(&i2c->dev, sizeof(struct wm8737_priv),
-			      GFP_KERNEL);
+	wm8737 = devm_kzalloc_obj(&i2c->dev, struct wm8737_priv);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 
@@ -672,8 +671,7 @@ static int wm8737_spi_probe(struct spi_device *spi)
 	struct wm8737_priv *wm8737;
 	int ret, i;
 
-	wm8737 = devm_kzalloc(&spi->dev, sizeof(struct wm8737_priv),
-			      GFP_KERNEL);
+	wm8737 = devm_kzalloc_obj(&spi->dev, struct wm8737_priv);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 

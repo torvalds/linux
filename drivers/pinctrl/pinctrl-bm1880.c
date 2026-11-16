@@ -1313,7 +1313,7 @@ static int bm1880_pinctrl_probe(struct platform_device *pdev)
 {
 	struct bm1880_pinctrl *pctrl;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

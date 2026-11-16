@@ -266,7 +266,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 		/* The MP2 PCI device should get probed later */
 		return -EPROBE_DEFER;
 
-	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = devm_kzalloc_obj(&pdev->dev, *i2c_dev);
 	if (!i2c_dev)
 		return -ENOMEM;
 

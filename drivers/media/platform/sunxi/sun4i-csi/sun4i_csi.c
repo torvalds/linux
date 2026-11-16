@@ -167,7 +167,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(&pdev->dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, csi);

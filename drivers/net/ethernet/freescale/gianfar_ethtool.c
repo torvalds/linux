@@ -689,10 +689,8 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	int j = MAX_FILER_IDX, l = 0x0;
 	int ret = 1;
 
-	local_rqfpr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
-				    GFP_KERNEL);
-	local_rqfcr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
-				    GFP_KERNEL);
+	local_rqfpr = kmalloc_objs(unsigned int, MAX_FILER_IDX + 1);
+	local_rqfcr = kmalloc_objs(unsigned int, MAX_FILER_IDX + 1);
 	if (!local_rqfpr || !local_rqfcr) {
 		ret = 0;
 		goto err;

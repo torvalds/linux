@@ -140,7 +140,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 	else
 		num_ch = 1;
 
-	priv = devm_kzalloc(dev, struct_size(priv, can_transceiver_phy, num_ch), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, can_transceiver_phy, num_ch);
 	if (!priv)
 		return -ENOMEM;
 

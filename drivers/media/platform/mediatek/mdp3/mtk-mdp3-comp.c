@@ -1826,7 +1826,7 @@ static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
 	if (mdp->comp[id])
 		return ERR_PTR(-EEXIST);
 
-	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
+	comp = devm_kzalloc_obj(dev, *comp);
 	if (!comp)
 		return ERR_PTR(-ENOMEM);
 

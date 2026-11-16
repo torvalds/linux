@@ -835,7 +835,7 @@ static int admac_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ad = devm_kzalloc(&pdev->dev, struct_size(ad, channels, nchannels), GFP_KERNEL);
+	ad = devm_kzalloc_flex(&pdev->dev, *ad, channels, nchannels);
 	if (!ad)
 		return -ENOMEM;
 

@@ -1099,7 +1099,7 @@ static int sta350_probe_dt(struct device *dev, struct sta350_priv *sta350)
 	u32 tmp;
 	u8 tmp8;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -1188,7 +1188,7 @@ static int sta350_i2c_probe(struct i2c_client *i2c)
 	struct sta350_priv *sta350;
 	int ret, i;
 
-	sta350 = devm_kzalloc(dev, sizeof(struct sta350_priv), GFP_KERNEL);
+	sta350 = devm_kzalloc_obj(dev, struct sta350_priv);
 	if (!sta350)
 		return -ENOMEM;
 

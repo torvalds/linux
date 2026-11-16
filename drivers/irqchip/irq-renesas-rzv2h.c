@@ -864,7 +864,7 @@ static int rzv2h_icu_probe_common(struct platform_device *pdev, struct device_no
 	if (!parent_domain)
 		return dev_err_probe(dev, -ENODEV, "cannot find parent domain\n");
 
-	rzv2h_icu_data = devm_kzalloc(dev, sizeof(*rzv2h_icu_data), GFP_KERNEL);
+	rzv2h_icu_data = devm_kzalloc_obj(dev, *rzv2h_icu_data);
 	if (!rzv2h_icu_data)
 		return -ENOMEM;
 

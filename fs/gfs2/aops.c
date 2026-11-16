@@ -425,7 +425,7 @@ static int gfs2_read_folio(struct file *file, struct folio *folio)
 
 	if (!gfs2_is_jdata(ip) ||
 	    (i_blocksize(inode) == PAGE_SIZE && !folio_buffers(folio))) {
-		iomap_bio_read_folio(folio, &gfs2_iomap_ops);
+		iomap_bio_read_folio(folio, gfs2_iomap_next);
 	} else if (gfs2_is_stuffed(ip)) {
 		error = stuffed_read_folio(ip, folio);
 	} else {
@@ -500,7 +500,7 @@ static void gfs2_readahead(struct readahead_control *rac)
 	else if (gfs2_is_jdata(ip))
 		mpage_readahead(rac, gfs2_block_map);
 	else
-		iomap_bio_readahead(rac, &gfs2_iomap_ops);
+		iomap_bio_readahead(rac, gfs2_iomap_next);
 }
 
 /**
@@ -572,7 +572,7 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 		return 0;
 
 	if (!gfs2_is_stuffed(ip))
-		dblock = iomap_bmap(mapping, lblock, &gfs2_iomap_ops);
+		dblock = iomap_bmap(mapping, lblock, gfs2_iomap_next);
 
 	gfs2_glock_dq_uninit(&i_gh);
 

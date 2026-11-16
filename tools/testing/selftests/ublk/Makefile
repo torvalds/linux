@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 CFLAGS += -O3 -Wl,-no-as-needed -Wall -I $(top_srcdir)/usr/include
+CFLAGS += -D_FILE_OFFSET_BITS=64
 ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif

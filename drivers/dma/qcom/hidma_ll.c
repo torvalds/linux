@@ -721,7 +721,7 @@ struct hidma_lldev *hidma_ll_init(struct device *dev, u32 nr_tres,
 	/* need an extra space */
 	nr_tres += 1;
 
-	lldev = devm_kzalloc(dev, sizeof(struct hidma_lldev), GFP_KERNEL);
+	lldev = devm_kzalloc_obj(dev, struct hidma_lldev);
 	if (!lldev)
 		return NULL;
 

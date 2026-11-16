@@ -276,7 +276,7 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 	struct da9052_rtc *rtc;
 	int ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(struct da9052_rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, struct da9052_rtc);
 	if (!rtc)
 		return -ENOMEM;
 

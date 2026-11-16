@@ -30,7 +30,7 @@ static int wm831x_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	wm831x = devm_kzalloc(&spi->dev, sizeof(struct wm831x), GFP_KERNEL);
+	wm831x = devm_kzalloc_obj(&spi->dev, struct wm831x);
 	if (wm831x == NULL)
 		return -ENOMEM;
 

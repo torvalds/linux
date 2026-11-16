@@ -455,7 +455,7 @@ static int ufs_renesas_init(struct ufs_hba *hba)
 	size_t len;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	ufshcd_set_variant(hba, priv);

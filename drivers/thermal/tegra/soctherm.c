@@ -1561,7 +1561,7 @@ static int soctherm_thermtrips_parse(struct platform_device *pdev)
 
 	n = min(max_num_prop, n);
 
-	tlb = devm_kcalloc(&pdev->dev, max_num_prop, sizeof(u32), GFP_KERNEL);
+	tlb = devm_kzalloc_objs(&pdev->dev, u32, max_num_prop);
 	if (!tlb)
 		return -ENOMEM;
 	ret = of_property_read_u32_array(dev->of_node, "nvidia,thermtrips",
@@ -2101,7 +2101,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	if (soc->num_ttgs > TEGRA124_SOCTHERM_SENSOR_NUM)
 		return -EINVAL;
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(&pdev->dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 
@@ -2148,9 +2148,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 		return PTR_ERR(tegra->clock_soctherm);
 	}
 
-	tegra->calib = devm_kcalloc(&pdev->dev,
-				    soc->num_tsensors, sizeof(u32),
-				    GFP_KERNEL);
+	tegra->calib = devm_kzalloc_objs(&pdev->dev, u32, soc->num_tsensors);
 	if (!tegra->calib)
 		return -ENOMEM;
 
@@ -2168,9 +2166,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	tegra->thermctl_tzs = devm_kcalloc(&pdev->dev,
-					   soc->num_ttgs, sizeof(z),
-					   GFP_KERNEL);
+	tegra->thermctl_tzs = devm_kzalloc_objs(&pdev->dev, z, soc->num_ttgs);
 	if (!tegra->thermctl_tzs)
 		return -ENOMEM;
 
@@ -2189,8 +2185,8 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	soctherm_init(pdev);
 
 	for (i = 0; i < soc->num_ttgs; ++i) {
-		struct tegra_thermctl_zone *zone =
-			devm_kzalloc(&pdev->dev, sizeof(*zone), GFP_KERNEL);
+		struct tegra_thermctl_zone *zone = devm_kzalloc_obj(&pdev->dev,
+								    *zone);
 		if (!zone)
 			return -ENOMEM;
 

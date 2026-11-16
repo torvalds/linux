@@ -244,7 +244,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	u32 tp_sensitive_adjust = 15;
 	u32 filter_type = 1;
 
-	ts = devm_kzalloc(dev, sizeof(struct sun4i_ts_data), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, struct sun4i_ts_data);
 	if (!ts)
 		return -ENOMEM;
 

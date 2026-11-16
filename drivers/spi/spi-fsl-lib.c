@@ -119,7 +119,7 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 	const void *prop;
 	int ret = -ENOMEM;
 
-	pinfo = devm_kzalloc(&ofdev->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc_obj(&ofdev->dev, *pinfo);
 	if (!pinfo)
 		return ret;
 

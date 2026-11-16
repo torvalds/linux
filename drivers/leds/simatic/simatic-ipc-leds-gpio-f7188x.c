@@ -62,7 +62,7 @@ static int simatic_ipc_leds_gpio_f7188x_probe(struct platform_device *pdev)
 	const struct simatic_ipc_platform *plat = dev_get_platdata(&pdev->dev);
 	struct simatic_ipc_led_tables *led_tables;
 
-	led_tables = devm_kzalloc(&pdev->dev, sizeof(*led_tables), GFP_KERNEL);
+	led_tables = devm_kzalloc_obj(&pdev->dev, *led_tables);
 	if (!led_tables)
 		return -ENOMEM;
 

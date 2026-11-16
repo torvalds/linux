@@ -813,8 +813,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_mcbsp_dev),
-			   GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, struct davinci_mcbsp_dev);
 	if (!dev)
 		return -ENOMEM;
 

@@ -309,7 +309,7 @@ static int rave_sp_eeprom_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	eeprom = devm_kzalloc(dev, sizeof(*eeprom), GFP_KERNEL);
+	eeprom = devm_kzalloc_obj(dev, *eeprom);
 	if (!eeprom)
 		return -ENOMEM;
 

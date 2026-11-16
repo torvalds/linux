@@ -251,7 +251,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	}
 
 	if (!pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 		if (!pdata) {
 			dev_err(&pdev->dev, "failed to allocate memory\n");
 			return -ENOMEM;
@@ -259,7 +259,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	}
 
 	info =
-	    devm_kzalloc(&pdev->dev, sizeof(struct pm80x_rtc_info), GFP_KERNEL);
+	    devm_kzalloc_obj(&pdev->dev, struct pm80x_rtc_info);
 	if (!info)
 		return -ENOMEM;
 	info->irq = platform_get_irq(pdev, 0);

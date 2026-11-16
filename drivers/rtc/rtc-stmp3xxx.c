@@ -251,7 +251,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	u32 crystalfreq = 0;
 	int err;
 
-	rtc_data = devm_kzalloc(&pdev->dev, sizeof(*rtc_data), GFP_KERNEL);
+	rtc_data = devm_kzalloc_obj(&pdev->dev, *rtc_data);
 	if (!rtc_data)
 		return -ENOMEM;
 

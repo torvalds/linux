@@ -420,7 +420,7 @@ static struct da9150_fg_pdata *da9150_fg_dt_pdata(struct device *dev)
 	struct device_node *fg_node = dev->of_node;
 	struct da9150_fg_pdata *pdata;
 
-	pdata = devm_kzalloc(dev, sizeof(struct da9150_fg_pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, struct da9150_fg_pdata);
 	if (!pdata)
 		return NULL;
 
@@ -450,7 +450,7 @@ static int da9150_fg_probe(struct platform_device *pdev)
 	struct da9150_fg *fg;
 	int ver, irq, ret = 0;
 
-	fg = devm_kzalloc(dev, sizeof(*fg), GFP_KERNEL);
+	fg = devm_kzalloc_obj(dev, *fg);
 	if (fg == NULL)
 		return -ENOMEM;
 

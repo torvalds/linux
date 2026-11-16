@@ -40,7 +40,7 @@ static int pcm5102a_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pcm5102a_priv *pcm5102a;
 
-	pcm5102a = devm_kzalloc(dev, sizeof(*pcm5102a), GFP_KERNEL);
+	pcm5102a = devm_kzalloc_obj(dev, *pcm5102a);
 	if (!pcm5102a)
 		return -ENOMEM;
 

@@ -740,7 +740,7 @@ static int tas5720_probe(struct i2c_client *client)
 	int ret;
 	int i;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -1281,7 +1281,7 @@ static int save_selftest(struct tracer *type)
 {
 	struct trace_selftests *selftest;
 
-	selftest = kmalloc(sizeof(*selftest), GFP_KERNEL);
+	selftest = kmalloc_obj(*selftest);
 	if (!selftest)
 		return -ENOMEM;
 

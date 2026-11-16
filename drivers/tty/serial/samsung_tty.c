@@ -1860,9 +1860,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	 */
 	if (platdev->dev.of_node && of_find_property(platdev->dev.of_node,
 						     "dmas", NULL)) {
-		ourport->dma = devm_kzalloc(port->dev,
-					    sizeof(*ourport->dma),
-					    GFP_KERNEL);
+		ourport->dma = devm_kzalloc_obj(port->dev, *ourport->dma);
 		if (!ourport->dma) {
 			ret = -ENOMEM;
 			goto err;

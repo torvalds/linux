@@ -125,7 +125,7 @@ static int spi_offload_trigger_pwm_probe(struct platform_device *pdev)
 	struct pwm_state state;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

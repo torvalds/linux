@@ -778,9 +778,8 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 	struct uda1380_priv *uda1380;
 	int ret;
 
-	uda1380 = devm_kzalloc(&i2c->dev,
-			       struct_size(uda1380, reg_cache, ARRAY_SIZE(uda1380_reg)),
-			       GFP_KERNEL);
+	uda1380 = devm_kzalloc_flex(&i2c->dev, *uda1380, reg_cache,
+				    ARRAY_SIZE(uda1380_reg));
 	if (uda1380 == NULL)
 		return -ENOMEM;
 

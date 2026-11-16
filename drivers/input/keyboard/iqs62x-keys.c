@@ -251,8 +251,7 @@ static int iqs62x_keys_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int ret, i;
 
-	iqs62x_keys = devm_kzalloc(&pdev->dev, sizeof(*iqs62x_keys),
-				   GFP_KERNEL);
+	iqs62x_keys = devm_kzalloc_obj(&pdev->dev, *iqs62x_keys);
 	if (!iqs62x_keys)
 		return -ENOMEM;
 

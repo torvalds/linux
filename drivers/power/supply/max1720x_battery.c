@@ -589,7 +589,7 @@ static int max1720x_probe(struct i2c_client *client)
 	struct power_supply *bat;
 	int ret;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

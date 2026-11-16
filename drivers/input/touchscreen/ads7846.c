@@ -1296,7 +1296,7 @@ static const struct ads7846_platform_data *ads7846_get_props(struct device *dev)
 	struct ads7846_platform_data *pdata;
 	u32 value;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -1385,7 +1385,7 @@ static int ads7846_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	ts = devm_kzalloc(dev, sizeof(struct ads7846), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, struct ads7846);
 	if (!ts)
 		return -ENOMEM;
 
@@ -1397,7 +1397,7 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->read_state    = ads7846_read_state;
 	}
 
-	packet = devm_kzalloc(dev, sizeof(struct ads7846_packet), GFP_KERNEL);
+	packet = devm_kzalloc_obj(dev, struct ads7846_packet);
 	if (!packet)
 		return -ENOMEM;
 

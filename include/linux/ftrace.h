@@ -618,19 +618,21 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs,
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_JMP
+#define FTRACE_JMP_BIT	BIT(BITS_PER_LONG - 1)
+
 static inline bool ftrace_is_jmp(unsigned long addr)
 {
-	return addr & 1;
+	return !(addr & FTRACE_JMP_BIT);
 }
 
 static inline unsigned long ftrace_jmp_set(unsigned long addr)
 {
-	return addr | 1UL;
+	return addr & ~FTRACE_JMP_BIT;
 }
 
 static inline unsigned long ftrace_jmp_get(unsigned long addr)
 {
-	return addr & ~1UL;
+	return addr | FTRACE_JMP_BIT;
 }
 #else
 static inline bool ftrace_is_jmp(unsigned long addr)

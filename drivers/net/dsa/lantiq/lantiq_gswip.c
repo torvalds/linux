@@ -277,9 +277,9 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	if (IS_ERR(priv->rcu_regmap))
 		return PTR_ERR(priv->rcu_regmap);
 
-	priv->gphy_fw = devm_kmalloc_array(dev, priv->num_gphy_fw,
-					   sizeof(*priv->gphy_fw),
-					   GFP_KERNEL | __GFP_ZERO);
+	priv->gphy_fw = devm_kmalloc_objs(dev, *priv->gphy_fw,
+					  priv->num_gphy_fw,
+					  GFP_KERNEL | __GFP_ZERO);
 	if (!priv->gphy_fw)
 		return -ENOMEM;
 
@@ -348,7 +348,7 @@ static int gswip_probe(struct platform_device *pdev)
 	int i;
 	u32 version;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -380,7 +380,7 @@ static int gswip_probe(struct platform_device *pdev)
 	if (!priv->hw_info)
 		return -EINVAL;
 
-	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
+	priv->ds = devm_kzalloc_obj(dev, *priv->ds);
 	if (!priv->ds)
 		return -ENOMEM;
 

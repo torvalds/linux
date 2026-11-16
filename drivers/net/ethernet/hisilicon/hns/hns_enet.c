@@ -1992,7 +1992,7 @@ static void hns_nic_dump(struct hns_nic_priv *priv)
 	if (ops->get_regs_len && ops->get_regs) {
 		reg_num = ops->get_regs_len(priv->ae_handle);
 		reg_num = (reg_num + 3ul) & ~3ul;
-		data = kcalloc(reg_num, sizeof(u32), GFP_KERNEL);
+		data = kzalloc_objs(u32, reg_num);
 		if (data) {
 			ops->get_regs(priv->ae_handle, data);
 			for (i = 0; i < reg_num; i += 4)

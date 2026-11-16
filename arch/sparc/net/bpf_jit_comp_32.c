@@ -335,7 +335,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (!bpf_jit_enable)
 		return;
 
-	addrs = kmalloc_array(flen, sizeof(*addrs), GFP_KERNEL);
+	addrs = kmalloc_objs(*addrs, flen);
 	if (addrs == NULL)
 		return;
 

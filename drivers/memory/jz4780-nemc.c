@@ -278,7 +278,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	unsigned long referenced;
 	int i, ret;
 
-	nemc = devm_kzalloc(dev, sizeof(*nemc), GFP_KERNEL);
+	nemc = devm_kzalloc_obj(dev, *nemc);
 	if (!nemc)
 		return -ENOMEM;
 

@@ -727,7 +727,7 @@ static int nzxt_smart2_hid_probe(struct hid_device *hdev,
 	struct drvdata *drvdata;
 	int ret;
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(struct drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, struct drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

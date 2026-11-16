@@ -746,6 +746,17 @@ void bpf_mark_all_scalars_precise(struct bpf_verifier_env *env,
 						i, -(j + 1) * 8);
 				}
 			}
+			for (j = 0; j < func->out_stack_arg_cnt; j++) {
+				reg = &func->stack_arg_regs[j];
+				if (reg->type != SCALAR_VALUE || reg->precise)
+					continue;
+				reg->precise = true;
+				if (env->log.level & BPF_LOG_LEVEL2) {
+					verbose(env,
+						"force_precise: frame%d: forcing r11%d to be precise\n",
+						i, -(j + 1) * BPF_REG_SIZE);
+				}
+			}
 		}
 	}
 }

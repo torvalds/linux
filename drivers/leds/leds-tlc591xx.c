@@ -164,7 +164,7 @@ tlc591xx_probe(struct i2c_client *client)
 	if (!count || count > tlc591xx->max_leds)
 		return -EINVAL;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -2250,7 +2250,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 "scrub: unrepaired sectors detected, full stripe %llu data stripe %u errors %*pbl",
 				  full_stripe_start, i, stripe->nr_sectors,
 				  &error);
-			return ret;
+			return -EIO;
 		}
 		bitmap_or(&extent_bitmap, &extent_bitmap, &has_extent,
 			  stripe->nr_sectors);
@@ -3171,7 +3171,6 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	memalloc_nofs_restore(nofs_flag);
 
 	atomic_dec(&fs_info->scrubs_running);
-	wake_up(&fs_info->scrub_pause_wait);
 
 	if (progress)
 		memcpy(progress, &sctx->stat, sizeof(*progress));
@@ -3183,6 +3182,13 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	mutex_lock(&fs_info->scrub_lock);
 	dev->scrub_ctx = NULL;
 	mutex_unlock(&fs_info->scrub_lock);
+
+	/*
+	 * We have set dev->scrub_ctx to NULL, now do the wakeup as a concurrent
+	 * scrub cancel (btrfs_scrub_cancel_dev()) waits for dev->scrub_ctx to
+	 * be set to NULL.
+	 */
+	wake_up(&fs_info->scrub_pause_wait);
 
 	scrub_workers_put(fs_info);
 	scrub_put_ctx(sctx);
@@ -3289,10 +3295,16 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	dev = btrfs_find_device(fs_info->fs_devices, &args);
-	if (dev)
+	if (dev) {
+		mutex_lock(&fs_info->scrub_lock);
 		sctx = dev->scrub_ctx;
-	if (sctx)
-		memcpy(progress, &sctx->stat, sizeof(*progress));
+		if (sctx) {
+			spin_lock(&sctx->stat_lock);
+			memcpy(progress, &sctx->stat, sizeof(*progress));
+			spin_unlock(&sctx->stat_lock);
+		}
+		mutex_unlock(&fs_info->scrub_lock);
+	}
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	return dev ? (sctx ? 0 : -ENOTCONN) : -ENODEV;

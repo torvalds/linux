@@ -745,7 +745,7 @@ static int pmc_usb_probe(struct platform_device *pdev)
 		return -ERANGE;
 	}
 
-	pmc = devm_kzalloc(&pdev->dev, struct_size(pmc, port, num_ports), GFP_KERNEL);
+	pmc = devm_kzalloc_flex(&pdev->dev, *pmc, port, num_ports);
 	if (!pmc)
 		return -ENOMEM;
 

@@ -1347,8 +1347,7 @@ static int msb_ftl_initialize(struct msb_data *msb)
 	msb->used_blocks_bitmap = bitmap_zalloc(msb->block_count, GFP_KERNEL);
 	msb->erased_blocks_bitmap = bitmap_zalloc(msb->block_count, GFP_KERNEL);
 	msb->lba_to_pba_table =
-		kmalloc_array(msb->logical_block_count, sizeof(u16),
-			      GFP_KERNEL);
+		kmalloc_objs(u16, msb->logical_block_count);
 
 	if (!msb->used_blocks_bitmap || !msb->lba_to_pba_table ||
 						!msb->erased_blocks_bitmap) {

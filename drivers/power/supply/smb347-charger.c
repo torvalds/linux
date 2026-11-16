@@ -1537,7 +1537,7 @@ static int smb347_probe(struct i2c_client *client)
 	struct smb347_charger *smb;
 	int ret;
 
-	smb = devm_kzalloc(dev, sizeof(*smb), GFP_KERNEL);
+	smb = devm_kzalloc_obj(dev, *smb);
 	if (!smb)
 		return -ENOMEM;
 	smb->dev = &client->dev;

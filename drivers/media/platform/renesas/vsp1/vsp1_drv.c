@@ -920,7 +920,7 @@ static int vsp1_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	vsp1 = devm_kzalloc(&pdev->dev, sizeof(*vsp1), GFP_KERNEL);
+	vsp1 = devm_kzalloc_obj(&pdev->dev, *vsp1);
 	if (vsp1 == NULL)
 		return -ENOMEM;
 

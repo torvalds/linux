@@ -304,7 +304,7 @@ static int ptn36502_probe(struct i2c_client *client)
 	struct ptn36502 *ptn;
 	int ret;
 
-	ptn = devm_kzalloc(dev, sizeof(*ptn), GFP_KERNEL);
+	ptn = devm_kzalloc_obj(dev, *ptn);
 	if (!ptn)
 		return -ENOMEM;
 

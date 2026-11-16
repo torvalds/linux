@@ -725,7 +725,7 @@ static int siu_probe(struct platform_device *pdev)
 	struct siu_info *info;
 	int ret;
 
-	info = devm_kmalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kmalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 	siu_i2s_data = info;

@@ -422,7 +422,7 @@ static int ltc3220_probe(struct i2c_client *client)
 	u8 led_index = 0;
 	int ret;
 
-	ltc3220 = devm_kzalloc(&client->dev, sizeof(*ltc3220), GFP_KERNEL);
+	ltc3220 = devm_kzalloc_obj(&client->dev, *ltc3220);
 	if (!ltc3220)
 		return -ENOMEM;
 

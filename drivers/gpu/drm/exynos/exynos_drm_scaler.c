@@ -490,7 +490,7 @@ static int scaler_probe(struct platform_device *pdev)
 	int irq;
 	int ret, i;
 
-	scaler = devm_kzalloc(dev, sizeof(*scaler), GFP_KERNEL);
+	scaler = devm_kzalloc_obj(dev, *scaler);
 	if (!scaler)
 		return -ENOMEM;
 

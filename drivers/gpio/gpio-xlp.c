@@ -244,7 +244,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	void __iomem *gpio_base;
 	int irq, err;
 
-	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -283,9 +283,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(girq, &xlp_gpio_irq_chip);
 	girq->parent_handler = xlp_gpio_generic_handler;
 	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(&pdev->dev, 1,
-				     sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents, 1);
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->parents[0] = irq;

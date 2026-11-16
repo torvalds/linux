@@ -50,7 +50,8 @@ struct io_ctx_config {
 			IORING_FEAT_RECVSEND_BUNDLE |\
 			IORING_FEAT_MIN_TIMEOUT |\
 			IORING_FEAT_RW_ATTR |\
-			IORING_FEAT_NO_IOWAIT)
+			IORING_FEAT_NO_IOWAIT |\
+			IORING_FEAT_REGBUF_TYPES)
 
 #define IORING_SETUP_FLAGS (IORING_SETUP_IOPOLL |\
 			IORING_SETUP_SQPOLL |\
@@ -139,6 +140,7 @@ struct io_wait_queue {
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	ktime_t napi_busy_poll_dt;
+	ktime_t napi_busy_poll_end;
 	bool napi_prefer_busy_poll;
 #endif
 };

@@ -981,11 +981,11 @@ static int hdac_hdmi_create_pin_port_muxs(struct hdac_device *hdev,
 	int i = 0;
 	int num_items = hdmi->num_cvt + 1;
 
-	kc = devm_kzalloc(&hdev->dev, sizeof(*kc), GFP_KERNEL);
+	kc = devm_kzalloc_obj(&hdev->dev, *kc);
 	if (!kc)
 		return -ENOMEM;
 
-	se = devm_kzalloc(&hdev->dev, sizeof(*se), GFP_KERNEL);
+	se = devm_kzalloc_obj(&hdev->dev, *se);
 	if (!se)
 		return -ENOMEM;
 
@@ -1213,7 +1213,7 @@ static int hdac_hdmi_add_cvt(struct hdac_device *hdev, hda_nid_t nid)
 	struct hdac_hdmi_cvt *cvt;
 	char name[NAME_SIZE];
 
-	cvt = devm_kzalloc(&hdev->dev, sizeof(*cvt), GFP_KERNEL);
+	cvt = devm_kzalloc_obj(&hdev->dev, *cvt);
 	if (!cvt)
 		return -ENOMEM;
 
@@ -1354,7 +1354,7 @@ static int hdac_hdmi_add_ports(struct hdac_device *hdev,
 	 * implemented.
 	 */
 
-	ports = devm_kcalloc(&hdev->dev, max_ports, sizeof(*ports), GFP_KERNEL);
+	ports = devm_kzalloc_objs(&hdev->dev, *ports, max_ports);
 	if (!ports)
 		return -ENOMEM;
 
@@ -1374,7 +1374,7 @@ static int hdac_hdmi_add_pin(struct hdac_device *hdev, hda_nid_t nid)
 	struct hdac_hdmi_pin *pin;
 	int ret;
 
-	pin = devm_kzalloc(&hdev->dev, sizeof(*pin), GFP_KERNEL);
+	pin = devm_kzalloc_obj(&hdev->dev, *pin);
 	if (!pin)
 		return -ENOMEM;
 
@@ -1862,7 +1862,7 @@ static int hdac_hdmi_dev_probe(struct hdac_device *hdev)
 
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);
 
-	hdmi_priv = devm_kzalloc(&hdev->dev, sizeof(*hdmi_priv), GFP_KERNEL);
+	hdmi_priv = devm_kzalloc_obj(&hdev->dev, *hdmi_priv);
 	if (hdmi_priv == NULL) {
 		snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 		return -ENOMEM;

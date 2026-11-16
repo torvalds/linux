@@ -395,7 +395,7 @@ static int avs_bus_init(struct avs_dev *adev, struct pci_dev *pci, const struct 
 	struct device *dev = &pci->dev;
 	int ret;
 
-	ipc = devm_kzalloc(dev, sizeof(*ipc), GFP_KERNEL);
+	ipc = devm_kzalloc_obj(dev, *ipc);
 	if (!ipc)
 		return -ENOMEM;
 
@@ -456,7 +456,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (ret < 0)
 		return ret;
 
-	adev = devm_kzalloc(dev, sizeof(*adev), GFP_KERNEL);
+	adev = devm_kzalloc_obj(dev, *adev);
 	if (!adev)
 		return -ENOMEM;
 	bus = &adev->base.core;

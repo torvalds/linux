@@ -747,7 +747,7 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct ds2780_device_info *dev_info;
 
-	dev_info = devm_kzalloc(&pdev->dev, sizeof(*dev_info), GFP_KERNEL);
+	dev_info = devm_kzalloc_obj(&pdev->dev, *dev_info);
 	if (!dev_info)
 		return -ENOMEM;
 

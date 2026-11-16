@@ -1086,7 +1086,7 @@ static int ras_eeprom_sw_init(struct ras_core_context *ras_core,
 	if (!param)
 		return -EINVAL;
 
-	control = kzalloc(sizeof(*control), GFP_KERNEL);
+	control = kzalloc_obj(*control);
 	if (!control)
 		return -ENOMEM;
 

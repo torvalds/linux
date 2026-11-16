@@ -966,7 +966,7 @@ EXPORT_SYMBOL_GPL(vsp1_du_unmap_sg);
 
 int vsp1_drm_init(struct vsp1_device *vsp1)
 {
-	vsp1->drm = devm_kzalloc(vsp1->dev, sizeof(*vsp1->drm), GFP_KERNEL);
+	vsp1->drm = devm_kzalloc_obj(vsp1->dev, *vsp1->drm);
 	if (!vsp1->drm)
 		return -ENOMEM;
 

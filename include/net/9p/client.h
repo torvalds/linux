@@ -97,7 +97,7 @@ struct p9_req_t {
  * @proto_version: 9P protocol version to use
  * @trans_mod: module API instantiated with this client
  * @status: connection state
- * @trans: tranport instance state and API
+ * @trans: transport instance state and API
  * @fids: All active FID handles
  * @reqs: All active requests.
  * @name: node name used as client id
@@ -122,8 +122,12 @@ struct p9_client {
 		struct {
 			u16 port;
 			bool privport;
-
 		} tcp;
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+		struct {
+			u32 port;
+		} vsock;
+#endif
 	} trans_opts;
 
 	struct idr fids;
@@ -151,13 +155,13 @@ struct p9_client_opts {
  * struct p9_fd_opts - per-transport options for fd transport
  * @rfd: file descriptor for reading (trans=fd)
  * @wfd: file descriptor for writing (trans=fd)
- * @port: port to connect to (trans=tcp)
+ * @port: port to connect to (trans=tcp, trans=vsock)
  * @privport: port is privileged
  */
 struct p9_fd_opts {
 	int rfd;
 	int wfd;
-	u16 port;
+	u32 port;
 	bool privport;
 };
 
@@ -270,7 +274,7 @@ struct p9_dirent {
 	struct p9_qid qid;
 	u64 d_off;
 	unsigned char d_type;
-	char d_name[256];
+	char *d_name;
 };
 
 struct iov_iter;

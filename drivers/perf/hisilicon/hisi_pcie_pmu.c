@@ -938,7 +938,7 @@ static int hisi_pcie_pmu_probe(struct pci_dev *pdev, const struct pci_device_id 
 	struct hisi_pcie_pmu *pcie_pmu;
 	int ret;
 
-	pcie_pmu = devm_kzalloc(&pdev->dev, sizeof(*pcie_pmu), GFP_KERNEL);
+	pcie_pmu = devm_kzalloc_obj(&pdev->dev, *pcie_pmu);
 	if (!pcie_pmu)
 		return -ENOMEM;
 

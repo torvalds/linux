@@ -414,7 +414,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

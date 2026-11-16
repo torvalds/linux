@@ -1358,7 +1358,7 @@ static int mlxbf_tmfifo_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
+	fifo = devm_kzalloc_obj(dev, *fifo);
 	if (!fifo)
 		return -ENOMEM;
 

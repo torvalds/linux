@@ -1585,7 +1585,7 @@ static int kmb_ocs_aes_probe(struct platform_device *pdev)
 	struct ocs_aes_dev *aes_dev;
 	int rc;
 
-	aes_dev = devm_kzalloc(dev, sizeof(*aes_dev), GFP_KERNEL);
+	aes_dev = devm_kzalloc_obj(dev, *aes_dev);
 	if (!aes_dev)
 		return -ENOMEM;
 

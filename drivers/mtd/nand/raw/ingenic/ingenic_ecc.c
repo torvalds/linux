@@ -134,7 +134,7 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ingenic_ecc *ecc;
 
-	ecc = devm_kzalloc(dev, sizeof(*ecc), GFP_KERNEL);
+	ecc = devm_kzalloc_obj(dev, *ecc);
 	if (!ecc)
 		return -ENOMEM;
 

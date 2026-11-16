@@ -204,7 +204,7 @@ static int max14526_probe(struct i2c_client *client)
 	struct max14526_data *priv;
 	int ret, dev_id, rev, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1066,7 +1066,7 @@ static int mtk_drm_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	private = devm_kzalloc(dev, sizeof(*private), GFP_KERNEL);
+	private = devm_kzalloc_obj(dev, *private);
 	if (!private)
 		return -ENOMEM;
 
@@ -1102,9 +1102,9 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		private->data = mtk_drm_data;
 	}
 
-	private->all_drm_private = devm_kmalloc_array(dev, private->data->mmsys_dev_num,
-						      sizeof(*private->all_drm_private),
-						      GFP_KERNEL);
+	private->all_drm_private = devm_kmalloc_objs(dev,
+						     *private->all_drm_private,
+						     private->data->mmsys_dev_num);
 	if (!private->all_drm_private)
 		return -ENOMEM;
 

@@ -1511,7 +1511,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 
-	ctx.offset = kmalloc_array(prog->len, sizeof(unsigned int), GFP_KERNEL);
+	ctx.offset = kmalloc_objs(unsigned int, prog->len);
 	if (ctx.offset == NULL)
 		goto out_err;
 

@@ -191,7 +191,7 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dwc3_imx = devm_kzalloc(dev, sizeof(*dwc3_imx), GFP_KERNEL);
+	dwc3_imx = devm_kzalloc_obj(dev, *dwc3_imx);
 	if (!dwc3_imx)
 		return -ENOMEM;
 

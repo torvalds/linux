@@ -412,7 +412,7 @@ static int lvs_rh_probe(struct usb_interface *intf,
 		return -EINVAL;
 	}
 
-	lvs = devm_kzalloc(&intf->dev, sizeof(*lvs), GFP_KERNEL);
+	lvs = devm_kzalloc_obj(&intf->dev, *lvs);
 	if (!lvs)
 		return -ENOMEM;
 

@@ -1190,7 +1190,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	const char *direction;
 	int ret;
 
-	video = devm_kzalloc(vsp1->dev, sizeof(*video), GFP_KERNEL);
+	video = devm_kzalloc_obj(vsp1->dev, *video);
 	if (!video)
 		return ERR_PTR(-ENOMEM);
 

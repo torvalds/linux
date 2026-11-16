@@ -183,7 +183,7 @@ static int lan9662_otp_probe(struct platform_device *pdev)
 	struct nvmem_device *nvmem;
 	struct lan9662_otp *otp;
 
-	otp = devm_kzalloc(&pdev->dev, sizeof(*otp), GFP_KERNEL);
+	otp = devm_kzalloc_obj(&pdev->dev, *otp);
 	if (!otp)
 		return -ENOMEM;
 

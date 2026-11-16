@@ -175,7 +175,7 @@ static int hi3660_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct hi3660_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

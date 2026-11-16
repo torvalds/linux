@@ -5267,7 +5267,7 @@ static int alloc_flush_pnodes(struct workqueue_struct *wq)
 	struct wq_flush_pnode *fpn;
 	int node;
 
-	wq->flush_pnodes = kcalloc(nr_node_ids + 1, sizeof(*wq->flush_pnodes), GFP_KERNEL);
+	wq->flush_pnodes = kzalloc_objs(*wq->flush_pnodes, nr_node_ids + 1);
 	if (!wq->flush_pnodes)
 		return -ENOMEM;
 

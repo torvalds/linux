@@ -84,12 +84,12 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	struct icc_node *node;
 	int ret, i, j;
 
-	onecell = devm_kzalloc(dev, struct_size(onecell, nodes, 2 * num_clocks), GFP_KERNEL);
+	onecell = devm_kzalloc_flex(dev, *onecell, nodes, 2 * num_clocks);
 	if (!onecell)
 		return ERR_PTR(-ENOMEM);
 	onecell->num_nodes = 2 * num_clocks;
 
-	qp = devm_kzalloc(dev, struct_size(qp, clocks, num_clocks), GFP_KERNEL);
+	qp = devm_kzalloc_flex(dev, *qp, clocks, num_clocks);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 

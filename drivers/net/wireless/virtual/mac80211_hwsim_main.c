@@ -6179,7 +6179,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	for (i = 0; i < ARRAY_SIZE(data->link_data); i++) {
 		hrtimer_setup(&data->link_data[i].beacon_timer, mac80211_hwsim_beacon,
-			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS_SOFT);
+			      CLOCK_BOOTTIME, HRTIMER_MODE_ABS_SOFT);
 		data->link_data[i].link_id = i;
 	}
 
@@ -7293,7 +7293,7 @@ static int mac80211_hwsim_netlink_notify(struct notifier_block *nb,
 {
 	struct netlink_notify *notify = _notify;
 
-	if (state != NETLINK_URELEASE)
+	if (state != NETLINK_URELEASE || notify->protocol != NETLINK_GENERIC)
 		return NOTIFY_DONE;
 
 	remove_user_radios(notify->portid, hwsim_net_get_netgroup(notify->net));

@@ -753,7 +753,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip,
 
 	open_drain = device_property_read_bool(dev, "drive-open-drain");
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

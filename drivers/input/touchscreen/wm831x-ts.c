@@ -240,8 +240,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 	if (core_pdata)
 		pdata = core_pdata->touch;
 
-	wm831x_ts = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ts),
-				 GFP_KERNEL);
+	wm831x_ts = devm_kzalloc_obj(&pdev->dev, struct wm831x_ts);
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_ts || !input_dev) {
 		error = -ENOMEM;

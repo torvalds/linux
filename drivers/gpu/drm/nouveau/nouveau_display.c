@@ -354,6 +354,11 @@ static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
 };
 
+static const struct drm_mode_config_funcs nouveau_mode_config_funcs_atomic = {
+	.fb_create = nouveau_user_framebuffer_create,
+	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_check = drm_atomic_helper_check,
+};
 
 struct nouveau_drm_prop_enum_list {
 	u8 gen_mask;
@@ -654,7 +659,11 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_create_scaling_mode_property(dev);
 	drm_mode_create_dvi_i_properties(dev);
 
-	dev->mode_config.funcs = &nouveau_mode_config_funcs;
+	/* this only gets set if the driver has the ATOMIC flag */
+	if (drm_drv_uses_atomic_modeset(dev))
+		dev->mode_config.funcs = &nouveau_mode_config_funcs_atomic;
+	else
+		dev->mode_config.funcs = &nouveau_mode_config_funcs;
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;

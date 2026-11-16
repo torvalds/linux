@@ -661,7 +661,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 	struct mtk_pinctrl *hw;
 	int err, i;
 
-	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc_obj(&pdev->dev, *hw);
 	if (!hw)
 		return -ENOMEM;
 
@@ -672,8 +672,8 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 		return dev_err_probe(dev, -EINVAL,
 			"SoC should be assigned at least one register base\n");
 
-	hw->base = devm_kmalloc_array(&pdev->dev, hw->soc->nbase_names,
-				      sizeof(*hw->base), GFP_KERNEL);
+	hw->base = devm_kmalloc_objs(&pdev->dev, *hw->base,
+				     hw->soc->nbase_names);
 	if (!hw->base)
 		return -ENOMEM;
 
@@ -689,8 +689,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 	spin_lock_init(&hw->lock);
 
 	/* Copy from internal struct mtk_pin_desc to register to the core */
-	pins = devm_kmalloc_array(&pdev->dev, hw->soc->npins, sizeof(*pins),
-				  GFP_KERNEL);
+	pins = devm_kmalloc_objs(&pdev->dev, *pins, hw->soc->npins);
 	if (!pins)
 		return -ENOMEM;
 

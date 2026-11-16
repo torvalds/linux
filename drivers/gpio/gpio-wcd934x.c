@@ -82,7 +82,7 @@ static int wcd_gpio_probe(struct platform_device *pdev)
 	struct wcd_gpio_data *data;
 	struct gpio_chip *chip;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

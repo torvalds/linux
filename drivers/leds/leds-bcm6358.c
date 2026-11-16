@@ -100,7 +100,7 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 	unsigned long val;
 	int rc;
 
-	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(dev, *led);
 	if (!led)
 		return -ENOMEM;
 
@@ -156,7 +156,7 @@ static int bcm6358_leds_probe(struct platform_device *pdev)
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
-	lock = devm_kzalloc(dev, sizeof(*lock), GFP_KERNEL);
+	lock = devm_kzalloc_obj(dev, *lock);
 	if (!lock)
 		return -ENOMEM;
 

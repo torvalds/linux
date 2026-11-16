@@ -732,7 +732,7 @@ static int __init silicom_mc_leds_register(struct device *dev,
 
 	for (i = 0; mc_leds[i].led_cdev.name; i++) {
 
-		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(dev, *led);
 		if (!led)
 			return -ENOMEM;
 		memcpy(led, &mc_leds[i], sizeof(*led));

@@ -300,7 +300,7 @@ static int tad_pmu_probe(struct platform_device *pdev)
 	int i, ret;
 	char *name;
 
-	tad_pmu = devm_kzalloc(&pdev->dev, sizeof(*tad_pmu), GFP_KERNEL);
+	tad_pmu = devm_kzalloc_obj(&pdev->dev, *tad_pmu);
 	if (!tad_pmu)
 		return -ENOMEM;
 
@@ -339,8 +339,7 @@ static int tad_pmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	regions = devm_kcalloc(&pdev->dev, tad_cnt,
-			       sizeof(*regions), GFP_KERNEL);
+	regions = devm_kzalloc_objs(&pdev->dev, *regions, tad_cnt);
 	if (!regions)
 		return -ENOMEM;
 

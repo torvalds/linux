@@ -500,7 +500,7 @@ arm_cspmu_alloc_event_attr_group(struct arm_cspmu *cspmu)
 	const struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
 
 	event_group =
-		devm_kzalloc(dev, sizeof(struct attribute_group), GFP_KERNEL);
+		devm_kzalloc_obj(dev, struct attribute_group);
 	if (!event_group)
 		return NULL;
 
@@ -521,7 +521,7 @@ arm_cspmu_alloc_format_attr_group(struct arm_cspmu *cspmu)
 	struct device *dev = cspmu->dev;
 
 	format_group =
-		devm_kzalloc(dev, sizeof(struct attribute_group), GFP_KERNEL);
+		devm_kzalloc_obj(dev, struct attribute_group);
 	if (!format_group)
 		return NULL;
 
@@ -982,7 +982,7 @@ static struct arm_cspmu *arm_cspmu_alloc(struct platform_device *pdev)
 	struct arm_cspmu *cspmu;
 	struct device *dev = &pdev->dev;
 
-	cspmu = devm_kzalloc(dev, sizeof(*cspmu), GFP_KERNEL);
+	cspmu = devm_kzalloc_obj(dev, *cspmu);
 	if (!cspmu)
 		return NULL;
 
@@ -1074,8 +1074,8 @@ static int arm_cspmu_init_mmio(struct arm_cspmu *cspmu)
 				ARM_CSPMU_SET_CLR_COUNTER_NUM);
 
 	cspmu->hw_events.events =
-		devm_kcalloc(dev, cspmu->num_logical_ctrs,
-			     sizeof(*cspmu->hw_events.events), GFP_KERNEL);
+		devm_kzalloc_objs(dev, *cspmu->hw_events.events,
+				  cspmu->num_logical_ctrs);
 
 	if (!cspmu->hw_events.events)
 		return -ENOMEM;

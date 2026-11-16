@@ -308,7 +308,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 	struct sprd_pmic_eic *pmic_eic;
 	int ret;
 
-	pmic_eic = devm_kzalloc(&pdev->dev, sizeof(*pmic_eic), GFP_KERNEL);
+	pmic_eic = devm_kzalloc_obj(&pdev->dev, *pmic_eic);
 	if (!pmic_eic)
 		return -ENOMEM;
 

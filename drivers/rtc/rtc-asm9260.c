@@ -246,7 +246,7 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 	int irq_alarm, ret;
 	u32 ccr;
 
-	priv = devm_kzalloc(dev, sizeof(struct asm9260_rtc_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct asm9260_rtc_priv);
 	if (!priv)
 		return -ENOMEM;
 

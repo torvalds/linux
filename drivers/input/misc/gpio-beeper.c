@@ -63,7 +63,7 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 	struct gpio_beeper *beep;
 	struct input_dev *input;
 
-	beep = devm_kzalloc(&pdev->dev, sizeof(*beep), GFP_KERNEL);
+	beep = devm_kzalloc_obj(&pdev->dev, *beep);
 	if (!beep)
 		return -ENOMEM;
 

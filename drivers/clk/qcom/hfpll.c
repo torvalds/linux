@@ -121,7 +121,7 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 	int ret;
 	struct clk_parent_data pdata = { .index = 0 };
 
-	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
+	h = devm_kzalloc_obj(dev, *h);
 	if (!h)
 		return -ENOMEM;
 

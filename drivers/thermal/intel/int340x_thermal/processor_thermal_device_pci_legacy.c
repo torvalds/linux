@@ -40,7 +40,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev,
 		return ret;
 	}
 
-	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
+	proc_priv = devm_kzalloc_obj(&pdev->dev, *proc_priv);
 	if (!proc_priv)
 		return -ENOMEM;
 

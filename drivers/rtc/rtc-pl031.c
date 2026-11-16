@@ -303,8 +303,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		goto err_req;
 
-	ldata = devm_kzalloc(&adev->dev, sizeof(struct pl031_local),
-			     GFP_KERNEL);
+	ldata = devm_kzalloc_obj(&adev->dev, struct pl031_local);
 	ops = devm_kmemdup(&adev->dev, &vendor->ops, sizeof(vendor->ops),
 			   GFP_KERNEL);
 	if (!ldata || !ops) {

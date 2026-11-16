@@ -824,7 +824,7 @@ static struct clk_hw *sky1_audss_clk_register(struct device *dev,
 	struct clk_parent_data *parent_data;
 	int i;
 
-	parent_data = devm_kcalloc(dev, num_parents, sizeof(*parent_data), GFP_KERNEL);
+	parent_data = devm_kzalloc_objs(dev, *parent_data, num_parents);
 	if (!parent_data)
 		return ERR_PTR(-ENOMEM);
 
@@ -832,7 +832,7 @@ static struct clk_hw *sky1_audss_clk_register(struct device *dev,
 		parent_data[i].name = parent_names[i];
 
 	if (mux_cfg->offset >= 0) {
-		sky1_mux = devm_kzalloc(dev, sizeof(*sky1_mux), GFP_KERNEL);
+		sky1_mux = devm_kzalloc_obj(dev, *sky1_mux);
 		if (!sky1_mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -848,7 +848,7 @@ static struct clk_hw *sky1_audss_clk_register(struct device *dev,
 	}
 
 	if (div_cfg->offset >= 0) {
-		sky1_div = devm_kzalloc(dev, sizeof(*sky1_div), GFP_KERNEL);
+		sky1_div = devm_kzalloc_obj(dev, *sky1_div);
 		if (!sky1_div)
 			return ERR_PTR(-ENOMEM);
 
@@ -863,7 +863,7 @@ static struct clk_hw *sky1_audss_clk_register(struct device *dev,
 	}
 
 	if (gate_cfg->offset >= 0) {
-		sky1_gate = devm_kzalloc(dev, sizeof(*sky1_gate), GFP_KERNEL);
+		sky1_gate = devm_kzalloc_obj(dev, *sky1_gate);
 		if (!sky1_gate)
 			return ERR_PTR(-ENOMEM);
 
@@ -973,15 +973,14 @@ static int sky1_audss_clk_probe(struct platform_device *pdev)
 	if (!devtype_data)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
 
-	priv->clk_data = devm_kzalloc(dev,
-				      struct_size(priv->clk_data, hws, SKY1_AUDSS_NUM_CLKS),
-				      GFP_KERNEL);
+	priv->clk_data = devm_kzalloc_flex(dev, *priv->clk_data, hws,
+					   SKY1_AUDSS_NUM_CLKS);
 	if (!priv->clk_data)
 		return -ENOMEM;
 

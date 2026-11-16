@@ -1464,7 +1464,7 @@ struct oa_tc6 *oa_tc6_init(struct spi_device *spi, struct net_device *netdev,
 	struct oa_tc6 *tc6;
 	int ret;
 
-	tc6 = devm_kzalloc(&spi->dev, sizeof(*tc6), GFP_KERNEL);
+	tc6 = devm_kzalloc_obj(&spi->dev, *tc6);
 	if (!tc6)
 		return ERR_PTR(-ENOMEM);
 

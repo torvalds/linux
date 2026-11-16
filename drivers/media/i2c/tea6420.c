@@ -99,7 +99,7 @@ static int tea6420_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	sd = devm_kzalloc(&client->dev, sizeof(*sd), GFP_KERNEL);
+	sd = devm_kzalloc_obj(&client->dev, *sd);
 	if (sd == NULL)
 		return -ENOMEM;
 	v4l2_i2c_subdev_init(sd, client, &tea6420_ops);

@@ -216,7 +216,7 @@ pinctrl_scmi_alloc_configs(struct pinctrl_dev *pctldev, u32 num_configs,
 	if (num_configs <= SCMI_NUM_CONFIGS)
 		return 0;
 
-	*p_config_value = kcalloc(num_configs, sizeof(**p_config_value), GFP_KERNEL);
+	*p_config_value = kzalloc_objs(**p_config_value, num_configs);
 	if (!*p_config_value)
 		return -ENOMEM;
 
@@ -400,8 +400,7 @@ static int pinctrl_scmi_get_functions(struct scmi_pinctrl *pmx)
 				 "Function %s contains no groups\n",
 				 fname);
 
-		gnames = devm_kmalloc_array(pmx->dev, nr_groups,
-					    sizeof(*gnames), GFP_KERNEL);
+		gnames = devm_kmalloc_objs(pmx->dev, *gnames, nr_groups);
 		if (!gnames)
 			return -ENOMEM;
 
@@ -477,7 +476,7 @@ static int pinctrl_scmi_get_pins(struct scmi_pinctrl *pmx,
 	 * npins will never be zero, the scmi pinctrl driver has bailed out
 	 * if npins is zero.
 	 */
-	pins = devm_kmalloc_array(pmx->dev, npins, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kmalloc_objs(pmx->dev, *pins, npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -527,7 +526,7 @@ static int scmi_pinctrl_probe(struct scmi_device *sdev)
 	if (IS_ERR(pinctrl_ops))
 		return PTR_ERR(pinctrl_ops);
 
-	pmx = devm_kzalloc(dev, sizeof(*pmx), GFP_KERNEL);
+	pmx = devm_kzalloc_obj(dev, *pmx);
 	if (!pmx)
 		return -ENOMEM;
 

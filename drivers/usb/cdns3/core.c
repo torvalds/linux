@@ -265,7 +265,7 @@ static int cdns_idle_init(struct cdns *cdns)
 {
 	struct cdns_role_driver *rdrv;
 
-	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
+	rdrv = devm_kzalloc_obj(cdns->dev, *rdrv);
 	if (!rdrv)
 		return -ENOMEM;
 

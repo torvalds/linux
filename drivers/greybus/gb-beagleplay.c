@@ -1191,7 +1191,7 @@ static int gb_beagleplay_probe(struct serdev_device *serdev)
 	int ret = 0;
 	struct gb_beagleplay *bg;
 
-	bg = devm_kmalloc(&serdev->dev, sizeof(*bg), GFP_KERNEL);
+	bg = devm_kmalloc_obj(&serdev->dev, *bg);
 	if (!bg)
 		return -ENOMEM;
 

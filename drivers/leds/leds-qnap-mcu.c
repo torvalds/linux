@@ -80,7 +80,7 @@ static int qnap_mcu_register_err_led(struct device *dev, struct qnap_mcu *mcu, i
 	struct qnap_mcu_err_led *err_led;
 	int ret;
 
-	err_led = devm_kzalloc(dev, sizeof(*err_led), GFP_KERNEL);
+	err_led = devm_kzalloc_obj(dev, *err_led);
 	if (!err_led)
 		return -ENOMEM;
 
@@ -171,7 +171,7 @@ static int qnap_mcu_register_usb_led(struct device *dev, struct qnap_mcu *mcu)
 	struct qnap_mcu_usb_led *usb_led;
 	int ret;
 
-	usb_led = devm_kzalloc(dev, sizeof(*usb_led), GFP_KERNEL);
+	usb_led = devm_kzalloc_obj(dev, *usb_led);
 	if (!usb_led)
 		return -ENOMEM;
 
@@ -312,7 +312,7 @@ static int qnap_mcu_register_status_leds(struct device *dev, struct qnap_mcu *mc
 	struct qnap_mcu_status *status;
 	int ret;
 
-	status = devm_kzalloc(dev, sizeof(*status), GFP_KERNEL);
+	status = devm_kzalloc_obj(dev, *status);
 	if (!status)
 		return -ENOMEM;
 

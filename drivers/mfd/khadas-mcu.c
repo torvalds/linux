@@ -135,7 +135,7 @@ static int khadas_mcu_probe(struct i2c_client *client)
 	struct khadas_mcu *ddata;
 	const void *mcu_variant;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

@@ -306,8 +306,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	axp20x_pek = devm_kzalloc(&pdev->dev, sizeof(struct axp20x_pek),
-				  GFP_KERNEL);
+	axp20x_pek = devm_kzalloc_obj(&pdev->dev, struct axp20x_pek);
 	if (!axp20x_pek)
 		return -ENOMEM;
 

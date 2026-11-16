@@ -415,7 +415,7 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 		return NULL;
 	}
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return NULL;
 

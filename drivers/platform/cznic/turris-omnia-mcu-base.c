@@ -361,7 +361,7 @@ static int omnia_mcu_probe(struct i2c_client *client)
 	if (!client->irq)
 		return dev_err_probe(dev, -EINVAL, "IRQ resource not found\n");
 
-	mcu = devm_kzalloc(dev, sizeof(*mcu), GFP_KERNEL);
+	mcu = devm_kzalloc_obj(dev, *mcu);
 	if (!mcu)
 		return -ENOMEM;
 

@@ -403,7 +403,7 @@ static void bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 {
 	struct debugfs_regset32 *regset;
 
-	regset = devm_kzalloc(cprman->dev, sizeof(*regset), GFP_KERNEL);
+	regset = devm_kzalloc_obj(cprman->dev, *regset);
 	if (!regset)
 		return;
 
@@ -760,7 +760,7 @@ static void bcm2835_pll_debug_init(struct clk_hw *hw,
 	const struct bcm2835_pll_data *data = pll->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
+	regs = devm_kzalloc_objs(cprman->dev, *regs, 7);
 	if (!regs)
 		return;
 
@@ -890,7 +890,7 @@ static void bcm2835_pll_divider_debug_init(struct clk_hw *hw,
 	const struct bcm2835_pll_divider_data *data = divider->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
+	regs = devm_kzalloc_objs(cprman->dev, *regs, 7);
 	if (!regs)
 		return;
 
@@ -1400,7 +1400,7 @@ bcm2835_register_pll_divider(struct bcm2835_cprman *cprman,
 	init.ops = &bcm2835_pll_divider_clk_ops;
 	init.flags = divider_data->flags | CLK_IGNORE_UNUSED;
 
-	divider = devm_kzalloc(cprman->dev, sizeof(*divider), GFP_KERNEL);
+	divider = devm_kzalloc_obj(cprman->dev, *divider);
 	if (!divider)
 		return NULL;
 
@@ -1485,7 +1485,7 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 			init.flags &= ~CLK_IS_CRITICAL;
 	}
 
-	clock = devm_kzalloc(cprman->dev, sizeof(*clock), GFP_KERNEL);
+	clock = devm_kzalloc_obj(cprman->dev, *clock);
 	if (!clock)
 		return NULL;
 
@@ -2279,9 +2279,7 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	cprman = devm_kzalloc(dev,
-			      struct_size(cprman, onecell.hws, asize),
-			      GFP_KERNEL);
+	cprman = devm_kzalloc_flex(dev, *cprman, onecell.hws, asize);
 	if (!cprman)
 		return -ENOMEM;
 

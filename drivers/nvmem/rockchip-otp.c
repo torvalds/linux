@@ -432,8 +432,7 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	if (!data)
 		return dev_err_probe(dev, -EINVAL, "failed to get match data\n");
 
-	otp = devm_kzalloc(&pdev->dev, struct_size(otp, clks, data->num_clks),
-			   GFP_KERNEL);
+	otp = devm_kzalloc_flex(&pdev->dev, *otp, clks, data->num_clks);
 	if (!otp)
 		return -ENOMEM;
 

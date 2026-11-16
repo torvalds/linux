@@ -1127,7 +1127,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		return -EPROBE_DEFER;
 	}
 
-	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
+	tcon = devm_kzalloc_obj(dev, *tcon);
 	if (!tcon)
 		return -ENOMEM;
 	dev_set_drvdata(dev, tcon);

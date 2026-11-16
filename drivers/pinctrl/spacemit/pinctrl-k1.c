@@ -776,7 +776,7 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 	if (pctrl_data->npins == 0)
 		return dev_err_probe(dev, -EINVAL, "invalid pin data\n");
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

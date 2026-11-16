@@ -609,11 +609,11 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 	const char *device_name;
 	int ret;
 
-	tas_hda = devm_kzalloc(&clt->dev, sizeof(*tas_hda), GFP_KERNEL);
+	tas_hda = devm_kzalloc_obj(&clt->dev, *tas_hda);
 	if (!tas_hda)
 		return -ENOMEM;
 
-	hda_priv = devm_kzalloc(&clt->dev, sizeof(*hda_priv), GFP_KERNEL);
+	hda_priv = devm_kzalloc_obj(&clt->dev, *hda_priv);
 	if (!hda_priv)
 		return -ENOMEM;
 

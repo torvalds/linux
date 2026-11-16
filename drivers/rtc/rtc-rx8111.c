@@ -306,7 +306,7 @@ static int rx8111_probe(struct i2c_client *client)
 	struct rtc_device *rtc;
 	size_t i;
 
-	data = devm_kmalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kmalloc_obj(&client->dev, *data);
 	if (!data) {
 		dev_dbg(&client->dev, "Could not allocate device data\n");
 		return -ENOMEM;

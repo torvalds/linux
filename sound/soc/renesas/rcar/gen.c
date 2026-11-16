@@ -651,7 +651,7 @@ int rsnd_gen_probe(struct rsnd_priv *priv)
 	struct rsnd_gen *gen;
 	int ret;
 
-	gen = devm_kzalloc(dev, sizeof(*gen), GFP_KERNEL);
+	gen = devm_kzalloc_obj(dev, *gen);
 	if (!gen)
 		return -ENOMEM;
 

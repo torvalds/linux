@@ -335,7 +335,7 @@ static int max22007_parse_channel_cfg(struct max22007_state *st, u8 *num_channel
 	if (!num_chan)
 		return dev_err_probe(dev, -ENODEV, "no channels configured\n");
 
-	st->iio_chans = devm_kcalloc(dev, num_chan, sizeof(*st->iio_chans), GFP_KERNEL);
+	st->iio_chans = devm_kzalloc_objs(dev, *st->iio_chans, num_chan);
 	if (!st->iio_chans)
 		return -ENOMEM;
 

@@ -916,9 +916,7 @@ static int loader_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	struct ishtp_cl_data *client_data;
 	int rv;
 
-	client_data = devm_kzalloc(ishtp_device(cl_device),
-				   sizeof(*client_data),
-				   GFP_KERNEL);
+	client_data = devm_kzalloc_obj(ishtp_device(cl_device), *client_data);
 	if (!client_data)
 		return -ENOMEM;
 

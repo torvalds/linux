@@ -151,7 +151,7 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(plat_dat),
 				     "dt configuration failed\n");
 
-	gbeth = devm_kzalloc(dev, sizeof(*gbeth), GFP_KERNEL);
+	gbeth = devm_kzalloc_obj(dev, *gbeth);
 	if (!gbeth)
 		return -ENOMEM;
 
@@ -159,8 +159,8 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 	gbeth->of_data = of_data;
 
 	plat_dat->num_clks = of_data->num_clks;
-	plat_dat->clks = devm_kcalloc(dev, plat_dat->num_clks,
-				      sizeof(*plat_dat->clks), GFP_KERNEL);
+	plat_dat->clks = devm_kzalloc_objs(dev, *plat_dat->clks,
+					   plat_dat->num_clks);
 	if (!plat_dat->clks)
 		return -ENOMEM;
 

@@ -569,14 +569,12 @@ static u32 *parent_process(const char *clocks[],
 	 * selector is not required, but we allocate space for the
 	 * array anyway to keep things simple.
 	 */
-	parent_names = kmalloc_array(parent_count, sizeof(*parent_names),
-			       GFP_KERNEL);
+	parent_names = kmalloc_objs(*parent_names, parent_count);
 	if (!parent_names)
 		return ERR_PTR(-ENOMEM);
 
 	/* There is at least one parent, so allocate a selector array */
-	parent_sel = kmalloc_array(parent_count, sizeof(*parent_sel),
-				   GFP_KERNEL);
+	parent_sel = kmalloc_objs(*parent_sel, parent_count);
 	if (!parent_sel) {
 		kfree(parent_names);
 

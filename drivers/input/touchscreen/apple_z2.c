@@ -355,7 +355,7 @@ static int apple_z2_probe(struct spi_device *spi)
 	struct apple_z2 *z2;
 	int error;
 
-	z2 = devm_kzalloc(dev, sizeof(*z2), GFP_KERNEL);
+	z2 = devm_kzalloc_obj(dev, *z2);
 	if (!z2)
 		return -ENOMEM;
 

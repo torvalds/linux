@@ -382,7 +382,7 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 	struct nxp_spifi *spifi;
 	int ret;
 
-	spifi = devm_kzalloc(&pdev->dev, sizeof(*spifi), GFP_KERNEL);
+	spifi = devm_kzalloc_obj(&pdev->dev, *spifi);
 	if (!spifi)
 		return -ENOMEM;
 

@@ -177,7 +177,7 @@ static int zet6223_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

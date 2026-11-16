@@ -933,11 +933,11 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	if (!pdata)
 		pdata = dev_get_platdata(&pdev->dev);
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 
-	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
+	dw_i2s_dai = devm_kzalloc_obj(&pdev->dev, *dw_i2s_dai);
 	if (!dw_i2s_dai)
 		return -ENOMEM;
 

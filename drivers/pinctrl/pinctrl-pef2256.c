@@ -323,7 +323,7 @@ static int pef2256_pinctrl_probe(struct platform_device *pdev)
 	struct pef2256 *pef2256;
 	int ret;
 
-	pef2256_pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pef2256_pinctrl), GFP_KERNEL);
+	pef2256_pinctrl = devm_kzalloc_obj(&pdev->dev, *pef2256_pinctrl);
 	if (!pef2256_pinctrl)
 		return -ENOMEM;
 

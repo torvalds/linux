@@ -428,7 +428,7 @@ static struct clk *devm_aspeed_peci_register_clk_div(struct device *dev, struct 
 	init.num_parents = 1;
 	init.flags = 0;
 
-	peci_clk = devm_kzalloc(dev, sizeof(struct clk_aspeed_peci), GFP_KERNEL);
+	peci_clk = devm_kzalloc_obj(dev, struct clk_aspeed_peci);
 	if (!peci_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -514,7 +514,7 @@ static int aspeed_peci_probe(struct platform_device *pdev)
 	struct clk *ref_clk;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

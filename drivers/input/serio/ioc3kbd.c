@@ -135,7 +135,7 @@ static int ioc3kbd_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENXIO;
 
-	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(dev, *d);
 	if (!d)
 		return -ENOMEM;
 

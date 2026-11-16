@@ -1671,7 +1671,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	if (r)
 		return r;
 
-	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
+	cio2 = devm_kzalloc_obj(dev, *cio2);
 	if (!cio2)
 		return -ENOMEM;
 	cio2->pci_dev = pci_dev;

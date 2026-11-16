@@ -161,7 +161,7 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 		.data = data,
 	};
 
-	dw = devm_kzalloc(&pdev->dev, sizeof(*dw), GFP_KERNEL);
+	dw = devm_kzalloc_obj(&pdev->dev, *dw);
 	if (!dw)
 		return -ENOMEM;
 

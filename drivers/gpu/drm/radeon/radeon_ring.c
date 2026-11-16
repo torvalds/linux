@@ -322,7 +322,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	}
 
 	/* and then save the content of the ring */
-	*data = kvmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
+	*data = kvmalloc_objs(uint32_t, size);
 	if (!*data) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;

@@ -818,11 +818,11 @@ static int tegra_hte_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	hte_dev = devm_kzalloc(dev, sizeof(*hte_dev), GFP_KERNEL);
+	hte_dev = devm_kzalloc_obj(dev, *hte_dev);
 	if (!hte_dev)
 		return -ENOMEM;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 
@@ -845,8 +845,7 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	if (ret != 0)
 		hte_dev->itr_thrshld = 1;
 
-	hte_dev->sl = devm_kcalloc(dev, slices, sizeof(*hte_dev->sl),
-				   GFP_KERNEL);
+	hte_dev->sl = devm_kzalloc_objs(dev, *hte_dev->sl, slices);
 	if (!hte_dev->sl)
 		return -ENOMEM;
 
@@ -869,9 +868,8 @@ static int tegra_hte_probe(struct platform_device *pdev)
 
 	if (hte_dev->prov_data &&
 	    hte_dev->prov_data->type == HTE_TEGRA_TYPE_GPIO) {
-		hte_dev->line_data = devm_kcalloc(dev, nlines,
-						  sizeof(*hte_dev->line_data),
-						  GFP_KERNEL);
+		hte_dev->line_data = devm_kzalloc_objs(dev, *hte_dev->line_data,
+						       nlines);
 		if (!hte_dev->line_data)
 			return -ENOMEM;
 

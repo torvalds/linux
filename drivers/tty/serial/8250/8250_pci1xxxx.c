@@ -778,7 +778,7 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 
 	nr_ports = pci1xxxx_get_num_ports(pdev);
 
-	priv = devm_kzalloc(dev, struct_size(priv, uport, nr_ports), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, uport, nr_ports);
 	if (!priv)
 		return -ENOMEM;
 

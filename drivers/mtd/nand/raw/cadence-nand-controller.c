@@ -3275,7 +3275,7 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 	}
 
-	dt = devm_kzalloc(&ofdev->dev, sizeof(*dt), GFP_KERNEL);
+	dt = devm_kzalloc_obj(&ofdev->dev, *dt);
 	if (!dt)
 		return -ENOMEM;
 

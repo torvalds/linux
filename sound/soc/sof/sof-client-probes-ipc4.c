@@ -383,8 +383,7 @@ static int ipc4_probes_points_remove(struct sof_client_dev *cdev,
 	if (!mentry)
 		return -ENODEV;
 
-	probe_point_ids = kcalloc(num_buffer_id, sizeof(*probe_point_ids),
-				  GFP_KERNEL);
+	probe_point_ids = kzalloc_objs(*probe_point_ids, num_buffer_id);
 	if (!probe_point_ids)
 		return -ENOMEM;
 

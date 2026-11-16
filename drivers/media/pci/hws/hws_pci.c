@@ -394,7 +394,7 @@ static int hws_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	bool v4l2_registered = false;
 
 	/* devres-backed device object */
-	hws = devm_kzalloc(&pdev->dev, sizeof(*hws), GFP_KERNEL);
+	hws = devm_kzalloc_obj(&pdev->dev, *hws);
 	if (!hws)
 		return -ENOMEM;
 

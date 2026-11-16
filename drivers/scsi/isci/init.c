@@ -483,7 +483,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	struct Scsi_Host *shost;
 	int err, i;
 
-	ihost = devm_kzalloc(&pdev->dev, sizeof(*ihost), GFP_KERNEL);
+	ihost = devm_kzalloc_obj(&pdev->dev, *ihost);
 	if (!ihost)
 		return NULL;
 
@@ -599,7 +599,7 @@ static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "driver configured for rev: %d silicon\n",
 		 pdev->revision);
 
-	pci_info = devm_kzalloc(&pdev->dev, sizeof(*pci_info), GFP_KERNEL);
+	pci_info = devm_kzalloc_obj(&pdev->dev, *pci_info);
 	if (!pci_info)
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);

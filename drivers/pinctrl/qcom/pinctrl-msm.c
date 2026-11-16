@@ -759,7 +759,7 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 	if (ret > ngpios)
 		return -EINVAL;
 
-	tmp = kmalloc_array(len, sizeof(*tmp), GFP_KERNEL);
+	tmp = kmalloc_objs(*tmp, len);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1492,8 +1492,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	girq->parent_handler = msm_gpio_irq_handler;
 	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(pctrl->dev, 1, sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(pctrl->dev, *girq->parents, 1);
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->default_type = IRQ_TYPE_NONE;
@@ -1597,7 +1596,7 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	int ret;
 	int i;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

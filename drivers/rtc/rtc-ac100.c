@@ -310,10 +310,8 @@ static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 	const char *parents[2] = {AC100_RTC_32K_NAME};
 	int i, ret;
 
-	chip->clk_data = devm_kzalloc(chip->dev,
-				      struct_size(chip->clk_data, hws,
-						  AC100_CLKOUT_NUM),
-				      GFP_KERNEL);
+	chip->clk_data = devm_kzalloc_flex(chip->dev, *chip->clk_data, hws,
+					   AC100_CLKOUT_NUM);
 	if (!chip->clk_data)
 		return -ENOMEM;
 
@@ -555,7 +553,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	struct ac100_rtc_dev *chip;
 	int ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

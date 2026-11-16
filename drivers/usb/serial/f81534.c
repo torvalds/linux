@@ -851,8 +851,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		return -ENODEV;
 	}
 
-	serial_priv = devm_kzalloc(&serial->interface->dev,
-					sizeof(*serial_priv), GFP_KERNEL);
+	serial_priv = devm_kzalloc_obj(&serial->interface->dev, *serial_priv);
 	if (!serial_priv)
 		return -ENOMEM;
 
@@ -1357,7 +1356,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 	u8 value;
 
 	serial_priv = usb_get_serial_data(port->serial);
-	port_priv = devm_kzalloc(&port->dev, sizeof(*port_priv), GFP_KERNEL);
+	port_priv = devm_kzalloc_obj(&port->dev, *port_priv);
 	if (!port_priv)
 		return -ENOMEM;
 

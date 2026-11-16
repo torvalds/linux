@@ -863,7 +863,7 @@ static int nau8325_i2c_probe(struct i2c_client *i2c)
 	int ret, value;
 
 	if (!nau8325) {
-		nau8325 = devm_kzalloc(dev, sizeof(*nau8325), GFP_KERNEL);
+		nau8325 = devm_kzalloc_obj(dev, *nau8325);
 		if (!nau8325) {
 			ret = -ENOMEM;
 			goto err;

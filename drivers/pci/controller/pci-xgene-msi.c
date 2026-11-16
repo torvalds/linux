@@ -350,8 +350,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	struct xgene_msi *xgene_msi;
 	int rc;
 
-	xgene_msi_ctrl = devm_kzalloc(&pdev->dev, sizeof(*xgene_msi_ctrl),
-				      GFP_KERNEL);
+	xgene_msi_ctrl = devm_kzalloc_obj(&pdev->dev, *xgene_msi_ctrl);
 	if (!xgene_msi_ctrl)
 		return -ENOMEM;
 

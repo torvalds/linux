@@ -252,7 +252,7 @@ int logicvc_crtc_init(struct logicvc_drm *logicvc)
 	struct logicvc_layer *layer_primary;
 	int ret;
 
-	crtc = devm_kzalloc(dev, sizeof(*crtc), GFP_KERNEL);
+	crtc = devm_kzalloc_obj(dev, *crtc);
 	if (!crtc)
 		return -ENOMEM;
 

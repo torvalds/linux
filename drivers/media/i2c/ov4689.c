@@ -901,7 +901,7 @@ static int ov4689_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ov4689 = devm_kzalloc(dev, sizeof(*ov4689), GFP_KERNEL);
+	ov4689 = devm_kzalloc_obj(dev, *ov4689);
 	if (!ov4689)
 		return -ENOMEM;
 

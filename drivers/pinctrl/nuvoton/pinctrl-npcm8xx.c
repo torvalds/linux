@@ -2533,9 +2533,8 @@ static int npcm8xx_gpio_register(struct npcm8xx_pinctrl *pctrl)
 		girq->chip = &pctrl->gpio_bank[id].irq_chip;
 		girq->parent_handler = npcmgpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(pctrl->dev, girq->num_parents,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(pctrl->dev, *girq->parents,
+						  girq->num_parents);
 		if (!girq->parents)
 			return -ENOMEM;
 
@@ -2558,7 +2557,7 @@ static int npcm8xx_pinctrl_probe(struct platform_device *pdev)
 	struct npcm8xx_pinctrl *pctrl;
 	int ret;
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

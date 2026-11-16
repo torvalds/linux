@@ -117,7 +117,7 @@ static int tegra_clock_probe(struct platform_device *pdev)
 	if (!dev->pm_domain)
 		return -EINVAL;
 
-	clk_dev = devm_kzalloc(dev, sizeof(*clk_dev), GFP_KERNEL);
+	clk_dev = devm_kzalloc_obj(dev, *clk_dev);
 	if (!clk_dev)
 		return -ENOMEM;
 

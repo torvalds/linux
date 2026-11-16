@@ -2310,7 +2310,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	struct aspeed_video *video;
 	int rc;
 
-	video = devm_kzalloc(&pdev->dev, sizeof(*video), GFP_KERNEL);
+	video = devm_kzalloc_obj(&pdev->dev, *video);
 	if (!video)
 		return -ENOMEM;
 

@@ -102,7 +102,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	if (!np)
 		return NULL;
 
-	axi = devm_kzalloc(&pdev->dev, sizeof(*axi), GFP_KERNEL);
+	axi = devm_kzalloc_obj(&pdev->dev, *axi);
 	if (!axi) {
 		of_node_put(np);
 		return ERR_PTR(-ENOMEM);
@@ -352,9 +352,8 @@ static int stmmac_mdio_setup(struct plat_stmmacenet_data *plat,
 		dev_info(dev, "Deprecated MDIO bus assumption used\n");
 
 	if (plat->mdio_node || legacy_mdio) {
-		plat->mdio_bus_data = devm_kzalloc(dev,
-						   sizeof(*plat->mdio_bus_data),
-						   GFP_KERNEL);
+		plat->mdio_bus_data = devm_kzalloc_obj(dev,
+						       *plat->mdio_bus_data);
 		if (!plat->mdio_bus_data)
 			return -ENOMEM;
 

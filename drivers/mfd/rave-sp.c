@@ -803,7 +803,7 @@ static int rave_sp_probe(struct serdev_device *serdev)
 		return -EINVAL;
 	}
 
-	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
+	sp = devm_kzalloc_obj(dev, *sp);
 	if (!sp)
 		return -ENOMEM;
 

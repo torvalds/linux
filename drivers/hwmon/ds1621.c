@@ -347,8 +347,7 @@ static int ds1621_probe(struct i2c_client *client)
 	struct ds1621_data *data;
 	struct device *hwmon_dev;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct ds1621_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct ds1621_data);
 	if (!data)
 		return -ENOMEM;
 

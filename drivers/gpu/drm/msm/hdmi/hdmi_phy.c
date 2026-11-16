@@ -14,13 +14,11 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	struct device *dev = &phy->pdev->dev;
 	int i, ret;
 
-	phy->regs = devm_kcalloc(dev, cfg->num_regs, sizeof(phy->regs[0]),
-				 GFP_KERNEL);
+	phy->regs = devm_kzalloc_objs(dev, phy->regs[0], cfg->num_regs);
 	if (!phy->regs)
 		return -ENOMEM;
 
-	phy->clks = devm_kcalloc(dev, cfg->num_clks, sizeof(phy->clks[0]),
-				 GFP_KERNEL);
+	phy->clks = devm_kzalloc_objs(dev, phy->clks[0], cfg->num_clks);
 	if (!phy->clks)
 		return -ENOMEM;
 
@@ -156,7 +154,7 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 	struct hdmi_phy *phy;
 	int ret;
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENODEV;
 

@@ -8416,6 +8416,10 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 	struct hdac_stream *hstr = NULL;
 	unsigned int format, stream_tag;
 	u32 enc_words[4];
+	struct {
+		u32 r100, r104, r400, r408, r40c, r410, rc04;
+		u32 ser_base[4], ser_clk[4], ser_out[4];
+	} saved;
 	__le32 *dst;
 	int word_idx = 0;
 	int frame_words;
@@ -8501,6 +8505,24 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 	/* Ensure DMA buffer writes are committed before triggering the HDA stream */
 	wmb();
 
+	/*
+	 * Save every BAR2 register the strip transport reprograms, so that the
+	 * audio serializer/clock/routing setup done at codec init can be put
+	 * back afterwards. Leaving them modified silences the analog outputs.
+	 */
+	saved.r100 = readl(spec->mem_base + 0x100);
+	saved.r104 = readl(spec->mem_base + 0x104);
+	saved.r400 = readl(spec->mem_base + 0x400);
+	saved.r408 = readl(spec->mem_base + 0x408);
+	saved.r40c = readl(spec->mem_base + 0x40c);
+	saved.r410 = readl(spec->mem_base + 0x410);
+	saved.rc04 = readl(spec->mem_base + 0xc04);
+	for (i = 0; i < 4; i++) {
+		saved.ser_base[i] = readl(CA0113_SERIALIZER_BASE(spec, i));
+		saved.ser_clk[i] = readl(CA0113_SERIALIZER_CLK(spec, i));
+		saved.ser_out[i] = readl(CA0113_SERIALIZER_OUT(spec, i));
+	}
+
 	/* 2. Configure CA0113 BAR2 hardware registers */
 	/* Power up clocks (CtxHdb 0x141b7 / 0x14210) */
 	writel(readl(spec->mem_base + 0xc04) | 0x7, spec->mem_base + 0xc04);
@@ -8559,8 +8581,19 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 	snd_hdac_dsp_trigger(hstr, false);
 	codec_dbg(codec, "AE5 strip: trigger complete\n");
 
-	/* Teardown: clear 0x104 pin mux back to 0 */
-	writel(0x00000000, spec->mem_base + 0x104);
+	/* Teardown: put back the registers exactly as the audio path left them */
+	writel(saved.r104, spec->mem_base + 0x104);
+	for (i = 0; i < 4; i++) {
+		writel(saved.ser_out[i], CA0113_SERIALIZER_OUT(spec, i));
+		writel(saved.ser_clk[i], CA0113_SERIALIZER_CLK(spec, i));
+		writel(saved.ser_base[i], CA0113_SERIALIZER_BASE(spec, i));
+	}
+	writel(saved.r100, spec->mem_base + 0x100);
+	writel(saved.r410, spec->mem_base + 0x410);
+	writel(saved.r40c, spec->mem_base + 0x40c);
+	writel(saved.r408, spec->mem_base + 0x408);
+	writel(saved.r400, spec->mem_base + 0x400);
+	writel(saved.rc04, spec->mem_base + 0xc04);
 
 	snd_hdac_dsp_cleanup(hstr, &dmab);
 	scoped_guard(spinlock_irq, &bus->reg_lock)
@@ -8613,6 +8646,12 @@ static int ae5_strip_ctl_put(struct snd_kcontrol *kcontrol,
 	}
 	change = memcmp(spec->ae5_strip_cur_colors, colors,
 			sizeof(spec->ae5_strip_cur_colors)) != 0;
+	/*
+	 * alsactl restores this control at every card probe with the saved
+	 * values; do not run the whole transmit routine when nothing changed.
+	 */
+	if (!change)
+		return 0;
 	num_leds = spec->ae5_strip_cur_num_leds;
 	ret = ae5_strip_send_frame(codec, colors, num_leds);
 	if (ret < 0)

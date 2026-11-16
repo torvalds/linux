@@ -609,7 +609,7 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	const struct dw_mipi_dsi_plat_data *pdata = of_device_get_match_data(dev);
 	int ret;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc_obj(dev, *dsi);
 	if (!dsi)
 		return -ENOMEM;
 

@@ -837,7 +837,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	int rc, i;
 
-	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
+	chg = devm_kzalloc_obj(&pdev->dev, *chg);
 	if (!chg)
 		return -ENOMEM;
 

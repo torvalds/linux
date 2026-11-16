@@ -2814,8 +2814,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 
 	ring->frag_size = mtk_max_frag_size(rx_data_len);
 	ring->buf_size = mtk_max_buf_size(ring->frag_size);
-	ring->data = kcalloc(rx_dma_size, sizeof(*ring->data),
-			     GFP_KERNEL);
+	ring->data = kzalloc_objs(*ring->data, rx_dma_size);
 	if (!ring->data)
 		return -ENOMEM;
 
@@ -4880,9 +4879,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	memset(mac->hwlro_ip, 0, sizeof(mac->hwlro_ip));
 	mac->hwlro_ip_cnt = 0;
 
-	mac->hw_stats = devm_kzalloc(eth->dev,
-				     sizeof(*mac->hw_stats),
-				     GFP_KERNEL);
+	mac->hw_stats = devm_kzalloc_obj(eth->dev, *mac->hw_stats);
 	if (!mac->hw_stats) {
 		dev_err(eth->dev, "failed to allocate counter memory\n");
 		err = -ENOMEM;
@@ -5120,7 +5117,7 @@ static int mtk_probe(struct platform_device *pdev)
 	struct mtk_eth *eth;
 	int err, i;
 
-	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
+	eth = devm_kzalloc_obj(&pdev->dev, *eth);
 	if (!eth)
 		return -ENOMEM;
 

@@ -1301,10 +1301,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->active_slave = prop;
 
-	data->slave_data = devm_kcalloc(&pdev->dev,
-					data->slaves,
-					sizeof(struct cpsw_slave_data),
-					GFP_KERNEL);
+	data->slave_data = devm_kzalloc_objs(&pdev->dev, struct cpsw_slave_data,
+					     data->slaves);
 	if (!data->slave_data)
 		return -ENOMEM;
 
@@ -1570,7 +1568,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	int ret = 0, ch;
 	int irq;
 
-	cpsw = devm_kzalloc(dev, sizeof(struct cpsw_common), GFP_KERNEL);
+	cpsw = devm_kzalloc_obj(dev, struct cpsw_common);
 	if (!cpsw)
 		return -ENOMEM;
 
@@ -1642,9 +1640,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		cpsw->quirk_irq = true;
 
 	data = &cpsw->data;
-	cpsw->slaves = devm_kcalloc(dev,
-				    data->slaves, sizeof(struct cpsw_slave),
-				    GFP_KERNEL);
+	cpsw->slaves = devm_kzalloc_objs(dev, struct cpsw_slave, data->slaves);
 	if (!cpsw->slaves) {
 		ret = -ENOMEM;
 		goto clean_dt_ret;

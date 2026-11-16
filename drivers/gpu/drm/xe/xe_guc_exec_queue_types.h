@@ -52,7 +52,10 @@ struct xe_guc_exec_queue {
 	u16 id;
 	/** @suspend_wait: wait queue used to wait on pending suspends */
 	wait_queue_head_t suspend_wait;
-	/** @suspend_pending: a suspend of the exec_queue is pending */
+	/**
+	 * @suspend_pending: a suspend of the exec_queue is pending.
+	 * Protected by @sched.msg_lock.
+	 */
 	bool suspend_pending;
 	/**
 	 * @suspend_count: Reference count of active suspend requests. The

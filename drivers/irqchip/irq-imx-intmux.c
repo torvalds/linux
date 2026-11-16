@@ -215,7 +215,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	data = devm_kzalloc(&pdev->dev, struct_size(data, irqchip_data, channum), GFP_KERNEL);
+	data = devm_kzalloc_flex(&pdev->dev, *data, irqchip_data, channum);
 	if (!data)
 		return -ENOMEM;
 

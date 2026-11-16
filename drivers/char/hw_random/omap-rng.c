@@ -423,7 +423,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct omap_rng_dev), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct omap_rng_dev);
 	if (!priv)
 		return -ENOMEM;
 

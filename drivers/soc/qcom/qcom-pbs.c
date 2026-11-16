@@ -185,7 +185,7 @@ static int qcom_pbs_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	pbs = devm_kzalloc(&pdev->dev, sizeof(*pbs), GFP_KERNEL);
+	pbs = devm_kzalloc_obj(&pdev->dev, *pbs);
 	if (!pbs)
 		return -ENOMEM;
 

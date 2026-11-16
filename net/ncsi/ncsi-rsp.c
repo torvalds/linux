@@ -820,9 +820,8 @@ static int ncsi_rsp_handler_gc(struct ncsi_request *nr)
 	nc->mac_filter.n_mc = rsp->mc_cnt;
 	nc->mac_filter.n_mixed = rsp->mixed_cnt;
 
-	nc->vlan_filter.vids = kcalloc(rsp->vlan_cnt,
-				       sizeof(*nc->vlan_filter.vids),
-				       GFP_ATOMIC);
+	nc->vlan_filter.vids = kzalloc_objs(*nc->vlan_filter.vids,
+					    rsp->vlan_cnt, GFP_ATOMIC);
 	if (!nc->vlan_filter.vids)
 		return -ENOMEM;
 	/* Set VLAN filters active so they are cleared in the first

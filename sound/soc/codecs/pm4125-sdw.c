@@ -353,7 +353,7 @@ static int pm4125_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 	int master_ch_mask_size = 0;
 	int ret, i;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

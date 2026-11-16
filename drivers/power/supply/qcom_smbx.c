@@ -961,7 +961,7 @@ static int smb_probe(struct platform_device *pdev)
 	int float_voltage_uv;
 	int rc, irq;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -1008,7 +1008,7 @@ static int smb_probe(struct platform_device *pdev)
 	supply_config.drv_data = chip;
 	supply_config.fwnode = dev_fwnode(&pdev->dev);
 
-	desc = devm_kzalloc(chip->dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(chip->dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 	memcpy(desc, &smb_psy_desc, sizeof(smb_psy_desc));

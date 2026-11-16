@@ -645,8 +645,7 @@ static int pcf85063_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	pcf85063 = devm_kzalloc(dev, sizeof(struct pcf85063),
-				GFP_KERNEL);
+	pcf85063 = devm_kzalloc_obj(dev, struct pcf85063);
 	if (!pcf85063)
 		return -ENOMEM;
 

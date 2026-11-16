@@ -668,7 +668,7 @@ static int bitland_mifs_wmi_probe(struct wmi_device *wdev, const void *context)
 	};
 	int ret;
 
-	drv_data = devm_kzalloc(&wdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&wdev->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

@@ -632,8 +632,7 @@ static int fts_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(struct fts_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct fts_data);
 	if (!data)
 		return -ENOMEM;
 

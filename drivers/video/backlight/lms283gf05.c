@@ -149,8 +149,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 	struct lms283gf05_state *st;
 	struct lcd_device *ld;
 
-	st = devm_kzalloc(&spi->dev, sizeof(struct lms283gf05_state),
-				GFP_KERNEL);
+	st = devm_kzalloc_obj(&spi->dev, struct lms283gf05_state);
 	if (st == NULL)
 		return -ENOMEM;
 

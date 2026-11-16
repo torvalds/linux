@@ -124,7 +124,7 @@ static int intel_platform_pinctrl_prepare_community(struct device *dev,
 	if (!ngpps)
 		return -ENODEV;
 
-	gpps = devm_kcalloc(dev, ngpps, sizeof(*gpps), GFP_KERNEL);
+	gpps = devm_kzalloc_objs(dev, *gpps, ngpps);
 	if (!gpps)
 		return -ENOMEM;
 
@@ -158,7 +158,7 @@ static int intel_platform_pinctrl_prepare_soc_data(struct device *dev,
 
 	/* Version 1.0 of the specification assumes only a single community per device node */
 	ncommunities = 1;
-	communities = devm_kcalloc(dev, ncommunities, sizeof(*communities), GFP_KERNEL);
+	communities = devm_kzalloc_objs(dev, *communities, ncommunities);
 	if (!communities)
 		return -ENOMEM;
 
@@ -190,7 +190,7 @@ static int intel_platform_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

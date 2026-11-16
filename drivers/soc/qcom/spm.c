@@ -425,7 +425,7 @@ static int spm_register_regulator(struct device *dev, struct spm_driver_data *dr
 	if (!drv->reg_data->set_vdd)
 		return 0;
 
-	rdesc = devm_kzalloc(dev, sizeof(*rdesc), GFP_KERNEL);
+	rdesc = devm_kzalloc_obj(dev, *rdesc);
 	if (!rdesc)
 		return -ENOMEM;
 
@@ -511,7 +511,7 @@ static int spm_dev_probe(struct platform_device *pdev)
 	struct spm_driver_data *drv;
 	void __iomem *addr;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&pdev->dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

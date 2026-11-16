@@ -477,9 +477,9 @@ bool intel_dp_has_joiner(struct intel_dp *intel_dp)
 	    !connector->panel.vbt.edp.pipe_joiner_enable)
 		return false;
 
-	return DISPLAY_VER(display) >= 12 ||
+	return ((DISPLAY_VER(display) >= 12 && DISPLAY_VERx100(display) != 3002) ||
 		(DISPLAY_VER(display) == 11 &&
-		 encoder->port != PORT_A);
+		 encoder->port != PORT_A));
 }
 
 static int dg2_max_source_rate(struct intel_dp *intel_dp)

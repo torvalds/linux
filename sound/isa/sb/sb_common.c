@@ -179,7 +179,7 @@ int snd_sbdsp_create(struct snd_card *card,
 	if (snd_BUG_ON(!r_chip))
 		return -EINVAL;
 	*r_chip = NULL;
-	chip = devm_kzalloc(card->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(card->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);

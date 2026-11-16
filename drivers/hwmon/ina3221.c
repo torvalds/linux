@@ -821,7 +821,7 @@ static int ina3221_probe(struct i2c_client *client)
 	char name[32];
 	int i, ret;
 
-	ina = devm_kzalloc(dev, sizeof(*ina), GFP_KERNEL);
+	ina = devm_kzalloc_obj(dev, *ina);
 	if (!ina)
 		return -ENOMEM;
 

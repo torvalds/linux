@@ -665,7 +665,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	drw_pmu = devm_kzalloc(&pdev->dev, sizeof(*drw_pmu), GFP_KERNEL);
+	drw_pmu = devm_kzalloc_obj(&pdev->dev, *drw_pmu);
 	if (!drw_pmu)
 		return -ENOMEM;
 

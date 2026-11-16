@@ -503,7 +503,7 @@ static int bcm2712_iommu_probe(struct platform_device *pdev)
 	struct bcm2712_iommu *mmu;
 	int ret;
 
-	mmu = devm_kzalloc(dev, sizeof(*mmu), GFP_KERNEL);
+	mmu = devm_kzalloc_obj(dev, *mmu);
 	if (!mmu)
 		return -ENOMEM;
 

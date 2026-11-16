@@ -1469,7 +1469,7 @@ static int adt7470_probe(struct i2c_client *client)
 	int freq_val;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct adt7470_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct adt7470_data);
 	if (!data)
 		return -ENOMEM;
 

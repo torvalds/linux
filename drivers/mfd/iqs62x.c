@@ -316,9 +316,7 @@ static int iqs62x_firmware_parse(struct iqs62x_core *iqs62x,
 		if (ret)
 			break;
 
-		fw_blk = devm_kzalloc(&client->dev,
-				      struct_size(fw_blk, data, len),
-				      GFP_KERNEL);
+		fw_blk = devm_kzalloc_flex(&client->dev, *fw_blk, data, len);
 		if (!fw_blk) {
 			ret = -ENOMEM;
 			break;
@@ -900,7 +898,7 @@ static int iqs62x_probe(struct i2c_client *client)
 	int ret, i, j;
 	const char *fw_name = NULL;
 
-	iqs62x = devm_kzalloc(&client->dev, sizeof(*iqs62x), GFP_KERNEL);
+	iqs62x = devm_kzalloc_obj(&client->dev, *iqs62x);
 	if (!iqs62x)
 		return -ENOMEM;
 

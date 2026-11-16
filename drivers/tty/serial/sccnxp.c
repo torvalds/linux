@@ -893,7 +893,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	if (IS_ERR(membase))
 		return PTR_ERR(membase);
 
-	s = devm_kzalloc(&pdev->dev, sizeof(struct sccnxp_port), GFP_KERNEL);
+	s = devm_kzalloc_obj(&pdev->dev, struct sccnxp_port);
 	if (!s) {
 		dev_err(&pdev->dev, "Error allocating port structure\n");
 		return -ENOMEM;

@@ -217,7 +217,7 @@ static struct knav_queue *__knav_queue_open(struct knav_queue_inst *inst,
 	unsigned id;
 	int ret = 0;
 
-	qh = devm_kzalloc(inst->kdev->dev, sizeof(*qh), GFP_KERNEL);
+	qh = devm_kzalloc_obj(inst->kdev->dev, *qh);
 	if (!qh)
 		return ERR_PTR(-ENOMEM);
 
@@ -765,7 +765,7 @@ void *knav_pool_create(const char *name,
 	if (!knav_qdev->dev)
 		return ERR_PTR(-ENODEV);
 
-	pool = devm_kzalloc(knav_qdev->dev, sizeof(*pool), GFP_KERNEL);
+	pool = devm_kzalloc_obj(knav_qdev->dev, *pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
@@ -1020,7 +1020,7 @@ static void knav_queue_setup_region(struct knav_device *kdev,
 	}
 	region->dma_end = region->dma_start + size;
 
-	pool = devm_kzalloc(kdev->dev, sizeof(*pool), GFP_KERNEL);
+	pool = devm_kzalloc_obj(kdev->dev, *pool);
 	if (!pool)
 		goto fail;
 	pool->num_desc = 0;
@@ -1081,7 +1081,7 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 				     "descriptor-regions not specified\n");
 
 	for_each_child_of_node_scoped(regions, child) {
-		region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
+		region = devm_kzalloc_obj(dev, *region);
 		if (!region)
 			return -ENOMEM;
 
@@ -1204,7 +1204,7 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	u32 temp[2], start, end, id, index;
 	int ret, i;
 
-	range = devm_kzalloc(dev, sizeof(*range), GFP_KERNEL);
+	range = devm_kzalloc_obj(dev, *range);
 	if (!range)
 		return -ENOMEM;
 
@@ -1393,7 +1393,7 @@ static int knav_queue_init_qmgrs(struct knav_device *kdev,
 				     "queue manager info not specified\n");
 
 	for_each_child_of_node_scoped(qmgrs, child) {
-		qmgr = devm_kzalloc(dev, sizeof(*qmgr), GFP_KERNEL);
+		qmgr = devm_kzalloc_obj(dev, *qmgr);
 		if (!qmgr)
 			return -ENOMEM;
 
@@ -1489,7 +1489,7 @@ static int knav_queue_init_pdsps(struct knav_device *kdev,
 	struct knav_pdsp_info *pdsp;
 
 	for_each_child_of_node_scoped(pdsps, child) {
-		pdsp = devm_kzalloc(dev, sizeof(*pdsp), GFP_KERNEL);
+		pdsp = devm_kzalloc_obj(dev, *pdsp);
 		if (!pdsp)
 			return -ENOMEM;
 
@@ -1773,7 +1773,7 @@ static int knav_queue_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	knav_qdev = devm_kzalloc(dev, sizeof(struct knav_device), GFP_KERNEL);
+	knav_qdev = devm_kzalloc_obj(dev, struct knav_device);
 	if (!knav_qdev) {
 		dev_err(dev, "memory allocation failed\n");
 		return -ENOMEM;

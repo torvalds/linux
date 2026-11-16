@@ -3681,7 +3681,7 @@ static int swclk_gate_enable(struct clk_hw *hw)
 
 	ret = rx_macro_mclk_enable(rx, true);
 	if (ret) {
-		clk_disable_unprepare(rx->mclk);
+		pm_runtime_put_autosuspend(rx->dev);
 		return ret;
 	}
 
@@ -3776,7 +3776,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 
 	flags = (kernel_ulong_t)device_get_match_data(dev);
 
-	rx = devm_kzalloc(dev, sizeof(*rx), GFP_KERNEL);
+	rx = devm_kzalloc_obj(dev, *rx);
 	if (!rx)
 		return -ENOMEM;
 

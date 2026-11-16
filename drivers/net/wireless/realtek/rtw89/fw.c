@@ -1495,7 +1495,7 @@ int rtw89_recognize_regd_from_elm(struct rtw89_dev *rtwdev,
 		elm_info->regd = NULL;
 	}
 
-	p = devm_kzalloc(rtwdev->dev, struct_size(p, map, num_ents), GFP_KERNEL);
+	p = devm_kzalloc_flex(rtwdev->dev, *p, map, num_ents);
 	if (!p)
 		return -ENOMEM;
 
@@ -13573,7 +13573,7 @@ rtw89_fw_cmd_ofld_alloc_and_get_io_ops(struct rtw89_dev *rtwdev)
 	if (!(rtwdev->hci.type == RTW89_HCI_TYPE_USB && chip->support_fw_cmd_ofld))
 		return &rtw89_raw_io;
 
-	info = devm_kzalloc(rtwdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(rtwdev->dev, *info);
 	if (!info)
 		return &rtw89_raw_io;
 

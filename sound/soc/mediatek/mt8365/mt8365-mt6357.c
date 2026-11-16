@@ -301,8 +301,7 @@ static int mt8365_mt6357_dev_probe(struct mtk_soc_card_data *soc_card_data, bool
 	if (ret)
 		goto err;
 
-	mach_priv = devm_kzalloc(dev, sizeof(*mach_priv),
-				 GFP_KERNEL);
+	mach_priv = devm_kzalloc_obj(dev, *mach_priv);
 	if (!mach_priv)
 		return -ENOMEM;
 	soc_card_data->mach_priv = mach_priv;

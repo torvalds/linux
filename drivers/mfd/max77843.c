@@ -98,7 +98,7 @@ static int max77843_probe(struct i2c_client *i2c)
 	unsigned int reg_data;
 	int ret;
 
-	max77843 = devm_kzalloc(&i2c->dev, sizeof(*max77843), GFP_KERNEL);
+	max77843 = devm_kzalloc_obj(&i2c->dev, *max77843);
 	if (!max77843)
 		return -ENOMEM;
 

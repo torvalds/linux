@@ -1247,7 +1247,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	i2s_tdm = devm_kzalloc(&pdev->dev, sizeof(*i2s_tdm), GFP_KERNEL);
+	i2s_tdm = devm_kzalloc_obj(&pdev->dev, *i2s_tdm);
 	if (!i2s_tdm)
 		return -ENOMEM;
 

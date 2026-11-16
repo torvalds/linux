@@ -135,7 +135,7 @@ static int snd_soc_ac97_init_gpio(struct snd_ac97 *ac97,
 	struct snd_ac97_gpio_priv *gpio_priv;
 	int ret;
 
-	gpio_priv = devm_kzalloc(component->dev, sizeof(*gpio_priv), GFP_KERNEL);
+	gpio_priv = devm_kzalloc_obj(component->dev, *gpio_priv);
 	if (!gpio_priv)
 		return -ENOMEM;
 	ac97->gpio_priv = gpio_priv;

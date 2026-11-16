@@ -14,7 +14,7 @@ static struct nbl_hw_mgt *nbl_hw_setup_hw_mgt(struct nbl_common_info *common)
 	struct device *dev = common->dev;
 	struct nbl_hw_mgt *hw_mgt;
 
-	hw_mgt = devm_kzalloc(dev, sizeof(*hw_mgt), GFP_KERNEL);
+	hw_mgt = devm_kzalloc_obj(dev, *hw_mgt);
 	if (!hw_mgt)
 		return ERR_PTR(-ENOMEM);
 

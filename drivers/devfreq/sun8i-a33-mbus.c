@@ -344,7 +344,7 @@ static int sun8i_a33_mbus_probe(struct platform_device *pdev)
 
 	max_state = variant->max_dram_divider - variant->min_dram_divider + 1;
 
-	priv = devm_kzalloc(dev, struct_size(priv, freq_table, max_state), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, freq_table, max_state);
 	if (!priv)
 		return -ENOMEM;
 

@@ -405,7 +405,7 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
+	adata = devm_kzalloc_obj(&pdev->dev, *adata);
 	if (!adata)
 		return -ENOMEM;
 

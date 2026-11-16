@@ -172,7 +172,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 val;
 
-	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
+	sreg = devm_kzalloc_obj(dev, *sreg);
 	if (!sreg)
 		return -ENOMEM;
 

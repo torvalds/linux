@@ -816,7 +816,7 @@ static int ov02e10_probe(struct i2c_client *client)
 	unsigned long freq;
 	int ret;
 
-	ov02e10 = devm_kzalloc(&client->dev, sizeof(*ov02e10), GFP_KERNEL);
+	ov02e10 = devm_kzalloc_obj(&client->dev, *ov02e10);
 	if (!ov02e10)
 		return -ENOMEM;
 

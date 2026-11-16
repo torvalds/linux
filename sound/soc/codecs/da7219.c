@@ -1758,7 +1758,7 @@ static struct da7219_pdata *da7219_fw_to_pdata(struct device *dev)
 	const char *of_str;
 	u32 of_val32;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -2667,8 +2667,7 @@ static int da7219_i2c_probe(struct i2c_client *i2c)
 	struct da7219_priv *da7219;
 	int ret;
 
-	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
-			      GFP_KERNEL);
+	da7219 = devm_kzalloc_obj(dev, struct da7219_priv);
 	if (!da7219)
 		return -ENOMEM;
 

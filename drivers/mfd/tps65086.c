@@ -68,7 +68,7 @@ static int tps65086_probe(struct i2c_client *client)
 	unsigned int version;
 	int ret;
 
-	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&client->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

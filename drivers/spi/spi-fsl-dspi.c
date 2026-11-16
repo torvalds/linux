@@ -675,7 +675,7 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	struct fsl_dspi_dma *dma;
 	int ret;
 
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc_obj(dev, *dma);
 	if (!dma)
 		return -ENOMEM;
 
@@ -1554,7 +1554,7 @@ static int dspi_probe(struct platform_device *pdev)
 	void __iomem *base;
 	bool big_endian;
 
-	dspi = devm_kzalloc(&pdev->dev, sizeof(*dspi), GFP_KERNEL);
+	dspi = devm_kzalloc_obj(&pdev->dev, *dspi);
 	if (!dspi)
 		return -ENOMEM;
 

@@ -2293,7 +2293,7 @@ static int sa_ul_probe(struct platform_device *pdev)
 	u32 status, val;
 	int ret;
 
-	dev_data = devm_kzalloc(dev, sizeof(*dev_data), GFP_KERNEL);
+	dev_data = devm_kzalloc_obj(dev, *dev_data);
 	if (!dev_data)
 		return -ENOMEM;
 

@@ -59,7 +59,7 @@ static struct led_trigger *led_allocate_basic(struct hci_dev *hdev,
 {
 	struct hci_basic_led_trigger *htrig;
 
-	htrig =	devm_kzalloc(&hdev->dev, sizeof(*htrig), GFP_KERNEL);
+	htrig = devm_kzalloc_obj(&hdev->dev, *htrig);
 	if (!htrig)
 		return NULL;
 

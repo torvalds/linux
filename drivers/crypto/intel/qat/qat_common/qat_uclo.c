@@ -373,8 +373,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	u64 *fill_data;
 
 	uof_image = image->img_ptr;
-	fill_data = kcalloc(ICP_QAT_UCLO_MAX_USTORE, sizeof(u64),
-			    GFP_KERNEL);
+	fill_data = kzalloc_objs(u64, ICP_QAT_UCLO_MAX_USTORE);
 	if (!fill_data)
 		return -ENOMEM;
 	for (i = 0; i < ICP_QAT_UCLO_MAX_USTORE; i++)
@@ -994,8 +993,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 		pr_err("UOF incompatible\n");
 		return -EINVAL;
 	}
-	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(u64),
-					GFP_KERNEL);
+	obj_handle->uword_buf = kzalloc_objs(u64, UWORD_CPYBUF_SIZE);
 	if (!obj_handle->uword_buf)
 		return -ENOMEM;
 	obj_handle->ustore_phy_size = ICP_QAT_UCLO_MAX_USTORE;

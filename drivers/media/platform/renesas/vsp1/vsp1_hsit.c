@@ -204,7 +204,7 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 	struct vsp1_hsit *hsit;
 	int ret;
 
-	hsit = devm_kzalloc(vsp1->dev, sizeof(*hsit), GFP_KERNEL);
+	hsit = devm_kzalloc_obj(vsp1->dev, *hsit);
 	if (hsit == NULL)
 		return ERR_PTR(-ENOMEM);
 

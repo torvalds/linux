@@ -803,7 +803,7 @@ static int netc_timer_pci_probe(struct pci_dev *pdev)
 	struct netc_timer *priv;
 	int err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

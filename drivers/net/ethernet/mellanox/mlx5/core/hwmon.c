@@ -321,8 +321,8 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 	}
 
 	/* sensors configuration values array, must be 0-terminated hence, + 1 */
-	hwmon->temp_channel_config = kcalloc(sensors_count + 1, sizeof(*hwmon->temp_channel_config),
-					     GFP_KERNEL);
+	hwmon->temp_channel_config = kzalloc_objs(*hwmon->temp_channel_config,
+						  sensors_count + 1);
 	if (!hwmon->temp_channel_config) {
 		err = -ENOMEM;
 		goto err_free_temp_channel_desc;

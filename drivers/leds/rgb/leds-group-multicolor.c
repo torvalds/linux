@@ -70,7 +70,7 @@ static int leds_gmc_probe(struct platform_device *pdev)
 	unsigned int max_brightness = 0;
 	int i, ret, count = 0, common_flags = 0;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -98,7 +98,7 @@ static int leds_gmc_probe(struct platform_device *pdev)
 		count++;
 	}
 
-	subled = devm_kcalloc(dev, count, sizeof(*subled), GFP_KERNEL);
+	subled = devm_kzalloc_objs(dev, *subled, count);
 	if (!subled)
 		return -ENOMEM;
 	priv->mc_cdev.subled_info = subled;

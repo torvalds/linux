@@ -154,7 +154,7 @@ static int yt2_1380_fc_serdev_probe(struct serdev_device *serdev)
 	struct yt2_1380_fc *fc;
 	int ret;
 
-	fc = devm_kzalloc(dev, sizeof(*fc), GFP_KERNEL);
+	fc = devm_kzalloc_obj(dev, *fc);
 	if (!fc)
 		return -ENOMEM;
 

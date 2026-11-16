@@ -361,7 +361,7 @@ static int w1_uart_probe(struct serdev_device *serdev)
 	struct w1_uart_device *w1dev;
 	int ret;
 
-	w1dev = devm_kzalloc(dev, sizeof(*w1dev), GFP_KERNEL);
+	w1dev = devm_kzalloc_obj(dev, *w1dev);
 	if (!w1dev)
 		return -ENOMEM;
 	w1dev->bus.data = w1dev;

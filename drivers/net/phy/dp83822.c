@@ -989,7 +989,7 @@ static int dp8382x_probe(struct phy_device *phydev)
 	struct dp83822_private *dp83822;
 	struct clk *clk;
 
-	dp83822 = devm_kzalloc(dev, sizeof(*dp83822), GFP_KERNEL);
+	dp83822 = devm_kzalloc_obj(dev, *dp83822);
 	if (!dp83822)
 		return -ENOMEM;
 

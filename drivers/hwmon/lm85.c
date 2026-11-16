@@ -1551,7 +1551,7 @@ static int lm85_probe(struct i2c_client *client)
 	struct lm85_data *data;
 	int idx = 0;
 
-	data = devm_kzalloc(dev, sizeof(struct lm85_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm85_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -529,7 +529,7 @@ static int arm_ni_init_cd(struct arm_ni *ni, struct arm_ni_node *node, u64 res_s
 
 	cd->id = node->id;
 	cd->num_units = node->num_components;
-	cd->units = devm_kcalloc(ni->dev, cd->num_units, sizeof(*(cd->units)), GFP_KERNEL);
+	cd->units = devm_kzalloc_objs(ni->dev, *(cd->units), cd->num_units);
 	if (!cd->units)
 		return -ENOMEM;
 
@@ -719,7 +719,7 @@ static int arm_ni_probe(struct platform_device *pdev)
 		}
 	}
 
-	ni = devm_kzalloc(&pdev->dev, struct_size(ni, cds, num_cds), GFP_KERNEL);
+	ni = devm_kzalloc_flex(&pdev->dev, *ni, cds, num_cds);
 	if (!ni)
 		return -ENOMEM;
 

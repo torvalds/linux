@@ -279,7 +279,7 @@ static int qcom_uniphy_pcie_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	int ret;
 
-	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(&pdev->dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

@@ -3255,8 +3255,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	struct talitos_crypto_alg *t_alg;
 	struct crypto_alg *alg;
 
-	t_alg = devm_kzalloc(dev, sizeof(struct talitos_crypto_alg),
-			     GFP_KERNEL);
+	t_alg = devm_kzalloc_obj(dev, struct talitos_crypto_alg);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -3419,7 +3418,7 @@ static int talitos_probe(struct platform_device *ofdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	priv = devm_kzalloc(dev, struct_size(priv, chan, num_channels), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, chan, num_channels);
 	if (!priv)
 		return -ENOMEM;
 
@@ -3520,10 +3519,9 @@ static int talitos_probe(struct platform_device *ofdev)
 		spin_lock_init(&priv->chan[i].head_lock);
 		spin_lock_init(&priv->chan[i].tail_lock);
 
-		priv->chan[i].fifo = devm_kcalloc(dev,
-						priv->fifo_len,
-						sizeof(struct talitos_request),
-						GFP_KERNEL);
+		priv->chan[i].fifo = devm_kzalloc_objs(dev,
+						       struct talitos_request,
+						       priv->fifo_len);
 		if (!priv->chan[i].fifo) {
 			dev_err(dev, "failed to allocate request fifo %d\n", i);
 			err = -ENOMEM;

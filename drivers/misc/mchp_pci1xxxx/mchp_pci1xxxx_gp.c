@@ -38,7 +38,7 @@ static int gp_aux_bus_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	if (retval)
 		return retval;
 
-	aux_bus = devm_kzalloc(&pdev->dev, sizeof(*aux_bus), GFP_KERNEL);
+	aux_bus = devm_kzalloc_obj(&pdev->dev, *aux_bus);
 	if (!aux_bus)
 		return -ENOMEM;
 

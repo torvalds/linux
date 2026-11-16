@@ -261,7 +261,7 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	size_t name_sz;
 	char *name;
 
-	drv_data = devm_kzalloc(&hdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&hdev->dev, *drv_data);
 	if (drv_data == NULL) {
 		hid_err(hdev, "can't alloc SRW-S1 memory\n");
 		return -ENOMEM;
@@ -578,7 +578,7 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 #endif
 	}
 
-	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
+	sd = devm_kzalloc_obj(&hdev->dev, *sd);
 	if (!sd)
 		return -ENOMEM;
 	hid_set_drvdata(hdev, sd);

@@ -129,7 +129,7 @@ static int mtk_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	int err;
 
-	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	plat = devm_kzalloc_obj(dev, *plat);
 	if (!plat)
 		return -ENOMEM;
 

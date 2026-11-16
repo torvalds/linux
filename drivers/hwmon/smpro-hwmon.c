@@ -436,7 +436,7 @@ static int smpro_hwmon_probe(struct platform_device *pdev)
 	struct smpro_hwmon *hwmon;
 	struct device *hwmon_dev;
 
-	hwmon = devm_kzalloc(&pdev->dev, sizeof(struct smpro_hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(&pdev->dev, struct smpro_hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

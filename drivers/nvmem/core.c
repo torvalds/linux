@@ -494,12 +494,11 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 
 	/* Allocate an array of attributes with a sentinel */
 	ncells = list_count_nodes(&nvmem->cells);
-	pattrs = devm_kcalloc(&nvmem->dev, ncells + 1,
-			      sizeof(*pattrs), GFP_KERNEL);
+	pattrs = devm_kzalloc_objs(&nvmem->dev, *pattrs, ncells + 1);
 	if (!pattrs)
 		return -ENOMEM;
 
-	attrs = devm_kcalloc(&nvmem->dev, ncells, sizeof(struct bin_attribute), GFP_KERNEL);
+	attrs = devm_kzalloc_objs(&nvmem->dev, struct bin_attribute, ncells);
 	if (!attrs)
 		return -ENOMEM;
 

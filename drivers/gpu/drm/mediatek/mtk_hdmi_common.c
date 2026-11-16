@@ -416,7 +416,7 @@ struct mtk_hdmi *mtk_hdmi_common_probe(struct platform_device *pdev)
 	hdmi->dev = dev;
 	hdmi->conf = hdmi_conf;
 
-	hdmi->clk = devm_kcalloc(dev, ver_conf->num_clocks, sizeof(*hdmi->clk), GFP_KERNEL);
+	hdmi->clk = devm_kzalloc_objs(dev, *hdmi->clk, ver_conf->num_clocks);
 	if (!hdmi->clk)
 		return ERR_PTR(-ENOMEM);
 

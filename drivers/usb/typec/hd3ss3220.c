@@ -400,8 +400,7 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	unsigned int data;
 	int ret;
 
-	hd3ss3220 = devm_kzalloc(&client->dev, sizeof(struct hd3ss3220),
-				 GFP_KERNEL);
+	hd3ss3220 = devm_kzalloc_obj(&client->dev, struct hd3ss3220);
 	if (!hd3ss3220)
 		return -ENOMEM;
 

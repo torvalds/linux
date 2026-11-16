@@ -231,6 +231,40 @@ int test_dynptr_skb_slice_non_linear(struct __sk_buff *skb)
 	return 1;
 }
 
+/*
+ * The tcp header is not in the linear part: the slice is the buffer, and a store
+ * through the slice is seen in the buffer. As in the documentation, the stores
+ * come before the compare with the buffer: after it a compiler may use one
+ * pointer in place of the other.
+ */
+SEC("?tc")
+int test_dynptr_skb_slice_rdwr_buffer(struct __sk_buff *skb)
+{
+	struct tcphdr buffer = {}, *tcp;
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+	tcp = bpf_dynptr_slice_rdwr(&ptr, TEST_SKB_LINEAR_SIZE, &buffer, sizeof(buffer));
+	if (!tcp) {
+		err = 1;
+		return 1;
+	}
+
+	tcp->source = 0x1234;
+	if (buffer.source != 0x1234) {
+		err = 2;
+		return 1;
+	}
+	/* a read of the buffer does not invalidate the slice */
+	tcp->dest = 0x5678;
+	if (tcp != &buffer)
+		err = 3;
+	else if (bpf_dynptr_write(&ptr, TEST_SKB_LINEAR_SIZE, &buffer, sizeof(buffer), 0))
+		err = 4;
+
+	return 1;
+}
+
 SEC("?tc")
 int test_dynptr_skb_meta_data(struct __sk_buff *skb)
 {
@@ -756,6 +790,96 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 
 out:
 	bpf_ringbuf_discard_dynptr(&ptr_buf, 0);
+	return XDP_DROP;
+}
+
+static __always_inline int fill_xdp(struct bpf_dynptr *ptr, __u32 start, __u32 n)
+{
+	__u8 b;
+	int i;
+
+	bpf_for(i, 0, n) {
+		b = (start + i) % 251;
+		if (bpf_dynptr_write(ptr, start + i, &b, 1, 0))
+			return 1;
+	}
+	return 0;
+}
+
+static __always_inline int check_xdp(struct bpf_dynptr *ptr, __u32 at, __u32 n, __u32 from)
+{
+	__u8 b;
+	int i;
+
+	bpf_for(i, 0, n) {
+		if (bpf_dynptr_read(&b, 1, ptr, at + i, 0))
+			return 1;
+		if (b != (__u8)((from + i) % 251))
+			return 1;
+	}
+	return 0;
+}
+
+SEC("?xdp")
+int test_dynptr_copy_xdp_overlap(struct xdp_md *xdp)
+{
+	void *data_end = (void *)(long)xdp->data_end;
+	void *data = (void *)(long)xdp->data;
+	__u32 off = data_end - data - 1000;
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_xdp(xdp, 0, &ptr);
+	if (fill_xdp(&ptr, off, 1300)) {
+		err = 1;
+		return XDP_DROP;
+	}
+	err = bpf_dynptr_copy(&ptr, off + 100, &ptr, off, 1200);
+	if (err)
+		return XDP_DROP;
+	if (check_xdp(&ptr, off + 100, 1200, off))
+		err = 2;
+	return XDP_DROP;
+}
+
+SEC("?xdp")
+int test_dynptr_copy_xdp_overlap_src_linear(struct xdp_md *xdp)
+{
+	void *data_end = (void *)(long)xdp->data_end;
+	void *data = (void *)(long)xdp->data;
+	__u32 lin = data_end - data;
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_xdp(xdp, 0, &ptr);
+	if (fill_xdp(&ptr, lin - 64, 118)) {
+		err = 1;
+		return XDP_DROP;
+	}
+	err = bpf_dynptr_copy(&ptr, lin - 10, &ptr, lin - 64, 64);
+	if (err)
+		return XDP_DROP;
+	if (check_xdp(&ptr, lin - 10, 64, lin - 64))
+		err = 2;
+	return XDP_DROP;
+}
+
+SEC("?xdp")
+int test_dynptr_copy_xdp_overlap_dst_frag(struct xdp_md *xdp)
+{
+	void *data_end = (void *)(long)xdp->data_end;
+	void *data = (void *)(long)xdp->data;
+	__u32 lin = data_end - data;
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_xdp(xdp, 0, &ptr);
+	if (fill_xdp(&ptr, lin - 10, 84)) {
+		err = 1;
+		return XDP_DROP;
+	}
+	err = bpf_dynptr_copy(&ptr, lin + 10, &ptr, lin - 10, 64);
+	if (err)
+		return XDP_DROP;
+	if (check_xdp(&ptr, lin + 10, 64, lin - 10))
+		err = 2;
 	return XDP_DROP;
 }
 

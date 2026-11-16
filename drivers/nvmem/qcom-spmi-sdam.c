@@ -124,7 +124,7 @@ static int sdam_probe(struct platform_device *pdev)
 	unsigned int val;
 	int rc;
 
-	sdam = devm_kzalloc(&pdev->dev, sizeof(*sdam), GFP_KERNEL);
+	sdam = devm_kzalloc_obj(&pdev->dev, *sdam);
 	if (!sdam)
 		return -ENOMEM;
 

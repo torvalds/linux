@@ -872,7 +872,7 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 	struct ocs_ecc_dev *ecc_dev;
 	int rc;
 
-	ecc_dev = devm_kzalloc(dev, sizeof(*ecc_dev), GFP_KERNEL);
+	ecc_dev = devm_kzalloc_obj(dev, *ecc_dev);
 	if (!ecc_dev)
 		return -ENOMEM;
 

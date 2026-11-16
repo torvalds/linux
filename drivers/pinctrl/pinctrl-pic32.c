@@ -2164,7 +2164,7 @@ static int pic32_pinctrl_probe(struct platform_device *pdev)
 	struct pic32_pinctrl *pctl;
 	int ret;
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 	pctl->dev = &pdev->dev;
@@ -2246,8 +2246,7 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(girq, &pic32_gpio_irq_chip);
 	girq->parent_handler = pic32_gpio_irq_handler;
 	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents, 1);
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->default_type = IRQ_TYPE_NONE;

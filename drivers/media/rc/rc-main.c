@@ -221,7 +221,7 @@ static int ir_create_table(struct rc_dev *dev, struct rc_map *rc_map,
 		return -ENOMEM;
 
 	alloc = roundup_pow_of_two(size);
-	scan = kmalloc_objs(struct rc_map_table, alloc, GFP_KERNEL);
+	scan = kmalloc_objs(struct rc_map_table, alloc);
 	if (!scan) {
 		kfree(name);
 		return -ENOMEM;

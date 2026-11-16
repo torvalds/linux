@@ -1031,14 +1031,14 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	/* DAIs are created based on total number of PDIs supported */
 	num_dai = cdns->pcm.num_pdi;
 
-	dai_runtime_array = devm_kcalloc(cdns->dev, num_dai,
-					 sizeof(struct sdw_cdns_dai_runtime *),
-					 GFP_KERNEL);
+	dai_runtime_array = devm_kzalloc_objs(cdns->dev,
+					      struct sdw_cdns_dai_runtime *,
+					      num_dai);
 	if (!dai_runtime_array)
 		return -ENOMEM;
 	cdns->dai_runtime_array = dai_runtime_array;
 
-	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
+	dais = devm_kzalloc_objs(cdns->dev, *dais, num_dai);
 	if (!dais)
 		return -ENOMEM;
 

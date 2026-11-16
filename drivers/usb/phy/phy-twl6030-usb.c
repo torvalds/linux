@@ -338,7 +338,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	twl = devm_kzalloc(dev, sizeof(*twl), GFP_KERNEL);
+	twl = devm_kzalloc_obj(dev, *twl);
 	if (!twl)
 		return -ENOMEM;
 

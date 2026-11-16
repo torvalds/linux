@@ -90,7 +90,7 @@ int sophgo_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node 
 	for_each_available_child_of_node(np, child)
 		ngroups += 1;
 
-	grpnames = devm_kcalloc(dev, ngroups, sizeof(*grpnames), GFP_KERNEL);
+	grpnames = devm_kzalloc_objs(dev, *grpnames, ngroups);
 	if (!grpnames)
 		return -ENOMEM;
 
@@ -123,13 +123,13 @@ int sophgo_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node 
 
 		grpnames[ngroups++] = grpname;
 
-		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
+		pins = devm_kzalloc_objs(dev, *pins, npins);
 		if (!pins) {
 			ret = -ENOMEM;
 			goto dt_failed;
 		}
 
-		pinmuxs = devm_kcalloc(dev, npins, sizeof(*pinmuxs), GFP_KERNEL);
+		pinmuxs = devm_kzalloc_objs(dev, *pinmuxs, npins);
 		if (!pinmuxs) {
 			ret = -ENOMEM;
 			goto dt_failed;
@@ -414,7 +414,7 @@ int sophgo_pinctrl_probe(struct platform_device *pdev)
 	if (pctrl_data->npins == 0)
 		return dev_err_probe(dev, -EINVAL, "invalid pin data\n");
 
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

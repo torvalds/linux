@@ -186,7 +186,7 @@ static int aspeed_usb3_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct phy *phy;
 
-	aspeed_phy = devm_kzalloc(dev, sizeof(*aspeed_phy), GFP_KERNEL);
+	aspeed_phy = devm_kzalloc_obj(dev, *aspeed_phy);
 	if (!aspeed_phy)
 		return -ENOMEM;
 

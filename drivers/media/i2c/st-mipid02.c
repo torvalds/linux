@@ -808,7 +808,7 @@ static int mipid02_probe(struct i2c_client *client)
 	u32 clk_freq;
 	int ret;
 
-	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
+	bridge = devm_kzalloc_obj(dev, *bridge);
 	if (!bridge)
 		return -ENOMEM;
 

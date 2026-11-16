@@ -942,7 +942,7 @@ static int adi_i3c_master_probe(struct platform_device *pdev)
 	unsigned int version;
 	int ret, irq;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(&pdev->dev, *master);
 	if (!master)
 		return -ENOMEM;
 
@@ -975,9 +975,8 @@ static int adi_i3c_master_probe(struct platform_device *pdev)
 	master->free_rr_slots = GENMASK(ADI_MAX_DEVS, 1);
 	spin_lock_init(&master->ibi.lock);
 	master->ibi.num_slots = 15;
-	master->ibi.slots = devm_kcalloc(&pdev->dev, master->ibi.num_slots,
-					 sizeof(*master->ibi.slots),
-					 GFP_KERNEL);
+	master->ibi.slots = devm_kzalloc_objs(&pdev->dev, *master->ibi.slots,
+					      master->ibi.num_slots);
 	if (!master->ibi.slots)
 		return -ENOMEM;
 

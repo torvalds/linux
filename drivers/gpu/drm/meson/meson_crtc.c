@@ -677,8 +677,7 @@ int meson_crtc_create(struct meson_drm *priv)
 	struct drm_crtc *crtc;
 	int ret;
 
-	meson_crtc = devm_kzalloc(priv->drm->dev, sizeof(*meson_crtc),
-				  GFP_KERNEL);
+	meson_crtc = devm_kzalloc_obj(priv->drm->dev, *meson_crtc);
 	if (!meson_crtc)
 		return -ENOMEM;
 

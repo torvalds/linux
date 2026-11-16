@@ -215,7 +215,7 @@ static int cdns_ufs_init(struct ufs_hba *hba)
 	struct cdns_ufs_host *host;
 	struct device *dev = hba->dev;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 
 	if (!host)
 		return -ENOMEM;

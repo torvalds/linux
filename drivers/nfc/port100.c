@@ -1502,7 +1502,7 @@ static int port100_probe(struct usb_interface *interface,
 	u16 fw_version;
 	u64 cmd_type_mask;
 
-	dev = devm_kzalloc(&interface->dev, sizeof(struct port100), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&interface->dev, struct port100);
 	if (!dev)
 		return -ENOMEM;
 

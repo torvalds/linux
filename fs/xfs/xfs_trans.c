@@ -72,7 +72,7 @@ xfs_trans_free(
 	xfs_extent_busy_clear(&tp->t_busy, false);
 
 	trace_xfs_trans_free(tp, _RET_IP_);
-	xfs_trans_clear_context(tp);
+	memalloc_nofs_restore(tp->t_pflags);
 	if (!(tp->t_flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_end_intwrite(tp->t_mountp->m_super);
 	xfs_trans_free_dqinfo(tp);
@@ -220,7 +220,11 @@ __xfs_trans_alloc(
 	tp = kmem_cache_zalloc(xfs_trans_cache, GFP_KERNEL | __GFP_NOFAIL);
 	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_start_intwrite(mp->m_super);
-	xfs_trans_set_context(tp);
+	/*
+	 * Save NOFS state for xfs_trans_free() to restore. Only the
+	 * transaction owner thread may touch tp->t_pflags.
+	 */
+	tp->t_pflags = memalloc_nofs_save();
 	tp->t_flags = flags;
 	tp->t_mountp = mp;
 	INIT_LIST_HEAD(&tp->t_items);
@@ -1038,7 +1042,7 @@ xfs_trans_roll(
 	 * xfs_trans_free.  Set it again here before doing memory
 	 * allocations.
 	 */
-	xfs_trans_set_context(tp);
+	tp->t_pflags = memalloc_nofs_save();
 
 	if (error)
 		return error;

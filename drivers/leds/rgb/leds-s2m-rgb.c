@@ -368,7 +368,7 @@ static int s2m_rgb_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	int ret;
 
-	rgb = devm_kzalloc(dev, sizeof(*rgb), GFP_KERNEL);
+	rgb = devm_kzalloc_obj(dev, *rgb);
 	if (!rgb)
 		return -ENOMEM;
 

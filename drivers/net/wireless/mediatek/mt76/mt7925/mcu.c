@@ -4004,7 +4004,7 @@ mt7925_mcu_rate_txpower_band(struct mt76_phy *phy,
 	}
 	batch_size = DIV_ROUND_UP(n_chan, batch_len);
 
-	limits = devm_kmalloc(dev->dev, sizeof(*limits), GFP_KERNEL);
+	limits = devm_kmalloc_obj(dev->dev, *limits);
 	if (!limits)
 		return -ENOMEM;
 

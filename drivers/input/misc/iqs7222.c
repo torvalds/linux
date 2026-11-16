@@ -1888,7 +1888,7 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 		if (!val)
 			continue;
 
-		val_buf = kcalloc(num_col, sizeof(__le16), GFP_KERNEL);
+		val_buf = kzalloc_objs(__le16, num_col);
 		if (!val_buf)
 			return -ENOMEM;
 
@@ -3056,7 +3056,7 @@ static int iqs7222_probe(struct i2c_client *client)
 	unsigned long irq_flags;
 	int error, irq;
 
-	iqs7222 = devm_kzalloc(&client->dev, sizeof(*iqs7222), GFP_KERNEL);
+	iqs7222 = devm_kzalloc_obj(&client->dev, *iqs7222);
 	if (!iqs7222)
 		return -ENOMEM;
 

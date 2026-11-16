@@ -268,7 +268,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	int ret;
 	u8 div_ratio_shift = 0;
 
-	fsl_dev = devm_kzalloc(dev, sizeof(*fsl_dev), GFP_KERNEL);
+	fsl_dev = devm_kzalloc_obj(dev, *fsl_dev);
 	if (!fsl_dev)
 		return -ENOMEM;
 

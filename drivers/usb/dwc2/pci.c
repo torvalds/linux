@@ -99,7 +99,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 
 	dwc2->dev.parent = dev;
 
-	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(dev, *glue);
 	if (!glue) {
 		ret = -ENOMEM;
 		goto err;

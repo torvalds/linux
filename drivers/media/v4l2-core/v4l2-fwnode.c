@@ -581,8 +581,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 		unsigned int i;
 
 		vep->link_frequencies =
-			kmalloc_array(rval, sizeof(*vep->link_frequencies),
-				      GFP_KERNEL);
+			kmalloc_objs(*vep->link_frequencies, rval);
 		if (!vep->link_frequencies)
 			return -ENOMEM;
 

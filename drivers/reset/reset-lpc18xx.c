@@ -139,7 +139,7 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	u32 fcclk, firc;
 	int ret;
 
-	rc = devm_kzalloc(&pdev->dev, sizeof(*rc), GFP_KERNEL);
+	rc = devm_kzalloc_obj(&pdev->dev, *rc);
 	if (!rc)
 		return -ENOMEM;
 

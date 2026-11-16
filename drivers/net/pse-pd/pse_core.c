@@ -835,12 +835,11 @@ devm_pse_pi_regulator_register(struct pse_controller_dev *pcdev,
 	struct regulator_desc *rdesc;
 	struct regulator_dev *rdev;
 
-	rinit_data = devm_kzalloc(pcdev->dev, sizeof(*rinit_data),
-				  GFP_KERNEL);
+	rinit_data = devm_kzalloc_obj(pcdev->dev, *rinit_data);
 	if (!rinit_data)
 		return -ENOMEM;
 
-	rdesc = devm_kzalloc(pcdev->dev, sizeof(*rdesc), GFP_KERNEL);
+	rdesc = devm_kzalloc_obj(pcdev->dev, *rdesc);
 	if (!rdesc)
 		return -ENOMEM;
 
@@ -922,7 +921,7 @@ static struct pse_power_domain *devm_pse_alloc_pw_d(struct device *dev)
 	struct pse_power_domain *pw_d;
 	int index, ret;
 
-	pw_d = devm_kzalloc(dev, sizeof(*pw_d), GFP_KERNEL);
+	pw_d = devm_kzalloc_obj(dev, *pw_d);
 	if (!pw_d)
 		return ERR_PTR(-ENOMEM);
 
@@ -1320,7 +1319,7 @@ int devm_pse_irq_helper(struct pse_controller_dev *pcdev, int irq,
 	if (!d || !d->map_event || !d->name)
 		return -EINVAL;
 
-	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
+	h = devm_kzalloc_obj(dev, *h);
 	if (!h)
 		return -ENOMEM;
 
@@ -1336,8 +1335,7 @@ int devm_pse_irq_helper(struct pse_controller_dev *pcdev, int irq,
 	snprintf(irq_name, irq_name_len, "pse-%s:%s", dev_name(pcdev->dev),
 		 d->name);
 
-	h->notifs = devm_kcalloc(dev, pcdev->nr_lines,
-				 sizeof(*h->notifs), GFP_KERNEL);
+	h->notifs = devm_kzalloc_objs(dev, *h->notifs, pcdev->nr_lines);
 	if (!h->notifs)
 		return -ENOMEM;
 

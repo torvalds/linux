@@ -510,7 +510,7 @@ static int mshw0011_probe(struct i2c_client *client)
 	struct mshw0011_data *data;
 	int error, mask;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -568,7 +568,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 	u8 rev;
 	const char *mode;
 
-	hdq_data = devm_kzalloc(dev, sizeof(*hdq_data), GFP_KERNEL);
+	hdq_data = devm_kzalloc_obj(dev, *hdq_data);
 	if (!hdq_data)
 		return -ENOMEM;
 

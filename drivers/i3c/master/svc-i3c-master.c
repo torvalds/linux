@@ -2003,7 +2003,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 	struct svc_i3c_master *master;
 	int ret, i;
 
-	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(dev, *master);
 	if (!master)
 		return -ENOMEM;
 
@@ -2055,9 +2055,8 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	spin_lock_init(&master->ibi.lock);
 	master->ibi.num_slots = SVC_I3C_MAX_DEVS;
-	master->ibi.slots = devm_kcalloc(&pdev->dev, master->ibi.num_slots,
-					 sizeof(*master->ibi.slots),
-					 GFP_KERNEL);
+	master->ibi.slots = devm_kzalloc_objs(&pdev->dev, *master->ibi.slots,
+					      master->ibi.num_slots);
 	if (!master->ibi.slots) {
 		ret = -ENOMEM;
 		goto err_disable_clks;

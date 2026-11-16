@@ -2196,8 +2196,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c)
 	int ret, i;
 	int val;
 
-	wm2200 = devm_kzalloc(&i2c->dev, sizeof(struct wm2200_priv),
-			      GFP_KERNEL);
+	wm2200 = devm_kzalloc_obj(&i2c->dev, struct wm2200_priv);
 	if (wm2200 == NULL)
 		return -ENOMEM;
 

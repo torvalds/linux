@@ -1547,7 +1547,7 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 val;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc_obj(&pdev->dev, *master);
 	if (!master)
 		return -ENOMEM;
 
@@ -1601,9 +1601,8 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 
 	spin_lock_init(&master->ibi.lock);
 	master->ibi.num_slots = CONF_STATUS1_IBI_HW_RES(val);
-	master->ibi.slots = devm_kcalloc(&pdev->dev, master->ibi.num_slots,
-					 sizeof(*master->ibi.slots),
-					 GFP_KERNEL);
+	master->ibi.slots = devm_kzalloc_objs(&pdev->dev, *master->ibi.slots,
+					      master->ibi.num_slots);
 	if (!master->ibi.slots)
 		return -ENOMEM;
 

@@ -376,8 +376,7 @@ static int virtsnd_kctl_get_enum_items(struct virtio_snd *snd, unsigned int cid)
 	if (!msg)
 		return -ENOMEM;
 
-	kctl->items = devm_kcalloc(&vdev->dev, n, sizeof(*kctl->items),
-				   GFP_KERNEL);
+	kctl->items = devm_kzalloc_objs(&vdev->dev, *kctl->items, n);
 	if (!kctl->items) {
 		virtsnd_ctl_msg_unref(msg);
 		return -ENOMEM;
@@ -412,13 +411,12 @@ int virtsnd_kctl_parse_cfg(struct virtio_snd *snd)
 	if (!snd->nkctls)
 		return 0;
 
-	snd->kctl_infos = devm_kcalloc(&vdev->dev, snd->nkctls,
-				       sizeof(*snd->kctl_infos), GFP_KERNEL);
+	snd->kctl_infos = devm_kzalloc_objs(&vdev->dev, *snd->kctl_infos,
+					    snd->nkctls);
 	if (!snd->kctl_infos)
 		return -ENOMEM;
 
-	snd->kctls = devm_kcalloc(&vdev->dev, snd->nkctls, sizeof(*snd->kctls),
-				  GFP_KERNEL);
+	snd->kctls = devm_kzalloc_objs(&vdev->dev, *snd->kctls, snd->nkctls);
 	if (!snd->kctls)
 		return -ENOMEM;
 

@@ -72,7 +72,7 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 	struct list_head resource_list;
 	int ret;
 
-	clk_data = devm_kzalloc(&adev->dev, sizeof(*clk_data), GFP_KERNEL);
+	clk_data = devm_kzalloc_obj(&adev->dev, *clk_data);
 	if (!clk_data)
 		return -ENOMEM;
 

@@ -379,7 +379,7 @@ k3_udma_glue_request_tx_chn(struct device *dev, const char *name,
 	struct k3_udma_glue_tx_channel *tx_chn;
 	int ret;
 
-	tx_chn = devm_kzalloc(dev, sizeof(*tx_chn), GFP_KERNEL);
+	tx_chn = devm_kzalloc_obj(dev, *tx_chn);
 	if (!tx_chn)
 		return ERR_PTR(-ENOMEM);
 
@@ -416,7 +416,7 @@ k3_udma_glue_request_tx_chn_for_thread_id(struct device *dev,
 	struct k3_udma_glue_tx_channel *tx_chn;
 	int ret;
 
-	tx_chn = devm_kzalloc(dev, sizeof(*tx_chn), GFP_KERNEL);
+	tx_chn = devm_kzalloc_obj(dev, *tx_chn);
 	if (!tx_chn)
 		return ERR_PTR(-ENOMEM);
 
@@ -951,7 +951,7 @@ k3_udma_glue_request_rx_chn_priv(struct device *dev, const char *name,
 	    (cfg->def_flow_cfg || cfg->flow_id_use_rxchan_id))
 		return ERR_PTR(-EINVAL);
 
-	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
+	rx_chn = devm_kzalloc_obj(dev, *rx_chn);
 	if (!rx_chn)
 		return ERR_PTR(-ENOMEM);
 
@@ -1033,8 +1033,7 @@ k3_udma_glue_request_rx_chn_priv(struct device *dev, const char *name,
 
 	rx_chn->flow_num = cfg->flow_id_num;
 
-	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
-				     sizeof(*rx_chn->flows), GFP_KERNEL);
+	rx_chn->flows = devm_kzalloc_objs(dev, *rx_chn->flows, rx_chn->flow_num);
 	if (!rx_chn->flows) {
 		ret = -ENOMEM;
 		goto err;
@@ -1085,8 +1084,7 @@ k3_udma_glue_request_remote_rx_chn_common(struct k3_udma_glue_rx_channel *rx_chn
 						rx_chn->common.psdata_size,
 						rx_chn->common.swdata_size);
 
-	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
-				     sizeof(*rx_chn->flows), GFP_KERNEL);
+	rx_chn->flows = devm_kzalloc_objs(dev, *rx_chn->flows, rx_chn->flow_num);
 	if (!rx_chn->flows)
 		return -ENOMEM;
 
@@ -1142,7 +1140,7 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 	 * Linux can only request and manipulate by dedicated RX flows
 	 */
 
-	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
+	rx_chn = devm_kzalloc_obj(dev, *rx_chn);
 	if (!rx_chn)
 		return ERR_PTR(-ENOMEM);
 
@@ -1190,7 +1188,7 @@ k3_udma_glue_request_remote_rx_chn_for_thread_id(struct device *dev,
 	 * Linux can only request and manipulate by dedicated RX flows
 	 */
 
-	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
+	rx_chn = devm_kzalloc_obj(dev, *rx_chn);
 	if (!rx_chn)
 		return ERR_PTR(-ENOMEM);
 

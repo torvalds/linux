@@ -816,8 +816,7 @@ static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 	}
 
 	if (request->n_channels) {
-		chanspecs = kcalloc(request->n_channels, sizeof(*chanspecs),
-				    GFP_KERNEL);
+		chanspecs = kzalloc_objs(*chanspecs, request->n_channels);
 		if (!chanspecs) {
 			err = -ENOMEM;
 			goto exit;
@@ -1100,8 +1099,7 @@ static s32 brcmf_p2p_act_frm_search(struct brcmf_p2p_info *p2p, u16 channel)
 		channel_cnt = AF_PEER_SEARCH_CNT;
 	else
 		channel_cnt = SOCIAL_CHAN_CNT;
-	default_chan_list = kcalloc(channel_cnt, sizeof(*default_chan_list),
-				    GFP_KERNEL);
+	default_chan_list = kzalloc_objs(*default_chan_list, channel_cnt);
 	if (default_chan_list == NULL) {
 		bphy_err(drvr, "channel list allocation failed\n");
 		err = -ENOMEM;

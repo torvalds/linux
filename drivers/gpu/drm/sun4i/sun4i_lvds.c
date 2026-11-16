@@ -110,7 +110,7 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	struct sun4i_lvds *lvds;
 	int ret;
 
-	lvds = devm_kzalloc(drm->dev, sizeof(*lvds), GFP_KERNEL);
+	lvds = devm_kzalloc_obj(drm->dev, *lvds);
 	if (!lvds)
 		return -ENOMEM;
 	encoder = &lvds->encoder;

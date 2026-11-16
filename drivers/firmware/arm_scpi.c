@@ -889,7 +889,7 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 	int i;
 	struct scpi_xfer *xfers;
 
-	xfers = devm_kcalloc(dev, MAX_SCPI_XFERS, sizeof(*xfers), GFP_KERNEL);
+	xfers = devm_kzalloc_objs(dev, *xfers, MAX_SCPI_XFERS);
 	if (!xfers)
 		return -ENOMEM;
 
@@ -918,7 +918,7 @@ static int scpi_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct scpi_drvinfo *scpi_drvinfo;
 
-	scpi_drvinfo = devm_kzalloc(dev, sizeof(*scpi_drvinfo), GFP_KERNEL);
+	scpi_drvinfo = devm_kzalloc_obj(dev, *scpi_drvinfo);
 	if (!scpi_drvinfo)
 		return -ENOMEM;
 
@@ -931,7 +931,7 @@ static int scpi_probe(struct platform_device *pdev)
 	}
 
 	scpi_drvinfo->channels =
-		devm_kcalloc(dev, count, sizeof(struct scpi_chan), GFP_KERNEL);
+		devm_kzalloc_objs(dev, struct scpi_chan, count);
 	if (!scpi_drvinfo->channels)
 		return -ENOMEM;
 

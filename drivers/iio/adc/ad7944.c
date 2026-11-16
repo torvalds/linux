@@ -571,7 +571,7 @@ static int ad7944_chain_mode_alloc(struct device *dev,
 
 	/* 1 channel for each device in chain plus 1 for soft timestamp */
 
-	chan = devm_kcalloc(dev, n_chain_dev + 1, sizeof(*chan), GFP_KERNEL);
+	chan = devm_kzalloc_objs(dev, *chan, n_chain_dev + 1);
 	if (!chan)
 		return -ENOMEM;
 
@@ -612,7 +612,7 @@ static int ad7944_chain_mode_alloc(struct device *dev,
 		return dev_err_probe(dev, -EINVAL,
 				     "chain is limited to 32 devices\n");
 
-	scan_masks = devm_kcalloc(dev, 2, sizeof(*scan_masks), GFP_KERNEL);
+	scan_masks = devm_kzalloc_objs(dev, *scan_masks, 2);
 	if (!scan_masks)
 		return -ENOMEM;
 

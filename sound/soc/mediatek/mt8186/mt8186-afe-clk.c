@@ -577,8 +577,7 @@ int mt8186_init_clock(struct mtk_base_afe *afe)
 
 	mt8186_audsys_clk_register(afe);
 
-	afe_priv->clk = devm_kcalloc(afe->dev, CLK_NUM, sizeof(*afe_priv->clk),
-				     GFP_KERNEL);
+	afe_priv->clk = devm_kzalloc_objs(afe->dev, *afe_priv->clk, CLK_NUM);
 	if (!afe_priv->clk)
 		return -ENOMEM;
 

@@ -84,7 +84,7 @@ static inline int qmem_alloc(struct device *dev, struct qmem **q,
 	if (!qsize)
 		return -EINVAL;
 
-	*q = devm_kzalloc(dev, sizeof(*qmem), GFP_KERNEL);
+	*q = devm_kzalloc_obj(dev, *qmem);
 	if (!*q)
 		return -ENOMEM;
 	qmem = *q;

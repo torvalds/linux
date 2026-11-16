@@ -263,7 +263,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

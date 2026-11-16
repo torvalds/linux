@@ -95,7 +95,7 @@ static int lpc18xx_usb_otg_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct lpc18xx_usb_otg_phy *lpc;
 
-	lpc = devm_kzalloc(&pdev->dev, sizeof(*lpc), GFP_KERNEL);
+	lpc = devm_kzalloc_obj(&pdev->dev, *lpc);
 	if (!lpc)
 		return -ENOMEM;
 

@@ -124,7 +124,7 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	int err;
 
-	ep93xx_rtc = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_rtc), GFP_KERNEL);
+	ep93xx_rtc = devm_kzalloc_obj(&pdev->dev, *ep93xx_rtc);
 	if (!ep93xx_rtc)
 		return -ENOMEM;
 

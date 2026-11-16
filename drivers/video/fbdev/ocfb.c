@@ -297,7 +297,7 @@ static int ocfb_probe(struct platform_device *pdev)
 	struct ocfb_dev *fbdev;
 	int fbsize;
 
-	fbdev = devm_kzalloc(&pdev->dev, sizeof(*fbdev), GFP_KERNEL);
+	fbdev = devm_kzalloc_obj(&pdev->dev, *fbdev);
 	if (!fbdev)
 		return -ENOMEM;
 

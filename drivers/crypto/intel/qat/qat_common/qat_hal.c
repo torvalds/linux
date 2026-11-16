@@ -1304,8 +1304,7 @@ int qat_hal_batch_wr_lm(struct icp_qat_fw_loader_handle *handle,
 	alloc_inst_size = lm_init_header->size;
 	if ((unsigned int)alloc_inst_size > handle->hal_handle->max_ustore)
 		alloc_inst_size = handle->hal_handle->max_ustore;
-	micro_inst_arry = kmalloc_array(alloc_inst_size, sizeof(u64),
-					GFP_KERNEL);
+	micro_inst_arry = kmalloc_objs(u64, alloc_inst_size);
 	if (!micro_inst_arry)
 		return -ENOMEM;
 	micro_inst_num = 0;

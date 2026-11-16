@@ -873,7 +873,7 @@ static int caam_probe(struct platform_device *pdev)
 	bool reg_access = true;
 	const struct caam_imx_data *imx_soc_data;
 
-	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
+	ctrlpriv = devm_kzalloc_obj(&pdev->dev, *ctrlpriv);
 	if (!ctrlpriv)
 		return -ENOMEM;
 

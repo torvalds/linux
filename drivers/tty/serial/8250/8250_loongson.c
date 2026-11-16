@@ -112,7 +112,7 @@ static int loongson_uart_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

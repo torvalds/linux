@@ -973,7 +973,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		return err;
 
 	err = -ENOMEM;
-	sm750_dev = devm_kzalloc(&pdev->dev, sizeof(*sm750_dev), GFP_KERNEL);
+	sm750_dev = devm_kzalloc_obj(&pdev->dev, *sm750_dev);
 	if (!sm750_dev)
 		return err;
 

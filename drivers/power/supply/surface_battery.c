@@ -823,7 +823,7 @@ static int surface_battery_probe(struct ssam_device *sdev)
 	if (!p)
 		return -ENODEV;
 
-	bat = devm_kzalloc(&sdev->dev, sizeof(*bat), GFP_KERNEL);
+	bat = devm_kzalloc_obj(&sdev->dev, *bat);
 	if (!bat)
 		return -ENOMEM;
 

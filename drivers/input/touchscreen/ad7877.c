@@ -690,7 +690,7 @@ static int ad7877_probe(struct spi_device *spi)
 		return err;
 	}
 
-	ts = devm_kzalloc(&spi->dev, sizeof(struct ad7877), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&spi->dev, struct ad7877);
 	if (!ts)
 		return -ENOMEM;
 

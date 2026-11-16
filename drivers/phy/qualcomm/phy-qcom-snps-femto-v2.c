@@ -143,7 +143,7 @@ static int qcom_snps_hsphy_clk_init(struct qcom_snps_hsphy *hsphy)
 	struct device *dev = hsphy->dev;
 
 	hsphy->num_clks = 2;
-	hsphy->clks = devm_kcalloc(dev, hsphy->num_clks, sizeof(*hsphy->clks), GFP_KERNEL);
+	hsphy->clks = devm_kzalloc_objs(dev, *hsphy->clks, hsphy->num_clks);
 	if (!hsphy->clks)
 		return -ENOMEM;
 
@@ -570,7 +570,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 	int ret, i;
 	int num;
 
-	hsphy = devm_kzalloc(dev, sizeof(*hsphy), GFP_KERNEL);
+	hsphy = devm_kzalloc_obj(dev, *hsphy);
 	if (!hsphy)
 		return -ENOMEM;
 

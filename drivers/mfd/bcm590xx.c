@@ -92,7 +92,7 @@ static int bcm590xx_i2c_probe(struct i2c_client *i2c_pri)
 	struct bcm590xx *bcm590xx;
 	int ret;
 
-	bcm590xx = devm_kzalloc(&i2c_pri->dev, sizeof(*bcm590xx), GFP_KERNEL);
+	bcm590xx = devm_kzalloc_obj(&i2c_pri->dev, *bcm590xx);
 	if (!bcm590xx)
 		return -ENOMEM;
 

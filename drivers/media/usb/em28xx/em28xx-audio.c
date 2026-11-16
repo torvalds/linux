@@ -751,9 +751,8 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	/* Allocate space to store the number of URBs to be used */
 
-	dev->adev.transfer_buffer = kcalloc(num_urb,
-					    sizeof(*dev->adev.transfer_buffer),
-					    GFP_KERNEL);
+	dev->adev.transfer_buffer = kzalloc_objs(*dev->adev.transfer_buffer,
+						 num_urb);
 	if (!dev->adev.transfer_buffer)
 		return -ENOMEM;
 

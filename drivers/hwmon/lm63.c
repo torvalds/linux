@@ -1503,7 +1503,7 @@ static int lm63_probe(struct i2c_client *client)
 	int groups = 0;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(struct lm63_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct lm63_data);
 	if (!data)
 		return -ENOMEM;
 

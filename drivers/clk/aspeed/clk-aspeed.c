@@ -397,7 +397,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(map);
 	}
 
-	ar = devm_kzalloc(dev, sizeof(*ar), GFP_KERNEL);
+	ar = devm_kzalloc_obj(dev, *ar);
 	if (!ar)
 		return -ENOMEM;
 

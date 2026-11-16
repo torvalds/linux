@@ -645,8 +645,7 @@ static int init_dmic_priv_data(struct mtk_base_afe *afe)
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_dai_dmic_priv *dmic_priv;
 
-	dmic_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_dmic_priv),
-				 GFP_KERNEL);
+	dmic_priv = devm_kzalloc_obj(afe->dev, struct mtk_dai_dmic_priv);
 	if (!dmic_priv)
 		return -ENOMEM;
 
@@ -658,7 +657,7 @@ int mt8188_dai_dmic_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

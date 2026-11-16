@@ -202,8 +202,7 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 	if (!data->nr_pclks)
 		return 0;
 
-	data->pclks = devm_kcalloc(dev, sizeof(struct clk *), data->nr_pclks,
-				   GFP_KERNEL);
+	data->pclks = devm_kzalloc_objs(dev, struct clk *, data->nr_pclks);
 	if (!data->pclks) {
 		ret = -ENOMEM;
 		goto free_sysreg_save;
@@ -284,7 +283,7 @@ int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
 
 	cmu = of_device_get_match_data(dev);
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -418,7 +418,7 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 	struct device_node *np = client->dev.of_node;
 	struct tps6586x_platform_data *pdata;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&client->dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -539,7 +539,7 @@ static int tps6586x_i2c_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	tps6586x = devm_kzalloc(&client->dev, sizeof(*tps6586x), GFP_KERNEL);
+	tps6586x = devm_kzalloc_obj(&client->dev, *tps6586x);
 	if (!tps6586x)
 		return -ENOMEM;
 

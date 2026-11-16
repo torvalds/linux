@@ -299,11 +299,11 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	hipcie = devm_kzalloc(dev, sizeof(*hipcie), GFP_KERNEL);
+	hipcie = devm_kzalloc_obj(dev, *hipcie);
 	if (!hipcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

@@ -98,7 +98,7 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

@@ -652,7 +652,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 {
 	struct dsaf_misc_op *misc_op;
 
-	misc_op = devm_kzalloc(dsaf_dev->dev, sizeof(*misc_op), GFP_KERNEL);
+	misc_op = devm_kzalloc_obj(dsaf_dev->dev, *misc_op);
 	if (!misc_op)
 		return NULL;
 

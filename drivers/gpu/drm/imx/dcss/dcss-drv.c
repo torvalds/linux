@@ -51,7 +51,7 @@ static int dcss_drv_platform_probe(struct platform_device *pdev)
 
 	of_node_put(remote);
 
-	mdrv = devm_kzalloc(dev, sizeof(*mdrv), GFP_KERNEL);
+	mdrv = devm_kzalloc_obj(dev, *mdrv);
 	if (!mdrv)
 		return -ENOMEM;
 

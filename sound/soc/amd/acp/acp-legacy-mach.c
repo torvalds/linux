@@ -133,7 +133,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card) {
 		ret = -ENOMEM;
 		goto out;

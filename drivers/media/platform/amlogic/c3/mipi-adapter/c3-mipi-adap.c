@@ -766,7 +766,7 @@ static int c3_mipi_adap_probe(struct platform_device *pdev)
 	struct c3_adap_device *adap;
 	int ret;
 
-	adap = devm_kzalloc(dev, sizeof(*adap), GFP_KERNEL);
+	adap = devm_kzalloc_obj(dev, *adap);
 	if (!adap)
 		return -ENOMEM;
 

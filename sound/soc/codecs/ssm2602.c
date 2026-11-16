@@ -689,7 +689,7 @@ int ssm2602_probe(struct device *dev, enum ssm2602_type type,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ssm2602 = devm_kzalloc(dev, sizeof(*ssm2602), GFP_KERNEL);
+	ssm2602 = devm_kzalloc_obj(dev, *ssm2602);
 	if (ssm2602 == NULL)
 		return -ENOMEM;
 

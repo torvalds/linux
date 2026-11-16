@@ -101,7 +101,7 @@ static int usb4604_i2c_probe(struct i2c_client *i2c)
 {
 	struct usb4604 *hub;
 
-	hub = devm_kzalloc(&i2c->dev, sizeof(*hub), GFP_KERNEL);
+	hub = devm_kzalloc_obj(&i2c->dev, *hub);
 	if (!hub)
 		return -ENOMEM;
 

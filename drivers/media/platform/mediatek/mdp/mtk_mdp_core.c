@@ -110,7 +110,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	struct mtk_mdp_comp *comp, *comp_temp;
 	int ret = 0;
 
-	mdp = devm_kzalloc(dev, sizeof(*mdp), GFP_KERNEL);
+	mdp = devm_kzalloc_obj(dev, *mdp);
 	if (!mdp)
 		return -ENOMEM;
 
@@ -149,7 +149,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 
 		comp_type = (uintptr_t)of_id->data;
 
-		comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
+		comp = devm_kzalloc_obj(dev, *comp);
 		if (!comp) {
 			ret = -ENOMEM;
 			of_node_put(node);

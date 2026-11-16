@@ -1060,8 +1060,7 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 		if (found)
 			nfit_mem = found;
 		else {
-			nfit_mem = devm_kzalloc(acpi_desc->dev,
-					sizeof(*nfit_mem), GFP_KERNEL);
+			nfit_mem = devm_kzalloc_obj(acpi_desc->dev, *nfit_mem);
 			if (!nfit_mem)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&nfit_mem->list);
@@ -1095,10 +1094,9 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 				continue;
 			nfit_mem->nfit_flush = nfit_flush;
 			flush = nfit_flush->flush;
-			nfit_mem->flush_wpq = devm_kcalloc(acpi_desc->dev,
-					flush->hint_count,
-					sizeof(struct resource),
-					GFP_KERNEL);
+			nfit_mem->flush_wpq = devm_kzalloc_objs(acpi_desc->dev,
+								struct resource,
+								flush->hint_count);
 			if (!nfit_mem->flush_wpq)
 				return -ENOMEM;
 			for (i = 0; i < flush->hint_count; i++) {
@@ -2287,7 +2285,7 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	if (!info || !info2)
 		return -ENOMEM;
 
-	nd_set = devm_kzalloc(dev, sizeof(*nd_set), GFP_KERNEL);
+	nd_set = devm_kzalloc_obj(dev, *nd_set);
 	if (!nd_set)
 		return -ENOMEM;
 	import_guid(&nd_set->type_guid, spa->range_guid);
@@ -2541,7 +2539,7 @@ static int acpi_nfit_insert_resource(struct acpi_nfit_desc *acpi_desc,
 	if (is_pmem == REGION_INTERSECTS)
 		return 0;
 
-	res = devm_kzalloc(acpi_desc->dev, sizeof(*res), GFP_KERNEL);
+	res = devm_kzalloc_obj(acpi_desc->dev, *res);
 	if (!res)
 		return -ENOMEM;
 
@@ -3391,7 +3389,7 @@ static int acpi_nfit_probe(struct platform_device *pdev)
 		return rc;
 	sz = tbl->length;
 
-	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
+	acpi_desc = devm_kzalloc_obj(dev, *acpi_desc);
 	if (!acpi_desc)
 		return -ENOMEM;
 	acpi_nfit_desc_init(acpi_desc, dev);
@@ -3456,7 +3454,7 @@ static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
 	}
 
 	if (!acpi_desc) {
-		acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
+		acpi_desc = devm_kzalloc_obj(dev, *acpi_desc);
 		if (!acpi_desc)
 			return;
 		acpi_nfit_desc_init(acpi_desc, dev);

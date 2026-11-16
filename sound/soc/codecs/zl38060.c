@@ -572,7 +572,7 @@ static int zl38_spi_probe(struct spi_device *spi)
 		usleep_range(3000, 10000);
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

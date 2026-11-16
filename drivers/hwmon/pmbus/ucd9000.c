@@ -468,9 +468,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 	    mid->driver_data == ucd90320 || mid->driver_data == ucd90910) {
 		gpi_count = mid->driver_data == ucd90320 ? UCD90320_GPI_COUNT
 							 : UCD9000_GPI_COUNT;
-		entries = devm_kcalloc(&client->dev,
-				       gpi_count, sizeof(*entries),
-				       GFP_KERNEL);
+		entries = devm_kzalloc_objs(&client->dev, *entries, gpi_count);
 		if (!entries)
 			return -ENOMEM;
 
@@ -542,8 +540,7 @@ static int ucd9000_probe(struct i2c_client *client)
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
-	data = devm_kzalloc(&client->dev, sizeof(struct ucd9000_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct ucd9000_data);
 	if (!data)
 		return -ENOMEM;
 	info = &data->info;

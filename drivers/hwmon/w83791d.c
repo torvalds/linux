@@ -1357,8 +1357,7 @@ static int w83791d_probe(struct i2c_client *client)
 			(val1 >> 5) & 0x07, (val1 >> 1) & 0x0f, val1);
 #endif
 
-	data = devm_kzalloc(&client->dev, sizeof(struct w83791d_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct w83791d_data);
 	if (!data)
 		return -ENOMEM;
 

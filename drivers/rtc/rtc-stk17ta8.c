@@ -270,7 +270,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 		.reg_write = stk17ta8_nvram_write,
 	};
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&pdev->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

@@ -1358,8 +1358,9 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 
 	if (initxattrs) {
 		/* Allocate +1 as terminator. */
-		new_xattrs = kcalloc(blob_sizes.lbs_xattr_count + 1,
-				     sizeof(*new_xattrs), GFP_NOFS);
+		new_xattrs = kzalloc_objs(*new_xattrs,
+					  blob_sizes.lbs_xattr_count + 1,
+					  GFP_NOFS);
 		if (!new_xattrs)
 			return -ENOMEM;
 	}

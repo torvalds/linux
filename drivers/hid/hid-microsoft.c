@@ -337,9 +337,8 @@ static int ms_input_configured(struct hid_device *hdev, struct hid_input *hidinp
 	ms->hdev = hdev;
 	INIT_WORK(&ms->ff_worker, ms_ff_worker);
 
-	ms->output_report_dmabuf = devm_kzalloc(&hdev->dev,
-						sizeof(struct xb1s_ff_report),
-						GFP_KERNEL);
+	ms->output_report_dmabuf = devm_kzalloc_obj(&hdev->dev,
+						    struct xb1s_ff_report);
 	if (ms->output_report_dmabuf == NULL)
 		return -ENOMEM;
 
@@ -353,7 +352,7 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct ms_data *ms;
 	int ret;
 
-	ms = devm_kzalloc(&hdev->dev, sizeof(*ms), GFP_KERNEL);
+	ms = devm_kzalloc_obj(&hdev->dev, *ms);
 	if (ms == NULL)
 		return -ENOMEM;
 

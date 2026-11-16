@@ -1262,7 +1262,7 @@ static int omap_dm_timer_setup_clocksource(struct dmtimer *timer)
 
 	timer->reserved = 1;
 
-	clksrc = devm_kzalloc(dev, sizeof(*clksrc), GFP_KERNEL);
+	clksrc = devm_kzalloc_obj(dev, *clksrc);
 	if (!clksrc)
 		return -ENOMEM;
 
@@ -1354,7 +1354,7 @@ static int omap_dm_timer_setup_clockevent(struct dmtimer *timer)
 	struct omap_dm_timer_clockevent *clkevt;
 	int ret;
 
-	clkevt = devm_kzalloc(dev, sizeof(*clkevt), GFP_KERNEL);
+	clkevt = devm_kzalloc_obj(dev, *clkevt);
 	if (!clkevt)
 		return -ENOMEM;
 
@@ -1418,7 +1418,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	timer = devm_kzalloc(dev, sizeof(*timer), GFP_KERNEL);
+	timer = devm_kzalloc_obj(dev, *timer);
 	if (!timer)
 		return  -ENOMEM;
 

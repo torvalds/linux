@@ -329,7 +329,7 @@ tc3589x_keypad_of_probe(struct device *dev)
 	if (!np)
 		return ERR_PTR(-ENODEV);
 
-	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	plat = devm_kzalloc_obj(dev, *plat);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
@@ -388,8 +388,7 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(struct tc_keypad),
-			      GFP_KERNEL);
+	keypad = devm_kzalloc_obj(&pdev->dev, struct tc_keypad);
 	if (!keypad)
 		return -ENOMEM;
 

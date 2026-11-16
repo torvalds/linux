@@ -83,7 +83,7 @@ int touch_overlay_map(struct list_head *list, struct input_dev *input)
 		return 0;
 
 	fwnode_for_each_available_child_node(overlay, fw_segment) {
-		segment = devm_kzalloc(dev, sizeof(*segment), GFP_KERNEL);
+		segment = devm_kzalloc_obj(dev, *segment);
 		if (!segment) {
 			fwnode_handle_put(fw_segment);
 			return -ENOMEM;

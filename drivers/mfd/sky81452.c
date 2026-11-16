@@ -30,7 +30,7 @@ static int sky81452_probe(struct i2c_client *client)
 	int ret;
 
 	if (!pdata) {
-		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 	}

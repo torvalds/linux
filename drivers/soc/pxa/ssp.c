@@ -114,7 +114,7 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	struct ssp_device *ssp;
 	struct device *dev = &pdev->dev;
 
-	ssp = devm_kzalloc(dev, sizeof(struct ssp_device), GFP_KERNEL);
+	ssp = devm_kzalloc_obj(dev, struct ssp_device);
 	if (ssp == NULL)
 		return -ENOMEM;
 

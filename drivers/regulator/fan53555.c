@@ -118,6 +118,7 @@ enum {
 };
 
 enum {
+	SILERGY_SYM827 = 1,
 	SILERGY_SYR82X = 8,
 	SILERGY_SYR83X = 9,
 };
@@ -412,6 +413,10 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 {
 	/* Init voltage range and step */
 	switch (di->chip_id) {
+	case SILERGY_SYM827:
+		di->vsel_min = 600000;
+		di->vsel_step = 12500;
+		break;
 	case SILERGY_SYR82X:
 	case SILERGY_SYR83X:
 		di->vsel_min = 712500;
@@ -657,7 +662,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	int ret;
 	u32 tmp;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 
@@ -685,6 +690,9 @@ static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 		.compatible = "rockchip,rk8602",
 		.data = (void *)RK8602_VENDOR_ROCKCHIP
 	}, {
+		.compatible = "silergy,sym827",
+		.data = (void *)FAN53555_VENDOR_SILERGY,
+	}, {
 		.compatible = "silergy,syr827",
 		.data = (void *)FAN53555_VENDOR_SILERGY,
 	}, {
@@ -711,8 +719,7 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	unsigned int val;
 	int ret;
 
-	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
-					GFP_KERNEL);
+	di = devm_kzalloc_obj(&client->dev, struct fan53555_device_info);
 	if (!di)
 		return -ENOMEM;
 
@@ -794,6 +801,9 @@ static const struct i2c_device_id fan53555_id[] = {
 	}, {
 		.name = "rk8602",
 		.driver_data = RK8602_VENDOR_ROCKCHIP
+	}, {
+		.name = "sym827",
+		.driver_data = FAN53555_VENDOR_SILERGY
 	}, {
 		.name = "syr827",
 		.driver_data = FAN53555_VENDOR_SILERGY

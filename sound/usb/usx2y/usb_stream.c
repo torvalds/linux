@@ -682,16 +682,17 @@ dotry:
 	s->sync_packet = -1;
 	s->inpacket_head = -1;
 	sk->iso_frame_balance = 0;
+	sk->idle_inurb = sk->inurb[USB_STREAM_NURBS - 2];
+	sk->idle_outurb = sk->outurb[USB_STREAM_NURBS - 2];
+	sk->completed_inurb = sk->inurb[USB_STREAM_NURBS - 1];
+	sk->completed_outurb = sk->outurb[USB_STREAM_NURBS - 1];
 	++try;
 	for (u = 0; u < 2; u++) {
 		struct urb *inurb = sk->inurb[u];
 		struct urb *outurb = sk->outurb[u];
 
 		playback_prep_freqn(sk, outurb);
-		inurb->number_of_packets = outurb->number_of_packets;
-		inurb->transfer_buffer_length =
-			inurb->number_of_packets *
-			inurb->iso_frame_desc[0].length;
+		prepare_inurb(outurb->number_of_packets, inurb);
 
 		if (u == 0) {
 			int now;
@@ -738,11 +739,6 @@ check_retry:
 			 __func__);
 		return -EFAULT;
 	}
-
-	sk->idle_inurb = sk->inurb[USB_STREAM_NURBS - 2];
-	sk->idle_outurb = sk->outurb[USB_STREAM_NURBS - 2];
-	sk->completed_inurb = sk->inurb[USB_STREAM_NURBS - 1];
-	sk->completed_outurb = sk->outurb[USB_STREAM_NURBS - 1];
 
 /* wait, check */
 	{

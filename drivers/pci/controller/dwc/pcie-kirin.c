@@ -322,7 +322,7 @@ static int hi3660_pcie_phy_init(struct platform_device *pdev,
 	struct hi3660_pcie_phy *phy;
 	int ret;
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 
@@ -723,11 +723,11 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 	if (!data)
 		return dev_err_probe(dev, -EINVAL, "OF data missing\n");
 
-	kirin_pcie = devm_kzalloc(dev, sizeof(struct kirin_pcie), GFP_KERNEL);
+	kirin_pcie = devm_kzalloc_obj(dev, struct kirin_pcie);
 	if (!kirin_pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

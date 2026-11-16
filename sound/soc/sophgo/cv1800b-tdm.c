@@ -638,7 +638,7 @@ static int cv1800b_i2s_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(dev, *i2s);
 	if (!i2s)
 		return -ENOMEM;
 

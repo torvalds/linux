@@ -691,7 +691,7 @@ static int w1_f19_add_slave(struct w1_slave *sl)
 	struct w1_f19_data *data = NULL;
 
 	/* Allocate memory for slave specific data. */
-	data = devm_kzalloc(&sl->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&sl->dev, *data);
 	if (!data)
 		return -ENOMEM;
 	sl->family_data = data;

@@ -145,7 +145,7 @@ static bool age_pinned_pool(struct ib_device *device, struct ib_frmr_pool *pool)
 
 	to_destroy = min(total - pool->pinned_handles, pool->inactive_queue.ci);
 
-	handles = kcalloc(to_destroy, sizeof(*handles), GFP_ATOMIC);
+	handles = kzalloc_objs(*handles, to_destroy, GFP_ATOMIC);
 	if (!handles) {
 		spin_unlock(&pool->lock);
 		return true;
@@ -445,7 +445,7 @@ int ib_frmr_pools_set_pinned(struct ib_device *device, struct ib_frmr_key *key,
 	if (!needed_handles)
 		goto schedule_aging;
 
-	handles = kcalloc(needed_handles, sizeof(*handles), GFP_KERNEL);
+	handles = kzalloc_objs(*handles, needed_handles);
 	if (!handles)
 		return -ENOMEM;
 

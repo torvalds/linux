@@ -628,7 +628,7 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	conf = devm_kzalloc(&pdev->dev, sizeof(*conf), GFP_KERNEL);
+	conf = devm_kzalloc_obj(&pdev->dev, *conf);
 	if (!conf)
 		return -ENOMEM;
 

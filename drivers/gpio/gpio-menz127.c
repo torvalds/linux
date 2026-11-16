@@ -147,8 +147,7 @@ static int men_z127_probe(struct mcb_device *mdev,
 	int ret;
 	unsigned long sz;
 
-	men_z127_gpio = devm_kzalloc(dev, sizeof(struct men_z127_gpio),
-				     GFP_KERNEL);
+	men_z127_gpio = devm_kzalloc_obj(dev, struct men_z127_gpio);
 	if (!men_z127_gpio)
 		return -ENOMEM;
 

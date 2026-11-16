@@ -71,7 +71,7 @@ static int vs_dc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dc = devm_kzalloc(dev, sizeof(*dc), GFP_KERNEL);
+	dc = devm_kzalloc_obj(dev, *dc);
 	if (!dc)
 		return -ENOMEM;
 

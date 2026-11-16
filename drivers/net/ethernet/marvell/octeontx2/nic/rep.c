@@ -47,7 +47,7 @@ static int rvu_rep_mcam_flow_init(struct rep_dev *rep)
 
 	count = OTX2_DEFAULT_FLOWCOUNT;
 
-	rep->flow_cfg->flow_ent = kcalloc(count, sizeof(u16), GFP_KERNEL);
+	rep->flow_cfg->flow_ent = kzalloc_objs(u16, count);
 	if (!rep->flow_cfg->flow_ent)
 		return -ENOMEM;
 
@@ -792,7 +792,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv) {
 		err = -ENOMEM;
 		goto err_set_drv_data;

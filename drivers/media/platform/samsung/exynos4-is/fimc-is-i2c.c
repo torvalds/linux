@@ -41,7 +41,7 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	int ret;
 
-	isp_i2c = devm_kzalloc(&pdev->dev, sizeof(*isp_i2c), GFP_KERNEL);
+	isp_i2c = devm_kzalloc_obj(&pdev->dev, *isp_i2c);
 	if (!isp_i2c)
 		return -ENOMEM;
 

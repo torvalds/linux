@@ -267,7 +267,7 @@ static int fsa9480_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&client->dev, *info);
 	if (!info)
 		return -ENOMEM;
 	info->dev = &client->dev;

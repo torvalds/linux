@@ -64,7 +64,7 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
+	ci = devm_kzalloc_obj(&pdev->dev, *ci);
 	if (!ci)
 		return -ENOMEM;
 

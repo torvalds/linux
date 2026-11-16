@@ -214,8 +214,7 @@ static int cb710_probe(struct pci_dev *pdev,
 	if (val & CB710_SLOT_SM)
 		++n;
 
-	chip = devm_kzalloc(&pdev->dev, struct_size(chip, slot, n),
-			    GFP_KERNEL);
+	chip = devm_kzalloc_flex(&pdev->dev, *chip, slot, n);
 	if (!chip)
 		return -ENOMEM;
 

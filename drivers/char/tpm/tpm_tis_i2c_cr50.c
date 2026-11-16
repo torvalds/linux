@@ -729,7 +729,7 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

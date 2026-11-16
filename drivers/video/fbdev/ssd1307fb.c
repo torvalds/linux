@@ -741,8 +741,7 @@ static int ssd1307fb_probe(struct i2c_client *client)
 		goto fb_alloc_error;
 	}
 
-	ssd1307fb_defio = devm_kzalloc(dev, sizeof(*ssd1307fb_defio),
-				       GFP_KERNEL);
+	ssd1307fb_defio = devm_kzalloc_obj(dev, *ssd1307fb_defio);
 	if (!ssd1307fb_defio) {
 		dev_err(dev, "Couldn't allocate deferred io.\n");
 		ret = -ENOMEM;

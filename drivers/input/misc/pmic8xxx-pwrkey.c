@@ -358,7 +358,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pwrkey = devm_kzalloc(&pdev->dev, sizeof(*pwrkey), GFP_KERNEL);
+	pwrkey = devm_kzalloc_obj(&pdev->dev, *pwrkey);
 	if (!pwrkey)
 		return -ENOMEM;
 

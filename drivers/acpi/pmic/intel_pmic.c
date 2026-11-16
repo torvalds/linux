@@ -262,7 +262,7 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 	if (!handle)
 		return -ENODEV;
 
-	opregion = devm_kzalloc(dev, sizeof(*opregion), GFP_KERNEL);
+	opregion = devm_kzalloc_obj(dev, *opregion);
 	if (!opregion)
 		return -ENOMEM;
 

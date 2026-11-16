@@ -120,7 +120,7 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	void __iomem *base_top;
 	int ret;
 
-	lpass = devm_kzalloc(dev, sizeof(*lpass), GFP_KERNEL);
+	lpass = devm_kzalloc_obj(dev, *lpass);
 	if (!lpass)
 		return -ENOMEM;
 

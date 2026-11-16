@@ -286,7 +286,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 	dev = &pdev->dev;
 	parent = dev->parent;
 
-	chg = devm_kzalloc(dev, sizeof(*chg), GFP_KERNEL);
+	chg = devm_kzalloc_obj(dev, *chg);
 	if (!chg)
 		return -ENOMEM;
 

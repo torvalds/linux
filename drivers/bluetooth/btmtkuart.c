@@ -849,7 +849,7 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 	struct hci_dev *hdev;
 	int err;
 
-	bdev = devm_kzalloc(&serdev->dev, sizeof(*bdev), GFP_KERNEL);
+	bdev = devm_kzalloc_obj(&serdev->dev, *bdev);
 	if (!bdev)
 		return -ENOMEM;
 

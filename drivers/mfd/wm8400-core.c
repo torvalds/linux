@@ -120,7 +120,7 @@ static int wm8400_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8400 *wm8400;
 
-	wm8400 = devm_kzalloc(&i2c->dev, sizeof(struct wm8400), GFP_KERNEL);
+	wm8400 = devm_kzalloc_obj(&i2c->dev, struct wm8400);
 	if (!wm8400)
 		return -ENOMEM;
 

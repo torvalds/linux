@@ -435,7 +435,7 @@ static int bma150_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	bma150 = devm_kzalloc(&client->dev, sizeof(*bma150), GFP_KERNEL);
+	bma150 = devm_kzalloc_obj(&client->dev, *bma150);
 	if (!bma150)
 		return -ENOMEM;
 

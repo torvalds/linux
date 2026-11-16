@@ -161,7 +161,7 @@ static int lwmi_events_probe(struct wmi_device *wdev, const void *context)
 	if (!context)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

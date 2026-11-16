@@ -1195,7 +1195,7 @@ static int imx219_probe(struct i2c_client *client)
 	struct imx219 *imx219;
 	int ret;
 
-	imx219 = devm_kzalloc(&client->dev, sizeof(*imx219), GFP_KERNEL);
+	imx219 = devm_kzalloc_obj(&client->dev, *imx219);
 	if (!imx219)
 		return -ENOMEM;
 

@@ -244,7 +244,7 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 	struct tw5864_dev *dev;
 	int err;
 
-	dev = devm_kzalloc(&pci_dev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pci_dev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

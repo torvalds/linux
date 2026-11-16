@@ -800,7 +800,7 @@ static int sahara_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_
 	int ret;
 	int i;
 
-	context = devm_kzalloc(&mhi_dev->dev, sizeof(*context), GFP_KERNEL);
+	context = devm_kzalloc_obj(&mhi_dev->dev, *context);
 	if (!context)
 		return -ENOMEM;
 

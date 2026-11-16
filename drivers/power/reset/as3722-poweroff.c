@@ -44,8 +44,7 @@ static int as3722_poweroff_probe(struct platform_device *pdev)
 	if (!of_property_read_bool(np, "ams,system-power-controller"))
 		return 0;
 
-	as3722_poweroff = devm_kzalloc(&pdev->dev, sizeof(*as3722_poweroff),
-				GFP_KERNEL);
+	as3722_poweroff = devm_kzalloc_obj(&pdev->dev, *as3722_poweroff);
 	if (!as3722_poweroff)
 		return -ENOMEM;
 

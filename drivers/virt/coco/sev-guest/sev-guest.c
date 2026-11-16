@@ -636,7 +636,7 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
 		return -ENODEV;
 
-	snp_dev = devm_kzalloc(&pdev->dev, sizeof(struct snp_guest_dev), GFP_KERNEL);
+	snp_dev = devm_kzalloc_obj(&pdev->dev, struct snp_guest_dev);
 	if (!snp_dev)
 		return -ENOMEM;
 

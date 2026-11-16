@@ -96,7 +96,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 				     "Failed to get channels\n");
 	}
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	buf = (void *)devm_get_free_pages(dev, GFP_KERNEL, 0);
 	if (!st || !buf)
 		return -ENOMEM;
@@ -107,9 +107,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	while (st->channels[st->num_channels].indio_dev)
 		st->num_channels++;
 
-	st->attrs = devm_kcalloc(dev,
-				 2 * st->num_channels + 1, sizeof(*st->attrs),
-				 GFP_KERNEL);
+	st->attrs = devm_kzalloc_objs(dev, *st->attrs, 2 * st->num_channels + 1);
 	if (st->attrs == NULL)
 		return -ENOMEM;
 
@@ -117,7 +115,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		const char *prefix;
 		int n;
 
-		a = devm_kzalloc(dev, sizeof(*a), GFP_KERNEL);
+		a = devm_kzalloc_obj(dev, *a);
 		if (a == NULL)
 			return -ENOMEM;
 
@@ -166,7 +164,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		if (iio_read_channel_label(&st->channels[i], buf) < 0)
 			continue;
 
-		a = devm_kzalloc(dev, sizeof(*a), GFP_KERNEL);
+		a = devm_kzalloc_obj(dev, *a);
 		if (a == NULL)
 			return -ENOMEM;
 

@@ -2730,7 +2730,7 @@ static int joycon_probe(struct hid_device *hdev,
 
 	hid_dbg(hdev, "probe - start\n");
 
-	ctlr = devm_kzalloc(&hdev->dev, sizeof(*ctlr), GFP_KERNEL);
+	ctlr = devm_kzalloc_obj(&hdev->dev, *ctlr);
 	if (!ctlr) {
 		ret = -ENOMEM;
 		goto err;
@@ -3687,7 +3687,7 @@ static int switch2_init_input(struct switch2_controller *ns2)
 	player_led_pattern = ns2->player_id % JC_NUM_LED_PATTERNS;
 	hid_dbg(hdev, "assigned player %d led pattern", player_led_pattern + 1);
 
-	ns2->leds = devm_kcalloc(&input->dev, JC_NUM_LEDS, sizeof(*ns2->leds), GFP_KERNEL);
+	ns2->leds = devm_kzalloc_objs(&input->dev, *ns2->leds, JC_NUM_LEDS);
 	if (!ns2->leds) {
 		input_unregister_device(input);
 		return -ENOMEM;

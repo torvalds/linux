@@ -172,7 +172,7 @@ static int stm32_vrefbuf_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;

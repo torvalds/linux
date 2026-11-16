@@ -892,7 +892,7 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 		return ERR_PTR(-EINVAL);
 	}
 
-	pd = devm_kzalloc(scpsys->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(scpsys->dev, *pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
@@ -921,12 +921,14 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 				pd->num_clks++;
 		}
 
-		pd->clks = devm_kcalloc(scpsys->dev, pd->num_clks, sizeof(*pd->clks), GFP_KERNEL);
+		pd->clks = devm_kzalloc_objs(scpsys->dev, *pd->clks,
+					     pd->num_clks);
 		if (!pd->clks)
 			return ERR_PTR(-ENOMEM);
 
-		pd->subsys_clks = devm_kcalloc(scpsys->dev, pd->num_subsys_clks,
-					       sizeof(*pd->subsys_clks), GFP_KERNEL);
+		pd->subsys_clks = devm_kzalloc_objs(scpsys->dev,
+						    *pd->subsys_clks,
+						    pd->num_subsys_clks);
 		if (!pd->subsys_clks)
 			return ERR_PTR(-ENOMEM);
 
@@ -1215,8 +1217,8 @@ static int scpsys_get_bus_protection_legacy(struct device *dev, struct scpsys *s
 		return 0;
 	}
 
-	scpsys->bus_prot = devm_kmalloc_array(dev, num_regmaps,
-					      sizeof(*scpsys->bus_prot), GFP_KERNEL);
+	scpsys->bus_prot = devm_kmalloc_objs(dev, *scpsys->bus_prot,
+					     num_regmaps);
 	if (!scpsys->bus_prot)
 		return -ENOMEM;
 
@@ -1248,8 +1250,8 @@ static int scpsys_get_bus_protection(struct device *dev, struct scpsys *scpsys)
 				     "Cannot get access controllers: expected %u, got %d\n",
 				     soc->num_bus_prot_blocks, num_handles);
 
-	scpsys->bus_prot = devm_kmalloc_array(dev, soc->num_bus_prot_blocks,
-					      sizeof(*scpsys->bus_prot), GFP_KERNEL);
+	scpsys->bus_prot = devm_kmalloc_objs(dev, *scpsys->bus_prot,
+					     soc->num_bus_prot_blocks);
 	if (!scpsys->bus_prot)
 		return -ENOMEM;
 
@@ -1371,7 +1373,7 @@ static int scpsys_probe(struct platform_device *pdev)
 
 	num_domains = soc->num_domains + soc->num_hwv_domains;
 
-	scpsys = devm_kzalloc(dev, struct_size(scpsys, domains, num_domains), GFP_KERNEL);
+	scpsys = devm_kzalloc_flex(dev, *scpsys, domains, num_domains);
 	if (!scpsys)
 		return -ENOMEM;
 

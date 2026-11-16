@@ -776,7 +776,7 @@ static int ir_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	ir = devm_kzalloc(&client->dev, sizeof(*ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(&client->dev, *ir);
 	if (!ir)
 		return -ENOMEM;
 

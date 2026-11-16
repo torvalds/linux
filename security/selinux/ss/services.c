@@ -3311,7 +3311,7 @@ int security_get_classes(struct selinux_policy *policy,
 
 	rc = -ENOMEM;
 	*nclasses = policydb->p_classes.nprim;
-	*classes = kcalloc(*nclasses, sizeof(**classes), GFP_ATOMIC);
+	*classes = kzalloc_objs(**classes, *nclasses, GFP_ATOMIC);
 	if (!*classes)
 		goto out;
 
@@ -3375,7 +3375,7 @@ int security_get_permissions(struct selinux_policy *policy,
 
 	rc = -ENOMEM;
 	*nperms = match->permissions.nprim;
-	*perms = kcalloc(*nperms, sizeof(**perms), GFP_ATOMIC);
+	*perms = kzalloc_objs(**perms, *nperms, GFP_ATOMIC);
 	if (!*perms)
 		goto out;
 

@@ -1104,7 +1104,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	unsigned int i;
 
-	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
+	pmu = devm_kzalloc_obj(&pdev->dev, *pmu);
 	if (!pmu)
 		return -ENOMEM;
 

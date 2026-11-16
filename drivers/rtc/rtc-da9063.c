@@ -366,7 +366,7 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENXIO;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

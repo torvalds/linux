@@ -165,8 +165,7 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
 	struct wm831x_backup *devdata;
 
-	devdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_backup),
-				GFP_KERNEL);
+	devdata = devm_kzalloc_obj(&pdev->dev, struct wm831x_backup);
 	if (devdata == NULL)
 		return -ENOMEM;
 

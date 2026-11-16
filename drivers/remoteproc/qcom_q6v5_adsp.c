@@ -545,8 +545,7 @@ static int adsp_init_clock(struct qcom_adsp *adsp, const char **clk_ids)
 		num_clks++;
 
 	adsp->num_clks = num_clks;
-	adsp->clks = devm_kcalloc(adsp->dev, adsp->num_clks,
-				sizeof(*adsp->clks), GFP_KERNEL);
+	adsp->clks = devm_kzalloc_objs(adsp->dev, *adsp->clks, adsp->num_clks);
 	if (!adsp->clks)
 		return -ENOMEM;
 

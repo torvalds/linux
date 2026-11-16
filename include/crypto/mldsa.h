@@ -48,11 +48,13 @@ enum mldsa_alg {
  * Return:
  * * 0 if the signature is valid
  * * -EBADMSG if the signature and/or public key is malformed
+ * * -EINVAL if @alg is not a valid value
  * * -EKEYREJECTED if the signature is invalid but otherwise well-formed
  * * -ENOMEM if out of memory so the validity of the signature is unknown
  */
-int mldsa_verify(enum mldsa_alg alg, const u8 *sig, size_t sig_len,
-		 const u8 *msg, size_t msg_len, const u8 *pk, size_t pk_len);
+int __must_check mldsa_verify(enum mldsa_alg alg, const u8 *sig, size_t sig_len,
+			      const u8 *msg, size_t msg_len, const u8 *pk,
+			      size_t pk_len);
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_MLDSA_KUNIT_TEST)
 /* Internal function, exposed only for unit testing */

@@ -111,7 +111,7 @@ static int chtdc_ti_probe(struct i2c_client *i2c)
 	struct intel_soc_pmic *pmic;
 	int ret;
 
-	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc_obj(dev, *pmic);
 	if (!pmic)
 		return -ENOMEM;
 

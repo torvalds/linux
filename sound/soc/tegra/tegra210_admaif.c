@@ -1003,14 +1003,14 @@ static int tegra_admaif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ADMAIF_PATHS; i++) {
 		admaif->mono_to_stereo[i] =
-			devm_kcalloc(&pdev->dev, admaif->soc_data->num_ch,
-				     sizeof(unsigned int), GFP_KERNEL);
+			devm_kzalloc_objs(&pdev->dev, unsigned int,
+					  admaif->soc_data->num_ch);
 		if (!admaif->mono_to_stereo[i])
 			return -ENOMEM;
 
 		admaif->stereo_to_mono[i] =
-			devm_kcalloc(&pdev->dev, admaif->soc_data->num_ch,
-				     sizeof(unsigned int), GFP_KERNEL);
+			devm_kzalloc_objs(&pdev->dev, unsigned int,
+					  admaif->soc_data->num_ch);
 		if (!admaif->stereo_to_mono[i])
 			return -ENOMEM;
 	}

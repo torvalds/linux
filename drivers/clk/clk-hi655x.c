@@ -83,7 +83,7 @@ static int hi655x_clk_probe(struct platform_device *pdev)
 	};
 	int ret;
 
-	hi655x_clk = devm_kzalloc(&pdev->dev, sizeof(*hi655x_clk), GFP_KERNEL);
+	hi655x_clk = devm_kzalloc_obj(&pdev->dev, *hi655x_clk);
 	if (!hi655x_clk)
 		return -ENOMEM;
 

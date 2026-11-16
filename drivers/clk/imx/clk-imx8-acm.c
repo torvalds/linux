@@ -269,16 +269,13 @@ static int clk_imx_acm_attach_pm_domains(struct device *dev,
 	if (dev_pm->num_domains <= 1)
 		return 0;
 
-	dev_pm->pd_dev = devm_kmalloc_array(dev, dev_pm->num_domains,
-					    sizeof(*dev_pm->pd_dev),
-					    GFP_KERNEL);
+	dev_pm->pd_dev = devm_kmalloc_objs(dev, *dev_pm->pd_dev,
+					   dev_pm->num_domains);
 	if (!dev_pm->pd_dev)
 		return -ENOMEM;
 
-	dev_pm->pd_dev_link = devm_kmalloc_array(dev,
-						 dev_pm->num_domains,
-						 sizeof(*dev_pm->pd_dev_link),
-						 GFP_KERNEL);
+	dev_pm->pd_dev_link = devm_kmalloc_objs(dev, *dev_pm->pd_dev_link,
+						dev_pm->num_domains);
 	if (!dev_pm->pd_dev_link)
 		return -ENOMEM;
 
@@ -344,7 +341,7 @@ static int imx8_acm_clk_probe(struct platform_device *pdev)
 	if (WARN_ON(IS_ERR(base)))
 		return PTR_ERR(base);
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -352,8 +349,8 @@ static int imx8_acm_clk_probe(struct platform_device *pdev)
 	priv->soc_data = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, priv);
 
-	clk_hw_data = devm_kzalloc(&pdev->dev, struct_size(clk_hw_data, hws, IMX_ADMA_ACM_CLK_END),
-				   GFP_KERNEL);
+	clk_hw_data = devm_kzalloc_flex(&pdev->dev, *clk_hw_data, hws,
+					IMX_ADMA_ACM_CLK_END);
 	if (!clk_hw_data)
 		return -ENOMEM;
 

@@ -686,7 +686,7 @@ struct drm_dp_aux *msm_dp_aux_get(struct device *dev,
 {
 	struct msm_dp_aux_private *aux;
 
-	aux = devm_kzalloc(dev, sizeof(*aux), GFP_KERNEL);
+	aux = devm_kzalloc_obj(dev, *aux);
 	if (!aux)
 		return ERR_PTR(-ENOMEM);
 

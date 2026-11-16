@@ -46,7 +46,7 @@ static int xilinx_spi_probe(struct spi_device *spi)
 {
 	struct xilinx_fpga_core *core;
 
-	core = devm_kzalloc(&spi->dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(&spi->dev, *core);
 	if (!core)
 		return -ENOMEM;
 

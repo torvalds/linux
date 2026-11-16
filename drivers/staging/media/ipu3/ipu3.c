@@ -622,7 +622,7 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 	void __iomem *const *iomap;
 	int r;
 
-	imgu = devm_kzalloc(&pci_dev->dev, sizeof(*imgu), GFP_KERNEL);
+	imgu = devm_kzalloc_obj(&pci_dev->dev, *imgu);
 	if (!imgu)
 		return -ENOMEM;
 

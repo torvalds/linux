@@ -319,8 +319,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	struct rk_crypto_info *crypto_info, *first;
 	int err = 0;
 
-	crypto_info = devm_kzalloc(&pdev->dev,
-				   sizeof(*crypto_info), GFP_KERNEL);
+	crypto_info = devm_kzalloc_obj(&pdev->dev, *crypto_info);
 	if (!crypto_info) {
 		err = -ENOMEM;
 		goto err_crypto;

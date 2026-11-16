@@ -52,7 +52,7 @@ static int u_boot_env_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct u_boot_env *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

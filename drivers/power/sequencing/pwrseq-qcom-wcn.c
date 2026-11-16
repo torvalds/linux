@@ -427,7 +427,7 @@ static const char *const pwrseq_wcn7850_vregs[] = {
 static const struct pwrseq_qcom_wcn_pdata pwrseq_wcn7850_of_data = {
 	.vregs = pwrseq_wcn7850_vregs,
 	.num_vregs = ARRAY_SIZE(pwrseq_wcn7850_vregs),
-	.pwup_delay_ms = 50,
+	.pwup_delay_ms = 100,
 	.targets = pwrseq_qcom_wcn_targets,
 };
 
@@ -491,7 +491,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 	struct pwrseq_config config;
 	int i, ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -502,8 +502,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -ENODEV,
 				     "Failed to obtain platform data\n");
 
-	ctx->regs = devm_kcalloc(dev, ctx->pdata->num_vregs,
-				 sizeof(*ctx->regs), GFP_KERNEL);
+	ctx->regs = devm_kzalloc_objs(dev, *ctx->regs, ctx->pdata->num_vregs);
 	if (!ctx->regs)
 		return -ENOMEM;
 

@@ -293,7 +293,7 @@ static int ls1x_ac97_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	ac97 = devm_kzalloc(dev, sizeof(struct ls1x_ac97), GFP_KERNEL);
+	ac97 = devm_kzalloc_obj(dev, struct ls1x_ac97);
 	if (!ac97)
 		return -ENOMEM;
 	ls1x_ac97 = ac97;

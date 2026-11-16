@@ -213,7 +213,7 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 	struct tegra_gmi *gmi;
 	int err;
 
-	gmi = devm_kzalloc(dev, sizeof(*gmi), GFP_KERNEL);
+	gmi = devm_kzalloc_obj(dev, *gmi);
 	if (!gmi)
 		return -ENOMEM;
 

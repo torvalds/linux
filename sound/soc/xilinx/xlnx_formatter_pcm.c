@@ -602,7 +602,7 @@ static int xlnx_formatter_pcm_probe(struct platform_device *pdev)
 	if (IS_ERR(axi_clk))
 		return dev_err_probe(dev, PTR_ERR(axi_clk), "failed to get s_axi_lite_aclk");
 
-	aud_drv_data = devm_kzalloc(dev, sizeof(*aud_drv_data), GFP_KERNEL);
+	aud_drv_data = devm_kzalloc_obj(dev, *aud_drv_data);
 	if (!aud_drv_data)
 		return -ENOMEM;
 

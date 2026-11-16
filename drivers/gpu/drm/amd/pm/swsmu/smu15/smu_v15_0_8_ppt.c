@@ -286,13 +286,13 @@ static int smu_v15_0_8_allocate_dpm_context(struct smu_context *smu)
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
 	smu_dpm->dpm_context =
-		kzalloc(sizeof(struct smu_15_0_dpm_context), GFP_KERNEL);
+		kzalloc_obj(struct smu_15_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_15_0_dpm_context);
 
 	smu_dpm->dpm_policies =
-		kzalloc(sizeof(struct smu_dpm_policy_ctxt), GFP_KERNEL);
+		kzalloc_obj(struct smu_dpm_policy_ctxt);
 	if (!smu_dpm->dpm_policies) {
 		kfree(smu_dpm->dpm_context);
 		return -ENOMEM;

@@ -1171,7 +1171,7 @@ static int miphy28lp_probe(struct platform_device *pdev)
 	size_t nphys;
 
 	nphys = of_get_child_count(np);
-	miphy_dev = devm_kzalloc(&pdev->dev, struct_size(miphy_dev, phys, nphys), GFP_KERNEL);
+	miphy_dev = devm_kzalloc_flex(&pdev->dev, *miphy_dev, phys, nphys);
 	if (!miphy_dev)
 		return -ENOMEM;
 
@@ -1192,8 +1192,7 @@ static int miphy28lp_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, child) {
 		struct miphy28lp_phy *miphy_phy;
 
-		miphy_phy = devm_kzalloc(&pdev->dev, sizeof(*miphy_phy),
-					 GFP_KERNEL);
+		miphy_phy = devm_kzalloc_obj(&pdev->dev, *miphy_phy);
 		if (!miphy_phy) {
 			ret = -ENOMEM;
 			goto put_child;

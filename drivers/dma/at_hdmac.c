@@ -1971,9 +1971,8 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (!plat_dat)
 		return -ENODEV;
 
-	atdma = devm_kzalloc(&pdev->dev,
-			     struct_size(atdma, chan, plat_dat->nr_channels),
-			     GFP_KERNEL);
+	atdma = devm_kzalloc_flex(&pdev->dev, *atdma, chan,
+				  plat_dat->nr_channels);
 	if (!atdma)
 		return -ENOMEM;
 

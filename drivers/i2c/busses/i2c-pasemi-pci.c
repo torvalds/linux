@@ -33,7 +33,7 @@ static int pasemi_smb_pci_probe(struct pci_dev *dev,
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
 		return -ENODEV;
 
-	smbus = devm_kzalloc(&dev->dev, sizeof(*smbus), GFP_KERNEL);
+	smbus = devm_kzalloc_obj(&dev->dev, *smbus);
 	if (!smbus)
 		return -ENOMEM;
 

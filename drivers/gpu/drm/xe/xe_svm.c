@@ -347,6 +347,7 @@ static void xe_vma_set_default_attributes(struct xe_vma *vma)
 	struct xe_vma_mem_attr default_attr = {
 		.preferred_loc.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE,
 		.preferred_loc.migration_policy = DRM_XE_MIGRATE_ALL_PAGES,
+		.default_pat_index = vma->attr.default_pat_index,
 		.pat_index = vma->attr.default_pat_index,
 		.atomic_access = DRM_XE_ATOMIC_UNDEFINED,
 		.purgeable_state = XE_MADV_PURGEABLE_WILLNEED,

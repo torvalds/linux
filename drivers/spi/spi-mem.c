@@ -1084,7 +1084,7 @@ static int spi_mem_probe(struct spi_device *spi)
 	struct spi_controller *ctlr = spi->controller;
 	struct spi_mem *mem;
 
-	mem = devm_kzalloc(&spi->dev, sizeof(*mem), GFP_KERNEL);
+	mem = devm_kzalloc_obj(&spi->dev, *mem);
 	if (!mem)
 		return -ENOMEM;
 

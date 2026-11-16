@@ -1117,9 +1117,8 @@ static int lochnagar_fill_func_groups(struct lochnagar_pin_priv *priv)
 		if (!funcs->ngroups)
 			continue;
 
-		funcs->groups = devm_kcalloc(priv->dev, funcs->ngroups,
-					     sizeof(*funcs->groups),
-					     GFP_KERNEL);
+		funcs->groups = devm_kzalloc_objs(priv->dev, *funcs->groups,
+						  funcs->ngroups);
 		if (!funcs->groups)
 			return -ENOMEM;
 
@@ -1144,14 +1143,14 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->dev = dev;
 	priv->lochnagar = lochnagar;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 

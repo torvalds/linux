@@ -110,8 +110,7 @@ static int st33zp24_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(&client->dev, sizeof(struct st33zp24_i2c_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&client->dev, struct st33zp24_i2c_phy);
 	if (!phy)
 		return -ENOMEM;
 

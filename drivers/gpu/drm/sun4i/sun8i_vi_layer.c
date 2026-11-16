@@ -398,7 +398,7 @@ struct sun8i_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 	const u32 *formats;
 	int ret;
 
-	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
+	layer = devm_kzalloc_obj(drm->dev, *layer);
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 

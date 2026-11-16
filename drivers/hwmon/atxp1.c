@@ -251,7 +251,7 @@ static int atxp1_probe(struct i2c_client *client)
 	struct atxp1_data *data;
 	struct device *hwmon_dev;
 
-	data = devm_kzalloc(dev, sizeof(struct atxp1_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct atxp1_data);
 	if (!data)
 		return -ENOMEM;
 

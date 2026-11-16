@@ -137,7 +137,7 @@ static int osif_probe(struct usb_interface *interface,
 	struct osif_priv *priv;
 	u16 version;
 
-	priv = devm_kzalloc(&interface->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&interface->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

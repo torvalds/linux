@@ -2859,7 +2859,7 @@ static int hi847_probe(struct i2c_client *client)
 	unsigned long freq;
 	int ret;
 
-	hi847 = devm_kzalloc(&client->dev, sizeof(*hi847), GFP_KERNEL);
+	hi847 = devm_kzalloc_obj(&client->dev, *hi847);
 	if (!hi847)
 		return -ENOMEM;
 

@@ -448,7 +448,7 @@ int amdgpu_virt_ras_convert_retired_address(struct amdgpu_device *adev,
 	if (!pfn || !max_pfn_sz)
 		return -EINVAL;
 
-	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
+	rsp = kzalloc_obj(*rsp);
 	if (!rsp)
 		return -ENOMEM;
 

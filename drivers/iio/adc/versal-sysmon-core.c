@@ -877,7 +877,7 @@ static int sysmon_parse_fw(struct iio_dev *indio_dev, struct device *dev, int ir
 
 	num_static = ARRAY_SIZE(temp_channels);
 	num_chan = size_add(num_temp, size_add(num_static, num_supply));
-	sysmon_channels = devm_kcalloc(dev, num_chan, sizeof(*sysmon_channels), GFP_KERNEL);
+	sysmon_channels = devm_kzalloc_objs(dev, *sysmon_channels, num_chan);
 	if (!sysmon_channels)
 		return -ENOMEM;
 

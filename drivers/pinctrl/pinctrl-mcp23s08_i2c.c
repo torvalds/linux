@@ -14,7 +14,7 @@ static int mcp230xx_probe(struct i2c_client *client)
 	struct mcp23s08 *mcp;
 	int ret;
 
-	mcp = devm_kzalloc(dev, sizeof(*mcp), GFP_KERNEL);
+	mcp = devm_kzalloc_obj(dev, *mcp);
 	if (!mcp)
 		return -ENOMEM;
 

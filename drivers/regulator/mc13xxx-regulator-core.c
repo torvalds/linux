@@ -171,8 +171,7 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	if (!parent)
 		return NULL;
 
-	data = devm_kcalloc(&pdev->dev, priv->num_regulators, sizeof(*data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_objs(&pdev->dev, *data, priv->num_regulators);
 	if (!data) {
 		of_node_put(parent);
 		return NULL;

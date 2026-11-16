@@ -168,7 +168,7 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 						K3_VTM_ADC_BEGIN_VAL))
 		return -EINVAL;
 
-	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
+	bgp = devm_kzalloc_obj(&pdev->dev, *bgp);
 	if (!bgp)
 		return -ENOMEM;
 
@@ -190,7 +190,7 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 	cnt = val & K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK;
 	cnt >>= __ffs(K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK);
 
-	data = devm_kcalloc(dev, cnt, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_objs(dev, *data, cnt);
 	if (!data) {
 		ret = -ENOMEM;
 		goto err_alloc;

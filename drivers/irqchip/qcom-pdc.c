@@ -620,7 +620,7 @@ static int pdc_setup_pin_mapping(struct device *dev)
 		return -EINVAL;
 
 	pdc->region_cnt = n / 3;
-	pdc->region = devm_kcalloc(dev, pdc->region_cnt, sizeof(*pdc->region), GFP_KERNEL);
+	pdc->region = devm_kzalloc_objs(dev, *pdc->region, pdc->region_cnt);
 	if (!pdc->region) {
 		pdc->region_cnt = 0;
 		return -ENOMEM;
@@ -670,7 +670,7 @@ static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *pare
 	if (res_size > resource_size(&res))
 		pr_warn("%pOF: invalid reg size, please fix DT\n", node);
 
-	pdc = devm_kzalloc(dev, sizeof(*pdc), GFP_KERNEL);
+	pdc = devm_kzalloc_obj(dev, *pdc);
 	if (!pdc)
 		return -ENOMEM;
 

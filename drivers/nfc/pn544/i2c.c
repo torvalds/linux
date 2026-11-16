@@ -873,8 +873,7 @@ static int pn544_hci_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(&client->dev, sizeof(struct pn544_i2c_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc_obj(&client->dev, struct pn544_i2c_phy);
 	if (!phy)
 		return -ENOMEM;
 

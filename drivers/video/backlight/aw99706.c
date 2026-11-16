@@ -376,7 +376,7 @@ static int aw99706_probe(struct i2c_client *client)
 	struct backlight_properties props = {};
 	int ret = 0;
 
-	aw = devm_kzalloc(dev, sizeof(*aw), GFP_KERNEL);
+	aw = devm_kzalloc_obj(dev, *aw);
 	if (!aw)
 		return -ENOMEM;
 

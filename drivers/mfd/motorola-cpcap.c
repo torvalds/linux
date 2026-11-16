@@ -272,7 +272,7 @@ static int cpcap_probe(struct spi_device *spi)
 	unsigned int num_cells;
 	int ret;
 
-	cpcap = devm_kzalloc(&spi->dev, sizeof(*cpcap), GFP_KERNEL);
+	cpcap = devm_kzalloc_obj(&spi->dev, *cpcap);
 	if (!cpcap)
 		return -ENOMEM;
 

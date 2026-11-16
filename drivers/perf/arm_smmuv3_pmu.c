@@ -854,7 +854,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	char *name;
 	struct device *dev = &pdev->dev;
 
-	smmu_pmu = devm_kzalloc(dev, sizeof(*smmu_pmu), GFP_KERNEL);
+	smmu_pmu = devm_kzalloc_obj(dev, *smmu_pmu);
 	if (!smmu_pmu)
 		return -ENOMEM;
 

@@ -438,7 +438,7 @@ static struct rcar_gen4_pcie *rcar_gen4_pcie_alloc(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_gen4_pcie *rcar;
 
-	rcar = devm_kzalloc(dev, sizeof(*rcar), GFP_KERNEL);
+	rcar = devm_kzalloc_obj(dev, *rcar);
 	if (!rcar)
 		return ERR_PTR(-ENOMEM);
 

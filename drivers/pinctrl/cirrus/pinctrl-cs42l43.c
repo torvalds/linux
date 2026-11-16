@@ -543,7 +543,7 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 	struct fwnode_handle *fwnode = dev_fwnode(cs42l43->dev);
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

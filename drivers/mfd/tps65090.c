@@ -178,7 +178,7 @@ static int tps65090_i2c_probe(struct i2c_client *client)
 	if (pdata)
 		irq_base = pdata->irq_base;
 
-	tps65090 = devm_kzalloc(&client->dev, sizeof(*tps65090), GFP_KERNEL);
+	tps65090 = devm_kzalloc_obj(&client->dev, *tps65090);
 	if (!tps65090)
 		return -ENOMEM;
 

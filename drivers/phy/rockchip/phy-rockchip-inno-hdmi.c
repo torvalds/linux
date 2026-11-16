@@ -1355,7 +1355,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	inno = devm_kzalloc(&pdev->dev, sizeof(*inno), GFP_KERNEL);
+	inno = devm_kzalloc_obj(&pdev->dev, *inno);
 	if (!inno)
 		return -ENOMEM;
 

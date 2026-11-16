@@ -429,7 +429,7 @@ int src4xxx_probe(struct device *dev, struct regmap *regmap,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	src4xxx = devm_kzalloc(dev, sizeof(*src4xxx), GFP_KERNEL);
+	src4xxx = devm_kzalloc_obj(dev, *src4xxx);
 	if (!src4xxx)
 		return -ENOMEM;
 

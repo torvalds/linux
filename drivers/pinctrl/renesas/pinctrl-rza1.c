@@ -1007,11 +1007,9 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 * except that functions carry an array of per-pin mux configuration
 	 * settings.
 	 */
-	mux_confs = devm_kcalloc(rza1_pctl->dev, npins, sizeof(*mux_confs),
-				 GFP_KERNEL);
-	grpins = devm_kcalloc(rza1_pctl->dev, npins, sizeof(*grpins),
-			      GFP_KERNEL);
-	fngrps = devm_kzalloc(rza1_pctl->dev, sizeof(*fngrps), GFP_KERNEL);
+	mux_confs = devm_kzalloc_objs(rza1_pctl->dev, *mux_confs, npins);
+	grpins = devm_kzalloc_objs(rza1_pctl->dev, *grpins, npins);
+	fngrps = devm_kzalloc_obj(rza1_pctl->dev, *fngrps);
 
 	if (!mux_confs || !grpins || !fngrps)
 		return -ENOMEM;
@@ -1245,10 +1243,9 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 		return 0;
 	}
 
-	gpio_chips = devm_kcalloc(rza1_pctl->dev, ngpiochips,
-				  sizeof(*gpio_chips), GFP_KERNEL);
-	gpio_ranges = devm_kcalloc(rza1_pctl->dev, ngpiochips,
-				   sizeof(*gpio_ranges), GFP_KERNEL);
+	gpio_chips = devm_kzalloc_objs(rza1_pctl->dev, *gpio_chips, ngpiochips);
+	gpio_ranges = devm_kzalloc_objs(rza1_pctl->dev, *gpio_ranges,
+					ngpiochips);
 	if (!gpio_chips || !gpio_ranges)
 		return -ENOMEM;
 
@@ -1282,10 +1279,8 @@ static int rza1_pinctrl_register(struct rza1_pinctrl *rza1_pctl)
 	unsigned int i;
 	int ret;
 
-	pins = devm_kcalloc(rza1_pctl->dev, RZA1_NPINS, sizeof(*pins),
-			    GFP_KERNEL);
-	ports = devm_kcalloc(rza1_pctl->dev, RZA1_NPORTS, sizeof(*ports),
-			     GFP_KERNEL);
+	pins = devm_kzalloc_objs(rza1_pctl->dev, *pins, RZA1_NPINS);
+	ports = devm_kzalloc_objs(rza1_pctl->dev, *ports, RZA1_NPORTS);
 	if (!pins || !ports)
 		return -ENOMEM;
 
@@ -1347,7 +1342,7 @@ static int rza1_pinctrl_probe(struct platform_device *pdev)
 	struct rza1_pinctrl *rza1_pctl;
 	int ret;
 
-	rza1_pctl = devm_kzalloc(&pdev->dev, sizeof(*rza1_pctl), GFP_KERNEL);
+	rza1_pctl = devm_kzalloc_obj(&pdev->dev, *rza1_pctl);
 	if (!rza1_pctl)
 		return -ENOMEM;
 

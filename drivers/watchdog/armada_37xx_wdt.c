@@ -252,8 +252,7 @@ static int armada_37xx_wdt_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct armada_37xx_watchdog),
-			   GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, struct armada_37xx_watchdog);
 	if (!dev)
 		return -ENOMEM;
 

@@ -965,8 +965,7 @@ static int abituguru3_probe(struct platform_device *pdev)
 	u8 buf[2];
 	u16 id;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru3_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, struct abituguru3_data);
 	if (!data)
 		return -ENOMEM;
 

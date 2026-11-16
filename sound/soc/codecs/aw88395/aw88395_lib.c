@@ -579,9 +579,9 @@ static int aw_dev_cfg_get_reg_valid_prof(struct aw_device *aw_dev,
 		return -EPERM;
 	}
 
-	prof_info->prof_desc = devm_kcalloc(aw_dev->dev,
-					prof_info->count, sizeof(struct aw_prof_desc),
-					GFP_KERNEL);
+	prof_info->prof_desc = devm_kzalloc_objs(aw_dev->dev,
+						 struct aw_prof_desc,
+						 prof_info->count);
 	if (!prof_info->prof_desc)
 		return -ENOMEM;
 
@@ -630,9 +630,9 @@ static int aw_dev_cfg_get_multiple_valid_prof(struct aw_device *aw_dev,
 		return -EPERM;
 	}
 
-	prof_info->prof_desc = devm_kcalloc(aw_dev->dev,
-					prof_info->count, sizeof(struct aw_prof_desc),
-					GFP_KERNEL);
+	prof_info->prof_desc = devm_kzalloc_objs(aw_dev->dev,
+						 struct aw_prof_desc,
+						 prof_info->count);
 	if (!prof_info->prof_desc)
 		return -ENOMEM;
 
@@ -965,9 +965,9 @@ static int aw_dev_load_cfg_by_hdr_v1(struct aw_device *aw_dev,
 		return ret;
 	}
 
-	prof_info->prof_desc = devm_kcalloc(aw_dev->dev,
-					prof_info->count, sizeof(struct aw_prof_desc),
-					GFP_KERNEL);
+	prof_info->prof_desc = devm_kzalloc_objs(aw_dev->dev,
+						 struct aw_prof_desc,
+						 prof_info->count);
 	if (!prof_info->prof_desc)
 		return -ENOMEM;
 

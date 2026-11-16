@@ -749,9 +749,8 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	state = devm_kzalloc(dev, struct_size(state, pinfuncs,
-					      of_get_child_count(of_node)),
-			     GFP_KERNEL);
+	state = devm_kzalloc_flex(dev, *state, pinfuncs,
+				  of_get_child_count(of_node));
 	if (!state)
 		return -ENOMEM;
 

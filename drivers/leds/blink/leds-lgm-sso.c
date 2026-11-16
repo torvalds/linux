@@ -627,7 +627,7 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 	int ret;
 
 	fwnode_for_each_child_node(fw_ssoled, fwnode_child) {
-		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(dev, *led);
 		if (!led) {
 			ret = -ENOMEM;
 			goto __dt_err;
@@ -777,7 +777,7 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 	struct sso_led_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

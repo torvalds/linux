@@ -279,7 +279,7 @@ peci_cpu_probe(struct peci_device *device, const struct peci_device_id *id)
 	struct device *dev = &device->dev;
 	struct peci_cpu *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

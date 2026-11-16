@@ -127,7 +127,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	u32 bell_frequency;
 	int error;
 
-	beeper = devm_kzalloc(dev, sizeof(*beeper), GFP_KERNEL);
+	beeper = devm_kzalloc_obj(dev, *beeper);
 	if (!beeper)
 		return -ENOMEM;
 

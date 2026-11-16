@@ -370,7 +370,7 @@ static int aemif_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct aemif_device *aemif;
 
-	aemif = devm_kzalloc(dev, sizeof(*aemif), GFP_KERNEL);
+	aemif = devm_kzalloc_obj(dev, *aemif);
 	if (!aemif)
 		return -ENOMEM;
 

@@ -489,7 +489,7 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 {
 	struct dwc3_event_buffer	*evt;
 
-	evt = devm_kzalloc(dwc->dev, sizeof(*evt), GFP_KERNEL);
+	evt = devm_kzalloc_obj(dwc->dev, *evt);
 	if (!evt)
 		return ERR_PTR(-ENOMEM);
 
@@ -1140,7 +1140,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
 	if (ntype <= 0)
 		return;
 
-	vals = kcalloc(ntype, sizeof(u32), GFP_KERNEL);
+	vals = kzalloc_objs(u32, ntype);
 	if (!vals)
 		return;
 
@@ -2460,7 +2460,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dwc = devm_kzalloc(&pdev->dev, sizeof(*dwc), GFP_KERNEL);
+	dwc = devm_kzalloc_obj(&pdev->dev, *dwc);
 	if (!dwc)
 		return -ENOMEM;
 

@@ -485,8 +485,7 @@ static int load_timings(struct tegra_mc *mc, struct device_node *node)
 	int child_count = of_get_child_count(node);
 	int i = 0, err;
 
-	mc->timings = devm_kcalloc(mc->dev, child_count, sizeof(*timing),
-				   GFP_KERNEL);
+	mc->timings = devm_kzalloc_objs(mc->dev, *timing, child_count);
 	if (!mc->timings)
 		return -ENOMEM;
 
@@ -956,7 +955,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	u64 mask;
 	int err;
 
-	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
+	mc = devm_kzalloc_obj(&pdev->dev, *mc);
 	if (!mc)
 		return -ENOMEM;
 

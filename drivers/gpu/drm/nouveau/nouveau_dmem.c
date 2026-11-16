@@ -221,8 +221,8 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 	args.start = ALIGN_DOWN(vmf->address, (PAGE_SIZE << order));
 	args.vma = vmf->vma;
 	args.end = args.start + (PAGE_SIZE << order);
-	args.src = kcalloc(nr, sizeof(*args.src), GFP_KERNEL);
-	args.dst = kcalloc(nr, sizeof(*args.dst), GFP_KERNEL);
+	args.src = kzalloc_objs(*args.src, nr);
+	args.dst = kzalloc_objs(*args.dst, nr);
 
 	if (!args.src || !args.dst) {
 		ret = VM_FAULT_OOM;
@@ -493,8 +493,8 @@ nouveau_dmem_evict_chunk(struct nouveau_dmem_chunk *chunk)
 	struct nouveau_dmem_dma_info *dma_info;
 	struct nouveau_fence *fence;
 
-	src_pfns = kvcalloc(npages, sizeof(*src_pfns), GFP_KERNEL | __GFP_NOFAIL);
-	dst_pfns = kvcalloc(npages, sizeof(*dst_pfns), GFP_KERNEL | __GFP_NOFAIL);
+	src_pfns = kvzalloc_objs(*src_pfns, npages, GFP_KERNEL | __GFP_NOFAIL);
+	dst_pfns = kvzalloc_objs(*dst_pfns, npages, GFP_KERNEL | __GFP_NOFAIL);
 	dma_info = kvzalloc_objs(*dma_info, npages, GFP_KERNEL | __GFP_NOFAIL);
 
 	migrate_device_range(src_pfns, chunk->pagemap.range.start >> PAGE_SHIFT,
@@ -862,10 +862,10 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 		if (max > (unsigned long)HPAGE_PMD_NR)
 			max = (unsigned long)HPAGE_PMD_NR;
 
-	args.src = kcalloc(max, sizeof(*args.src), GFP_KERNEL);
+	args.src = kzalloc_objs(*args.src, max);
 	if (!args.src)
 		goto out;
-	args.dst = kcalloc(max, sizeof(*args.dst), GFP_KERNEL);
+	args.dst = kzalloc_objs(*args.dst, max);
 	if (!args.dst)
 		goto out_free_src;
 

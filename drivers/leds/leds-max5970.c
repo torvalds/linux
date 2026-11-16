@@ -70,7 +70,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+		ddata = devm_kzalloc_obj(dev, *ddata);
 		if (!ddata) {
 			fwnode_handle_put(child);
 			return -ENOMEM;

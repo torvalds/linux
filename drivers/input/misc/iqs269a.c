@@ -1813,7 +1813,7 @@ static int iqs269_probe(struct i2c_client *client)
 	struct iqs269_private *iqs269;
 	int error;
 
-	iqs269 = devm_kzalloc(&client->dev, sizeof(*iqs269), GFP_KERNEL);
+	iqs269 = devm_kzalloc_obj(&client->dev, *iqs269);
 	if (!iqs269)
 		return -ENOMEM;
 

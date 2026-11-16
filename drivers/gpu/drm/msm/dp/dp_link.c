@@ -1333,7 +1333,7 @@ struct msm_dp_link *msm_dp_link_get(struct device *dev, struct drm_dp_aux *aux)
 		return ERR_PTR(-EINVAL);
 	}
 
-	link = devm_kzalloc(dev, sizeof(*link), GFP_KERNEL);
+	link = devm_kzalloc_obj(dev, *link);
 	if (!link)
 		return ERR_PTR(-ENOMEM);
 

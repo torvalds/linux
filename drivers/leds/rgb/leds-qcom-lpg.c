@@ -1394,7 +1394,7 @@ static int lpg_add_led(struct lpg *lpg, struct fwnode_handle *fw)
 	else
 		num_channels = 1;
 
-	led = devm_kzalloc(lpg->dev, struct_size(led, channels, num_channels), GFP_KERNEL);
+	led = devm_kzalloc_flex(lpg->dev, *led, channels, num_channels);
 	if (!led)
 		return -ENOMEM;
 
@@ -1402,7 +1402,7 @@ static int lpg_add_led(struct lpg *lpg, struct fwnode_handle *fw)
 	led->num_channels = num_channels;
 
 	if (color == LED_COLOR_ID_RGB || color == LED_COLOR_ID_MULTI) {
-		info = devm_kcalloc(lpg->dev, num_channels, sizeof(*info), GFP_KERNEL);
+		info = devm_kzalloc_objs(lpg->dev, *info, num_channels);
 		if (!info)
 			return -ENOMEM;
 		i = 0;
@@ -1609,7 +1609,7 @@ static int lpg_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	lpg = devm_kzalloc(&pdev->dev, struct_size(lpg, channels, data->num_channels), GFP_KERNEL);
+	lpg = devm_kzalloc_flex(&pdev->dev, *lpg, channels, data->num_channels);
 	if (!lpg)
 		return -ENOMEM;
 

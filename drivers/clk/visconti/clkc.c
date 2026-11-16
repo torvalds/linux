@@ -87,13 +87,13 @@ static struct clk_hw *visconti_clk_register_gate(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->name = pdata->fw_name = parent_name;
 
-	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
+	gate = devm_kzalloc_obj(dev, *gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -139,7 +139,7 @@ int visconti_clk_register_gates(struct visconti_clk_provider *ctx,
 		char *dev_name;
 		u8 rs_idx;
 
-		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -191,7 +191,7 @@ struct visconti_clk_provider *visconti_init_clk(struct device *dev,
 	struct visconti_clk_provider *ctx;
 	int i;
 
-	ctx = devm_kzalloc(dev, struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
+	ctx = devm_kzalloc_flex(dev, *ctx, clk_data.hws, nr_clks);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

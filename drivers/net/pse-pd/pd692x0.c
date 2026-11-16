@@ -944,12 +944,11 @@ pd692x0_register_manager_regulator(struct device *dev, char *reg_name,
 	struct regulator_desc *rdesc;
 	struct regulator_dev *rdev;
 
-	rinit_data = devm_kzalloc(dev, sizeof(*rinit_data),
-				  GFP_KERNEL);
+	rinit_data = devm_kzalloc_obj(dev, *rinit_data);
 	if (!rinit_data)
 		return ERR_PTR(-ENOMEM);
 
-	rdesc = devm_kzalloc(dev, sizeof(*rdesc), GFP_KERNEL);
+	rdesc = devm_kzalloc_obj(dev, *rdesc);
 	if (!rdesc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1263,8 +1262,8 @@ static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 	if (!manager)
 		return -ENOMEM;
 
-	port_matrix = devm_kcalloc(&priv->client->dev, PD692X0_MAX_PIS,
-				   sizeof(*port_matrix), GFP_KERNEL);
+	port_matrix = devm_kzalloc_objs(&priv->client->dev, *port_matrix,
+					PD692X0_MAX_PIS);
 	if (!port_matrix) {
 		ret = -ENOMEM;
 		goto err_free_manager;
@@ -1775,7 +1774,7 @@ static int pd692x0_i2c_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

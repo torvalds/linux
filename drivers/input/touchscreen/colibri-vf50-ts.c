@@ -283,7 +283,7 @@ static int vf50_ts_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	touchdev = devm_kzalloc(dev, sizeof(*touchdev), GFP_KERNEL);
+	touchdev = devm_kzalloc_obj(dev, *touchdev);
 	if (!touchdev)
 		return -ENOMEM;
 

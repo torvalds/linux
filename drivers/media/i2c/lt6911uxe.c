@@ -589,7 +589,7 @@ static int lt6911uxe_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret;
 
-	lt6911uxe = devm_kzalloc(dev, sizeof(*lt6911uxe), GFP_KERNEL);
+	lt6911uxe = devm_kzalloc_obj(dev, *lt6911uxe);
 	if (!lt6911uxe)
 		return -ENOMEM;
 

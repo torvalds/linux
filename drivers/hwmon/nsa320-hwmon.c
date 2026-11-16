@@ -160,7 +160,7 @@ static int nsa320_hwmon_probe(struct platform_device *pdev)
 	struct nsa320_hwmon	*hwmon;
 	struct device		*classdev;
 
-	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(&pdev->dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

@@ -1180,7 +1180,7 @@ static void snd_mixer_oss_proc_write(struct snd_info_entry *entry,
 			    slot->assigned->index == idx && !strcmp(slot->assigned->name, str))
 				/* not changed */
 				break;
-			tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+			tbl = kmalloc_obj(*tbl);
 			if (!tbl)
 				break;
 			tbl->oss_id = ch;

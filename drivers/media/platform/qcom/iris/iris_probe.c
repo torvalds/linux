@@ -167,7 +167,7 @@ static int iris_reserve_iova_region(struct device *dev, struct dma_iova_state **
 	unsigned int count = 0;
 	int ret = -ENOMEM;
 
-	state = devm_kcalloc(dev, BITS_PER_TYPE(dma_addr_t) + 1, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_objs(dev, *state, BITS_PER_TYPE(dma_addr_t) + 1);
 	if (!state)
 		return ret;
 
@@ -281,7 +281,7 @@ static int iris_probe(struct platform_device *pdev)
 	u64 dma_mask;
 	int ret;
 
-	core = devm_kzalloc(&pdev->dev, sizeof(*core), GFP_KERNEL);
+	core = devm_kzalloc_obj(&pdev->dev, *core);
 	if (!core)
 		return -ENOMEM;
 	core->dev = dev;

@@ -141,7 +141,7 @@ static struct clk_hw *mdp4_lvds_pll_init(struct drm_device *dev)
 	struct mdp4_lvds_pll *lvds_pll;
 	int ret;
 
-	lvds_pll = devm_kzalloc(dev->dev, sizeof(*lvds_pll), GFP_KERNEL);
+	lvds_pll = devm_kzalloc_obj(dev->dev, *lvds_pll);
 	if (!lvds_pll)
 		return ERR_PTR(-ENOMEM);
 

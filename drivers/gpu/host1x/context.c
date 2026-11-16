@@ -232,7 +232,7 @@ struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
 	if (!cdl->len)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -388,7 +388,7 @@ struct host1x_context_mapping *host1x_memory_context_map(struct host1x_memory_co
 	struct host1x_context_mapping *m;
 	struct host1x_bo_mapping *bo_m;
 
-	m = kzalloc_obj(*m, GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 

@@ -682,9 +682,8 @@ static int simple_amp_parse_ranges(struct device *dev,
 	if (ranges->nb_ranges > max_gpio_val + 1)
 		return -EINVAL;
 
-	ranges->tab_ranges = devm_kcalloc(dev, ranges->nb_ranges,
-					  sizeof(*ranges->tab_ranges),
-					  GFP_KERNEL);
+	ranges->tab_ranges = devm_kzalloc_objs(dev, *ranges->tab_ranges,
+					       ranges->nb_ranges);
 	if (!ranges->tab_ranges)
 		return -ENOMEM;
 
@@ -798,9 +797,8 @@ static int simple_amp_parse_labels(struct device *dev,
 	if (labels->nb_labels > (1 << multi->gpios->ndescs))
 		return -EINVAL;
 
-	labels->tab_labels = devm_kcalloc(dev, labels->nb_labels,
-					  sizeof(*labels->tab_labels),
-					  GFP_KERNEL);
+	labels->tab_labels = devm_kzalloc_objs(dev, *labels->tab_labels,
+					       labels->nb_labels);
 	if (!labels->tab_labels)
 		return -ENOMEM;
 
@@ -863,7 +861,7 @@ static int simple_amp_probe(struct platform_device *pdev)
 	struct simple_amp *simple_amp;
 	int ret;
 
-	simple_amp = devm_kzalloc(dev, sizeof(*simple_amp), GFP_KERNEL);
+	simple_amp = devm_kzalloc_obj(dev, *simple_amp);
 	if (!simple_amp)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, simple_amp);

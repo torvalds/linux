@@ -23,7 +23,7 @@ struct lpass_macro *lpass_macro_pds_init(struct device *dev)
 	if (!of_property_present(dev->of_node, "power-domains"))
 		return NULL;
 
-	l_pds = devm_kzalloc(dev, sizeof(*l_pds), GFP_KERNEL);
+	l_pds = devm_kzalloc_obj(dev, *l_pds);
 	if (!l_pds)
 		return ERR_PTR(-ENOMEM);
 

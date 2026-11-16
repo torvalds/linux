@@ -1272,7 +1272,7 @@ static int wm9713_probe(struct platform_device *pdev)
 {
 	struct wm9713_priv *wm9713;
 
-	wm9713 = devm_kzalloc(&pdev->dev, sizeof(*wm9713), GFP_KERNEL);
+	wm9713 = devm_kzalloc_obj(&pdev->dev, *wm9713);
 	if (wm9713 == NULL)
 		return -ENOMEM;
 

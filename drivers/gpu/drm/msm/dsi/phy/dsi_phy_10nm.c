@@ -679,7 +679,7 @@ static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 	struct dsi_pll_10nm *pll_10nm;
 	int ret;
 
-	pll_10nm = devm_kzalloc(&pdev->dev, sizeof(*pll_10nm), GFP_KERNEL);
+	pll_10nm = devm_kzalloc_obj(&pdev->dev, *pll_10nm);
 	if (!pll_10nm)
 		return -ENOMEM;
 
@@ -918,7 +918,7 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 	u8 level;
 	int ret, i;
 
-	tuning_cfg = devm_kzalloc(dev, sizeof(*tuning_cfg), GFP_KERNEL);
+	tuning_cfg = devm_kzalloc_obj(dev, *tuning_cfg);
 	if (!tuning_cfg)
 		return -ENOMEM;
 

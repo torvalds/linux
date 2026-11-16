@@ -4290,8 +4290,8 @@ static int spu_mb_init(struct device *dev)
 	struct mbox_client *mcl = &iproc_priv.mcl;
 	int err, i;
 
-	iproc_priv.mbox = devm_kcalloc(dev, iproc_priv.spu.num_chan,
-				  sizeof(struct mbox_chan *), GFP_KERNEL);
+	iproc_priv.mbox = devm_kzalloc_objs(dev, struct mbox_chan *,
+					    iproc_priv.spu.num_chan);
 	if (!iproc_priv.mbox)
 		return -ENOMEM;
 

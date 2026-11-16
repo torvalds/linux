@@ -81,8 +81,7 @@ kbd_alloc(void) {
 	kbd = kzalloc_obj(struct kbd_data);
 	if (!kbd)
 		goto out;
-	kbd->key_maps = kcalloc(ARRAY_SIZE(ebc_key_maps),
-				sizeof(*kbd->key_maps), GFP_KERNEL);
+	kbd->key_maps = kzalloc_objs(*kbd->key_maps, ARRAY_SIZE(ebc_key_maps));
 	if (!kbd->key_maps)
 		goto out_kbd;
 	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++) {
@@ -94,8 +93,8 @@ kbd_alloc(void) {
 				goto out_maps;
 		}
 	}
-	kbd->func_table = kcalloc(ARRAY_SIZE(ebc_func_table),
-				  sizeof(*kbd->func_table), GFP_KERNEL);
+	kbd->func_table = kzalloc_objs(*kbd->func_table,
+				       ARRAY_SIZE(ebc_func_table));
 	if (!kbd->func_table)
 		goto out_maps;
 	for (i = 0; i < ARRAY_SIZE(ebc_func_table); i++) {

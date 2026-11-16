@@ -527,7 +527,9 @@ static int tpm_buf_append_salt(struct tpm_buf *buf, struct tpm_chip *chip,
 	}
 	crypto_ecdh_encode_key(encoded_key, buf_len, &p);
 	/* this generates a random private key */
-	crypto_kpp_set_secret(kpp, encoded_key, buf_len);
+	rc = crypto_kpp_set_secret(kpp, encoded_key, buf_len);
+	if (rc)
+		goto err_free_kpp;
 
 	/* salt is now the public point of this private key */
 	req = kpp_request_alloc(kpp, GFP_KERNEL);

@@ -102,7 +102,7 @@ static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
 	struct device *dev = cxlds->dev;
 	struct cxl_dev_id *dev_id;
 
-	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
+	dev_id = devm_kzalloc_obj(dev, *dev_id);
 	if (!dev_id)
 		return -ENOMEM;
 	dev_id->cxlds = cxlds;

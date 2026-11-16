@@ -244,7 +244,7 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c)
 		return -EINVAL;
 	}
 
-	rc5t583 = devm_kzalloc(&i2c->dev, sizeof(*rc5t583), GFP_KERNEL);
+	rc5t583 = devm_kzalloc_obj(&i2c->dev, *rc5t583);
 	if (!rc5t583)
 		return -ENOMEM;
 

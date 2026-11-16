@@ -371,7 +371,7 @@ static int octep_hp_pci_probe(struct pci_dev *pdev,
 	u16 slot_number = 0;
 	int ret;
 
-	hp_ctrl = devm_kzalloc(&pdev->dev, sizeof(*hp_ctrl), GFP_KERNEL);
+	hp_ctrl = devm_kzalloc_obj(&pdev->dev, *hp_ctrl);
 	if (!hp_ctrl)
 		return -ENOMEM;
 

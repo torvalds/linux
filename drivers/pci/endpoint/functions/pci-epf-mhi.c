@@ -931,7 +931,7 @@ static int pci_epf_mhi_probe(struct pci_epf *epf,
 	struct pci_epf_mhi *epf_mhi;
 	struct device *dev = &epf->dev;
 
-	epf_mhi = devm_kzalloc(dev, sizeof(*epf_mhi), GFP_KERNEL);
+	epf_mhi = devm_kzalloc_obj(dev, *epf_mhi);
 	if (!epf_mhi)
 		return -ENOMEM;
 

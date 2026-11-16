@@ -68,7 +68,7 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	pci_set_master(pci);
 
 	info = (const struct dwc_pwm_info *)id->driver_data;
-	ddata = devm_kzalloc(dev, struct_size(ddata, chips, info->nr), GFP_KERNEL);
+	ddata = devm_kzalloc_flex(dev, *ddata, chips, info->nr);
 	if (!ddata)
 		return -ENOMEM;
 

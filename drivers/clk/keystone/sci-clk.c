@@ -493,9 +493,8 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 		gap_size = 0;
 
 		if (num_clks == max_clks) {
-			tmp_clks = devm_kmalloc_array(dev, max_clks + 64,
-						      sizeof(sci_clk),
-						      GFP_KERNEL);
+			tmp_clks = devm_kmalloc_objs(dev, sci_clk,
+						     max_clks + 64);
 			memcpy(tmp_clks, clks, max_clks * sizeof(sci_clk));
 			if (max_clks)
 				devm_kfree(dev, clks);
@@ -503,7 +502,7 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 			clks = tmp_clks;
 		}
 
-		sci_clk = devm_kzalloc(dev, sizeof(*sci_clk), GFP_KERNEL);
+		sci_clk = devm_kzalloc_obj(dev, *sci_clk);
 		if (!sci_clk)
 			return -ENOMEM;
 		sci_clk->dev_id = dev_id;
@@ -581,8 +580,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 				break;
 
 			if (args.args_count == 2 && args.np == dev->of_node) {
-				sci_clk = devm_kzalloc(dev, sizeof(*sci_clk),
-						       GFP_KERNEL);
+				sci_clk = devm_kzalloc_obj(dev, *sci_clk);
 				if (!sci_clk)
 					return -ENOMEM;
 
@@ -630,9 +628,8 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 						continue;
 					}
 
-					sci_clk = devm_kzalloc(dev,
-							       sizeof(*sci_clk),
-							       GFP_KERNEL);
+					sci_clk = devm_kzalloc_obj(dev,
+								   *sci_clk);
 					if (!sci_clk)
 						return -ENOMEM;
 					sci_clk->dev_id = args.args[0];
@@ -650,8 +647,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 
 	list_sort(NULL, &clks, _cmp_sci_clk_list);
 
-	provider->clocks = devm_kmalloc_array(dev, num_clks, sizeof(sci_clk),
-					      GFP_KERNEL);
+	provider->clocks = devm_kmalloc_objs(dev, sci_clk, num_clks);
 	if (!provider->clocks)
 		return -ENOMEM;
 
@@ -695,7 +691,7 @@ static int ti_sci_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
+	provider = devm_kzalloc_obj(dev, *provider);
 	if (!provider)
 		return -ENOMEM;
 

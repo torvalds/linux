@@ -27,7 +27,7 @@ static int axp20x_i2c_probe(struct i2c_client *i2c)
 	struct axp20x_dev *axp20x;
 	int ret;
 
-	axp20x = devm_kzalloc(&i2c->dev, sizeof(*axp20x), GFP_KERNEL);
+	axp20x = devm_kzalloc_obj(&i2c->dev, *axp20x);
 	if (!axp20x)
 		return -ENOMEM;
 

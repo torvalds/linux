@@ -1158,7 +1158,7 @@ static int vt1211_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, err;
 
-	data = devm_kzalloc(dev, sizeof(struct vt1211_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct vt1211_data);
 	if (!data)
 		return -ENOMEM;
 

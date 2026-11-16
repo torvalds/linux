@@ -712,15 +712,14 @@ int qcom_pmic_typec_port_probe(struct platform_device *pdev,
 	struct fwnode_handle *connector;
 	int i, ret, irq;
 
-	pmic_typec_port = devm_kzalloc(dev, sizeof(*pmic_typec_port), GFP_KERNEL);
+	pmic_typec_port = devm_kzalloc_obj(dev, *pmic_typec_port);
 	if (!pmic_typec_port)
 		return -ENOMEM;
 
 	if (!res->nr_irqs || res->nr_irqs > PMIC_TYPEC_MAX_IRQS)
 		return -EINVAL;
 
-	irq_data = devm_kcalloc(dev, res->nr_irqs, sizeof(*irq_data),
-				GFP_KERNEL);
+	irq_data = devm_kzalloc_objs(dev, *irq_data, res->nr_irqs);
 	if (!irq_data)
 		return -ENOMEM;
 

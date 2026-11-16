@@ -1575,7 +1575,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	int ret, irq;
 	struct resource *r;
 
-	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc_obj(&pdev->dev, *s);
 	if (!s)
 		return -ENOMEM;
 

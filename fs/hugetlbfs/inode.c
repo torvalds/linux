@@ -28,6 +28,7 @@
 #include <linux/folio_batch.h>
 #include <linux/fs_parser.h>
 #include <linux/mman.h>
+#include <linux/memfd.h>
 #include <linux/slab.h>
 #include <linux/dnotify.h>
 #include <linux/statfs.h>
@@ -839,6 +840,13 @@ static int hugetlbfs_setattr(const struct mnt_idmap *idmap,
 	error = setattr_prepare(idmap, dentry, attr);
 	if (error)
 		return error;
+
+	if (S_ISREG(inode->i_mode) && (ia_valid & ATTR_MODE)) {
+		error = memfd_check_seals_mode(info->seals, inode->i_mode,
+					       attr->ia_mode);
+		if (error)
+			return error;
+	}
 
 	trace_hugetlbfs_setattr(inode, dentry, attr);
 

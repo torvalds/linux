@@ -400,7 +400,7 @@ static int adp5585_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	int ret;
 
-	adp5585_gpio = devm_kzalloc(dev, sizeof(*adp5585_gpio), GFP_KERNEL);
+	adp5585_gpio = devm_kzalloc_obj(dev, *adp5585_gpio);
 	if (!adp5585_gpio)
 		return -ENOMEM;
 

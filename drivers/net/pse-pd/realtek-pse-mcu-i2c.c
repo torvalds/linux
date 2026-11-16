@@ -115,7 +115,7 @@ static int rtpse_mcu_i2c_probe(struct i2c_client *client)
 				"SMBus MCU protocol requires SMBus I2C-block support\n");
 	}
 
-	pse = devm_kzalloc(dev, sizeof(*pse), GFP_KERNEL);
+	pse = devm_kzalloc_obj(dev, *pse);
 	if (!pse)
 		return -ENOMEM;
 

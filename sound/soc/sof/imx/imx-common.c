@@ -349,7 +349,7 @@ static int imx_probe(struct snd_sof_dev *sdev)
 
 	pdev = to_platform_device(sdev->dev);
 
-	common = devm_kzalloc(sdev->dev, sizeof(*common), GFP_KERNEL);
+	common = devm_kzalloc_obj(sdev->dev, *common);
 	if (!common)
 		return -ENOMEM;
 

@@ -1068,7 +1068,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Command DB not available\n");
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	drv = devm_kzalloc_obj(&pdev->dev, *drv);
 	if (!drv)
 		return -ENOMEM;
 

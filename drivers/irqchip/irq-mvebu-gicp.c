@@ -180,7 +180,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, i;
 
-	gicp = devm_kzalloc(&pdev->dev, sizeof(*gicp), GFP_KERNEL);
+	gicp = devm_kzalloc_obj(&pdev->dev, *gicp);
 	if (!gicp)
 		return -ENOMEM;
 
@@ -198,10 +198,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	gicp->spi_ranges_cnt = ret / 2;
 
 	gicp->spi_ranges =
-		devm_kcalloc(&pdev->dev,
-			     gicp->spi_ranges_cnt,
-			     sizeof(struct mvebu_gicp_spi_range),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(&pdev->dev, struct mvebu_gicp_spi_range,
+				  gicp->spi_ranges_cnt);
 	if (!gicp->spi_ranges)
 		return -ENOMEM;
 

@@ -1568,7 +1568,7 @@ static int adau1373_i2c_probe(struct i2c_client *client)
 	struct gpio_desc *gpiod;
 	int ret;
 
-	adau1373 = devm_kzalloc(&client->dev, sizeof(*adau1373), GFP_KERNEL);
+	adau1373 = devm_kzalloc_obj(&client->dev, *adau1373);
 	if (!adau1373)
 		return -ENOMEM;
 

@@ -674,7 +674,7 @@ void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
 	u32 x, y, r;
 	unsigned int i, n;
 
-	an = kmalloc_array(n_terms, sizeof(*an), GFP_KERNEL);
+	an = kmalloc_objs(*an, n_terms);
 	if (an == NULL)
 		return;
 

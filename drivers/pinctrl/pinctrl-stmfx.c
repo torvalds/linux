@@ -648,7 +648,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	struct gpio_irq_chip *girq;
 	int irq, ret;
 
-	pctl = devm_kzalloc(stmfx->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(stmfx->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 

@@ -269,11 +269,11 @@ static int mid8250_dma_setup(struct mid8250 *mid, struct uart_8250_port *port)
 	if (!mid->dma_dev)
 		return 0;
 
-	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
+	rx_param = devm_kzalloc_obj(dev, *rx_param);
 	if (!rx_param)
 		return -ENOMEM;
 
-	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
+	tx_param = devm_kzalloc_obj(dev, *tx_param);
 	if (!tx_param)
 		return -ENOMEM;
 
@@ -304,7 +304,7 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	mid = devm_kzalloc(&pdev->dev, sizeof(*mid), GFP_KERNEL);
+	mid = devm_kzalloc_obj(&pdev->dev, *mid);
 	if (!mid)
 		return -ENOMEM;
 

@@ -32,7 +32,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 
 	/* set up BE dai_links */
 	for (i = 0; i < link_num; i++) {
-		dlc = devm_kcalloc(dev, 2, sizeof(*dlc), GFP_KERNEL);
+		dlc = devm_kzalloc_objs(dev, *dlc, 2);
 		if (!dlc)
 			return -ENOMEM;
 
@@ -75,7 +75,7 @@ static int sof_nocodec_setup(struct device *dev, struct snd_soc_acpi_mach *mach)
 	struct snd_soc_dai_link *links;
 
 	/* create dummy BE dai_links */
-	links = devm_kcalloc(dev, num_dai_drivers, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	links = devm_kzalloc_objs(dev, struct snd_soc_dai_link, num_dai_drivers);
 	if (!links)
 		return -ENOMEM;
 

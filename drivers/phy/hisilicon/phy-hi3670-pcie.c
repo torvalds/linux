@@ -805,7 +805,7 @@ static int hi3670_pcie_phy_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	int ret;
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

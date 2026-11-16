@@ -192,8 +192,7 @@ static int set_ssp_codec_link(struct device *dev, struct snd_soc_dai_link *link,
 		return -ENOMEM;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -229,8 +228,7 @@ static int set_dmic_link(struct device *dev, struct snd_soc_dai_link *link,
 	struct snd_soc_dai_link_component *cpus;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -287,8 +285,7 @@ static int set_idisp_hdmi_link(struct device *dev, struct snd_soc_dai_link *link
 		return -ENOMEM;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -301,9 +298,8 @@ static int set_idisp_hdmi_link(struct device *dev, struct snd_soc_dai_link *link
 
 	/* codecs */
 	if (idisp_codec) {
-		codecs = devm_kzalloc(dev,
-				      sizeof(struct snd_soc_dai_link_component),
-				      GFP_KERNEL);
+		codecs = devm_kzalloc_obj(dev,
+					  struct snd_soc_dai_link_component);
 		if (!codecs)
 			return -ENOMEM;
 
@@ -346,8 +342,7 @@ static int set_ssp_amp_link(struct device *dev, struct snd_soc_dai_link *link,
 		return -ENOMEM;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -384,8 +379,7 @@ static int set_bt_offload_link(struct device *dev, struct snd_soc_dai_link *link
 		return -ENOMEM;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -423,8 +417,7 @@ static int set_hdmi_in_link(struct device *dev, struct snd_soc_dai_link *link,
 		return -ENOMEM;
 
 	/* cpus */
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
-			    GFP_KERNEL);
+	cpus = devm_kzalloc_obj(dev, struct snd_soc_dai_link_component);
 	if (!cpus)
 		return -ENOMEM;
 
@@ -547,8 +540,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 
 	num_links = calculate_num_links(ctx);
 
-	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link),
-			     GFP_KERNEL);
+	links = devm_kzalloc_objs(dev, struct snd_soc_dai_link, num_links);
 	if (!links)
 		return -ENOMEM;
 
@@ -742,7 +734,7 @@ sof_intel_board_get_ctx(struct device *dev, unsigned long board_quirk)
 
 	dev_dbg(dev, "create ctx, board_quirk 0x%lx\n", board_quirk);
 
-	ctx = devm_kzalloc(dev, sizeof(struct sof_card_private), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, struct sof_card_private);
 	if (!ctx)
 		return NULL;
 

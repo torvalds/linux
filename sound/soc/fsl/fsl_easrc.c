@@ -2211,11 +2211,11 @@ static int fsl_easrc_probe(struct platform_device *pdev)
 	u32 asrc_fmt = 0;
 	int ret, irq;
 
-	easrc = devm_kzalloc(dev, sizeof(*easrc), GFP_KERNEL);
+	easrc = devm_kzalloc_obj(dev, *easrc);
 	if (!easrc)
 		return -ENOMEM;
 
-	easrc_priv = devm_kzalloc(dev, sizeof(*easrc_priv), GFP_KERNEL);
+	easrc_priv = devm_kzalloc_obj(dev, *easrc_priv);
 	if (!easrc_priv)
 		return -ENOMEM;
 

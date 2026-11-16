@@ -135,7 +135,7 @@ static int cp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	struct cp_device *cp_device;
 
-	cp_device = devm_kzalloc(&hdev->dev, sizeof(*cp_device), GFP_KERNEL);
+	cp_device = devm_kzalloc_obj(&hdev->dev, *cp_device);
 
 	if (!cp_device)
 		return -ENOMEM;

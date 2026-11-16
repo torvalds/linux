@@ -3769,8 +3769,7 @@ static int dispc_init_gamma_tables(struct dispc_device *dispc)
 		    !dispc_has_feature(dispc, FEAT_MGR_LCD3))
 			continue;
 
-		gt = devm_kmalloc_array(&dispc->pdev->dev, gdesc->len,
-					sizeof(u32), GFP_KERNEL);
+		gt = devm_kmalloc_objs(&dispc->pdev->dev, u32, gdesc->len);
 		if (!gt)
 			return -ENOMEM;
 

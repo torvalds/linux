@@ -959,7 +959,7 @@ static int nau8540_i2c_probe(struct i2c_client *i2c)
 	int ret, value;
 
 	if (!nau8540) {
-		nau8540 = devm_kzalloc(dev, sizeof(*nau8540), GFP_KERNEL);
+		nau8540 = devm_kzalloc_obj(dev, *nau8540);
 		if (!nau8540)
 			return -ENOMEM;
 	}

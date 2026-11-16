@@ -1144,7 +1144,7 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 	struct sc27xx_fgu_data *data;
 	int ret, irq;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -873,7 +873,7 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct goldfish_pipe_dev *dev;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

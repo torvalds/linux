@@ -804,7 +804,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	irq_handler_t irq_handler = NULL;
 	int ret;
 
-	acdev = devm_kzalloc(&pdev->dev, sizeof(*acdev), GFP_KERNEL);
+	acdev = devm_kzalloc_obj(&pdev->dev, *acdev);
 	if (!acdev)
 		return -ENOMEM;
 

@@ -60,7 +60,7 @@ static int sl28cpld_gpio_irq_init(struct platform_device *pdev,
 	if (irq < 0)
 		return irq;
 
-	irq_chip = devm_kzalloc(dev, sizeof(*irq_chip), GFP_KERNEL);
+	irq_chip = devm_kzalloc_obj(dev, *irq_chip);
 	if (!irq_chip)
 		return -ENOMEM;
 

@@ -128,17 +128,16 @@ static int sun50i_h6_ppu_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	pds = devm_kcalloc(dev, data->nr_domains, sizeof(*pds), GFP_KERNEL);
+	pds = devm_kzalloc_objs(dev, *pds, data->nr_domains);
 	if (!pds)
 		return -ENOMEM;
 
-	ppu = devm_kzalloc(dev, sizeof(*ppu), GFP_KERNEL);
+	ppu = devm_kzalloc_obj(dev, *ppu);
 	if (!ppu)
 		return -ENOMEM;
 
 	ppu->num_domains = data->nr_domains;
-	ppu->domains = devm_kcalloc(dev, data->nr_domains,
-				    sizeof(*ppu->domains), GFP_KERNEL);
+	ppu->domains = devm_kzalloc_objs(dev, *ppu->domains, data->nr_domains);
 	if (!ppu->domains)
 		return -ENOMEM;
 

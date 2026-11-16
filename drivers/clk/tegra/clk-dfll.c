@@ -1948,7 +1948,7 @@ int tegra_dfll_register(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	td = devm_kzalloc(&pdev->dev, sizeof(*td), GFP_KERNEL);
+	td = devm_kzalloc_obj(&pdev->dev, *td);
 	if (!td)
 		return -ENOMEM;
 	td->dev = &pdev->dev;

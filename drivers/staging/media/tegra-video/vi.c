@@ -1864,7 +1864,7 @@ static int tegra_vi_probe(struct platform_device *pdev)
 	struct tegra_vi *vi;
 	int ret;
 
-	vi = devm_kzalloc(&pdev->dev, sizeof(*vi), GFP_KERNEL);
+	vi = devm_kzalloc_obj(&pdev->dev, *vi);
 	if (!vi)
 		return -ENOMEM;
 

@@ -1135,8 +1135,7 @@ static int an8811hb_probe(struct phy_device *phydev)
 	u32 reg_val;
 	int ret;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct en8811h_priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, struct en8811h_priv);
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;
@@ -1204,8 +1203,7 @@ static int en8811h_probe(struct phy_device *phydev)
 	struct en8811h_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct en8811h_priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, struct en8811h_priv);
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;

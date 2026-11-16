@@ -729,8 +729,8 @@ static int plic_probe(struct fwnode_handle *fwnode)
 			context_id * CONTEXT_ENABLE_SIZE;
 		handler->priv = priv;
 
-		handler->enable_save = kcalloc(priv->irq_groups, sizeof(*handler->enable_save),
-					       GFP_KERNEL);
+		handler->enable_save = kzalloc_objs(*handler->enable_save,
+						    priv->irq_groups);
 		if (!handler->enable_save)
 			return -ENOMEM;
 done:

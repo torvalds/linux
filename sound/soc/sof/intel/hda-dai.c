@@ -762,7 +762,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 		struct snd_ipc4_nhlt *entry;
 
-		entry = devm_kzalloc(sdev->dev, sizeof(*entry), GFP_KERNEL);
+		entry = devm_kzalloc_obj(sdev->dev, *entry);
 		if (!entry)
 			return;
 

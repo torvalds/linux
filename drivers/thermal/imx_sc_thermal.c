@@ -85,7 +85,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 
 	for (i = 0; resource_id[i] >= 0; i++) {
 
-		sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
+		sensor = devm_kzalloc_obj(&pdev->dev, *sensor);
 		if (!sensor)
 			return -ENOMEM;
 

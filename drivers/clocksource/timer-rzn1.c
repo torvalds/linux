@@ -442,8 +442,7 @@ static int rzn1_timer_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	tab_timers = devm_kcalloc(dev, RZN1_TIMER_NB_TIMERS, sizeof(*tab_timers),
-				  GFP_KERNEL);
+	tab_timers = devm_kzalloc_objs(dev, *tab_timers, RZN1_TIMER_NB_TIMERS);
 	if (!tab_timers)
 		return -ENOMEM;
 

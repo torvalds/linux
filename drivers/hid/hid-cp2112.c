@@ -1227,7 +1227,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	u32 addr;
 	int ret;
 
-	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&hdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

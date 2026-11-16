@@ -105,7 +105,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (dev == NULL)
 		return -ENOMEM;
 

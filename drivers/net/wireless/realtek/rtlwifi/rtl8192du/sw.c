@@ -64,12 +64,10 @@ static int rtl92du_init_shared_data(struct ieee80211_hw *hw)
 	}
 
 	/* The other interface doesn't exist or was not probed yet. */
-	rtlpriv->curveindex_2g = kcalloc(TARGET_CHNL_NUM_2G,
-					 sizeof(*rtlpriv->curveindex_2g),
-					 GFP_KERNEL);
-	rtlpriv->curveindex_5g = kcalloc(TARGET_CHNL_NUM_5G,
-					 sizeof(*rtlpriv->curveindex_5g),
-					 GFP_KERNEL);
+	rtlpriv->curveindex_2g = kzalloc_objs(*rtlpriv->curveindex_2g,
+					      TARGET_CHNL_NUM_2G);
+	rtlpriv->curveindex_5g = kzalloc_objs(*rtlpriv->curveindex_5g,
+					      TARGET_CHNL_NUM_5G);
 	rtlpriv->mutex_for_power_on_off = kzalloc_obj(*rtlpriv->mutex_for_power_on_off);
 	rtlpriv->mutex_for_hw_init = kzalloc_obj(*rtlpriv->mutex_for_hw_init);
 

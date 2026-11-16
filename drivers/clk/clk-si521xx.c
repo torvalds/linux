@@ -298,7 +298,7 @@ static int si521xx_probe(struct i2c_client *client)
 	if (!chip_info)
 		return -EINVAL;
 
-	si = devm_kzalloc(&client->dev, sizeof(*si), GFP_KERNEL);
+	si = devm_kzalloc_obj(&client->dev, *si);
 	if (!si)
 		return -ENOMEM;
 

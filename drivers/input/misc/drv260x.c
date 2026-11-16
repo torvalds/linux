@@ -448,7 +448,7 @@ static int drv260x_probe(struct i2c_client *client)
 	u32 voltage;
 	int error;
 
-	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
+	haptics = devm_kzalloc_obj(dev, *haptics);
 	if (!haptics)
 		return -ENOMEM;
 

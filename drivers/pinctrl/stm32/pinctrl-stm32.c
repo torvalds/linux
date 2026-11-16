@@ -1804,14 +1804,14 @@ static int stm32_pctrl_build_state(struct platform_device *pdev)
 	pctl->ngroups = pctl->npins;
 
 	/* Allocate groups */
-	pctl->groups = devm_kcalloc(&pdev->dev, pctl->ngroups,
-				    sizeof(*pctl->groups), GFP_KERNEL);
+	pctl->groups = devm_kzalloc_objs(&pdev->dev, *pctl->groups,
+					 pctl->ngroups);
 	if (!pctl->groups)
 		return -ENOMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
-	pctl->grp_names = devm_kcalloc(&pdev->dev, pctl->ngroups,
-				       sizeof(*pctl->grp_names), GFP_KERNEL);
+	pctl->grp_names = devm_kzalloc_objs(&pdev->dev, *pctl->grp_names,
+					    pctl->ngroups);
 	if (!pctl->grp_names)
 		return -ENOMEM;
 
@@ -1863,7 +1863,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	if (!match_data)
 		return -EINVAL;
 
-	pctl = devm_kzalloc(dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 
@@ -1894,8 +1894,8 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	if (!device_property_read_u32(dev, "st,package", &pctl->pkg))
 		dev_dbg(pctl->dev, "package detected: %x\n", pctl->pkg);
 
-	pctl->pins = devm_kcalloc(pctl->dev, pctl->match_data->npins,
-				  sizeof(*pctl->pins), GFP_KERNEL);
+	pctl->pins = devm_kzalloc_objs(pctl->dev, *pctl->pins,
+				       pctl->match_data->npins);
 	if (!pctl->pins)
 		return -ENOMEM;
 
@@ -1915,8 +1915,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pins = devm_kcalloc(&pdev->dev, pctl->npins, sizeof(*pins),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, *pins, pctl->npins);
 	if (!pins)
 		return -ENOMEM;
 
@@ -1948,13 +1947,11 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		dev_err(dev, "at least one GPIO bank is required\n");
 		return -EINVAL;
 	}
-	pctl->banks = devm_kcalloc(dev, banks, sizeof(*pctl->banks),
-			GFP_KERNEL);
+	pctl->banks = devm_kzalloc_objs(dev, *pctl->banks, banks);
 	if (!pctl->banks)
 		return -ENOMEM;
 
-	pctl->clks = devm_kcalloc(dev, banks, sizeof(*pctl->clks),
-				  GFP_KERNEL);
+	pctl->clks = devm_kzalloc_objs(dev, *pctl->clks, banks);
 	if (!pctl->clks)
 		return -ENOMEM;
 

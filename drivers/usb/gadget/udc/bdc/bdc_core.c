@@ -491,7 +491,7 @@ static int bdc_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	bdc = devm_kzalloc(dev, sizeof(*bdc), GFP_KERNEL);
+	bdc = devm_kzalloc_obj(dev, *bdc);
 	if (!bdc)
 		return -ENOMEM;
 
@@ -511,8 +511,7 @@ static int bdc_probe(struct platform_device *pdev)
 	bdc->num_phys = of_count_phandle_with_args(dev->of_node,
 						"phys", "#phy-cells");
 	if (bdc->num_phys > 0) {
-		bdc->phys = devm_kcalloc(dev, bdc->num_phys,
-					sizeof(struct phy *), GFP_KERNEL);
+		bdc->phys = devm_kzalloc_objs(dev, struct phy *, bdc->num_phys);
 		if (!bdc->phys)
 			return -ENOMEM;
 	} else {

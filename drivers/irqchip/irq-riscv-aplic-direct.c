@@ -239,7 +239,7 @@ int aplic_direct_setup(struct device *dev, void __iomem *regs)
 	unsigned long hartid;
 	u32 v, hwirq;
 
-	direct = devm_kzalloc(dev, sizeof(*direct), GFP_KERNEL);
+	direct = devm_kzalloc_obj(dev, *direct);
 	if (!direct)
 		return -ENOMEM;
 	priv = &direct->priv;

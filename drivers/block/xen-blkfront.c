@@ -448,8 +448,7 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 	if (end > nr_minors) {
 		unsigned long *bitmap, *old;
 
-		bitmap = kcalloc(BITS_TO_LONGS(end), sizeof(*bitmap),
-				 GFP_KERNEL);
+		bitmap = kzalloc_objs(*bitmap, BITS_TO_LONGS(end));
 		if (bitmap == NULL)
 			return -ENOMEM;
 

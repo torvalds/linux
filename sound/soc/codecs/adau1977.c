@@ -919,7 +919,7 @@ int adau1977_probe(struct device *dev, struct regmap *regmap,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	adau1977 = devm_kzalloc(dev, sizeof(*adau1977), GFP_KERNEL);
+	adau1977 = devm_kzalloc_obj(dev, *adau1977);
 	if (adau1977 == NULL)
 		return -ENOMEM;
 

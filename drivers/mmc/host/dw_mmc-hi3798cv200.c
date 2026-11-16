@@ -120,7 +120,7 @@ static int dw_mci_hi3798cv200_init(struct dw_mci *host)
 	struct hi3798cv200_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(host->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

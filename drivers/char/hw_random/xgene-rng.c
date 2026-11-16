@@ -315,7 +315,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int rc = 0;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

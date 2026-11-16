@@ -837,8 +837,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	int irq;
 	struct wm0010_priv *wm0010;
 
-	wm0010 = devm_kzalloc(&spi->dev, sizeof(*wm0010),
-			      GFP_KERNEL);
+	wm0010 = devm_kzalloc_obj(&spi->dev, *wm0010);
 	if (!wm0010)
 		return -ENOMEM;
 

@@ -582,7 +582,7 @@ static int nsp_gpio_register_pinconf(struct nsp_gpio *chip)
 	struct gpio_chip *gc = &chip->gc;
 	int i;
 
-	pins = devm_kcalloc(chip->dev, gc->ngpio, sizeof(*pins), GFP_KERNEL);
+	pins = devm_kzalloc_objs(chip->dev, *pins, gc->ngpio);
 	if (!pins)
 		return -ENOMEM;
 	for (i = 0; i < gc->ngpio; i++) {
@@ -625,7 +625,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

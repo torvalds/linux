@@ -1915,7 +1915,7 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 	int chip_cs, mem_region, ret, irq;
 	int start_region = 0;
 
-	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
+	nfc = devm_kzalloc_obj(dev, *nfc);
 	if (!nfc)
 		return -ENOMEM;
 

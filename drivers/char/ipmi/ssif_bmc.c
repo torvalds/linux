@@ -825,7 +825,7 @@ static int ssif_bmc_probe(struct i2c_client *client)
 	struct ssif_bmc_ctx *ssif_bmc;
 	int ret;
 
-	ssif_bmc = devm_kzalloc(&client->dev, sizeof(*ssif_bmc), GFP_KERNEL);
+	ssif_bmc = devm_kzalloc_obj(&client->dev, *ssif_bmc);
 	if (!ssif_bmc)
 		return -ENOMEM;
 

@@ -1497,7 +1497,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	int ret, irq;
 	const struct of_device_id *match;
 
-	id = devm_kzalloc(&pdev->dev, sizeof(*id), GFP_KERNEL);
+	id = devm_kzalloc_obj(&pdev->dev, *id);
 	if (!id)
 		return -ENOMEM;
 

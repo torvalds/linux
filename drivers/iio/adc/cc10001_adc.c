@@ -268,9 +268,8 @@ static int cc10001_adc_channel_init(struct iio_dev *indio_dev,
 	indio_dev->num_channels = bitmap_weight(&channel_map,
 						CC10001_ADC_NUM_CHANNELS) + 1;
 
-	chan_array = devm_kcalloc(&indio_dev->dev, indio_dev->num_channels,
-				  sizeof(struct iio_chan_spec),
-				  GFP_KERNEL);
+	chan_array = devm_kzalloc_objs(&indio_dev->dev, struct iio_chan_spec,
+				       indio_dev->num_channels);
 	if (!chan_array)
 		return -ENOMEM;
 

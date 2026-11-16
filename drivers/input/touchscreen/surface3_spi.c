@@ -329,7 +329,7 @@ static int surface3_spi_probe(struct spi_device *spi)
 	if (error)
 		return error;
 
-	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&spi->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

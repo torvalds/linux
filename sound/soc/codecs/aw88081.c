@@ -1080,7 +1080,7 @@ static int aw88081_init(struct aw88081 *aw88081, struct i2c_client *i2c, struct 
 		return -ENXIO;
 	}
 
-	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
+	aw_dev = devm_kzalloc_obj(&i2c->dev, *aw_dev);
 	if (!aw_dev)
 		return -ENOMEM;
 
@@ -1146,7 +1146,8 @@ static int aw88081_request_firmware_file(struct aw88081 *aw88081)
 	dev_dbg(aw88081->aw_pa->dev, "loaded %s - size: %zu\n",
 			AW88081_ACF_FILE, cont ? cont->size : 0);
 
-	aw_cfg = devm_kzalloc(aw88081->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
+	aw_cfg = devm_kzalloc_flex(aw88081->aw_pa->dev, *aw_cfg, data,
+				   cont->size);
 	if (!aw_cfg)
 		return -ENOMEM;
 
@@ -1251,7 +1252,7 @@ static int aw88081_i2c_probe(struct i2c_client *i2c)
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return dev_err_probe(&i2c->dev, -ENXIO, "check_functionality failed");
 
-	aw88081 = devm_kzalloc(&i2c->dev, sizeof(*aw88081), GFP_KERNEL);
+	aw88081 = devm_kzalloc_obj(&i2c->dev, *aw88081);
 	if (!aw88081)
 		return -ENOMEM;
 

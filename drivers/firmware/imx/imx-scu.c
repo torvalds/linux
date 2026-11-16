@@ -281,7 +281,7 @@ static int imx_scu_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	sc_ipc = devm_kzalloc(dev, sizeof(*sc_ipc), GFP_KERNEL);
+	sc_ipc = devm_kzalloc_obj(dev, *sc_ipc);
 	if (!sc_ipc)
 		return -ENOMEM;
 

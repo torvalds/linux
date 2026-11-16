@@ -141,7 +141,7 @@ static int ultrarisc_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	int ret;
 
-	ultra = devm_kzalloc(dev, sizeof(*ultra), GFP_KERNEL);
+	ultra = devm_kzalloc_obj(dev, *ultra);
 	if (!ultra)
 		return -ENOMEM;
 

@@ -851,8 +851,7 @@ static int rs5c372_probe(struct i2c_client *client)
 		}
 	}
 
-	rs5c372 = devm_kzalloc(&client->dev, sizeof(struct rs5c372),
-				GFP_KERNEL);
+	rs5c372 = devm_kzalloc_obj(&client->dev, struct rs5c372);
 	if (!rs5c372) {
 		err = -ENOMEM;
 		goto exit;

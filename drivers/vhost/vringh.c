@@ -197,8 +197,9 @@ static int move_to_indirect(const struct vringh *vrh,
 	}
 
 	len = vringh32_to_cpu(vrh, desc->len);
-	if (unlikely(len % sizeof(struct vring_desc))) {
-		vringh_bad("Strange indirect len %u", desc->len);
+	if (unlikely(len < sizeof(struct vring_desc) ||
+		     len % sizeof(struct vring_desc))) {
+		vringh_bad("Invalid indirect len %u", desc->len);
 		return -EINVAL;
 	}
 
@@ -333,6 +334,17 @@ __vringh_iov(struct vringh *vrh, u16 i,
 		if (unlikely(err))
 			goto fail;
 
+		if (up_next == -1)
+			count++;
+		else
+			indirect_count++;
+
+		if (count > vrh->vring.num || indirect_count > desc_max) {
+			vringh_bad("Descriptor loop in %p", descs);
+			err = -ELOOP;
+			goto fail;
+		}
+
 		if (unlikely(desc.flags &
 			     cpu_to_vringh16(vrh, VRING_DESC_F_INDIRECT))) {
 			u64 a = vringh64_to_cpu(vrh, desc.addr);
@@ -356,17 +368,6 @@ __vringh_iov(struct vringh *vrh, u16 i,
 			if (err)
 				goto fail;
 			continue;
-		}
-
-		if (up_next == -1)
-			count++;
-		else
-			indirect_count++;
-
-		if (count > vrh->vring.num || indirect_count > desc_max) {
-			vringh_bad("Descriptor loop in %p", descs);
-			err = -ELOOP;
-			goto fail;
 		}
 
 		if (desc.flags & cpu_to_vringh16(vrh, VRING_DESC_F_WRITE))
@@ -1244,7 +1245,7 @@ static inline int putu16_iotlb(const struct vringh *vrh,
 
 	/* Atomic write is needed for putu16 */
 	ret = iotlb_translate(vrh, (u64)(uintptr_t)p, sizeof(*p),
-			      NULL, &ivec, VHOST_MAP_RO);
+			      NULL, &ivec, VHOST_MAP_WO);
 	if (ret < 0)
 		return ret;
 

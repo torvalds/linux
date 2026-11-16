@@ -248,7 +248,7 @@ static int s2mu005_fg_i2c_probe(struct i2c_client *client)
 	const struct power_supply_desc *psy_desc;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

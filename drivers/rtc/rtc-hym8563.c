@@ -503,7 +503,7 @@ static int hym8563_probe(struct i2c_client *client)
 	struct hym8563 *hym8563;
 	int ret;
 
-	hym8563 = devm_kzalloc(&client->dev, sizeof(*hym8563), GFP_KERNEL);
+	hym8563 = devm_kzalloc_obj(&client->dev, *hym8563);
 	if (!hym8563)
 		return -ENOMEM;
 

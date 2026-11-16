@@ -821,11 +821,11 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 
@@ -910,9 +910,8 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	 * channel has one sensor.
 	 */
 	for (sensor_id = 0; sensor_id <= priv->data->cpu_nr; sensor_id++) {
-		sensor = devm_kzalloc(&pdev->dev,
-				      sizeof(struct armada_thermal_sensor),
-				      GFP_KERNEL);
+		sensor = devm_kzalloc_obj(&pdev->dev,
+					  struct armada_thermal_sensor);
 		if (!sensor)
 			return -ENOMEM;
 

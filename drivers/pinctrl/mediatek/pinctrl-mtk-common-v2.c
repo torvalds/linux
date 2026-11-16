@@ -377,7 +377,7 @@ int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 	if (!of_property_read_bool(np, "interrupt-controller"))
 		return -ENODEV;
 
-	hw->eint = devm_kzalloc(hw->dev, sizeof(*hw->eint), GFP_KERNEL);
+	hw->eint = devm_kzalloc_obj(hw->dev, *hw->eint);
 	if (!hw->eint)
 		return -ENOMEM;
 
@@ -389,8 +389,9 @@ int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 	if (hw->eint->nbase <= 0)
 		return -EINVAL;
 
-	hw->eint->base = devm_kmalloc_array(&pdev->dev, hw->eint->nbase,
-					    sizeof(*hw->eint->base), GFP_KERNEL | __GFP_ZERO);
+	hw->eint->base = devm_kmalloc_objs(&pdev->dev, *hw->eint->base,
+					   hw->eint->nbase,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (!hw->eint->base) {
 		ret = -ENOMEM;
 		goto err_free_base;

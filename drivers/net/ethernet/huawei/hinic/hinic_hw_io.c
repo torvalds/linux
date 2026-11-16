@@ -378,27 +378,27 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 	void *ci_addr_base;
 	int i, j, err;
 
-	func_to_io->qps = devm_kcalloc(&pdev->dev, num_qps,
-				       sizeof(*func_to_io->qps), GFP_KERNEL);
+	func_to_io->qps = devm_kzalloc_objs(&pdev->dev, *func_to_io->qps,
+					    num_qps);
 	if (!func_to_io->qps)
 		return -ENOMEM;
 
-	func_to_io->sq_wq = devm_kcalloc(&pdev->dev, num_qps,
-					 sizeof(*func_to_io->sq_wq), GFP_KERNEL);
+	func_to_io->sq_wq = devm_kzalloc_objs(&pdev->dev, *func_to_io->sq_wq,
+					      num_qps);
 	if (!func_to_io->sq_wq) {
 		err = -ENOMEM;
 		goto err_sq_wq;
 	}
 
-	func_to_io->rq_wq = devm_kcalloc(&pdev->dev, num_qps,
-					 sizeof(*func_to_io->rq_wq), GFP_KERNEL);
+	func_to_io->rq_wq = devm_kzalloc_objs(&pdev->dev, *func_to_io->rq_wq,
+					      num_qps);
 	if (!func_to_io->rq_wq) {
 		err = -ENOMEM;
 		goto err_rq_wq;
 	}
 
-	func_to_io->sq_db = devm_kcalloc(&pdev->dev, num_qps,
-					 sizeof(*func_to_io->sq_db), GFP_KERNEL);
+	func_to_io->sq_db = devm_kzalloc_objs(&pdev->dev, *func_to_io->sq_db,
+					      num_qps);
 	if (!func_to_io->sq_db) {
 		err = -ENOMEM;
 		goto err_sq_db;

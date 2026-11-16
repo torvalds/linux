@@ -169,7 +169,7 @@ static int pic32_dmt_probe(struct platform_device *pdev)
 	struct pic32_dmt *dmt;
 	struct watchdog_device *wdd = &pic32_dmt_wdd;
 
-	dmt = devm_kzalloc(dev, sizeof(*dmt), GFP_KERNEL);
+	dmt = devm_kzalloc_obj(dev, *dmt);
 	if (!dmt)
 		return -ENOMEM;
 

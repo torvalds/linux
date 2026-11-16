@@ -830,8 +830,7 @@ static int efx_vfdi_set_status_page(struct siena_vf *vf)
 	vf->peer_page_count = 0;
 
 	if (page_count) {
-		vf->peer_page_addrs = kcalloc(page_count, sizeof(u64),
-					      GFP_KERNEL);
+		vf->peer_page_addrs = kzalloc_objs(u64, page_count);
 		if (vf->peer_page_addrs) {
 			memcpy(vf->peer_page_addrs,
 			       req->u.set_status_page.peer_page_addr,

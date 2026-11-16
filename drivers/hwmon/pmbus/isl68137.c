@@ -329,7 +329,7 @@ static int isl68137_probe(struct i2c_client *client)
 	struct isl68137_data *data;
 	int i, err;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

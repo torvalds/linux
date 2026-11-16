@@ -110,7 +110,7 @@ static int ad7314_probe(struct spi_device *spi_dev)
 	struct ad7314_data *chip;
 	struct device *hwmon_dev;
 
-	chip = devm_kzalloc(&spi_dev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&spi_dev->dev, *chip);
 	if (chip == NULL)
 		return -ENOMEM;
 

@@ -424,7 +424,7 @@ static int lm3601x_probe(struct i2c_client *client)
 	struct fwnode_handle *fwnode;
 	int ret;
 
-	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&client->dev, *led);
 	if (!led)
 		return -ENOMEM;
 

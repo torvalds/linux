@@ -196,8 +196,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	struct vt8500_rtc *vt8500_rtc;
 	int ret;
 
-	vt8500_rtc = devm_kzalloc(&pdev->dev,
-			   sizeof(struct vt8500_rtc), GFP_KERNEL);
+	vt8500_rtc = devm_kzalloc_obj(&pdev->dev, struct vt8500_rtc);
 	if (!vt8500_rtc)
 		return -ENOMEM;
 

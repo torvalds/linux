@@ -129,7 +129,7 @@ static int mt6370_tcpc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int irq, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

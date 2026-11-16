@@ -292,7 +292,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	struct cdns_wdt *wdt;
 	struct watchdog_device *cdns_wdt_device;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

@@ -224,7 +224,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	struct tps6586x_rtc *rtc;
 	int ret;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

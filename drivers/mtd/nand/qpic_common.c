@@ -692,13 +692,13 @@ int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	if (!nandc->data_buffer)
 		return -ENOMEM;
 
-	nandc->regs = devm_kzalloc(nandc->dev, sizeof(*nandc->regs), GFP_KERNEL);
+	nandc->regs = devm_kzalloc_obj(nandc->dev, *nandc->regs);
 	if (!nandc->regs)
 		return -ENOMEM;
 
-	nandc->reg_read_buf = devm_kcalloc(nandc->dev, MAX_REG_RD,
-					   sizeof(*nandc->reg_read_buf),
-					   GFP_KERNEL);
+	nandc->reg_read_buf = devm_kzalloc_objs(nandc->dev,
+						*nandc->reg_read_buf,
+						MAX_REG_RD);
 	if (!nandc->reg_read_buf)
 		return -ENOMEM;
 

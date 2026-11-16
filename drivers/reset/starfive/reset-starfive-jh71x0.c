@@ -114,7 +114,7 @@ int reset_starfive_jh71x0_register(struct device *dev, struct device_node *of_no
 {
 	struct jh71x0_reset *data;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

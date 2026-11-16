@@ -300,7 +300,7 @@ static int btsdio_probe(struct sdio_func *func,
 		}
 	}
 
-	data = devm_kzalloc(&func->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&func->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -691,6 +691,7 @@ static void gfx_v11_0_free_microcode(struct amdgpu_device *adev)
 	amdgpu_ucode_release(&adev->gfx.me_fw);
 	amdgpu_ucode_release(&adev->gfx.rlc_fw);
 	amdgpu_ucode_release(&adev->gfx.mec_fw);
+	amdgpu_ucode_release(&adev->gfx.imu_fw);
 
 	kfree(adev->gfx.rlc.register_list_format);
 }

@@ -677,9 +677,8 @@ static int tegra210_adx_platform_probe(struct platform_device *pdev)
 	int err, i;
 
 	soc_data = of_device_get_match_data(dev);
-	adx = devm_kzalloc(dev,
-			   struct_size(adx, map, soc_data->ram_depth * TEGRA_ADX_SLOTS_PER_WORD),
-			   GFP_KERNEL);
+	adx = devm_kzalloc_flex(dev, *adx, map,
+				soc_data->ram_depth * TEGRA_ADX_SLOTS_PER_WORD);
 	if (!adx)
 		return -ENOMEM;
 
@@ -699,8 +698,8 @@ static int tegra210_adx_platform_probe(struct platform_device *pdev)
 
 	regcache_cache_only(adx->regmap, true);
 
-	adx->byte_mask = devm_kcalloc(dev, soc_data->byte_mask_size,
-				      sizeof(*adx->byte_mask), GFP_KERNEL);
+	adx->byte_mask = devm_kzalloc_objs(dev, *adx->byte_mask,
+					   soc_data->byte_mask_size);
 	if (!adx->byte_mask)
 		return -ENOMEM;
 

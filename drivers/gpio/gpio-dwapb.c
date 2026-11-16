@@ -475,7 +475,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	struct gpio_irq_chip *girq;
 	int err;
 
-	pirq = devm_kzalloc(gpio->dev, sizeof(*pirq), GFP_KERNEL);
+	pirq = devm_kzalloc_obj(gpio->dev, *pirq);
 	if (!pirq)
 		return;
 
@@ -538,7 +538,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	port->idx = pp->idx;
 
 #ifdef CONFIG_PM_SLEEP
-	port->ctx = devm_kzalloc(gpio->dev, sizeof(*port->ctx), GFP_KERNEL);
+	port->ctx = devm_kzalloc_obj(gpio->dev, *port->ctx);
 	if (!port->ctx)
 		return -ENOMEM;
 #endif
@@ -615,7 +615,7 @@ static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 	if (nports == 0)
 		return ERR_PTR(-ENODEV);
 
-	pdata = devm_kzalloc(dev, struct_size(pdata, properties, nports), GFP_KERNEL);
+	pdata = devm_kzalloc_flex(dev, *pdata, properties, nports);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -741,7 +741,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
-	gpio = devm_kzalloc(&pdev->dev, struct_size(gpio, ports, pdata->nports), GFP_KERNEL);
+	gpio = devm_kzalloc_flex(&pdev->dev, *gpio, ports, pdata->nports);
 	if (!gpio)
 		return -ENOMEM;
 

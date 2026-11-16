@@ -387,7 +387,7 @@ static int vtg_probe(struct platform_device *pdev)
 	struct sti_vtg *vtg;
 	int ret;
 
-	vtg = devm_kzalloc(dev, sizeof(*vtg), GFP_KERNEL);
+	vtg = devm_kzalloc_obj(dev, *vtg);
 	if (!vtg)
 		return -ENOMEM;
 	vtg->regs = devm_platform_ioremap_resource(pdev, 0);

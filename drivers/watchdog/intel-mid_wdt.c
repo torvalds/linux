@@ -141,7 +141,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	mid = devm_kzalloc(dev, sizeof(*mid), GFP_KERNEL);
+	mid = devm_kzalloc_obj(dev, *mid);
 	if (!mid)
 		return -ENOMEM;
 

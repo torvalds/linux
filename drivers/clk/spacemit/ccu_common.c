@@ -23,8 +23,7 @@ static int spacemit_ccu_register(struct device *dev,
 	if (!data->hws)
 		return 0;
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, data->num),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, data->num);
 	if (!clk_data)
 		return -ENOMEM;
 

@@ -2218,8 +2218,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	struct device			*dev = &pdev->dev;
 	void __iomem *vaddr;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct omap_nand_info),
-				GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, struct omap_nand_info);
 	if (!info)
 		return -ENOMEM;
 

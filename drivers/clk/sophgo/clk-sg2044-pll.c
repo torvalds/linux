@@ -593,7 +593,7 @@ static int sg2044_pll_probe(struct platform_device *pdev)
 	if (!desc)
 		return dev_err_probe(dev, -EINVAL, "no match data for platform\n");
 
-	ctrl = devm_kzalloc(dev, struct_size(ctrl, data.hws, desc->num_pll), GFP_KERNEL);
+	ctrl = devm_kzalloc_flex(dev, *ctrl, data.hws, desc->num_pll);
 	if (!ctrl)
 		return -ENOMEM;
 

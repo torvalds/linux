@@ -264,7 +264,7 @@ static int ssbi_probe(struct platform_device *pdev)
 	struct ssbi *ssbi;
 	const char *type;
 
-	ssbi = devm_kzalloc(&pdev->dev, sizeof(*ssbi), GFP_KERNEL);
+	ssbi = devm_kzalloc_obj(&pdev->dev, *ssbi);
 	if (!ssbi)
 		return -ENOMEM;
 

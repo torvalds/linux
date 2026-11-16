@@ -233,7 +233,7 @@ static int hwmon_thermal_add_sensor(struct device *dev, int index)
 	struct thermal_zone_device *tzd;
 	int err;
 
-	tdata = devm_kzalloc(dev, sizeof(*tdata), GFP_KERNEL);
+	tdata = devm_kzalloc_obj(dev, *tdata);
 	if (!tdata)
 		return -ENOMEM;
 

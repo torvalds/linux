@@ -686,8 +686,7 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 		return -ENODEV;
 	}
 
-	meson_dw_hdmi = devm_kzalloc(dev, sizeof(*meson_dw_hdmi),
-				     GFP_KERNEL);
+	meson_dw_hdmi = devm_kzalloc_obj(dev, *meson_dw_hdmi);
 	if (!meson_dw_hdmi)
 		return -ENOMEM;
 

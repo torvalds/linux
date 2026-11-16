@@ -3041,7 +3041,7 @@ static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct pch_udc_dev	*dev;
 
 	/* init */
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

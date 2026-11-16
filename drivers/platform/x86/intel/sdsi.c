@@ -658,7 +658,7 @@ static int sdsi_probe(struct auxiliary_device *auxdev, const struct auxiliary_de
 	struct sdsi_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&auxdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&auxdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

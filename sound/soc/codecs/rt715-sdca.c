@@ -961,7 +961,7 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 	struct rt715_sdca_priv *rt715;
 	int ret;
 
-	rt715 = devm_kzalloc(dev, sizeof(*rt715), GFP_KERNEL);
+	rt715 = devm_kzalloc_obj(dev, *rt715);
 	if (!rt715)
 		return -ENOMEM;
 

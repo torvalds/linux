@@ -915,7 +915,7 @@ static int f81232_port_probe(struct usb_serial_port *port)
 {
 	struct f81232_private *priv;
 
-	priv = devm_kzalloc(&port->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&port->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

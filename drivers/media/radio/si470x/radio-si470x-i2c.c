@@ -336,7 +336,7 @@ static int si470x_i2c_probe(struct i2c_client *client)
 	int retval = 0;
 
 	/* private data allocation and initialization */
-	radio = devm_kzalloc(&client->dev, sizeof(*radio), GFP_KERNEL);
+	radio = devm_kzalloc_obj(&client->dev, *radio);
 	if (!radio) {
 		retval = -ENOMEM;
 		goto err_initial;

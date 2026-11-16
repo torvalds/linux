@@ -500,7 +500,7 @@ static int __map_benchmark_probe(struct device *dev)
 	struct map_benchmark_data *map;
 	int ret;
 
-	map = devm_kzalloc(dev, sizeof(*map), GFP_KERNEL);
+	map = devm_kzalloc_obj(dev, *map);
 	if (!map)
 		return -ENOMEM;
 	map->dev = dev;

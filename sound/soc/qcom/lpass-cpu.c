@@ -605,7 +605,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 	struct lpass_hdmitx_dmactl *tx_dmactl;
 	int rval;
 
-	tx_ctl = devm_kzalloc(dev, sizeof(*tx_ctl), GFP_KERNEL);
+	tx_ctl = devm_kzalloc_obj(dev, *tx_ctl);
 	if (!tx_ctl)
 		return -ENOMEM;
 
@@ -616,7 +616,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->legacy_en, legacy_en);
 	drvdata->hdmitx_legacy_en = legacy_en;
 
-	vbit_ctl = devm_kzalloc(dev, sizeof(*vbit_ctl), GFP_KERNEL);
+	vbit_ctl = devm_kzalloc_obj(dev, *vbit_ctl);
 	if (!vbit_ctl)
 		return -ENOMEM;
 
@@ -628,7 +628,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->calc_en, tx_parity);
 	drvdata->hdmitx_parity_calc_en = tx_parity;
 
-	meta_ctl = devm_kzalloc(dev, sizeof(*meta_ctl), GFP_KERNEL);
+	meta_ctl = devm_kzalloc_obj(dev, *meta_ctl);
 	if (!meta_ctl)
 		return -ENOMEM;
 
@@ -637,7 +637,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 		return rval;
 	drvdata->meta_ctl = meta_ctl;
 
-	sstream_ctl = devm_kzalloc(dev, sizeof(*sstream_ctl), GFP_KERNEL);
+	sstream_ctl = devm_kzalloc_obj(dev, *sstream_ctl);
 	if (!sstream_ctl)
 		return -ENOMEM;
 
@@ -654,7 +654,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 		QCOM_REGMAP_FIELD_ALLOC(dev, map, v->lsb_bits, ch_lsb);
 		drvdata->hdmitx_ch_lsb[i] = ch_lsb;
 
-		tx_dmactl = devm_kzalloc(dev, sizeof(*tx_dmactl), GFP_KERNEL);
+		tx_dmactl = devm_kzalloc_obj(dev, *tx_dmactl);
 		if (!tx_dmactl)
 			return -ENOMEM;
 
@@ -1094,7 +1094,7 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	drvdata = devm_kzalloc(dev, sizeof(struct lpass_data), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, struct lpass_data);
 	if (!drvdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
@@ -1219,8 +1219,7 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 	}
 
 	/* Allocation for i2sctl regmap fields */
-	drvdata->i2sctl = devm_kzalloc(&pdev->dev, sizeof(struct lpaif_i2sctl),
-					GFP_KERNEL);
+	drvdata->i2sctl = devm_kzalloc_obj(&pdev->dev, struct lpaif_i2sctl);
 	if (!drvdata->i2sctl)
 		return -ENOMEM;
 

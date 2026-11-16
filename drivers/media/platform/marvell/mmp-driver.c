@@ -185,7 +185,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct v4l2_async_connection *asd;
 	int ret;
 
-	cam = devm_kzalloc(&pdev->dev, sizeof(*cam), GFP_KERNEL);
+	cam = devm_kzalloc_obj(&pdev->dev, *cam);
 	if (cam == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, cam);

@@ -881,7 +881,7 @@ isl1208_probe(struct i2c_client *client)
 		return -ENODEV;
 
 	/* Allocate driver state, point i2c client data to it */
-	isl1208 = devm_kzalloc(&client->dev, sizeof(*isl1208), GFP_KERNEL);
+	isl1208 = devm_kzalloc_obj(&client->dev, *isl1208);
 	if (!isl1208)
 		return -ENOMEM;
 	i2c_set_clientdata(client, isl1208);

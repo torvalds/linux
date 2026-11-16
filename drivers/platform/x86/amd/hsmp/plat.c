@@ -226,9 +226,8 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	hsmp_pdev->sock = devm_kcalloc(&pdev->dev, hsmp_pdev->num_sockets,
-				       sizeof(*hsmp_pdev->sock),
-				       GFP_KERNEL);
+	hsmp_pdev->sock = devm_kzalloc_objs(&pdev->dev, *hsmp_pdev->sock,
+					    hsmp_pdev->num_sockets);
 	if (!hsmp_pdev->sock)
 		return -ENOMEM;
 

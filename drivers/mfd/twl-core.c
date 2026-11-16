@@ -770,8 +770,7 @@ twl_probe(struct i2c_client *client)
 		goto out;
 	}
 
-	twl_priv = devm_kzalloc(&client->dev, sizeof(struct twl_private),
-				GFP_KERNEL);
+	twl_priv = devm_kzalloc_obj(&client->dev, struct twl_private);
 	if (!twl_priv) {
 		status = -ENOMEM;
 		goto out;
@@ -788,10 +787,8 @@ twl_probe(struct i2c_client *client)
 	}
 
 	num_slaves = twl_get_num_slaves();
-	twl_priv->twl_modules = devm_kcalloc(&client->dev,
-					 num_slaves,
-					 sizeof(struct twl_client),
-					 GFP_KERNEL);
+	twl_priv->twl_modules = devm_kzalloc_objs(&client->dev,
+						  struct twl_client, num_slaves);
 	if (!twl_priv->twl_modules) {
 		status = -ENOMEM;
 		goto out;

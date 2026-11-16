@@ -123,7 +123,7 @@ int zx_clk_common_probe(struct device *dev, struct device_node *of_node,
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	clocks = devm_kcalloc(dev, data->num_clocks, sizeof(*clocks), GFP_KERNEL);
+	clocks = devm_kzalloc_objs(dev, *clocks, data->num_clocks);
 	if (!clocks)
 		return -ENOMEM;
 
@@ -167,7 +167,7 @@ int zx_clk_common_probe(struct device *dev, struct device_node *of_node,
 		clocks[i] = hw;
 	}
 
-	exports = devm_kzalloc(dev, struct_size(exports, hws, data->num_exports), GFP_KERNEL);
+	exports = devm_kzalloc_flex(dev, *exports, hws, data->num_exports);
 	if (!exports)
 		return -ENOMEM;
 	exports->num = data->num_exports;

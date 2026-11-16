@@ -1602,11 +1602,11 @@ static int max96717_probe(struct i2c_client *client)
 	struct max_ser_ops *ops;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	ops = devm_kzalloc(dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(dev, *ops);
 	if (!ops)
 		return -ENOMEM;
 

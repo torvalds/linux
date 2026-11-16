@@ -252,7 +252,7 @@ static int hbg_push_irq_cnt(struct hbg_priv *priv)
 	u64 *data;
 	int ret;
 
-	data = kcalloc(data_num, sizeof(u64), GFP_KERNEL);
+	data = kzalloc_objs(u64, data_num);
 	if (!data)
 		return -ENOMEM;
 
@@ -296,7 +296,7 @@ static int hbg_push_stats(struct hbg_priv *priv)
 	u64 *data;
 	int ret;
 
-	data = kcalloc(data_num, sizeof(u64), GFP_KERNEL);
+	data = kzalloc_objs(u64, data_num);
 	if (!data)
 		return -ENOMEM;
 

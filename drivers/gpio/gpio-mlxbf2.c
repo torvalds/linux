@@ -356,7 +356,7 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 
 	name = dev_name(dev);
 
-	gs = devm_kzalloc(dev, sizeof(*gs), GFP_KERNEL);
+	gs = devm_kzalloc_obj(dev, *gs);
 	if (!gs)
 		return -ENOMEM;
 

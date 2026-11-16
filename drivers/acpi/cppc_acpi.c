@@ -913,9 +913,8 @@ static int cpc_register_non_mmio_desc(struct cpc_desc *cpc_desc)
 	if (!found)
 		return 0;
 
-	cpc_desc->non_mmio_nodes = kcalloc(nr_regs,
-					   sizeof(*cpc_desc->non_mmio_nodes),
-					   GFP_KERNEL);
+	cpc_desc->non_mmio_nodes = kzalloc_objs(*cpc_desc->non_mmio_nodes,
+						nr_regs);
 	if (!cpc_desc->non_mmio_nodes)
 		return -ENOMEM;
 
@@ -1254,9 +1253,7 @@ static int cpc_register_sysmem_desc(struct cpc_desc *cpc_desc)
 	if (!found)
 		return 0;
 
-	cpc_desc->sysmem_nodes = kcalloc(nr_regs,
-					 sizeof(*cpc_desc->sysmem_nodes),
-					 GFP_KERNEL);
+	cpc_desc->sysmem_nodes = kzalloc_objs(*cpc_desc->sysmem_nodes, nr_regs);
 	if (!cpc_desc->sysmem_nodes)
 		return -ENOMEM;
 

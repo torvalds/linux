@@ -1466,7 +1466,7 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 	const char *fw_name;
 	int status;
 
-	uc = devm_kzalloc(dev, sizeof(*uc), GFP_KERNEL);
+	uc = devm_kzalloc_obj(dev, *uc);
 	if (!uc)
 		return -ENOMEM;
 

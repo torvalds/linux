@@ -1098,11 +1098,11 @@ scmi_raw_queue_init(struct scmi_raw_mode_info *raw)
 	struct device *dev = raw->handle->dev;
 	struct scmi_raw_queue *q;
 
-	q = devm_kzalloc(dev, sizeof(*q), GFP_KERNEL);
+	q = devm_kzalloc_obj(dev, *q);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 
-	rb = devm_kcalloc(dev, raw->tx_max_msg, sizeof(*rb), GFP_KERNEL);
+	rb = devm_kzalloc_objs(dev, *rb, raw->tx_max_msg);
 	if (!rb)
 		return ERR_PTR(-ENOMEM);
 
@@ -1129,7 +1129,7 @@ static int scmi_xfer_raw_worker_init(struct scmi_raw_mode_info *raw)
 	struct scmi_xfer_raw_waiter *rw;
 	struct device *dev = raw->handle->dev;
 
-	rw = devm_kcalloc(dev, raw->tx_max_msg, sizeof(*rw), GFP_KERNEL);
+	rw = devm_kzalloc_objs(dev, *rw, raw->tx_max_msg);
 	if (!rw)
 		return -ENOMEM;
 
@@ -1241,7 +1241,7 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 		return ERR_PTR(-EINVAL);
 
 	dev = handle->dev;
-	raw = devm_kzalloc(dev, sizeof(*raw), GFP_KERNEL);
+	raw = devm_kzalloc_obj(dev, *raw);
 	if (!raw)
 		return ERR_PTR(-ENOMEM);
 

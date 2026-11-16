@@ -582,7 +582,7 @@ static int bcm54140_probe(struct phy_device *phydev)
 	struct bcm54140_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

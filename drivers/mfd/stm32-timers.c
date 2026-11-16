@@ -292,7 +292,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 	void __iomem *mmio;
 	int ret;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

@@ -708,9 +708,8 @@ static inline enum btrfs_map_op btrfs_op(const struct bio *bio)
 
 static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 {
-	ASSERT(num_stripes);
-	return sizeof(struct btrfs_chunk) +
-		sizeof(struct btrfs_stripe) * (num_stripes - 1);
+	return offsetof(struct btrfs_chunk, stripe) +
+		sizeof(struct btrfs_stripe) * num_stripes;
 }
 
 /*

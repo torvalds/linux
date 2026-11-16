@@ -128,7 +128,7 @@ static int lp8788_backlight_probe(struct platform_device *pdev)
 	struct lp8788_bl *bl;
 	int ret;
 
-	bl = devm_kzalloc(lp->dev, sizeof(struct lp8788_bl), GFP_KERNEL);
+	bl = devm_kzalloc_obj(lp->dev, struct lp8788_bl);
 	if (!bl)
 		return -ENOMEM;
 

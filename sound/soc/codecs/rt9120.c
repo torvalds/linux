@@ -528,7 +528,7 @@ static int rt9120_probe(struct i2c_client *i2c)
 	struct regulator *dvdd_supply;
 	int dvdd_supply_volt, ret;
 
-	data = devm_kzalloc(&i2c->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&i2c->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

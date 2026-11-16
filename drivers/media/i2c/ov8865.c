@@ -2966,7 +2966,7 @@ static int ov8865_probe(struct i2c_client *client)
 	unsigned int i;
 	int ret;
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

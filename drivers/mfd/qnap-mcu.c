@@ -354,7 +354,7 @@ static int qnap_mcu_probe(struct serdev_device *serdev)
 	struct qnap_mcu *mcu;
 	int ret;
 
-	mcu = devm_kzalloc(dev, sizeof(*mcu), GFP_KERNEL);
+	mcu = devm_kzalloc_obj(dev, *mcu);
 	if (!mcu)
 		return -ENOMEM;
 

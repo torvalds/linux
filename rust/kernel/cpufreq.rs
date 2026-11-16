@@ -696,8 +696,8 @@ struct PolicyCpu<'a>(&'a mut Policy);
 impl<'a> PolicyCpu<'a> {
     fn from_cpu(cpu: CpuId) -> Result<Self> {
         // SAFETY: It is safe to call `cpufreq_cpu_get` for any valid CPU.
-        let ptr =
-            NonNull::new(unsafe { bindings::cpufreq_cpu_get(u32::from(cpu)) }).ok_or(ENODEV)?;
+        let ptr = unsafe { bindings::cpufreq_cpu_get(u32::from(cpu)) };
+        let ptr = NonNull::new(ptr).ok_or(ENODEV)?;
 
         Ok(Self(
             // SAFETY: `ptr` is non-NULL and `cpufreq_cpu_get()` took a reference on it, so it is

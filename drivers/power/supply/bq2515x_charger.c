@@ -1086,7 +1086,7 @@ static int bq2515x_probe(struct i2c_client *client)
 	struct power_supply_config charger_cfg = {};
 	int ret;
 
-	bq2515x = devm_kzalloc(dev, sizeof(*bq2515x), GFP_KERNEL);
+	bq2515x = devm_kzalloc_obj(dev, *bq2515x);
 	if (!bq2515x)
 		return -ENOMEM;
 

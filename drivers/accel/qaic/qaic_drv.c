@@ -415,7 +415,7 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev,
 	struct drm_device *drm;
 	int i, ret;
 
-	qdev = devm_kzalloc(dev, struct_size(qdev, dbc, DBC_NUM), GFP_KERNEL);
+	qdev = devm_kzalloc_flex(dev, *qdev, dbc, DBC_NUM);
 	if (!qdev)
 		return NULL;
 

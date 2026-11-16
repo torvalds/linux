@@ -230,7 +230,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	else
 		thermal_ops = &tegra_bpmp_of_thermal_ops_notrips;
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(&pdev->dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 
@@ -244,8 +244,8 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tegra->zones = devm_kcalloc(&pdev->dev, max_num_zones,
-				    sizeof(*tegra->zones), GFP_KERNEL);
+	tegra->zones = devm_kzalloc_objs(&pdev->dev, *tegra->zones,
+					 max_num_zones);
 	if (!tegra->zones)
 		return -ENOMEM;
 
@@ -253,7 +253,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		struct tegra_bpmp_thermal_zone *zone;
 		int temp;
 
-		zone = devm_kzalloc(&pdev->dev, sizeof(*zone), GFP_KERNEL);
+		zone = devm_kzalloc_obj(&pdev->dev, *zone);
 		if (!zone)
 			return -ENOMEM;
 

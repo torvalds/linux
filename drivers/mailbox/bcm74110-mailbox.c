@@ -584,7 +584,7 @@ static int bcm74110_mbox_probe(struct platform_device *pdev)
 	struct bcm74110_mbox *mbox;
 	int i, ret;
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 
@@ -620,15 +620,13 @@ static int bcm74110_mbox_probe(struct platform_device *pdev)
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = BCM_MSG_SVC_MAX;
 	mbox->controller.of_xlate = &bcm74110_mbox_of_xlate;
-	mbox->controller.chans = devm_kcalloc(dev, BCM_MSG_SVC_MAX,
-					      sizeof(*mbox->controller.chans),
-					      GFP_KERNEL);
+	mbox->controller.chans = devm_kzalloc_objs(dev, *mbox->controller.chans,
+						   BCM_MSG_SVC_MAX);
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 
-	mbox->mbox_chan = devm_kcalloc(dev, BCM_MSG_SVC_MAX,
-				       sizeof(*mbox->mbox_chan),
-				       GFP_KERNEL);
+	mbox->mbox_chan = devm_kzalloc_objs(dev, *mbox->mbox_chan,
+					    BCM_MSG_SVC_MAX);
 	if (!mbox->mbox_chan)
 		return -ENOMEM;
 

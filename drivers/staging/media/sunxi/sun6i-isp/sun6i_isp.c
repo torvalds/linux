@@ -428,7 +428,7 @@ static int sun6i_isp_probe(struct platform_device *platform_dev)
 	if (!variant)
 		return -EINVAL;
 
-	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
+	isp_dev = devm_kzalloc_obj(dev, *isp_dev);
 	if (!isp_dev)
 		return -ENOMEM;
 

@@ -200,7 +200,7 @@ int ipu_vdi_init(struct ipu_soc *ipu, struct device *dev,
 {
 	struct ipu_vdi *vdi;
 
-	vdi = devm_kzalloc(dev, sizeof(*vdi), GFP_KERNEL);
+	vdi = devm_kzalloc_obj(dev, *vdi);
 	if (!vdi)
 		return -ENOMEM;
 

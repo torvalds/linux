@@ -464,7 +464,7 @@ int mtk_wed_wo_init(struct mtk_wed_hw *hw)
 	struct mtk_wed_wo *wo;
 	int ret;
 
-	wo = devm_kzalloc(hw->dev, sizeof(*wo), GFP_KERNEL);
+	wo = devm_kzalloc_obj(hw->dev, *wo);
 	if (!wo)
 		return -ENOMEM;
 

@@ -432,14 +432,14 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 	}
 
 	vma_start_write(vma);
-	vma_flags_reset_once(vma, &walk_flags);
+	vma_overwrite_flags(vma, walk_flags);
 
 	lru_add_drain();
 	walk_page_range_vma(vma, start, end, &mlock_walk_ops, (void *)lock);
 	lru_add_drain();
 
 	if (lock)
-		vma_flags_reset_once(vma, new_vma_flags);
+		vma_overwrite_flags(vma, *new_vma_flags);
 }
 
 /*
@@ -494,7 +494,7 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	    vma_flags_test(&old_vma_flags, VMA_LOCKED_BIT)) {
 		/* No work to do, and mlocking twice would be wrong */
 		vma_start_write(vma);
-		vma->flags = *new_vma_flags;
+		vma_overwrite_flags(vma, *new_vma_flags);
 	} else {
 		mlock_vma_pages_range(vma, start, end, new_vma_flags);
 	}

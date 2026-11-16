@@ -2480,7 +2480,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	wrp = devm_kzalloc(&pdev->dev, sizeof(*wrp), GFP_KERNEL);
+	wrp = devm_kzalloc_obj(&pdev->dev, *wrp);
 	if (!wrp)
 		return -ENOMEM;
 

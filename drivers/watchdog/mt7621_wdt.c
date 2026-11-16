@@ -144,7 +144,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	struct mt7621_wdt_data *drvdata;
 	int err;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

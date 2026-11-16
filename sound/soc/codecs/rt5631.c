@@ -1715,8 +1715,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c)
 	struct rt5631_priv *rt5631;
 	int ret;
 
-	rt5631 = devm_kzalloc(&i2c->dev, sizeof(struct rt5631_priv),
-			      GFP_KERNEL);
+	rt5631 = devm_kzalloc_obj(&i2c->dev, struct rt5631_priv);
 	if (NULL == rt5631)
 		return -ENOMEM;
 

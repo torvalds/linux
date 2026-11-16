@@ -99,7 +99,7 @@ static const u32 hpf_table[10][10] = {
 	{496, 244, 121, 60, 31, 17, 11, 8, 0, 0}
 };
 
-static bool find_best_hpf_freq(u32 target_hz, u8 *hpf1, u8 *hpf2, u32 *out)
+static bool find_best_hpf_freq(u32 target_hz, u8 *hpf1, u8 *hpf2)
 {
 	int best_row = -1, best_col = -1;
 	u32 min_diff = U32_MAX;
@@ -118,7 +118,6 @@ static bool find_best_hpf_freq(u32 target_hz, u8 *hpf1, u8 *hpf2, u32 *out)
 				min_diff = diff;
 				best_row = i;
 				best_col = j;
-				*out = f;
 			}
 		}
 	}
@@ -147,27 +146,25 @@ static int es8389_hpf_set(struct snd_kcontrol *kcontrol,
 	u32 freq;
 	bool hpf;
 
+	if ((ucontrol->value.integer.value[0] > 1020) || (ucontrol->value.integer.value[0] < 0))
+		return -EINVAL;
+
 	if (es8389->hpf_freq == ucontrol->value.integer.value[0])
 		return 0;
 
 	if (es8389->capture_rate) {
 		freq = (ucontrol->value.integer.value[0] * 48000) / es8389->capture_rate;
 
-		hpf = find_best_hpf_freq(freq, &es8389->hpfl, &es8389->hpfr, &es8389->hpf_freq);
+		hpf = find_best_hpf_freq(freq, &es8389->hpfl, &es8389->hpfr);
 		if (!hpf)
 			return -EBUSY;
-
-		if (es8389->hpf_freq != ucontrol->value.integer.value[0])
-			dev_dbg(component->dev, "At the %u Hz sampling rate, %ld Hz could not be obtained."
-				"the frequency has been set to the closest value, %u Hz\n",
-				es8389->capture_rate, ucontrol->value.integer.value[0], es8389->hpf_freq);
 
 		regmap_update_bits(es8389->regmap, ES8389_ADC_HPF1, 0x0f, es8389->hpfl);
 		regmap_update_bits(es8389->regmap, ES8389_ADC_HPF2, 0x0f, es8389->hpfr);
 	} else {
-		es8389->hpf_freq = ucontrol->value.integer.value[0];
 		dev_dbg(component->dev, "PCM_STREAM_CAPTURE is not active.retain the input frequency\n");
 	}
+	es8389->hpf_freq = ucontrol->value.integer.value[0];
 
 	return 1;
 }
@@ -790,7 +787,7 @@ static int es8389_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		es8389->capture_rate = params_rate(params);
 		freq = (es8389->hpf_freq * 48000) / params_rate(params);
-		hpf = find_best_hpf_freq(freq, &es8389->hpfl, &es8389->hpfr, &es8389->hpf_freq);
+		hpf = find_best_hpf_freq(freq, &es8389->hpfl, &es8389->hpfr);
 		if (!hpf) {
 			dev_err(component->dev, "The HPF frequency is invalid\n");
 			return -EINVAL;
@@ -1165,7 +1162,7 @@ static int es8389_i2c_probe(struct i2c_client *i2c_client)
 	struct es8389_private *es8389;
 	int ret, i;
 
-	es8389 = devm_kzalloc(&i2c_client->dev, sizeof(*es8389), GFP_KERNEL);
+	es8389 = devm_kzalloc_obj(&i2c_client->dev, *es8389);
 	if (es8389 == NULL)
 		return -ENOMEM;
 

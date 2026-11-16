@@ -478,7 +478,7 @@ int ci_hdrc_host_init(struct ci_hdrc *ci)
 	if (!hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_HC))
 		return -ENXIO;
 
-	rdrv = devm_kzalloc(ci->dev, sizeof(struct ci_role_driver), GFP_KERNEL);
+	rdrv = devm_kzalloc_obj(ci->dev, struct ci_role_driver);
 	if (!rdrv)
 		return -ENOMEM;
 

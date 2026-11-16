@@ -141,7 +141,7 @@ static int int3406_thermal_probe(struct platform_device *pdev)
 	if (!ACPI_HANDLE(&pdev->dev))
 		return -ENODEV;
 
-	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(&pdev->dev, *d);
 	if (!d)
 		return -ENOMEM;
 	d->handle = ACPI_HANDLE(&pdev->dev);

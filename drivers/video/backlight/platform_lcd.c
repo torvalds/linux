@@ -81,8 +81,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
-			    GFP_KERNEL);
+	plcd = devm_kzalloc_obj(&pdev->dev, struct platform_lcd);
 	if (!plcd)
 		return -ENOMEM;
 

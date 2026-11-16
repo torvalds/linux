@@ -2170,7 +2170,7 @@ static int gpi_probe(struct platform_device *pdev)
 	u32 ee_offset;
 	int ret;
 
-	gpi_dev = devm_kzalloc(&pdev->dev, sizeof(*gpi_dev), GFP_KERNEL);
+	gpi_dev = devm_kzalloc_obj(&pdev->dev, *gpi_dev);
 	if (!gpi_dev)
 		return -ENOMEM;
 

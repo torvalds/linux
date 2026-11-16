@@ -1146,8 +1146,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c)
 	struct rt286_priv *rt286;
 	int i, ret, vendor_id;
 
-	rt286 = devm_kzalloc(&i2c->dev,	sizeof(*rt286),
-				GFP_KERNEL);
+	rt286 = devm_kzalloc_obj(&i2c->dev, *rt286);
 	if (NULL == rt286)
 		return -ENOMEM;
 

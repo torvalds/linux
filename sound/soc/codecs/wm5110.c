@@ -2397,8 +2397,7 @@ static int wm5110_probe(struct platform_device *pdev)
 	struct wm5110_priv *wm5110;
 	int i, ret;
 
-	wm5110 = devm_kzalloc(&pdev->dev, sizeof(struct wm5110_priv),
-			      GFP_KERNEL);
+	wm5110 = devm_kzalloc_obj(&pdev->dev, struct wm5110_priv);
 	if (wm5110 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5110);

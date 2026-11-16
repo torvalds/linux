@@ -2648,7 +2648,7 @@ static int gemini_ethernet_probe(struct platform_device *pdev)
 	u32 val;
 
 	/* Global registers */
-	geth = devm_kzalloc(dev, sizeof(*geth), GFP_KERNEL);
+	geth = devm_kzalloc_obj(dev, *geth);
 	if (!geth)
 		return -ENOMEM;
 	geth->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);

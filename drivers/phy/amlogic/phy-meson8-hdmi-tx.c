@@ -116,7 +116,7 @@ static int phy_meson8_hdmi_tx_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

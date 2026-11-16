@@ -969,7 +969,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 		if (IS_ERR(gpiod))
 			continue;
 
-		og = devm_kzalloc(dev, sizeof(*og), GFP_KERNEL);
+		og = devm_kzalloc_obj(dev, *og);
 		if (!og)
 			goto put_display_node;
 

@@ -705,8 +705,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->dma_cfg->aal = 0;
 	plat->dma_cfg->dche = true;
 
-	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi),
-				 GFP_KERNEL);
+	plat->axi = devm_kzalloc_obj(&pdev->dev, *plat->axi);
 	if (!plat->axi)
 		return -ENOMEM;
 
@@ -1305,7 +1304,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	struct stmmac_resources res;
 	int ret;
 
-	intel_priv = devm_kzalloc(&pdev->dev, sizeof(*intel_priv), GFP_KERNEL);
+	intel_priv = devm_kzalloc_obj(&pdev->dev, *intel_priv);
 	if (!intel_priv)
 		return -ENOMEM;
 
@@ -1313,15 +1312,12 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	if (!plat)
 		return -ENOMEM;
 
-	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
-					   sizeof(*plat->mdio_bus_data),
-					   GFP_KERNEL);
+	plat->mdio_bus_data = devm_kzalloc_obj(&pdev->dev, *plat->mdio_bus_data);
 	if (!plat->mdio_bus_data)
 		return -ENOMEM;
 
-	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
-					     sizeof(*plat->safety_feat_cfg),
-					     GFP_KERNEL);
+	plat->safety_feat_cfg = devm_kzalloc_obj(&pdev->dev,
+						 *plat->safety_feat_cfg);
 	if (!plat->safety_feat_cfg)
 		return -ENOMEM;
 

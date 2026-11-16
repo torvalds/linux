@@ -1508,7 +1508,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	void __iomem *iomem;
 	int ret = 0;
 
-	ssi = devm_kzalloc(dev, sizeof(*ssi), GFP_KERNEL);
+	ssi = devm_kzalloc_obj(dev, *ssi);
 	if (!ssi)
 		return -ENOMEM;
 

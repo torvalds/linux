@@ -115,7 +115,7 @@ static int bbnsm_pwrkey_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int error;
 
-	bbnsm = devm_kzalloc(&pdev->dev, sizeof(*bbnsm), GFP_KERNEL);
+	bbnsm = devm_kzalloc_obj(&pdev->dev, *bbnsm);
 	if (!bbnsm)
 		return -ENOMEM;
 

@@ -108,9 +108,7 @@ static int da9052_led_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	led = devm_kcalloc(&pdev->dev,
-			   pled->num_leds, sizeof(struct da9052_led),
-			   GFP_KERNEL);
+	led = devm_kzalloc_objs(&pdev->dev, struct da9052_led, pled->num_leds);
 	if (!led) {
 		error = -ENOMEM;
 		goto err;

@@ -416,9 +416,7 @@ static int acpm_tmu_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(acpm_handle),
 				     "Failed to get ACPM handle\n");
 
-	priv = devm_kzalloc(dev,
-			    struct_size(priv, sensors, data->num_sensor_groups),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, sensors, data->num_sensor_groups);
 	if (!priv)
 		return -ENOMEM;
 

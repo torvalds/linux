@@ -177,7 +177,7 @@ static int d7s_probe(struct platform_device *op)
 	if (d7s_device)
 		goto out;
 
-	p = devm_kzalloc(&op->dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc_obj(&op->dev, *p);
 	err = -ENOMEM;
 	if (!p)
 		goto out;

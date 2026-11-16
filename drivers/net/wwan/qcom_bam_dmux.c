@@ -769,7 +769,7 @@ static int bam_dmux_probe(struct platform_device *pdev)
 	int ret, pc_ack_irq, i;
 	unsigned int bit;
 
-	dmux = devm_kzalloc(dev, sizeof(*dmux), GFP_KERNEL);
+	dmux = devm_kzalloc_obj(dev, *dmux);
 	if (!dmux)
 		return -ENOMEM;
 

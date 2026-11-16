@@ -748,7 +748,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 	int ret;
 	u32 i;
 
-	adev = devm_kzalloc(&pdev->dev, sizeof(*adev), GFP_KERNEL);
+	adev = devm_kzalloc_obj(&pdev->dev, *adev);
 	if (!adev)
 		return -ENOMEM;
 
@@ -824,8 +824,8 @@ static int adm_dma_probe(struct platform_device *pdev)
 	reset_control_deassert(adev->c1_reset);
 	reset_control_deassert(adev->c2_reset);
 
-	adev->channels = devm_kcalloc(adev->dev, ADM_MAX_CHANNELS,
-				      sizeof(*adev->channels), GFP_KERNEL);
+	adev->channels = devm_kzalloc_objs(adev->dev, *adev->channels,
+					   ADM_MAX_CHANNELS);
 
 	if (!adev->channels) {
 		ret = -ENOMEM;

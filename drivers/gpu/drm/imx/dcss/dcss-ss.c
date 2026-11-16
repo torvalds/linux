@@ -83,7 +83,7 @@ int dcss_ss_init(struct dcss_dev *dcss, unsigned long ss_base)
 {
 	struct dcss_ss *ss;
 
-	ss = devm_kzalloc(dcss->dev, sizeof(*ss), GFP_KERNEL);
+	ss = devm_kzalloc_obj(dcss->dev, *ss);
 	if (!ss)
 		return -ENOMEM;
 

@@ -1321,7 +1321,7 @@ static int gc2145_probe(struct i2c_client *client)
 	struct gc2145 *gc2145;
 	int ret;
 
-	gc2145 = devm_kzalloc(&client->dev, sizeof(*gc2145), GFP_KERNEL);
+	gc2145 = devm_kzalloc_obj(&client->dev, *gc2145);
 	if (!gc2145)
 		return -ENOMEM;
 

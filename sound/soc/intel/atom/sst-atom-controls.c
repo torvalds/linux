@@ -1383,7 +1383,7 @@ static int sst_fill_module_list(struct snd_kcontrol *kctl,
 	struct sst_ids *ids = w->priv;
 	int ret = 0;
 
-	module = devm_kzalloc(c->dev, sizeof(*module), GFP_KERNEL);
+	module = devm_kzalloc_obj(c->dev, *module);
 	if (!module)
 		return -ENOMEM;
 

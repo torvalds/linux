@@ -831,13 +831,13 @@ static int adc5_get_fw_data(struct adc5_chip *adc)
 	if (!adc->nchannels)
 		return dev_err_probe(adc->dev, -EINVAL, "no channels defined\n");
 
-	adc->iio_chans = devm_kcalloc(adc->dev, adc->nchannels,
-				       sizeof(*adc->iio_chans), GFP_KERNEL);
+	adc->iio_chans = devm_kzalloc_objs(adc->dev, *adc->iio_chans,
+					   adc->nchannels);
 	if (!adc->iio_chans)
 		return -ENOMEM;
 
-	adc->chan_props = devm_kcalloc(adc->dev, adc->nchannels,
-					sizeof(*adc->chan_props), GFP_KERNEL);
+	adc->chan_props = devm_kzalloc_objs(adc->dev, *adc->chan_props,
+					    adc->nchannels);
 	if (!adc->chan_props)
 		return -ENOMEM;
 

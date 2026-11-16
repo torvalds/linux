@@ -99,7 +99,7 @@ static int pm886_probe(struct i2c_client *client)
 	unsigned int chip_id;
 	int err;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

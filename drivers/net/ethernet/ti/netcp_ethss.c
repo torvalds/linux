@@ -3120,7 +3120,7 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	bool mac_phy_link = false;
 
 	for_each_child_of_node(node, port) {
-		slave = devm_kzalloc(dev, sizeof(*slave), GFP_KERNEL);
+		slave = devm_kzalloc_obj(dev, *slave);
 		if (!slave) {
 			dev_err(dev, "memory alloc failed for secondary port(%pOFn), skipping...\n",
 				port);
@@ -3270,18 +3270,15 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->et_stats = xgbe10_et_stats;
 	gbe_dev->num_et_stats = ARRAY_SIZE(xgbe10_et_stats);
 
-	gbe_dev->hw_stats = devm_kcalloc(gbe_dev->dev,
-					 gbe_dev->num_et_stats, sizeof(u64),
-					 GFP_KERNEL);
+	gbe_dev->hw_stats = devm_kzalloc_objs(gbe_dev->dev, u64,
+					      gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
 		return -ENOMEM;
 	}
 
 	gbe_dev->hw_stats_prev =
-		devm_kcalloc(gbe_dev->dev,
-			     gbe_dev->num_et_stats, sizeof(u32),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(gbe_dev->dev, u32, gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats_prev) {
 		dev_err(gbe_dev->dev,
 			"hw_stats_prev memory allocation failed\n");
@@ -3389,18 +3386,15 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->et_stats = gbe13_et_stats;
 	gbe_dev->num_et_stats = ARRAY_SIZE(gbe13_et_stats);
 
-	gbe_dev->hw_stats = devm_kcalloc(gbe_dev->dev,
-					 gbe_dev->num_et_stats, sizeof(u64),
-					 GFP_KERNEL);
+	gbe_dev->hw_stats = devm_kzalloc_objs(gbe_dev->dev, u64,
+					      gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
 		return -ENOMEM;
 	}
 
 	gbe_dev->hw_stats_prev =
-		devm_kcalloc(gbe_dev->dev,
-			     gbe_dev->num_et_stats, sizeof(u32),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(gbe_dev->dev, u32, gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats_prev) {
 		dev_err(gbe_dev->dev,
 			"hw_stats_prev memory allocation failed\n");
@@ -3460,18 +3454,15 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 		gbe_dev->num_et_stats = GBENU_ET_STATS_HOST_SIZE +
 					GBENU_ET_STATS_PORT_SIZE;
 
-	gbe_dev->hw_stats = devm_kcalloc(gbe_dev->dev,
-					 gbe_dev->num_et_stats, sizeof(u64),
-					 GFP_KERNEL);
+	gbe_dev->hw_stats = devm_kzalloc_objs(gbe_dev->dev, u64,
+					      gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
 		return -ENOMEM;
 	}
 
 	gbe_dev->hw_stats_prev =
-		devm_kcalloc(gbe_dev->dev,
-			     gbe_dev->num_et_stats, sizeof(u32),
-			     GFP_KERNEL);
+		devm_kzalloc_objs(gbe_dev->dev, u32, gbe_dev->num_et_stats);
 	if (!gbe_dev->hw_stats_prev) {
 		dev_err(gbe_dev->dev,
 			"hw_stats_prev memory allocation failed\n");
@@ -3555,7 +3546,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		return -ENODEV;
 	}
 
-	gbe_dev = devm_kzalloc(dev, sizeof(struct gbe_priv), GFP_KERNEL);
+	gbe_dev = devm_kzalloc_obj(dev, struct gbe_priv);
 	if (!gbe_dev)
 		return -ENOMEM;
 
@@ -3750,7 +3741,7 @@ static int gbe_attach(void *inst_priv, struct net_device *ndev,
 		return -ENODEV;
 	}
 
-	gbe_intf = devm_kzalloc(gbe_dev->dev, sizeof(*gbe_intf), GFP_KERNEL);
+	gbe_intf = devm_kzalloc_obj(gbe_dev->dev, *gbe_intf);
 	if (!gbe_intf)
 		return -ENOMEM;
 
@@ -3758,9 +3749,7 @@ static int gbe_attach(void *inst_priv, struct net_device *ndev,
 	gbe_intf->dev = gbe_dev->dev;
 	gbe_intf->gbe_dev = gbe_dev;
 
-	gbe_intf->slave = devm_kzalloc(gbe_dev->dev,
-					sizeof(*gbe_intf->slave),
-					GFP_KERNEL);
+	gbe_intf->slave = devm_kzalloc_obj(gbe_dev->dev, *gbe_intf->slave);
 	if (!gbe_intf->slave) {
 		ret = -ENOMEM;
 		goto fail;

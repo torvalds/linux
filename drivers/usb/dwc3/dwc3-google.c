@@ -367,7 +367,7 @@ static int dwc3_google_probe(struct platform_device *pdev)
 	int			ret;
 	u32			args[2];
 
-	google = devm_kzalloc(&pdev->dev, sizeof(*google), GFP_KERNEL);
+	google = devm_kzalloc_obj(&pdev->dev, *google);
 	if (!google)
 		return -ENOMEM;
 

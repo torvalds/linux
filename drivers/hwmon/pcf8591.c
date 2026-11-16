@@ -185,8 +185,7 @@ static int pcf8591_probe(struct i2c_client *client)
 	struct pcf8591_data *data;
 	int err;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct pcf8591_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct pcf8591_data);
 	if (!data)
 		return -ENOMEM;
 

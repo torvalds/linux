@@ -2,7 +2,7 @@
  * Sonics Silicon Backplane
  * Common SPROM support routines
  *
- * Copyright (C) 2005-2008 Michael Buesch <m@bues.ch>
+ * Copyright (C) 2005-2008 Michael Buesch
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
  * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
@@ -72,7 +72,7 @@ ssize_t ssb_attr_sprom_show(struct ssb_bus *bus, char *buf,
 	ssize_t count = 0;
 	size_t sprom_size_words = bus->sprom_size;
 
-	sprom = kcalloc(sprom_size_words, sizeof(u16), GFP_KERNEL);
+	sprom = kzalloc_objs(u16, sprom_size_words);
 	if (!sprom)
 		goto out;
 
@@ -106,7 +106,7 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 	size_t sprom_size_words = bus->sprom_size;
 	struct ssb_freeze_context freeze;
 
-	sprom = kcalloc(bus->sprom_size, sizeof(u16), GFP_KERNEL);
+	sprom = kzalloc_objs(u16, bus->sprom_size);
 	if (!sprom)
 		goto out;
 	err = hex2sprom(sprom, buf, count, sprom_size_words);

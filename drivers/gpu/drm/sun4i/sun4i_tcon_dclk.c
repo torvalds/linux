@@ -178,7 +178,7 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 	if (ret)
 		return ret;
 
-	dclk = devm_kzalloc(dev, sizeof(*dclk), GFP_KERNEL);
+	dclk = devm_kzalloc_obj(dev, *dclk);
 	if (!dclk)
 		return -ENOMEM;
 	dclk->tcon = tcon;

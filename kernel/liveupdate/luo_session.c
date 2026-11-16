@@ -177,16 +177,6 @@ static int luo_session_insert(struct luo_session_header *sh,
 	guard(rwsem_write)(&sh->rwsem);
 
 	/*
-	 * For outgoing we should make sure there is room in serialization array
-	 * for new session.
-	 */
-	if (sh == &luo_session_global.outgoing) {
-		err = kho_block_set_grow(&sh->block_set, sh->count + 1);
-		if (err)
-			return err;
-	}
-
-	/*
 	 * For small number of sessions this loop won't hurt performance
 	 * but if we ever start using a lot of sessions, this might
 	 * become a bottle neck during deserialization time, as it would
@@ -196,6 +186,17 @@ static int luo_session_insert(struct luo_session_header *sh,
 		if (!strncmp(it->name, session->name, sizeof(it->name)))
 			return -EEXIST;
 	}
+
+	/*
+	 * For outgoing we should make sure there is room in serialization array
+	 * for new session.
+	 */
+	if (sh == &luo_session_global.outgoing) {
+		err = kho_block_set_grow(&sh->block_set, sh->count + 1);
+		if (err)
+			return err;
+	}
+
 	list_add_tail(&session->list, &sh->list);
 	sh->count++;
 

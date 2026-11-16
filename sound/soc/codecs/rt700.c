@@ -1090,7 +1090,7 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 	struct rt700_priv *rt700;
 	int ret;
 
-	rt700 = devm_kzalloc(dev, sizeof(*rt700), GFP_KERNEL);
+	rt700 = devm_kzalloc_obj(dev, *rt700);
 	if (!rt700)
 		return -ENOMEM;
 

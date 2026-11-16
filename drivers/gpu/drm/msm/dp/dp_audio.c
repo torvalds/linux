@@ -348,7 +348,7 @@ struct msm_dp_audio *msm_dp_audio_get(struct platform_device *pdev,
 		goto error;
 	}
 
-	audio = devm_kzalloc(&pdev->dev, sizeof(*audio), GFP_KERNEL);
+	audio = devm_kzalloc_obj(&pdev->dev, *audio);
 	if (!audio) {
 		rc = -ENOMEM;
 		goto error;

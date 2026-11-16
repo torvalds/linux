@@ -173,7 +173,7 @@ static int ralink_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct ralink_usb_phy *phy;
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

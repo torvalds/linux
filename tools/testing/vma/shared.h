@@ -51,17 +51,21 @@
 		      __TO_SCALAR(__val1), __TO_SCALAR(__val2)); \
 	} while (0)
 
-#define ASSERT_FLAGS_SAME_MASK(_flags, _flags_other) \
-	ASSERT_TRUE(vma_flags_same_mask((_flags), (_flags_other)))
+#define ASSERT_FLAGS_SAME_MASK(_flags, _flags_other) do {		\
+	const vma_flags_t __flags_other = (_flags_other);		\
+	ASSERT_TRUE(vma_flags_same_pair((_flags), &__flags_other));	\
+	} while (0)
 
-#define ASSERT_FLAGS_NOT_SAME_MASK(_flags, _flags_other) \
-	ASSERT_FALSE(vma_flags_same_mask((_flags), (_flags_other)))
+#define ASSERT_FLAGS_NOT_SAME_MASK(_flags, _flags_other) do {		\
+	const vma_flags_t __flags_other = (_flags_other);		\
+	ASSERT_FALSE(vma_flags_same_pair((_flags), &__flags_other));	\
+	} while (0)
 
 #define ASSERT_FLAGS_SAME(_flags, ...) \
-	ASSERT_TRUE(vma_flags_same(_flags, __VA_ARGS__))
+	ASSERT_FLAGS_SAME_MASK(_flags, mk_vma_flags(__VA_ARGS__))
 
 #define ASSERT_FLAGS_NOT_SAME(_flags, ...) \
-	ASSERT_FALSE(vma_flags_same(_flags, __VA_ARGS__))
+	ASSERT_FLAGS_NOT_SAME_MASK(_flags, mk_vma_flags(__VA_ARGS__))
 
 #define ASSERT_FLAGS_EMPTY(_flags) \
 	ASSERT_TRUE(vma_flags_empty(_flags))

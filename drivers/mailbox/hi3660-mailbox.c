@@ -240,7 +240,7 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 	unsigned long ch;
 	int err;
 
-	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 

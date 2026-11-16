@@ -670,8 +670,8 @@ static int ad7280_channel_init(struct ad7280_state *st, bool irq_present)
 {
 	int dev, cnt = 0;
 
-	st->channels = devm_kcalloc(&st->spi->dev, (st->slave_num + 1) * 12 + 1,
-				    sizeof(*st->channels), GFP_KERNEL);
+	st->channels = devm_kzalloc_objs(&st->spi->dev, *st->channels,
+					 (st->slave_num + 1) * 12 + 1);
 	if (!st->channels)
 		return -ENOMEM;
 
