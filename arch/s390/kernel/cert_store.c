@@ -346,10 +346,10 @@ static int invalidate_keyring_keys(struct key *keyring)
 			continue;
 		pr_dbf_msg("Invalidating key %08x", current_key->serial);
 
-		key_invalidate(current_key);
 		rc = key_unlink(keyring, current_key);
 		if (rc)
 			pr_dbf_msg("Couldn't unlink key %08x: %ld", current_key->serial, rc);
+		key_invalidate(current_key);
 		key_put(current_key);
 		if (rc)
 			break;
