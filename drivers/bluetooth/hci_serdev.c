@@ -97,17 +97,26 @@ static int hci_uart_flush(struct hci_dev *hdev)
 
 	BT_DBG("hdev %p serdev %p", hdev, hu->serdev);
 
+	/* Stop write_work and hold SENDING so wakeups only set TX_WAKEUP. */
+	disable_work_sync(&hu->write_work);
+	set_bit(HCI_UART_SENDING, &hu->tx_state);
+
 	if (hu->tx_skb) {
 		kfree_skb(hu->tx_skb); hu->tx_skb = NULL;
 	}
 
-	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
-		return 0;
+	if (test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
+		/* Flush any pending characters in the driver and discipline. */
+		serdev_device_write_flush(hu->serdev);
 
-	/* Flush any pending characters in the driver and discipline. */
-	serdev_device_write_flush(hu->serdev);
+		hu->proto->flush(hu);
+	}
 
-	hu->proto->flush(hu);
+	/* Resume TX and replay a wakeup recorded while it was stopped. */
+	enable_work(&hu->write_work);
+	clear_bit(HCI_UART_SENDING, &hu->tx_state);
+	if (test_bit(HCI_UART_TX_WAKEUP, &hu->tx_state))
+		hci_uart_tx_wakeup(hu);
 
 	return 0;
 }
