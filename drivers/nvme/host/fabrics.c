@@ -1026,7 +1026,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				ret = -EINVAL;
 				goto out;
 			}
-			kfree(opts->dhchap_secret);
+			kfree_sensitive(opts->dhchap_secret);
 			opts->dhchap_secret = p;
 			break;
 		case NVMF_OPT_DHCHAP_CTRL_SECRET:
@@ -1041,7 +1041,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				ret = -EINVAL;
 				goto out;
 			}
-			kfree(opts->dhchap_ctrl_secret);
+			kfree_sensitive(opts->dhchap_ctrl_secret);
 			opts->dhchap_ctrl_secret = p;
 			break;
 		case NVMF_OPT_TLS:
