@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/spinlock.h>
 #include <linux/watchdog.h>
 
 #define DEFAULT_TIMEOUT 10
@@ -82,6 +83,7 @@ struct stm32_iwdg {
 	struct clk		*clk_lsi;
 	struct clk		*clk_pclk;
 	unsigned int		rate;
+	spinlock_t		lock; /* serialize IWDG_EWCR register access */
 };
 
 static inline u32 reg_read(void __iomem *base, u32 reg)
@@ -98,6 +100,7 @@ static int stm32_iwdg_start(struct watchdog_device *wdd)
 {
 	struct stm32_iwdg *wdt = watchdog_get_drvdata(wdd);
 	u32 tout, ptot, presc, iwdg_rlr, iwdg_ewcr, iwdg_pr, iwdg_sr;
+	unsigned long flags;
 	int ret;
 
 	dev_dbg(wdd->parent, "%s\n", __func__);
@@ -124,8 +127,11 @@ static int stm32_iwdg_start(struct watchdog_device *wdd)
 	/* set prescaler & reload registers */
 	reg_write(wdt->regs, IWDG_PR, iwdg_pr);
 	reg_write(wdt->regs, IWDG_RLR, iwdg_rlr);
-	if (wdt->data->has_early_wakeup)
-		reg_write(wdt->regs, IWDG_EWCR, iwdg_ewcr | EWCR_EWIE);
+	if (wdt->data->has_early_wakeup) {
+		spin_lock_irqsave(&wdt->lock, flags);
+		writel(iwdg_ewcr | EWCR_EWIE, wdt->regs + IWDG_EWCR);
+		spin_unlock_irqrestore(&wdt->lock, flags);
+	}
 	reg_write(wdt->regs, IWDG_KR, KR_KEY_ENABLE);
 
 	/* wait for the registers to be updated (max 100ms) */
@@ -185,11 +191,16 @@ static irqreturn_t stm32_iwdg_isr(int irq, void *wdog_arg)
 {
 	struct watchdog_device *wdd = wdog_arg;
 	struct stm32_iwdg *wdt = watchdog_get_drvdata(wdd);
+	unsigned long flags;
 	u32 reg;
 
-	reg = reg_read(wdt->regs, IWDG_EWCR);
+	spin_lock_irqsave(&wdt->lock, flags);
+
+	reg = readl(wdt->regs + IWDG_EWCR);
 	reg |= EWCR_EWIC;
-	reg_write(wdt->regs, IWDG_EWCR, reg);
+	writel(reg, wdt->regs + IWDG_EWCR);
+
+	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	watchdog_notify_pretimeout(wdd);
 
@@ -322,6 +333,8 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
+
+	spin_lock_init(&wdt->lock);
 
 	wdt->data = of_device_get_match_data(&pdev->dev);
 	if (!wdt->data)
