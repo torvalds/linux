@@ -80,7 +80,7 @@ struct assoc_array_edit {
 	struct assoc_array_ptr		**leaf_p;
 	struct assoc_array_ptr		*dead_leaf;
 	struct assoc_array_ptr		*new_meta[3];
-	struct assoc_array_ptr		*excised_meta[1];
+	struct assoc_array_ptr		*excised_meta[2];
 	struct assoc_array_ptr		*excised_subtree;
 	struct assoc_array_ptr		**set_backpointers[ASSOC_ARRAY_FAN_OUT];
 	struct assoc_array_ptr		*set_backpointers_to;
