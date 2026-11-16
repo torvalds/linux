@@ -18,6 +18,7 @@
 #include <linux/idr.h>
 #include <linux/kstrtox.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -37,6 +38,7 @@ struct hwmon_device {
 	const char *label;
 	struct device dev;
 	const struct hwmon_chip_info *chip;
+	struct lock_class_key lock_key;
 	struct mutex lock;
 	struct list_head tzdata;
 	struct attribute_group group;
@@ -136,6 +138,8 @@ static void hwmon_dev_release(struct device *dev)
 		hwmon_free_attrs(hwdev->group.attrs_const);
 	kfree(hwdev->groups);
 	kfree(hwdev->label);
+	mutex_destroy(&hwdev->lock);
+	lockdep_unregister_key(&hwdev->lock_key);
 	kfree(hwdev);
 }
 
@@ -939,6 +943,8 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	}
 
 	hdev = &hwdev->dev;
+	lockdep_register_key(&hwdev->lock_key);
+	mutex_init_with_key(&hwdev->lock, &hwdev->lock_key);
 
 	if (chip) {
 		const struct attribute **attrs;
@@ -993,7 +999,6 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 		tdev = tdev->parent;
 	hdev->of_node = tdev ? tdev->of_node : NULL;
 	hwdev->chip = chip;
-	mutex_init(&hwdev->lock);
 	dev_set_drvdata(hdev, drvdata);
 	dev_set_name(hdev, HWMON_ID_FORMAT, id);
 	err = device_register(hdev);
