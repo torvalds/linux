@@ -53,21 +53,27 @@ static void asrc_read_last_fifo(struct fsl_asrc_pair *pair, void *dma_vaddr, u32
 {
 	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
-	u32 i, reg, size, t_size = 0, width;
+	u32 i, reg, size, t_size = 0, width, sample_bytes, frame_bytes;
 	u32 *reg32 = NULL;
 	u16 *reg16 = NULL;
 	u8  *reg24 = NULL;
 
 	width = snd_pcm_format_physical_width(pair->sample_format[OUT]);
-	if (width == 32)
+	if (width == 32) {
 		reg32 = dma_vaddr + *length;
-	else if (width == 16)
+		sample_bytes = 4;
+	} else if (width == 16) {
 		reg16 = dma_vaddr + *length;
-	else
+		sample_bytes = 2;
+	} else {
 		reg24 = dma_vaddr + *length;
+		sample_bytes = 3;
+	}
+
+	frame_bytes = pair->channels * sample_bytes;
 retry:
 	size = asrc->get_output_fifo_size(pair);
-	if (size + *length > ASRC_M2M_BUFFER_SIZE)
+	if (*length + (t_size + size) * frame_bytes > ASRC_M2M_BUFFER_SIZE)
 		goto end;
 
 	for (i = 0; i < size * pair->channels; i++) {
@@ -89,12 +95,7 @@ retry:
 		goto retry;
 end:
 	/* Update payload length */
-	if (reg32)
-		*length += t_size * pair->channels * 4;
-	else if (reg16)
-		*length += t_size * pair->channels * 2;
-	else
-		*length += t_size * pair->channels * 3;
+	*length += t_size * frame_bytes;
 }
 
 /* config dma channel */
