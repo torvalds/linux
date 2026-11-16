@@ -316,15 +316,16 @@ static struct key *get_user_session_keyring(void)
 static int invalidate_keyring_keys(struct key *keyring)
 {
 	unsigned long num_keys, key_index;
-	size_t keyring_payload_len;
+	long keyring_payload_len, rc;
 	key_serial_t *key_array;
 	struct key *current_key;
-	int rc;
 
 	scoped_guard(rwsem_read, &keyring->sem) {
 		keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
-		num_keys = keyring_payload_len / sizeof(key_serial_t);
+		if (keyring_payload_len <= 0)
+			return keyring_payload_len;
 
+		num_keys = keyring_payload_len / sizeof(key_serial_t);
 		key_array = kzalloc_objs(key_serial_t, num_keys);
 		if (!key_array)
 			return -ENOMEM;
@@ -334,6 +335,7 @@ static int invalidate_keyring_keys(struct key *keyring)
 
 	if (rc != keyring_payload_len) {
 		pr_dbf_msg("Couldn't read keyring payload");
+		rc = rc < 0 ? rc : -EINVAL;
 		goto out;
 	}
 
@@ -345,7 +347,7 @@ static int invalidate_keyring_keys(struct key *keyring)
 		key_put(current_key);
 		rc = key_unlink(keyring, current_key);
 		if (rc) {
-			pr_dbf_msg("Couldn't unlink key %08x: %d", current_key->serial, rc);
+			pr_dbf_msg("Couldn't unlink key %08x: %ld", current_key->serial, rc);
 			break;
 		}
 	}
