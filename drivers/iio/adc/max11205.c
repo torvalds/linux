@@ -114,7 +114,9 @@ static int max11205_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	ad_sd_init(&st->sd, indio_dev, spi, &max11205_sigma_delta_info);
+	ret = ad_sd_init(&st->sd, indio_dev, spi, &max11205_sigma_delta_info);
+	if (ret)
+		return ret;
 
 	st->chip_info = spi_get_device_match_data(spi);
 	if (!st->chip_info)

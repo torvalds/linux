@@ -761,7 +761,7 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 	struct bmg160_data *data = iio_priv(indio_dev);
 	int ret;
 
-	if (state && data->ev_enable_state)
+	if (state == data->ev_enable_state)
 		return 0;
 
 	mutex_lock(&data->mutex);

@@ -435,7 +435,9 @@ static int ad7791_probe(struct spi_device *spi)
 		return ret;
 
 	st->info = &ad7791_chip_infos[spi_get_device_id(spi)->driver_data];
-	ad_sd_init(&st->sd, indio_dev, spi, &ad7791_sigma_delta_info);
+	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7791_sigma_delta_info);
+	if (ret)
+		return ret;
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

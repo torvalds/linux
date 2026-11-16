@@ -66,8 +66,8 @@ properties:
           - const: 0
           - enum: [20000, 24000]
       - items:
-          - const: 4
-          - const: 24000
+          - const: 4000
+          - const: 20000
       - items:
           - const: -20000
           - const: 20000

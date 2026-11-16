@@ -299,11 +299,11 @@ static int tlv493d_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_MAGN:
 			/*
-			 * Magnetic field scale: 0.0098 mTesla (i.e. 9.8 µT)
-			 * Magnetic field in Gauss: mT * 10 = 0.098.
+			 * Magnetic field scale: 0.098 mTesla (i.e. 98 µT) per LSB.
+			 * In Gauss (1 mT = 10 G): 0.98 G per LSB.
 			 */
 			*val = 98;
-			*val2 = 1000;
+			*val2 = 100;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_TEMP:
 			/*

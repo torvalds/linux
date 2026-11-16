@@ -796,7 +796,9 @@ static int ad7793_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	ad_sd_init(&st->sd, indio_dev, spi, &ad7793_sigma_delta_info);
+	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7793_sigma_delta_info);
+	if (ret)
+		return ret;
 
 	if (pdata->refsel != AD7793_REFSEL_INTERNAL) {
 		ret = devm_regulator_get_enable_read_voltage(dev, "refin");

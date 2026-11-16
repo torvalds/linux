@@ -70,7 +70,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_SCALE;
-		st->core.param.sensor_offset.flags = 0;
+		st->core.param.sensor_scale.flags = 0;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
 		if (ret == -EPROTO || ret == -EOPNOTSUPP) {
@@ -178,8 +178,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 		/* Send to EC for each axis, even if not complete */
 
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_SCALE;
-		st->core.param.sensor_offset.flags =
-			MOTION_SENSE_SET_OFFSET;
+		st->core.param.sensor_scale.flags = MOTION_SENSE_SET_OFFSET;
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
 			st->core.param.sensor_scale.scale[i] =
 				st->core.calib[i].scale;

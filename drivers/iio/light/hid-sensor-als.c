@@ -267,7 +267,21 @@ static int als_capture_sample(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct als_state *als_state = iio_priv(indio_dev);
 	int ret = -EINVAL;
-	u32 sample_data = *(u32 *)raw_data;
+	u32 sample_data;
+
+	switch (raw_len) {
+	case 1:
+		sample_data = *(u8 *)raw_data;
+		break;
+	case 2:
+		sample_data = *(u16 *)raw_data;
+		break;
+	default:
+		if (raw_len < sizeof(u32))
+			return -EINVAL;
+		sample_data = *(u32 *)raw_data;
+		break;
+	}
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_LIGHT_ILLUM:

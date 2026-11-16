@@ -3494,7 +3494,7 @@ void _comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	if (comedi_get_is_subdevice_running(s)) {
-		comedi_event(dev, s);
+		_comedi_event(dev, s);
 		comedi_put_is_subdevice_running(s);
 	}
 }

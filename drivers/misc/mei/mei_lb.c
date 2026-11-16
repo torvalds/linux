@@ -312,16 +312,24 @@ static int mei_lb_push_payload_v2(struct device *dev, struct mei_cl_device *clde
 	size_t chunk_size;
 	size_t req_size;
 	ssize_t bytes;
+	size_t mtu;
 	int ret;
 
-	struct mei_lb2_req *req __free(kfree) = kzalloc(mei_cldev_mtu(cldev), GFP_KERNEL);
+	/* The MTU turns into 0 when a link reset disconnects the client */
+	mtu = mei_cldev_mtu(cldev);
+	if (mtu <= sizeof(struct mei_lb2_req)) {
+		dev_err(dev, "MTU is too small: %zu\n", mtu);
+		return -EMSGSIZE;
+	}
+
+	struct mei_lb2_req *req __free(kfree) = kzalloc(mtu, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
 	first_chunk = MEI_LB2_FLAG_FST_CHUNK;
 	last_chunk = 0;
 	do {
-		chunk_size = min(payload_size - sent_data, mei_cldev_mtu(cldev) - sizeof(*req));
+		chunk_size = min(payload_size - sent_data, mtu - sizeof(*req));
 
 		req_size = struct_size(req, payload, chunk_size);
 		if (sent_data + chunk_size == payload_size)

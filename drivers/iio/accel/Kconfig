@@ -33,6 +33,8 @@ config ADIS16209
 
 config ADXL313
 	tristate
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
 
 config ADXL313_I2C
 	tristate "Analog Devices ADXL313 3-Axis Digital Accelerometer I2C Driver"
@@ -62,6 +64,8 @@ config ADXL313_SPI
 
 config ADXL345
 	tristate
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
 
 config ADXL345_I2C
 	tristate "Analog Devices ADXL345 3-Axis Digital Accelerometer I2C Driver"

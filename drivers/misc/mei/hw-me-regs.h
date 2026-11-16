@@ -94,6 +94,7 @@
 #define PCI_DEVICE_ID_INTEL_MEI_CDF        0x18D3  /* Cedar Fork */
 
 #define PCI_DEVICE_ID_INTEL_MEI_ICP_LP     0x34E0  /* Ice Lake Point LP */
+#define PCI_DEVICE_ID_INTEL_MEI_ICP_LP_3   0x34E4  /* Ice Lake Point LP 3 (iTouch) */
 #define PCI_DEVICE_ID_INTEL_MEI_ICP_N      0x38E0  /* Ice Lake Point N */
 
 #define PCI_DEVICE_ID_INTEL_MEI_JSP_N      0x4DE0  /* Jasper Lake Point N */

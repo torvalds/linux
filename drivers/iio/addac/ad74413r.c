@@ -312,7 +312,7 @@ static int ad74413r_gpio_set_multiple(struct gpio_chip *chip,
 			return ret;
 
 		real_mask |= BIT(real_offset);
-		if (*bits & offset)
+		if (test_bit(offset, bits))
 			real_bits |= BIT(real_offset);
 	}
 

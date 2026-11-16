@@ -334,8 +334,11 @@ static int adxl380_set_act_inact_threshold(struct iio_dev *indio_dev,
 		return ret;
 
 	ret = adxl380_write_act_inact_threshold(st, act, th);
-	if (ret)
+	if (ret) {
+		/* Leave standby also if the value was refused */
+		adxl380_set_measure_en(st, true);
 		return ret;
+	}
 
 	return adxl380_set_measure_en(st, true);
 }
@@ -697,6 +700,12 @@ static int adxl380_set_range(struct adxl380_state *st, u8 range)
 	int ret;
 
 	guard(mutex)(&st->lock);
+
+	/* The thresholds are rescaled: see that they fit before any change */
+	if (mult_frac(max(st->act_threshold, st->inact_threshold),
+		      adxl380_range_scale_factor_tbl[st->range],
+		      adxl380_range_scale_factor_tbl[range]) > ADXL380_THRESH_MAX)
+		return -EINVAL;
 
 	ret = adxl380_set_measure_en(st, false);
 	if (ret)
