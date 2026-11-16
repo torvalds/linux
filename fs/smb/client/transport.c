@@ -1124,6 +1124,11 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 		rc = server->ops->check_receive(mid[i], server,
 						flags & CIFS_LOG_ERROR);
+		if (mid[i]->mid_state != MID_RESPONSE_READY) {
+			cifs_mark_compound_mids_cancelled(mid, i);
+			num_processed = 0;
+			goto out;
+		}
 		num_processed = i + 1;
 	}
 
