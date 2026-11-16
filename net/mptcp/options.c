@@ -1035,6 +1035,10 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 			MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_FALLBACKFAILED);
 			goto reset;
 		}
+		/* this ACK will not reach the fallback path: push from here */
+		mptcp_data_lock(sk);
+		__mptcp_check_push(sk, ssk);
+		mptcp_data_unlock(sk);
 		return false;
 	}
 
