@@ -1047,6 +1047,8 @@ set_fully_established:
 
 	mptcp_data_lock(sk);
 	__mptcp_subflow_fully_established(msk, subflow, mp_opt);
+	if (tcp_sk(ssk)->syn_fastopen_child)
+		__mptcp_check_push(sk, ssk);
 	mptcp_data_unlock(sk);
 
 check_notify:
