@@ -1006,7 +1006,8 @@ static int xsk_skb_metadata(struct sk_buff *skb, void *buffer,
 		csum_offset = READ_ONCE(meta->request.csum_offset);
 
 		if (unlikely(csum_start + csum_offset +
-			     sizeof(__sum16) > desc->len))
+			     sizeof(__sum16) > desc->len ||
+			     hr + csum_start >= U16_MAX))
 			return -EINVAL;
 
 		skb->csum_start = hr + csum_start;
