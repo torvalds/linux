@@ -2856,6 +2856,8 @@ free_filter:
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+#include "trace_probe.h"
+
 #define CREATE_TRACE_POINTS
 #include "trace_events_filter_test.h"
 
@@ -2867,12 +2869,22 @@ free_filter:
 	.match  = m, \
 	.not_visited = nvisit, \
 }
+
+#define DATA_STR(m, s) \
+{ \
+	.filter = FILTER, \
+	.str    = s, \
+	.match  = m, \
+	.not_visited = "", \
+}
+
 #define YES 1
 #define NO  0
 
 static struct test_filter_data_t {
 	char *filter;
 	struct trace_event_raw_ftrace_test_filter rec;
+	const char *str;
 	int match;
 	char *not_visited;
 } test_filter_data[] = {
@@ -2924,9 +2936,46 @@ static struct test_filter_data_t {
 	DATA_REC(YES, 1, 1, 1, 1, 1, 1, 1, 1, "bdfh"),
 	DATA_REC(YES, 0, 1, 0, 1, 0, 1, 0, 1, ""),
 	DATA_REC(YES, 1, 0, 1, 0, 1, 0, 1, 0, "bdfh"),
+#undef FILTER
+#define FILTER "str ~ \"0001:*\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "0001:"),
+	DATA_STR(NO,  "0002:01:00.0"),
+	DATA_STR(NO,  "pci:0001:01:00.0"),
+	DATA_STR(NO,  "0001"),
+#undef FILTER
+#define FILTER "str ~ \"!0001:*\""
+	DATA_STR(NO,  "0001:01:00.0"),
+	DATA_STR(YES, "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"0001:*:00.[0-9]\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "0001:ff:00.7"),
+	DATA_STR(NO,  "0001:01:00.a"),
+	DATA_STR(NO,  "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"0001:01:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
+	DATA_STR(NO,  "0001:01:00.00"),
+	DATA_STR(NO,  "0001:01:00"),
+#undef FILTER
+#define FILTER "str == \"0001:01:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
+#undef FILTER
+#define FILTER "str ~ \"*0001:*\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "pci:0001:01:00.0"),
+	DATA_STR(NO,  "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"*:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
 };
 
 #undef DATA_REC
+#undef DATA_STR
 #undef FILTER
 #undef YES
 #undef NO
@@ -2977,7 +3026,28 @@ static __init int ftrace_test_event_filter(void)
 	for (i = 0; i < DATA_CNT; i++) {
 		struct event_filter *filter = NULL;
 		struct test_filter_data_t *d = &test_filter_data[i];
+		union {
+			struct trace_event_raw_ftrace_test_filter rec;
+			/* Add some spare, to append the string contents. */
+			char buf[sizeof(struct trace_event_raw_ftrace_test_filter) + 32];
+		} event = { .rec = d->rec };
 		int err;
+
+		if (d->str) {
+			struct ftrace_event_field *field;
+			u32 offset = offsetof(typeof(event.rec), __data);
+			u32 len = strlen(d->str) + 1;
+			u32 *str_item;
+
+			field = trace_find_event_field(&event_ftrace_test_filter, "str");
+			if (WARN_ON_ONCE(!field))
+				break;
+			if (WARN_ON_ONCE(offset + len > sizeof(event.buf)))
+				break;
+			str_item = (u32 *)&event.buf[field->offset];
+			*str_item = make_data_loc(len, offset);
+			memcpy(&event.buf[offset], d->str, len);
+		}
 
 		err = create_filter(NULL, &event_ftrace_test_filter,
 				    d->filter, false, &filter);
@@ -3000,7 +3070,7 @@ static __init int ftrace_test_event_filter(void)
 			update_pred_fn(filter, d->not_visited);
 
 		test_pred_visited = 0;
-		err = filter_match_preds(filter, &d->rec);
+		err = filter_match_preds(filter, &event.rec);
 		preempt_enable();
 
 		mutex_unlock(&event_mutex);
@@ -3027,7 +3097,7 @@ static __init int ftrace_test_event_filter(void)
 
 	/* Need to call ftrace_test_filter to prevent a warning */
 	if (!trace_ftrace_test_filter_enabled())
-		trace_ftrace_test_filter(1, 2, 3, 4, 5, 6, 7, 8);
+		trace_ftrace_test_filter(1, 2, 3, 4, 5, 6, 7, 8, "");
 
 	return 0;
 }
