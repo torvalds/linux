@@ -323,7 +323,13 @@ found:
 		return NULL;
 	}
 
-	/* Remove bootconfig from initramfs/initrd */
+	/*
+	 * Remove bootconfig from initramfs/initrd. Since the initrd memory
+	 * (including the bootconfig) is freed with initrd_end, save the
+	 * original end to free the whole region later.
+	 */
+	if (!initrd_mem_end)
+		initrd_mem_end = initrd_end;
 	initrd_end = (unsigned long)data;
 	if (_size)
 		*_size = size;
