@@ -2184,6 +2184,9 @@ static void fbnic_set_netif_napi(struct fbnic_napi_vector *nv)
 	for (i = 0; i < nv->txt_count; i++) {
 		struct fbnic_q_triad *qt = &nv->qt[i];
 
+		if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
+			continue;
+
 		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
 				     NETDEV_QUEUE_TYPE_TX, &nv->napi);
 	}
@@ -2204,6 +2207,9 @@ static void fbnic_reset_netif_napi(struct fbnic_napi_vector *nv)
 	/* Disassociate Tx queue from NAPI */
 	for (i = 0; i < nv->txt_count; i++) {
 		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
+			continue;
 
 		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
 				     NETDEV_QUEUE_TYPE_TX, NULL);
