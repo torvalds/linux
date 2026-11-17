@@ -10,19 +10,12 @@
 
 char _license[] SEC("license") = "GPL";
 
-struct sock {
-} __attribute__((preserve_access_index));
-
 struct bpf_iter__sockmap {
-	union {
-		struct sock *sk;
-	};
+	struct sock *sk;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__unix {
-	union {
-		struct sock *unix_sk;
-	};
+	struct sock *unix_sk;
 } __attribute__((preserve_access_index));
 
 struct {
