@@ -708,10 +708,10 @@ static int ionic_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ring->tx_pending < IONIC_MIN_TXRX_DESC) {
+	if (ring->tx_pending < IONIC_MIN_TX_DESC) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
 				       "Tx descriptor count must be at least %d",
-				       IONIC_MIN_TXRX_DESC);
+				       IONIC_MIN_TX_DESC);
 		return -EINVAL;
 	}
 
