@@ -5772,6 +5772,7 @@ static int hci_dev_shutdown(struct hci_dev *hdev)
 
 int hci_dev_close_sync(struct hci_dev *hdev)
 {
+	struct hci_conn *conn;
 	bool auto_off;
 	int err = 0;
 
@@ -5838,6 +5839,22 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 		list_for_each_entry(adv_instance, &hdev->adv_instances, list)
 			cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
 	}
+
+	/* A delayed work whose timer was armed before close would queue
+	 * itself while the workqueue is draining. Disable the connection
+	 * works so that hci_conn_drop() and the timers can no longer queue
+	 * them. The connections are deleted below, so nothing re-enables
+	 * them. HCI_UP is clear, so no new connection can be added after
+	 * this walk.
+	 */
+	hci_dev_lock(hdev);
+	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
+		disable_delayed_work(&conn->disc_work);
+		disable_delayed_work(&conn->auto_accept_work);
+		disable_delayed_work(&conn->idle_work);
+		disable_delayed_work(&conn->le_conn_timeout);
+	}
+	hci_dev_unlock(hdev);
 
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
