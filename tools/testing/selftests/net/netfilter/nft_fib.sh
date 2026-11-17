@@ -202,6 +202,50 @@ check_fib_counter() {
 	return 0
 }
 
+# Count probes matching the expected FIB result, then drop them.
+test_fib_suppress() {
+	local label="$1" expected="$2"
+	local result="${3:-oifname}" error err=0
+
+	if ! ip netns exec "$nsrouter" nft -f /dev/stdin <<EOF
+flush table ip6 filter
+table ip6 filter {
+	chain prerouting {
+		type filter hook prerouting priority -1;
+		ip6 saddr dead:1::99 icmpv6 type echo-request \
+			fib saddr . mark $result "$expected" counter drop
+	}
+}
+EOF
+	then
+		echo "FAIL: $label (could not load ruleset)"
+		return 1
+	fi
+	ip netns exec "$ns1" ping -6 -c 1 -W 0.1 -q dead:1::1 > /dev/null 2>&1
+	if [ "$result" = type ]; then
+		case "$expected" in
+		blackhole) error="Invalid argument" ;;
+		unreachable) error="No route to host" ;;
+		prohibit) error="Permission denied" ;;
+		esac
+		LC_ALL=C ip -net "$nsrouter" -6 route get dead:1::99 \
+			from dead:1::1 2>&1 |
+			grep -Fxq "RTNETLINK answers: $error" || err=1
+	else
+		ip -net "$nsrouter" -6 route get dead:1::99 from dead:1::1 |
+			grep -q "dev $expected " || err=1
+	fi
+	if check_fib_type_counter_family ip6 1 "$nsrouter" prerouting \
+		"$result" "$label" &&
+	   [ "$err" -eq 0 ]; then
+		echo "PASS: $label"
+	else
+		echo "FAIL: $label"
+		ret=1
+		return 1
+	fi
+}
+
 load_ruleset "$nsrouter"
 load_ruleset "$ns1"
 load_ruleset "$ns2"
@@ -844,6 +888,52 @@ ip -net "$nsrouter" -4 rule add from all table main priority 32766
 test_fib_type "default table"
 ip netns exec "$nsrouter" nft delete table ip filter
 ip netns exec "$nsrouter" nft delete table ip6 filter
+
+# Keep the earlier IPv6 checks on the path without custom rules.
+# The router's logging RPF rules have already been removed here.
+if ip -net "$nsrouter" -6 rule add pref 100 to dead:1::99 table 128 \
+	suppress_prefixlength 0; then
+	ip -net "$nsrouter" -6 route add table 128 default dev veth1 || exit 1
+	ip -net "$nsrouter" -6 route add table 129 dead:1::/64 \
+		dev veth0 || exit 1
+	ip -net "$nsrouter" -6 rule add pref 101 to dead:1::99 \
+		table 129 || exit 1
+	ip netns exec "$nsrouter" nft add table ip6 filter || exit 1
+
+	test_fib_suppress "suppress default route" veth0 || ret=1
+	ip -net "$nsrouter" -6 route add table 128 dead:1::/64 \
+		dev veth1 || exit 1
+	test_fib_suppress "retain non-default route" veth1 || ret=1
+	ip -net "$nsrouter" -6 route del table 128 dead:1::/64 \
+		dev veth1 || exit 1
+
+	for type in blackhole unreachable prohibit; do
+		ip -net "$nsrouter" -6 route replace "$type" default \
+			table 128 || exit 1
+		test_fib_suppress "retain $type" "$type" type || ret=1
+	done
+
+	if ip -net "$nsrouter" -6 nexthop add id 1 blackhole; then
+		ip -net "$nsrouter" -6 route replace default nhid 1 \
+			table 128 || exit 1
+		test_fib_suppress "retain blackhole nexthop" \
+			blackhole type || ret=1
+		ip -net "$nsrouter" -6 route del table 128 default
+		ip -net "$nsrouter" -6 nexthop del id 1
+	else
+		echo "SKIP: blackhole nexthop objects unavailable"
+		[ "$ret" -eq 0 ] && ret=$ksft_skip
+		ip -net "$nsrouter" -6 route del table 128 default
+	fi
+
+	ip -net "$nsrouter" -6 rule del pref 100
+	ip -net "$nsrouter" -6 rule del pref 101
+	ip -net "$nsrouter" -6 route flush table 129
+	ip netns exec "$nsrouter" nft delete table ip6 filter
+else
+	echo "SKIP: IPv6 prefix suppression unavailable"
+	[ "$ret" -eq 0 ] && ret=$ksft_skip
+fi
 
 test_fib_vrf
 
