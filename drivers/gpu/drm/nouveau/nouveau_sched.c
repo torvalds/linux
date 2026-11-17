@@ -328,7 +328,11 @@ nouveau_job_submit(struct nouveau_job *job)
 	mutex_unlock(&sched->mutex);
 
 	if (done_fence) {
-		dma_fence_wait(done_fence, true);
+		/* The job is queued and its VA space changes are applied. It
+		 * can neither be restarted nor reported as failed, so wait
+		 * until it has run.
+		 */
+		dma_fence_wait(done_fence, false);
 		dma_fence_put(done_fence);
 	}
 
