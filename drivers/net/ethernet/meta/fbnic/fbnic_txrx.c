@@ -1772,7 +1772,7 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 
 		/* Configure Tx completion queue */
 		db = &uc_addr[FBNIC_QUEUE(txq_idx) + FBNIC_QUEUE_TCQ_HEAD];
-		fbnic_ring_init(&qt->cmpl, db, 0, 0);
+		fbnic_ring_init(&qt->cmpl, db, txq_idx, 0);
 
 		/* Update Tx queue index */
 		txt_count--;
@@ -3094,8 +3094,11 @@ static void __fbnic_nv_restart(struct fbnic_net *fbn,
 	fbnic_wr32(fbd, FBNIC_INTR_SET(nv->v_idx / 32), BIT(nv->v_idx % 32));
 	fbnic_wrfl(fbd);
 
-	for (i = 0; i < nv->txt_count; i++)
+	for (i = 0; i < nv->txt_count; i++) {
+		if (nv->qt[i].sub0.flags & FBNIC_RING_F_DISABLED)
+			continue;
 		netif_wake_subqueue(fbn->netdev, nv->qt[i].sub0.q_idx);
+	}
 	fbnic_dbg_nv_init(nv);
 }
 
@@ -3136,13 +3139,16 @@ static int fbnic_queue_stop(struct net_device *dev, void *qmem, int idx)
 	napi_disable_locked(&nv->napi);
 	fbnic_nv_irq_disable(nv);
 
-	for (i = 0; i < nv->txt_count; i++)
+	for (i = 0; i < nv->txt_count; i++) {
+		if (nv->qt[i].sub0.flags & FBNIC_RING_F_DISABLED)
+			continue;
 		netif_stop_subqueue(dev, nv->qt[i].sub0.q_idx);
+	}
 	fbnic_nv_disable(fbn, nv);
 
 	for (t = 0; t < nv->txt_count + nv->rxt_count; t++) {
 		err = fbnic_wait_queue_idle(fbn, t >= nv->txt_count,
-					    nv->qt[t].sub0.q_idx);
+					    nv->qt[t].cmpl.q_idx);
 		if (err)
 			goto err_restart;
 	}
