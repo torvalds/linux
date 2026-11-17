@@ -62,6 +62,12 @@ udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 	if (svc) {
 		int ignored;
 
+		/* Do not create connection for port 0 */
+		if (!ports[0] || !ports[1]) {
+			*verdict = NF_DROP;
+			return 0;
+		}
+
 		if (ip_vs_todrop(ipvs)) {
 			/*
 			 * It seems that we are very loaded.

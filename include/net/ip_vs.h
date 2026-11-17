@@ -1021,7 +1021,9 @@ struct ip_vs_dest {
 
 	struct rcu_head		rcu_head;
 	struct list_head	t_list;		/* in dest_trash */
-	unsigned int		in_rs_table:1;	/* we are in rs_table */
+	unsigned long		rcu_state;	/* GP cookie on unlink (trash or rehash) */
+	unsigned int		in_rs_table:1,	/* we are in rs_table */
+				need_gp:1;	/* Need GP on rehash */
 };
 
 /* The scheduler object */
@@ -1685,7 +1687,6 @@ static inline bool __ip_vs_conn_get(struct ip_vs_conn *cp)
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 {
-	smp_mb__before_atomic();
 	refcount_dec(&cp->refcnt);
 }
 void ip_vs_conn_put(struct ip_vs_conn *cp);
@@ -1923,7 +1924,7 @@ static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 		kfree(dest);
 }
 
-void ip_vs_dest_update_overload(struct ip_vs_dest *dest, bool overload);
+void ip_vs_dest_update_overload(struct ip_vs_dest *dest);
 
 /* Check if dest is in overloaded state */
 static inline bool ip_vs_dest_is_overloaded(const struct ip_vs_dest *dest)
