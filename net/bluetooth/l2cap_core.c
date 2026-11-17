@@ -7150,6 +7150,9 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	pkt.cid     = cpu_to_le16(chan->scid);
 	pkt.credits = cpu_to_le16(return_credits);
 
+	/* Keeps l2cap_put_ident() from releasing ident before we do */
+	lockdep_assert_held(&conn->lock);
+
 	ident = l2cap_get_ident(conn);
 
 	l2cap_send_cmd(conn, ident, L2CAP_LE_CREDITS, sizeof(pkt), &pkt);

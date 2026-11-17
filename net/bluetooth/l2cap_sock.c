@@ -1292,6 +1292,7 @@ static int l2cap_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	bool have_conn;
 	int err;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
@@ -1312,9 +1313,12 @@ static int l2cap_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	    pi->chan->mode != L2CAP_MODE_EXT_FLOWCTL)
 		return err;
 
-	lock_sock(sk);
-
+	/* Returning credits must be serialized with the RX path */
+	have_conn = l2cap_chan_lock_conn(pi->chan);
 	l2cap_publish_rx_avail(pi->chan);
+	l2cap_chan_unlock_conn(pi->chan, have_conn);
+
+	lock_sock(sk);
 
 	/* Attempt to put pending rx data in the socket buffer */
 	while (!list_empty(&pi->rx_busy)) {
