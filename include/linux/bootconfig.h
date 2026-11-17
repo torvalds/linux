@@ -63,6 +63,30 @@ struct xbc_node {
 #define XBC_VALUE	(1 << 15)
 /* Maximum size of boot config is 32KB - 1 */
 #define XBC_DATA_MAX	(XBC_VALUE - 1)
+/* Maximum size of padded boot config in initrd trailer */
+#define XBC_DATA_MAX_PADDED	(XBC_DATA_MAX + BOOTCONFIG_ALIGN - 1)
+
+/**
+ * xbc_exclude_padding() - Exclude trailing null padding bytes from size
+ * @data: Bootconfig data (including padding).
+ * @size: The size of @data from the bootconfig footer.
+ *
+ * Exclude up to BOOTCONFIG_ALIGN - 1 trailing null padding bytes while
+ * keeping the terminal null byte of the bootconfig data, and return the
+ * unpadded bootconfig size.
+ */
+static inline __init uint32_t xbc_exclude_padding(const char *data, uint32_t size)
+{
+	int i;
+
+	for (i = 0; i < BOOTCONFIG_ALIGN - 1; i++) {
+		if (size <= 1 || data[size - 1] != '\0' || data[size - 2] != '\0')
+			break;
+		size--;
+	}
+
+	return size;
+}
 
 #define XBC_NODE_MAX	8192
 #define XBC_KEYLEN_MAX	256

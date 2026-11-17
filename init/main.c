@@ -268,7 +268,7 @@ early_param("loglevel", loglevel);
 #ifdef CONFIG_BLK_DEV_INITRD
 static void * __init get_boot_config_from_initrd(size_t *_size)
 {
-	u32 size, csum;
+	u32 size, raw_size, csum;
 	char *data;
 	u8 *hdr;
 	int i;
@@ -294,24 +294,31 @@ found:
 	if ((unsigned long)hdr < initrd_start)
 		return NULL;
 
-	size = get_unaligned_le32(hdr);
+	raw_size = get_unaligned_le32(hdr);
 	csum = get_unaligned_le32(hdr + 4);
 
+	if (raw_size > XBC_DATA_MAX_PADDED) {
+		pr_err("bootconfig size %u is greater than max size %d\n",
+			raw_size, XBC_DATA_MAX);
+		return NULL;
+	}
+
+	if (raw_size > ((unsigned long)hdr - initrd_start)) {
+		pr_err("bootconfig size %u is greater than initrd size %lu\n",
+			raw_size, initrd_end - initrd_start);
+		return NULL;
+	}
+
+	data = ((void *)hdr) - raw_size;
+
+	size = xbc_exclude_padding(data, raw_size);
 	if (size > XBC_DATA_MAX) {
 		pr_err("bootconfig size %u is greater than max size %d\n",
 			size, XBC_DATA_MAX);
 		return NULL;
 	}
 
-	if (size > ((unsigned long)hdr - initrd_start)) {
-		pr_err("bootconfig size %u is greater than initrd size %lu\n",
-			size, initrd_end - initrd_start);
-		return NULL;
-	}
-
-	data = ((void *)hdr) - size;
-
-	if (xbc_calc_checksum(data, size) != csum) {
+	if (xbc_calc_checksum(data, raw_size) != csum) {
 		pr_err("bootconfig checksum failed\n");
 		return NULL;
 	}

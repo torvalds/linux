@@ -118,10 +118,23 @@ dd if=/dev/urandom bs=768 count=32 | base64 -w0 >> $TEMPCONF
 printf "\"\n" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
+dd if=$TEMPCONF of=$OUTFILE bs=1 count=32765
+cp $OUTFILE $TEMPCONF
+printf "\"\n" >> $TEMPCONF	# 32767 bytes + terminal ('\0') = 32768 (> max)
+xfail $BOOTCONF -a $TEMPCONF $INITRD
+
 dd if=$TEMPCONF of=$OUTFILE bs=1 count=32764
 cp $OUTFILE $TEMPCONF
-printf "\"\n" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0')
-xpass $BOOTCONF -a $TEMPCONF $INITRD
+printf "\"\n" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0') = 32767
+# Test max size across all 4 alignment paddings (0..3 bytes)
+for sz in 4096 4097 4098 4099; do
+  dd if=/dev/zero of=$INITRD bs=1 count=$sz 2>/dev/null
+  xpass $BOOTCONF -a $TEMPCONF $INITRD
+  $BOOTCONF -l $INITRD > $OUTFILE
+  xpass cmp $TEMPCONF $OUTFILE
+  xpass $BOOTCONF -d $INITRD
+  xpass test $(wc -c < $INITRD) -eq $sz
+done
 
 echo "Adding same-key values"
 cat > $TEMPCONF << EOF
