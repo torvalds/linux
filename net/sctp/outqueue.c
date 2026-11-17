@@ -190,9 +190,12 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
  */
 void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 {
-	memset(q, 0, sizeof(struct sctp_outq));
-
 	q->asoc = asoc;
+	q->out_qlen = 0;
+	q->error = 0;
+	q->outstanding_bytes = 0;
+	q->fast_rtx = 0;
+	q->cork = 0;
 	INIT_LIST_HEAD(&q->out_chunk_list);
 	INIT_LIST_HEAD(&q->control_chunk_list);
 	INIT_LIST_HEAD(&q->retransmit);
