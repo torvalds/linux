@@ -5525,8 +5525,7 @@ void map_anon_folio_pte_nopf(struct folio *folio, pte_t *pte,
 
 	entry = pte_sw_mkyoung(entry);
 
-	if (vma->vm_flags & VM_WRITE)
-		entry = pte_mkwrite(pte_mkdirty(entry), vma);
+	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 	if (uffd_wp)
 		entry = pte_mkuffd(entry);
 
