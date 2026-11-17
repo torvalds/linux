@@ -1038,6 +1038,8 @@ static int usbat_set_transport(struct us_data *us,
 		break;
 
 	case USBAT_DEV_FLASH:
+		/* The ATA sector size of these readers is fixed at 512 bytes */
+		info->ssize = 0x200;
 		us->transport = usbat_flash_transport;
 		break;
 	}
@@ -1703,8 +1705,6 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 		if (rc != USB_STOR_TRANSPORT_GOOD)
 			return rc;
 
-		/* hard coded 512 byte sectors as per ATA spec */
-		info->ssize = 0x200;
 		usb_stor_dbg(us, "READ_CAPACITY: %ld sectors, %ld bytes per sector\n",
 			     info->sectors, info->ssize);
 
