@@ -299,13 +299,13 @@ extern void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
  * otherwise.
  */
 
-#define ___wait_event(wq_head, condition, state, exclusive, ret, cmd)		\
+#define ___wait_event(wq_head, condition, state, wq_flag, ret, cmd)		\
 ({										\
 	__label__ __out;							\
 	struct wait_queue_entry __wq_entry;					\
 	long __ret = ret;	/* explicit shadow */				\
 										\
-	init_wait_entry(&__wq_entry, exclusive ? WQ_FLAG_EXCLUSIVE : 0);	\
+	init_wait_entry(&__wq_entry, wq_flag);					\
 	for (;;) {								\
 		long __int = prepare_to_wait_event(&wq_head, &__wq_entry, state);\
 										\
@@ -327,8 +327,7 @@ __out:	__ret;									\
 })
 
 #define __wait_event(wq_head, condition)					\
-	(void)___wait_event(wq_head, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
-			    schedule())
+	(void)__wait_event_state(wq_head, condition, TASK_UNINTERRUPTIBLE)
 
 /**
  * wait_event - sleep until a condition gets true
@@ -366,8 +365,7 @@ do {										\
 } while (0)
 
 #define __wait_event_freezable(wq_head, condition)				\
-	___wait_event(wq_head, condition, (TASK_INTERRUPTIBLE|TASK_FREEZABLE),	\
-			0, 0, schedule())
+	__wait_event_state(wq_head, condition, (TASK_INTERRUPTIBLE|TASK_FREEZABLE))
 
 /**
  * wait_event_freezable - sleep (or freeze) until a condition gets true
@@ -442,8 +440,8 @@ do {										\
 })
 
 #define __wait_event_exclusive_cmd(wq_head, condition, cmd1, cmd2)		\
-	(void)___wait_event(wq_head, condition, TASK_UNINTERRUPTIBLE, 1, 0,	\
-			    cmd1; schedule(); cmd2)
+	(void)___wait_event(wq_head, condition, TASK_UNINTERRUPTIBLE,		\
+			    WQ_FLAG_EXCLUSIVE, 0, cmd1; schedule(); cmd2)
 /*
  * Just like wait_event_cmd(), except it sets exclusive flag
  */
@@ -480,8 +478,7 @@ do {										\
 } while (0)
 
 #define __wait_event_interruptible(wq_head, condition)				\
-	___wait_event(wq_head, condition, TASK_INTERRUPTIBLE, 0, 0,		\
-		      schedule())
+	__wait_event_state(wq_head, condition, TASK_INTERRUPTIBLE)
 
 /**
  * wait_event_interruptible - sleep until a condition gets true
@@ -620,8 +617,7 @@ do {										\
 })
 
 #define __wait_event_interruptible_exclusive(wq, condition)			\
-	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 1, 0,			\
-		      schedule())
+	__wait_event_state_exclusive(wq, condition, TASK_INTERRUPTIBLE)
 
 #define wait_event_interruptible_exclusive(wq, condition)			\
 ({										\
@@ -633,8 +629,7 @@ do {										\
 })
 
 #define __wait_event_killable_exclusive(wq, condition)				\
-	___wait_event(wq, condition, TASK_KILLABLE, 1, 0,			\
-		      schedule())
+	__wait_event_state_exclusive(wq, condition, TASK_KILLABLE)
 
 #define wait_event_killable_exclusive(wq, condition)				\
 ({										\
@@ -647,8 +642,7 @@ do {										\
 
 
 #define __wait_event_freezable_exclusive(wq, condition)				\
-	___wait_event(wq, condition, (TASK_INTERRUPTIBLE|TASK_FREEZABLE), 1, 0,\
-			schedule())
+	__wait_event_state_exclusive(wq, condition, (TASK_INTERRUPTIBLE|TASK_FREEZABLE))
 
 #define wait_event_freezable_exclusive(wq, condition)				\
 ({										\
@@ -676,7 +670,7 @@ do {										\
 do {										\
 	might_sleep();								\
 	if (!(condition))							\
-		___wait_event(wq_head, condition, TASK_IDLE, 0, 0, schedule());	\
+		__wait_event_state(wq_head, condition, TASK_IDLE);		\
 } while (0)
 
 /**
@@ -700,7 +694,7 @@ do {										\
 do {										\
 	might_sleep();								\
 	if (!(condition))							\
-		___wait_event(wq_head, condition, TASK_IDLE, 1, 0, schedule());	\
+		__wait_event_state_exclusive(wq_head, condition, TASK_IDLE);	\
 } while (0)
 
 #define __wait_event_idle_timeout(wq_head, condition, timeout)			\
@@ -738,7 +732,7 @@ do {										\
 
 #define __wait_event_idle_exclusive_timeout(wq_head, condition, timeout)	\
 	___wait_event(wq_head, ___wait_cond_timeout(condition),			\
-		      TASK_IDLE, 1, timeout,					\
+		      TASK_IDLE, WQ_FLAG_EXCLUSIVE, timeout,			\
 		      __ret = schedule_timeout(__ret))
 
 /**
@@ -911,7 +905,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
 
 
 #define __wait_event_killable(wq, condition)					\
-	___wait_event(wq, condition, TASK_KILLABLE, 0, 0, schedule())
+	__wait_event_state(wq, condition, TASK_KILLABLE)
 
 /**
  * wait_event_killable - sleep until a condition gets true
@@ -981,7 +975,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
 })
 
 #define __wait_event_state_exclusive(wq, condition, state)			\
-	___wait_event(wq, condition, state, 1, 0, schedule())
+	___wait_event(wq, condition, state, WQ_FLAG_EXCLUSIVE, 0, schedule())
 
 #define wait_event_state_exclusive(wq, condition, state)			\
 ({										\
