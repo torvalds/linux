@@ -32,6 +32,13 @@
 
 static bool memfd_folio_has_extra_refs(struct folio *folio)
 {
+	/*
+	 * Use the precise pincount where available to avoid racy refcount
+	 * comparisons.
+	 */
+	if (folio_has_pincount(folio) && folio_maybe_dma_pinned(folio))
+		return true;
+
 	return folio_ref_count(folio) != folio_expected_ref_count(folio);
 }
 

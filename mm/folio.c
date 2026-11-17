@@ -107,6 +107,32 @@ void __folio_put(struct folio *folio)
 }
 EXPORT_SYMBOL(__folio_put);
 
+bool folio_ref_count_over_limit_slowpath(const struct folio *folio,
+		unsigned int ref_count)
+{
+	if (ref_count >= FOLIO_REF_COUNT_ADMIN_LIMIT)
+		goto over_limit;
+	/* Background threads must not consume admin reserves. */
+	if (current->flags & PF_KTHREAD)
+		goto over_limit;
+	/* Neither must interrupt contexts on behalf of the interrupted task. */
+	if (!in_task())
+		goto over_limit;
+	/* Capability checks are not safe with IRQs disabled. */
+	if (irqs_disabled())
+		goto over_limit;
+	/* Use the task's credentials, which filesystem overrides cannot change. */
+	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
+		return false;
+
+over_limit:
+	pr_warn_ratelimited("folio:%p refcount:%d mapcount:%d mapping:%p index:%#lx reached refcount limit\n",
+			    folio, (int)ref_count, folio_mapcount(folio),
+			    folio_mapping(folio), folio->index);
+	return true;
+}
+EXPORT_SYMBOL_GPL(folio_ref_count_over_limit_slowpath);
+
 typedef void (*move_fn_t)(struct lruvec *lruvec, struct folio *folio);
 
 static void lru_add(struct lruvec *lruvec, struct folio *folio)

@@ -973,7 +973,7 @@ static bool folio_referenced_one(struct folio *folio,
 			pteval = ptep_get(pvmw.pte);
 
 		if (pvmw.pte && pte_present(pteval) && folio_test_large(folio)) {
-			const unsigned long end_addr = pmd_addr_end(address, vma->vm_end);
+			const unsigned long end_addr = pte_table_clamped_end(address, vma->vm_end);
 			const unsigned int max_nr = (end_addr - address) >> PAGE_SHIFT;
 
 			nr = folio_pte_batch(folio, pvmw.pte, pteval, max_nr);
@@ -1978,7 +1978,7 @@ static inline unsigned int folio_unmap_pte_batch(struct folio *folio,
 		return 1;
 
 	/* We may only batch within a single VMA and a single page table. */
-	end_addr = pmd_addr_end(addr, vma->vm_end);
+	end_addr = pte_table_clamped_end(addr, vma->vm_end);
 	max_nr = (end_addr - addr) >> PAGE_SHIFT;
 
 	/* We only support lazyfree or file folios batching for now ... */

@@ -2249,9 +2249,54 @@ vm_fault_t finish_fault(struct vm_fault *vmf);
  *   back into memory.
  */
 
-/* 127: arbitrary random number, small enough to assemble well */
-#define folio_ref_zero_or_close_to_overflow(folio) \
-	((unsigned int) folio_ref_count(folio) + 127u <= 127u)
+/* Leave separate reserves for administrators and concurrent reference gains. */
+#define FOLIO_REF_COUNT_LIMIT		(INT_MAX - (1U << 26))
+#define FOLIO_REF_COUNT_ADMIN_LIMIT	(INT_MAX - (1U << 25))
+#define FOLIO_REF_COUNT_FLUSH_LIMIT	(INT_MAX - (1U << 27))
+
+bool folio_ref_count_over_limit_slowpath(const struct folio *folio,
+		unsigned int ref_count);
+
+/**
+ * __folio_ref_count_over_limit - Check whether to refuse more folio references.
+ * @folio: The folio.
+ * @ref_count: The sampled folio reference count.
+ *
+ * Check before adding page table mappings or other significant refcount users
+ * to pagecache folios (!hugetlb), either before acquiring references or
+ * afterwards with rollback if the operation is refused.
+ *
+ * Also required when pinning folios without a dedicated pincount that use
+ * GUP_PIN_COUNTING_BIAS.
+ *
+ * Checking other folios does no harm.
+ *
+ * This check is an approximation; we leave some headroom such that concurrent
+ * increments, batches, temporary references, or other bounded refcount
+ * consumers are not a problem.
+ *
+ * Return: True if the caller should refuse the operation, false otherwise.
+ */
+static inline bool __folio_ref_count_over_limit(const struct folio *folio,
+		unsigned int ref_count)
+{
+	if (likely(ref_count < FOLIO_REF_COUNT_LIMIT))
+		return false;
+	return folio_ref_count_over_limit_slowpath(folio, ref_count);
+}
+
+/**
+ * folio_ref_count_over_limit - Check whether to refuse more folio references.
+ * @folio: The folio.
+ *
+ * See __folio_ref_count_over_limit().
+ *
+ * Return: True if the caller should refuse the operation, false otherwise.
+ */
+static inline bool folio_ref_count_over_limit(const struct folio *folio)
+{
+	return __folio_ref_count_over_limit(folio, folio_ref_count(folio));
+}
 
 /**
  * folio_get - Increment the reference count on a folio.
@@ -2263,7 +2308,7 @@ vm_fault_t finish_fault(struct vm_fault *vmf);
  */
 static inline void folio_get(struct folio *folio)
 {
-	VM_BUG_ON_FOLIO(folio_ref_zero_or_close_to_overflow(folio), folio);
+	VM_WARN_ON_FOLIO(folio_ref_count(folio) <= 0, folio);
 	folio_ref_inc(folio);
 }
 
@@ -2277,13 +2322,33 @@ static inline void get_page(struct page *page)
 	folio_get(folio);
 }
 
+/**
+ * folio_get_checked - Try to acquire a reference to a live folio.
+ * @folio: The folio.
+ *
+ * The caller must already hold a reference to @folio. Warn and fail on a
+ * non-positive refcount, and refuse additional references at the limit.
+ *
+ * Use folio_try_get() for speculative reference acquisition where the
+ * refcount can legitimately be zero.
+ *
+ * Return: True if the refcount was incremented, false otherwise.
+ */
+static inline __must_check bool folio_get_checked(struct folio *folio)
+{
+	const int ref_count = folio_ref_count(folio);
+
+	if (WARN_ON_ONCE(ref_count <= 0))
+		return false;
+	if (unlikely(__folio_ref_count_over_limit(folio, ref_count)))
+		return false;
+	folio_ref_inc(folio);
+	return true;
+}
+
 static inline __must_check bool try_get_page(struct page *page)
 {
-	page = compound_head(page);
-	if (WARN_ON_ONCE(page_ref_count(page) <= 0))
-		return false;
-	page_ref_inc(page);
-	return true;
+	return folio_get_checked(page_folio(page));
 }
 
 /**
@@ -2925,12 +2990,8 @@ static inline bool folio_maybe_dma_pinned(struct folio *folio)
 		return atomic_read(&folio->_pincount) > 0;
 
 	/*
-	 * folio_ref_count() is signed. If that refcount overflows, then
-	 * folio_ref_count() returns a negative value, and callers will avoid
-	 * further incrementing the refcount.
-	 *
-	 * Here, for that overflow case, use the sign bit to count a little
-	 * bit higher via unsigned math, and thus still get an accurate result.
+	 * Use unsigned math so even an unexpected negative refcount is
+	 * treated as possibly pinned.
 	 */
 	return ((unsigned int)folio_ref_count(folio)) >=
 		GUP_PIN_COUNTING_BIAS;

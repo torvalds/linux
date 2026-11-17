@@ -74,10 +74,14 @@ static inline void sanity_check_pinned_pages(struct page **pages,
 static inline struct folio *try_get_folio(struct page *page, int refs)
 {
 	struct folio *folio;
+	int ref_count;
 
 retry:
 	folio = page_folio(page);
-	if (WARN_ON_ONCE(folio_ref_count(folio) < 0))
+	ref_count = folio_ref_count(folio);
+	if (WARN_ON_ONCE(ref_count < 0))
+		return NULL;
+	if (unlikely(__folio_ref_count_over_limit(folio, ref_count)))
 		return NULL;
 	if (unlikely(!folio_ref_try_add(folio, refs)))
 		return NULL;
@@ -140,7 +144,13 @@ static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
 int __must_check try_grab_folio(struct folio *folio, int refs,
 				unsigned int flags)
 {
-	if (WARN_ON_ONCE(folio_ref_count(folio) <= 0))
+	const int ref_count = folio_ref_count(folio);
+
+	if (WARN_ON_ONCE(ref_count <= 0))
+		return -ENOMEM;
+
+	if ((flags & (FOLL_GET | FOLL_PIN)) &&
+	    unlikely(__folio_ref_count_over_limit(folio, ref_count)))
 		return -ENOMEM;
 
 	if (unlikely(!(flags & FOLL_PCI_P2PDMA) && folio_is_pci_p2pdma(folio)))
@@ -1482,17 +1492,17 @@ next_page:
 				struct folio *folio = page_folio(page);
 
 				/*
-				 * Since we already hold refcount on the
-				 * large folio, this should never fail.
+				 * Grabbing more references can fail once we
+				 * hit folio refcount limits.
 				 */
-				if (try_grab_folio(folio, page_increm - 1,
-						   gup_flags)) {
+				ret = try_grab_folio(folio, page_increm - 1,
+						     gup_flags);
+				if (ret) {
 					/*
-					 * Release the 1st page ref if the
-					 * folio is problematic, fail hard.
+					 * Release the folio reference we
+					 * already took.
 					 */
 					gup_put_folio(folio, 1, gup_flags);
-					ret = -EFAULT;
 					goto out;
 				}
 			}
@@ -3538,10 +3548,10 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 					break;
 				}
 
-				if (try_grab_folio(folio, 1, FOLL_PIN)) {
+				ret = try_grab_folio(folio, 1, FOLL_PIN);
+				if (ret) {
 					folio_unlock(folio);
 					folio_batch_release(&fbatch);
-					ret = -EINVAL;
 					goto err;
 				}
 

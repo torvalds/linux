@@ -12,6 +12,7 @@
 #ifdef CONFIG_MMU
 
 #include <linux/mm_types.h>
+#include <linux/minmax.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
 #include <asm-generic/pgtable_uffd.h>
@@ -1517,6 +1518,29 @@ static inline void arch_swap_restore(swp_entry_t entry, struct folio *folio)
 	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
 })
 #endif
+
+/**
+ * pte_table_clamped_end() - Limit a range to a single PTE table.
+ * @addr: Start address.
+ * @end: Exclusive end address.
+ *
+ * Only use pmd_addr_end() when traversing page tables, in a pattern like::
+ *
+ *     next = pmd_addr_end(addr, end);
+ *
+ * Higher levels already bound the range when PMDs are folded. Use this
+ * helper elsewhere to clamp the range regardless of PMD folding.
+ *
+ * Return: The exclusive end of the PTE table containing @addr, capped at @end.
+ */
+static inline unsigned long pte_table_clamped_end(unsigned long addr,
+		unsigned long end)
+{
+	const unsigned long pmd_end = (addr & PMD_MASK) + PMD_SIZE;
+
+	/* Compare inclusive ends to avoid wraparounds. */
+	return min(pmd_end - 1, end - 1) + 1;
+}
 
 /*
  * When walking page tables, we usually want to skip any p?d_none entries;

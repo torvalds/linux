@@ -1888,6 +1888,12 @@ static enum scan_result try_collapse_pte_mapped_thp(struct mm_struct *mm, unsign
 		goto drop_folio;
 	}
 
+	/* Leave any uninitialized folios to the page fault path. */
+	if (!folio_test_uptodate(folio)) {
+		result = SCAN_FAIL;
+		goto drop_folio;
+	}
+
 	result = find_pmd_or_thp_or_none(mm, haddr, &pmd);
 	switch (result) {
 	case SCAN_SUCCEED:
