@@ -29,6 +29,9 @@ u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
 u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 				void *loc, u64 val);
 
+void module_write_place(void *place, void *val, size_t len,
+			struct module *mod);
+
 struct plt_entry {
 	/*
 	 * A program that conforms to the AArch64 Procedure Call Standard
