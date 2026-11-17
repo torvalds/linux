@@ -1740,6 +1740,9 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	ts_stats->lost = fbn->tx_stats.twq.ts_lost;
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		ring = fbn->tx[i];
+		if (!ring)
+			continue;
+
 		do {
 			start = u64_stats_fetch_begin(&ring->stats.syncp);
 			ts_packets = ring->stats.twq.ts_packets;
