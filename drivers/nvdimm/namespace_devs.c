@@ -2031,6 +2031,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 
 static struct device **create_namespaces(struct nd_region *nd_region)
 {
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
 	struct nd_mapping *nd_mapping;
 	struct device **devs;
 	int i;
@@ -2038,10 +2039,16 @@ static struct device **create_namespaces(struct nd_region *nd_region)
 	if (nd_region->ndr_mappings == 0)
 		return NULL;
 
-	/* lock down all mappings while we scan labels */
+	/*
+	 * Lock down all mappings while we scan labels. A region can have
+	 * more mappings than lockdep has subclasses, so nest the mapping
+	 * locks under the bus lock rather than giving each its own subclass.
+	 */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		nd_mapping = &nd_region->mapping[i];
-		mutex_lock_nested(&nd_mapping->lock, i);
+		mutex_lock_nest_lock(&nd_mapping->lock,
+				     &nvdimm_bus->reconfig_mutex);
 	}
 
 	devs = scan_labels(nd_region);
