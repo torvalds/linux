@@ -94,7 +94,7 @@ struct f_hidg {
 
 	/* get report */
 	struct usb_request		*get_req;
-	struct usb_hidg_report		get_report;
+	void				*get_req_buf;
 	bool				get_report_returned;
 	/* Cancel pending work and distinguish requests across reconfiguration. */
 	bool				get_report_cancelled;
@@ -131,6 +131,7 @@ static void hidg_release(struct device *dev)
 		kfree(entry);
 	}
 
+	kfree(hidg->get_req_buf);
 	kfree(hidg->report_desc);
 	kfree(hidg->set_report_buf);
 	kfree(hidg);
@@ -596,7 +597,7 @@ static void get_report_workqueue_handler(struct work_struct *work)
 	ptr = f_hidg_search_for_report(hidg, hidg->get_report_req_report_id);
 	if (ptr && !ptr->report_data.userspace_req) {
 		/* Report exists in list and it is to be used for immediate response */
-		req->buf = ptr->report_data.data;
+		memcpy(req->buf, ptr->report_data.data, req->length);
 		status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
 		hidg->get_report_returned = true;
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -636,10 +637,9 @@ static void get_report_workqueue_handler(struct work_struct *work)
 			 * Either get an updated response just serviced by userspace
 			 * or send the latest response in the list
 			 */
-			req->buf = ptr->report_data.data;
+			memcpy(req->buf, ptr->report_data.data, req->length);
 		} else {
 			/* If there are no prevoiusly sent reports send empty report */
-			req->buf = hidg->get_report.data;
 			memset(req->buf, 0x0, req->length);
 		}
 
@@ -1170,6 +1170,15 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!hidg->get_req)
 		return -ENOMEM;
 
+	/*
+	 * The GET_REPORT response is served from a dedicated buffer
+	 * (allocated in hidg_alloc()), not from the report_list
+	 * entries: userspace may update an entry while the controller
+	 * is still reading the previous response, which would corrupt
+	 * the data on the wire.
+	 */
+	hidg->get_req->buf = hidg->get_req_buf;
+
 	hidg->get_req->zero = 0;
 	hidg->get_req->complete = hidg_get_report_complete;
 	hidg->get_req->context = hidg;
@@ -1656,6 +1665,18 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 		}
 	}
 	hidg->use_out_ep = !opts->no_out_endpoint;
+
+	/*
+	 * Dedicated buffer for GET_REPORT responses, allocated once for
+	 * the whole lifetime of this function instance: hidg_release()
+	 * is the only safe free point, as it runs after all USB
+	 * activity has ceased and all file references are gone.
+	 */
+	hidg->get_req_buf = kmalloc(MAX_REPORT_LENGTH, GFP_KERNEL);
+	if (!hidg->get_req_buf) {
+		ret = -ENOMEM;
+		goto err_put_device;
+	}
 
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);
