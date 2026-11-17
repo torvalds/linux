@@ -5891,6 +5891,7 @@ __rb_get_reader_page_from_remote(struct ring_buffer_per_cpu *cpu_buffer)
 	cpu_buffer->pages = &new_head->list;
 	cpu_buffer->lost_events = cpu_buffer->meta_page->reader.lost_events;
 	local_inc(&cpu_buffer->pages_read);
+	cpu_buffer->cnt++;
 
 	if (!rb_page_size(cpu_buffer->reader_page))
 		return NULL;
