@@ -1084,7 +1084,7 @@ struct kfd_process {
 
 #define KFD_PROCESS_TABLE_SIZE 8 /* bits: 256 entries */
 #define KFD_CONTEXT_ID_PRIMARY	0xFFFF
-#define KFD_CONTEXT_ID_MIN 0
+#define KFD_CONTEXT_ID_MIN 1
 
 extern DECLARE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
 extern struct srcu_struct kfd_processes_srcu;

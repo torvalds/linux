@@ -950,7 +950,8 @@ static void kfd_process_free_id(struct kfd_process *process)
 {
 	struct kfd_process *primary_process;
 
-	if (process->context_id == KFD_CONTEXT_ID_PRIMARY)
+	if (process->context_id == KFD_CONTEXT_ID_PRIMARY ||
+	    process->context_id < KFD_CONTEXT_ID_MIN)
 		return;
 
 	primary_process = kfd_lookup_process_by_mm(process->lead_thread->mm);
@@ -1772,7 +1773,6 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	return process;
 
 err_alloc_id:
-	kfd_process_free_id(process);
 err_register_notifier:
 	/*
 	 * The process is already in kfd_processes_table, so find_process()
