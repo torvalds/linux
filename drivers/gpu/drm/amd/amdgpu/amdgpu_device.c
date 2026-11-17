@@ -4076,6 +4076,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 				amdgpu_reset_method = AMD_RESET_METHOD_NONE;
 				r = amdgpu_asic_reset(adev);
 				amdgpu_reset_method = tmp;
+				/* Post again so that the PSP is ready before it is used */
+				if (!r)
+					adev->has_hw_reset = true;
 		}
 
 		if (r) {
