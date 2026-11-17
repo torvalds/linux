@@ -24,8 +24,10 @@
 #include <core/mm.h>
 #include <subdev/fb.h>
 #include <subdev/gsp.h>
-#include <subdev/instmem.h>
+#include <subdev/instmem/priv.h>
 #include <subdev/mmu/vmm.h>
+
+#include <linux/io-mapping.h>
 
 #include "nvrm/bar.h"
 #include "nvrm/rpcfn.h"
@@ -63,6 +65,25 @@ r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u8 page_shift, u64 pdbe)
 	rpc->info.entryLevelShift = page_shift;
 
 	return nvkm_gsp_rpc_wr(gsp, rpc, NVKM_GSP_RPC_REPLY_RECV);
+}
+
+static int
+r535_bar_bar2_oneinit(struct nvkm_bar *bar)
+{
+	struct io_mapping *iomap = nv50_instmem_bar2_iomap(bar->subdev.device->imem);
+
+	if (!iomap)
+		return -ENOMEM;
+
+	/* BAR2 writes are flushed by a read. While flushFBZero is not mapped,
+	 * read the first page of the BAR2 io_mapping.
+	 */
+	bar->flushBAR2PhysMode = io_mapping_map_wc(iomap, 0, PAGE_SIZE);
+	if (!bar->flushBAR2PhysMode)
+		return -ENOMEM;
+
+	bar->flushBAR2 = bar->flushBAR2PhysMode;
+	return 0;
 }
 
 static void
@@ -155,7 +176,7 @@ r535_bar_dtor(struct nvkm_bar *bar)
 	nvkm_memory_unref(&bar->flushFBZero);
 
 	if (bar->flushBAR2PhysMode)
-		iounmap(bar->flushBAR2PhysMode);
+		io_mapping_unmap(bar->flushBAR2PhysMode);
 
 	kfree(bar->func);
 	return data;
@@ -178,6 +199,7 @@ r535_bar_new_(const struct nvkm_bar_func *hw, struct nvkm_device *device,
 	rm->bar1.fini = r535_bar_bar1_fini;
 	rm->bar1.wait = r535_bar_bar1_wait;
 	rm->bar1.vmm = hw->bar1.vmm;
+	rm->bar2.oneinit = r535_bar_bar2_oneinit;
 	rm->bar2.init = r535_bar_bar2_init;
 	rm->bar2.fini = r535_bar_bar2_fini;
 	rm->bar2.wait = r535_bar_bar2_wait;
@@ -190,12 +212,6 @@ r535_bar_new_(const struct nvkm_bar_func *hw, struct nvkm_device *device,
 		return ret;
 	}
 	*pbar = bar;
-
-	bar->flushBAR2PhysMode = ioremap(device->func->resource_addr(device, NVKM_BAR2_INST), PAGE_SIZE);
-	if (!bar->flushBAR2PhysMode)
-		return -ENOMEM;
-
-	bar->flushBAR2 = bar->flushBAR2PhysMode;
 
 	gf100_bar(*pbar)->bar2_halve = true;
 	return 0;

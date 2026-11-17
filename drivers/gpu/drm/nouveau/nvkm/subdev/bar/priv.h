@@ -16,6 +16,7 @@ struct nvkm_bar_func {
 	void (*init)(struct nvkm_bar *);
 
 	struct {
+		int (*oneinit)(struct nvkm_bar *);
 		void (*init)(struct nvkm_bar *);
 		void (*fini)(struct nvkm_bar *);
 		void (*wait)(struct nvkm_bar *);

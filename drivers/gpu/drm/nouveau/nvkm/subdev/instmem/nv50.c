@@ -436,6 +436,14 @@ nv50_instmem_dtor(struct nvkm_instmem *base)
 	return imem;
 }
 
+struct io_mapping *
+nv50_instmem_bar2_iomap(struct nvkm_instmem *base)
+{
+	struct nv50_instmem *imem = nv50_instmem(base);
+
+	return imem->iomap.size ? &imem->iomap : NULL;
+}
+
 static const struct nvkm_instmem_func
 nv50_instmem = {
 	.dtor = nv50_instmem_dtor,
