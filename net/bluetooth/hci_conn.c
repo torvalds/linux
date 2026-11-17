@@ -1186,6 +1186,7 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type,
 struct hci_conn *hci_conn_add_unset(struct hci_dev *hdev, int type,
 				    bdaddr_t *dst, u8 dst_type, u8 role)
 {
+	struct hci_conn *conn;
 	int handle;
 
 	bt_dev_dbg(hdev, "dst %pMR", dst);
@@ -1194,7 +1195,11 @@ struct hci_conn *hci_conn_add_unset(struct hci_dev *hdev, int type,
 	if (unlikely(handle < 0))
 		return ERR_PTR(-ECONNREFUSED);
 
-	return __hci_conn_add(hdev, type, dst, dst_type, role, handle);
+	conn = __hci_conn_add(hdev, type, dst, dst_type, role, handle);
+	if (IS_ERR(conn))
+		ida_free(&hdev->unset_handle_ida, handle);
+
+	return conn;
 }
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
