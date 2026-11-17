@@ -192,6 +192,8 @@ static int fuse_direntplus_link(struct file *file,
 		return -EIO;
 	if (fuse_invalid_attr(&o->attr))
 		return -EIO;
+	if (memchr(name.name, '\0', name.len))
+		return -EIO;
 
 	fc = get_fuse_conn(dir);
 	epoch = atomic_read(&fc->epoch);
