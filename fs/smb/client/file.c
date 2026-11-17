@@ -4023,6 +4023,8 @@ oplock_break_ack:
 out:
 	cifs_done_oplock_break(cinode);
 	iput(inode);
+	if (atomic_dec_and_test(&cifs_sb->outstanding_rreq))
+		wake_up_var(&cifs_sb->outstanding_rreq);
 }
 
 #ifdef CONFIG_SWAP
