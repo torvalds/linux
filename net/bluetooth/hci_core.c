@@ -2039,7 +2039,10 @@ free_monitor:
 	hci_free_adv_monitor(hdev, monitor);
 	hci_dev_unlock(hdev);
 
-	return status;
+	/* The monitor is gone, not having been known by the controller is not
+	 * an error for the caller.
+	 */
+	return status == -ENOENT ? 0 : status;
 }
 
 /* This function requires the caller holds hci_req_sync_lock */
