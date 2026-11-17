@@ -1216,6 +1216,8 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 		ret = __reset_add_reset_gpio_device(fwnode, &args);
 		if (ret) {
 			fwnode_handle_put(args.fwnode);
+			if (ret == -ENOENT && optional)
+				return NULL;
 			return ERR_PTR(ret);
 		}
 	}
