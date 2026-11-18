@@ -779,7 +779,7 @@ vc4_handle_branch_target(struct vc4_shader_validation_state *validation_state)
 }
 
 struct vc4_validated_shader_info *
-vc4_validate_shader(struct drm_gem_dma_object *shader_obj)
+vc4_validate_shader(struct drm_gem_dma_object *shader_obj, u32 offset)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(shader_obj->base.dev);
 	bool found_shader_end = false;
@@ -793,8 +793,9 @@ vc4_validate_shader(struct drm_gem_dma_object *shader_obj)
 		return NULL;
 
 	memset(&validation_state, 0, sizeof(validation_state));
-	validation_state.shader = shader_obj->vaddr;
-	validation_state.max_ip = shader_obj->base.size / sizeof(uint64_t);
+	validation_state.shader = shader_obj->vaddr + offset;
+	validation_state.max_ip = (shader_obj->base.size - offset) /
+				  sizeof(uint64_t);
 
 	reset_validation_state(&validation_state);
 

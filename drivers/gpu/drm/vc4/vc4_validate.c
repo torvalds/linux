@@ -854,7 +854,8 @@ validate_gl_shader_rec(struct drm_device *dev,
 		void *uniform_data_u;
 		uint32_t tex, uni;
 
-		*(uint32_t *)(pkt_v + o) = bo[i]->dma_addr + src_offset;
+		*(uint32_t *)(pkt_v + o) = bo[i]->dma_addr + src_offset +
+					   to_vc4_bo(&bo[i]->base)->shader_offset;
 
 		if (src_offset != 0) {
 			DRM_DEBUG("Shaders must be at offset 0 of "
