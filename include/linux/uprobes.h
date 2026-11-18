@@ -239,6 +239,7 @@ extern void uprobe_copy_from_page(struct page *page, unsigned long vaddr, void *
 extern void handle_syscall_uprobe(struct pt_regs *regs, unsigned long bp_vaddr);
 extern void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr);
 extern unsigned long arch_uprobe_get_xol_area(void);
+extern bool arch_uprobe_regs_writable(int off, int size);
 #else /* !CONFIG_UPROBES */
 struct uprobes_state {
 };
@@ -299,6 +300,10 @@ static inline void uprobe_copy_process(struct task_struct *t, u64 flags)
 }
 static inline void uprobe_clear_state(struct mm_struct *mm)
 {
+}
+static inline bool arch_uprobe_regs_writable(int off, int size)
+{
+	return false;
 }
 #endif /* !CONFIG_UPROBES */
 #endif	/* _LINUX_UPROBES_H */
