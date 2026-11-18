@@ -7,7 +7,7 @@ Landlock: system-wide management
 ================================
 
 :Author: Mickaël Salaün
-:Date: October 2026
+:Date: November 2026
 
 Landlock can leverage the audit framework to log events.
 
@@ -72,10 +72,13 @@ AUDIT_LANDLOCK_ACCESS
           :manpage:`unshare(2)`, :manpage:`clone(2)`, :manpage:`clone3(2)`,
           :manpage:`open_tree(2)`, or :manpage:`fsmount(2)`, or joining via
           :manpage:`setns(2)`);
-          ``namespace_type`` indicates the type (hex ``CLONE_NEW*`` bitmask),
-          and ``namespace_id`` identifies the target namespace (for a denied
-          creation, the namespace never becomes reachable so its ID is not
-          directly visible from user space)
+          ``namespace_op`` is ``create`` for construction or ``enter`` for
+          :manpage:`setns(2)`.  These values describe semantic namespace hooks,
+          not exact system calls.  ``namespace_type`` indicates the type (hex
+          ``CLONE_NEW*`` bitmask), and ``namespace_id`` identifies the namespace
+          object.  For a denied creation, the new namespace never becomes
+          reachable, so its ID is not directly visible from user space.  For a
+          denied entry, this is the exact existing target ID.
 
     **capability.*** - Capability restrictions (ABI 12+):
         - capability.use - Capability use was denied;
@@ -86,10 +89,10 @@ AUDIT_LANDLOCK_ACCESS
     in a directory that lacks both ``make_reg`` and ``refer`` rights would show
     ``blockers=fs.make_reg,fs.refer``.
 
-    The object identification fields depend on the type of access being blocked:
-    ``path``, ``dev``, ``ino`` for filesystem; ``opid``, ``ocomm`` for signals;
-    ``namespace_type`` and ``namespace_id`` for namespace operations;
-    ``capability`` for capability use.
+    The operation and object context fields depend on the type of access being
+    blocked: ``path``, ``dev``, ``ino`` for filesystem; ``opid``, ``ocomm`` for
+    signals; ``namespace_op``, ``namespace_type``, and ``namespace_id`` for
+    namespace operations; ``capability`` for capability use.
 
 
 AUDIT_LANDLOCK_DOMAIN
