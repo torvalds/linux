@@ -47,6 +47,9 @@
 static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 				long pte_index, unsigned long pteh,
 				unsigned long ptel, unsigned long *pte_idx_ret);
+static void kvmppc_virtmode_do_h_remove(struct kvm *kvm, unsigned long flags,
+				unsigned long pte_index, unsigned long avpn,
+				unsigned long *hpret);
 
 struct kvm_resize_hpt {
 	/* These fields read-only after init */
@@ -306,6 +309,22 @@ static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 	}
 	return ret;
 
+}
+
+/*
+ * Virtual-mode H_REMOVE. kvmppc_do_h_remove() is also called from real mode,
+ * where preempt_disable() is not usable, so the guard stays here. The function
+ * spins on HPTE_V_HVLOCK and then lock_rmap() (via remove_revmap_chain());
+ * preemption must be disabled across both bit-locks so that spinning callers
+ * holding preempt_disable() can make forward progress.
+ */
+static void kvmppc_virtmode_do_h_remove(struct kvm *kvm, unsigned long flags,
+				unsigned long pte_index, unsigned long avpn,
+				unsigned long *hpret)
+{
+	preempt_disable();
+	kvmppc_do_h_remove(kvm, flags, pte_index, avpn, hpret);
+	preempt_enable();
 }
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_hv_find_slbe(struct kvm_vcpu *vcpu,
@@ -810,9 +829,11 @@ static void kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	for (;;) {
+		preempt_disable();
 		lock_rmap(rmapp);
 		if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 			unlock_rmap(rmapp);
+			preempt_enable();
 			break;
 		}
 
@@ -826,6 +847,7 @@ static void kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
 			/* unlock rmap before spinning on the HPTE lock */
 			unlock_rmap(rmapp);
+			preempt_enable();
 			while (be64_to_cpu(hptep[0]) & HPTE_V_HVLOCK)
 				cpu_relax();
 			continue;
@@ -834,6 +856,7 @@ static void kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		kvmppc_unmap_hpte(kvm, i, memslot, rmapp, gfn);
 		unlock_rmap(rmapp);
 		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
+		preempt_enable();
 	}
 }
 
@@ -890,6 +913,7 @@ static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
  retry:
+	preempt_disable();
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_REFERENCED) {
 		*rmapp &= ~KVMPPC_RMAP_REFERENCED;
@@ -897,6 +921,7 @@ static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	}
 	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 		unlock_rmap(rmapp);
+		preempt_enable();
 		return ret;
 	}
 
@@ -912,6 +937,7 @@ static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
 			/* unlock rmap before spinning on the HPTE lock */
 			unlock_rmap(rmapp);
+			preempt_enable();
 			while (be64_to_cpu(hptep[0]) & HPTE_V_HVLOCK)
 				cpu_relax();
 			goto retry;
@@ -931,6 +957,7 @@ static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
+	preempt_enable();
 	return ret;
 }
 
@@ -1219,6 +1246,7 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 	if (!(vpte & HPTE_V_VALID) && !(vpte & HPTE_V_ABSENT))
 		return 0; /* nothing to do */
 
+	preempt_disable();
 	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
 		cpu_relax();
 
@@ -1346,6 +1374,7 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 
 out:
 	unlock_hpte(hptep, vpte);
+	preempt_enable();
 	return ret;
 }
 
@@ -1868,7 +1897,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 			nb += HPTE_SIZE;
 
 			if (be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT))
-				kvmppc_do_h_remove(kvm, 0, i, 0, tmp);
+				kvmppc_virtmode_do_h_remove(kvm, 0, i, 0, tmp);
 			err = -EIO;
 			ret = kvmppc_virtmode_do_h_enter(kvm, H_EXACT, i, v, r,
 							 tmp);
@@ -1897,7 +1926,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 
 		for (j = 0; j < hdr.n_invalid; ++j) {
 			if (be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT))
-				kvmppc_do_h_remove(kvm, 0, i, 0, tmp);
+				kvmppc_virtmode_do_h_remove(kvm, 0, i, 0, tmp);
 			++i;
 			hptp += 2;
 		}

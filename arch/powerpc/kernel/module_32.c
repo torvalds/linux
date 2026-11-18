@@ -41,6 +41,9 @@ static unsigned int count_relocs(const Elf32_Rela *rela, unsigned int num)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	_count_relocs++;	/* add one for ftrace_caller */
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	_count_relocs++;	/* add one for ftrace_regs_caller */
+#endif
 #endif
 	return _count_relocs;
 }

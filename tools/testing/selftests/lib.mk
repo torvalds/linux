@@ -179,11 +179,15 @@ else
 	$(error Error: set INSTALL_PATH to use install)
 endif
 
-emit_tests:
+define EMIT_TESTS
 	for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
 		echo "$(COLLECTION):$$BASENAME_TEST";	\
 	done
+endef
+
+emit_tests:
+	+$(EMIT_TESTS)
 
 # define if isn't already. It is undefined in make O= case.
 ifeq ($(RM),)

@@ -56,11 +56,12 @@ override define INSTALL_RULE
 	done;
 endef
 
-emit_tests:
+override define EMIT_TESTS
 	+@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET COLLECTION=$(COLLECTION)/$$TARGET -s -C $$TARGET $@;\
 	done;
+endef
 
 override define CLEAN
 	+@for TARGET in $(SUB_DIRS); do \

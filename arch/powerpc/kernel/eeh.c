@@ -1728,10 +1728,12 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 	struct pci_controller *hose;
 	uint32_t phbid, pe_no;
 	struct eeh_pe *pe;
-	char buf[20];
+	char buf[20] = {};
 	int ret;
 
-	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (ret < 0)
+		return ret;
 	if (!ret)
 		return -EFAULT;
 

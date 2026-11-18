@@ -487,6 +487,9 @@ static void start_watchdog(void *arg)
 	if (!(watchdog_enabled & WATCHDOG_HARDLOCKUP_ENABLED))
 		return;
 
+	if (!watchdog_thresh)
+		return;
+
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
 		return;
 

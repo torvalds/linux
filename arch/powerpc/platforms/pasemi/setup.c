@@ -216,10 +216,12 @@ static void sb600_8259_cascade(struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static void __init nemo_init_IRQ(struct mpic *mpic)
+void __init nemo_init_IRQ(void)
 {
 	struct device_node *np;
 	int gpio_virq;
+	struct mpic *mpic;
+
 	/* Connect the SB600's legacy i8259 controller */
 	np = of_find_node_by_path("/pxp@0,e0000000");
 	i8259_init(np, 0);
@@ -230,14 +232,10 @@ static void __init nemo_init_IRQ(struct mpic *mpic)
 	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
 	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
 
+	mpic = irq_get_chip_data(gpio_virq);
 	irq_set_default_domain(mpic->irqhost);
 }
 
-#else
-
-static inline void nemo_init_IRQ(struct mpic *mpic)
-{
-}
 #endif
 
 static __init void pas_init_IRQ(void)
@@ -299,8 +297,6 @@ static __init void pas_init_IRQ(void)
 		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
 		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
-
-	nemo_init_IRQ(mpic);
 
 	of_node_put(mpic_node);
 	of_node_put(root);

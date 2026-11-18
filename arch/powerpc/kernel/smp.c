@@ -824,6 +824,8 @@ static int parse_thread_groups(struct device_node *dn,
 	int i = 0;
 
 	count = of_property_count_u32_elems(dn, "ibm,thread-groups");
+	if (count < 0)
+		return count;
 	thread_group_array = kzalloc_objs(u32, count);
 	if (!thread_group_array)
 		return -ENOMEM;

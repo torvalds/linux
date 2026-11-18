@@ -265,6 +265,11 @@ static int __init pas_add_bridge(struct device_node *dev)
 	 */
 	isa_bridge_find_early(hose);
 
+	/*
+	 * ISA bridge is now active, add the i8259 cascade (if needed)
+	 */
+	nemo_init_IRQ();
+
 	return 0;
 }
 
