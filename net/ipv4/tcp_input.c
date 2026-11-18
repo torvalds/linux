@@ -901,15 +901,16 @@ new_measure:
 	tp->rcv_rtt_est.time = tp->tcp_mstamp;
 }
 
+/* A sample from TSecr above TCP_RTT_MAX_US is bogus, not large. */
 static s32 tcp_rtt_tsopt_us(const struct tcp_sock *tp, u32 min_delta)
 {
 	u32 delta, delta_us;
 
 	delta = tcp_time_stamp_ts(tp) - tp->rx_opt.rcv_tsecr;
 	if (tp->tcp_usec_ts)
-		return delta;
+		return delta <= TCP_RTT_MAX_US ? delta : -1;
 
-	if (likely(delta < INT_MAX / (USEC_PER_SEC / TCP_TS_HZ))) {
+	if (likely(delta <= TCP_RTT_MAX_US / (USEC_PER_SEC / TCP_TS_HZ))) {
 		if (!delta)
 			delta = min_delta;
 		delta_us = delta * (USEC_PER_SEC / TCP_TS_HZ);
