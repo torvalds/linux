@@ -3452,7 +3452,7 @@ static int swap_show(struct seq_file *swap, void *v)
 		return 0;
 	}
 
-	bytes = K(si->pages);
+	bytes = K((unsigned long)si->pages);
 	inuse = K(swap_usage_in_pages(si));
 
 	file = si->swap_file;
@@ -3968,8 +3968,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	/* Sets SWP_WRITEOK, resurrect the percpu ref, expose the swap device */
 	enable_swap_info(si);
 
-	pr_info("Adding %uk swap on %s.  Priority:%d extents:%d across:%lluk %s%s%s%s\n",
-		K(si->pages), name->name, si->prio, nr_extents,
+	pr_info("Adding %luk swap on %s.  Priority:%d extents:%d across:%lluk %s%s%s%s\n",
+		K((unsigned long)si->pages), name->name, si->prio, nr_extents,
 		K((unsigned long long)span),
 		(si->flags & SWP_SOLIDSTATE) ? "SS" : "",
 		(si->flags & SWP_DISCARDABLE) ? "D" : "",
