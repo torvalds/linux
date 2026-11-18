@@ -60,6 +60,21 @@ mlx5e_ktls_handle_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg,
 {
 	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
 }
+
+/* The first CQE of a HW-GRO session sets skb->decrypted. A resync request or
+ * a TLS error is handled on the first CQE only, so it starts a new session.
+ */
+static inline bool
+mlx5e_ktls_shampo_can_merge(struct sk_buff *skb, struct mlx5_cqe64 *cqe)
+{
+	u8 tls_offload = get_cqe_tls_offload(cqe);
+
+	if (unlikely(tls_offload > CQE_TLS_OFFLOAD_DECRYPTED))
+		return false;
+
+	return (tls_offload == CQE_TLS_OFFLOAD_DECRYPTED) ==
+	       skb_is_decrypted(skb);
+}
 #else
 static inline bool
 mlx5e_ktls_tx_try_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
@@ -92,6 +107,12 @@ static inline void mlx5e_ktls_handle_rx_skb(struct mlx5e_rq *rq,
 					    struct mlx5_cqe64 *cqe,
 					    u32 *cqe_bcnt)
 {
+}
+
+static inline bool
+mlx5e_ktls_shampo_can_merge(struct sk_buff *skb, struct mlx5_cqe64 *cqe)
+{
+	return true;
 }
 #endif /* CONFIG_MLX5_EN_TLS */
 
