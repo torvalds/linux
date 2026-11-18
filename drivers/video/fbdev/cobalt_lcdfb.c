@@ -297,8 +297,9 @@ static int cobalt_lcdfb_probe(struct platform_device *dev)
 
 	info->screen_base = devm_platform_get_and_ioremap_resource(dev, 0, &res);
 	if (IS_ERR(info->screen_base)) {
+		retval = PTR_ERR(info->screen_base);
 		framebuffer_release(info);
-		return PTR_ERR(info->screen_base);
+		return retval;
 	}
 
 	info->screen_size = resource_size(res);
