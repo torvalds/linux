@@ -5854,6 +5854,12 @@ void set_pte_range(struct vm_fault *vmf, struct folio *folio,
 	/* copy-on-write page */
 	if (write && !(vma->vm_flags & VM_SHARED)) {
 		VM_BUG_ON_FOLIO(nr != 1, folio);
+		/*
+		 * Concurrent zapping might have dropped the PTL but not flushed
+		 * the TLB yet. Flush before installing a new folio.
+		 */
+		if (mm_tlb_flush_pending(vma->vm_mm))
+			flush_tlb_page(vma, addr);
 		folio_add_new_anon_rmap(folio, vma, addr, RMAP_EXCLUSIVE);
 		folio_add_lru_vma(folio, vma);
 	} else {
