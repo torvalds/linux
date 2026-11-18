@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/panic_notifier.h>
 #include <linux/platform_device.h>
@@ -306,22 +305,26 @@ static bool spi_geni_is_abort_still_pending(struct spi_geni_master *mas)
 	return false;
 }
 
+static unsigned int geni_spi_words_per_fifo(struct spi_geni_master *mas,
+					    unsigned int bits_per_word)
+{
+	/* Each sub-byte SPI word occupies a separate byte in memory. */
+	unsigned int packing_bits = max_t(unsigned int, bits_per_word, BITS_PER_BYTE);
+
+	if (mas->fifo_width_bits % packing_bits)
+		return 1;
+
+	return mas->fifo_width_bits / packing_bits;
+}
+
 static void spi_setup_word_len(struct spi_geni_master *mas, u16 mode,
 					unsigned int bits_per_word)
 {
-	unsigned int pack_words;
+	unsigned int pack_words = geni_spi_words_per_fifo(mas, bits_per_word);
 	bool msb_first = (mode & SPI_LSB_FIRST) ? false : true;
 	struct geni_se *se = &mas->se;
 	u32 word_len;
 
-	/*
-	 * If bits_per_word isn't a byte aligned value, set the packing to be
-	 * 1 SPI word per FIFO word.
-	 */
-	if (!(mas->fifo_width_bits % bits_per_word))
-		pack_words = mas->fifo_width_bits / bits_per_word;
-	else
-		pack_words = 1;
 	geni_se_config_packing(&mas->se, bits_per_word, pack_words, msb_first,
 								true, true);
 	word_len = (bits_per_word - MIN_WORD_LEN) & WORD_LEN_MSK;
@@ -451,13 +454,7 @@ static int setup_gsi_xfer(struct spi_transfer *xfer, struct spi_geni_master *mas
 		peripheral.rx_len = 0;
 	} else if (xfer->rx_buf) {
 		peripheral.cmd = SPI_RX;
-		if (!(mas->cur_bits_per_word % MIN_WORD_LEN)) {
-			peripheral.rx_len = ((xfer->len << 3) / mas->cur_bits_per_word);
-		} else {
-			int bytes_per_word = (mas->cur_bits_per_word / BITS_PER_BYTE) + 1;
-
-			peripheral.rx_len = (xfer->len / bytes_per_word);
-		}
+		peripheral.rx_len = xfer->len / spi_bpw_to_bytes(xfer->bits_per_word);
 	}
 
 	peripheral.loopback_en = !!(spi_slv->mode & SPI_LOOP);
@@ -523,15 +520,7 @@ static int setup_gsi_xfer(struct spi_transfer *xfer, struct spi_geni_master *mas
 static u32 get_xfer_len_in_words(struct spi_transfer *xfer,
 				struct spi_geni_master *mas)
 {
-	u32 len;
-
-	if (!(xfer->bits_per_word % MIN_WORD_LEN))
-		len = xfer->len * BITS_PER_BYTE / xfer->bits_per_word;
-	else
-		len = xfer->len / (xfer->bits_per_word / BITS_PER_BYTE + 1);
-	len &= TRANS_LEN_MSK;
-
-	return len;
+	return (xfer->len / spi_bpw_to_bytes(xfer->bits_per_word)) & TRANS_LEN_MSK;
 }
 
 static bool geni_can_dma(struct spi_controller *ctlr,
@@ -548,7 +537,7 @@ static bool geni_can_dma(struct spi_controller *ctlr,
 		return true;
 
 	len = get_xfer_len_in_words(xfer, mas);
-	fifo_size = mas->tx_fifo_depth * mas->fifo_width_bits / xfer->bits_per_word;
+	fifo_size = mas->tx_fifo_depth * geni_spi_words_per_fifo(mas, xfer->bits_per_word);
 
 	if (len > fifo_size)
 		return true;
@@ -725,16 +714,8 @@ static int spi_geni_init(struct spi_geni_master *mas)
 
 static unsigned int geni_byte_per_fifo_word(struct spi_geni_master *mas)
 {
-	/*
-	 * Calculate how many bytes we'll put in each FIFO word.  If the
-	 * transfer words don't pack cleanly into a FIFO word we'll just put
-	 * one transfer word in each FIFO word.  If they do pack we'll pack 'em.
-	 */
-	if (mas->fifo_width_bits % mas->cur_bits_per_word)
-		return roundup_pow_of_two(DIV_ROUND_UP(mas->cur_bits_per_word,
-						       BITS_PER_BYTE));
-
-	return mas->fifo_width_bits / BITS_PER_BYTE;
+	return geni_spi_words_per_fifo(mas, mas->cur_bits_per_word) *
+		spi_bpw_to_bytes(mas->cur_bits_per_word);
 }
 
 static bool geni_spi_handle_tx(struct spi_geni_master *mas)
@@ -742,7 +723,7 @@ static bool geni_spi_handle_tx(struct spi_geni_master *mas)
 	struct geni_se *se = &mas->se;
 	unsigned int max_bytes;
 	const u8 *tx_buf;
-	unsigned int bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
+	unsigned int bytes_per_fifo_word;
 	unsigned int i = 0;
 
 	/* Stop the watermark IRQ if nothing to send */
@@ -751,6 +732,7 @@ static bool geni_spi_handle_tx(struct spi_geni_master *mas)
 		return false;
 	}
 
+	bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
 	max_bytes = (mas->tx_fifo_depth - mas->tx_wm) * bytes_per_fifo_word;
 	if (mas->tx_rem_bytes < max_bytes)
 		max_bytes = mas->tx_rem_bytes;
@@ -782,23 +764,28 @@ static void geni_spi_handle_rx(struct spi_geni_master *mas)
 	unsigned int rx_bytes;
 	unsigned int rx_last_byte_valid;
 	u8 *rx_buf;
-	unsigned int bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
+	unsigned int bytes_per_fifo_word;
 	unsigned int i = 0;
 
 	rx_fifo_status = readl(se->base + SE_GENI_RX_FIFO_STATUS);
+
+	/* Clear out the FIFO and bail if nowhere to put it. */
+	if (!mas->cur_xfer || !mas->cur_xfer->rx_buf) {
+		for (i = 0; i < (rx_fifo_status & RX_FIFO_WC_MSK); i++)
+			readl(se->base + SE_GENI_RX_FIFOn);
+		return;
+	}
+
+	bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
 	rx_bytes = (rx_fifo_status & RX_FIFO_WC_MSK) * bytes_per_fifo_word;
 	if (rx_fifo_status & RX_LAST) {
 		rx_last_byte_valid = rx_fifo_status & RX_LAST_BYTE_VALID_MSK;
 		rx_last_byte_valid >>= RX_LAST_BYTE_VALID_SHFT;
-		if (rx_last_byte_valid && rx_last_byte_valid < 4)
+		/* Include the padding in the last in-memory SPI word. */
+		rx_last_byte_valid = round_up(rx_last_byte_valid,
+					      spi_bpw_to_bytes(mas->cur_bits_per_word));
+		if (rx_last_byte_valid && rx_last_byte_valid < bytes_per_fifo_word)
 			rx_bytes -= bytes_per_fifo_word - rx_last_byte_valid;
-	}
-
-	/* Clear out the FIFO and bail if nowhere to put it */
-	if (!mas->cur_xfer) {
-		for (i = 0; i < DIV_ROUND_UP(rx_bytes, bytes_per_fifo_word); i++)
-			readl(se->base + SE_GENI_RX_FIFOn);
-		return;
 	}
 
 	if (mas->rx_rem_bytes < rx_bytes)
