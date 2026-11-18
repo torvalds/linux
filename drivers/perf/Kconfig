@@ -117,7 +117,7 @@ config STARFIVE_STARLINK_PMU
 
 config ANDES_CUSTOM_PMU
 	bool "Andes custom PMU support"
-	depends on ARCH_RENESAS && RISCV_ALTERNATIVE && RISCV_PMU_SBI
+	depends on ARCH_RENESAS && RISCV_PMU_SBI
 	default y
 	help
 	  The Andes cores implement the PMU overflow extension very
