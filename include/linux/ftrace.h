@@ -270,7 +270,7 @@ ftrace_regs_get_kernel_stack_nth(struct ftrace_regs *fregs, unsigned int nth)
 	stackp = (unsigned long *)ftrace_regs_get_stack_pointer(fregs);
 	if (((unsigned long)(stackp + nth) & ~(THREAD_SIZE - 1)) ==
 	    ((unsigned long)stackp & ~(THREAD_SIZE - 1)))
-		return *(stackp + nth);
+		return READ_ONCE_NOCHECK(*(stackp + nth));
 
 	return 0;
 }
