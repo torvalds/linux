@@ -83,6 +83,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_ADMIN_REPLY_Q_SIZE	(8 * MPI3MR_PAGE_SIZE_4K)
 #define MPI3MR_ADMIN_REQ_FRAME_SZ	128
 #define MPI3MR_ADMIN_REPLY_FRAME_SZ	16
+#define MPI3MR_MIN_REPLY_FRAME_SZ_DWORDS	16	/* 64 bytes */
 
 /* Operational queue management definitions */
 #define MPI3MR_OP_REQ_Q_QD		512

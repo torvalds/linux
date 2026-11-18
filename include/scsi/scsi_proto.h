@@ -371,6 +371,9 @@ enum zbc_zone_reporting_options {
 
 #define ZBC_REPORT_ZONE_PARTIAL 0x80
 
+#define ZBC_REPORT_ZONES_HEADER_SIZE	64
+#define ZBC_ZONE_DESCRIPTOR_SIZE	64
+
 /* Zone types of REPORT ZONES zone descriptors */
 enum zbc_zone_type {
 	ZBC_ZONE_TYPE_CONV		= 0x1,

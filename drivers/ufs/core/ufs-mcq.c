@@ -554,6 +554,23 @@ static int ufshcd_mcq_sq_start(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
 	return err;
 }
 
+/*
+ * Reap the CQ directly so that progress does not depend on interrupt
+ * delivery. ufshcd_compl_one_cqe() updates the OCS under cq_lock before
+ * calling scsi_done(). Holding cq_lock while reading the OCS makes sure that
+ * the completion has finished once the updated OCS is observed, even if the
+ * CQE was reaped by the interrupt handler.
+ */
+static enum utp_ocs ufshcd_mcq_poll_ocs(struct ufs_hba *hba,
+					struct ufs_hw_queue *hwq,
+					struct ufshcd_lrb *lrbp)
+{
+	ufshcd_mcq_poll_cqe_lock(hba, hwq);
+
+	guard(spinlock_irqsave)(&hwq->cq_lock);
+	return lrbp->utr_descriptor_ptr->header.ocs;
+}
+
 /**
  * ufshcd_mcq_sq_cleanup - Clean up submission queue resources
  * associated with the pending command.
@@ -612,6 +629,23 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 			 "%s, hwq %d: cleanup return code (RTC) %ld\n",
 			 __func__, id,
 			 FIELD_GET(SQ_ICU_ERR_CODE_MASK, readl(reg)));
+
+	/*
+	 * For device management commands, there is no order guaranteed between
+	 * OCS update and CUS update, which is why we need to wait here. SCSI
+	 * commands are excluded because the OCS in their UTRD is not updated
+	 * from the CQE.
+	 */
+	if (!err && blk_mq_is_reserved_rq(rq)) {
+		enum utp_ocs ocs;
+
+		err = read_poll_timeout(ufshcd_mcq_poll_ocs, ocs,
+					ocs != OCS_INVALID_COMMAND_STATUS, 20,
+					MCQ_POLL_US, false, hba, hwq, lrbp);
+		if (err)
+			dev_err(hba->dev, "%s: OCS not updated. hwq=%d, tag=%d err=%d\n",
+				__func__, id, task_tag, err);
+	}
 
 	if (ufshcd_mcq_sq_start(hba, hwq))
 		err = -ETIMEDOUT;

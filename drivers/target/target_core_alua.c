@@ -1081,8 +1081,15 @@ int core_alua_do_port_transition(
 		return -EINVAL;
 
 	local_lu_gp_mem = l_dev->dev_alua_lu_gp_mem;
+	if (!local_lu_gp_mem)
+		return -ENODEV;
+
 	spin_lock(&local_lu_gp_mem->lu_gp_mem_lock);
 	lu_gp = local_lu_gp_mem->lu_gp;
+	if (!lu_gp) {
+		spin_unlock(&local_lu_gp_mem->lu_gp_mem_lock);
+		return -ENODEV;
+	}
 	atomic_inc(&lu_gp->lu_gp_ref_cnt);
 	spin_unlock(&local_lu_gp_mem->lu_gp_mem_lock);
 	/*

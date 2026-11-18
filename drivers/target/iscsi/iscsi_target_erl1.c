@@ -908,8 +908,6 @@ int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 				return 0;
 			}
 			spin_unlock_bh(&cmd->istate_lock);
-			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
-				return 0;
 			return transport_send_check_condition_and_sense(se_cmd,
 					cmd->sense_reason, 0);
 		}
@@ -927,9 +925,6 @@ int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 
 			if (!(cmd->cmd_flags &
 					ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-				if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
-					return 0;
-
 				iscsit_set_dataout_sequence_values(cmd);
 				conn->conn_transport->iscsit_get_dataout(conn, cmd, false);
 			}
@@ -942,9 +937,6 @@ int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 
 		if ((cmd->data_direction == DMA_TO_DEVICE) &&
 		    !(cmd->cmd_flags & ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
-				return 0;
-
 			iscsit_set_unsolicited_dataout(cmd);
 		}
 		return target_submit(&cmd->se_cmd);

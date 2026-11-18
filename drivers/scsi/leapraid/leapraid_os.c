@@ -935,22 +935,16 @@ static int leapraid_init_cmd_priv(struct Scsi_Host *shost,
 				  struct scsi_cmnd *scmd)
 {
 	struct leapraid_adapter *adapter = shost_priv(shost);
-	struct leapraid_io_req_tracker *io_tracker;
 
-	io_tracker = scsi_cmd_priv(scmd);
-	leapraid_internal_init_cmd_priv(adapter, io_tracker);
-
-	return 0;
+	return leapraid_internal_init_cmd_priv(adapter, scsi_cmd_priv(scmd));
 }
 
 static int leapraid_exit_cmd_priv(struct Scsi_Host *shost,
 				  struct scsi_cmnd *scmd)
 {
 	struct leapraid_adapter *adapter = shost_priv(shost);
-	struct leapraid_io_req_tracker *io_tracker;
 
-	io_tracker = scsi_cmd_priv(scmd);
-	leapraid_internal_exit_cmd_priv(adapter, io_tracker);
+	leapraid_internal_exit_cmd_priv(adapter, scsi_cmd_priv(scmd));
 
 	return 0;
 }

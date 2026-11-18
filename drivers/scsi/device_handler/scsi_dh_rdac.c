@@ -450,14 +450,14 @@ static int initialize_controller(struct scsi_device *sdev,
 
 		spin_lock(&list_lock);
 		h->ctlr = get_controller(index, array_name, array_id, sdev);
-		if (!h->ctlr)
+		if (!h->ctlr) {
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
-		else {
+		} else {
 			h->sdev = sdev;
 			list_add_rcu(&h->node, &h->ctlr->dh_list);
+			err = SCSI_DH_OK;
 		}
 		spin_unlock(&list_lock);
-		err = SCSI_DH_OK;
 	}
 	return err;
 }

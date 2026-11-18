@@ -3261,6 +3261,7 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_ioc *mrioc,
 	struct mpi3_ioc_facts_data *facts_data)
 {
 	struct mpi3_ioc_facts_request iocfacts_req;
+	u16 reply_frame_size;
 	void *data = NULL;
 	dma_addr_t data_dma;
 	u32 data_len = sizeof(*facts_data);
@@ -3318,6 +3319,23 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_ioc *mrioc,
 		goto out_unlock;
 	}
 	memcpy(facts_data, (u8 *)data, data_len);
+
+	reply_frame_size = le16_to_cpu(facts_data->reply_frame_size);
+	/*
+	 * Validate reply_frame_size:
+	 * - Must be at least 16 dwords (64 bytes) to accommodate fixed reply
+	 *   structures and avoid underflow/divide-by-zero in logdata sizing.
+	 * - Must not exceed U16_MAX / 4 to prevent integer overflow.
+	 */
+	if (reply_frame_size < MPI3MR_MIN_REPLY_FRAME_SZ_DWORDS ||
+	    reply_frame_size > (U16_MAX / 4)) {
+		ioc_err(mrioc, "Invalid reply_frame_size %u (must be %u..%u dwords)\n",
+			reply_frame_size, MPI3MR_MIN_REPLY_FRAME_SZ_DWORDS,
+			(unsigned int)(U16_MAX / 4));
+		retval = -EINVAL;
+		goto out_unlock;
+	}
+
 	mpi3mr_process_factsdata(mrioc, facts_data);
 out_unlock:
 	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
