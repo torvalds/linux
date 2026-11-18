@@ -618,8 +618,6 @@ static ssize_t nvme_ctrl_reconnect_delay_show(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	if (ctrl->opts->reconnect_delay == -1)
-		return sysfs_emit(buf, "off\n");
 	return sysfs_emit(buf, "%d\n", ctrl->opts->reconnect_delay);
 }
 
@@ -633,6 +631,9 @@ static ssize_t nvme_ctrl_reconnect_delay_store(struct device *dev,
 	err = kstrtou32(buf, 10, &v);
 	if (err)
 		return err;
+
+	if (!v || v > INT_MAX)
+		return -EINVAL;
 
 	ctrl->opts->reconnect_delay = v;
 	return count;
@@ -849,10 +850,10 @@ static ssize_t dhchap_secret_store(struct device *dev,
 
 		ret = nvme_auth_parse_key(dhchap_secret, &key);
 		if (ret) {
-			kfree(dhchap_secret);
+			kfree_sensitive(dhchap_secret);
 			return ret;
 		}
-		kfree(opts->dhchap_secret);
+		kfree_sensitive(opts->dhchap_secret);
 		opts->dhchap_secret = dhchap_secret;
 		host_key = ctrl->host_key;
 		mutex_lock(&ctrl->dhchap_auth_mutex);
@@ -860,7 +861,7 @@ static ssize_t dhchap_secret_store(struct device *dev,
 		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		nvme_auth_free_key(host_key);
 	} else
-		kfree(dhchap_secret);
+		kfree_sensitive(dhchap_secret);
 	/* Start re-authentication */
 	dev_info(ctrl->device, "re-authenticating controller\n");
 	queue_work(nvme_wq, &ctrl->dhchap_auth_work);
@@ -906,10 +907,10 @@ static ssize_t dhchap_ctrl_secret_store(struct device *dev,
 
 		ret = nvme_auth_parse_key(dhchap_secret, &key);
 		if (ret) {
-			kfree(dhchap_secret);
+			kfree_sensitive(dhchap_secret);
 			return ret;
 		}
-		kfree(opts->dhchap_ctrl_secret);
+		kfree_sensitive(opts->dhchap_ctrl_secret);
 		opts->dhchap_ctrl_secret = dhchap_secret;
 		ctrl_key = ctrl->ctrl_key;
 		mutex_lock(&ctrl->dhchap_auth_mutex);
@@ -917,7 +918,7 @@ static ssize_t dhchap_ctrl_secret_store(struct device *dev,
 		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		nvme_auth_free_key(ctrl_key);
 	} else
-		kfree(dhchap_secret);
+		kfree_sensitive(dhchap_secret);
 	/* Start re-authentication */
 	dev_info(ctrl->device, "re-authenticating controller\n");
 	queue_work(nvme_wq, &ctrl->dhchap_auth_work);

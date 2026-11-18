@@ -550,7 +550,6 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 		default:
 			return nvmet_passthru_get_set_features(req);
 		}
-		break;
 	case nvme_admin_get_features:
 		switch (le32_to_cpu(req->cmd->features.fid)) {
 		case NVME_FEAT_ASYNC_EVENT:
@@ -564,7 +563,6 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 		default:
 			return nvmet_passthru_get_set_features(req);
 		}
-		break;
 	case nvme_admin_identify:
 		switch (req->cmd->identify.cns) {
 		case NVME_ID_CNS_CS_CTRL:

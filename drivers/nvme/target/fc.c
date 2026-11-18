@@ -27,7 +27,6 @@ struct nvmet_fc_tgt_assoc;
 
 struct nvmet_fc_ls_iod {		/* for an LS RQST RCV */
 	struct nvmefc_ls_rsp		*lsrsp;
-	struct nvmefc_tgt_fcp_req	*fcpreq;	/* only if RS */
 
 	struct list_head		ls_rcv_list; /* tgtport->ls_rcv_list */
 
@@ -129,7 +128,6 @@ struct nvmet_fc_defer_fcp_req {
 };
 
 struct nvmet_fc_tgt_queue {
-	bool				ninetypercent;
 	u16				qid;
 	u16				sqsize;
 	u16				ersp_ratio;
@@ -818,8 +816,17 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	if (ret)
 		goto out_fail_iodlist;
 
-	WARN_ON(assoc->queues[qid]);
-	assoc->queues[qid] = queue;
+	/*
+	 * Publish the queue only if the slot is still free.  A Create
+	 * Connection may arrive twice for the same queue ID, or with the
+	 * admin queue ID that was created by Create Association; replacing
+	 * the old pointer would leak that queue and its controller
+	 * reference forever.
+	 */
+	if (cmpxchg(&assoc->queues[qid], NULL, queue)) {
+		nvmet_sq_destroy(&queue->nvme_sq);
+		goto out_fail_iodlist;
+	}
 
 	return queue;
 
@@ -2076,7 +2083,6 @@ nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *target_port,
 	}
 
 	iod->lsrsp = lsrsp;
-	iod->fcpreq = NULL;
 	memcpy(iod->rqstbuf, lsreqbuf, lsreqbuf_len);
 	iod->rqstdatalen = lsreqbuf_len;
 	iod->hosthandle = hosthandle;

@@ -99,6 +99,12 @@ void nvmet_execute_get_log_page_resv(struct nvmet_req *req)
 	u64 cur_count;
 	u64 next_count;
 
+	status = nvmet_zero_sgl(req, 0, req->transfer_len);
+	if (status) {
+		nvmet_req_complete(req, status);
+		return;
+	}
+
 	mutex_lock(&log_mgr->lock);
 	if (!kfifo_get(&log_mgr->log_queue, &log))
 		goto out;
@@ -335,7 +341,7 @@ static u16 nvmet_pr_update_reg_attr(struct nvmet_pr *pr,
 		return NVME_SC_SUCCESS;
 	}
 
-	new = kmalloc_obj(*new, GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_KERNEL);
 	if (!new)
 		return NVME_SC_INTERNAL;
 
@@ -1040,7 +1046,7 @@ static int nvmet_pr_alloc_and_insert_pc_ref(struct nvmet_ns *ns,
 	struct nvmet_pr_per_ctrl_ref *pc_ref;
 	int ret;
 
-	pc_ref = kmalloc_obj(*pc_ref, GFP_ATOMIC);
+	pc_ref = kmalloc_obj(*pc_ref, GFP_KERNEL);
 	if (!pc_ref)
 		return  -ENOMEM;
 

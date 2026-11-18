@@ -401,6 +401,8 @@ struct nvmet_host {
 	struct config_group	group;
 	u8			*dhchap_secret;
 	u8			*dhchap_ctrl_secret;
+	int			dhchap_key_offset;
+	int			dhchap_ctrl_key_offset;
 	u8			dhchap_key_hash;
 	u8			dhchap_ctrl_key_hash;
 	u8			dhchap_hash_id;

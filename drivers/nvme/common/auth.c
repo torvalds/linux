@@ -489,17 +489,19 @@ int nvme_auth_parse_key(const char *secret, struct nvme_dhchap_key **ret_key)
 {
 	struct nvme_dhchap_key *key;
 	u8 key_hash;
+	int offset = 0;
 
 	if (!secret) {
 		*ret_key = NULL;
 		return 0;
 	}
 
-	if (sscanf(secret, "DHHC-1:%hhd:%*s:", &key_hash) != 1)
+	if (sscanf(secret, "DHHC-1:%hhd:%n", &key_hash, &offset) != 1 ||
+	    !offset)
 		return -EINVAL;
 
 	/* Pass in the secret without the 'DHHC-1:XX:' prefix */
-	key = nvme_auth_extract_key(secret + 10, key_hash);
+	key = nvme_auth_extract_key(secret + offset, key_hash);
 	if (IS_ERR(key)) {
 		*ret_key = NULL;
 		return PTR_ERR(key);

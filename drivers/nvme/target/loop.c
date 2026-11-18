@@ -159,6 +159,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 				blk_rq_nr_phys_segments(req),
 				iod->sg_table.sgl, NVME_INLINE_SG_CNT)) {
 			nvme_cleanup_cmd(req);
+			nvmet_req_uninit(&iod->req);
 			return BLK_STS_RESOURCE;
 		}
 

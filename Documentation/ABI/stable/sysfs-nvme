@@ -70,8 +70,7 @@ Description:
 		fabrics controller.
 
 		reconnect_delay: Shows or sets the reconnect delay in
-		seconds. Reading returns the delay value, or "off" if
-		disabled.
+		seconds. Reading returns the delay value.
 
 		ctrl_loss_tmo: Shows or sets the controller loss timeout in
 		seconds. Reading returns the timeout value, or "off" if

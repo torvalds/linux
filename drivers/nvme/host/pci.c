@@ -390,7 +390,6 @@ struct nvme_queue {
 	unsigned long flags;
 #define NVMEQ_ENABLED		0
 #define NVMEQ_SQ_CMB		1
-#define NVMEQ_DELETE_ERROR	2
 #define NVMEQ_POLLED		3
 	__le32 *dbbuf_sq_db;
 	__le32 *dbbuf_cq_db;
@@ -2459,8 +2458,6 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid, bool polled)
 	int result;
 	u16 vector = 0;
 
-	clear_bit(NVMEQ_DELETE_ERROR, &nvmeq->flags);
-
 	/*
 	 * A queue's vector matches the queue identifier unless the controller
 	 * has only one vector available.
@@ -3322,18 +3319,6 @@ static enum rq_end_io_ret nvme_del_queue_end(struct request *req,
 	return RQ_END_IO_NONE;
 }
 
-static enum rq_end_io_ret nvme_del_cq_end(struct request *req,
-					  blk_status_t error,
-					  const struct io_comp_batch *iob)
-{
-	struct nvme_queue *nvmeq = req->end_io_data;
-
-	if (error)
-		set_bit(NVMEQ_DELETE_ERROR, &nvmeq->flags);
-
-	return nvme_del_queue_end(req, error, iob);
-}
-
 static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 {
 	struct request_queue *q = nvmeq->dev->ctrl.admin_q;
@@ -3348,10 +3333,7 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 		return PTR_ERR(req);
 	nvme_init_request(req, &cmd);
 
-	if (opcode == nvme_admin_delete_cq)
-		req->end_io = nvme_del_cq_end;
-	else
-		req->end_io = nvme_del_queue_end;
+	req->end_io = nvme_del_queue_end;
 	req->end_io_data = nvmeq;
 
 	init_completion(&nvmeq->delete_done);
@@ -4229,6 +4211,14 @@ static int nvme_suspend(struct device *dev)
 		ret = nvme_set_host_mem(ndev, 0);
 		if (ret < 0)
 			goto unfreeze;
+		if (ret) {
+			/*
+			 * The controller may still access the HMB. Shut it
+			 * down instead, which forces a reset on resume.
+			 */
+			ret = nvme_disable_prepare_reset(ndev, true);
+			goto unfreeze;
+		}
 	}
 
 	ret = nvme_get_power_state(ctrl, &ndev->last_ps);
@@ -4440,8 +4430,9 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x15b7, 0x2001),   /*  Sandisk Skyhawk */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
-	{ PCI_DEVICE(0x1d97, 0x2263),   /* SPCC */
-		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x1d97, 0x2263),   /* SPCC / Lexar NM610 */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES |
+				NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x144d, 0xa80b),   /* Samsung PM9B1 256G and 512G */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES |
 				NVME_QUIRK_BOGUS_NID, },
@@ -4500,8 +4491,6 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE(0x025e, 0xf1ac),   /* SOLIDIGM  P44 pro SSDPFKKW020X7  */
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
 	{ PCI_DEVICE(0xc0a9, 0x540a),   /* Crucial P2 */
-		.driver_data = NVME_QUIRK_BOGUS_NID, },
-	{ PCI_DEVICE(0x1d97, 0x2263), /* Lexar NM610 */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1d97, 0x1d97), /* Lexar NM620 */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
