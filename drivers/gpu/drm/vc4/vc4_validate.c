@@ -815,7 +815,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 	exec->shader_rec_size -= packet_size;
 
 	for (i = 0; i < shader_reloc_count; i++) {
-		if (src_handles[i] > exec->bo_count) {
+		if (src_handles[i] >= exec->bo_count) {
 			DRM_DEBUG("Shader handle %d too big\n", src_handles[i]);
 			return -EINVAL;
 		}
