@@ -16,6 +16,9 @@
  *
  *  0x20bc:0x5500 "BTP2185 V2 BFM mode Joystick"
  *   - tested with BTP2171s.
+ *
+ *  0x11c0:0x9105 "SPEEDLINK TORID"
+ *   - tested with Speedlink TORID wireless gamepad.
  *  Copyright (c) 2014 Huang Bo <huangbobupt@163.com>
  */
 
@@ -137,6 +140,7 @@ static int betop_probe(struct hid_device *hdev, const struct hid_device_id *id)
 static const struct hid_device_id betop_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185BFM, 0x2208) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185PC, 0x5506) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185PC, 0x9105) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185V2PC, 0x1850) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185V2BFM, 0x5500) },
 	{ }
