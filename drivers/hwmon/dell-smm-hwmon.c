@@ -1030,6 +1030,9 @@ static int dell_smm_write(struct device *dev, enum hwmon_sensor_types type, u32 
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
+			if (val < 0 || val > 255)
+				return -EINVAL;
+
 			pwm = clamp_val(DIV_ROUND_CLOSEST(val, data->i8k_pwm_mult), 0,
 					data->i8k_fan_max);
 
