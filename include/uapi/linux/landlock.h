@@ -623,10 +623,9 @@ struct landlock_capability_attr {
  * - %LANDLOCK_PERMISSION_CAPABILITY_USE: Restrict the use of specific Linux
  *   capabilities.  A process in a Landlock domain that handles this permission
  *   is denied from exercising capabilities that are not explicitly allowed by a
- *   %LANDLOCK_RULE_CAPABILITY rule.  This hook is purely restrictive: it can
- *   deny capabilities that the kernel would otherwise grant, but it can never
- *   grant capabilities that the kernel already denied.  Support added in
- *   Landlock ABI version 12.
+ *   %LANDLOCK_RULE_CAPABILITY rule.  Landlock only reduces the capabilities
+ *   that processes can use: it does not let them use capabilities that they
+ *   would not have without Landlock.  Support added in Landlock ABI version 12.
  */
 #define LANDLOCK_PERMISSION_NAMESPACE_USE			(1ULL << 0)
 #define LANDLOCK_PERMISSION_CAPABILITY_USE			(1ULL << 1)

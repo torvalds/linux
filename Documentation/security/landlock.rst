@@ -8,7 +8,7 @@ Landlock LSM: kernel documentation
 ==================================
 
 :Author: Mickaël Salaün
-:Date: October 2026
+:Date: November 2026
 
 Landlock's goal is to create scoped access-control (i.e. sandboxing).  To
 harden a whole system, this feature should be available to any process,
@@ -359,9 +359,9 @@ framework in ``log.c``, compiled under ``CONFIG_SECURITY_LANDLOCK_LOG``
 (automatically selected by ``CONFIG_AUDIT`` or ``CONFIG_TRACEPOINTS``).
 
 Audit records respect audit configuration, the domain's Landlock log
-flags, and ``LANDLOCK_LOG_DISABLED``.  Tracepoints fire unconditionally,
-independent of these settings.  The denial counter (``num_denials``) is
-always incremented regardless of logging configuration.
+flags, and ``LANDLOCK_LOG_DISABLED``.  Tracepoints fire independently of
+these settings.  The denial counter (``num_denials``) is
+incremented regardless of logging configuration.
 
 Each denial tracepoint carries a ``logged`` field reporting the
 audit-logging verdict: whether the denial would be written to the audit
