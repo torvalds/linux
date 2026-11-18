@@ -2434,7 +2434,7 @@ int __init populate_nv_trap_config(void)
 }
 
 int __init populate_sysreg_config(const struct sys_reg_desc *sr,
-				  unsigned int idx)
+				  unsigned int idx, bool needs_nv_trap)
 {
 	union trap_config tc;
 	u32 encoding;
@@ -2451,6 +2451,9 @@ int __init populate_sysreg_config(const struct sys_reg_desc *sr,
 
 	encoding = sys_reg(sr->Op0, sr->Op1, sr->CRn, sr->CRm, sr->Op2);
 	tc = get_trap_config(encoding);
+
+	if (needs_nv_trap && !tc.val)
+		kvm_err("sysreg %s has no NV trap configuration\n", sr->name);
 
 	if (tc.sri) {
 		kvm_err("sysreg %s (%d) duplicate entry (%d)\n",
