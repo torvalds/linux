@@ -939,7 +939,8 @@ static inline u32 tcp_rto_min(const struct sock *sk)
 	u32 rto_min = READ_ONCE(inet_csk(sk)->icsk_rto_min);
 
 	if (dst && dst_metric_locked(dst, RTAX_RTO_MIN))
-		rto_min = dst_metric_rtt(dst, RTAX_RTO_MIN);
+		rto_min = clamp(dst_metric_rtt(dst, RTAX_RTO_MIN),
+				1, TCP_RTO_MAX);
 	return rto_min;
 }
 
