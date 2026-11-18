@@ -857,7 +857,11 @@ void tcp_initialize_rcv_mss(struct sock *sk)
 static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 {
 	u32 new_sample, old_sample = tp->rcv_rtt_est.rtt_us;
-	long m = sample << 3;
+	long m;
+
+	/* Keep sample << 3 and the smoothed estimate within u32. */
+	sample = min(sample, TCP_RTT_MAX_US);
+	m = sample << 3;
 
 	if (old_sample == 0 || m < old_sample) {
 		new_sample = m;
