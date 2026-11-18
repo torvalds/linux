@@ -910,7 +910,9 @@ static inline void tcp_bound_rto(struct sock *sk)
 
 static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
 {
-	return usecs_to_jiffies((tp->srtt_us >> 3) + tp->rttvar_us);
+	u32 rto = usecs_to_jiffies((tp->srtt_us >> 3) + tp->rttvar_us);
+
+	return max(rto, 1U);
 }
 
 static inline unsigned long tcp_reqsk_timeout(struct request_sock *req)

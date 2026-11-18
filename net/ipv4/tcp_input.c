@@ -1221,8 +1221,9 @@ void tcp_set_rto(struct sock *sk)
 	 *    with correct one. It is exactly, which we pretend to do.
 	 */
 
-	/* NOTE: clamping at TCP_RTO_MIN is not required, current algo
-	 * guarantees that rto is higher.
+	/* NOTE: clamping at tcp_rto_min() is not required, tcp_rtt_estimator()
+	 * applies it to rttvar_us. But rto must never be 0, which exponential
+	 * backoff could not leave: __tcp_set_rto() takes care of that.
 	 */
 	tcp_bound_rto(sk);
 }
