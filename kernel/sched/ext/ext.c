@@ -134,6 +134,7 @@ DEFINE_PERCPU_RWSEM(scx_fork_rwsem);
 static atomic_t scx_enable_state_var = ATOMIC_INIT(SCX_DISABLED);
 static DEFINE_RAW_SPINLOCK(scx_bypass_lock);
 static bool scx_init_task_enabled;
+static bool scx_task_switch_enabled;
 static bool scx_switching_all;
 DEFINE_STATIC_KEY_FALSE(__scx_switched_all);
 static DEFINE_STATIC_KEY_FALSE(__scx_tid_to_task_enabled);
@@ -6493,6 +6494,15 @@ bool task_should_scx(int policy)
 	if (!scx_enabled())
 		return false;
 
+	/*
+	 * static_branch_enable(&__scx_enabled) patches call sites one by one.
+	 * Wait until all sites are patched before routing tasks to SCX, so
+	 * __schedule() never sees !scx_enabled() when a task is on SCX. Pairs
+	 * with smp_store_release() in scx_root_enable_workfn().
+	 */
+	if (unlikely(!smp_load_acquire(&scx_task_switch_enabled)))
+		return false;
+
 	/* scx is taking over all SCHED_OTHER and SCHED_EXT tasks */
 	if (READ_ONCE(scx_switching_all))
 		return true;
@@ -7568,6 +7578,7 @@ static void scx_root_disable(struct scx_sched *sch)
 
 	static_branch_disable(&__scx_switched_all);
 	WRITE_ONCE(scx_switching_all, false);
+	WRITE_ONCE(scx_task_switch_enabled, false);
 
 	/*
 	 * Shut down cgroup support before tasks so that the cgroup attach and
@@ -8965,11 +8976,14 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	percpu_up_write(&scx_fork_rwsem);
 
 	/*
-	 * All tasks are READY. It's safe to turn on scx_enabled() and switch
-	 * all eligible tasks.
+	 * All tasks are READY. Finish patching all scx_enabled() sites before
+	 * opening task_should_scx() and switching eligible tasks.
 	 */
-	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
+	WARN_ON_ONCE(scx_task_switch_enabled);
 	static_branch_enable(&__scx_enabled);
+	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
+	/* pairs with smp_load_acquire() in task_should_scx() */
+	smp_store_release(&scx_task_switch_enabled, true);
 
 	/*
 	 * We're fully committed and can't fail. The task READY -> ENABLED
