@@ -1019,6 +1019,15 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type,
 	struct hci_conn *conn;
 	struct smp_irk *irk = NULL;
 
+	lockdep_assert_held(&hdev->lock);
+
+	/* hci_dev_close_sync() clears HCI_UP before hci_conn_hash_flush().
+	 * A connection added after that would never be flushed, so refuse
+	 * it. The caller holds hdev->lock, which the flush also takes.
+	 */
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return ERR_PTR(-ENETDOWN);
+
 	switch (type) {
 	case ACL_LINK:
 		if (!hdev->acl_mtu)
@@ -1166,6 +1175,9 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type,
 
 	hci_dev_hold(hdev);
 
+	/* Initialize the device before publishing it to RCU readers. */
+	hci_conn_init_sysfs(conn);
+
 	hci_conn_hash_add(hdev, conn);
 
 	/* The SCO and eSCO connections will only be notified when their
@@ -1177,13 +1189,13 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type,
 			hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 	}
 
-	hci_conn_init_sysfs(conn);
 	return conn;
 }
 
 struct hci_conn *hci_conn_add_unset(struct hci_dev *hdev, int type,
 				    bdaddr_t *dst, u8 dst_type, u8 role)
 {
+	struct hci_conn *conn;
 	int handle;
 
 	bt_dev_dbg(hdev, "dst %pMR", dst);
@@ -1192,7 +1204,11 @@ struct hci_conn *hci_conn_add_unset(struct hci_dev *hdev, int type,
 	if (unlikely(handle < 0))
 		return ERR_PTR(-ECONNREFUSED);
 
-	return __hci_conn_add(hdev, type, dst, dst_type, role, handle);
+	conn = __hci_conn_add(hdev, type, dst, dst_type, role, handle);
+	if (IS_ERR(conn))
+		ida_free(&hdev->unset_handle_ida, handle);
+
+	return conn;
 }
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,

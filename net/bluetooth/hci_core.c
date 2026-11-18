@@ -1610,17 +1610,11 @@ struct adv_info *hci_get_next_instance(struct hci_dev *hdev, u8 instance)
 }
 
 /* This function requires the caller holds hdev->lock */
-int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
+void hci_free_adv_instance(struct hci_dev *hdev, struct adv_info *adv_instance)
 {
-	struct adv_info *adv_instance;
+	BT_DBG("%s removing %dMR", hdev->name, adv_instance->instance);
 
-	adv_instance = hci_find_adv_instance(hdev, instance);
-	if (!adv_instance)
-		return -ENOENT;
-
-	BT_DBG("%s removing %dMR", hdev->name, instance);
-
-	if (hdev->cur_adv_instance == instance) {
+	if (hdev->cur_adv_instance == adv_instance->instance) {
 		if (hdev->adv_instance_timeout) {
 			cancel_delayed_work(&hdev->adv_instance_expire);
 			hdev->adv_instance_timeout = false;
@@ -1634,6 +1628,18 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 	kfree(adv_instance);
 
 	hdev->adv_instance_cnt--;
+}
+
+/* This function requires the caller holds hdev->lock */
+int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
+{
+	struct adv_info *adv_instance;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return -ENOENT;
+
+	hci_free_adv_instance(hdev, adv_instance);
 
 	return 0;
 }

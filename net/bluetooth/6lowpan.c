@@ -345,6 +345,7 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 	return NET_RX_SUCCESS;
 
 drop:
+	kfree_skb(skb);
 	dev->stats.rx_dropped++;
 	return NET_RX_DROP;
 }
@@ -356,21 +357,26 @@ static int chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 	struct lowpan_peer *peer;
 	int err;
 
+	/* The skb is always consumed, so never return an error that would
+	 * make the caller free it again.
+	 */
 	peer = lookup_peer(chan->conn);
 	if (!peer)
-		return -ENOENT;
+		goto drop;
 
 	dev = lookup_dev(chan->conn);
 	if (!dev || !dev->netdev)
-		return -ENOENT;
+		goto drop;
 
 	err = recv_pkt(skb, dev->netdev, peer);
-	if (err) {
+	if (err)
 		BT_DBG("recv pkt %d", err);
-		err = -EAGAIN;
-	}
 
-	return err;
+	return 0;
+
+drop:
+	kfree_skb(skb);
+	return 0;
 }
 
 static int setup_header(struct sk_buff *skb, struct net_device *netdev,

@@ -362,6 +362,6 @@ int set_def_runtime_config(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	bt_dev_dbg(hdev, "sock %p", sk);
 
-	return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+	return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DEF_RUNTIME_CONFIG,
 			       MGMT_STATUS_INVALID_PARAMS);
 }

@@ -1972,6 +1972,7 @@ struct adv_info *hci_add_per_instance(struct hci_dev *hdev, u8 instance, u8 sid,
 int hci_set_adv_instance_data(struct hci_dev *hdev, u8 instance,
 			 u16 adv_data_len, u8 *adv_data,
 			 u16 scan_rsp_len, u8 *scan_rsp_data);
+void hci_free_adv_instance(struct hci_dev *hdev, struct adv_info *adv_instance);
 int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance);
 void hci_adv_instances_set_rpa_expired(struct hci_dev *hdev, bool rpa_expired);
 u32 hci_adv_instance_flags(struct hci_dev *hdev, u8 instance);

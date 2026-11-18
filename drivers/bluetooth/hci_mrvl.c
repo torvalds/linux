@@ -57,7 +57,6 @@ struct hci_mrvl_pkt {
 static int mrvl_open(struct hci_uart *hu)
 {
 	struct mrvl_data *mrvl;
-	int ret;
 
 	BT_DBG("hu %p", hu);
 
@@ -75,17 +74,7 @@ static int mrvl_open(struct hci_uart *hu)
 
 	hu->priv = mrvl;
 
-	if (hu->serdev) {
-		ret = serdev_device_open(hu->serdev);
-		if (ret)
-			goto err;
-	}
-
 	return 0;
-err:
-	kfree(mrvl);
-
-	return ret;
 }
 
 static int mrvl_close(struct hci_uart *hu)
@@ -93,9 +82,6 @@ static int mrvl_close(struct hci_uart *hu)
 	struct mrvl_data *mrvl = hu->priv;
 
 	BT_DBG("hu %p", hu);
-
-	if (hu->serdev)
-		serdev_device_close(hu->serdev);
 
 	skb_queue_purge(&mrvl->txq);
 	skb_queue_purge(&mrvl->rawq);
