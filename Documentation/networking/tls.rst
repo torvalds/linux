@@ -215,9 +215,10 @@ To prevent attempting to decrypt incoming records using the wrong key,
 decryption will be paused when a KeyUpdate message is received by the
 kernel, until the new key has been provided using the TLS_RX socket
 option. Any read occurring after the KeyUpdate has been read and
-before the new key is provided will fail with EKEYEXPIRED. poll() will
-not report any read events from the socket until the new key is
-provided. There is no pausing on the transmit side.
+before the new key is provided will fail with EKEYEXPIRED. Once the
+KeyUpdate has been read, poll() will not report any read events from
+the socket until the new key is provided. There is no pausing on the
+transmit side.
 
 Userspace should make sure that the crypto_info provided has been set
 properly. In particular, the kernel will not check for key/nonce
