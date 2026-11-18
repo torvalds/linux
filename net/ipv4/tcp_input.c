@@ -1098,8 +1098,11 @@ static void tcp_event_data_recv(struct sock *sk, struct sk_buff *skb)
 static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	long m = mrtt_us; /* RTT */
 	u32 srtt = tp->srtt_us;
+	long m; /* RTT */
+
+	mrtt_us = min(mrtt_us, TCP_RTT_MAX_US);
+	m = mrtt_us;
 
 	/*	The following amusing code comes from Jacobson's
 	 *	article in SIGCOMM '88.  Note that rtt and mdev
