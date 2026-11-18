@@ -73,7 +73,7 @@
 		#size-cells = <1>;
 		interrupt-controller;
 		reg = <0x1c000000 0x10000>,
-		      <0x1c040000 0x80000>;
+		      <0x1c040000 0x100000>;
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
 	};
 

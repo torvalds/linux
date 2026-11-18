@@ -52,7 +52,7 @@ config ARM_SCMI_RAW_MODE_SUPPORT_COEX
 	  Allow SCMI Raw transmission mode to coexist with normal SCMI stack.
 
 	  This will allow regular SCMI drivers to register with the core and
-	  operate normally, thing which could make an SCMI test suite using the
+	  operate normally, things which could make an SCMI test suite using the
 	  SCMI Raw mode support unreliable. If unsure, say N.
 
 config ARM_SCMI_DEBUG_COUNTERS

@@ -1223,6 +1223,7 @@ struct notifier_cb_info {
 	ffa_fwk_notifier_cb fwk_cb;
 	ffa_notifier_cb cb;
 	void *cb_data;
+	u16 notify_id;
 };
 
 static int
@@ -1302,7 +1303,8 @@ notifier_hnode_get_by_vmid(u16 notify_id, int vmid)
 	struct notifier_cb_info *node;
 
 	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (node->fwk_cb && vmid == node->dev->vm_id)
+		if (node->notify_id == notify_id && node->fwk_cb &&
+		    vmid == node->dev->vm_id)
 			return node;
 
 	return NULL;
@@ -1317,7 +1319,8 @@ notifier_hnode_get_by_vmid_uuid(u16 notify_id, int vmid, const uuid_t *uuid)
 		return notifier_hnode_get_by_vmid(notify_id, vmid);
 
 	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (node->fwk_cb && vmid == node->dev->vm_id &&
+		if (node->notify_id == notify_id && node->fwk_cb &&
+		    vmid == node->dev->vm_id &&
 		    uuid_equal(&node->dev->uuid, uuid))
 			return node;
 
@@ -1330,7 +1333,8 @@ notifier_hnode_get_by_type(u16 notify_id, enum notify_type type)
 	struct notifier_cb_info *node;
 
 	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (node->cb && type == ffa_notify_type_get(node->dev->vm_id))
+		if (node->notify_id == notify_id && node->cb &&
+		    type == ffa_notify_type_get(node->dev->vm_id))
 			return node;
 
 	return NULL;
@@ -1422,6 +1426,7 @@ static int __ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 
 	cb_info->dev = dev;
 	cb_info->cb_data = cb_data;
+	cb_info->notify_id = notify_id;
 	if (is_framework)
 		cb_info->fwk_cb = cb;
 	else

@@ -273,9 +273,15 @@ static int scmi_imx_misc_ctrl_get(const struct scmi_protocol_handle *ph,
 {
 	struct scmi_imx_misc_ctrl_get_out *out;
 	struct scmi_xfer *t;
+	u32 num_values, max_values;
 	int ret, i;
 	int max_msg_size = ph->hops->get_max_msg_size(ph);
 	int max_num = (max_msg_size - sizeof(*out)) / sizeof(__le32);
+
+	if (!num || !val || !*num)
+		return -EINVAL;
+
+	max_values = *num;
 
 	ret = scmi_imx_misc_ctrl_validate_id(ph, ctrl_id);
 	if (ret)
@@ -290,16 +296,18 @@ static int scmi_imx_misc_ctrl_get(const struct scmi_protocol_handle *ph,
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		out = t->rx.buf;
-		*num = le32_to_cpu(out->num);
+		num_values = le32_to_cpu(out->num);
 
-		if (*num >= max_num ||
-		    *num * sizeof(__le32) > t->rx.len - sizeof(__le32)) {
+		if (num_values > max_values || num_values >= max_num ||
+		    num_values * sizeof(__le32) > t->rx.len - sizeof(__le32)) {
 			ph->xops->xfer_put(ph, t);
 			return -EINVAL;
 		}
 
-		for (i = 0; i < *num; i++)
+		for (i = 0; i < num_values; i++)
 			val[i] = le32_to_cpu(out->val[i]);
+
+		*num = num_values;
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -438,7 +446,7 @@ static int iter_misc_syslog_update_state(struct scmi_iterator_state *st,
 
 	st->num_returned = RETURNED(r->numlogflags);
 	st->num_remaining = REMAINING(r->numlogflags);
-	*p->size = st->num_returned + st->num_remaining;
+	*p->size = st->desc_index + st->num_returned;
 
 	return 0;
 }

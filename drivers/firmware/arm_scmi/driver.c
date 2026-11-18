@@ -3107,11 +3107,7 @@ static void scmi_debugfs_common_cleanup(void *d)
 
 static const char *scmi_acpi_device_hid(struct acpi_device *adev)
 {
-#ifdef CONFIG_ACPI
 	return adev ? acpi_device_hid(adev) : "unknown";
-#else
-	return "unknown";
-#endif
 }
 
 static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)

@@ -29,6 +29,12 @@
 #define SCMI_IMX952_CTRL_BYPASS_AUDMIX	8U      /* WAKE AUDMIX */
 
 #if IS_ENABLED(CONFIG_IMX_SCMI_MISC_DRV)
+/**
+ * scmi_imx_misc_ctrl_get() - Read an i.MX MISC control
+ * @id: Control identifier
+ * @num: On entry, capacity of @val in words; on return, words read
+ * @val: Buffer for the control value
+ */
 int scmi_imx_misc_ctrl_get(u32 id, u32 *num, u32 *val);
 int scmi_imx_misc_ctrl_set(u32 id, u32 val);
 #else
