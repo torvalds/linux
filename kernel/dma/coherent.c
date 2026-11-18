@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-map-ops.h>
 
@@ -335,10 +336,18 @@ static phys_addr_t dma_reserved_default_memory_base __initdata;
 static phys_addr_t dma_reserved_default_memory_size __initdata;
 #endif
 
+static DEFINE_MUTEX(rmem_dma_mutex);
+
 static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	struct dma_coherent_mem *mem = rmem->priv;
+	struct dma_coherent_mem *mem;
 
+	/*
+	 * Multiple devices can share the same pool and may be probed
+	 * concurrently, so serialize the initialization of rmem->priv.
+	 */
+	guard(mutex)(&rmem_dma_mutex);
+	mem = rmem->priv;
 	if (!mem) {
 		mem = dma_init_coherent_memory(rmem->base, rmem->base,
 					       rmem->size, true);

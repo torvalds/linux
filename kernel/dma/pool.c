@@ -106,6 +106,22 @@ static int atomic_pool_expand(struct dma_gen_pool *dma_pool, size_t pool_size,
 	if (!page)
 		goto out;
 
+	/*
+	 * Memory in the atomic DMA pools must be unencrypted, the pools do not
+	 * shrink so no re-encryption occurs in dma_direct_free().
+	 */
+	if (dma_pool->cc_shared) {
+		ret = set_memory_decrypted((unsigned long)page_to_virt(page),
+					   1 << order);
+		/*
+		 * On failure the encryption state of the pages is unknown,
+		 * so they must not be returned to the page allocator or CMA.
+		 * Leak them intentionally.
+		 */
+		if (ret)
+			goto out;
+	}
+
 	arch_dma_prep_coherent(page, pool_size);
 
 #ifdef CONFIG_DMA_DIRECT_REMAP
@@ -116,43 +132,32 @@ static int atomic_pool_expand(struct dma_gen_pool *dma_pool, size_t pool_size,
 
 	addr = dma_common_contiguous_remap(page, pool_size, prot,
 			__builtin_return_address(0));
-	if (!addr)
-		goto free_page;
+	if (!addr) {
+		ret = -ENOMEM;
+		goto encrypt_pages;
+	}
 #else
 	addr = page_to_virt(page);
 #endif
-	/*
-	 * Memory in the atomic DMA pools must be unencrypted, the pools do not
-	 * shrink so no re-encryption occurs in dma_direct_free().
-	 */
-	if (dma_pool->cc_shared) {
-		ret = set_memory_decrypted((unsigned long)page_to_virt(page),
-					   1 << order);
-		if (ret) {
-			leak_pages = true;
-			goto remove_mapping;
-		}
-	}
-
 	ret = gen_pool_add_virt(dma_pool->pool, (unsigned long)addr,
 				page_to_phys(page), pool_size, NUMA_NO_NODE);
 	if (ret)
-		goto encrypt_mapping;
+		goto remove_mapping;
 
 	dma_atomic_pool_size_add(gfp, pool_size);
 	return 0;
 
-encrypt_mapping:
+remove_mapping:
+#ifdef CONFIG_DMA_DIRECT_REMAP
+	dma_common_free_remap(addr, pool_size);
+encrypt_pages:
+#endif
 	if (dma_pool->cc_shared &&
 	    set_memory_encrypted((unsigned long)page_to_virt(page), 1 << order))
 		leak_pages = true;
 
-remove_mapping:
-#ifdef CONFIG_DMA_DIRECT_REMAP
-	dma_common_free_remap(addr, pool_size);
-free_page:
-#endif
-	if (!leak_pages)
+	if (!leak_pages &&
+	    !dma_release_from_contiguous(NULL, page, 1 << order))
 		__free_pages(page, order);
 out:
 	return ret;

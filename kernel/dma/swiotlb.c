@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
+#include <linux/mutex.h>
 #include <linux/pfn.h>
 #include <linux/rculist.h>
 #include <linux/scatterlist.h>
@@ -664,6 +665,17 @@ void __init swiotlb_exit(void)
 		return;
 
 	pr_info("tearing down default memory pool\n");
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	io_tlb_default_mem.can_grow = false;
+	cancel_work_sync(&io_tlb_default_mem.dyn_alloc);
+	spin_lock(&io_tlb_default_mem.lock);
+	list_del_rcu(&mem->node);
+	io_tlb_default_mem.nslabs -= mem->nslabs;
+	spin_unlock(&io_tlb_default_mem.lock);
+	synchronize_rcu();
+#else
+	io_tlb_default_mem.nslabs = 0;
+#endif
 	tbl_vaddr = (unsigned long)phys_to_virt(mem->start);
 	tbl_size = PAGE_ALIGN(mem->end - mem->start);
 	slots_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), mem->nslabs));
@@ -1986,10 +1998,12 @@ void swiotlb_free_from_pool(struct device *dev,
 	swiotlb_release_slots(dev, tlb_addr, pool);
 }
 
+static DEFINE_MUTEX(rmem_swiotlb_mutex);
+
 static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 				    struct device *dev)
 {
-	struct io_tlb_mem *mem = rmem->priv;
+	struct io_tlb_mem *mem;
 	unsigned long nslabs = rmem->size >> IO_TLB_SHIFT;
 
 	/* Set Per-device io tlb area to one */
@@ -2003,10 +2017,25 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 	/*
 	 * Since multiple devices can share the same pool, the private data,
 	 * io_tlb_mem struct, will be initialized by the first device attached
-	 * to it.
+	 * to it. Serialize this, as devices may be probed concurrently.
 	 */
+	guard(mutex)(&rmem_swiotlb_mutex);
+	mem = rmem->priv;
 	if (!mem) {
 		struct io_tlb_pool *pool;
+		unsigned long aligned_nslabs = ALIGN_DOWN(nslabs, IO_TLB_SEGSIZE);
+
+		if (aligned_nslabs != nslabs) {
+			dev_warn(dev, "Restricted DMA pool size %zu is not a multiple of %lu, rounding down to %lu bytes\n",
+				 (size_t)rmem->size,
+				 (unsigned long)IO_TLB_SEGSIZE << IO_TLB_SHIFT,
+				 aligned_nslabs << IO_TLB_SHIFT);
+			nslabs = aligned_nslabs;
+		}
+		if (!nslabs) {
+			dev_err(dev, "Restricted DMA pool is too small\n");
+			return -EINVAL;
+		}
 
 		mem = kzalloc_obj(*mem);
 		if (!mem)
@@ -2034,7 +2063,7 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 
 			mem->cc_shared = true;
 			ret = set_memory_decrypted((unsigned long)phys_to_virt(rmem->base),
-						   rmem->size >> PAGE_SHIFT);
+						   (nslabs << IO_TLB_SHIFT) >> PAGE_SHIFT);
 			if (ret) {
 				dev_err(dev, "Failed to decrypt restricted DMA pool\n");
 				kfree(pool->areas);
