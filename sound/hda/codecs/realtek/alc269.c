@@ -2688,6 +2688,23 @@ static void asus_tx300_automute(struct hda_codec *codec)
 		spec->gen.mute_bits |= (1ULL << 0x14);
 }
 
+static void alc282_fixup_hp_250g6(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_INIT)
+		return;
+
+	alc_write_coef_idx(codec, 0x6d, 0x0900);
+
+	/* filter block: disable, load coefficients, re-enable */
+	alc_write_coef_idx(codec, 0x22, 0x400a);
+	alc_write_coef_idx(codec, 0x24, 0x1ec4);
+	alc_write_coef_idx(codec, 0x39, 0x1ea9);
+	alc_write_coef_idx(codec, 0x44, 0x1f61);
+	alc_write_coef_idx(codec, 0x4f, 0x1fb0);
+	alc_write_coef_idx(codec, 0x22, 0xe04a);
+}
+
 static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
@@ -4232,6 +4249,7 @@ enum {
 	ALC269VB_FIXUP_ORDISSIMO_EVE2,
 	ALC283_FIXUP_CHROME_BOOK,
 	ALC283_FIXUP_SENSE_COMBO_JACK,
+	ALC282_FIXUP_HP_250G6_EQ,
 	ALC282_FIXUP_ASUS_TX300,
 	ALC283_FIXUP_INT_MIC,
 	ALC290_FIXUP_MONO_SPEAKERS,
@@ -5199,6 +5217,10 @@ static const struct hda_fixup alc269_fixups[] = {
 		.v.func = alc283_fixup_sense_combo_jack,
 		.chained = true,
 		.chain_id = ALC283_FIXUP_CHROME_BOOK,
+	},
+	[ALC282_FIXUP_HP_250G6_EQ] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc282_fixup_hp_250g6,
 	},
 	[ALC282_FIXUP_ASUS_TX300] = {
 		.type = HDA_FIXUP_FUNC,
@@ -7734,6 +7756,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x827f, "HP x360", ALC269_FIXUP_HP_MUTE_LED_MIC3),
 	SND_PCI_QUIRK(0x103c, 0x82bf, "HP G3 mini", ALC221_FIXUP_HP_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x82c0, "HP G3 mini premium", ALC221_FIXUP_HP_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x832e, "HP 250 G6", ALC282_FIXUP_HP_250G6_EQ),
 	SND_PCI_QUIRK(0x103c, 0x83b9, "HP Spectre x360", ALC269_FIXUP_HP_MUTE_LED_MIC3),
 	SND_PCI_QUIRK(0x103c, 0x841c, "HP Pavilion 15-CK0xx", ALC269_FIXUP_HP_MUTE_LED_MIC3),
 	HDA_CODEC_QUIRK(0x103c, 0x8486, "HP Pavilion x360", ALC295_FIXUP_HP_PAVILION_X360),
