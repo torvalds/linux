@@ -97,14 +97,21 @@ void landlock_trace_denial(
 		break;
 	case LANDLOCK_REQUEST_CAPABILITY:
 		if (trace_landlock_deny_permission_capability_enabled()) {
+			const struct landlock_cap_trace *const trace_cap =
+				request->trace_cap;
 			const struct landlock_blockers blockers = {
 				.access = missing,
 				.type = request->type,
 			};
 
+			if (WARN_ON_ONCE(!trace_cap || !trace_cap->cred ||
+					 !trace_cap->user_ns))
+				return;
+
 			trace_landlock_deny_permission_capability(
 				youngest_denied, same_exec, logged, &blockers,
-				request->audit.u.cap);
+				request->audit.u.cap, trace_cap->cred,
+				trace_cap->user_ns);
 		}
 		break;
 	case LANDLOCK_REQUEST_FS_ACCESS:

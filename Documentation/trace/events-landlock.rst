@@ -303,9 +303,9 @@ event prototypes in `Event reference`_ document their argument layouts.
 The arguments include both standard kernel objects and Landlock-internal
 objects:
 
-- Standard kernel objects (``struct task_struct``, ``struct sock``,
-  ``struct path``, ``struct dentry``) can be used with existing BPF
-  helpers.
+- Standard kernel objects (for example ``struct task_struct``, ``struct cred``,
+  ``struct user_namespace``, ``struct sock``, ``struct path``, and
+  ``struct dentry``) can be used with existing BPF helpers.
 - Landlock-internal objects (``struct landlock_domain``,
   ``struct landlock_ruleset``, ``struct landlock_rule``,
   ``struct landlock_hierarchy``) can be read via ``BPF_CORE_READ``.

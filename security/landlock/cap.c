@@ -28,6 +28,10 @@ static const struct access_masks cap_permission = {
  * check_cap - Check a capability use against the domain of @cred
  *
  * @cred: Credentials being checked.
+ * @ns: Target user namespace used by commoncap's capability check, which is
+ *      not necessarily @cred->user_ns.  It is forwarded unchanged to typed
+ *      trace context but is not used for the verdict (policy depends on @cred
+ *      and @cap).
  * @cap: Capability number (CAP_*).
  * @opts: Capability check options.  CAP_OPT_NOAUDIT skips the denial record:
  *        no audit record, no trace event, and no denial count.
@@ -38,7 +42,8 @@ static const struct access_masks cap_permission = {
  *
  * Return: 0 if allowed, -EPERM if capability use is denied.
  */
-static int check_cap(const struct cred *const cred, const int cap,
+static int check_cap(const struct cred *const cred,
+		     struct user_namespace *const ns, const int cap,
 		     const unsigned int opts)
 {
 	const struct landlock_cred_security *subject;
@@ -64,6 +69,13 @@ static int check_cap(const struct cred *const cred, const int cap,
 				.permission =
 					LANDLOCK_PERMISSION_CAPABILITY_USE,
 				.layer_plus_one = denied_layer,
+#ifdef CONFIG_TRACEPOINTS
+				.trace_cap =
+					&(struct landlock_cap_trace){
+						.cred = cred,
+						.user_ns = ns,
+					},
+#endif /* CONFIG_TRACEPOINTS */
 			});
 
 	return -EPERM;
@@ -73,8 +85,7 @@ static int check_cap(const struct cred *const cred, const int cap,
  * hook_capable - Deny capability use for Landlock-sandboxed processes
  *
  * @cred: Credentials being checked.
- * @ns: Target user namespace (intentionally ignored; policy depends on the
- *      acting credentials and @cap, not namespace ownership).
+ * @ns: Target user namespace, used only as typed trace context.
  * @cap: Capability number (CAP_*).
  * @opts: Capability check options, see check_cap().
  *
@@ -88,7 +99,7 @@ static int check_cap(const struct cred *const cred, const int cap,
 static int hook_capable(const struct cred *cred, struct user_namespace *ns,
 			int cap, unsigned int opts)
 {
-	return check_cap(cred, cap, opts);
+	return check_cap(cred, ns, cap, opts);
 }
 
 /**
@@ -118,7 +129,7 @@ static int hook_capset(struct cred *new, const struct cred *old,
 			 cap_combine(old->cap_inheritable, old->cap_permitted)))
 		return 0;
 
-	return check_cap(old, CAP_SETPCAP, CAP_OPT_NONE);
+	return check_cap(old, old->user_ns, CAP_SETPCAP, CAP_OPT_NONE);
 }
 
 /**
@@ -127,8 +138,11 @@ static int hook_capset(struct cred *new, const struct cred *old,
  * @addr: Address of the new mapping.
  *
  * cap_mmap_addr() requires CAP_SYS_RAWIO to map below dac_mmap_min_addr, but
- * calls cap_capable() directly, which skips hook_capable().  Check the same
- * condition against the domain.  commoncap runs first, so this only sees
+ * calls cap_capable() directly, which skips hook_capable().  It checks the
+ * acting task's credentials against init_user_ns because this global limit must
+ * not be bypassed with a capability only held in a nested user namespace.
+ * Mirror the condition, using the same credential for the domain check and both
+ * objects for typed trace context.  commoncap runs first, so this only sees
  * mappings that commoncap allowed.
  *
  * Return: 0 if allowed, -EPERM if CAP_SYS_RAWIO use is denied.
@@ -138,7 +152,8 @@ static int hook_mmap_addr(unsigned long addr)
 	if (addr >= dac_mmap_min_addr)
 		return 0;
 
-	return check_cap(current_cred(), CAP_SYS_RAWIO, CAP_OPT_NONE);
+	return check_cap(current_cred(), &init_user_ns, CAP_SYS_RAWIO,
+			 CAP_OPT_NONE);
 }
 
 /**
@@ -148,10 +163,13 @@ static int hook_mmap_addr(unsigned long addr)
  * @pages: Number of pages being charged (unused).
  *
  * cap_vm_enough_memory() lets CAP_SYS_ADMIN use the vm.admin_reserve_kbytes
- * reserve, but calls cap_capable() directly, which skips hook_capable().  Check
- * the same capability against the domain.  commoncap runs first, so this only
- * sees tasks that commoncap let use the reserve.  Like commoncap, do not log
- * denials: this only selects a memory limit.
+ * reserve, but calls cap_capable() directly, which skips hook_capable().  It
+ * checks the acting task's credentials against init_user_ns because a
+ * capability only held in a nested user namespace must not grant access to the
+ * global reserve.  Mirror the check, using the same credential for the domain
+ * check and both objects for typed trace context.  commoncap runs first, so
+ * this only sees tasks that commoncap let use the reserve.  Like commoncap, do
+ * not log denials: this only selects a memory limit.
  *
  * Return: 0 if the domain does not withhold the reserve, -EPERM if
  * CAP_SYS_ADMIN use is denied.  An error does not fail the allocation by
@@ -159,7 +177,8 @@ static int hook_mmap_addr(unsigned long addr)
  */
 static int hook_vm_enough_memory(struct mm_struct *mm, long pages)
 {
-	return check_cap(current_cred(), CAP_SYS_ADMIN, CAP_OPT_NOAUDIT);
+	return check_cap(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
+			 CAP_OPT_NOAUDIT);
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {
