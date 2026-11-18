@@ -622,6 +622,13 @@ fscrypt_setup_encryption_info(struct inode *inode,
 		goto out;
 
 	/*
+	 * Preemptively initialize ->ci_master_key, even though we don't know
+	 * whether we'll win the race below yet, because if we do win the race
+	 * then other tasks can see it right away and need ->ci_master_key.
+	 */
+	crypt_info->ci_master_key = mk;
+
+	/*
 	 * For existing inodes, multiple tasks may race to set the inode's
 	 * fscrypt info pointer.  So use cmpxchg_release().  This pairs with the
 	 * smp_load_acquire() in fscrypt_get_inode_info().  I.e., publish the
@@ -634,7 +641,6 @@ fscrypt_setup_encryption_info(struct inode *inode,
 		 * crypt_info.  Now link it into the master key's inode list.
 		 */
 		if (mk) {
-			crypt_info->ci_master_key = mk;
 			refcount_inc(&mk->mk_active_refs);
 			spin_lock(&mk->mk_decrypted_inodes_lock);
 			list_add(&crypt_info->ci_master_key_link,
@@ -642,6 +648,12 @@ fscrypt_setup_encryption_info(struct inode *inode,
 			spin_unlock(&mk->mk_decrypted_inodes_lock);
 		}
 		crypt_info = NULL;
+	} else {
+		/*
+		 * Lost the race, so we won't be taking an active reference to
+		 * the master key.  Clear ->ci_master_key accordingly.
+		 */
+		crypt_info->ci_master_key = NULL;
 	}
 	res = 0;
 out:
