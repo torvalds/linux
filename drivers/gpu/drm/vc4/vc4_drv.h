@@ -218,6 +218,11 @@ struct vc4_dev {
 	struct {
 		struct timer_list timer;
 		struct work_struct reset_work;
+
+		/* The instruction and uniforms caches were cleared at the
+		 * last check that found no progress.
+		 */
+		bool caches_cleared;
 	} hangcheck;
 
 	struct drm_modeset_lock ctm_state_lock;
