@@ -1033,9 +1033,11 @@ static int l2cap_get_ident(struct l2cap_conn *conn)
 	u8 max;
 	int ident;
 
-	/* LE link does not support tools like l2ping so use the full range */
+	/* LE link does not support tools like l2ping so use the full range,
+	 * except for L2CAP_IDENT_LE_CREDITS which is reserved.
+	 */
 	if (conn->hcon->type == LE_LINK)
-		max = 255;
+		max = L2CAP_IDENT_LE_CREDITS - 1;
 	/* Get next available identificator.
 	 *    1 - 128 are used by kernel.
 	 *  129 - 199 are reserved.
@@ -7132,7 +7134,6 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	struct l2cap_conn *conn = chan->conn;
 	struct l2cap_le_credits pkt;
 	u16 return_credits = l2cap_le_rx_credits(chan);
-	int ident;
 
 	if (chan->mode != L2CAP_MODE_LE_FLOWCTL &&
 	    chan->mode != L2CAP_MODE_EXT_FLOWCTL)
@@ -7150,21 +7151,14 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	pkt.cid     = cpu_to_le16(chan->scid);
 	pkt.credits = cpu_to_le16(return_credits);
 
-	/* Keeps l2cap_put_ident() from releasing ident before we do */
-	lockdep_assert_held(&conn->lock);
-
-	ident = l2cap_get_ident(conn);
-
-	l2cap_send_cmd(conn, ident, L2CAP_LE_CREDITS, sizeof(pkt), &pkt);
-
-	/* L2CAP_LE_CREDITS has no response so the ident is never released by
-	 * l2cap_put_ident() - release it right away, otherwise the tx_ida
-	 * range is exhausted after 254 packets and from then on credits are
-	 * sent with the invalid ident 0, which some remote stacks ignore,
-	 * stalling the channel.
+	/* L2CAP_LE_CREDITS has no response so it uses the reserved ident rather
+	 * than one from conn->tx_ida, which would have to be released right
+	 * away or would be exhausted after 254 packets, and could otherwise
+	 * collide with the ident of a request still outstanding. A reject of it
+	 * can't match any request either.
 	 */
-	if (ident > 0)
-		ida_free(&conn->tx_ida, ident);
+	l2cap_send_cmd(conn, L2CAP_IDENT_LE_CREDITS, L2CAP_LE_CREDITS,
+		       sizeof(pkt), &pkt);
 }
 
 void l2cap_chan_rx_avail(struct l2cap_chan *chan, ssize_t rx_avail)
