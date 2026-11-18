@@ -2722,7 +2722,7 @@ bool slab_free_hook(struct kmem_cache *s, void *x, bool init,
 	 * Give KASAN a chance to notice an invalid free operation before we
 	 * modify the object.
 	 */
-	if (kasan_slab_pre_free(s, x))
+	if (kasan_slab_pre_free(s, x, after_rcu_delay))
 		return false;
 
 #ifdef CONFIG_SLUB_RCU_DEBUG
@@ -2738,7 +2738,7 @@ bool slab_free_hook(struct kmem_cache *s, void *x, bool init,
 			 * We have to do this manually because the rcu_head is
 			 * not located inside the object.
 			 */
-			kasan_record_aux_stack(x);
+			kasan_mark_rcu_free_pending(x);
 
 			delayed_free->object = x;
 			call_rcu(&delayed_free->head, slab_free_after_rcu_debug);
@@ -6298,6 +6298,12 @@ bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj, unsigned int free_flags)
 	}
 
 do_free:
+	if (unlikely(kasan_slab_pre_free(s, obj, false))) {
+		local_unlock(&s->cpu_sheaves->lock);
+		goto out;
+	}
+
+	kasan_mark_rcu_free_pending(obj);
 
 	rcu_sheaf = pcs->rcu_free;
 
@@ -6338,6 +6344,7 @@ do_free:
 	local_unlock(&s->cpu_sheaves->lock);
 
 	stat(s, FREE_RCU_SHEAF);
+out:
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		lock_map_release(&kfree_rcu_sheaf_map);
 	return true;
@@ -6971,7 +6978,7 @@ void kfree_nolock(const void *object)
 	 *  -> kfree_nolock() -> kasan_report_invalid_free() on the same CPU
 	 * is double buggy and deserves to deadlock.
 	 */
-	if (kasan_slab_pre_free(s, x))
+	if (kasan_slab_pre_free(s, x, false))
 		return;
 	/*
 	 * memcg, kasan_slab_pre_free are done for 'x'.

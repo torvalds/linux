@@ -36502,22 +36502,27 @@ static void regression_tests(void)
 	test_spanning_store_regression();
 }
 
-void maple_tree_tests(void)
+int maple_tree_tests(void)
 {
+	int ret;
+
 #if !defined(BENCH)
 	regression_tests();
 	farmer_tests();
 #endif
-	maple_tree_seed();
+	ret = maple_tree_seed();
 	maple_tree_harvest();
+	return ret;
 }
 
 int __weak main(void)
 {
+	int ret;
+
 	maple_tree_init();
-	maple_tree_tests();
+	ret = maple_tree_tests();
 	rcu_barrier();
 	if (nr_allocated)
 		printf("nr_allocated = %d\n", nr_allocated);
-	return 0;
+	return ret ? EXIT_FAILURE : EXIT_SUCCESS;
 }

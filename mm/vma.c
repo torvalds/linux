@@ -676,6 +676,26 @@ static int dup_anon_vma(struct vm_area_struct *dst,
 }
 
 #ifdef CONFIG_DEBUG_VM_MAPLE_TREE
+static void validate_mm_anon_rmap(struct vm_area_struct *vma)
+{
+	struct anon_vma *anon_vma;
+	struct anon_vma_chain *avc;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_VM_RB))
+		return;
+
+	vma_assert_stabilised(vma);
+
+	anon_vma = READ_ONCE(vma->anon_vma);
+	if (!anon_vma)
+		return;
+
+	anon_vma_lock_read(anon_vma);
+	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+		anon_rmap_tree_verify(avc);
+	anon_vma_unlock_read(anon_vma);
+}
+
 void validate_mm(struct mm_struct *mm)
 {
 	int bug = 0;
@@ -685,10 +705,6 @@ void validate_mm(struct mm_struct *mm)
 
 	mt_validate(&mm->mm_mt);
 	for_each_vma(vmi, vma) {
-#ifdef CONFIG_DEBUG_VM_RB
-		struct anon_vma *anon_vma = vma->anon_vma;
-		struct anon_vma_chain *avc;
-#endif
 		unsigned long vmi_start, vmi_end;
 		bool warn = 0;
 
@@ -709,14 +725,8 @@ void validate_mm(struct mm_struct *mm)
 			vma_iter_dump_tree(&vmi);
 		}
 
-#ifdef CONFIG_DEBUG_VM_RB
-		if (vma_has_anon_rmap(vma)) {
-			anon_vma_lock_read(anon_vma);
-			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
-				anon_rmap_tree_verify(avc);
-			anon_vma_unlock_read(anon_vma);
-		}
-#endif
+		validate_mm_anon_rmap(vma);
+
 		/* Check for a infinite loop */
 		if (++i > mm->map_count + 10) {
 			i = -1;
@@ -1686,9 +1696,18 @@ int do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	mt_init_flags(&mt_detach, vmi->mas.tree->ma_flags & MT_FLAGS_LOCK_MASK);
 	mt_on_stack(mt_detach);
 	struct vma_munmap_struct vms;
+	struct list_head *uf_unmaps;
+	LIST_HEAD(uf_new_unmaps);
 	int error;
 
-	init_vma_munmap(&vms, vmi, vma, start, end, uf, unlock);
+	/*
+	 * @uf may already hold events of earlier successful unmaps, e.g. in
+	 * mremap().
+	 * Collect new events on a separate list so they can be dropped if this
+	 * unmap fails, and splice them into @uf on success.
+	 */
+	uf_unmaps = uf ? &uf_new_unmaps : NULL;
+	init_vma_munmap(&vms, vmi, vma, start, end, uf_unmaps, unlock);
 	error = vms_gather_munmap_vmas(&vms, &mas_detach);
 	if (error)
 		goto gather_failed;
@@ -1698,12 +1717,15 @@ int do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		goto clear_tree_failed;
 
 	/* Point of no return */
+	if (uf)
+		list_splice_tail(&uf_new_unmaps, uf);
 	vms_complete_munmap_vmas(&vms, &mas_detach);
 	return 0;
 
 clear_tree_failed:
 	reattach_vmas(&mas_detach);
 gather_failed:
+	userfaultfd_unmap_abort(&uf_new_unmaps);
 	validate_mm(mm);
 	return error;
 }
@@ -2592,7 +2614,7 @@ static int __mmap_setup(struct mmap_state *map, struct vm_area_desc *desc,
 		if (error) {
 			/* On error VMAs will already have been reattached. */
 			vms->nr_pages = 0;
-			return error;
+			goto abort_unmaps;
 		}
 
 		map->next = vms->next;
@@ -2602,8 +2624,10 @@ static int __mmap_setup(struct mmap_state *map, struct vm_area_desc *desc,
 	}
 
 	/* Check against address space limit. */
-	if (!may_expand_vm(map->mm, &map->vma_flags, map->pglen - vms->nr_pages))
-		return -ENOMEM;
+	if (!may_expand_vm(map->mm, &map->vma_flags, map->pglen - vms->nr_pages)) {
+		error = -ENOMEM;
+		goto abort_unmaps;
+	}
 
 	/* Private writable mapping: check memory availability. */
 	if (accountable_mapping(map)) {
@@ -2613,7 +2637,7 @@ static int __mmap_setup(struct mmap_state *map, struct vm_area_desc *desc,
 		if (uncharged) {
 			error = security_vm_enough_memory_mm(map->mm, uncharged);
 			if (error)
-				return error;
+				goto abort_unmaps;
 		}
 
 		/* Our new mapping owns the entire charge now. */
@@ -2632,6 +2656,10 @@ static int __mmap_setup(struct mmap_state *map, struct vm_area_desc *desc,
 
 	set_desc_from_map(desc, map);
 	return 0;
+
+abort_unmaps:
+	userfaultfd_unmap_abort(uf);
+	return error;
 }
 
 static bool map_same_file(struct mmap_state *map)

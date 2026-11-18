@@ -277,6 +277,7 @@ extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, struct list_head *uf);
 extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 				       struct list_head *uf);
+void userfaultfd_unmap_abort(struct list_head *uf);
 extern bool userfaultfd_wp_unpopulated(struct vm_area_struct *vma);
 extern bool userfaultfd_wp_async(struct vm_area_struct *vma);
 extern bool userfaultfd_rwp_async(struct vm_area_struct *vma);
@@ -440,6 +441,10 @@ static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 
 static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 					      struct list_head *uf)
+{
+}
+
+static inline void userfaultfd_unmap_abort(struct list_head *uf)
 {
 }
 

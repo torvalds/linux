@@ -68,6 +68,7 @@ void kasan_set_track(struct kasan_track *track, depot_stack_handle_t stack)
 	track->timestamp = ts_nsec >> 9;
 #endif /* CONFIG_KASAN_EXTRA_INFO */
 	track->pid = current->pid;
+	track->rcu_free = 0;
 	track->stack = stack;
 }
 
@@ -231,7 +232,7 @@ void * __must_check __kasan_init_slab_obj(struct kmem_cache *cache,
 
 /* Returns true when freeing the object is not safe. */
 static bool check_slab_allocation(struct kmem_cache *cache, void *object,
-				  unsigned long ip)
+				  unsigned long ip, bool after_rcu_delay)
 {
 	void *tagged_object = object;
 
@@ -242,7 +243,8 @@ static bool check_slab_allocation(struct kmem_cache *cache, void *object,
 		return true;
 	}
 
-	if (!kasan_byte_accessible(tagged_object)) {
+	if (!kasan_byte_accessible(tagged_object) ||
+	    kasan_check_rcu_free(cache, object, after_rcu_delay)) {
 		kasan_report_invalid_free(tagged_object, ip, KASAN_REPORT_DOUBLE_FREE);
 		return true;
 	}
@@ -259,17 +261,18 @@ static inline void poison_slab_object(struct kmem_cache *cache, void *object,
 
 	kasan_poison(object, round_up(cache->object_size, KASAN_GRANULE_SIZE),
 			KASAN_SLAB_FREE, init);
+	kasan_clear_rcu_free(cache, object);
 
 	if (kasan_stack_collection_enabled())
 		kasan_save_free_info(cache, tagged_object);
 }
 
 bool __kasan_slab_pre_free(struct kmem_cache *cache, void *object,
-				unsigned long ip)
+			   unsigned long ip, bool after_rcu_delay)
 {
 	if (is_kfence_address(object))
 		return false;
-	return check_slab_allocation(cache, object, ip);
+	return check_slab_allocation(cache, object, ip, after_rcu_delay);
 }
 
 bool __kasan_slab_free(struct kmem_cache *cache, void *object, bool init,
@@ -544,7 +547,7 @@ bool __kasan_mempool_poison_object(void *ptr, unsigned long ip)
 
 	slab = page_slab(page);
 
-	if (check_slab_allocation(slab->slab_cache, ptr, ip))
+	if (check_slab_allocation(slab->slab_cache, ptr, ip, false))
 		return false;
 
 	poison_slab_object(slab->slab_cache, ptr, false);

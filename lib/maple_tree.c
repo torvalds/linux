@@ -3891,14 +3891,64 @@ retry:
 		goto retry;
 }
 
-static __always_inline bool mas_rewalk_if_dead(struct ma_state *mas,
-		struct maple_node *node, const unsigned long index)
+/*
+ * mas_next_no_node() - Finish a next walk that restarted into a tree without
+ * nodes.
+ * @mas: The inactive maple state (ma_none or ma_root)
+ *
+ * The arrival here is either because there is a root value or nothing.  Either
+ * way, the next entry is nothing.  So set the limits and overwrite the status.
+ *
+ * Return: NULL
+ */
+static inline void *mas_next_no_node(struct ma_state *mas)
 {
-	if (unlikely(ma_dead_node(node))) {
-		mas_rewalk(mas, index);
-		return true;
+	if (mas_is_ptr(mas))
+		mas->index = 1;
+	else
+		mas->index = 0;
+
+	mas->last = ULONG_MAX;
+	mas->status = ma_none;
+	return NULL;
+}
+
+/*
+ * mas_prev_no_node() - Finish a prev walk that restarted into a tree without
+ * nodes.
+ * @mas: The inactive maple state (ma_none or ma_root)
+ * @index: The start of the range the walk left
+ * @min: The lowest index to return
+ *
+ * The arrival here is either because there is a root value or nothing.  With
+ * nothing, leave the limits mas_walk() sets for an empty tree.  A root value
+ * sits at 0: stop on it as mas_prev_setup() does, unless the walk was at 0.
+ *
+ * Return: The root entry if @index and @min allow it, NULL otherwise.  A node
+ * if the root changed again since the walk; the caller restarts.
+ */
+static inline void *mas_prev_no_node(struct ma_state *mas, unsigned long index,
+		unsigned long min)
+{
+	void *entry;
+
+	mas->index = 0;
+	if (mas_is_none(mas)) {
+		mas->last = ULONG_MAX;
+		return NULL;
 	}
-	return false;
+
+	mas->last = 0;
+	if (!index || min)
+		return NULL;
+
+	entry = mas_root(mas);
+	if (!entry) {
+		mas->status = ma_none;
+		mas->last = ULONG_MAX;
+	}
+
+	return entry;
 }
 
 /*
@@ -4006,14 +4056,14 @@ retry:
 	node = mas_mn(mas);
 	type = mte_node_type(mas->node);
 	pivots = ma_pivots(node, type);
-	if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-		goto retry;
+	if (unlikely(ma_dead_node(node)))
+		goto dead;
 
 	if (mas->min <= min) {
 		pivot = mas_safe_min(mas, pivots, mas->offset);
 
-		if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-			goto retry;
+		if (unlikely(ma_dead_node(node)))
+			goto dead;
 
 		if (pivot <= min)
 			goto underflow;
@@ -4028,10 +4078,8 @@ again:
 		if (mas->index <= min)
 			goto underflow;
 
-		if (mas_prev_node(mas, min)) {
-			mas_rewalk(mas, save_point);
-			goto retry;
-		}
+		if (mas_prev_node(mas, min))
+			goto dead;
 
 		if (WARN_ON_ONCE(mas_is_underflow(mas)))
 			return NULL;
@@ -4045,8 +4093,8 @@ again:
 
 	slots = ma_slots(node, type);
 	entry = mas_slot(mas, slots, mas->offset);
-	if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-		goto retry;
+	if (unlikely(ma_dead_node(node)))
+		goto dead;
 
 	if (likely(entry))
 		return entry;
@@ -4063,6 +4111,17 @@ again:
 underflow:
 	mas->status = ma_underflow;
 	return NULL;
+
+dead:
+	mas_rewalk(mas, save_point);
+	if (likely(mas_is_active(mas)))
+		goto retry;
+
+	entry = mas_prev_no_node(mas, save_point, min);
+	if (unlikely(xa_is_node(entry))) /* The root changed again */
+		goto dead;
+
+	return entry;
 }
 
 /*
@@ -4176,8 +4235,8 @@ retry:
 	node = mas_mn(mas);
 	type = mte_node_type(mas->node);
 	pivots = ma_pivots(node, type);
-	if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-		goto retry;
+	if (unlikely(ma_dead_node(node)))
+		goto dead;
 
 	if (mas->max >= max) {
 		if (likely(mas->offset < mas->end))
@@ -4185,8 +4244,8 @@ retry:
 		else
 			pivot = mas->max;
 
-		if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-			goto retry;
+		if (unlikely(ma_dead_node(node)))
+			goto dead;
 
 		if (pivot >= max) { /* Was at the limit, next will extend beyond */
 			mas->status = ma_overflow;
@@ -4208,10 +4267,8 @@ again:
 			return NULL;
 		}
 
-		if (mas_next_node(mas, node, max)) {
-			mas_rewalk(mas, save_point);
-			goto retry;
-		}
+		if (mas_next_node(mas, node, max))
+			goto dead;
 
 		if (WARN_ON_ONCE(mas_is_overflow(mas)))
 			return NULL;
@@ -4226,8 +4283,8 @@ again:
 
 	slots = ma_slots(node, type);
 	entry = mt_slot(mas->tree, slots, mas->offset);
-	if (unlikely(mas_rewalk_if_dead(mas, node, save_point)))
-		goto retry;
+	if (unlikely(ma_dead_node(node)))
+		goto dead;
 
 	if (entry)
 		return entry;
@@ -4244,6 +4301,13 @@ again:
 	}
 
 	return entry;
+
+dead:
+	mas_rewalk(mas, save_point);
+	if (likely(mas_is_active(mas)))
+		goto retry;
+
+	return mas_next_no_node(mas);
 }
 
 /*
@@ -5450,7 +5514,9 @@ void *mas_find(struct ma_state *mas, unsigned long max)
 	/* Retries on dead nodes handled by mas_next_slot */
 	entry = mas_next_slot(mas, max, false);
 	/* Ignore overflow */
-	mas->status = ma_active;
+	if (mas_is_overflow(mas))
+		mas->status = ma_active;
+
 	return entry;
 }
 EXPORT_SYMBOL_GPL(mas_find);

@@ -148,6 +148,10 @@ static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 	return 0;
 }
 
+static inline void userfaultfd_unmap_abort(struct list_head *uf)
+{
+}
+
 static inline void mmap_write_downgrade(struct mm_struct *mm)
 {
 }

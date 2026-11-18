@@ -533,10 +533,13 @@ size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object)
 }
 
 /*
+ * Records an auxiliary stack trace for the object at @addr and, if @rcu_free
+ * is set, marks the object as pending an RCU-delayed free.
+ *
  * This function avoids dynamic memory allocations and thus can be called from
  * contexts that do not allow allocating memory.
  */
-void kasan_record_aux_stack(void *addr)
+static void __kasan_record_aux_stack(void *addr, bool rcu_free)
 {
 	struct slab *slab = kasan_addr_to_slab(addr);
 	struct kmem_cache *cache;
@@ -552,8 +555,20 @@ void kasan_record_aux_stack(void *addr)
 	if (!alloc_meta)
 		return;
 
+	if (rcu_free)
+		alloc_meta->alloc_track.rcu_free = 1;
 	alloc_meta->aux_stack[1] = alloc_meta->aux_stack[0];
 	alloc_meta->aux_stack[0] = kasan_save_stack(0, 0);
+}
+
+void kasan_record_aux_stack(void *addr)
+{
+	__kasan_record_aux_stack(addr, false);
+}
+
+void kasan_mark_rcu_free_pending(void *addr)
+{
+	__kasan_record_aux_stack(addr, true);
 }
 
 void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
