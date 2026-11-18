@@ -342,7 +342,7 @@ int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
 
 	    if (mode->xres != clk_mode->xres || mode->yres != clk_mode->yres)
 		break;
-	    if (var->pixclock > mode->pixclock)
+	    if (var->pixclock > clk_mode->pixclock)
 	        break;
 	    if (mode->vmode != clk_mode->vmode)
 		continue;
