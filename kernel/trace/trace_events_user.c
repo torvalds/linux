@@ -1040,6 +1040,9 @@ static int user_event_parse_cmd(struct user_event_group *group,
 	if (flags)
 		*flags++ = '\0';
 
+	if (strstr(name, "/") != NULL)
+		return -EINVAL;
+
 	return user_event_parse(group, name, args, flags, newuser, reg_flags);
 }
 
