@@ -120,6 +120,11 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	unsigned int i;
+
+	for (i = 0; i < scontrol->num_channels; i++)
+		if (ucontrol->value.enumerated.item[i] >= se->items)
+			return -EINVAL;
 
 	if (tplg_ops && tplg_ops->control && tplg_ops->control->enum_put)
 		return tplg_ops->control->enum_put(scontrol, ucontrol);
