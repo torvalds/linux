@@ -617,8 +617,7 @@ void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
 	int bamaco_support;
 
 	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
-	if (pci_is_thunderbolt_attached(adev->pdev) ||
-	    dev_is_removable(&adev->pdev->dev)) {
+	if (amdgpu_device_is_removable(adev)) {
 		dev_info(adev->dev,
 			 "Runtime PM disabled for externally attached device\n");
 		return;
@@ -1286,6 +1285,16 @@ bool amdgpu_device_seamless_boot_supported(struct amdgpu_device *adev)
 	return amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 0, 0);
 }
 
+bool amdgpu_device_is_removable(struct amdgpu_device *adev)
+{
+	/* older TB systems don't set dev_is_removable so check both here */
+	if (dev_is_removable(adev->dev) ||
+	    pci_is_thunderbolt_attached(adev->pdev))
+		return true;
+
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_X86)
 static const struct x86_cpu_id amdgpu_pcie_dynamic_switching_quirks[] = {
 	/*
@@ -1308,8 +1317,8 @@ static const struct x86_cpu_id amdgpu_pcie_dynamic_switching_quirks[] = {
 
 static bool amdgpu_device_pcie_dynamic_switching_supported(struct amdgpu_device *adev)
 {
-	/* eGPU change speeds based on USB4 fabric conditions */
-	if (dev_is_removable(adev->dev))
+	/* eGPU change speeds based on USB4/TB fabric conditions */
+	if (amdgpu_device_is_removable(adev))
 		return true;
 
 	/* Hosts have problems with dynamic speed switching */
@@ -2075,7 +2084,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	    (amdgpu_is_atpx_hybrid() ||
 	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    ((adev->flags & AMD_IS_APU) == 0) &&
-	    !dev_is_removable(&adev->pdev->dev))
+	    !amdgpu_device_is_removable(adev))
 		adev->flags |= AMD_IS_PX;
 
 	if (!(adev->flags & AMD_IS_APU)) {
@@ -3768,9 +3777,8 @@ static void amdgpu_device_sys_interface_fini(struct amdgpu_device *adev)
 static bool
 amdgpu_device_should_register_switcheroo(struct amdgpu_device *adev, bool px)
 {
-	return !pci_is_thunderbolt_attached(adev->pdev) &&
-	       (px || (!dev_is_removable(&adev->pdev->dev) &&
-		       apple_gmux_detect(NULL, NULL)));
+	return !amdgpu_device_is_removable(adev) &&
+		(px || apple_gmux_detect(NULL, NULL));
 }
 
 /**

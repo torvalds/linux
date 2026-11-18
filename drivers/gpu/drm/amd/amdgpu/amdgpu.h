@@ -1050,6 +1050,8 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 
 int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context);
 
+bool amdgpu_device_is_removable(struct amdgpu_device *adev);
+
 int emu_soc_asic_init(struct amdgpu_device *adev);
 
 /*

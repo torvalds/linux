@@ -369,7 +369,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 	bool found = false;
 
 	/* ATRM is for on-platform devices only */
-	if (dev_is_removable(&adev->pdev->dev))
+	if (amdgpu_device_is_removable(adev))
 		return false;
 
 	while ((pdev = pci_get_base_class(PCI_BASE_CLASS_DISPLAY, pdev))) {
