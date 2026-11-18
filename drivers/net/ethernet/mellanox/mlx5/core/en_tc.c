@@ -4631,6 +4631,10 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 	else
 		in_mdev = priv->mdev;
 
+	dup_peer_flows = xa_load(&esw->offloads.peer_flows, peer_vhca_id);
+	if (!dup_peer_flows)
+		return -ENODEV;
+
 	flow_flags |= BIT(MLX5E_TC_FLOW_FLAG_PEER);
 	parse_attr = flow->attr->parse_attr;
 	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow_flags,
@@ -4644,9 +4648,6 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 	peer_flow->peer_orig = flow;
 	list_add_tail(&peer_flow->peer_flows, &flow->peer_flows);
 	flow_flag_set(flow, DUP);
-	dup_peer_flows = xa_load(&esw->offloads.peer_flows, peer_vhca_id);
-	if (!dup_peer_flows)
-		return -ENODEV;
 	mutex_lock(&esw->offloads.peer_mutex);
 	list_add_tail(&peer_flow->peer, dup_peer_flows);
 	mutex_unlock(&esw->offloads.peer_mutex);
