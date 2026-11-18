@@ -149,6 +149,7 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 				       unsigned int offset)
 {
 	int source_port;
+	const u8 *dest;
 	u8 *brcm_tag;
 
 	if (unlikely(!pskb_may_pull(skb, BRCM_TAG_LEN))) {
@@ -184,7 +185,11 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	/* Remove Broadcom tag and update checksum */
 	skb_pull_rcsum(skb, BRCM_TAG_LEN);
 
-	if (likely(!is_link_local_ether_addr(eth_hdr(skb)->h_dest)))
+	/* With a prepended tag, the MAC header set by eth_type_trans() starts
+	 * at the tag, and the destination address follows it.
+	 */
+	dest = offset == ETH_HLEN ? brcm_tag + BRCM_TAG_LEN : eth_hdr(skb)->h_dest;
+	if (likely(!is_link_local_ether_addr(dest)))
 		dsa_default_offload_fwd_mark(skb);
 
 	return skb;
