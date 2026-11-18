@@ -5181,14 +5181,23 @@ smb2_writev_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		if (written > wdata->subreq.len)
 			written &= 0xFFFF;
 
+		/*
+		 * The server must not report more bytes than were sent.  netfs
+		 * uses the subrequest length to work out which folios this
+		 * write has finished with, so it must not be changed here.
+		 */
+		if (written > wdata->subreq.len) {
+			result = smb_EIO2(smb_eio_trace_write_overlarge,
+					  written, wdata->subreq.len);
+			break;
+		}
+
 		cifs_stats_bytes_written(tcon, written);
 
-		if (written < wdata->subreq.len) {
+		if (written < wdata->subreq.len)
 			result = -ENOSPC;
-		} else if (written > 0) {
-			wdata->subreq.len = written;
+		else if (written > 0)
 			__set_bit(NETFS_SREQ_MADE_PROGRESS, &wdata->subreq.flags);
-		}
 		break;
 	case MID_REQUEST_SUBMITTED:
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_req_submitted);
