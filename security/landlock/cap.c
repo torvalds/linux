@@ -92,6 +92,36 @@ static int hook_capable(const struct cred *cred, struct user_namespace *ns,
 }
 
 /**
+ * hook_capset - Restrict inheritable capability changes
+ *
+ * @new: New credentials (unused).
+ * @old: Current credentials.
+ * @effective: New effective set (unused).
+ * @inheritable: New inheritable set.
+ * @permitted: New permitted set (unused).
+ *
+ * cap_capset() denies a new inheritable set that is not a subset of the old
+ * inheritable and permitted sets, unless cap_inh_is_capped() finds CAP_SETPCAP.
+ * This check uses cap_capable(), which skips hook_capable().  commoncap runs
+ * first, so such a set reaching this hook means that commoncap granted
+ * CAP_SETPCAP: check it against the domain.  capset(2) discards @new if this
+ * hook fails, so nothing is committed.
+ *
+ * Return: 0 if allowed, -EPERM if CAP_SETPCAP use is denied.
+ */
+static int hook_capset(struct cred *new, const struct cred *old,
+		       const kernel_cap_t *effective,
+		       const kernel_cap_t *inheritable,
+		       const kernel_cap_t *permitted)
+{
+	if (cap_issubset(*inheritable,
+			 cap_combine(old->cap_inheritable, old->cap_permitted)))
+		return 0;
+
+	return check_cap(old, CAP_SETPCAP, CAP_OPT_NONE);
+}
+
+/**
  * hook_mmap_addr - Restrict mappings below dac_mmap_min_addr
  *
  * @addr: Address of the new mapping.
@@ -113,6 +143,7 @@ static int hook_mmap_addr(unsigned long addr)
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(capable, hook_capable),
+	LSM_HOOK_INIT(capset, hook_capset),
 	LSM_HOOK_INIT(mmap_addr, hook_mmap_addr),
 };
 
