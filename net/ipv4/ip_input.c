@@ -207,6 +207,12 @@ resubmit:
 		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v4_rcv, udp_rcv,
 				      skb);
 		if (ret < 0) {
+			if (unlikely(skb_headroom(skb) > SKB_MAX_RX_HEADROOM)) {
+				__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
+				kfree_skb_reason(skb,
+						 SKB_DROP_REASON_SKB_RX_HEADROOM);
+				return;
+			}
 			protocol = -ret;
 			goto resubmit;
 		}

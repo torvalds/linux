@@ -479,6 +479,10 @@ resubmit_final:
 		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v6_rcv, udpv6_rcv,
 				      skb);
 		if (ret > 0) {
+			if (unlikely(skb_headroom(skb) > SKB_MAX_RX_HEADROOM)) {
+				SKB_DR_SET(reason, SKB_RX_HEADROOM);
+				goto discard;
+			}
 			if (ipprot->flags & INET6_PROTO_FINAL) {
 				/* Not an extension header, most likely UDP
 				 * encapsulation. Use return value as nexthdr

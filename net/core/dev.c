@@ -6223,6 +6223,10 @@ static int __netif_receive_skb_core(struct sk_buff **pskb, bool pfmemalloc,
 	trace_netif_receive_skb(skb);
 
 	orig_dev = skb->dev;
+	if (unlikely(skb_headroom(skb) > SKB_MAX_RX_HEADROOM)) {
+		drop_reason = SKB_DROP_REASON_SKB_RX_HEADROOM;
+		goto drop;
+	}
 
 	skb_reset_network_header(skb);
 #if !defined(CONFIG_DEBUG_NET)
