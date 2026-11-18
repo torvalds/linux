@@ -823,6 +823,9 @@ validate_gl_shader_rec(struct drm_device *dev,
 		bo[i] = to_drm_gem_dma_obj(exec->bo[src_handles[i]]);
 		if (!bo[i])
 			return -EINVAL;
+
+		if (!to_vc4_bo(&bo[i]->base)->validated_shader)
+			return -EINVAL;
 	}
 	for (i = shader_reloc_count; i < nr_relocs; i++) {
 		bo[i] = vc4_use_bo(exec, src_handles[i]);
@@ -843,7 +846,8 @@ validate_gl_shader_rec(struct drm_device *dev,
 	}
 
 	for (i = 0; i < shader_reloc_count; i++) {
-		struct vc4_validated_shader_info *validated_shader;
+		struct vc4_validated_shader_info *validated_shader =
+			to_vc4_bo(&bo[i]->base)->validated_shader;
 		uint32_t o = shader_reloc_offsets[i];
 		uint32_t src_offset = *(uint32_t *)(pkt_u + o);
 		uint32_t *texture_handles_u;
@@ -857,10 +861,6 @@ validate_gl_shader_rec(struct drm_device *dev,
 				  "the BO.\n");
 			return -EINVAL;
 		}
-
-		validated_shader = to_vc4_bo(&bo[i]->base)->validated_shader;
-		if (!validated_shader)
-			return -EINVAL;
 
 		if (validated_shader->uniforms_src_size >
 		    exec->uniforms_size) {
