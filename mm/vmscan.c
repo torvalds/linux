@@ -1455,6 +1455,12 @@ retry:
 				flags |= TTU_SYNC;
 
 			try_to_unmap(folio, flags);
+			/*
+			 * Flush deferred writable TLB entries before we could
+			 * drop the folio lock and others could start writeback.
+			 */
+			if (folio_test_dirty(folio))
+				try_to_unmap_flush_dirty();
 			if (folio_mapped(folio)) {
 				stat->nr_unmap_fail += nr_pages;
 				if (!was_swapbacked &&
@@ -1496,12 +1502,6 @@ retry:
 			if (!sc->may_writepage)
 				goto keep_locked;
 
-			/*
-			 * Folio is dirty. Flush the TLB if a writable entry
-			 * potentially exists to avoid CPU writes after I/O
-			 * starts and then write it out here.
-			 */
-			try_to_unmap_flush_dirty();
 			switch (pageout(&ctx, mapping, folio, folio_list)) {
 			case PAGE_KEEP:
 				goto keep_locked;
