@@ -81,7 +81,8 @@ void landlock_trace_denial(
 	const access_mask_t missing, const bool same_exec, const bool logged)
 {
 	switch (request->type) {
-	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_NAMESPACE_CREATE:
+	case LANDLOCK_REQUEST_NAMESPACE_ENTER:
 		if (trace_landlock_deny_permission_namespace_enabled()) {
 			const struct landlock_blockers blockers = {
 				.access = missing,

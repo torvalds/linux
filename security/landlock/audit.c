@@ -80,7 +80,8 @@ get_blocker(const enum landlock_request_type type,
 		WARN_ON_ONCE(access_bit != -1);
 		return scope_strings[BIT_INDEX(LANDLOCK_SCOPE_SIGNAL)];
 
-	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_NAMESPACE_CREATE:
+	case LANDLOCK_REQUEST_NAMESPACE_ENTER:
 	case LANDLOCK_REQUEST_CAPABILITY:
 		if (WARN_ON_ONCE(access_bit >= ARRAY_SIZE(permission_strings)))
 			return "unknown";
@@ -115,7 +116,8 @@ blocker_prefix(const enum landlock_request_type type)
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
 		return "scope.";
 
-	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_NAMESPACE_CREATE:
+	case LANDLOCK_REQUEST_NAMESPACE_ENTER:
 		return _LANDLOCK_PERMISSION_NAMESPACE_NAME ".";
 
 	case LANDLOCK_REQUEST_CAPABILITY:
@@ -212,6 +214,10 @@ void landlock_audit_denial(const struct landlock_request *const request,
 
 	audit_log_format(ab, "domain=%llx blockers=", youngest_denied->id);
 	log_blockers(ab, request->type, missing);
+	if (request->type == LANDLOCK_REQUEST_NAMESPACE_CREATE)
+		audit_log_format(ab, " namespace_op=create");
+	else if (request->type == LANDLOCK_REQUEST_NAMESPACE_ENTER)
+		audit_log_format(ab, " namespace_op=enter");
 	audit_log_lsm_data(ab, &request->audit);
 	audit_log_end(ab);
 

@@ -36,7 +36,8 @@ static_assert(sizeof(access_mask_t) <= sizeof(u64));
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
-TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE_CREATE);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE_ENTER);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_CAPABILITY);
 
 #ifdef CREATE_TRACE_POINTS
@@ -990,7 +991,8 @@ TRACE_EVENT(landlock_deny_access_net,
  * @namespace_id: Namespace ID, not directly visible from user space when
  *                creation was denied.
  *
- * Emitted when a Landlock domain denies namespace use.
+ * Emitted when a Landlock domain denies namespace creation or entry.  The
+ * namespace_op field distinguishes these operations.
  */
 TRACE_EVENT(landlock_deny_permission_namespace,
 
@@ -1021,13 +1023,18 @@ TRACE_EVENT(landlock_deny_permission_namespace,
 		__entry->namespace_id	= namespace_id;
 	),
 
-	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s namespace_type=0x%x namespace_id=%llu",
-		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE ?
-			__print_flags(__entry->blockers_access, "|",
-				      _LANDLOCK_PERMISSION_BLOCKER_NAMES) :
-			"unknown",
-		__entry->namespace_type, __entry->namespace_id)
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s namespace_op=%s namespace_type=0x%x namespace_id=%llu",
+		  __entry->domain_id, __entry->same_exec, __entry->logged,
+		  (__entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_CREATE ||
+		   __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_ENTER) ?
+			  __print_flags(__entry->blockers_access, "|",
+					_LANDLOCK_PERMISSION_BLOCKER_NAMES) :
+			  "unknown",
+		  __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_CREATE ?
+			  "create" :
+		  __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_ENTER ?
+			  "enter" : "unknown",
+		  __entry->namespace_type, __entry->namespace_id)
 );
 
 /**
