@@ -462,9 +462,13 @@ void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 int amdgpu_vm_lock_pd(struct amdgpu_vm *vm, struct drm_exec *exec,
 		      unsigned int num_fences)
 {
-	/* We need at least two fences for the VM PD/PT updates */
+	/*
+	 * One fence slot for clearing newly allocated PDs/PTs and PDE/PTE updates,
+	 * another fence slots for TLB invalidation fences, TTM_NUM_MOVE_FENCES
+	 * for validating PDs/PTs after eviction plus anything the caller requested.
+	 */
 	return drm_exec_prepare_obj(exec, &vm->root.bo->tbo.base,
-				    2 + num_fences);
+				    2 + TTM_NUM_MOVE_FENCES + num_fences);
 }
 
 /**
