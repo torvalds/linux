@@ -15997,20 +15997,26 @@ static void tg3_read_mgmtfw_ver(struct tg3 *tp)
 	}
 }
 
-static void tg3_probe_ncsi(struct tg3 *tp)
+/* Returns true if valid, ready APE firmware is present, regardless of
+ * whether it advertises NCSI (it may be DASH or SMASH).  Sets APE_HAS_NCSI
+ * if the NCSI feature is advertised.
+ */
+static bool tg3_probe_ncsi(struct tg3 *tp)
 {
 	u32 apedata;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
 	if (apedata != APE_SEG_SIG_MAGIC)
-		return;
+		return false;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
 	if (!(apedata & APE_FW_STATUS_READY))
-		return;
+		return false;
 
 	if (tg3_ape_read32(tp, TG3_APE_FW_FEATURES) & TG3_APE_FW_FEATURE_NCSI)
 		tg3_flag_set(tp, APE_HAS_NCSI);
+
+	return true;
 }
 
 static void tg3_read_dash_ver(struct tg3 *tp)
@@ -16089,8 +16095,7 @@ static void tg3_read_fw_ver(struct tg3 *tp)
 
 	if (tg3_flag(tp, ENABLE_ASF)) {
 		if (tg3_flag(tp, ENABLE_APE)) {
-			tg3_probe_ncsi(tp);
-			if (!vpd_vers)
+			if (tg3_probe_ncsi(tp) && !vpd_vers)
 				tg3_read_dash_ver(tp);
 		} else if (!vpd_vers) {
 			tg3_read_mgmtfw_ver(tp);
