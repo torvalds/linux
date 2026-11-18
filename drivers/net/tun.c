@@ -3386,6 +3386,8 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			   (unsigned short)arg == ARPHRD_MCTP) {
 			ret = -EINVAL;
 		} else {
+			unsigned char addr_len = tun_get_addr_len(arg);
+
 			ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
 						       tun->dev);
 			ret = notifier_to_errno(ret);
@@ -3394,8 +3396,13 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 					   "Refused to change device type\n");
 				break;
 			}
+			/* Addresses were added with the old dev->addr_len. */
+			if (addr_len != tun->dev->addr_len) {
+				dev_uc_flush(tun->dev);
+				dev_mc_flush(tun->dev);
+			}
 			tun->dev->type = (int) arg;
-			tun->dev->addr_len = tun_get_addr_len(tun->dev->type);
+			tun->dev->addr_len = addr_len;
 			netif_info(tun, drv, tun->dev, "linktype set to %d\n",
 				   tun->dev->type);
 			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,
