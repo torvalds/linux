@@ -3094,9 +3094,17 @@ static void *ocfs2_dlm_seq_start(struct seq_file *m, loff_t *pos)
 {
 	struct ocfs2_dlm_seq_priv *priv = m->private;
 	struct ocfs2_lock_res *iter;
+	struct ocfs2_lock_res *dummy = &priv->p_iter_res;
 
+	/* Continue or retry the snapshot left by ->next(). */
+	if (*pos)
+		return priv->p_tmp_res.l_ops ? &priv->p_tmp_res : NULL;
+
+	/* Reads from zero and seek traversal start at the list head. */
 	spin_lock(&ocfs2_dlm_tracking_lock);
-	iter = ocfs2_dlm_next_res(&priv->p_iter_res, priv);
+	list_move(&dummy->l_debug_list,
+		  &priv->p_dlm_debug->d_lockres_tracking);
+	iter = ocfs2_dlm_next_res(dummy, priv);
 	if (iter) {
 		/* Since lockres' have the lifetime of their container
 		 * (which can be inodes, ocfs2_supers, etc) we want to
@@ -3105,8 +3113,11 @@ static void *ocfs2_dlm_seq_start(struct seq_file *m, loff_t *pos)
 		 * trust any pointers on the copy returned, but that's
 		 * ok as the information we want isn't typically held
 		 * in them. */
+		list_move(&dummy->l_debug_list, &iter->l_debug_list);
 		priv->p_tmp_res = *iter;
 		iter = &priv->p_tmp_res;
+	} else {
+		priv->p_tmp_res.l_ops = NULL;
 	}
 	spin_unlock(&ocfs2_dlm_tracking_lock);
 
@@ -3120,17 +3131,19 @@ static void ocfs2_dlm_seq_stop(struct seq_file *m, void *v)
 static void *ocfs2_dlm_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ocfs2_dlm_seq_priv *priv = m->private;
-	struct ocfs2_lock_res *iter = v;
+	struct ocfs2_lock_res *iter;
 	struct ocfs2_lock_res *dummy = &priv->p_iter_res;
 
 	(*pos)++;
 	spin_lock(&ocfs2_dlm_tracking_lock);
-	iter = ocfs2_dlm_next_res(iter, priv);
+	iter = ocfs2_dlm_next_res(dummy, priv);
 	list_del_init(&dummy->l_debug_list);
 	if (iter) {
 		list_add(&dummy->l_debug_list, &iter->l_debug_list);
 		priv->p_tmp_res = *iter;
 		iter = &priv->p_tmp_res;
+	} else {
+		priv->p_tmp_res.l_ops = NULL;
 	}
 	spin_unlock(&ocfs2_dlm_tracking_lock);
 

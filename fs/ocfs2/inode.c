@@ -1318,15 +1318,16 @@ static void ocfs2_clear_inode(struct inode *inode)
 	oi->ip_blkno = 0ULL;
 
 	/*
-	 * ip_jinode is used to track txns against this inode. We ensure that
-	 * the journal is flushed before journal shutdown. Thus it is safe to
-	 * have inodes get cleaned up after journal shutdown.
+	 * ip_jinode is used to track txns against this inode. The journal is
+	 * flushed before it is shut down, so an inode cleaned up after that
+	 * has nothing left to release. Hold the shutdown lock so a journal
+	 * found here stays allocated until the release has finished.
 	 */
-	if (!osb->journal)
-		return;
-
-	jbd2_journal_release_jbd_inode(osb->journal->j_journal,
-				       &oi->ip_jinode);
+	down_read(&osb->journal_shutdown_sem);
+	if (osb->journal)
+		jbd2_journal_release_jbd_inode(osb->journal->j_journal,
+					       &oi->ip_jinode);
+	up_read(&osb->journal_shutdown_sem);
 }
 
 void ocfs2_evict_inode(struct inode *inode)

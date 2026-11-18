@@ -64,6 +64,7 @@ Alex Elder <elder@kernel.org> <elder@ieee.org>
 Alex Elder <elder@kernel.org> <elder@inktank.com>
 Alex Elder <elder@kernel.org> <elder@linaro.org>
 Alex Elder <elder@kernel.org> <elder@newdream.net>
+Alex Elder <elder@kernel.org> <elder@riscstar.com>
 Alex Hung <alexhung@gmail.com> <alex.hung@canonical.com>
 Alex Shi <alexs@kernel.org> <alex.shi@intel.com>
 Alex Shi <alexs@kernel.org> <alex.shi@linaro.org>
@@ -82,6 +83,7 @@ Amit Blay <quic_ablay@quicinc.com> <ablay@codeaurora.org>
 Amit Nischal <quic_anischal@quicinc.com> <anischal@codeaurora.org>
 Andi Kleen <ak@linux.intel.com> <ak@suse.de>
 Andi Shyti <andi@etezian.org> <andi.shyti@samsung.com>
+Andrea Cervesato <andrea.cervesato@linux.dev> <andrea.cervesato@suse.com>
 Andreas Herrmann <aherrman@de.ibm.com>
 Andreas Hindborg <a.hindborg@kernel.org> <a.hindborg@samsung.com>
 Andrej Shadura <andrew.shadura@collabora.co.uk>
@@ -154,6 +156,7 @@ Bart Van Assche <bvanassche@acm.org> <bart.vanassche@sandisk.com>
 Bart Van Assche <bvanassche@acm.org> <bart.vanassche@wdc.com>
 Bartosz Golaszewski <brgl@kernel.org> <bartosz.golaszewski@linaro.org>
 Bartosz Golaszewski <brgl@kernel.org> <bgolaszewski@baylibre.com>
+Beat M. Liechti <beat@softbase.tech> <bml303@gmail.com>
 Ben Dooks <ben-linux@fluff.org> <ben.dooks@simtec.co.uk>
 Ben Dooks <ben-linux@fluff.org> <ben.dooks@sifive.com>
 Ben Gardner <bgardner@wabtec.com>
@@ -180,7 +183,8 @@ Boris Brezillon <bbrezillon@kernel.org> <b.brezillon.dev@gmail.com>
 Boris Brezillon <bbrezillon@kernel.org> <b.brezillon@overkiz.com>
 Boris Brezillon <bbrezillon@kernel.org> <boris.brezillon@bootlin.com>
 Boris Brezillon <bbrezillon@kernel.org> <boris.brezillon@free-electrons.com>
-Bradley Morgan <brads@mainlining.org> <include@grrlz.net>
+Bradley Morgan <bradley.morgan@linux.dev> <brads@mainlining.org>
+Bradley Morgan <bradley.morgan@linux.dev> <include@grrlz.net>
 Brendan Higgins <brendan.higgins@linux.dev> <brendanhiggins@google.com>
 Brendan Jackman <brendan.jackman@linux.dev> <jackmanb@google.com>
 Brian Avery <b.avery@hp.com>
@@ -356,8 +360,10 @@ Gokul Sriram Palanisamy <quic_gokulsri@quicinc.com> <gokulsri@codeaurora.org>
 Govindaraj Saminathan <quic_gsamin@quicinc.com> <gsamin@codeaurora.org>
 Guo Ren <guoren@kernel.org> <guoren@linux.alibaba.com>
 Guo Ren <guoren@kernel.org> <ren_guo@c-sky.com>
-Guodong Xu <docular.xu@gmail.com> <guodong.xu@linaro.org>
-Guodong Xu <docular.xu@gmail.com> <guodong@riscstar.com>
+Guodong Xu <guodong.xu@linux.dev> <docular.xu@gmail.com>
+Guodong Xu <guodong.xu@linux.dev> <guodong.xu@linaro.org>
+Guodong Xu <guodong.xu@linux.dev> <guodong.xu@oss.qualcomm.com>
+Guodong Xu <guodong.xu@linux.dev> <guodong@riscstar.com>
 Guru Das Srinagesh <linux@gurudas.dev>
 Guru Das Srinagesh <linux@gurudas.dev> <quic_gurus@quicinc.com>
 Guru Das Srinagesh <linux@gurudas.dev> <gurus@codeaurora.org>
@@ -589,6 +595,9 @@ Lorenzo Stoakes <ljs@kernel.org> <lorenzo.stoakes@oracle.com>
 Luca Ceresoli <luca.ceresoli@bootlin.com> <luca@lucaceresoli.net>
 Luca Weiss <luca@lucaweiss.eu> <luca@z3ntu.xyz>
 Lucas De Marchi <demarchi@kernel.org> <lucas.demarchi@intel.com>
+Luiz Capitulino <luiz.capitulino@linux.dev> <lcapitulino@redhat.com>
+Luiz Capitulino <luiz.capitulino@linux.dev> <luizcap@amazon.com>
+Luiz Capitulino <luiz.capitulino@linux.dev> <luizcap@redhat.com>
 Lukasz Luba <lukasz.luba@arm.com> <l.luba@partner.samsung.com>
 Luo Jie <jie.luo@oss.qualcomm.com> <luoj@codeaurora.org>
 Luo Jie <jie.luo@oss.qualcomm.com> <quic_luoj@quicinc.com>
@@ -658,7 +667,8 @@ Maxwell Doose <maxwell@maxwelld.cc> <m32285159@gmail.com>
 Maya Erez <quic_merez@quicinc.com> <merez@codeaurora.org>
 Mayuresh Janorkar <mayur@ti.com>
 Md Sadre Alam <quic_mdalam@quicinc.com> <mdalam@codeaurora.org>
-Miaoqing Pan <quic_miaoqing@quicinc.com> <miaoqing@codeaurora.org>
+Miaoqing Pan <miaoqing.pan@oss.qualcomm.com> <miaoqing@codeaurora.org>
+Miaoqing Pan <miaoqing.pan@oss.qualcomm.com> <quic_miaoqing@quicinc.com>
 Michael Buesch <m@bues.ch>
 Michael Chan <michael.chan@broadcom.com> <mchan@broadcom.com>
 Michael Grzeschik <mgr@kernel.org> <m.grzeschik@pengutronix.de>
@@ -671,6 +681,7 @@ Michel Lespinasse <michel@lespinasse.org> <walken@google.com>
 Michel Lespinasse <michel@lespinasse.org> <walken@zoy.org>
 Mickaël Salaün <mic@digikod.net> <mic@linux.microsoft.com>
 Miguel Ojeda <ojeda@kernel.org> <miguel.ojeda.sandonis@gmail.com>
+Mika Westerberg <westeri@kernel.org> <mika.westerberg@linux.intel.com>
 Mike Leach <mike.leach@arm.com> <mike.leach@linaro.org>
 Mike Rapoport <rppt@kernel.org> <mike@compulab.co.il>
 Mike Rapoport <rppt@kernel.org> <mike.rapoport@gmail.com>
@@ -692,6 +703,7 @@ Mythri P K <mythripk@ti.com>
 Nadav Amit <nadav.amit@gmail.com> <namit@vmware.com>
 Nadav Amit <nadav.amit@gmail.com> <namit@cs.technion.ac.il>
 Nadia Yvette Chambers <nyc@holomorphy.com> William Lee Irwin III <wli@holomorphy.com>
+Naman Jain <namjain@linux.microsoft.com> <quic_namajain@quicinc.com>
 Naoya Horiguchi <nao.horiguchi@gmail.com> <n-horiguchi@ah.jp.nec.com>
 Naoya Horiguchi <nao.horiguchi@gmail.com> <naoya.horiguchi@nec.com>
 Natalie Vock <nat@pixelcluster.dev> <friedrich.vock@gmx.de>
@@ -810,6 +822,8 @@ Richard Genoud <richard.genoud@bootlin.com> <richard.genoud@gmail.com>
 Richard Leitner <richard.leitner@linux.dev> <dev@g0hl1n.net>
 Richard Leitner <richard.leitner@linux.dev> <me@g0hl1n.net>
 Richard Leitner <richard.leitner@linux.dev> <richard.leitner@skidata.com>
+Ridong Chen <ridong.chen@linux.dev> <chenridong@huawei.com>
+Ridong Chen <ridong.chen@linux.dev> <chenridong@xiaomi.com>
 Rob Clark <robin.clark@oss.qualcomm.com> <robdclark@chromium.org>
 Rob Clark <robin.clark@oss.qualcomm.com> <robdclark@gmail.com>
 Robert Foss <rfoss@kernel.org> <robert.foss@linaro.org>
@@ -828,6 +842,7 @@ Rui Saraiva <rmps@joel.ist.utl.pt>
 Sachin Mokashi <sachin.mokashi@intel.com> <sachinx.mokashi@intel.com>
 Sachin P Sant <ssant@in.ibm.com>
 Sai Prakash Ranjan <quic_saipraka@quicinc.com> <saiprakash.ranjan@codeaurora.org>
+Sai Teja Aluvala <aluvala.sai.teja@intel.com> <quic_saluvala@quicinc.com>
 Sakari Ailus <sakari.ailus@linux.intel.com> <sakari.ailus@iki.fi>
 Sam Protsenko <semen.protsenko@linaro.org>
 Sam Protsenko <semen.protsenko@linaro.org> <semen.protsenko@globallogic.com>
@@ -1007,6 +1022,7 @@ Vlad Dogaru <ddvlad@gmail.com> <vlad.dogaru@intel.com>
 Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@parallels.com>
 Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@virtuozzo.com>
 Vlastimil Babka <vbabka@kernel.org> <vbabka@suse.cz>
+Wang Yibo <wangyibo@kylinos.cn> <szwyb123@gmail.com>
 WangYuli <wangyuli@aosc.io> <wangyl5933@chinaunicom.cn>
 WangYuli <wangyuli@aosc.io> <wangyuli@deepin.org>
 Wei Wang <weiwan@google.com> <weibunny@fb.com>
