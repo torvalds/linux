@@ -140,6 +140,14 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 		kvm->arch.nested_mmus_size += S2_MMU_PER_VCPU;
 	}
 
+	/*
+	 * We can't rely on the S2 MMU staying the canonical one until
+	 * the first run, as userspace can restore a nested context.
+	 * Nuke the hw_mmu early to ensure that we pick the correct one
+	 * at load time.
+	 */
+	vcpu->arch.hw_mmu = NULL;
+
 	return 0;
 }
 
