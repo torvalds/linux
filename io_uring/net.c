@@ -1501,7 +1501,12 @@ static int io_sg_from_iter(struct sk_buff *skb,
 		struct bio_vec v = mp_bvec_iter_bvec(from->bvec, bi);
 
 		copied += v.bv_len;
-		truesize += PAGE_ALIGN(v.bv_len + v.bv_offset);
+		/*
+		 * bv_offset is relative to the folio for coalesced huge page
+		 * registrations, so only the in-page part of it matters for
+		 * how much memory this fragment ties up.
+		 */
+		truesize += PAGE_ALIGN(v.bv_len + offset_in_page(v.bv_offset));
 		__skb_fill_page_desc_noacc(shinfo, frag++, v.bv_page,
 					   v.bv_offset, v.bv_len);
 		bvec_iter_advance_single(from->bvec, &bi, v.bv_len);
