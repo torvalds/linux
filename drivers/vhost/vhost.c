@@ -3152,18 +3152,21 @@ static int vhost_add_used_n_ooo(struct vhost_virtqueue *vq,
 				struct vring_used_elem *heads,
 				unsigned count)
 {
-	int start, n, r;
+	unsigned int n;
+	int r;
 
-	start = vq->last_used_idx & (vq->num - 1);
-	n = vq->num - start;
-	if (n < count) {
+	do {
+		unsigned int start = vq->last_used_idx & (vq->num - 1);
+
+		n = min(vq->num - start, count);
 		r = __vhost_add_used_n(vq, heads, n);
 		if (r < 0)
 			return r;
 		heads += n;
 		count -= n;
-	}
-	return __vhost_add_used_n(vq, heads, count);
+	} while (count);
+
+	return 0;
 }
 
 static int vhost_add_used_n_in_order(struct vhost_virtqueue *vq,
