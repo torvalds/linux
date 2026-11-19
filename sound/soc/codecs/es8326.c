@@ -785,7 +785,7 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 			}
 
 			queue_delayed_work(system_dfl_wq, &es8326->capture_pop_work,
-				   msecs_to_jiffies(40));
+				   msecs_to_jiffies(100));
 		}
 	}
 	return 0;
