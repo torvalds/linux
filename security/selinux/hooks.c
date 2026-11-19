@@ -4179,8 +4179,11 @@ static int selinux_mmap_file(struct file *file,
 			     unsigned long reqprot __always_unused,
 			     unsigned long prot, unsigned long flags)
 {
+	const unsigned long map_type = (flags & MAP_TYPE);
+
 	return selinux_mmap_file_common(file, prot,
-					(flags & MAP_TYPE) == MAP_SHARED,
+					(map_type == MAP_SHARED ||
+					 map_type == MAP_SHARED_VALIDATE),
 					false);
 }
 
