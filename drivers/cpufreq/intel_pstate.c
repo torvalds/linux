@@ -1351,13 +1351,14 @@ static void intel_pstate_hwp_offline(struct cpudata *cpu)
 /* Enable bit for Dynamic Efficiency Control (DEC) */
 #define POWER_CTL_DEC_ENABLE	27
 
+static DEFINE_MUTEX(power_ctl_update_lock);
 static int power_ctl_ee_state;
 
-static void set_power_ctl_ee_state(bool input)
+static void __set_power_ctl_ee_state(bool input)
 {
 	u64 power_ctl;
 
-	guard(mutex)(&intel_pstate_driver_lock);
+	lockdep_assert_held(&power_ctl_update_lock);
 
 	rdmsrq(MSR_IA32_POWER_CTL, power_ctl);
 	if (input) {
@@ -1368,6 +1369,13 @@ static void set_power_ctl_ee_state(bool input)
 		power_ctl_ee_state = POWER_CTL_EE_DISABLE;
 	}
 	wrmsrq(MSR_IA32_POWER_CTL, power_ctl);
+}
+
+static void set_power_ctl_ee_state(bool input)
+{
+	guard(mutex)(&power_ctl_update_lock);
+
+	__set_power_ctl_ee_state(input);
 }
 
 static void intel_pstate_hwp_enable(struct cpudata *cpudata);
@@ -1398,11 +1406,13 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 
 	pr_debug("CPU %d resuming\n", cpu->cpu);
 
-	/* Only restore if the system default is changed */
-	if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
-		set_power_ctl_ee_state(true);
-	else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
-		set_power_ctl_ee_state(false);
+	scoped_guard(mutex, &power_ctl_update_lock) {
+		/* Only restore if the system default has changed */
+		if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
+			__set_power_ctl_ee_state(true);
+		else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
+			__set_power_ctl_ee_state(false);
+	}
 
 	if (cpu->suspended && hwp_active) {
 		mutex_lock(&intel_pstate_limits_lock);
