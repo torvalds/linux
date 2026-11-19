@@ -1019,9 +1019,10 @@ static struct ffs_ep *ffs_epfile_wait_ep(struct ffs_epfile *epfile, struct file 
 
 static int ffs_aio_cancel(struct kiocb *kiocb);
 
-static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
+static ssize_t ffs_epfile_io(struct ffs_io_data *io_data)
 {
 	struct kiocb *kiocb = io_data->kiocb;
+	struct file *file = kiocb->ki_filp;
 	struct ffs_epfile *epfile = file->private_data;
 	struct usb_request *req;
 	struct ffs_ep *ep;
@@ -1110,11 +1111,17 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	if (epfile->ep != ep) {
 		/* In the meantime, endpoint got disabled or changed. */
 		ret = -ESHUTDOWN;
-	} else if (halt) {
+		goto error_lock;
+	}
+
+	if (halt) {
 		ret = usb_ep_set_halt(ep->ep);
 		if (!ret)
 			ret = -EBADMSG;
-	} else if (data_len == -EINVAL) {
+		goto error_lock;
+	}
+
+	if (data_len == -EINVAL) {
 		/*
 		 * Sanity Check: even though data_len can't be used
 		 * uninitialized at the time I write this comment, some
@@ -1128,7 +1135,10 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		 */
 		WARN(1, "%s: data_len == -EINVAL\n", __func__);
 		ret = -EINVAL;
-	} else if (!io_data->aio) {
+		goto error_lock;
+	}
+
+	if (!io_data->aio) {
 		bool interrupted = false;
 
 		req = ep->req;
@@ -1182,51 +1192,51 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		else
 			ret = io_data->status;
 		goto error_mutex;
-	} else if (!(req = usb_ep_alloc_request(ep->ep, GFP_ATOMIC))) {
-		ret = -ENOMEM;
-	} else {
-		if (io_data->use_sg) {
-			req->buf = NULL;
-			req->sg	= io_data->sgt.sgl;
-			req->num_sgs = io_data->sgt.nents;
-		} else {
-			req->buf = data;
-			req->num_sgs = 0;
-		}
-
-		req->zero = !io_data->read ? epfile->zlp_enabled : 0;
-		req->length = data_len;
-
-		io_data->buf = data;
-		io_data->ep = ep->ep;
-		io_data->req = req;
-		io_data->ffs = epfile->ffs;
-
-		req->context  = io_data;
-		req->complete = ffs_epfile_async_io_complete;
-
-		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
-		if (ret) {
-			io_data->req = NULL;
-			usb_ep_free_request(ep->ep, req);
-			goto error_lock;
-		}
-		kiocb->private = io_data;
-		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-		/*
-		 * prevent ffs_user_copy_worker() from calling
-		 *    io_data->kiocb->ki_complete()
-		 * before kiocb_set_cancel_fn() was called.
-		 */
-		smp_store_release(&io_data->aio_active, true);
-
-		ret = -EIOCBQUEUED;
-		/*
-		 * Do not kfree the buffer in this function.  It will be freed
-		 * by ffs_user_copy_worker.
-		 */
-		data = NULL;
 	}
+
+	/* It's an AIO request */
+	req = usb_ep_alloc_request(ep->ep, GFP_ATOMIC);
+	if (!req) {
+		ret = -ENOMEM;
+		goto error_lock;
+	}
+
+	if (io_data->use_sg) {
+		req->buf = NULL;
+		req->sg	= io_data->sgt.sgl;
+		req->num_sgs = io_data->sgt.nents;
+	} else {
+		req->buf = data;
+		req->num_sgs = 0;
+	}
+
+	req->zero = !io_data->read ? epfile->zlp_enabled : 0;
+	req->length = data_len;
+
+	io_data->buf = data;
+	io_data->ep = ep->ep;
+	io_data->req = req;
+	io_data->ffs = epfile->ffs;
+
+	req->context = io_data;
+	req->complete = ffs_epfile_async_io_complete;
+
+	ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
+	if (ret) {
+		io_data->req = NULL;
+		usb_ep_free_request(ep->ep, req);
+		goto error_lock;
+	}
+	kiocb->private = io_data;
+	kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
+	/*
+	 * prevent ffs_user_copy_worker() from calling
+	 *    io_data->kiocb->ki_complete()
+	 * before kiocb_set_cancel_fn() was called.
+	 */
+	smp_store_release(&io_data->aio_active, true);
+
+	ret = -EIOCBQUEUED;
 
 error_lock:
 	spin_unlock_irq(&epfile->ffs->eps_lock);
@@ -1302,7 +1312,7 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	if (p->aio)
 		mmgrab(p->mm);
 
-	res = ffs_epfile_io(kiocb->ki_filp, p);
+	res = ffs_epfile_io(p);
 	if (res == -EIOCBQUEUED)
 		return res;
 	if (p->aio) {
@@ -1346,7 +1356,7 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	if (p->aio)
 		mmgrab(p->mm);
 
-	res = ffs_epfile_io(kiocb->ki_filp, p);
+	res = ffs_epfile_io(p);
 	if (res == -EIOCBQUEUED)
 		return res;
 
