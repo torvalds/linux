@@ -1553,6 +1553,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	size_t cmd_size;
 	int ret;
 
+	if (mvm->fw->ucode_ver < 26)
+		return;
+
 	/*
 	 * LARI_CONFIG_CHANGE triggers a profile update, so send
 	 * LARI_CONFIG_EXTENSION first to make sure its data is applied

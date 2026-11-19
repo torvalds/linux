@@ -1412,15 +1412,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		 sizeof(mvm->hw->wiphy->fw_version),
 		 "%.31s", fw->fw_version);
 
-	trans->conf.fw_reset_handshake =
-		fw_has_capa(&mvm->fw->ucode_capa,
-			    IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE);
-
-	/* Those firmware versions claim to support the fw_reset_handshake
+	/* Some firmware versions claim to support the fw_reset_handshake
 	 * but they are buggy.
 	 */
-	if (IWL_UCODE_MAJOR(mvm->fw->ucode_ver) <= 77)
-		trans->conf.fw_reset_handshake = false;
+	trans->conf.fw_reset_handshake =
+		fw_has_capa(&mvm->fw->ucode_capa,
+			    IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE) &&
+		mvm->fw->ucode_ver > 77;
 
 	trans->conf.queue_alloc_cmd_ver =
 		iwl_fw_lookup_cmd_ver(mvm->fw,
