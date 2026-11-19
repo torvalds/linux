@@ -2007,7 +2007,7 @@ static int kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 static int kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 				   struct kvm_vcpu_events *events)
 {
-	int i;
+	int i, ret;
 
 	/* check whether the reserved field is zero */
 	for (i = 0; i < ARRAY_SIZE(events->reserved); i++)
@@ -2019,7 +2019,11 @@ static int kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 		if (events->exception.pad[i])
 			return -EINVAL;
 
-	return __kvm_arm_vcpu_set_events(vcpu, events);
+	vcpu_load(vcpu);
+	ret = __kvm_arm_vcpu_set_events(vcpu, events);
+	vcpu_put(vcpu);
+
+	return ret;
 }
 
 /*
