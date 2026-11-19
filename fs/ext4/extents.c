@@ -142,12 +142,16 @@ int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
 	int ret;
 	int dropped = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_datasem_ensure_credits, handle, inode,
+				   check_cred, restart_cred, revoke_cred);
+
 	ret = ext4_journal_ensure_credits_fn(handle, check_cred, restart_cred,
 		revoke_cred, ext4_ext_trunc_restart_fn(inode, &dropped));
 	if (dropped)
 		down_write(&EXT4_I(inode)->i_data_sem);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_datasem_ensure_credits);
 
 /*
  * could return:

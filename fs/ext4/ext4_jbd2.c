@@ -186,6 +186,9 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
 				  int extend_cred, int revoke_cred)
 {
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_journal_ensure_credits, handle,
+				   check_cred, extend_cred, revoke_cred);
+
 	if (!ext4_handle_valid(handle))
 		return 0;
 	if (is_handle_aborted(handle))
@@ -197,6 +200,7 @@ int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
 	revoke_cred = max(0, revoke_cred - handle->h_revoke_credits);
 	return ext4_journal_extend(handle, extend_cred, revoke_cred);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_ensure_credits);
 
 static void ext4_journal_abort_handle(const char *caller, unsigned int line,
 				      const char *err_fn,
