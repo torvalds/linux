@@ -26,6 +26,7 @@
 	psci {
 		cpu1_pd: power-domain-cpu1 {
 			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_sleep>;
 			power-domains = <&cluster_pd>;
 		};
 	};
