@@ -157,6 +157,13 @@ static int bpf_io_check_member(const struct btf_type *t,
 	return 0;
 }
 
+static int bpf_io_validate(void *kdata)
+{
+	const struct io_uring_bpf_ops *ops = kdata;
+
+	return ops->loop_step ? 0 : -EINVAL;
+}
+
 static int bpf_io_init_member(const struct btf_type *t,
 			       const struct btf_member *member,
 			       void *kdata, const void *udata)
@@ -269,6 +276,7 @@ static struct bpf_struct_ops bpf_ring_ops = {
 	.check_member = bpf_io_check_member,
 	.init_member = bpf_io_init_member,
 	.init = bpf_io_init,
+	.validate = bpf_io_validate,
 	.cfi_stubs = &io_bpf_ops_stubs,
 	.name = "io_uring_bpf_ops",
 	.owner = THIS_MODULE,
