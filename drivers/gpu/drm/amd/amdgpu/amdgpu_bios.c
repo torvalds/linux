@@ -436,35 +436,23 @@ static bool amdgpu_read_disabled_bios(struct amdgpu_device *adev)
  * VFCT entries contain the PCI bus number as recorded during BIOS POST.
  * On systems where the kernel renumbers PCI buses (e.g. pci=realloc or
  * resource conflicts), the runtime bus number may differ from the POST
- * value.  Match by device identity (vendor + device + function) and use
- * the bus number as a preference: exact bus match is preferred, but when
- * the bus numbers disagree we accept the entry if the device identity
- * matches.
+ * value.  Match against the secondary bus number of the upstream bridge
+ * at FW/OS handoff, which the PCI core caches before any renumbering.
  *
- * Returns: 0 on match, -ENODEV on no match
+ * Returns: true if @vhdr describes this device, false otherwise
  */
-static int amdgpu_acpi_vfct_match(struct amdgpu_device *adev,
-				  VFCT_IMAGE_HEADER *vhdr)
+static bool amdgpu_acpi_vfct_match(struct amdgpu_device *adev,
+				   VFCT_IMAGE_HEADER *vhdr)
 {
-	/* Vendor and device IDs must always match */
-	if (vhdr->VendorID != adev->pdev->vendor ||
-	    vhdr->DeviceID != adev->pdev->device)
-		return -ENODEV;
+	struct pci_dev *pdev = adev->pdev;
+	struct pci_dev *bridge = pci_upstream_bridge(pdev);
+	u8 bus = bridge ? bridge->fw_sec_busnr : pdev->bus->number;
 
-	if (vhdr->PCIDevice != PCI_SLOT(adev->pdev->devfn) ||
-	    vhdr->PCIFunction != PCI_FUNC(adev->pdev->devfn))
-		return -ENODEV;
-
-	/* Exact bus number match - preferred */
-	if (vhdr->PCIBus == adev->pdev->bus->number)
-		return 0;
-
-	/* Bus mismatch but device identity matches (PCI renumbering case) */
-	dev_notice(adev->dev,
-		   "VFCT bus number mismatch: table %u != runtime %u, matching by device identity (vendor 0x%04x device 0x%04x)\n",
-		   vhdr->PCIBus, adev->pdev->bus->number,
-		   adev->pdev->vendor, adev->pdev->device);
-	return 0;
+	return vhdr->VendorID == pdev->vendor &&
+	       vhdr->DeviceID == pdev->device &&
+	       vhdr->PCIBus == bus &&
+	       vhdr->PCIDevice == PCI_SLOT(pdev->devfn) &&
+	       vhdr->PCIFunction == PCI_FUNC(pdev->devfn);
 }
 
 static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
@@ -503,7 +491,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 		}
 
 		if (vhdr->ImageLength &&
-		    !amdgpu_acpi_vfct_match(adev, vhdr)) {
+		    amdgpu_acpi_vfct_match(adev, vhdr)) {
 			adev->bios = kmemdup(&vbios->VbiosContent,
 					     vhdr->ImageLength,
 					     GFP_KERNEL);
