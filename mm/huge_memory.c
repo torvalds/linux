@@ -2421,6 +2421,7 @@ out_map:
 	return 0;
 }
 
+#ifdef CONFIG_ADVISE_SYSCALLS
 /*
  * Return true if we do MADV_FREE successfully on entire pmd page.
  * Otherwise, return false.
@@ -2456,20 +2457,12 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		goto out;
 
 	/*
-	 * If other processes are mapping this folio, we couldn't discard
-	 * the folio unless they all do MADV_FREE so let's skip the folio.
-	 */
-	if (folio_maybe_mapped_shared(folio))
-		goto out;
-
-	if (!folio_trylock(folio))
-		goto out;
-
-	/*
 	 * If user want to discard part-pages of THP, split it so MADV_FREE
 	 * will deactivate only them.
 	 */
 	if (next - addr != HPAGE_PMD_SIZE) {
+		if (folio_maybe_mapped_shared(folio) || !folio_trylock(folio))
+			goto out;
 		folio_get(folio);
 		spin_unlock(ptl);
 		split_folio(folio);
@@ -2478,9 +2471,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		goto out_unlocked;
 	}
 
-	if (folio_test_dirty(folio))
-		folio_clear_dirty(folio);
-	folio_unlock(folio);
+	if (!madvise_free_try_prepare_folio(folio, 1))
+		goto out;
 
 	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
 		pmdp_invalidate(vma, addr, pmd);
@@ -2498,6 +2490,7 @@ out:
 out_unlocked:
 	return ret;
 }
+#endif /* CONFIG_ADVISE_SYSCALLS */
 
 static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
 {
