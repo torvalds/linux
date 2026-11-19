@@ -334,7 +334,7 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		  struct svc_fh *resfhp, struct nfsd3_createargs *argp)
 {
 	struct iattr *iap = &argp->attrs;
-	struct dentry *parent, *child;
+	struct dentry *parent, *child, *mnt_child;
 	struct nfsd_attrs attrs = {
 		.na_iattr	= iap,
 	};
@@ -378,21 +378,29 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 
 	exp = exp_get(fhp->fh_export);
+	/*
+	 * Cross on a separate reference: child must remain the dentry
+	 * start_creating() returned so that end_creating() unlocks the
+	 * right directory.
+	 */
+	mnt_child = dget(child);
 	if (argp->createmode == NFS3_CREATE_UNCHECKED) {
 		/*
 		 * If name is already in dcache we need to check for mountpoints
 		 */
 		if (d_is_reg(child) &&
 		    unlikely(nfsd_mountpoint(child, exp))) {
-			status = nfsd_cross_mnt(rqstp, &child, &exp);
+			status = nfsd_cross_mnt(rqstp, &mnt_child, &exp);
 			if (status != nfs_ok) {
+				dput(mnt_child);
 				exp_put(exp);
 				goto out;
 			}
 		}
 	}
 
-	status = fh_compose(resfhp, exp, child, fhp);
+	status = fh_compose(resfhp, exp, mnt_child, fhp);
+	dput(mnt_child);
 	exp_put(exp);
 	if (status != nfs_ok)
 		goto out;
