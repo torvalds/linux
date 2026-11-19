@@ -1379,7 +1379,7 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu);
 int __init kvm_sys_reg_table_init(void);
 struct sys_reg_desc;
 int __init populate_sysreg_config(const struct sys_reg_desc *sr,
-				  unsigned int idx);
+				  unsigned int idx, bool needs_nv_trap);
 int __init populate_nv_trap_config(void);
 
 void kvm_calculate_traps(struct kvm_vcpu *vcpu);

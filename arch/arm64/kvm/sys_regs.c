@@ -5967,6 +5967,23 @@ int kvm_vcpu_finalize_sys_regs(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/* Keep the nested virtualization traps in sync with the KVM traps. */
+static bool __init needs_nv_trap(const struct sys_reg_desc *r)
+{
+	/* op1 4 is the EL2 encodings, op1 5 the _EL12 and _EL02 aliases */
+	if (r->Op1 != 4 && r->Op1 != 5)
+		return false;
+
+	if (!r->access ||
+	    r->access == bad_vncr_trap ||
+	    r->access == trap_raz_wi ||
+	    r->access == bad_redir_trap ||
+	    r->access == undef_access)
+		return false;
+
+	return true;
+}
+
 int __init kvm_sys_reg_table_init(void)
 {
 	const struct sys_reg_desc *gicv3_regs, *gicv5_regs;
@@ -5999,10 +6016,12 @@ int __init kvm_sys_reg_table_init(void)
 	check_feature_map();
 
 	for (i = 0; !ret && i < ARRAY_SIZE(sys_reg_descs); i++)
-		ret = populate_sysreg_config(sys_reg_descs + i, i);
+		ret = populate_sysreg_config(sys_reg_descs + i, i,
+					     needs_nv_trap(sys_reg_descs + i));
 
 	for (i = 0; !ret && i < ARRAY_SIZE(sys_insn_descs); i++)
-		ret = populate_sysreg_config(sys_insn_descs + i, i);
+		ret = populate_sysreg_config(sys_insn_descs + i, i,
+					     needs_nv_trap(sys_insn_descs + i));
 
 	return ret;
 }
