@@ -1817,11 +1817,15 @@ int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_le_set_per_adv_enable cp;
 	struct adv_info *adv;
 	bool enabled;
+	u8 handle = instance;
+	int err;
 
 	/* If periodic advertising already disabled there is nothing to do. */
 	hci_dev_lock(hdev);
 	adv = hci_find_adv_instance(hdev, instance);
 	enabled = adv && adv->periodic_enabled;
+	if (adv)
+		handle = adv->handle;
 	hci_dev_unlock(hdev);
 	if (!enabled)
 		return 0;
@@ -1829,10 +1833,39 @@ int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	memset(&cp, 0, sizeof(cp));
 
 	cp.enable = 0x00;
-	cp.handle = instance;
+	cp.handle = handle;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err || handle == instance)
+		return err;
+
+	/* Handle 0 is shared with global advertising, so the completion
+	 * cannot identify the software instance from the command alone.
+	 */
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		adv->periodic_enabled = false;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+/* Map a management instance number to its controller handle. */
+static u8 hci_adv_instance_handle(struct hci_dev *hdev, u8 instance)
+	__must_not_hold(&hdev->lock)
+{
+	struct adv_info *adv;
+	u8 handle = instance;
+
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		handle = adv->handle;
+	hci_dev_unlock(hdev);
+
+	return handle;
 }
 
 static int hci_set_per_adv_params_sync(struct hci_dev *hdev, u8 instance,
@@ -1848,7 +1881,7 @@ static int hci_set_per_adv_params_sync(struct hci_dev *hdev, u8 instance,
 	if (!max_interval)
 		max_interval = DISCOV_LE_PER_ADV_INT_MAX;
 
-	cp.handle = instance;
+	cp.handle = hci_adv_instance_handle(hdev, instance);
 	cp.min_interval = cpu_to_le16(min_interval);
 	cp.max_interval = cpu_to_le16(max_interval);
 	cp.periodic_properties = 0x0000;
@@ -1894,11 +1927,15 @@ static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_le_set_per_adv_enable cp;
 	struct adv_info *adv;
 	bool enabled;
+	u8 handle = instance;
+	int err;
 
 	/* If periodic advertising already enabled there is nothing to do. */
 	hci_dev_lock(hdev);
 	adv = hci_find_adv_instance(hdev, instance);
 	enabled = adv && adv->periodic_enabled;
+	if (adv)
+		handle = adv->handle;
 	hci_dev_unlock(hdev);
 	if (enabled)
 		return 0;
@@ -1906,10 +1943,23 @@ static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	memset(&cp, 0, sizeof(cp));
 
 	cp.enable = 0x01;
-	cp.handle = instance;
+	cp.handle = handle;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err || handle == instance)
+		return err;
+
+	/* Handle 0 is shared with global advertising, so the completion
+	 * cannot identify the software instance from the command alone.
+	 */
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		adv->periodic_enabled = true;
+	hci_dev_unlock(hdev);
+
+	return 0;
 }
 
 /* Checks if periodic advertising data contains a Basic Announcement and if it
@@ -8237,6 +8287,7 @@ static int hci_le_past_set_info_sync(struct hci_dev *hdev, void *data)
 {
 	struct past_data *past = data;
 	struct hci_cp_le_past_set_info cp;
+	struct adv_info *adv;
 
 	hci_dev_lock(hdev);
 
@@ -8249,6 +8300,9 @@ static int hci_le_past_set_info_sync(struct hci_dev *hdev, void *data)
 	memset(&cp, 0, sizeof(cp));
 	cp.handle = cpu_to_le16(past->le->handle);
 	cp.adv_handle = past->conn->iso_qos.bcast.bis;
+	adv = hci_find_adv_instance(hdev, cp.adv_handle);
+	if (adv)
+		cp.adv_handle = adv->handle;
 
 	hci_dev_unlock(hdev);
 
