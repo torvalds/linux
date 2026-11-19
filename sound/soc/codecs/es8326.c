@@ -1155,7 +1155,7 @@ static int es8326_calibrate(struct snd_soc_component *component)
 		regmap_write(es8326->regmap, ES8326_HP_OFFSET_CAL, ES8326_HP_OFF);
 		regmap_read(es8326->regmap, ES8326_CSM_MUTE_STA, &reg);
 		if ((reg & 0xf0) != 0x40)
-			msleep(50);
+			msleep(200);
 
 		regmap_write(es8326->regmap, ES8326_HP_CAL, 0xd4);
 		msleep(200);
