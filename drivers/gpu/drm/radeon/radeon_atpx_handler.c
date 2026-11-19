@@ -34,6 +34,7 @@ struct radeon_atpx {
 static struct radeon_atpx_priv {
 	bool atpx_detected;
 	bool bridge_pm_usable;
+	bool handler_registered;
 	/* handle for device - and atpx */
 	acpi_handle dhandle;
 	struct radeon_atpx atpx;
@@ -605,7 +606,8 @@ void radeon_register_atpx_handler(void)
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&radeon_atpx_handler, handler_flags);
+	if (!vga_switcheroo_register_handler(&radeon_atpx_handler, handler_flags))
+		radeon_atpx_priv.handler_registered = true;
 }
 
 /**
@@ -615,5 +617,14 @@ void radeon_register_atpx_handler(void)
  */
 void radeon_unregister_atpx_handler(void)
 {
+	/*
+	 * vga_switcheroo has a single handler slot and unregistering clears it
+	 * no matter who set it, so leave a handler registered by another
+	 * driver, such as amdgpu or apple-gmux, in place.
+	 */
+	if (!radeon_atpx_priv.handler_registered)
+		return;
+
 	vga_switcheroo_unregister_handler();
+	radeon_atpx_priv.handler_registered = false;
 }

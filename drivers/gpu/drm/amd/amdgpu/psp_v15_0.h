@@ -26,5 +26,6 @@
 #include "amdgpu_psp.h"
 
 void psp_v15_0_0_set_psp_funcs(struct psp_context *psp);
+void psp_v15_0_0_get_fw_variant(struct amdgpu_device *adev);
 
 #endif

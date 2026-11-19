@@ -1008,7 +1008,7 @@ svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		kvfree(new);
 		return -ENOMEM;
 	}
-	kvfree(pold);
+	/* The caller frees pold once all arrays of the range are split */
 	*(void **)ppold = old;
 	*(void **)ppnew = new;
 
@@ -1019,19 +1019,36 @@ static int
 svm_range_split_pages(struct svm_range *new, struct svm_range *old,
 		      uint64_t start, uint64_t last)
 {
+	dma_addr_t *old_dma[MAX_GPU_INSTANCE];
 	uint64_t npages = last - start + 1;
 	bool has_dma_addr = false;
 	int i, r;
 
+	/*
+	 * Split the arrays of all GPUs before replacing any of them, the old
+	 * range must stay intact if one fails.
+	 */
 	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		old_dma[i] = old->dma_addr[i];
 		if (old->dma_addr[i])
 			has_dma_addr = true;
-		r = svm_range_split_array(&new->dma_addr[i], &old->dma_addr[i],
+		r = svm_range_split_array(&new->dma_addr[i], &old_dma[i],
 					  sizeof(*old->dma_addr[i]), old->start,
 					  npages, new->start, new->npages,
 					  old->actual_loc ? &new->vram_pages : NULL);
-		if (r)
+		if (r) {
+			/* new->dma_addr[] goes with the new range */
+			while (i--)
+				if (old_dma[i] != old->dma_addr[i])
+					kvfree(old_dma[i]);
 			return r;
+		}
+	}
+	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		if (old_dma[i] == old->dma_addr[i])
+			continue;
+		kvfree(old->dma_addr[i]);
+		old->dma_addr[i] = old_dma[i];
 	}
 	if (old->actual_loc) {
 		/*
@@ -1892,11 +1909,12 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 		svm_range_lock(prange);
 
-		/* Free backing memory of hmm_range if it was initialized
-		 * Override return value to TRY AGAIN only if prior returns
-		 * were successful
+		/*
+		 * Retry if the pages were invalidated after they were taken.
+		 * Only check that when taking them succeeded: a range can exist
+		 * without a notifier, e.g. when allocating its PFN array failed.
 		 */
-		if (range && !amdgpu_hmm_range_valid(range) && !r) {
+		if (!r && !amdgpu_hmm_range_valid(range)) {
 			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 		}
@@ -2116,21 +2134,30 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 		if (prange->start <= last && prange->last >= start)
 			atomic_inc(&prange->invalid);
 
+		/* The MMU notifier must not return before the GPU has stopped
+		 * accessing the invalidated pages. Only the first eviction stops
+		 * the queues, which takes milliseconds (HWS preemption on every
+		 * GPU of the process). Serialize all evictions of this process so
+		 * that a concurrent invalidation of another range waits until
+		 * that quiesce has completed instead of returning while queues
+		 * still run on stale PTEs.
+		 */
+		mutex_lock(&svms->evict_lock);
 		evicted_ranges = atomic_inc_return(&svms->evicted_ranges);
-		if (evicted_ranges != 1)
-			return r;
+		if (evicted_ranges == 1) {
+			pr_debug("evicting svms 0x%p range [0x%lx 0x%lx]\n",
+				 prange->svms, prange->start, prange->last);
 
-		pr_debug("evicting svms 0x%p range [0x%lx 0x%lx]\n",
-			 prange->svms, prange->start, prange->last);
+			/* First eviction, stop the queues */
+			r = kgd2kfd_quiesce_mm(mm, KFD_QUEUE_EVICTION_TRIGGER_SVM);
+			if (r)
+				pr_debug("failed to quiesce KFD\n");
 
-		/* First eviction, stop the queues */
-		r = kgd2kfd_quiesce_mm(mm, KFD_QUEUE_EVICTION_TRIGGER_SVM);
-		if (r)
-			pr_debug("failed to quiesce KFD\n");
-
-		pr_debug("schedule to restore svm %p ranges\n", svms);
-		queue_delayed_work(system_freezable_wq, &svms->restore_work,
-			msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
+			pr_debug("schedule to restore svm %p ranges\n", svms);
+			queue_delayed_work(system_freezable_wq, &svms->restore_work,
+					   msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
+		}
+		mutex_unlock(&svms->evict_lock);
 	} else {
 		unsigned long s, l;
 		uint32_t trigger;
@@ -3412,6 +3439,7 @@ void svm_range_list_fini(struct kfd_process *p)
 		svm_range_free(prange, true);
 	}
 
+	mutex_destroy(&p->svms.evict_lock);
 	mutex_destroy(&p->svms.lock);
 
 	pr_debug("process pid %d svms 0x%p done\n",
@@ -3425,6 +3453,7 @@ int svm_range_list_init(struct kfd_process *p)
 
 	svms->objects = RB_ROOT_CACHED;
 	mutex_init(&svms->lock);
+	mutex_init(&svms->evict_lock);
 	INIT_LIST_HEAD(&svms->list);
 	atomic_set(&svms->evicted_ranges, 0);
 	atomic_set(&svms->drain_pagefaults, 0);

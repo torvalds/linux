@@ -1483,15 +1483,25 @@ static int smu8_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 static int smu8_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
+	struct phm_clock_voltage_dependency_table *table =
+				hwmgr->dyn_state.vddc_dependency_on_sclk;
+	uint32_t low, high;
+
 	switch (type) {
 	case PP_SCLK:
+		/* the SMU takes level indices, not a mask of levels */
+		low = mask ? (ffs(mask) - 1) : 0;
+		high = mask ? (fls(mask) - 1) : 0;
+		if (high >= min(table->count, smu8_get_max_sclk_level(hwmgr)))
+			return -EINVAL;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
-				mask,
+				low,
 				NULL);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
-				mask,
+				high,
 				NULL);
 		break;
 	default:

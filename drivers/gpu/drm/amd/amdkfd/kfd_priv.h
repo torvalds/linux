@@ -695,6 +695,11 @@ struct qcm_process_device {
 	bool is_debug;
 	unsigned int evicted; /* eviction counter, 0=active */
 
+	/* Set after fault clean runs; never cleared.
+	 * Prevents redundant cleaning from pipelined interrupt workers.
+	 */
+	bool fault_cleaned;
+
 	/* This flag tells if we should reset all wavefronts on
 	 * process termination
 	 */
@@ -906,6 +911,8 @@ struct svm_range_list {
 	struct list_head		deferred_range_list;
 	struct list_head                criu_svm_metadata_list;
 	spinlock_t			deferred_list_lock;
+	/* serializes XNACK-off evictions with the queue quiesce */
+	struct mutex			evict_lock;
 	atomic_t			evicted_ranges;
 	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;

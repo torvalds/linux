@@ -77,7 +77,8 @@ typedef struct {
 
 typedef struct {
 	uint32_t NumUmcChannels;
-	uint32_t Reserved[3];
+	uint32_t DramChannelWidthBytes;
+	uint32_t Reserved[2];
 } MemoryConfig_t;
 
 /**

@@ -346,6 +346,33 @@ static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
 	     amdgpu_vm_pt_continue_dfs((start), (entry));			\
 	     (entry) = (cursor).entry, amdgpu_vm_pt_next_dfs((adev), &(cursor)))
 
+/* Return the flags used for cleared PDEs/PTES */
+static uint64_t amdgpu_vm_pt_clear_flags(struct amdgpu_device *adev,
+					struct amdgpu_vm *vm,
+					unsigned int level)
+{
+	uint64_t flags;
+
+	if (adev->asic_type < CHIP_VEGA10)
+		return 0;
+
+	if (level != AMDGPU_VM_PTB) {
+		uint64_t value = 0;
+
+		flags = AMDGPU_PDE_PTE_FLAG(adev);
+		if (vm->is_npa)
+			flags |= adev->gmc.noretry_flags;
+		amdgpu_gmc_get_vm_pde(adev, level, &value, &flags);
+	} else if (vm->is_npa) {
+		flags = adev->gmc.noretry_flags;
+	} else {
+		/* Workaround for fault priority problem on GMC9 */
+		flags = AMDGPU_PTE_EXECUTABLE | adev->gmc.init_pte_flags;
+	}
+
+	return flags;
+}
+
 /**
  * amdgpu_vm_pt_clear - initially clear the PDs/PTs
  *
@@ -366,10 +393,9 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	struct ttm_operation_ctx ctx = { true, false };
 	struct amdgpu_vm_update_params params;
 	struct amdgpu_bo *ancestor = &vmbo->bo;
-	unsigned int entries;
 	struct amdgpu_bo *bo = &vmbo->bo;
-	uint64_t value = 0, flags = 0;
-	uint64_t addr;
+	unsigned int entries;
+	uint64_t flags;
 	int r, idx;
 
 	/* Figure out our place in the hierarchy */
@@ -404,26 +430,8 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		goto exit;
 
-	addr = 0;
-
-	if (adev->asic_type >= CHIP_VEGA10) {
-		if (level != AMDGPU_VM_PTB) {
-			if (vm->is_npa)
-				flags = adev->gmc.noretry_flags;
-			/* Handle leaf PDEs as PTEs */
-			flags |= AMDGPU_PDE_PTE_FLAG(adev);
-			amdgpu_gmc_get_vm_pde(adev, level,
-					      &value, &flags);
-		} else if (vm->is_npa) {
-			flags = adev->gmc.noretry_flags;
-		} else {
-			/* Workaround for fault priority problem on GMC9 */
-			flags = AMDGPU_PTE_EXECUTABLE | adev->gmc.init_pte_flags;
-		}
-	}
-
-	r = vm->update_funcs->update(&params, vmbo, addr, 0, entries,
-				     value, flags);
+	flags = amdgpu_vm_pt_clear_flags(adev, vm, level);
+	r = vm->update_funcs->update(&params, vmbo, 0, 0, entries, 0, flags);
 	if (r)
 		goto exit;
 
@@ -714,15 +722,9 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 		flags |= AMDGPU_PDE_PTE_FLAG(params->adev);
 		amdgpu_gmc_get_vm_pde(adev, level, &addr, &flags);
 
-	} else if (adev->asic_type >= CHIP_VEGA10 &&
-		   !(flags & AMDGPU_PTE_VALID) &&
+	} else if (!(flags & AMDGPU_PTE_VALID) &&
 		   !(flags & AMDGPU_PTE_PRT_FLAG(params->adev))) {
-
-		/* Workaround for fault priority problem on GMC9 and GFX12,
-		 * EXECUTABLE for GMC9 fault priority and init_pte_flags
-		 * (e.g. AMDGPU_PTE_IS_PTE on GFX12)
-		 */
-		flags |= AMDGPU_PTE_EXECUTABLE | adev->gmc.init_pte_flags;
+		flags |= amdgpu_vm_pt_clear_flags(adev, params->vm, level);
 	}
 
 	/*

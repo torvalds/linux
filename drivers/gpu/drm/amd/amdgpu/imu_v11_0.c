@@ -44,7 +44,11 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_3_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_4_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_6_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_7_0_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_0_imu_l.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_0_imu_p.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_7_1_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_1_imu_l.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_1_imu_p.bin");
 
 static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 {
@@ -52,16 +56,25 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 	int err;
 	const struct imu_firmware_header_v1_0 *imu_hdr;
 	struct amdgpu_firmware_info *info = NULL;
+	bool imu_in_ifwi;
+	enum amdgpu_ucode_required required;
 
 	DRM_DEBUG("\n");
 
+	/* On GFX 11 APUs, ASP loads the IFWI IMU ucode by default. */
+	imu_in_ifwi = adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+		      (adev->flags & AMD_IS_APU);
+	required = imu_in_ifwi ? AMDGPU_UCODE_OPTIONAL : AMDGPU_UCODE_REQUIRED;
+
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (amdgpu_is_kicker_fw(adev))
-		err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, AMDGPU_UCODE_REQUIRED,
+		err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, required,
 					   "amdgpu/%s_imu_kicker.bin", ucode_prefix);
 	else
-		err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, AMDGPU_UCODE_REQUIRED,
+		err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, required,
 					   "amdgpu/%s_imu.bin", ucode_prefix);
+	if (err == -ENODEV && imu_in_ifwi)
+		return 0;
 	if (err)
 		goto out;
 

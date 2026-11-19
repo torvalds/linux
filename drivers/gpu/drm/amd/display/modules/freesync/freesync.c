@@ -571,6 +571,12 @@ static bool vrr_settings_require_update(struct core_freesync *core_freesync,
 	return false;
 }
 
+/* v1/v2 packets hold each rate in one byte; saturate instead of wrapping. */
+static unsigned char vrr_refresh_hz_u8(unsigned int refresh_in_uhz)
+{
+	return min((refresh_in_uhz + 500000) / 1000000, 255U);
+}
+
 static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket,
 		bool freesync_on_desktop)
@@ -614,15 +620,15 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
 	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
 			vrr->state == VRR_STATE_ACTIVE_FIXED) {
-		infopacket->sb[7] = (unsigned char)((vrr->min_refresh_in_uhz + 500000) / 1000000);
+		infopacket->sb[7] = vrr_refresh_hz_u8(vrr->min_refresh_in_uhz);
 	} else {
-		infopacket->sb[7] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+		infopacket->sb[7] = vrr_refresh_hz_u8(vrr->max_refresh_in_uhz);
 	}
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz)
 	 * Note: We should never go above the field rate of the mode timing set.
 	 */
-	infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+	infopacket->sb[8] = vrr_refresh_hz_u8(vrr->max_refresh_in_uhz);
 }
 
 static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
