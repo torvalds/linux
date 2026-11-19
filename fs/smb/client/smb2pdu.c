@@ -4819,6 +4819,8 @@ smb2_readv_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 					      rc);
 				rdata->subreq.error = rc;
 				rdata->result = rc;
+				/* the data can't be trusted, don't count it */
+				rdata->got_bytes = 0;
 
 				if (is_replayable_error(rc)) {
 					trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_retry_needed);
@@ -4898,9 +4900,8 @@ do_retry:
 			__set_bit(NETFS_SREQ_CLEAR_TAIL, &rdata->subreq.flags);
 	} else {
 		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
-		if (trans < rdata->subreq.len &&
+		if (!rdata->result && trans < rdata->subreq.len &&
 		    rdata->subreq.start + trans >= netfs_read_remote_i_size(inode)) {
-			rdata->result = 0;
 			if (rdata->subreq.start + trans >= i_size_read(inode))
 				__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 			else
