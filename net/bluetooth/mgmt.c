@@ -4183,22 +4183,34 @@ static int user_passkey_neg_reply(struct sock *sk, struct hci_dev *hdev,
 static int adv_expire_sync(struct hci_dev *hdev, u32 flags)
 {
 	struct adv_info *adv_instance;
+	u8 instance;
+
+	hci_dev_lock(hdev);
 
 	adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
 	if (!adv_instance)
-		return 0;
+		goto unlock;
 
 	/* stop if current instance doesn't need to be changed */
 	if (!(adv_instance->flags & flags))
-		return 0;
+		goto unlock;
 
 	cancel_adv_timeout(hdev);
 
 	adv_instance = hci_get_next_instance(hdev, adv_instance->instance);
 	if (!adv_instance)
-		return 0;
+		goto unlock;
 
-	hci_schedule_adv_instance_sync(hdev, adv_instance->instance, true);
+	instance = adv_instance->instance;
+
+	hci_dev_unlock(hdev);
+
+	hci_schedule_adv_instance_sync(hdev, instance, true);
+
+	return 0;
+
+unlock:
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -6797,12 +6809,15 @@ static void set_advertising_complete(struct hci_dev *hdev, void *data, int err)
 
 	instance = hdev->cur_adv_instance;
 	if (!instance) {
+		hci_dev_lock(hdev);
 		adv_instance = list_first_entry_or_null(&hdev->adv_instances,
 							struct adv_info, list);
-		if (!adv_instance)
-			return;
+		if (adv_instance)
+			instance = adv_instance->instance;
+		hci_dev_unlock(hdev);
 
-		instance = adv_instance->instance;
+		if (!instance)
+			return;
 	}
 
 	err = hci_schedule_adv_instance_sync(hdev, instance, true);
