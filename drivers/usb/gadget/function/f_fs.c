@@ -246,6 +246,7 @@ struct ffs_buffer {
 struct ffs_io_data {
 	bool aio;
 	bool read;
+	bool aio_active;
 
 	struct kiocb *kiocb;
 	struct iov_iter data;
@@ -887,6 +888,8 @@ static void ffs_user_copy_worker(struct work_struct *work)
 	}
 	mmdrop(io_data->mm);
 
+	/* Make sure kiocb_set_cancel_fn() was already called. */
+	smp_cond_load_acquire(&io_data->aio_active, VAL == true);
 	io_data->kiocb->ki_complete(io_data->kiocb, ret);
 
 	if (io_data->ffs->ffs_eventfd && !kiocb_has_eventfd)
@@ -1014,8 +1017,11 @@ static struct ffs_ep *ffs_epfile_wait_ep(struct ffs_epfile *epfile, struct file 
 	return ep;
 }
 
+static int ffs_aio_cancel(struct kiocb *kiocb);
+
 static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 {
+	struct kiocb *kiocb = io_data->kiocb;
 	struct ffs_epfile *epfile = file->private_data;
 	struct usb_request *req;
 	struct ffs_ep *ep;
@@ -1205,6 +1211,14 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			usb_ep_free_request(ep->ep, req);
 			goto error_lock;
 		}
+		kiocb->private = io_data;
+		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
+		/*
+		 * prevent ffs_user_copy_worker() from calling
+		 *    io_data->kiocb->ki_complete()
+		 * before kiocb_set_cancel_fn() was called.
+		 */
+		smp_store_release(&io_data->aio_active, true);
 
 		ret = -EIOCBQUEUED;
 		/*
@@ -1285,21 +1299,15 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	p->data = *from;
 	p->mm = current->mm;
 
-	kiocb->private = p;
-
-	if (p->aio) {
+	if (p->aio)
 		mmgrab(p->mm);
-		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-	}
 
 	res = ffs_epfile_io(kiocb->ki_filp, p);
 	if (res == -EIOCBQUEUED)
 		return res;
 	if (p->aio) {
-		kiocb->ki_complete(kiocb, res);
 		mmdrop(p->mm);
 		kfree(p);
-		return -EIOCBQUEUED;
 	} else {
 		*from = p->data;
 	}
@@ -1335,23 +1343,17 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	}
 	p->mm = current->mm;
 
-	kiocb->private = p;
-
-	if (p->aio) {
+	if (p->aio)
 		mmgrab(p->mm);
-		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-	}
 
 	res = ffs_epfile_io(kiocb->ki_filp, p);
 	if (res == -EIOCBQUEUED)
 		return res;
 
 	if (p->aio) {
-		kiocb->ki_complete(kiocb, res);
 		mmdrop(p->mm);
 		kfree(p->to_free);
 		kfree(p);
-		return -EIOCBQUEUED;
 	} else {
 		*to = p->data;
 	}
