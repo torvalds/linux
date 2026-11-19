@@ -1342,7 +1342,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 
 	bcmasp_init_wol(priv);
 
-	ports_node = of_find_node_by_name(dev->of_node, "ethernet-ports");
+	ports_node = of_get_child_by_name(dev->of_node, "ethernet-ports");
 	if (!ports_node) {
 		dev_warn(dev, "No ports found\n");
 		ret = -EINVAL;
