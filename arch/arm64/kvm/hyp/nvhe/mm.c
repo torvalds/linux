@@ -316,6 +316,7 @@ static void *fixmap_map_slot(struct hyp_fixmap_slot *slot, phys_addr_t phys)
 	pte |= kvm_phys_to_pte(phys) | KVM_PTE_VALID;
 	WRITE_ONCE(*ptep, pte);
 	dsb(ishst);
+	isb();
 
 	return (void *)slot->addr;
 }

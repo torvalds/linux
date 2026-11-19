@@ -176,7 +176,7 @@ static int kvm_mmu_split_huge_pages(struct kvm *kvm, phys_addr_t addr,
 
 static bool memslot_is_logging(struct kvm_memory_slot *memslot)
 {
-	return memslot->dirty_bitmap && !(memslot->flags & KVM_MEM_READONLY);
+	return kvm_slot_dirty_track_enabled(memslot) && !(memslot->flags & KVM_MEM_READONLY);
 }
 
 static int pkvm_flush_remote_tlbs(struct kvm *kvm)
@@ -1617,10 +1617,9 @@ static void sanitise_mte_tags(struct kvm *kvm, kvm_pfn_t pfn,
 	}
 
 	if (folio_test_hugetlb(folio)) {
-		/* Hugetlb has MTE flags set on head page only */
+		/* A hugetlb folio is marked tagged as a whole, so clear every page */
 		if (folio_try_hugetlb_mte_tagging(folio)) {
-			for (i = 0; i < nr_pages; i++, page++)
-				mte_clear_page_tags(page_address(page));
+			mte_clear_folio_tags(folio);
 			folio_set_hugetlb_mte_tagged(folio);
 		}
 		return;
@@ -2129,7 +2128,7 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 	if (s2fd->nested)
 		*prot = adjust_nested_exec_perms(kvm, s2fd->nested, *prot);
 
-	if (!kvm_s2_fault_is_perm(s2fd) && !s2vi->map_non_cacheable && kvm_has_mte(kvm)) {
+	if (!s2vi->map_non_cacheable && kvm_has_mte(kvm)) {
 		/* Check the VMM hasn't introduced a new disallowed VMA */
 		if (!s2vi->mte_allowed)
 			return -EFAULT;
@@ -2195,9 +2194,6 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 		canonical_ipa = ALIGN_DOWN(canonical_ipa, mapping_size);
 	}
 
-	if (!perm_fault_granule && !s2vi->map_non_cacheable && kvm_has_mte(kvm))
-		sanitise_mte_tags(kvm, pfn, mapping_size);
-
 	/*
 	 * Under the premise of getting a FSC_PERM fault, we just need to relax
 	 * permissions only if mapping_size equals perm_fault_granule. Otherwise,
@@ -2212,6 +2208,9 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 		ret = KVM_PGT_FN(kvm_pgtable_stage2_relax_perms)(pgt, gfn_to_gpa(gfn),
 								 prot, flags);
 	} else {
+		if (!s2vi->map_non_cacheable && kvm_has_mte(kvm))
+			sanitise_mte_tags(kvm, pfn, mapping_size);
+
 		ret = KVM_PGT_FN(kvm_pgtable_stage2_map)(pgt, gfn_to_gpa(gfn), mapping_size,
 							 __pfn_to_phys(pfn), prot,
 							 memcache, flags);
@@ -2232,11 +2231,7 @@ out_unlock:
 	kvm_fault_unlock(kvm);
 	kfree(mapping);
 
-	/*
-	 * Mark the page dirty only if the fault is handled successfully,
-	 * making sure we adjust the canonical IPA if the mapping size has
-	 * been updated (via a THP upgrade, for example).
-	 */
+	/* Mark the page dirty only if the fault is handled successfully. */
 	if (writable && !ret)
 		mark_page_dirty_in_slot(kvm, s2fd->memslot,
 					gpa_to_gfn(canonical_ipa));

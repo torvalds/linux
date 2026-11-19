@@ -38,6 +38,9 @@ unsigned int kvm_host_sve_max_vl;
  */
 static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
 
+/* Per VM table entry, the vcpu_idx of the last vCPU of that VM loaded on this CPU. */
+static DEFINE_PER_CPU(unsigned int, last_vcpu_ran[KVM_MAX_PVMS]);
+
 /*
  * The PKVM_HCR_EL2_HOST_{PVM,NPVM} bits of this value come from the host on
  * each entry, and a protected vCPU's TWI and TWE at vCPU load.
@@ -271,6 +274,7 @@ struct pkvm_hyp_vcpu *pkvm_load_hyp_vcpu(pkvm_handle_t handle,
 {
 	struct pkvm_hyp_vcpu *hyp_vcpu = NULL;
 	struct pkvm_hyp_vm *hyp_vm;
+	unsigned int *last_ran;
 
 	/* Cannot load a new vcpu without putting the old one first. */
 	if (__this_cpu_read(loaded_hyp_vcpu))
@@ -300,8 +304,18 @@ struct pkvm_hyp_vcpu *pkvm_load_hyp_vcpu(pkvm_handle_t handle,
 unlock:
 	hyp_spin_unlock(&vm_table_lock);
 
-	if (hyp_vcpu)
-		__this_cpu_write(loaded_hyp_vcpu, hyp_vcpu);
+	if (!hyp_vcpu)
+		return NULL;
+
+	__this_cpu_write(loaded_hyp_vcpu, hyp_vcpu);
+
+	/* TLBs and I-cache are private to each vCPU, see vcpu_prepare_mmu(). */
+	last_ran = this_cpu_ptr(&last_vcpu_ran[vm_handle_to_idx(handle)]);
+	if (*last_ran != vcpu_idx) {
+		__kvm_flush_cpu_context(hyp_vcpu->vcpu.arch.hw_mmu);
+		*last_ran = vcpu_idx;
+	}
+
 	return hyp_vcpu;
 }
 
@@ -668,6 +682,7 @@ static int find_free_vm_table_entry(void)
  */
 static int allocate_vm_table_entry(void)
 {
+	unsigned int cpu;
 	int idx;
 
 	hyp_assert_lock_held(&vm_table_lock);
@@ -685,6 +700,9 @@ static int allocate_vm_table_entry(void)
 		return idx;
 
 	vm_table[idx] = RESERVED_ENTRY;
+
+	for (cpu = 0; cpu < hyp_nr_cpus; cpu++)
+		per_cpu(last_vcpu_ran[idx], cpu) = UINT_MAX;
 
 	return idx;
 }

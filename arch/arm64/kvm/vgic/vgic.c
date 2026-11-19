@@ -285,14 +285,18 @@ struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
 	 * If the IRQ is not active but enabled and pending, we should direct
 	 * it to its configured target VCPU.
 	 * If the distributor is disabled, pending interrupts shouldn't be
-	 * forwarded.
+	 * forwarded, nor should LPIs whose redistributor has them disabled.
 	 */
 	if (irq->enabled && irq_is_pending(irq)) {
-		if (unlikely(irq->target_vcpu &&
-			     !irq->target_vcpu->kvm->arch.vgic.enabled))
+		struct kvm_vcpu *vcpu = irq->target_vcpu;
+
+		if (unlikely(vcpu && !vcpu->kvm->arch.vgic.enabled))
 			return NULL;
 
-		return irq->target_vcpu;
+		if (unlikely(vcpu && irq_is_lpi(vcpu->kvm, irq->intid) && !vgic_lpis_enabled(vcpu)))
+			return NULL;
+
+		return vcpu;
 	}
 
 	/* If neither active nor pending and enabled, then this IRQ should not

@@ -1856,8 +1856,16 @@ static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	bitmap_copy(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES);
 
 	ret = kvm_setup_vcpu(vcpu);
-	if (ret)
+	if (ret) {
+		/* Clear the bitmap and PMU if setup fails on the first vCPU to be initialized. */
+		if (!test_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags)) {
+			bitmap_zero(kvm->arch.vcpu_features, KVM_VCPU_MAX_FEATURES);
+			kvm->arch.arm_pmu = NULL;
+			kvm->arch.nr_pmu_counters = 0;
+		}
+
 		goto out_unlock;
+	}
 
 	/* Now we know what it is, we can reset it. */
 	kvm_reset_vcpu(vcpu);
@@ -2457,10 +2465,12 @@ static void cpu_init_hyp_mode(void)
 	}
 }
 
-static void cpu_hyp_reset(void)
+static int cpu_hyp_reset(void)
 {
 	if (!is_kernel_in_hyp_mode())
-		__hyp_reset_vectors();
+		return __hyp_reset_vectors() ? -EPERM : 0;
+
+	return 0;
 }
 
 /*
@@ -2511,32 +2521,38 @@ static void cpu_hyp_init_features(void)
 		kvm_timer_init_vhe();
 		kvm_debug_init_vhe();
 	}
-
-	if (vgic_present)
-		kvm_vgic_init_cpu_hardware();
 }
 
 static void cpu_hyp_reinit(void)
 {
-	cpu_hyp_reset();
-	cpu_hyp_init_context();
-	cpu_hyp_init_features();
+	if (!cpu_hyp_reset()) {
+		cpu_hyp_init_context();
+		cpu_hyp_init_features();
+	} else if (WARN_ON(!__this_cpu_read(kvm_hyp_initialized))) {
+		return;
+	}
+
+	/*
+	 * Even if the hypervisor didn't allow resetting the vectors we can
+	 * reset the LRs.
+	 */
+	if (vgic_present)
+		kvm_vgic_init_cpu_hardware();
 }
 
 static void cpu_hyp_init(void *discard)
 {
-	if (!__this_cpu_read(kvm_hyp_initialized)) {
-		cpu_hyp_reinit();
-		__this_cpu_write(kvm_hyp_initialized, 1);
-	}
+	cpu_hyp_reinit();
+	__this_cpu_write(kvm_hyp_initialized, 1);
 }
 
 static void cpu_hyp_uninit(void *discard)
 {
-	if (!is_protected_kvm_enabled() && __this_cpu_read(kvm_hyp_initialized)) {
-		cpu_hyp_reset();
+	if (!__this_cpu_read(kvm_hyp_initialized))
+		return;
+
+	if (!cpu_hyp_reset())
 		__this_cpu_write(kvm_hyp_initialized, 0);
-	}
 }
 
 int kvm_arch_enable_virtualization_cpu(void)
@@ -2564,8 +2580,7 @@ void kvm_arch_disable_virtualization_cpu(void)
 	kvm_timer_cpu_down();
 	kvm_vgic_cpu_down();
 
-	if (!is_protected_kvm_enabled())
-		cpu_hyp_uninit(NULL);
+	cpu_hyp_uninit(NULL);
 }
 
 #ifdef CONFIG_CPU_PM
@@ -2608,13 +2623,11 @@ static struct notifier_block hyp_init_cpu_pm_nb = {
 
 static void __init hyp_cpu_pm_init(void)
 {
-	if (!is_protected_kvm_enabled())
-		cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
+	cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
 }
 static void __init hyp_cpu_pm_exit(void)
 {
-	if (!is_protected_kvm_enabled())
-		cpu_pm_unregister_notifier(&hyp_init_cpu_pm_nb);
+	cpu_pm_unregister_notifier(&hyp_init_cpu_pm_nb);
 }
 #else
 static inline void __init hyp_cpu_pm_init(void)
@@ -2737,8 +2750,7 @@ out:
 	if (err)
 		hyp_cpu_pm_exit();
 
-	if (err || !is_protected_kvm_enabled())
-		on_each_cpu(cpu_hyp_uninit, NULL, 1);
+	on_each_cpu(cpu_hyp_uninit, NULL, 1);
 
 	return err;
 }

@@ -193,6 +193,13 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	if (!arm64_kernel_unmapped_at_el0())
 		host_vectors = __this_cpu_read(this_cpu_vector);
 	write_sysreg(host_vectors, vbar_el1);
+
+	/*
+	 * We're now able to take MTE exceptions, make sure the VBAR_EL2 is
+	 * set to the correct value.
+	 */
+	if (mte_disable_tco_entry(current))
+		isb();
 }
 NOKPROBE_SYMBOL(__deactivate_traps);
 

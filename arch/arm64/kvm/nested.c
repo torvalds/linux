@@ -1875,6 +1875,17 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		/* Hide CNTPOFF if present */
 		val = ID_REG_LIMIT_FIELD_ENUM(val, ID_AA64MMFR0_EL1, ECV, IMP);
 
+		/* NV does not support FEAT_LPA2. */
+		if (SYS_FIELD_GET(ID_AA64MMFR0_EL1, TGRAN4, val) == ID_AA64MMFR0_EL1_TGRAN4_52_BIT) {
+			val &= ~ID_AA64MMFR0_EL1_TGRAN4;
+			val |= SYS_FIELD_PREP_ENUM(ID_AA64MMFR0_EL1, TGRAN4, IMP);
+		}
+
+		if (SYS_FIELD_GET(ID_AA64MMFR0_EL1, TGRAN16, val) == ID_AA64MMFR0_EL1_TGRAN16_52_BIT) {
+			val &= ~ID_AA64MMFR0_EL1_TGRAN16;
+			val |= SYS_FIELD_PREP_ENUM(ID_AA64MMFR0_EL1, TGRAN16, IMP);
+		}
+
 		/* Disallow unsupported S2 page sizes */
 		switch (PAGE_SIZE) {
 		case SZ_64K:
@@ -2089,6 +2100,10 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	/* HFGITR2_EL2 */
 	resx = get_reg_fixed_bits(kvm, HFGITR2_EL2);
 	set_sysreg_masks(kvm, HFGITR2_EL2, resx);
+
+	/* TCR_EL2 */
+	resx = get_reg_fixed_bits(kvm, TCR_EL2);
+	set_sysreg_masks(kvm, TCR_EL2, resx);
 
 	/* TCR2_EL2 */
 	resx = get_reg_fixed_bits(kvm, TCR2_EL2);

@@ -219,7 +219,9 @@ struct reg_feat_map_desc {
 #define FEAT_CPA2		ID_AA64ISAR3_EL1, CPA, CPA2
 #define FEAT_ASID2		ID_AA64MMFR4_EL1, ASID2, IMP
 #define FEAT_MEC		ID_AA64MMFR3_EL1, MEC, IMP
+#define FEAT_HAF		ID_AA64MMFR1_EL1, HAFDBS, AF
 #define FEAT_HAFT		ID_AA64MMFR1_EL1, HAFDBS, HAFT
+#define FEAT_HAFDBS		ID_AA64MMFR1_EL1, HAFDBS, DBM
 #define FEAT_HDBSS		ID_AA64MMFR1_EL1, HAFDBS, HDBSS
 #define FEAT_HPDS		ID_AA64MMFR1_EL1, HPDS, IMP
 #define FEAT_HPDS2		ID_AA64MMFR1_EL1, HPDS, HPDS2
@@ -232,6 +234,10 @@ struct reg_feat_map_desc {
 #define FEAT_MixedEndEL0	ID_AA64MMFR0_EL1, BIGENDEL0, IMP
 #define FEAT_MTE_ASYNC		ID_AA64PFR1_EL1, MTE_frac, ASYNC
 #define FEAT_MTE_STORE_ONLY	ID_AA64PFR2_EL1, MTESTOREONLY, IMP
+#define FEAT_MTE_CANONICAL_TAGS	ID_AA64PFR1_EL1, MTEX, MTE4
+#define FEAT_MTE_NO_ADDRESS_TAGS	ID_AA64PFR1_EL1, MTEX, MTE4
+#define FEAT_E0PD		ID_AA64MMFR2_EL1, E0PD, IMP
+#define FEAT_SVE		ID_AA64PFR0_EL1, SVE, IMP
 #define FEAT_PAN		ID_AA64MMFR1_EL1, PAN, IMP
 #define FEAT_PAN3		ID_AA64MMFR1_EL1, PAN, PAN3
 #define FEAT_SSBS		ID_AA64PFR1_EL1, SSBS, IMP
@@ -243,6 +249,19 @@ struct reg_feat_map_desc {
 #define FEAT_S2PIE		ID_AA64MMFR3_EL1, S2PIE, IMP
 #define FEAT_GCIE		ID_AA64PFR2_EL1, GCIE, IMP
 #define FEAT_NV3		ID_AA64MMFR4_EL1, NV_frac, NV3
+
+static bool feat_asid16(struct kvm *kvm)
+{
+	return kvm_has_feat_enum(kvm, ID_AA64MMFR0_EL1, ASIDBITS, 16);
+}
+
+static bool feat_mte_no_addr_tags_or_canonical_tags(struct kvm *kvm)
+{
+	bool no_addr_tags = kvm_has_feat(kvm, FEAT_MTE_NO_ADDRESS_TAGS);
+	bool canonical_tags = kvm_has_feat(kvm, FEAT_MTE_CANONICAL_TAGS);
+
+	return no_addr_tags || canonical_tags;
+}
 
 static bool not_feat_aa64el3(struct kvm *kvm)
 {
@@ -1080,6 +1099,91 @@ static const struct reg_bits_to_feat_map sctlr2_feat_map[] = {
 static const DECLARE_FEAT_MAP(sctlr2_desc, SCTLR2_EL1,
 			      sctlr2_feat_map, FEAT_SCTLR2);
 
+static const struct reg_bits_to_feat_map vhe_tcr_el2_feat_map[] = {
+	NEEDS_FEAT(VHE_TCR_EL2_MTX1	|
+		   VHE_TCR_EL2_MTX0,
+		   feat_mte_no_addr_tags_or_canonical_tags),
+	NEEDS_FEAT(VHE_TCR_EL2_DS, feat_lpa2),
+	NEEDS_FEAT(VHE_TCR_EL2_TCMA1	|
+		   VHE_TCR_EL2_TCMA0,
+		   FEAT_MTE2),
+	NEEDS_FEAT(VHE_TCR_EL2_E0PD1	|
+		   VHE_TCR_EL2_E0PD0,
+		   FEAT_E0PD),
+	NEEDS_FEAT(VHE_TCR_EL2_NFD1	|
+		   VHE_TCR_EL2_NFD0,
+		   FEAT_SVE),
+	NEEDS_FEAT(VHE_TCR_EL2_TBID1	|
+		   VHE_TCR_EL2_TBID0,
+		   feat_pauth),
+	NEEDS_FEAT(VHE_TCR_EL2_HWU162	|
+		   VHE_TCR_EL2_HWU161	|
+		   VHE_TCR_EL2_HWU160	|
+		   VHE_TCR_EL2_HWU159	|
+		   VHE_TCR_EL2_HWU062	|
+		   VHE_TCR_EL2_HWU061	|
+		   VHE_TCR_EL2_HWU060	|
+		   VHE_TCR_EL2_HWU059,
+		   FEAT_HPDS2),
+	NEEDS_FEAT(VHE_TCR_EL2_HPD1	|
+		   VHE_TCR_EL2_HPD0,
+		   FEAT_HPDS),
+	NEEDS_FEAT(VHE_TCR_EL2_HD, FEAT_HAFDBS),
+	NEEDS_FEAT(VHE_TCR_EL2_HA, FEAT_HAF),
+	NEEDS_FEAT(VHE_TCR_EL2_AS, feat_asid16),
+	NEEDS_FEAT(VHE_TCR_EL2_TBI1		|
+		   VHE_TCR_EL2_TBI0		|
+		   VHE_TCR_EL2_IPS		|
+		   VHE_TCR_EL2_TG1		|
+		   VHE_TCR_EL2_SH1		|
+		   VHE_TCR_EL2_ORGN1		|
+		   VHE_TCR_EL2_IRGN1		|
+		   VHE_TCR_EL2_EPD1		|
+		   VHE_TCR_EL2_A1		|
+		   VHE_TCR_EL2_T1SZ		|
+		   VHE_TCR_EL2_TG0		|
+		   VHE_TCR_EL2_SH0		|
+		   VHE_TCR_EL2_ORGN0		|
+		   VHE_TCR_EL2_IRGN0		|
+		   VHE_TCR_EL2_EPD0		|
+		   VHE_TCR_EL2_T0SZ,
+		   FEAT_AA64EL2),
+	FORCE_RES0(VHE_TCR_EL2_RES0),
+	FORCE_RES1(VHE_TCR_EL2_RES1),
+};
+
+static const DECLARE_FEAT_MAP(vhe_tcr_el2_desc, VHE_TCR_EL2,
+			      vhe_tcr_el2_feat_map, FEAT_AA64EL2);
+
+static const struct reg_bits_to_feat_map tcr_el2_feat_map[] = {
+	NEEDS_FEAT(TCR_EL2_MTX,
+		   feat_mte_no_addr_tags_or_canonical_tags),
+	NEEDS_FEAT(TCR_EL2_DS, feat_lpa2),
+	NEEDS_FEAT(TCR_EL2_TCMA, FEAT_MTE2),
+	NEEDS_FEAT(TCR_EL2_TBID, feat_pauth),
+	NEEDS_FEAT(TCR_EL2_HWU62	|
+		   TCR_EL2_HWU61	|
+		   TCR_EL2_HWU60	|
+		   TCR_EL2_HWU59,
+		   FEAT_HPDS2),
+	NEEDS_FEAT(TCR_EL2_HPD, FEAT_HPDS),
+	NEEDS_FEAT(TCR_EL2_HD, FEAT_HAFDBS),
+	NEEDS_FEAT(TCR_EL2_HA, FEAT_HAF),
+	NEEDS_FEAT(TCR_EL2_TBI		|
+		   TCR_EL2_PS		|
+		   TCR_EL2_TG0		|
+		   TCR_EL2_SH0		|
+		   TCR_EL2_ORGN0	|
+		   TCR_EL2_IRGN0	|
+		   TCR_EL2_T0SZ,
+		   FEAT_AA64EL2),
+	FORCE_RES0(TCR_EL2_RES0),
+	FORCE_RES1(TCR_EL2_RES1),
+};
+
+static const DECLARE_FEAT_MAP(tcr_el2_desc, TCR_EL2,
+			      tcr_el2_feat_map, FEAT_AA64EL2);
+
 static const struct reg_bits_to_feat_map tcr2_el2_feat_map[] = {
 	NEEDS_FEAT_FLAG(TCR2_EL2_FNG1	|
 			TCR2_EL2_FNG0	|
@@ -1442,6 +1546,8 @@ void __init check_feature_map(void)
 	check_reg_desc(&hcr_desc);
 	check_reg_desc(&nvhcr_desc);
 	check_reg_desc(&sctlr2_desc);
+	check_reg_desc(&vhe_tcr_el2_desc);
+	check_reg_desc(&tcr_el2_desc);
 	check_reg_desc(&tcr2_el2_desc);
 	check_reg_desc(&sctlr_el1_desc);
 	check_reg_desc(&sctlr_el2_desc);
@@ -1688,6 +1794,12 @@ struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg)
 	case SCTLR2_EL1:
 	case SCTLR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &sctlr2_desc, 0, 0);
+		break;
+	case TCR_EL2:
+		if (kvm_has_feat(kvm, FEAT_E2H0))
+			resx = compute_reg_resx_bits(kvm, &tcr_el2_desc, 0, 0);
+		else
+			resx = compute_reg_resx_bits(kvm, &vhe_tcr_el2_desc, 0, 0);
 		break;
 	case TCR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &tcr2_el2_desc, 0, 0);

@@ -519,7 +519,7 @@ int vgic_init(struct kvm *kvm)
 		if (vgic_supports_direct_irqs(kvm)) {
 			ret = vgic_v4_init(kvm);
 			if (ret)
-				return ret;
+				goto out_free_spis;
 		}
 	} else {
 		if (!dist->nr_spis)
@@ -534,17 +534,24 @@ int vgic_init(struct kvm *kvm)
 		kvm_vgic_vcpu_reset(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
-	if (ret) {
-		if (vgic_is_v5(kvm))
-			vgic_v5_teardown(kvm);
-
-		return ret;
-	}
+	if (ret)
+		goto out_teardown;
 
 	vgic_debug_init(kvm);
 	dist->initialized = true;
 
 	return 0;
+
+out_teardown:
+	if (vgic_is_v5(kvm))
+		vgic_v5_teardown(kvm);
+	else
+		vgic_v4_teardown(kvm);
+out_free_spis:
+	kfree(dist->spis);
+	dist->spis = NULL;
+
+	return ret;
 }
 
 static void kvm_vgic_dist_destroy(struct kvm *kvm)

@@ -248,7 +248,7 @@ int vgic_v4_init(struct kvm *kvm)
 
 	lockdep_assert_held(&kvm->arch.config_lock);
 
-	if (!kvm_vgic_global_state.has_gicv4)
+	if (!vgic_supports_vpes(kvm))
 		return 0; /* Nothing to see here... move along. */
 
 	if (dist->its_vm.vpes)
@@ -332,6 +332,9 @@ void vgic_v4_teardown(struct kvm *kvm)
 		irq_clear_status_flags(irq, DB_IRQ_FLAGS);
 		free_irq(irq, vcpu);
 	}
+
+	/* Make sure we free all VM-wide, per-CPU resources */
+	its_vm->nr_vpes = atomic_read(&kvm->online_vcpus);
 
 	its_free_vcpu_irqs(its_vm);
 	kfree(its_vm->vpes);
