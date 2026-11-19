@@ -193,10 +193,9 @@ static void mptcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 				void *_info)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	struct mptcp_info *info = _info;
 
 	r->idiag_rqueue = sk_rmem_alloc_get(sk) +
-			  READ_ONCE(mptcp_sk(sk)->backlog_len);
+			  READ_ONCE(msk->backlog_len);
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 
 	if (inet_sk_state_load(sk) == TCP_LISTEN) {
@@ -210,11 +209,29 @@ static void mptcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 			r->idiag_wqueue = READ_ONCE(lsk->sk_max_ack_backlog);
 		}
 	}
+}
 
-	if (!info)
-		return;
+static int mptcp_diag_get_aux(struct sock *sk, bool net_admin,
+			      struct sk_buff *skb)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+	struct mptcp_info *info;
+	struct nlattr *attr;
 
+	attr = nla_reserve_64bit(skb, INET_DIAG_INFO,
+				 sizeof(struct mptcp_info), INET_DIAG_PAD);
+	if (!attr)
+		return -EMSGSIZE;
+
+	info = nla_data(attr);
 	mptcp_diag_fill_info(msk, info);
+	/* Only export seq related counters to user with CAP_NET_ADMIN */
+	if (!net_admin) {
+		info->mptcpi_write_seq = 0;
+		info->mptcpi_snd_una = 0;
+		info->mptcpi_rcv_nxt = 0;
+	}
+	return 0;
 }
 
 static const struct inet_diag_handler mptcp_diag_handler = {
@@ -222,8 +239,9 @@ static const struct inet_diag_handler mptcp_diag_handler = {
 	.dump		 = mptcp_diag_dump,
 	.dump_one	 = mptcp_diag_dump_one,
 	.idiag_get_info  = mptcp_diag_get_info,
+	.idiag_get_aux	 = mptcp_diag_get_aux,
 	.idiag_type	 = IPPROTO_MPTCP,
-	.idiag_info_size = sizeof(struct mptcp_info),
+	.idiag_info_size = 0,
 };
 
 static int __init mptcp_diag_init(void)
