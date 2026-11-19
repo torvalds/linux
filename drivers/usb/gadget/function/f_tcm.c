@@ -1275,6 +1275,7 @@ skip:
 		struct uas_stream *stream = NULL;
 		struct hlist_node *tmp;
 		struct usbg_cmd *active_cmd = NULL;
+		struct usb_request *req;
 
 		se_sess = cmd->fu->tpg->tpg_nexus->tvn_se_sess;
 
@@ -1319,6 +1320,12 @@ skip:
 		}
 
 		/*
+		 * Take the request before the slot goes back to the pool; it
+		 * is queued on ep_cmd below.
+		 */
+		req = cmd->req;
+
+		/*
 		 * The command isn't submitted to the target core, so we're safe
 		 * to remove the bitmap index from the session tag pool.
 		 */
@@ -1332,6 +1339,8 @@ skip:
 		 */
 		active_cmd->tmr_rsp = RC_OVERLAPPED_TAG;
 		usbg_aborted_task(&active_cmd->se_cmd);
+
+		usb_ep_queue(fu->ep_cmd, req, GFP_ATOMIC);
 
 		/* Send the response after the transfer is aborted. */
 		return;
