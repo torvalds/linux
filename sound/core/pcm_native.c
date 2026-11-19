@@ -3147,7 +3147,8 @@ static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
 		return 0;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		ret = do_pcm_hwsync(substream);
@@ -3157,7 +3158,6 @@ static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
 	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
-	atomic_dec(&runtime->buffer_accessing);
 	return ret;
 }
 
@@ -3171,7 +3171,8 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 		return 0;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		ret = do_pcm_hwsync(substream);
@@ -3181,7 +3182,6 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
-	atomic_dec(&runtime->buffer_accessing);
 	return ret;
 }
 
@@ -3192,7 +3192,8 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 	int err;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		err = do_pcm_hwsync(substream);
@@ -3200,7 +3201,6 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 			*delay = snd_pcm_calc_delay(substream);
 	}
 	snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_CPU);
-	atomic_dec(&runtime->buffer_accessing);
 
 	return err;
 }
@@ -4104,32 +4104,23 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 	}
 	runtime = substream->runtime;
 	/* don't race with buffer reallocation in hw_params/hw_free */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
-	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		err = -EBADFD;
-		goto out;
-	}
-	if (!(runtime->info & SNDRV_PCM_INFO_MMAP)) {
-		err = -ENXIO;
-		goto out;
-	}
+	if (runtime->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
+	if (!(runtime->info & SNDRV_PCM_INFO_MMAP))
+		return -ENXIO;
 	if (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
-	    runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED) {
-		err = -EINVAL;
-		goto out;
-	}
+	    runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
+		return -EINVAL;
 	size = area->vm_end - area->vm_start;
 	offset = area->vm_pgoff << PAGE_SHIFT;
 	dma_bytes = PAGE_ALIGN(runtime->dma_bytes);
-	if ((size_t)size > dma_bytes) {
-		err = -EINVAL;
-		goto out;
-	}
-	if (offset > dma_bytes - size) {
-		err = -EINVAL;
-		goto out;
-	}
+	if ((size_t)size > dma_bytes)
+		return -EINVAL;
+	if (offset > dma_bytes - size)
+		return -EINVAL;
 
 	area->vm_ops = &snd_pcm_vm_ops_data;
 	area->vm_private_data = substream;
@@ -4139,8 +4130,6 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 		err = snd_pcm_lib_default_mmap(substream, area);
 	if (!err)
 		atomic_inc(&substream->mmap_count);
-out:
-	atomic_dec(&runtime->buffer_accessing);
 	return err;
 }
 EXPORT_SYMBOL(snd_pcm_mmap_data);

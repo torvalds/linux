@@ -86,4 +86,30 @@ static inline void snd_pcm_dma_buffer_sync(struct snd_pcm_substream *substream,
 #define is_oss_stream(substream)	false
 #endif
 
+/*
+ * helpers for restricting hw_params / hw_refine changes
+ */
+static inline int snd_pcm_buffer_access_get(struct snd_pcm_runtime *runtime)
+{
+	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+		return -EBUSY;
+	return 0;
+}
+
+static inline void snd_pcm_buffer_access_put(struct snd_pcm_runtime *runtime)
+{
+	atomic_dec(&runtime->buffer_accessing);
+}
+
+/* auto-cleanup macros */
+DEFINE_GUARD(snd_pcm_buffer_access, struct snd_pcm_runtime *,
+	     snd_pcm_buffer_access_get(_T), snd_pcm_buffer_access_put(_T));
+DEFINE_GUARD_COND(snd_pcm_buffer_access, _try,
+		  snd_pcm_buffer_access_get(_T), _RET == 0);
+
+#define SND_PCM_BUFFER_ACQUIRE(runtime, var) \
+	ACQUIRE(snd_pcm_buffer_access_try, var)(runtime)
+#define SND_PCM_BUFFER_ACQUIRE_ERR(var) \
+	ACQUIRE_ERR(snd_pcm_buffer_access_try, &(var))
+
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */
