@@ -1,20 +1,13 @@
 include ../../../../../build/Build.include
 
-UNAME_M := $(shell uname -m)
+top_srcdir ?= ../../../../../..
+include $(top_srcdir)/scripts/subarch.include
+ARCH_PROCESSED := $(or $(ARCH),$(SUBARCH))
 
-ifneq ($(UNAME_M),s390x)
-nothing:
-.PHONY: all clean run_tests install
-.SILENT:
-else
-
+ifneq (,$(filter s390 s390x,$(ARCH_PROCESSED)))
 TEST_GEN_PROGS := test_uvdevice
 
-top_srcdir ?= ../../../../../..
-LINUX_TOOL_ARCH_INCLUDE = $(top_srcdir)/tools/arch/$(ARCH)/include
-
-CFLAGS += -Wall -Werror -static $(KHDR_INCLUDES) -I$(LINUX_TOOL_ARCH_INCLUDE)
+CFLAGS += -Wall -Werror -static $(KHDR_INCLUDES)
+endif
 
 include ../../../lib.mk
-
-endif

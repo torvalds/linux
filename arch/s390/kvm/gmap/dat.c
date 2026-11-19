@@ -1084,6 +1084,7 @@ int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn)
  * * %1 if the page state has been altered and the page is to be added to the CBRL
  * * %0 if the page state has been altered, but the page is not to be added to the CBRL
  * * %-1 if the page state has not been altered and the page is not to be added to the CBRL
+ * * %PGM_ADDRESSING if the guest page-table walk failed
  */
 int dat_perform_essa(union asce asce, gfn_t gfn, int orc, union essa_state *state, bool *dirty)
 {
@@ -1092,7 +1093,9 @@ int dat_perform_essa(union asce asce, gfn_t gfn, int orc, union essa_state *stat
 	union pte *ptep;
 	int res = 0;
 
-	if (dat_entry_walk(NULL, gfn, asce, 0, TABLE_TYPE_PAGE_TABLE, &crstep, &ptep)) {
+	if (dat_entry_walk(NULL, gfn, asce, DAT_WALK_ANY, TABLE_TYPE_PAGE_TABLE, &crstep, &ptep))
+		return PGM_ADDRESSING;
+	if (!ptep) {
 		*state = (union essa_state) { .exception = 1 };
 		return -1;
 	}
