@@ -131,6 +131,15 @@ EXPORT_PER_CPU_SYMBOL_GPL(udp_memory_per_cpu_fw_alloc);
 #define MAX_UDP_PORTS 65536
 #define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN_PERNET)
 
+static bool udp_sk_reuseport_match(struct sock *sk, struct sock *sk2)
+{
+	return sk2->sk_family == sk->sk_family &&
+	       ipv6_only_sock(sk2) == ipv6_only_sock(sk) &&
+	       sk2->sk_bound_dev_if == sk->sk_bound_dev_if &&
+	       sk2->sk_reuse == sk->sk_reuse &&
+	       inet_rcv_saddr_equal(sk, sk2, false);
+}
+
 static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			       const struct udp_hslot *hslot,
 			       unsigned long *bitmap,
@@ -154,8 +163,11 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			if (!bitmap) {
 				if (sk2->sk_reuseport && sk->sk_reuseport &&
 				    !rcu_access_pointer(sk->sk_reuseport_cb) &&
-				    uid_eq(uid, sk_uid(sk2)))
-					return 0;
+				    uid_eq(uid, sk_uid(sk2))) {
+					if (udp_sk_reuseport_match(sk, sk2))
+						return 0;
+					continue;
+				}
 				return 1;
 			}
 			__set_bit(udp_sk(sk2)->udp_port_hash >> log, bitmap);
@@ -188,10 +200,13 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 			if (sk2->sk_reuseport && sk->sk_reuseport &&
 			    !rcu_access_pointer(sk->sk_reuseport_cb) &&
 			    uid_eq(uid, sk_uid(sk2))) {
-				res = 0;
-			} else {
-				res = 1;
+				if (udp_sk_reuseport_match(sk, sk2)) {
+					res = 0;
+					break;
+				}
+				continue;
 			}
+			res = 1;
 			break;
 		}
 	}
