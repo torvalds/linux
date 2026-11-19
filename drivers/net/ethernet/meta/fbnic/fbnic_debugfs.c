@@ -3,7 +3,6 @@
 
 #include <linux/debugfs.h>
 #include <linux/pci.h>
-#include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
 
 #include "fbnic.h"
@@ -607,7 +606,6 @@ static int fbnic_dbg_pcie_stats_show(struct seq_file *s, void *v)
 {
 	struct fbnic_dev *fbd = s->private;
 
-	rtnl_lock();
 	fbnic_get_hw_stats(fbd);
 
 	seq_printf(s, "ob_rd_tlp: %llu\n", fbd->hw_stats.pcie.ob_rd_tlp.value);
@@ -626,7 +624,6 @@ static int fbnic_dbg_pcie_stats_show(struct seq_file *s, void *v)
 		   fbd->hw_stats.pcie.ob_rd_no_cpl_cred.value);
 	seq_printf(s, "ob_rd_no_np_cred: %llu\n",
 		   fbd->hw_stats.pcie.ob_rd_no_np_cred.value);
-	rtnl_unlock();
 
 	return 0;
 }

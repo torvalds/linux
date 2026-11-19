@@ -350,12 +350,12 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	fbnic_fw_log_enable(fbd, true);
 
+	/* Capture snapshot of hardware stats so netdev can calculate delta */
+	fbnic_init_hw_stats(fbd);
+
 	fbnic_devlink_register(fbd);
 	fbnic_devlink_otp_check(fbd, "error detected during probe");
 	fbnic_dbg_fbd_init(fbd);
-
-	/* Capture snapshot of hardware stats so netdev can calculate delta */
-	fbnic_init_hw_stats(fbd);
 
 	fbnic_hwmon_register(fbd);
 
@@ -498,10 +498,16 @@ static int __fbnic_pm_resume(struct device *dev)
 	struct fbnic_net *fbn;
 	int err;
 
-	/* Restore MMIO access */
+	/* Restore MMIO access and rebase the HW stats in one step, so that
+	 * no stats read can take its delta from counters the reset cleared
+	 * against the values read before it.
+	 */
 	iomap_table = pcim_iomap_table(to_pci_dev(dev));
+	spin_lock(&fbd->hw_stats.lock);
 	fbd->uc_addr0 = iomap_table[0];
 	fbd->uc_addr4 = iomap_table[4];
+	__fbnic_reset_hw_stats(fbd);
+	spin_unlock(&fbd->hw_stats.lock);
 
 	/* Rerequest the IRQs */
 	err = fbnic_alloc_irqs(fbd);
@@ -581,8 +587,6 @@ static void __fbnic_pm_attach(struct device *dev)
 	 */
 	rtnl_lock();
 	netdev_lock(netdev);
-
-	fbnic_reset_hw_stats(fbd);
 
 	if (netif_running(netdev))
 		fbnic_up(fbn);
