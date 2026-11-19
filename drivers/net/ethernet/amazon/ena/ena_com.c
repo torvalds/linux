@@ -1992,6 +1992,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 
 	admin_queue->q_depth = ENA_ADMIN_QUEUE_DEPTH;
 
+	admin_queue->ena_dev = ena_dev;
 	admin_queue->q_dmadev = ena_dev->dmadev;
 	admin_queue->polling = false;
 	admin_queue->curr_cmd_id = 0;
@@ -2045,7 +2046,6 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	if (ret)
 		goto error;
 
-	admin_queue->ena_dev = ena_dev;
 	admin_queue->running_state = true;
 
 	return 0;

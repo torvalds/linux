@@ -6372,7 +6372,8 @@ static struct sctp_sackhdr *sctp_sm_pull_sack(struct sctp_chunk *chunk)
 	num_dup_tsns = ntohs(sack->num_dup_tsns);
 	len = sizeof(struct sctp_sackhdr);
 	len += (num_blocks + num_dup_tsns) * sizeof(__u32);
-	if (len > chunk->skb->len)
+	if (len > ntohs(chunk->chunk_hdr->length) -
+		  sizeof(struct sctp_chunkhdr))
 		return NULL;
 
 	skb_pull(chunk->skb, len);

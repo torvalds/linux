@@ -984,7 +984,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	/* NAPI functions as RCU section */
 	peer_dev = rcu_dereference_check(priv->peer, rcu_read_lock_bh_held());
-	peer_txq = (peer_dev && queue_idx < peer_dev->real_num_tx_queues) ?
+	peer_txq = (peer_dev && queue_idx < peer_dev->num_tx_queues) ?
 		   netdev_get_tx_queue(peer_dev, queue_idx) : NULL;
 
 	xdp_set_return_frame_no_direct();
@@ -1087,6 +1087,7 @@ static int __veth_napi_enable(struct net_device *dev)
 static void veth_napi_del_range(struct net_device *dev, int start, int end)
 {
 	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
 	int i;
 
 	for (i = start; i < end; i++) {
@@ -1099,11 +1100,17 @@ static void veth_napi_del_range(struct net_device *dev, int start, int end)
 	}
 	synchronize_net();
 
+	peer = rtnl_dereference(priv->peer);
+
 	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		rq->rx_notify_masked = false;
 		ptr_ring_cleanup(&rq->xdp_ring, veth_ptr_free);
+
+		/* veth_poll() can no longer wake a txq stopped on a full ring */
+		if (peer && i < peer->num_tx_queues)
+			netif_wake_subqueue(peer, i);
 	}
 
 	for (i = start; i < end; i++) {

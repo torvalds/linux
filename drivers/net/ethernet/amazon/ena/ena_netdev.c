@@ -2609,7 +2609,6 @@ error_report_dma_error:
 
 	tx_info->skb = NULL;
 
-	tx_info->num_of_bufs += i;
 	ena_unmap_tx_buff(tx_ring, tx_info);
 
 	return -EINVAL;

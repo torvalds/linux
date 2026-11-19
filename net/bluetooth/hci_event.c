@@ -6158,6 +6158,26 @@ static void hci_le_pa_sync_lost_evt(struct hci_dev *hdev, void *data,
 	hci_dev_unlock(hdev);
 }
 
+/* The instance advertising on the set identified by handle. Handle 0x00 may
+ * be shared by Global Advertising and an instance, e.g. instance 1 when the
+ * controller supports a single advertising set, in which case the instance
+ * enabled on it, if any, owns the set (see hci_le_ext_adv_set_enabled()).
+ */
+static struct adv_info *hci_le_ext_adv_owner(struct hci_dev *hdev, u8 handle)
+{
+	struct adv_info *adv;
+
+	if (handle)
+		return hci_find_adv_instance(hdev, handle);
+
+	list_for_each_entry(adv, &hdev->adv_instances, list) {
+		if (!adv->handle && adv->enabled)
+			return adv;
+	}
+
+	return NULL;
+}
+
 static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 				    struct sk_buff *skb)
 {
@@ -6181,15 +6201,18 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
-	adv = hci_find_adv_instance(hdev, ev->handle);
+	adv = hci_le_ext_adv_owner(hdev, ev->handle);
 
 	if (ev->status) {
+		u8 instance;
+
 		if (!adv)
 			goto unlock;
 
 		/* Remove advertising as it has been terminated */
-		hci_remove_adv_instance(hdev, ev->handle);
-		mgmt_advertising_removed(NULL, hdev, ev->handle);
+		instance = adv->instance;
+		hci_free_adv_instance(hdev, adv);
+		mgmt_advertising_removed(NULL, hdev, instance);
 
 		list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
 			if (adv->enabled)
@@ -6206,22 +6229,19 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->conn_handle));
 	if (conn) {
-		/* Store handle in the connection so the correct advertising
-		 * instance can be re-enabled when disconnected.
+		/* Store the instance in the connection so the correct
+		 * advertising instance can be re-enabled when disconnected.
 		 */
-		conn->adv_instance = ev->handle;
+		conn->adv_instance = adv ? adv->instance : ev->handle;
 
 		if (hdev->adv_addr_type != ADDR_LE_DEV_RANDOM ||
 		    bacmp(&conn->resp_addr, BDADDR_ANY))
 			goto unlock;
 
-		if (!ev->handle) {
-			bacpy(&conn->resp_addr, &hdev->random_addr);
-			goto unlock;
-		}
-
 		if (adv)
 			bacpy(&conn->resp_addr, &adv->random_addr);
+		else if (!ev->handle)
+			bacpy(&conn->resp_addr, &hdev->random_addr);
 	}
 
 unlock:

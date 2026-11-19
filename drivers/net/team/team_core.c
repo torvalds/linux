@@ -2834,6 +2834,10 @@ int team_nl_options_set_doit(struct sk_buff *skb, struct genl_info *info)
 			ctx.info = opt_inst_info;
 			switch (opt_type) {
 			case TEAM_OPTION_TYPE_U32:
+				if (nla_len(attr_data) != sizeof(u32)) {
+					err = -EINVAL;
+					goto team_put;
+				}
 				ctx.data.u32_val = nla_get_u32(attr_data);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
@@ -2853,6 +2857,10 @@ int team_nl_options_set_doit(struct sk_buff *skb, struct genl_info *info)
 				ctx.data.bool_val = attr_data ? true : false;
 				break;
 			case TEAM_OPTION_TYPE_S32:
+				if (nla_len(attr_data) != sizeof(s32)) {
+					err = -EINVAL;
+					goto team_put;
+				}
 				ctx.data.s32_val = nla_get_s32(attr_data);
 				break;
 			default:

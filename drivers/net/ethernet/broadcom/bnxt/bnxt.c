@@ -11318,7 +11318,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	/* Filter for default vnic 0 */
 	rc = bnxt_hwrm_set_vnic_filter(bp, 0, 0, bp->dev->dev_addr);
 	if (rc) {
-		if (BNXT_VF(bp) && rc == -ENODEV)
+		if (rc == -ECOMM)
 			netdev_err(bp->dev, "Cannot configure L2 filter while PF is unavailable\n");
 		else
 			netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n", rc);
@@ -12476,7 +12476,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	rc = hwrm_req_send(bp, req);
 	if (rc) {
 		hwrm_req_drop(bp, req);
-		if (BNXT_VF(bp) && rc == -ENODEV) {
+		if (rc == -ECOMM) {
 			netdev_warn(bp->dev, "Cannot obtain link state while PF unavailable.\n");
 			rc = 0;
 		}
@@ -13953,7 +13953,7 @@ static int bnxt_cfg_rx_mode(struct bnxt *bp, struct netdev_hw_addr_list *uc,
 	for (i = 1, off = 0; i < vnic->uc_filter_count; i++, off += ETH_ALEN) {
 		rc = bnxt_hwrm_set_vnic_filter(bp, 0, i, vnic->uc_list + off);
 		if (rc) {
-			if (BNXT_VF(bp) && rc == -ENODEV) {
+			if (rc == -ECOMM) {
 				netdev_warn(bp->dev, "Cannot configure L2 filters while PF is unavailable, will retry\n");
 				rc = -EAGAIN;
 			} else if (rc == -EAGAIN) {
@@ -17003,7 +17003,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	}
 
 	rc = __bnxt_reserve_rings(bp);
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -ECOMM)
 		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
 
 	bnxt_adj_tx_rings(bp);
@@ -17013,7 +17013,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	/* Rings may have been trimmed, re-reserve the trimmed rings. */
 	if (bnxt_need_reserve_rings(bp)) {
 		rc = __bnxt_reserve_rings(bp);
-		if (rc && rc != -ENODEV)
+		if (rc && rc != -ECOMM)
 			netdev_warn(bp->dev, "2nd rings reservation failed.\n");
 		bnxt_adj_tx_rings(bp);
 	}
@@ -17039,7 +17039,7 @@ static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
 	bnxt_clear_int_mode(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
-		if (BNXT_VF(bp) && rc == -ENODEV)
+		if (rc == -ECOMM)
 			netdev_err(bp->dev, "Cannot configure VF rings while PF is unavailable.\n");
 		else
 			netdev_err(bp->dev, "Not enough rings available.\n");
@@ -17417,7 +17417,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bnxt_aux_devices_init(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
-		if (BNXT_VF(bp) && rc == -ENODEV) {
+		if (rc == -ECOMM) {
 			netdev_err(bp->dev, "Cannot configure VF rings while PF is unavailable.\n");
 		} else {
 			netdev_err(bp->dev, "Not enough rings available.\n");
@@ -17573,21 +17573,50 @@ static int bnxt_suspend(struct device *device)
 	return rc;
 }
 
+#define BNXT_RESUME_MAX_RETRY	10
+
 static int bnxt_resume(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct bnxt *bp = netdev_priv(dev);
-	int rc = 0;
+	int i, rc;
 
-	rtnl_lock();
-	netdev_lock(dev);
 	rc = pci_enable_device(bp->pdev);
 	if (rc) {
 		netdev_err(dev, "Cannot re-enable PCI device during resume, err = %d\n",
 			   rc);
-		goto resume_exit;
+		return rc;
 	}
 	pci_set_master(bp->pdev);
+	if (BNXT_VF(bp)) {
+		for (i = 0; i < BNXT_RESUME_MAX_RETRY; i++) {
+			rc = bnxt_hwrm_poll(bp);
+			if (rc != -EAGAIN && rc != -EBUSY && rc != -ECOMM)
+				break;
+
+			/* Wait briefly for -EAGAIN (FW busy), a bit longer for
+			 * -ECOMM (PF down) to allow the PF to fully initialize.
+			 * For -EBUSY, the message typically has timed out, so
+			 * try again immediately.
+			 */
+			if (i < BNXT_RESUME_MAX_RETRY - 1) {
+				if (rc == -EAGAIN)
+					msleep(250);
+				else if (rc == -ECOMM)
+					msleep(750);
+			}
+		}
+		if (rc) {
+			netdev_err(dev,
+				   "Firmware not responding during resume, rc = %d\n",
+				   rc);
+			return -ENODEV;
+		}
+	}
+
+	rtnl_lock();
+	netdev_lock(dev);
+
 	if (bnxt_hwrm_ver_get(bp)) {
 		rc = -ENODEV;
 		goto resume_exit;

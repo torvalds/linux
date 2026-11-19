@@ -834,13 +834,14 @@ static void netmem_ref_test_pp_page(struct kunit *test)
 #endif
 
 #if defined(CONFIG_PAGE_POOL) && defined(CONFIG_NET_DEVMEM)
+static struct net_devmem_dmabuf_binding binding;
+
 static void dummy_percpu_ref_release(struct percpu_ref *ref)
 {
 }
 
 static void netmem_ref_test_net_iov(struct kunit *test)
 {
-	struct net_devmem_dmabuf_binding binding = {};
 	struct page_pool_params pp_params = {
 		.order = 0,
 		.pool_size = 4,
@@ -853,6 +854,7 @@ static void netmem_ref_test_net_iov(struct kunit *test)
 	long base_ref;
 	int err;
 
+	memset(&binding, 0, sizeof(binding));
 	err = percpu_ref_init(&binding.ref, dummy_percpu_ref_release,
 			      PERCPU_REF_INIT_ATOMIC, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -995,7 +997,6 @@ static void netmem_ref_test_release_data(struct kunit *test)
 		.nid = NUMA_NO_NODE,
 	};
 	struct sk_buff *skb, *clone1, *clone2, *ext;
-	struct net_devmem_dmabuf_binding binding = {};
 	struct net_iov niov = {};
 	struct page_pool *pool;
 	struct page *page;
@@ -1004,6 +1005,7 @@ static void netmem_ref_test_release_data(struct kunit *test)
 	int base_ref;
 	int i;
 
+	memset(&binding, 0, sizeof(binding));
 	pool = page_pool_create(&pp_params);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(pool));
 	page = page_pool_dev_alloc_pages(pool);
@@ -1185,7 +1187,6 @@ static void netmem_ref_test_skb_segment(struct kunit *test)
 		.flags = SKBFL_ZEROCOPY_ENABLE,
 	};
 	struct sk_buff *head, *list, *segs, *seg;
-	struct net_devmem_dmabuf_binding binding = {};
 	struct net_iov niov = {};
 	struct page *pp_page, *reg_page;
 	netmem_ref pp_nm, niov_nm;
@@ -1193,6 +1194,7 @@ static void netmem_ref_test_skb_segment(struct kunit *test)
 	long base_pp_ref, base_iov_ref;
 	int base_pp_page_ref, base_reg_ref;
 
+	memset(&binding, 0, sizeof(binding));
 	pool = page_pool_create(&pp_params);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(pool));
 	pp_page = page_pool_dev_alloc_pages(pool);
@@ -1484,7 +1486,6 @@ static void netmem_ref_test_try_coalesce(struct kunit *test)
 		.nid = NUMA_NO_NODE,
 	};
 	struct sk_buff *to, *from, *clone;
-	struct net_devmem_dmabuf_binding binding = {};
 	struct net_iov niov = {};
 	struct page *pp_page, *reg_page;
 	netmem_ref pp_nm, niov_nm;
@@ -1494,6 +1495,7 @@ static void netmem_ref_test_try_coalesce(struct kunit *test)
 	bool fragstolen;
 	int delta;
 
+	memset(&binding, 0, sizeof(binding));
 	pool = page_pool_create(&pp_params);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(pool));
 	pp_page = page_pool_dev_alloc_pages(pool);
@@ -1616,7 +1618,6 @@ static void netmem_ref_test_tcp_devmem_recv(struct kunit *test)
 		.pool_size = 4,
 		.nid = NUMA_NO_NODE,
 	};
-	struct net_devmem_dmabuf_binding binding = {};
 	struct msghdr msg = {};
 	struct dmabuf_token token;
 	struct dmabuf_cmsg *cmsg;
@@ -1630,6 +1631,7 @@ static void netmem_ref_test_tcp_devmem_recv(struct kunit *test)
 	long base_iov_ref;
 	int ret;
 
+	memset(&binding, 0, sizeof(binding));
 	KUNIT_ASSERT_EQ(test,
 			sock_create_kern(&init_net, AF_INET, SOCK_STREAM,
 					 IPPROTO_TCP, &sock),

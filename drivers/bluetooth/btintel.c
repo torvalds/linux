@@ -1511,11 +1511,8 @@ static int btintel_read_debug_features(struct hci_dev *hdev,
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfca6, sizeof(page_no), &page_no,
 			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		bt_dev_err(hdev, "Reading supported features failed (%ld)",
-			   PTR_ERR(skb));
+	if (IS_ERR(skb))
 		return PTR_ERR(skb);
-	}
 
 	if (skb->len != (sizeof(features->page1) + 3)) {
 		bt_dev_err(hdev, "Supported features event size mismatch");
@@ -1632,8 +1629,10 @@ int btintel_set_quality_report(struct hci_dev *hdev, bool enable)
 	 * supported, need to load the additional DDC config to enable.
 	 */
 	err = btintel_read_debug_features(hdev, &features);
-	if (err)
+	if (err) {
+		bt_dev_err(hdev, "Reading supported features failed (%d)", err);
 		return err;
+	}
 
 	/* Set or reset the debug features. */
 	if (enable)
@@ -1684,7 +1683,7 @@ static int btintel_register_devcoredump_support(struct hci_dev *hdev)
 
 	err = btintel_read_debug_features(hdev, &features);
 	if (err) {
-		bt_dev_info(hdev, "Error reading debug features");
+		bt_dev_dbg(hdev, "Reading supported features failed (%d)", err);
 		return err;
 	}
 

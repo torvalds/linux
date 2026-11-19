@@ -128,6 +128,7 @@
 	FN(PSP_INPUT)			\
 	FN(PSP_OUTPUT)			\
 	FN(RECURSION_LIMIT)		\
+	FN(SKB_RX_HEADROOM)		\
 	FNe(MAX)
 
 /**
@@ -612,6 +613,11 @@ enum skb_drop_reason {
 	 * itself.
 	 */
 	SKB_DROP_REASON_RECURSION_LIMIT,
+	/**
+	 * @SKB_DROP_REASON_SKB_RX_HEADROOM: accumulated receive headroom
+	 * exceeds the header-offset budget.
+	 */
+	SKB_DROP_REASON_SKB_RX_HEADROOM,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of core drop reasons, which
 	 * shouldn't be used as a real 'reason' - only for tracing code gen

@@ -2393,6 +2393,13 @@ static void dcbnl_flush_dev(struct net_device *dev)
 		}
 	}
 
+	list_for_each_entry_safe(itr, tmp, &dcb_rewr_list, list) {
+		if (itr->ifindex == dev->ifindex) {
+			list_del(&itr->list);
+			kfree(itr);
+		}
+	}
+
 	spin_unlock_bh(&dcb_lock);
 }
 

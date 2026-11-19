@@ -12453,8 +12453,8 @@ struct mlx5_ifc_lagc_bits {
 	u8         reserved_at_18[0x5];
 	u8         lag_state[0x3];
 
-	u8         reserved_at_20[0xc];
-	u8         active_port[0x4];
+	u8         reserved_at_20[0x8];
+	u8         active_port[0x8];
 	u8         reserved_at_30[0x4];
 	u8         tx_remap_affinity_2[0x4];
 	u8         reserved_at_38[0x4];

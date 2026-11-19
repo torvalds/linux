@@ -857,7 +857,11 @@ void tcp_initialize_rcv_mss(struct sock *sk)
 static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 {
 	u32 new_sample, old_sample = tp->rcv_rtt_est.rtt_us;
-	long m = sample << 3;
+	long m;
+
+	/* Keep sample << 3 and the smoothed estimate within u32. */
+	sample = min(sample, TCP_RTT_MAX_US);
+	m = sample << 3;
 
 	if (old_sample == 0 || m < old_sample) {
 		new_sample = m;
@@ -901,15 +905,16 @@ new_measure:
 	tp->rcv_rtt_est.time = tp->tcp_mstamp;
 }
 
+/* A sample from TSecr above TCP_RTT_MAX_US is bogus, not large. */
 static s32 tcp_rtt_tsopt_us(const struct tcp_sock *tp, u32 min_delta)
 {
 	u32 delta, delta_us;
 
 	delta = tcp_time_stamp_ts(tp) - tp->rx_opt.rcv_tsecr;
 	if (tp->tcp_usec_ts)
-		return delta;
+		return delta <= TCP_RTT_MAX_US ? delta : -1;
 
-	if (likely(delta < INT_MAX / (USEC_PER_SEC / TCP_TS_HZ))) {
+	if (likely(delta <= TCP_RTT_MAX_US / (USEC_PER_SEC / TCP_TS_HZ))) {
 		if (!delta)
 			delta = min_delta;
 		delta_us = delta * (USEC_PER_SEC / TCP_TS_HZ);
@@ -1098,8 +1103,11 @@ static void tcp_event_data_recv(struct sock *sk, struct sk_buff *skb)
 static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	long m = mrtt_us; /* RTT */
 	u32 srtt = tp->srtt_us;
+	long m; /* RTT */
+
+	mrtt_us = min(mrtt_us, TCP_RTT_MAX_US);
+	m = mrtt_us;
 
 	/*	The following amusing code comes from Jacobson's
 	 *	article in SIGCOMM '88.  Note that rtt and mdev
@@ -1221,8 +1229,9 @@ void tcp_set_rto(struct sock *sk)
 	 *    with correct one. It is exactly, which we pretend to do.
 	 */
 
-	/* NOTE: clamping at TCP_RTO_MIN is not required, current algo
-	 * guarantees that rto is higher.
+	/* NOTE: clamping at tcp_rto_min() is not required, tcp_rtt_estimator()
+	 * applies it to rttvar_us. But rto must never be 0, which exponential
+	 * backoff could not leave: __tcp_set_rto() takes care of that.
 	 */
 	tcp_bound_rto(sk);
 }

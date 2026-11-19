@@ -783,7 +783,7 @@ struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 
 int pneigh_create(struct neigh_table *tbl,
 		  const void *pkey, struct net_device *dev,
-		  u32 flags, u8 protocol, bool permanent)
+		  u32 flags, u8 protocol, bool permanent, bool update)
 {
 	struct pneigh_entry *n;
 	unsigned int key_len;
@@ -793,8 +793,11 @@ int pneigh_create(struct neigh_table *tbl,
 	mutex_lock(&tbl->phash_lock);
 
 	n = pneigh_lookup(tbl, pkey, dev);
-	if (n)
+	if (n) {
+		if (!update)
+			goto out;
 		goto update;
+	}
 
 	key_len = tbl->key_len;
 	n = kzalloc(sizeof(*n) + key_len, GFP_KERNEL);
@@ -2155,7 +2158,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		err = pneigh_create(tbl, dst, dev, ndm_flags, protocol,
-				    !!(ndm->ndm_state & NUD_PERMANENT));
+				    !!(ndm->ndm_state & NUD_PERMANENT), true);
 		goto out;
 	}
 

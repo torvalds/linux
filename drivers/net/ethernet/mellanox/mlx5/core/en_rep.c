@@ -506,10 +506,11 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep,
 				 u32 *sqns_array, int sqns_num)
 {
+	struct mlx5_devcom_comp_dev *devcom = esw->devcom;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
-	bool devcom_locked = false;
+	bool peers_ready;
 	int err;
 	int i;
 
@@ -518,9 +519,8 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 
-	if (mlx5_devcom_comp_is_ready(esw->devcom) &&
-	    mlx5_devcom_for_each_peer_begin(esw->devcom))
-		devcom_locked = true;
+	mlx5_devcom_comp_read_lock(devcom);
+	peers_ready = mlx5_devcom_comp_is_ready(devcom);
 
 	for (i = 0; i < sqns_num; i++) {
 		rep_sq = kzalloc_obj(*rep_sq);
@@ -541,7 +541,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		rep_sq->sqn = sqns_array[i];
 
 		xa_init(&rep_sq->sq_peer);
-		if (devcom_locked) {
+		if (peers_ready) {
 			err = mlx5e_sqs2vport_add_peers_rules(esw, rep, rep_sq, i);
 			if (err) {
 				mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
@@ -554,16 +554,13 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		list_add(&rep_sq->list, &rpriv->vport_sqs_list);
 	}
 
-	if (devcom_locked)
-		mlx5_devcom_for_each_peer_end(esw->devcom);
+	mlx5_devcom_comp_read_unlock(devcom);
 
 	return 0;
 
 out_err:
 	mlx5e_sqs2vport_stop(esw, rep);
-
-	if (devcom_locked)
-		mlx5_devcom_for_each_peer_end(esw->devcom);
+	mlx5_devcom_comp_read_unlock(devcom);
 
 	return err;
 }
@@ -630,8 +627,12 @@ mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5_devcom_comp_dev *devcom;
 
+	devcom = esw->devcom;
+	mlx5_devcom_comp_read_lock(devcom);
 	mlx5e_sqs2vport_stop(esw, rep);
+	mlx5_devcom_comp_read_unlock(devcom);
 }
 
 static int

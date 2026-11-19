@@ -162,7 +162,7 @@ enum rx_tx_priority_ratio {
 /* DMA CRS Control and Status Register Mapping */
 
 /* DMA operation mode defines (start/stop tx/rx are placed in common header)*/
-/* Disable Drop TCP/IP csum error */
+#define DMA_CONTROL_DT		0x04000000	/* Disable Drop of TCP/IP csum errors */
 #define DMA_CONTROL_RSF		0x02000000	/* Receive Store and Forward */
 #define DMA_CONTROL_DFF		0x01000000	/* Disaable flushing */
 /* Threshold for Activating the FC */

@@ -636,6 +636,7 @@ struct l2cap_conn {
 
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
+	bool			pending_rx_blocked __guarded_by(&lock);
 
 	struct delayed_work	id_addr_timer;
 

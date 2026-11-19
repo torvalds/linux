@@ -394,7 +394,7 @@ struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 				   const void *key, struct net_device *dev);
 int pneigh_create(struct neigh_table *tbl, const void *key,
 		  struct net_device *dev, u32 flags, u8 protocol,
-		  bool permanent);
+		  bool permanent, bool update);
 int pneigh_delete(struct neigh_table *tbl, const void *key,
 		  struct net_device *dev);
 

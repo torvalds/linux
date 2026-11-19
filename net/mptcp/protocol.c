@@ -3041,7 +3041,8 @@ void mptcp_reset_tout_timer(struct mptcp_sock *msk, unsigned long fail_tout)
 		return;
 
 	close_timeout = (unsigned long)inet_csk(sk)->icsk_mtup.probe_timestamp -
-			tcp_jiffies32 + jiffies + mptcp_close_timeout(sk);
+			tcp_jiffies32;
+	close_timeout += jiffies + mptcp_close_timeout(sk);
 
 	/* the close timeout takes precedence on the fail one, and here at least one of
 	 * them is active

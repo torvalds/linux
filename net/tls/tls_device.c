@@ -1350,6 +1350,8 @@ static int tls_device_down(struct net_device *netdev)
 	spin_unlock_irqrestore(&tls_device_lock, flags);
 
 	list_for_each_entry_safe(ctx, tmp, &list, list)	{
+		bool free_ctx;
+
 		/* Stop offloaded TX and switch to the fallback.
 		 * tls_is_skb_tx_device_offloaded will return false.
 		 */
@@ -1387,17 +1389,19 @@ static int tls_device_down(struct net_device *netdev)
 		 */
 		spin_lock_irqsave(&tls_device_lock, flags);
 		list_move_tail(&ctx->list, &tls_device_down_list);
+		/* Serialize the final removal with sk_destruct. */
+		free_ctx = refcount_dec_and_test(&ctx->refcount);
+		if (free_ctx)
+			list_del(&ctx->list);
 		spin_unlock_irqrestore(&tls_device_lock, flags);
 
 		/* Device contexts for RX and TX will be freed in on sk_destruct
 		 * by tls_device_free_ctx. rx_conf and tx_conf stay in TLS_HW.
-		 * Now release the ref taken above.
 		 */
-		if (refcount_dec_and_test(&ctx->refcount)) {
+		if (free_ctx) {
 			/* sk_destruct ran after tls_device_down took a ref, and
 			 * it returned early. Complete the destruction here.
 			 */
-			list_del(&ctx->list);
 			tls_device_free_ctx(ctx);
 		}
 	}

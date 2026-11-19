@@ -456,6 +456,20 @@ void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom)
 	up_write(&devcom->comp->sem);
 }
 
+void mlx5_devcom_comp_read_lock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (!devcom)
+		return;
+	down_read(&devcom->comp->sem);
+}
+
+void mlx5_devcom_comp_read_unlock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (!devcom)
+		return;
+	up_read(&devcom->comp->sem);
+}
+
 int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom)
 {
 	if (!devcom)

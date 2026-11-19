@@ -360,7 +360,7 @@ static int __hwrm_to_stderr(u32 hwrm_err)
 	case HWRM_ERR_CODE_CMD_NOT_SUPPORTED:
 		return -EOPNOTSUPP;
 	case HWRM_ERR_CODE_PF_UNAVAILABLE:
-		return -ENODEV;
+		return -ECOMM;
 	default:
 		return -EIO;
 	}
@@ -716,6 +716,8 @@ exit:
  *	ENOMEM: HWRM has no buffers.
  *	EAGAIN: HWRM busy or reset in progress.
  *	EOPNOTSUPP: Invalid request type.
+ *	ENODEV: PCI device is disabled.
+ *	ECOMM: The parent PF is unavailable when issued on VFs.
  *	EIO: Any other error.
  * Error handling is orthogonal to request ownership. An unowned request will
  * still be consumed on error. If the caller owns the request, then the caller
