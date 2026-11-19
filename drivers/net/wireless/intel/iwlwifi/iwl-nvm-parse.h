@@ -10,6 +10,9 @@
 #include "iwl-nvm-utils.h"
 #include "mei/iwl-mei.h"
 
+#define NUM_2GHZ_CHANNELS		14
+#define NUM_5GHZ_CHANNELS		37
+
 /**
  * enum iwl_nvm_sbands_flags - modification flags for the channel profiles
  *
@@ -82,7 +85,7 @@ struct iwl_reg_capa {
  * @NVM_CHANNEL_40MHZ: 40 MHz channel okay
  * @NVM_CHANNEL_80MHZ: 80 MHz channel okay
  * @NVM_CHANNEL_160MHZ: 160 MHz channel okay
- * @NVM_CHANNEL_DC_HIGH: DC HIGH required/allowed (?)
+ * @NVM_CHANNEL_320MHZ: 320 MHz channel okay
  * @NVM_CHANNEL_VLP: client support connection to UHB VLP AP
  * @NVM_CHANNEL_AFC: client support connection to UHB AFC AP
  * @NVM_CHANNEL_VLP_AP_NOT_ALLOWED: UHB VLP AP not allowed,
@@ -101,7 +104,7 @@ enum iwl_nvm_channel_flags {
 	NVM_CHANNEL_40MHZ			= BIT(9),
 	NVM_CHANNEL_80MHZ			= BIT(10),
 	NVM_CHANNEL_160MHZ			= BIT(11),
-	NVM_CHANNEL_DC_HIGH			= BIT(12),
+	NVM_CHANNEL_320MHZ			= BIT(12),
 	NVM_CHANNEL_VLP				= BIT(13),
 	NVM_CHANNEL_AFC				= BIT(14),
 	NVM_CHANNEL_VLP_AP_NOT_ALLOWED		= BIT(15),

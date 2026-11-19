@@ -308,7 +308,7 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	u16 intval;
-	u32 tsftu;
+	u32 offset;
 	u64 tsf;
 	int slot;
 
@@ -322,11 +322,11 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 	intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 	tsf = ath9k_hw_gettsf64(sc->sc_ah);
 	tsf += TU_TO_USEC(sc->sc_ah->config.sw_beacon_response_time);
-	tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
-	slot = (tsftu % (intval * ATH_BCBUF)) / intval;
+	div_u64_rem(tsf, TU_TO_USEC(intval), &offset);
+	slot = offset * ATH_BCBUF / TU_TO_USEC(intval);
 
-	ath_dbg(common, BEACON, "slot: %d tsf: %llu tsftu: %u\n",
-		slot, tsf, tsftu / ATH_BCBUF);
+	ath_dbg(common, BEACON, "slot: %d tsf: %llu offset: %u\n",
+		slot, tsf, offset);
 
 	return slot;
 }

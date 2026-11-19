@@ -2,7 +2,7 @@
 /*
  * KUnit tests for NVM parse
  *
- * Copyright (C) 2025 Intel Corporation
+ * Copyright (C) 2025-2026 Intel Corporation
  */
 #include <kunit/static_stub.h>
 #include <kunit/test.h>
@@ -12,7 +12,9 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static const struct nvm_flag_case {
 	const char *desc;
+	int ch_idx;
 	u16 nvm_flags;
+	struct iwl_reg_capa reg_capa;
 	u32 reg_rule_flags;
 	u32 set_reg_rule_flags;
 	u32 clear_reg_rule_flags;
@@ -36,6 +38,20 @@ static const struct nvm_flag_case {
 		.clear_reg_rule_flags = NL80211_RRF_ALLOW_6GHZ_VLP_AP |
 					NL80211_RRF_NO_6GHZ_VLP_CLIENT,
 	},
+	{
+		.desc = "Allow 320 MHz on a 6 GHz channel that reports it",
+		.ch_idx = NUM_2GHZ_CHANNELS + NUM_5GHZ_CHANNELS,
+		.nvm_flags = NVM_CHANNEL_320MHZ,
+		.reg_capa = { .allow_320mhz = true, },
+		.clear_reg_rule_flags = NL80211_RRF_NO_320MHZ,
+	},
+	{
+		.desc = "Restrict 320 MHz on a 6 GHz channel without the bit",
+		.ch_idx = NUM_2GHZ_CHANNELS + NUM_5GHZ_CHANNELS,
+		.nvm_flags = 0,
+		.reg_capa = { .allow_320mhz = true, },
+		.set_reg_rule_flags = NL80211_RRF_NO_320MHZ,
+	},
 };
 
 KUNIT_ARRAY_PARAM_DESC(nvm_flag, nvm_flag_cases, desc)
@@ -43,11 +59,11 @@ KUNIT_ARRAY_PARAM_DESC(nvm_flag, nvm_flag_cases, desc)
 static void test_nvm_flags(struct kunit *test)
 {
 	const struct nvm_flag_case *params = test->param_value;
-	struct iwl_reg_capa reg_capa = {};
 	u32 flags = 0;
 
-	flags = iwl_nvm_get_regdom_bw_flags(NULL, 0, params->nvm_flags,
-					    reg_capa);
+	flags = iwl_nvm_get_regdom_bw_flags(NULL, params->ch_idx,
+					    params->nvm_flags,
+					    params->reg_capa);
 
 	if ((params->set_reg_rule_flags & flags) != params->set_reg_rule_flags)
 		KUNIT_FAIL(test, "Expected set bits:0x%08x flags:0x%08x\n",

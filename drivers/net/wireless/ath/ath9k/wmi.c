@@ -118,6 +118,8 @@ void ath9k_stop_wmi(struct ath9k_htc_priv *priv)
 	mutex_lock(&wmi->op_mutex);
 	wmi->stopped = true;
 	mutex_unlock(&wmi->op_mutex);
+
+	ath9k_wmi_event_drain(priv);
 }
 
 void ath9k_destroy_wmi(struct ath9k_htc_priv *priv)
@@ -148,7 +150,8 @@ void ath9k_wmi_event_tasklet(struct tasklet_struct *t)
 
 	/* Check if ath9k_init_device() completed. */
 	if (!smp_load_acquire(&priv->initialized)) {
-		tasklet_schedule(t);
+		if (!READ_ONCE(wmi->stopped))
+			tasklet_schedule(t);
 		return;
 	}
 
