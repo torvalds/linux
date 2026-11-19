@@ -2604,6 +2604,31 @@ out:
 }
 EXPORT_SYMBOL(b53_get_tag_protocol);
 
+static u16 b53_mirror_capture_port_mask(struct b53_device *dev)
+{
+	if (is5325(dev) || is5365(dev))
+		return CAP_PORT_MASK_25;
+
+	return CAP_PORT_MASK;
+}
+
+static u16 b53_mirror_port_mask(struct b53_device *dev, int port)
+{
+	/* These switches use a bitmap with the CPU port at bit 8. */
+	if ((is5325(dev) || is5365(dev)) && port == B53_CPU_PORT_25)
+		port = B53_CPU_PORT;
+
+	return BIT(port);
+}
+
+static u16 b53_mirror_capture_port(struct b53_device *dev, int port)
+{
+	if (is5325(dev) || is5365(dev))
+		return b53_mirror_port_mask(dev, port);
+
+	return port;
+}
+
 int b53_mirror_add(struct dsa_switch *ds, int port,
 		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress,
 		   struct netlink_ext_ack *extack)
@@ -2617,12 +2642,12 @@ int b53_mirror_add(struct dsa_switch *ds, int port,
 		loc = B53_EG_MIR_CTL;
 
 	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
-	reg |= BIT(port);
+	reg |= b53_mirror_port_mask(dev, port);
 	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
 
 	b53_read16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, &reg);
-	reg &= ~CAP_PORT_MASK;
-	reg |= mirror->to_local_port;
+	reg &= ~b53_mirror_capture_port_mask(dev);
+	reg |= b53_mirror_capture_port(dev, mirror->to_local_port);
 	reg |= MIRROR_EN;
 	b53_write16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, reg);
 
@@ -2644,7 +2669,7 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 
 	/* Update the desired ingress/egress register */
 	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
-	reg &= ~BIT(port);
+	reg &= ~b53_mirror_port_mask(dev, port);
 	if (!(reg & MIRROR_MASK))
 		loc_disable = true;
 	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
@@ -2663,7 +2688,7 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 	/* Both no longer have ports, let's disable mirroring */
 	if (loc_disable && other_loc_disable) {
 		reg &= ~MIRROR_EN;
-		reg &= ~mirror->to_local_port;
+		reg &= ~b53_mirror_capture_port_mask(dev);
 	}
 	b53_write16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, reg);
 }
