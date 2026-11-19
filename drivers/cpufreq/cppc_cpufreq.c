@@ -714,7 +714,17 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		pr_debug("Unsupported CPU co-ord type: %d\n",
 			 policy->shared_type);
 		ret = -EFAULT;
-		goto out;
+		goto out_put;
+	}
+
+	/*
+	 * Enable CPPC. The Enable register is optional - some platforms
+	 * may not support it.
+	 */
+	ret = cppc_set_enable(cpu, true);
+	if (ret && ret != -EOPNOTSUPP) {
+		pr_err("Failed to enable CPPC for CPU%u (%d)\n", cpu, ret);
+		goto out_put;
 	}
 
 	policy->fast_switch_possible = cppc_allow_fast_switch(policy->cpus);
@@ -742,6 +752,8 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 
 out:
+	cppc_set_enable(cpu, false);
+out_put:
 	cppc_cpufreq_put_cpu_data(policy);
 	return ret;
 }

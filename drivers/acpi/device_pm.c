@@ -365,14 +365,25 @@ int acpi_bus_init_power(struct acpi_device *device)
 	 * fails, ACPI power management will not be used for the device going
 	 * forward.
 	 */
-	result = acpi_device_init_power(device);
-	if (result) {
-		device->flags.power_manageable = 0;
-		device->power.state = ACPI_D_STATE_INVALID;
-		acpi_handle_info(device->handle,
-				 "Initial power state undetermined, ACPI PM disabled\n");
+	if (!acpi_device_is_present(device)) {
+		acpi_handle_debug(device->handle,
+				  "Device not present, ACPI PM disabled\n");
+		result = -ENXIO;
+		goto fail;
 	}
 
+	result = acpi_device_init_power(device);
+	if (result) {
+		acpi_handle_info(device->handle,
+				 "Initial power state undetermined, ACPI PM disabled\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	device->flags.power_manageable = 0;
+	device->power.state = ACPI_D_STATE_INVALID;
 	return result;
 }
 

@@ -108,14 +108,10 @@ static bool acpi_dev_has_children(struct acpi_device *adev)
 
 static int find_child_checks(struct acpi_device *adev, bool check_children)
 {
-	unsigned long long sta;
-	acpi_status status;
-
 	if (check_children && !acpi_dev_has_children(adev))
 		return -ENODEV;
 
-	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
-	if (status == AE_NOT_FOUND) {
+	if (!acpi_has_method(adev->handle, METHOD_NAME__STA)) {
 		/*
 		 * Special case: backlight device objects without _STA are
 		 * preferred to other objects with the same _ADR value, because
@@ -127,7 +123,7 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 		return FIND_CHILD_MIN_SCORE;
 	}
 
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
+	if (!acpi_device_is_present(adev))
 		return -ENODEV;
 
 	/*
