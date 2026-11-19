@@ -42,6 +42,9 @@ BEGIN {
 	print "#endif /* __INCL_GEN_ARM_FILE */"
 	print "#undef __INCL_GEN_ARM_FILE"
 	print ""
+	print "__diag_push()"
+	print "__diag_ignore_all(\"-Wunused-function\", \"tolerate unused functions shared from arm64\")"
+	print ""
 
 	file_header_done = 1
 }
@@ -78,5 +81,10 @@ copying {
 }
 
 END {
-	exit error || !found_marker || copying
+	ok = !error && found_marker && !copying
+	if (ok) {
+		print ""
+		print "__diag_pop()"
+	}
+	exit !ok
 }
