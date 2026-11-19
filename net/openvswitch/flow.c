@@ -438,7 +438,8 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 		return -EPROTO;
 
 	nh_len = payload_ofs - nh_ofs;
-	skb_set_transport_header(skb, nh_ofs + nh_len);
+	if (unlikely(!skb_set_transport_header_careful(skb, payload_ofs)))
+		return -EPROTO;
 	key->ip.proto = nexthdr;
 	return nh_len;
 }
