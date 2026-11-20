@@ -3059,7 +3059,7 @@ void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 	if (!val)
 		return;
 
-	for (p = val; p && *p;) {
+	for (p = strim(val); p && *p;) {
 		/* Each entry consists of VID:PID:flags */
 		field = strsep(&p, ":");
 		if (!field)
