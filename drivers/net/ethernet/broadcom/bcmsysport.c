@@ -844,8 +844,8 @@ next:
 			priv->rx_read_ptr = 0;
 	}
 
-	priv->dim.packets = processed;
-	priv->dim.bytes = processed_bytes;
+	priv->dim.packets += processed;
+	priv->dim.bytes += processed_bytes;
 
 	return processed;
 }
