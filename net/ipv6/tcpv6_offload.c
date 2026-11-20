@@ -9,6 +9,7 @@
 #include <linux/skbuff.h>
 #include <net/inet6_hashtables.h>
 #include <net/gro.h>
+#include <net/gso.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <net/ip6_checksum.h>
@@ -177,11 +178,10 @@ static struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
 		return ERR_PTR(-EINVAL);
 
 	if (skb_shinfo(skb)->gso_type & SKB_GSO_FRAGLIST) {
-		struct tcphdr *th = tcp_hdr(skb);
 		int err;
 
-		if ((skb_pagelen(skb) - th->doff * 4 == skb_shinfo(skb)->gso_size) &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_DODGY))
+		if (skb_gso_fraglist_ok(skb, features, tcp_hdrlen(skb),
+					htons(ETH_P_IPV6)))
 			return __tcp6_gso_segment_list(skb, features);
 
 		err = skb_cow_head(skb, 0);
