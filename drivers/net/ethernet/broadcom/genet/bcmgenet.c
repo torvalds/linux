@@ -2826,6 +2826,8 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	ring->read_ptr = start_ptr;
 	ring->cb_ptr = start_ptr;
 	ring->end_ptr = end_ptr - 1;
+	/* Zeroing RDMA_PROD_INDEX below also clears the discard counter */
+	ring->old_discards = 0;
 
 	ret = bcmgenet_rx_ring_create_pool(priv, ring);
 	if (ret)
