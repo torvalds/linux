@@ -762,7 +762,6 @@ static void acm_port_destruct(struct tty_port *port)
 	if (acm->minor != ACM_MINOR_INVALID)
 		acm_release_minor(acm);
 	usb_put_intf(acm->control);
-	usb_put_intf(acm->data);
 	kfree(acm->country_codes);
 	kfree(acm);
 }
@@ -849,17 +848,18 @@ static ssize_t acm_tty_write(struct tty_struct *tty, const u8 *buf,
 	dev_vdbg(&acm->data->dev, "%zu bytes from tty layer\n", count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
-	if (acm->disconnected) {
-		spin_unlock_irqrestore(&acm->write_lock, flags);
-		return -ENODEV;
-	}
-
 	wbn = acm_wb_alloc(acm);
 	if (wbn < 0) {
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return 0;
 	}
 	wb = &acm->wb[wbn];
+
+	if (!acm->dev) {
+		wb->use = false;
+		spin_unlock_irqrestore(&acm->write_lock, flags);
+		return -ENODEV;
+	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
 	dev_vdbg(&acm->data->dev, "writing %zu bytes\n", count);
@@ -890,9 +890,6 @@ static ssize_t acm_tty_write(struct tty_struct *tty, const u8 *buf,
 static unsigned int acm_tty_write_room(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-
-	if (acm->disconnected)
-		return 0;
 	/*
 	 * Do not let the line discipline to know that we have a reserve,
 	 * or it might get too enthusiastic.
@@ -1403,7 +1400,6 @@ made_compressed_probe:
 	acm->data = data_interface;
 
 	usb_get_intf(acm->control); /* undone in destruct() */
-	usb_get_intf(acm->data);
 
 	minor = acm_alloc_minor(acm);
 	if (minor < 0) {
@@ -1631,9 +1627,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	if (!acm)
 		return;
 
-	spin_lock_irq(&acm->write_lock);
 	acm->disconnected = true;
-	spin_unlock_irq(&acm->write_lock);
 	/*
 	 * there is a circular dependency. acm_softint() can resubmit
 	 * the URBs in error handling so we need to block any
