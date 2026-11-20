@@ -4,12 +4,11 @@
  * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
  */
 
-#include "xor_impl.h"
 #include "xor-neon.h"
 
 #include <asm/neon-intrinsics.h>
 
-static void __xor_neon_2(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_neon_2(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
@@ -36,7 +35,7 @@ static void __xor_neon_2(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static void __xor_neon_3(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_neon_3(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3)
 {
@@ -72,7 +71,7 @@ static void __xor_neon_3(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static void __xor_neon_4(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_neon_4(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3,
 		const unsigned long * __restrict p4)
@@ -117,7 +116,7 @@ static void __xor_neon_4(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static void __xor_neon_5(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_neon_5(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3,
 		const unsigned long * __restrict p4,
@@ -170,10 +169,3 @@ static void __xor_neon_5(unsigned long bytes, unsigned long * __restrict p1,
 		dp5 += 8;
 	} while (--lines > 0);
 }
-
-__DO_XOR_BLOCKS(neon_inner, __xor_neon_2, __xor_neon_3, __xor_neon_4,
-		__xor_neon_5);
-
-#ifdef CONFIG_ARM64
-extern typeof(__xor_neon_2) __xor_eor3_2 __alias(__xor_neon_2);
-#endif

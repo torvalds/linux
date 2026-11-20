@@ -5,6 +5,9 @@
 #include "xor_impl.h"
 #include "xor_arch.h"
 
+DO_XOR_BLOCKS(neon_inner, __xor_neon_2, __xor_neon_3, __xor_neon_4,
+		__xor_neon_5);
+
 static void xor_gen_neon(void *dest, void **srcs, unsigned int src_cnt,
 		unsigned int bytes)
 {

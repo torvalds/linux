@@ -9,6 +9,11 @@
 #include "xor_arch.h"
 #include "xor-neon.h"
 
+DO_XOR_BLOCKS(neon_inner, __xor_neon_2, __xor_neon_3, __xor_neon_4,
+		__xor_neon_5);
+DO_XOR_BLOCKS(eor3_inner, __xor_neon_2, __xor_eor3_3, __xor_eor3_4,
+		__xor_eor3_5);
+
 #define XOR_TEMPLATE(_name)						\
 static void xor_gen_##_name(void *dest, void **srcs, unsigned int src_cnt, \
 		unsigned int bytes)					\

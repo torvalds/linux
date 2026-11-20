@@ -3,7 +3,7 @@
  * Accelerated CRC64 (NVMe) using ARM NEON C intrinsics
  */
 
-#include <linux/types.h>
+#include <stddef.h>
 #include <asm/neon-intrinsics.h>
 
 #include "crc64-neon.h"
@@ -11,11 +11,11 @@
 u64 crc64_nvme_neon(u64 crc, const u8 *p, size_t len);
 
 /* x^191 mod G, x^127 mod G */
-static const u64 fold_consts_val[2] = { 0xeadc41fd2ba3d420ULL,
-					0x21e9761e252621acULL };
+static const uint64_t fold_consts_val[2] = { 0xeadc41fd2ba3d420ULL,
+					     0x21e9761e252621acULL };
 /* floor(x^127 / G), (G - x^64) / x */
-static const u64 bconsts_val[2] = { 0x27ecfa329aef9f77ULL,
-				    0x34d926535897936aULL };
+static const uint64_t bconsts_val[2] = { 0x27ecfa329aef9f77ULL,
+					 0x34d926535897936aULL };
 
 u64 crc64_nvme_neon(u64 crc, const u8 *p, size_t len)
 {
