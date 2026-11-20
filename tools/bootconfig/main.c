@@ -190,8 +190,12 @@ static int load_xbc_fd(int fd, char **buf, int size)
 		return -ENOMEM;
 
 	ret = read(fd, *buf, size);
-	if (ret < 0)
-		return -errno;
+	if (ret != size) {
+		ret = ret < 0 ? -errno : -EIO;
+		free(*buf);
+		*buf = NULL;
+		return ret;
+	}
 	(*buf)[size] = '\0';
 
 	return ret;
