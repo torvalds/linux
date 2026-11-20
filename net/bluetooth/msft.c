@@ -468,6 +468,30 @@ static int msft_remove_monitor_sync(struct hci_dev *hdev,
 	return err;
 }
 
+/* Keep the advertisement filter enabled only while at least one monitor is
+ * offloaded to the controller. With the filter enabled and no monitors, some
+ * controllers (e.g. MediaTek MT7922) drop every advertisement, which breaks
+ * LE discovery and passive scanning entirely.
+ *
+ * This function requires the caller holds hci_req_sync_lock
+ */
+static void msft_update_filter_enable(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	bool enable, update;
+
+	if (!msft)
+		return;
+
+	hci_dev_lock(hdev);
+	enable = !list_empty(&msft->handle_map);
+	update = enable != msft->filter_enabled;
+	hci_dev_unlock(hdev);
+
+	if (update)
+		msft_set_filter_enable(hdev, enable);
+}
+
 /* This function requires the caller holds hci_req_sync_lock */
 int msft_suspend_sync(struct hci_dev *hdev)
 {
@@ -492,6 +516,8 @@ int msft_suspend_sync(struct hci_dev *hdev)
 
 	/* All monitors have been removed */
 	msft->suspending = false;
+
+	msft_update_filter_enable(hdev);
 
 	return 0;
 }
@@ -633,6 +659,7 @@ int msft_resume_sync(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 
 	reregister_monitor(hdev);
+	msft_update_filter_enable(hdev);
 
 	return 0;
 }
@@ -670,11 +697,11 @@ void msft_do_open(struct hci_dev *hdev)
 
 	if (msft_monitor_supported(hdev)) {
 		msft->resuming = true;
-		msft_set_filter_enable(hdev, true);
 		/* Monitors get removed on power off, so we need to explicitly
 		 * tell the controller to re-monitor.
 		 */
 		reregister_monitor(hdev);
+		msft_update_filter_enable(hdev);
 	}
 }
 
@@ -705,6 +732,11 @@ void msft_do_close(struct hci_dev *hdev)
 		list_del(&handle_data->list);
 		kfree(handle_data);
 	}
+
+	/* The advertisement filter is back to its default, disabled state
+	 * after power off as well.
+	 */
+	msft->filter_enabled = false;
 
 	hci_dev_unlock(hdev);
 
@@ -1173,6 +1205,7 @@ static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 {
 	struct msft_data *msft = hdev->msft_data;
+	int err;
 
 	if (!msft)
 		return -EOPNOTSUPP;
@@ -1180,13 +1213,17 @@ int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
-	return msft_add_monitor_sync(hdev, monitor);
+	err = msft_add_monitor_sync(hdev, monitor);
+	msft_update_filter_enable(hdev);
+
+	return err;
 }
 
 /* This function requires the caller holds hci_req_sync_lock */
 int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 {
 	struct msft_data *msft = hdev->msft_data;
+	int err;
 
 	if (!msft)
 		return -EOPNOTSUPP;
@@ -1194,7 +1231,10 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
-	return msft_remove_monitor_sync(hdev, monitor);
+	err = msft_remove_monitor_sync(hdev, monitor);
+	msft_update_filter_enable(hdev);
+
+	return err;
 }
 
 int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
