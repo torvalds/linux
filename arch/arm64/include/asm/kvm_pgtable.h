@@ -508,7 +508,7 @@ void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt);
  * If device attributes are not explicitly requested in @prot, then the
  * mapping will be normal, cacheable. Attempts to install a new mapping
  * for a virtual address that is already mapped will be rejected with an
- * error and a WARN().
+ * error.
  *
  * Return: 0 on success, negative error code on failure.
  */

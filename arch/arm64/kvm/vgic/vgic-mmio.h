@@ -228,6 +228,6 @@ u64 vgic_sanitise_field(u64 reg, u64 field_mask, int field_shift,
 /* Find the proper register handler entry given a certain address offset */
 const struct vgic_register_region *
 vgic_find_mmio_region(const struct vgic_register_region *regions,
-		      int nr_regions, unsigned int offset);
+		      int nr_regions, u64 offset);
 
 #endif
