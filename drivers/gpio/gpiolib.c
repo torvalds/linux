@@ -3669,10 +3669,10 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpiod_hwgpio(desc);
 			int value = test_bit(hwgpio, bits);
 
+			trace_gpio_value(desc_to_gpio(desc), 1, value);
 			if (!raw && test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
 			__assign_bit(j, value_bitmap, value);
-			trace_gpio_value(desc_to_gpio(desc), 1, value);
 			j++;
 
 			if (array_info)
