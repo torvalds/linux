@@ -199,6 +199,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/sched/signal.h>
+#include <linux/sizes.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
@@ -219,6 +220,16 @@ struct syncobj_wait_entry {
 	struct dma_fence_cb fence_cb;
 	u64    point;
 };
+
+/*
+ * Upper limit for the number of handles passed to a single ioctl. This is a
+ * fixed number so that the limit is the same on all architectures. The
+ * largest per-handle allocation is the wait entry array, which must stay
+ * below the INT_MAX size limit of kvmalloc().
+ */
+#define DRM_SYNCOBJ_MAX_HANDLES	SZ_1M
+static_assert(DRM_SYNCOBJ_MAX_HANDLES <=
+	      INT_MAX / sizeof(struct syncobj_wait_entry));
 
 static void syncobj_wait_syncobj_func(struct drm_syncobj *syncobj,
 				      struct syncobj_wait_entry *wait);
@@ -1051,7 +1062,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 		lockdep_assert_none_held_once();
 	}
 
-	points = kmalloc_objs(*points, count);
+	points = kvmalloc_objs(*points, count);
 	if (points == NULL)
 		return -ENOMEM;
 
@@ -1064,7 +1075,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 		goto err_free_points;
 	}
 
-	entries = kzalloc_objs(*entries, count);
+	entries = kvzalloc_objs(*entries, count);
 	if (!entries) {
 		timeout = -ENOMEM;
 		goto err_free_points;
@@ -1185,10 +1196,10 @@ cleanup_entries:
 						  &entries[i].fence_cb);
 		dma_fence_put(entries[i].fence);
 	}
-	kfree(entries);
+	kvfree(entries);
 
 err_free_points:
-	kfree(points);
+	kvfree(points);
 
 	return timeout;
 }
@@ -1238,7 +1249,10 @@ static int drm_syncobj_array_find(struct drm_file *file_private,
 	struct drm_syncobj **syncobjs;
 	int ret;
 
-	handles = kmalloc_objs(*handles, count_handles);
+	if (count_handles > DRM_SYNCOBJ_MAX_HANDLES)
+		return -EINVAL;
+
+	handles = kvmalloc_objs(*handles, count_handles);
 	if (handles == NULL)
 		return -ENOMEM;
 
@@ -1248,7 +1262,7 @@ static int drm_syncobj_array_find(struct drm_file *file_private,
 		goto err_free_handles;
 	}
 
-	syncobjs = kmalloc_objs(*syncobjs, count_handles);
+	syncobjs = kvmalloc_objs(*syncobjs, count_handles);
 	if (syncobjs == NULL) {
 		ret = -ENOMEM;
 		goto err_free_handles;
@@ -1262,16 +1276,16 @@ static int drm_syncobj_array_find(struct drm_file *file_private,
 		}
 	}
 
-	kfree(handles);
+	kvfree(handles);
 	*syncobjs_out = syncobjs;
 	return 0;
 
 err_put_syncobjs:
 	while (i-- > 0)
 		drm_syncobj_put(syncobjs[i]);
-	kfree(syncobjs);
+	kvfree(syncobjs);
 err_free_handles:
-	kfree(handles);
+	kvfree(handles);
 
 	return ret;
 }
@@ -1283,7 +1297,7 @@ static void drm_syncobj_array_free(struct drm_syncobj **syncobjs,
 
 	for (i = 0; i < count; i++)
 		drm_syncobj_put(syncobjs[i]);
-	kfree(syncobjs);
+	kvfree(syncobjs);
 }
 
 int
@@ -1572,7 +1586,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 	if (ret < 0)
 		return ret;
 
-	points = kmalloc_objs(*points, args->count_handles);
+	points = kvmalloc_objs(*points, args->count_handles);
 	if (!points) {
 		ret = -ENOMEM;
 		goto out;
@@ -1585,7 +1599,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 		goto err_points;
 	}
 
-	chains = kmalloc_objs(*chains, args->count_handles);
+	chains = kvmalloc_objs(*chains, args->count_handles);
 	if (!chains) {
 		ret = -ENOMEM;
 		goto err_points;
@@ -1608,9 +1622,9 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 		dma_fence_put(fence);
 	}
 err_chains:
-	kfree(chains);
+	kvfree(chains);
 err_points:
-	kfree(points);
+	kvfree(points);
 out:
 	drm_syncobj_array_free(syncobjs, args->count_handles);
 

@@ -191,16 +191,17 @@ nv50_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 }
 
 static bool
-check_io_mapping(struct nv50_instmem *imem)
+check_io_mapping(struct nv50_instmem *imem, struct nvkm_vmm *vmm)
 {
 	struct nvkm_device *device = imem->base.subdev.device;
 
 	if (imem->iomap.size)
 		return true;
 
+	/* Map the part of BAR2 that its address space covers. */
 	return io_mapping_init_wc(&imem->iomap,
 				  device->func->resource_addr(device, NVKM_BAR2_INST),
-				  device->func->resource_size(device, NVKM_BAR2_INST)) != NULL;
+				  vmm->limit - vmm->start) != NULL;
 }
 
 static void
@@ -293,10 +294,10 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 	}
 
 	/*
-	 * boot is only called on BAR2, if we can't remap the complete
-	 * BAR it's unlikely things are functioning well.
+	 * boot is only called on BAR2. If we can't map it, it's unlikely
+	 * things are functioning well.
 	 */
-	if (check_io_mapping(iobj->imem))
+	if (check_io_mapping(iobj->imem, vmm))
 		nv50_instobj_kmap(iobj, vmm);
 	nvkm_instmem_boot(imem);
 	mutex_unlock(&imem->mutex);
@@ -434,6 +435,14 @@ nv50_instmem_dtor(struct nvkm_instmem *base)
 	if (imem->iomap.size)
 		io_mapping_fini(&imem->iomap);
 	return imem;
+}
+
+struct io_mapping *
+nv50_instmem_bar2_iomap(struct nvkm_instmem *base)
+{
+	struct nv50_instmem *imem = nv50_instmem(base);
+
+	return imem->iomap.size ? &imem->iomap : NULL;
 }
 
 static const struct nvkm_instmem_func

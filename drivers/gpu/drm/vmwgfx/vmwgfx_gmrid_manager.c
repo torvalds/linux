@@ -54,8 +54,11 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 				  const struct ttm_place *place,
 				  struct ttm_resource **res)
 {
+	struct vmw_private *vmw = vmw_priv_from_ttm(bo->bdev);
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
-	int id;
+	u32 max_gmr_pages = 0;
+	bool mob_overflow = false;
+	int id, ret = 0;
 
 	*res = kmalloc_obj(**res);
 	if (!*res)
@@ -85,43 +88,53 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 			const unsigned long max_graphics_pages = totalram_pages() / 2;
 			uint32_t new_max_pages = 0;
 
-			DRM_WARN("vmwgfx: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
-			vmw_host_printf("vmwgfx, warning: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
+			mob_overflow = true;
+			drm_warn(&vmw->drm,
+				 "vmwgfx: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
 
 			if (gman->max_gmr_pages > (max_graphics_pages / 2)) {
-				DRM_WARN("vmwgfx: guest requires more than half of RAM for graphics.\n");
+				drm_warn(&vmw->drm,
+					 "vmwgfx: guest requires more than half of RAM for graphics.\n");
 				new_max_pages = max_graphics_pages;
 			} else
 				new_max_pages = gman->max_gmr_pages * 2;
 			if (new_max_pages > gman->max_gmr_pages && new_max_pages >= gman->used_gmr_pages) {
-				DRM_WARN("vmwgfx: increasing guest mob limits to %u KiB.\n",
-					 ((new_max_pages) << (PAGE_SHIFT - 10)));
+				drm_warn(&vmw->drm,
+					 "vmwgfx: increasing guest mob limits to %u KiB.\n",
+					 new_max_pages << (PAGE_SHIFT - 10));
 
 				gman->max_gmr_pages = new_max_pages;
 			} else {
-				char buf[256];
-				snprintf(buf, sizeof(buf),
-					 "vmwgfx, error: guest graphics is out of memory (mob limit at: %u KiB).\n",
-					 ((gman->max_gmr_pages) << (PAGE_SHIFT - 10)));
-				vmw_host_printf(buf);
-				DRM_WARN("%s", buf);
-				goto nospace;
+				max_gmr_pages = gman->max_gmr_pages;
+				gman->used_gmr_pages -= PFN_UP((*res)->size);
+				ret = -ENOSPC;
+				goto out_unlock;
 			}
 		}
 	}
 
 	(*res)->start = id;
 
+out_unlock:
 	spin_unlock(&gman->lock);
-	return 0;
 
-nospace:
-	gman->used_gmr_pages -= PFN_UP((*res)->size);
-	spin_unlock(&gman->lock);
-	ida_free(&gman->gmr_ida, id);
-	ttm_resource_fini(man, *res);
-	kfree(*res);
-	return -ENOSPC;
+	/* Host logging allocates with GFP_KERNEL and must run unlocked. */
+	if (mob_overflow)
+		vmw_host_printf("%s",
+				"vmwgfx, warning: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
+	if (ret) {
+		char buf[256];
+
+		snprintf(buf, sizeof(buf),
+			 "vmwgfx, error: guest graphics is out of memory (mob limit at: %u KiB).\n",
+			 max_gmr_pages << (PAGE_SHIFT - 10));
+		vmw_host_printf("%s", buf);
+		drm_warn(&vmw->drm, "%s", buf);
+		ida_free(&gman->gmr_ida, id);
+		ttm_resource_fini(man, *res);
+		kfree(*res);
+	}
+	return ret;
 }
 
 static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,

@@ -1527,8 +1527,8 @@ static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 		complete(&dsi->xfer_completion);
 		ret = IRQ_HANDLED;
 	} else if (stat & DSI_PORT_BIT(INT_HSTX_TO)) {
-		complete(&dsi->xfer_completion);
 		dsi->xfer_result = -ETIMEDOUT;
+		complete(&dsi->xfer_completion);
 		ret = IRQ_HANDLED;
 	}
 
@@ -1599,9 +1599,8 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		dsi->clk_onecell->hws[i] = &fix->hw;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node,
-				      of_clk_hw_onecell_get,
-				      dsi->clk_onecell);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   dsi->clk_onecell);
 }
 
 static void vc4_dsi_dma_mem_release(void *ptr)

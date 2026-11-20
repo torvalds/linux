@@ -127,16 +127,23 @@ vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
  * vmw_validation_bo_fence - Unreserve and fence buffer objects registered
  * with a validation context
  * @ctx: The validation context
+ * @fence: Fence with which to fence all buffer objects taking part in the
+ * command submission.
  *
  * This function unreserves the buffer objects previously reserved using
- * vmw_validation_bo_reserve, and fences them with a fence object.
+ * vmw_validation_bo_reserve, and fences them with a fence object if the
+ * given fence object is not NULL.
  */
 static inline void
 vmw_validation_bo_fence(struct vmw_validation_context *ctx,
 			struct vmw_fence_obj *fence)
 {
-	ttm_eu_fence_buffer_objects(&ctx->ticket, &ctx->bo_list,
-				    (void *) fence);
+	/* fence is able to be NULL if vmw_execbuf_fence_commands() fails */
+	if (fence)
+		ttm_eu_fence_buffer_objects(&ctx->ticket, &ctx->bo_list,
+					    (void *)fence);
+	else
+		ttm_eu_backoff_reservation(&ctx->ticket, &ctx->bo_list);
 }
 
 /**

@@ -37,6 +37,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_vblank_helper.h>
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -44,6 +45,8 @@
 	container_of(x, struct vmw_screen_target_display_unit, base.encoder)
 #define vmw_connector_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.connector)
+#define vmw_primary_to_stdu(x) \
+	container_of(x, struct vmw_screen_target_display_unit, base.primary)
 
 /*
  * Some renderers such as llvmpipe will align the width and height of their
@@ -448,6 +451,13 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 		    !new_crtc_state->mode_changed)
 			return;
 
+		/* Never destroy DU 0's ST so that the VM client always has a
+		 * window to accept input from. Otherwise we may never receive
+		 * input to wake the VM when the CRTC is disabled during idle.
+		 */
+		if (stdu->base.unit == 0)
+			return;
+
 		ret = vmw_stdu_destroy_st(dev_priv, stdu);
 		if (ret)
 			DRM_ERROR("Failed to destroy Screen Target\n");
@@ -785,6 +795,7 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.enable_vblank		= vmw_vkms_enable_vblank,
 	.disable_vblank		= vmw_vkms_disable_vblank,
+	.sync_vblank            = drm_crtc_vblank_helper_sync_vblank_timer,
 	.get_vblank_timestamp	= vmw_vkms_get_vblank_timestamp,
 	.get_crc_sources	= vmw_vkms_get_crc_sources,
 	.set_crc_source		= vmw_vkms_set_crc_source,
@@ -1411,7 +1422,8 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	int ret;
 
 	/* If case of device error, maintain consistent atomic state */
-	if (crtc && new_state->fb) {
+	if (crtc && new_state->fb &&
+	    drm_atomic_get_new_crtc_state(state, crtc)->active) {
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(new_state->fb);
 		stdu = vmw_crtc_to_stdu(crtc);
@@ -1435,9 +1447,8 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		if (ret)
 			DRM_ERROR("Failed to update STDU.\n");
 	} else {
-		crtc = old_state->crtc;
-		stdu = vmw_crtc_to_stdu(crtc);
-		dev_priv = vmw_priv(crtc->dev);
+		stdu = vmw_primary_to_stdu(plane);
+		dev_priv = vmw_priv(plane->dev);
 
 		/* Blank STDU when fb and crtc are NULL */
 		if (!stdu->defined)

@@ -59,7 +59,8 @@ pvr_power_send_command(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *p
 		return err;
 
 	/* Wait for FW to acknowledge. */
-	return readl_poll_timeout(pvr_dev->fw_dev.power_sync, value, value != 0, 100,
+	return readx_poll_timeout(READ_ONCE,
+				  *pvr_dev->fw_dev.power_sync, value, value != 0, 100,
 				  POWER_SYNC_TIMEOUT_US);
 }
 

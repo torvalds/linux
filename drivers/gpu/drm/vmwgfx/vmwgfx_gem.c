@@ -73,10 +73,13 @@ static struct sg_table *vmw_gem_object_get_sg_table(struct drm_gem_object *obj)
 	struct vmw_ttm_tt *vmw_tt =
 		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm);
 
-	if (vmw_tt->vsgt.sgt)
-		return vmw_tt->vsgt.sgt;
-
-	return drm_prime_pages_to_sg(obj->dev, vmw_tt->dma_ttm.pages, vmw_tt->dma_ttm.num_pages);
+	/*
+	 * Do not return &vmw_tt->sgt: the core owns what this returns and
+	 * drm_gem_unmap_dma_buf() sg_free_table()s and kfree()s it, but that
+	 * sg_table is embedded in the vmw_ttm_tt allocation.
+	 */
+	return drm_prime_pages_to_sg(obj->dev, vmw_tt->dma_ttm.pages,
+				     vmw_tt->dma_ttm.num_pages);
 }
 
 static int vmw_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
@@ -184,7 +187,7 @@ struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
 {
 	int ret;
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct drm_gem_object *gem = NULL;
+	struct drm_gem_object *gem;
 	struct vmw_bo *vbo;
 	struct vmw_bo_params params = {
 		.domain = (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
@@ -201,8 +204,10 @@ struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
 	dma_resv_lock(params.resv, NULL);
 
 	ret = vmw_bo_create(dev_priv, &params, &vbo);
-	if (ret != 0)
+	if (ret != 0) {
+		gem = ERR_PTR(ret);
 		goto out_no_bo;
+	}
 
 	vbo->tbo.base.funcs = &vmw_gem_object_funcs;
 

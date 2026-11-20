@@ -27,16 +27,28 @@
 #define rocket_core_writel(core, reg, value) \
 	writel(value, (core)->core_iomem + (REG_CORE_##reg) - REG_CORE_S_STATUS)
 
+enum rocket_clk {
+	ROCKET_CLK_ACLK,
+	ROCKET_CLK_HCLK,
+	ROCKET_CLK_NPU,
+	ROCKET_CLK_PCLK,
+	ROCKET_CLK_MAX,
+};
+
 struct rocket_core {
 	struct device *dev;
 	struct rocket_device *rdev;
+	/*
+	 * Hardware number of the core: its position among the core nodes in
+	 * the devicetree.
+	 */
 	unsigned int index;
 
 	int irq;
 	void __iomem *pc_iomem;
 	void __iomem *cna_iomem;
 	void __iomem *core_iomem;
-	struct clk_bulk_data clks[4];
+	struct clk_bulk_data clks[ROCKET_CLK_MAX];
 	struct reset_control_bulk_data resets[2];
 
 	struct iommu_group *iommu_group;

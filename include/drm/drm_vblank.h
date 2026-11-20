@@ -319,6 +319,22 @@ void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
 
 int drm_crtc_vblank_start_timer(struct drm_crtc *crtc);
 void drm_crtc_vblank_cancel_timer(struct drm_crtc *crtc);
+void drm_crtc_vblank_stop_canceled_timer(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_vblank_stop_timer - Stops a CRTC's vblank timer
+ * @crtc: the CRTC
+ *
+ * Drivers should call this function to fully stop a CRTC's vblank timer.
+ *
+ * The function blocks until a running timer function has returned.
+ */
+static inline void drm_crtc_vblank_stop_timer(struct drm_crtc *crtc)
+{
+	drm_crtc_vblank_cancel_timer(crtc);
+	drm_crtc_vblank_stop_canceled_timer(crtc);
+}
+
 void drm_crtc_vblank_get_vblank_timeout(struct drm_crtc *crtc, ktime_t *vblank_time);
 
 /*

@@ -28,6 +28,10 @@ int rocket_core_init(struct rocket_core *core)
 	if (err)
 		return dev_err_probe(dev, err, "failed to get resets for core %d\n", core->index);
 
+	core->clks[ROCKET_CLK_ACLK].id = "aclk";
+	core->clks[ROCKET_CLK_HCLK].id = "hclk";
+	core->clks[ROCKET_CLK_NPU].id = "npu";
+	core->clks[ROCKET_CLK_PCLK].id = "pclk";
 	err = devm_clk_bulk_get(dev, ARRAY_SIZE(core->clks), core->clks);
 	if (err)
 		return dev_err_probe(dev, err, "failed to get clocks for core %d\n", core->index);
