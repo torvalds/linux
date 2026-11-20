@@ -1142,26 +1142,27 @@ __u64 msft_get_features(struct hci_dev *hdev)
 
 static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 						       void *user_data,
-						       u8 status)
+						       int err)
 {
 	struct msft_cp_le_set_advertisement_filter_enable *cp = user_data;
 	struct msft_data *msft = hdev->msft_data;
 
-	/* Error 0x0C would be returned if the filter enabled status is
+	/* Error 0x0C (Command Disallowed), which __hci_cmd_sync_status()
+	 * reports as -EBUSY, would be returned if the filter enabled status is
 	 * already set to whatever we were trying to set.
 	 * Although the default state should be disabled, some controller set
 	 * the initial value to enabled. Because there is no way to know the
 	 * actual initial value before sending this command, here we also treat
 	 * error 0x0C as success.
 	 */
-	if (status != 0x00 && status != 0x0C)
+	if (err && err != -EBUSY)
 		return;
 
 	hci_dev_lock(hdev);
 
 	msft->filter_enabled = cp->enable;
 
-	if (status == 0x0C)
+	if (err == -EBUSY)
 		bt_dev_warn(hdev, "MSFT filter_enable is already %s",
 			    cp->enable ? "on" : "off");
 
@@ -1212,7 +1213,7 @@ int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 
 	msft_le_set_advertisement_filter_enable_cb(hdev, &cp, err);
 
-	return 0;
+	return err == -EBUSY ? 0 : err;
 }
 
 bool msft_curve_validity(struct hci_dev *hdev)
