@@ -290,6 +290,7 @@ SYM_FUNC_ALIAS(__pi_idmap_cpu_replace_ttbr1, idmap_cpu_replace_ttbr1)
 	orr	pte, pte, pte_flags
 	str	pte, [temp_pte, #8 * (\level + 2)]
 	dsb	nshst
+	isb
 	.endm
 
 /*
