@@ -1128,8 +1128,8 @@ static int isotp_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	struct can_skb_ext *csx;
 	struct net_device *dev;
 	struct canfd_frame *cf;
-	int ae = (so->opt.flags & CAN_ISOTP_EXTEND_ADDR) ? 1 : 0;
-	int wait_tx_done = (so->opt.flags & CAN_ISOTP_WAIT_TX_DONE) ? 1 : 0;
+	int ae;
+	int wait_tx_done;
 	s64 hrtimer_sec = ISOTP_ECHO_TIMEOUT;
 	struct hrtimer *tx_hrt = &so->echotimer;
 	u32 new_state = ISOTP_SENDING;
@@ -1187,6 +1187,10 @@ static int isotp_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		err = -EADDRNOTAVAIL;
 		goto err_out_drop;
 	}
+
+	/* read the options after the claim of the transfer */
+	ae = (so->opt.flags & CAN_ISOTP_EXTEND_ADDR) ? 1 : 0;
+	wait_tx_done = (so->opt.flags & CAN_ISOTP_WAIT_TX_DONE) ? 1 : 0;
 
 	/* PDU size > default => try max_pdu_size */
 	if (size > so->tx.buflen && so->tx.buflen < max_pdu_size) {
@@ -1725,6 +1729,14 @@ static int isotp_setsockopt_locked(struct socket *sock, int optname,
 
 	if (so->bound)
 		return -EISCONN;
+
+	/* A transmission or reception that outlived a previous binding
+	 * (unbound by NETDEV_UNREGISTER) may still be draining and uses the
+	 * socket options, see isotp_bind().
+	 */
+	if (READ_ONCE(so->tx.state) != ISOTP_IDLE ||
+	    READ_ONCE(so->rx.state) != ISOTP_IDLE)
+		return -EAGAIN;
 
 	switch (optname) {
 	case CAN_ISOTP_OPTS:
