@@ -211,6 +211,7 @@ static void *__init map_fdt(phys_addr_t fdt)
 		  fdt, PAGE_KERNEL, IDMAP_ROOT_LEVEL,
 		  (pte_t *)init_idmap_pg_dir, false, 0);
 	dsb(ishst);
+	isb();
 
 	return (void *)fdt;
 }
