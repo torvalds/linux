@@ -442,6 +442,13 @@ static int __init efi_systab_init(unsigned long phys)
  *   data, which is released to the page allocator once the kernel is up and
  *   running, and so the table is stale by the time kexec boots the next kernel.
  *
+ * - The TPM event log table is installed by the EFI stub too. It is allocated
+ *   from EFI loader data rather than ACPI reclaim memory, as the latter would
+ *   create an E820 entry that may move around between boots, which breaks
+ *   resume from hibernation. It is reserved by the kernel, but the E820 map
+ *   that kexec passes on describes it as ordinary RAM, and so it may get
+ *   clobbered before the next kernel gets around to reserving it.
+ *
  * - The Memory Attributes table may reside in EFI boot services data, which is
  *   released to the page allocator as well. Even if it is still intact, the
  *   sanity check in efi_memattr_init() may fail spuriously, given that only
@@ -455,6 +462,7 @@ bool __init x86_efi_config_table_is_usable(const efi_guid_t *guid,
 		return true;
 
 	return efi_guidcmp(*guid, LINUX_EFI_INITRD_MEDIA_GUID) &&
+	       efi_guidcmp(*guid, LINUX_EFI_TPM_EVENT_LOG_GUID) &&
 	       efi_guidcmp(*guid, EFI_MEMORY_ATTRIBUTES_TABLE_GUID);
 }
 
