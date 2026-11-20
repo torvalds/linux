@@ -10,7 +10,9 @@
 #include <linux/bits.h>
 #include <linux/irqchip/riscv-imsic.h>
 #include <linux/kvm_host.h>
+#include <linux/overflow.h>
 #include <linux/uaccess.h>
+#include <asm/kvm_gstage.h>
 #include <asm/kvm_isa.h>
 
 static int aia_create(struct kvm_device *dev, u32 type)
@@ -142,17 +144,37 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 	return 0;
 }
 
+static int aia_check_addr_range(struct kvm *kvm, u64 addr, u64 alignment,
+				u64 size)
+{
+	u64 end;
+
+	if (!IS_ALIGNED(addr, alignment))
+		return -EINVAL;
+
+	if (check_add_overflow(addr, size, &end))
+		return -EINVAL;
+
+	if (end > kvm_riscv_gstage_gpa_size(kvm->arch.pgd_levels))
+		return -E2BIG;
+
+	return 0;
+}
+
 static int aia_aplic_addr(struct kvm *kvm, u64 *addr, bool write)
 {
 	struct kvm_aia *aia = &kvm->arch.aia;
+	int ret;
 
 	if (write) {
 		/* Writes can only be done before irqchip is initialized */
 		if (kvm_riscv_aia_initialized(kvm))
 			return -EBUSY;
 
-		if (*addr & (KVM_DEV_RISCV_APLIC_ALIGN - 1))
-			return -EINVAL;
+		ret = aia_check_addr_range(kvm, *addr, KVM_DEV_RISCV_APLIC_ALIGN,
+					   KVM_DEV_RISCV_APLIC_SIZE);
+		if (ret)
+			return ret;
 
 		aia->aplic_addr = *addr;
 	} else
@@ -166,6 +188,7 @@ static int aia_imsic_addr(struct kvm *kvm, u64 *addr,
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vcpu_aia *vcpu_aia;
+	int ret;
 
 	vcpu = kvm_get_vcpu(kvm, vcpu_idx);
 	if (!vcpu)
@@ -177,8 +200,10 @@ static int aia_imsic_addr(struct kvm *kvm, u64 *addr,
 		if (kvm_riscv_aia_initialized(kvm))
 			return -EBUSY;
 
-		if (*addr & (KVM_DEV_RISCV_IMSIC_ALIGN - 1))
-			return -EINVAL;
+		ret = aia_check_addr_range(kvm, *addr, KVM_DEV_RISCV_IMSIC_ALIGN,
+					   KVM_DEV_RISCV_IMSIC_SIZE);
+		if (ret)
+			return ret;
 	}
 
 	mutex_lock(&vcpu->mutex);
@@ -248,6 +273,15 @@ static int aia_init(struct kvm *kvm)
 	if (aia->nr_sources && aia->aplic_addr == KVM_RISCV_AIA_UNDEF_ADDR)
 		return -EINVAL;
 
+	/* The GPA width may change after setting APLIC's address on an empty VM. */
+	if (aia->nr_sources) {
+		ret = aia_check_addr_range(kvm, aia->aplic_addr,
+					   KVM_DEV_RISCV_APLIC_ALIGN,
+					   KVM_DEV_RISCV_APLIC_SIZE);
+		if (ret)
+			return ret;
+	}
+
 	/* Group index bits must not overlap guest and HART index bits. */
 	if (aia->nr_group_bits &&
 	    aia->nr_group_shift < (IMSIC_MMIO_PAGE_SHIFT +
@@ -268,6 +302,13 @@ static int aia_init(struct kvm *kvm)
 			ret = -EINVAL;
 			goto fail_cleanup_imsics;
 		}
+
+		/* The GPA width may change after setting IMSIC addresses on an empty VM. */
+		ret = aia_check_addr_range(kvm, vaia->imsic_addr,
+					   KVM_DEV_RISCV_IMSIC_ALIGN,
+					   KVM_DEV_RISCV_IMSIC_SIZE);
+		if (ret)
+			goto fail_cleanup_imsics;
 
 		/* All IMSICs should have matching base PPN */
 		if (base_ppn == KVM_RISCV_AIA_UNDEF_ADDR)
