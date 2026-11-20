@@ -127,7 +127,9 @@ void __set_fixmap(enum fixed_addresses idx,
 	ptep = fixmap_pte(addr);
 
 	if (pgprot_val(flags)) {
-		__set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, flags));
+		/* The slot must be usable on return, even in lazy MMU mode. */
+		__set_pte_nosync(ptep, pfn_pte(phys >> PAGE_SHIFT, flags));
+		emit_pte_barriers();
 	} else {
 		__pte_clear(&init_mm, addr, ptep);
 		flush_tlb_kernel_range(addr, addr+PAGE_SIZE);
