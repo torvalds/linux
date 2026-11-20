@@ -49,20 +49,11 @@ static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args,
 	return 0;
 }
 
-static int fuse_req_prep(struct fuse_mount *fm, struct fuse_args *args,
-			 const struct mnt_idmap *idmap)
-{
-	if (!args->force && fm->fc->conn_error)
-		return -ECONNREFUSED;
-
-	return fuse_fill_creds(fm, args, idmap);
-}
-
 ssize_t __fuse_simple_request(const struct mnt_idmap *idmap, struct fuse_mount *fm,
 			      struct fuse_args *args)
 {
 	struct fuse_conn *fc = fm->fc;
-	int err = fuse_req_prep(fm, args, idmap);
+	int err = fuse_fill_creds(fm, args, idmap);
 
 	if (err)
 		return err;
@@ -77,7 +68,7 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args, gfp_t 
 
 	WARN_ON(args->force && !args->nocreds);
 
-	err = fuse_req_prep(fm, args, &invalid_mnt_idmap);
+	err = fuse_fill_creds(fm, args, &invalid_mnt_idmap);
 	if (err)
 		return err;
 
@@ -92,7 +83,7 @@ int fuse_simple_notify_reply(struct fuse_mount *fm, struct fuse_args *args, u64 
 
 	WARN_ON(args->force && !args->nocreds);
 
-	err = fuse_req_prep(fm, args, &invalid_mnt_idmap);
+	err = fuse_fill_creds(fm, args, &invalid_mnt_idmap);
 	if (err)
 		return err;
 

@@ -257,6 +257,7 @@
  *  - add backing_id_64 to fuse_open_out
  *  - add FUSE_NOTIFY_BACKING_MAP, fuse_notify_backing_map_out, fuse_extent
  *  - add FUSE_BACKING_MAP_CREATE, FUSE_BACKING_MAP_CYCLIC
+ *  - extend the meaning of FUSE_HAS_INODE_DAX and FUSE_ATTR_DAX
  */
 
 #ifndef _LINUX_FUSE_H
@@ -460,7 +461,11 @@ struct fuse_file_lock {
  * FUSE_INIT_RESERVED: reserved, do not use
  * FUSE_SECURITY_CTX:	add security context to create, mkdir, symlink, and
  *			mknod
- * FUSE_HAS_INODE_DAX:  use per inode DAX
+ * FUSE_HAS_INODE_DAX:  use per inode DAX.  The meaning depends on the
+ *			transport: on virtio-fs it indicates per-inode DAX
+ *			support, while on /dev/fuse (where FUSE_PASSTHROUGH_V2
+ *			is also offered) it indicates support for passthrough
+ *			extent maps on a DAX device.
  * FUSE_CREATE_SUPP_GROUP: add supplementary group info to create, mkdir,
  *			symlink and mknod (single group that matches parent)
  * FUSE_HAS_EXPIRE_ONLY: kernel supports expiry-only entry invalidation
@@ -612,7 +617,8 @@ struct fuse_file_lock {
  * fuse_attr flags
  *
  * FUSE_ATTR_SUBMOUNT: Object is a submount root
- * FUSE_ATTR_DAX: Enable DAX for this file in per inode DAX mode
+ * FUSE_ATTR_DAX: Enable DAX for this file in per inode DAX mode and in
+ *		  extent mapping passthrough mode
  */
 #define FUSE_ATTR_SUBMOUNT      (1 << 0)
 #define FUSE_ATTR_DAX		(1 << 1)

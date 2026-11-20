@@ -80,6 +80,10 @@ void fuse_chan_set_initialized(struct fuse_chan *fch, struct fuse_chan_param *pa
 			fuse_uring_conn_init(fch);
 	}
 
+	/* An aborted channel is also marked initialized to wake waiters. */
+	if (!param && fch->connected)
+		fch->conn_refused = true;
+
 	/* Pairs with smp_load_acquire() readers of fch->initialized */
 	smp_store_release(&fch->initialized, 1);
 	wake_up_all(&fch->blocked_waitq);
@@ -128,6 +132,10 @@ static struct fuse_req *fuse_get_req(struct fuse_chan *fch, bool for_background)
 
 	err = -ENOTCONN;
 	if (!fch->connected)
+		goto out;
+
+	err = -ECONNREFUSED;
+	if (fch->conn_refused)
 		goto out;
 
 	req = fuse_request_alloc(fch, GFP_KERNEL);

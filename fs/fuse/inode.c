@@ -385,7 +385,7 @@ static void fuse_change_attributes_i(struct inode *inode, struct fuse_attr *attr
 			invalidate_inode_pages2(inode->i_mapping);
 	}
 
-	if (IS_ENABLED(CONFIG_FUSE_VDAX))
+	if (fuse_conn_vdax(fc))
 		fuse_vdax_dontcache(inode, attr->flags);
 }
 
@@ -418,7 +418,19 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
 		fuse_init_common(inode);
 		fuse_init_file_inode(inode, attr->flags);
 
-		if ((attr->flags & FUSE_ATTR_DAX) && !fuse_inode_vdax(inode)) {
+		/*
+		 * FUSE_ATTR_DAX means a passthrough extent map on a dax
+		 * device, which only exists on a plain fuse connection.  On
+		 * virtiofs the same bit means per inode virtiofs DAX, which
+		 * is handled by fuse_vdax_inode_init() instead.
+		 *
+		 * Without CONFIG_FS_DAX, S_DAX is zero and IS_DAX() is
+		 * constant false, so all the checks that keep DAX inodes away
+		 * from the page cache are compiled out.  Don't install address
+		 * space operations that have no ->read_folio in that case.
+		 */
+		if (IS_ENABLED(CONFIG_FS_DAX) && !fc->is_virtiofs &&
+		    (attr->flags & FUSE_ATTR_DAX)) {
 			inode->i_flags |= S_DAX;
 			inode->i_data.a_ops = &fuse_dax_aops;
 		}
@@ -1387,7 +1399,7 @@ static void process_init_reply(struct fuse_args *args, int error)
 				    !fuse_vdax_check_alignment(fc, arg->map_alignment)) {
 					ok = false;
 				}
-				if (flags & FUSE_HAS_INODE_DAX)
+				if (fuse_conn_vdax(fc) && (flags & FUSE_HAS_INODE_DAX))
 					fc->inode_vdax = 1;
 			}
 			if (flags & FUSE_HANDLE_KILLPRIV_V2) {
@@ -1416,7 +1428,7 @@ static void process_init_reply(struct fuse_args *args, int error)
 			 * and FUSE_WRITEBACK_CACHE, current design doesn't handle
 			 * them together.
 			 */
-			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) &&
+			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) && !fm->fc->is_virtiofs &&
 			    (flags & (FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2)) &&
 			    arg->max_stack_depth > 0 &&
 			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH &&
@@ -1451,7 +1463,8 @@ static void process_init_reply(struct fuse_args *args, int error)
 			fc->no_flock = 1;
 		}
 
-		fuse_init_server_timeout(fc->chan, timeout);
+		if (!fc->no_req_timeout)
+			fuse_init_server_timeout(fc->chan, timeout);
 
 		fm->sb->s_bdi->ra_pages =
 				min(fm->sb->s_bdi->ra_pages, ra_pages);
@@ -1502,18 +1515,31 @@ static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 		FUSE_HANDLE_KILLPRIV_V2 | FUSE_SETXATTR_EXT | FUSE_INIT_EXT |
 		FUSE_SECURITY_CTX | FUSE_CREATE_SUPP_GROUP |
 		FUSE_HAS_EXPIRE_ONLY | FUSE_DIRECT_IO_ALLOW_MMAP |
-		FUSE_NO_EXPORT_SUPPORT | FUSE_HAS_RESEND | FUSE_ALLOW_IDMAP |
-		FUSE_REQUEST_TIMEOUT;
+		FUSE_NO_EXPORT_SUPPORT | FUSE_HAS_RESEND | FUSE_ALLOW_IDMAP;
+	if (!fm->fc->no_req_timeout)
+		flags |= FUSE_REQUEST_TIMEOUT;
 #ifdef CONFIG_FUSE_VDAX
 	if (fm->fc->vdax)
 		flags |= FUSE_MAP_ALIGNMENT;
-	if (fuse_is_inode_vdax_mode(fm->fc->vdax_mode))
+	if (fm->fc->vdax && fuse_is_inode_vdax_mode(fm->fc->vdax_mode))
 		flags |= FUSE_HAS_INODE_DAX;
 #endif
 	if (fm->fc->auto_submounts)
 		flags |= FUSE_SUBMOUNTS;
-	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+	/*
+	 * Passthrough requires a backing file registered with
+	 * FUSE_DEV_IOC_BACKING_OPEN on the fuse device, which a virtiofs
+	 * server has no way to do.
+	 */
+	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) && !fm->fc->is_virtiofs) {
 		flags |= FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2;
+		/*
+		 * Per inode DAX needs a dax device opened as backing, which
+		 * is unrelated to how virtiofs uses the same flag above.
+		 */
+		if (IS_REACHABLE(CONFIG_DEV_DAX_FSDEV))
+			flags |= FUSE_HAS_INODE_DAX;
+	}
 	/* Only offered to sufficiently privileged servers; see
 	 * fuse_syncfs_enable().
 	 */
@@ -1820,6 +1846,8 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->destroy = ctx->destroy;
 	fc->no_control = ctx->no_control;
 	fc->no_force_umount = ctx->no_force_umount;
+	fc->no_req_timeout = ctx->no_req_timeout;
+	fc->is_virtiofs = ctx->is_virtiofs;
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode);

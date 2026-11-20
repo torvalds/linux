@@ -320,7 +320,7 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 	struct fuse_release_args *ra = &ff->args->release_args;
 
 	if (fuse_is_passthrough(ff))
-		fuse_passthrough_release(ff, fuse_inode_backing(fi));
+		fuse_passthrough_release(ff, fi ? fuse_inode_backing(fi) : NULL);
 
 	/* Inode is NULL on error path of fuse_create_open() */
 	if (likely(fi)) {
@@ -845,8 +845,19 @@ static void fuse_read_update_size(struct inode *inode, loff_t size,
 	spin_unlock(&fi->lock);
 }
 
-static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
-			    struct fuse_args_pages *ap)
+/*
+ * Position of the first byte covered by the folios in @ap.
+ *
+ * The first folio may be read partially, so the descriptor offset is part of
+ * the position.
+ */
+static loff_t fuse_folios_pos(struct fuse_args_pages *ap)
+{
+	return folio_pos(ap->folios[0]) + ap->descs[0].offset;
+}
+
+static void fuse_short_read(struct inode *inode, struct fuse_io_args *ia,
+			    size_t num_read)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
@@ -856,8 +867,13 @@ static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
 	 * reached the client fs yet.  So the hole is not present there.
 	 */
 	if (!fc->writeback_cache) {
-		loff_t pos = folio_pos(ap->folios[0]) + num_read;
-		fuse_read_update_size(inode, pos, attr_ver);
+		/*
+		 * Derive EOF from the offset the request was sent with, which
+		 * is not necessarily the start of the first folio.
+		 */
+		loff_t pos = ia->read.in.offset + num_read;
+
+		fuse_read_update_size(inode, pos, ia->read.attr_ver);
 	}
 }
 
@@ -866,7 +882,6 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 {
 	struct inode *inode = folio->mapping->host;
 	struct fuse_mount *fm = get_fuse_mount(inode);
-	loff_t pos = folio_pos(folio) + off;
 	struct fuse_folio_desc desc = {
 		.offset = off,
 		.length = len,
@@ -878,10 +893,10 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 		.ap.folios = &folio,
 		.ap.descs = &desc,
 	};
+	loff_t pos = fuse_folios_pos(&ia.ap);
 	ssize_t res;
-	u64 attr_ver;
 
-	attr_ver = fuse_get_attr_version(fm->fc);
+	ia.read.attr_ver = fuse_get_attr_version(fm->fc);
 
 	/*
 	 * Don't overflow end offset.
@@ -906,7 +921,7 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 	 * Short read means EOF.  If file size is larger, truncate it
 	 */
 	if (res < len)
-		fuse_short_read(inode, attr_ver, res, &ia.ap);
+		fuse_short_read(inode, &ia, res);
 
 	return 0;
 }
@@ -1065,7 +1080,7 @@ static void fuse_readpages_end(struct fuse_args *args, int err)
 	 * Short read means EOF. If file size is larger, truncate it
 	 */
 	if (!err && num_read < count)
-		fuse_short_read(inode, ia->read.attr_ver, num_read, ap);
+		fuse_short_read(inode, ia, num_read);
 
 	fuse_invalidate_atime(inode);
 
@@ -1086,7 +1101,7 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file,
 	struct fuse_file *ff = file->private_data;
 	struct fuse_mount *fm = ff->fm;
 	struct fuse_args_pages *ap = &ia->ap;
-	loff_t pos = folio_pos(ap->folios[0]);
+	loff_t pos = fuse_folios_pos(ap);
 	ssize_t res;
 	int err;
 
@@ -1560,6 +1575,11 @@ static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written = direct_write_fallback(iocb, from, written,
 				fuse_perform_write(iocb, from));
 	} else if (writeback) {
+		loff_t old_size = i_size_read(inode);
+
+		if (iocb->ki_pos > old_size)
+			truncate_pagecache_range(inode, old_size, iocb->ki_pos - 1);
+
 		/*
 		 * Use iomap so that we can do granular uptodate reads
 		 * and granular dirty tracking for large folios.
@@ -2252,7 +2272,7 @@ static ssize_t fuse_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 {
 	struct fuse_fill_wb_data *data = wpc->wb_ctx;
 	struct fuse_writepage_args *wpa = data->wpa;
-	struct fuse_args_pages *ap = &wpa->ia.ap;
+	struct fuse_args_pages *ap = wpa ? &wpa->ia.ap : NULL;
 	struct inode *inode = wpc->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -2994,6 +3014,7 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	struct fuse_write_out outarg;
 	struct fuse_copy_file_range_out outarg_64;
 	u64 bytes_copied;
+	loff_t old_size;
 	ssize_t err;
 	/* mark unstable when write-back is not used, and file_out gets
 	 * extended */
@@ -3017,6 +3038,14 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	err = file_modified(file_out);
 	if (err)
 		goto out;
+
+	/*
+	 * Copying to an offset past EOF extends the file over a hole.  Drop the
+	 * cache over the newly exposed range before the new size is published.
+	 */
+	old_size = i_size_read(inode_out);
+	if (pos_out > old_size)
+		truncate_pagecache_range(inode_out, old_size, pos_out - 1);
 
 	/*
 	 * Write out dirty pages in the destination file before sending the COPY

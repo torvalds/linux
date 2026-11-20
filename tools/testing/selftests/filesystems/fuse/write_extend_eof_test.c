@@ -25,23 +25,45 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/uio.h>
 #include <linux/fuse.h>
 
 #include "../../kselftest_harness.h"
 
 #define FUSE_ROOT_ID	1
-#define FILE_INO	2
+#define FILE_INO	2	/* "file", the file being extended */
+#define SRC_INO		3	/* "src", copy_file_range() source */
 #define MAX_WRITE	(128 * 1024)
 #define BACKING_SIZE	(4 * 1024 * 1024)
 #define POLLUTE		0xee
 
+/* Called directly: the libc wrapper needs off64_t and a recent enough glibc. */
+static ssize_t sys_copy_file_range(int fd_in, int64_t *off_in, int fd_out,
+				   int64_t *off_out, size_t len,
+				   unsigned int flags)
+{
+	return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out,
+		       len, flags);
+}
+
+/* Per-file server state. */
+struct backing_file {
+	unsigned char data[BACKING_SIZE];	/* authoritative bytes */
+	uint64_t size;
+};
+
 /* Server-side state, shared with the responder thread. */
 struct server {
 	int fd;
-	unsigned char backing[BACKING_SIZE];	/* authoritative bytes */
-	uint64_t size;
+	unsigned int copy_ops;			/* FUSE_COPY_FILE_RANGE* seen */
+	struct backing_file file[2];		/* FILE_INO, SRC_INO */
 };
+
+static struct backing_file *lookup_file(struct server *s, uint64_t nodeid)
+{
+	return &s->file[nodeid == SRC_INO];
+}
 
 static void reply(int fd, uint64_t unique, int error, void *data, size_t len)
 {
@@ -109,17 +131,22 @@ static void *server_thread(void *arg)
 			out.attr_valid = 3600;
 			fill_attr(&out.attr, ih->nodeid,
 				  root ? (S_IFDIR | 0755) : (S_IFREG | 0644),
-				  root ? 0 : s->size);
+				  root ? 0 : lookup_file(s, ih->nodeid)->size);
 			reply(s->fd, ih->unique, 0, &out, sizeof(out));
 			break;
 		}
 		case FUSE_LOOKUP: {
+			const char *name = (const char *)(ih + 1);
 			struct fuse_entry_out out = {0};
+			uint64_t nodeid;
 
-			out.nodeid = FILE_INO;
+			/* Every name exists; "src" is the second file. */
+			nodeid = strcmp(name, "src") ? FILE_INO : SRC_INO;
+			out.nodeid = nodeid;
 			out.attr_valid = 3600;
 			out.entry_valid = 3600;
-			fill_attr(&out.attr, FILE_INO, S_IFREG | 0644, s->size);
+			fill_attr(&out.attr, nodeid, S_IFREG | 0644,
+				  lookup_file(s, nodeid)->size);
 			reply(s->fd, ih->unique, 0, &out, sizeof(out));
 			break;
 		}
@@ -134,6 +161,7 @@ static void *server_thread(void *arg)
 		}
 		case FUSE_READ: {
 			struct fuse_read_in *in = (void *)(ih + 1);
+			struct backing_file *f = lookup_file(s, ih->nodeid);
 			uint64_t off = in->offset;
 			uint32_t size = in->size;
 
@@ -141,11 +169,12 @@ static void *server_thread(void *arg)
 				size = 0;
 			else if (off + size > BACKING_SIZE)
 				size = BACKING_SIZE - off;
-			reply(s->fd, ih->unique, 0, s->backing + off, size);
+			reply(s->fd, ih->unique, 0, f->data + off, size);
 			break;
 		}
 		case FUSE_WRITE: {
 			struct fuse_write_in *in = (void *)(ih + 1);
+			struct backing_file *f = lookup_file(s, ih->nodeid);
 			struct fuse_write_out out = {0};
 			uint64_t off = in->offset;
 			uint32_t size = in->size;
@@ -155,9 +184,9 @@ static void *server_thread(void *arg)
 
 				if (off + c > BACKING_SIZE)
 					c = BACKING_SIZE - off;
-				memcpy(s->backing + off, in + 1, c);
-				if (off + c > s->size)
-					s->size = off + c;
+				memcpy(f->data + off, in + 1, c);
+				if (off + c > f->size)
+					f->size = off + c;
 			}
 			out.size = size;
 			reply(s->fd, ih->unique, 0, &out, sizeof(out));
@@ -165,30 +194,68 @@ static void *server_thread(void *arg)
 		}
 		case FUSE_SETATTR: {
 			struct fuse_setattr_in *in = (void *)(ih + 1);
+			struct backing_file *f = lookup_file(s, ih->nodeid);
 			struct fuse_attr_out out = {0};
 
 			if ((in->valid & FATTR_SIZE) && in->size <= BACKING_SIZE) {
-				if (in->size > s->size)
-					memset(s->backing + s->size, 0,
-					       in->size - s->size);
-				s->size = in->size;
+				if (in->size > f->size)
+					memset(f->data + f->size, 0,
+					       in->size - f->size);
+				f->size = in->size;
 			}
 			out.attr_valid = 3600;
-			fill_attr(&out.attr, ih->nodeid, S_IFREG | 0644, s->size);
+			fill_attr(&out.attr, ih->nodeid, S_IFREG | 0644, f->size);
 			reply(s->fd, ih->unique, 0, &out, sizeof(out));
 			break;
 		}
 		case FUSE_FALLOCATE: {
 			struct fuse_fallocate_in *in = (void *)(ih + 1);
+			struct backing_file *f = lookup_file(s, ih->nodeid);
 			uint64_t end = in->offset + in->length;
 
 			/* Only plain (size-extending) fallocate is used here. */
 			if (!(in->mode & FALLOC_FL_KEEP_SIZE) &&
-			    end <= BACKING_SIZE && end > s->size) {
-				memset(s->backing + s->size, 0, end - s->size);
-				s->size = end;
+			    end <= BACKING_SIZE && end > f->size) {
+				memset(f->data + f->size, 0, end - f->size);
+				f->size = end;
 			}
 			reply(s->fd, ih->unique, 0, NULL, 0);
+			break;
+		}
+		case FUSE_COPY_FILE_RANGE:
+		case FUSE_COPY_FILE_RANGE_64: {
+			struct fuse_copy_file_range_in *in = (void *)(ih + 1);
+			struct backing_file *src = lookup_file(s, ih->nodeid);
+			struct backing_file *dst;
+			struct fuse_copy_file_range_out out64 = {0};
+			struct fuse_write_out out = {0};
+			uint64_t off_in = in->off_in;
+			uint64_t off_out = in->off_out;
+			uint64_t len = in->len;
+
+			dst = lookup_file(s, in->nodeid_out);
+			s->copy_ops++;
+			if (off_in >= BACKING_SIZE || off_out >= BACKING_SIZE) {
+				len = 0;
+			} else {
+				if (off_in + len > BACKING_SIZE)
+					len = BACKING_SIZE - off_in;
+				if (off_out + len > BACKING_SIZE)
+					len = BACKING_SIZE - off_out;
+				/* The hole left behind stays zero. */
+				memmove(dst->data + off_out, src->data + off_in,
+					len);
+				if (off_out + len > dst->size)
+					dst->size = off_out + len;
+			}
+			if (ih->opcode == FUSE_COPY_FILE_RANGE) {
+				out.size = len;
+				reply(s->fd, ih->unique, 0, &out, sizeof(out));
+			} else {
+				out64.bytes_copied = len;
+				reply(s->fd, ih->unique, 0, &out64,
+				      sizeof(out64));
+			}
 			break;
 		}
 		case FUSE_FLUSH:
@@ -334,6 +401,46 @@ TEST_F(fuse, fallocate_extend)
 {
 	pollute_eof_tail(_metadata, self);
 	ASSERT_EQ(0, fallocate(self->fd, 0, self->eof, 4 * self->page));
+	assert_tail_zeroed(_metadata, self);
+}
+
+/*
+ * Extend via copy_file_range() landing on a page strictly past the old EOF
+ * page, so neither the copied range nor the flush of either file touches the
+ * old EOF folio.  The source has to be a separate file: copying within one
+ * file would flush it from the source offset on, and writeback zeroes the
+ * post-EOF tail on the way out, hiding the bug.
+ */
+TEST_F(fuse, copy_file_range_extend)
+{
+	int64_t off_in = 0;
+	int64_t off_out;
+	char path[128];
+	char *buf;
+	ssize_t ret;
+	int src;
+
+	pollute_eof_tail(_metadata, self);
+	off_out = 5 * self->page;
+
+	snprintf(path, sizeof(path), "%s/src", self->dir);
+	src = open(path, O_RDWR | O_CREAT | O_TRUNC, 0644);
+	ASSERT_GE(src, 0);
+
+	buf = malloc(self->page);
+	ASSERT_NE(NULL, buf);
+	memset(buf, 'C', self->page);
+	ASSERT_EQ(self->page, pwrite(src, buf, self->page, 0));
+	free(buf);
+
+	ret = sys_copy_file_range(src, &off_in, self->fd, &off_out,
+				  self->page, 0);
+	ASSERT_EQ(self->page, ret);
+	close(src);
+
+	/* A splice fallback would extend via the write path instead. */
+	ASSERT_NE(0u, self->srv->copy_ops);
+
 	assert_tail_zeroed(_metadata, self);
 }
 

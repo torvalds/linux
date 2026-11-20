@@ -245,6 +245,9 @@ struct fuse_chan {
 	/** Is interrupt not implemented by fs? */
 	bool no_interrupt;
 
+	/** @conn_refused: INIT failed while the channel was still connected. */
+	bool conn_refused;
+
 	/* Use io_uring for communication */
 	unsigned int io_uring;
 

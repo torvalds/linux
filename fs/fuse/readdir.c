@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
+#include <linux/namei.h>
 
 static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 {
@@ -191,18 +192,17 @@ static int fuse_direntplus_link(struct file *file,
 		return -EIO;
 	if (fuse_invalid_attr(&o->attr))
 		return -EIO;
+	if (memchr(name.name, '\0', name.len))
+		return -EIO;
 
 	fc = get_fuse_conn(dir);
 	epoch = atomic_read(&fc->epoch);
 
-	name.hash = full_name_hash(parent, name.name, name.len);
-	dentry = d_lookup(parent, &name);
-	if (!dentry) {
 retry:
-		dentry = d_alloc_parallel(parent, &name);
-		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
-	}
+	dentry = d_alloc_trylock(parent, &name);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
 	if (!d_in_lookup(dentry)) {
 		struct fuse_inode *fi;
 		inode = d_inode(dentry);
@@ -230,6 +230,7 @@ retry:
 		fuse_change_attributes(inode, &o->attr, NULL,
 				       ATTR_TIMEOUT(o),
 				       attr_version);
+		fuse_dentry_set_epoch(dentry, epoch);
 		/*
 		 * The other branch comes via fuse_iget()
 		 * which bumps nlookup inside
@@ -238,9 +239,14 @@ retry:
 		inode = fuse_iget(dir->i_sb, o->nodeid, o->generation,
 				  &o->attr, ATTR_TIMEOUT(o),
 				  attr_version, evict_ctr);
-		if (!inode)
-			inode = ERR_PTR(-ENOMEM);
+		if (!inode) {
+			d_lookup_done(dentry);
+			dput(dentry);
+			return -ENOMEM;
+		}
 
+		fuse_dentry_set_epoch(dentry, epoch);
+		ihold(inode); /* d_splice_alias() eats a reference */
 		alias = d_splice_alias(inode, dentry);
 		d_lookup_done(dentry);
 		if (alias) {
@@ -248,19 +254,20 @@ retry:
 			dentry = alias;
 		}
 		if (IS_ERR(dentry)) {
-			if (!IS_ERR(inode)) {
-				struct fuse_inode *fi = get_fuse_inode(inode);
+			struct fuse_inode *fi = get_fuse_inode(inode);
 
-				spin_lock(&fi->lock);
-				fi->nlookup--;
-				spin_unlock(&fi->lock);
-			}
+			spin_lock(&fi->lock);
+			fi->nlookup--;
+			spin_unlock(&fi->lock);
+			iput(inode);
 			return PTR_ERR(dentry);
 		}
+		if (alias)
+			fuse_dentry_set_epoch(dentry, epoch);
+		iput(inode);
 	}
 	if (fc->readdirplus_auto)
 		set_bit(FUSE_I_INIT_RDPLUS, &get_fuse_inode(inode)->state);
-	fuse_dentry_set_epoch(dentry, epoch);
 	fuse_change_entry_timeout(dentry, o);
 
 	dput(dentry);
