@@ -634,6 +634,10 @@ static int isotp_rcv_ff(struct sock *sk, struct canfd_frame *cf, int ae)
 	so->rx.sn = 1;
 	WRITE_ONCE(so->rx.state, ISOTP_WAIT_DATA);
 
+	/* start rx timeout, isotp_send_fc() restarts it */
+	hrtimer_start(&so->rxtimer, ktime_set(ISOTP_FC_TIMEOUT, 0),
+		      HRTIMER_MODE_REL_SOFT);
+
 	/* no creation of flow control frames */
 	if (so->opt.flags & CAN_ISOTP_LISTEN_MODE)
 		return 0;
@@ -650,6 +654,17 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 	struct sk_buff *nskb;
 	int i;
 
+	/* CFs are never longer than the FF */
+	if (cf->len > so->rx.ll_dl)
+		return 1;
+
+	/* CFs have usually the LL_DL length */
+	if (cf->len < so->rx.ll_dl) {
+		/* this is only allowed for the last CF */
+		if (so->rx.len - so->rx.idx > so->rx.ll_dl - ae - N_PCI_SZ)
+			return 1;
+	}
+
 	if (READ_ONCE(so->rx.state) != ISOTP_WAIT_DATA)
 		return 0;
 
@@ -662,6 +677,7 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 		so->lastrxcf_tstamp = skb->tstamp;
 	}
 
+	/* stop the rx timeout only for valid CFs (checked above) */
 	hrtimer_cancel(&so->rxtimer);
 
 	/* isotp_rx_timer_handler() may have raced us for so->rx.state
@@ -669,17 +685,6 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 	 */
 	if (READ_ONCE(so->rx.state) != ISOTP_WAIT_DATA)
 		return 1;
-
-	/* CFs are never longer than the FF */
-	if (cf->len > so->rx.ll_dl)
-		return 1;
-
-	/* CFs have usually the LL_DL length */
-	if (cf->len < so->rx.ll_dl) {
-		/* this is only allowed for the last CF */
-		if (so->rx.len - so->rx.idx > so->rx.ll_dl - ae - N_PCI_SZ)
-			return 1;
-	}
 
 	if ((cf->data[ae] & 0x0F) != so->rx.sn) {
 		/* wrong sn detected - report 'illegal byte sequence' */
@@ -726,13 +731,13 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 		return 0;
 	}
 
+	/* start rx timeout, isotp_send_fc() restarts it */
+	hrtimer_start(&so->rxtimer, ktime_set(ISOTP_FC_TIMEOUT, 0),
+		      HRTIMER_MODE_REL_SOFT);
+
 	/* perform blocksize handling, if enabled */
-	if (!so->rxfc.bs || ++so->rx.bs < so->rxfc.bs) {
-		/* start rx timeout watchdog */
-		hrtimer_start(&so->rxtimer, ktime_set(ISOTP_FC_TIMEOUT, 0),
-			      HRTIMER_MODE_REL_SOFT);
+	if (!so->rxfc.bs || ++so->rx.bs < so->rxfc.bs)
 		return 0;
-	}
 
 	/* no creation of flow control frames */
 	if (so->opt.flags & CAN_ISOTP_LISTEN_MODE)
