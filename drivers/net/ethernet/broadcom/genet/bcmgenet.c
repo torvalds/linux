@@ -2486,8 +2486,8 @@ next:
 		bcmgenet_rdma_ring_writel(priv, ring->index, ring->c_index, RDMA_CONS_INDEX);
 	}
 
-	ring->dim.bytes = bytes_processed;
-	ring->dim.packets = rxpktprocessed;
+	ring->dim.bytes += bytes_processed;
+	ring->dim.packets += rxpktprocessed;
 
 	return rxpktprocessed;
 }
