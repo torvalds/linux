@@ -737,14 +737,11 @@ static void btintel_pcie_mac_init(struct btintel_pcie_data *data)
 {
 	u32 reg;
 
-	/* Set MAC_INIT bit to start primary bootloader */
 	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
-	reg &= ~(BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_INIT |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_DISCON |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_SW_RESET);
-	reg |= (BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_ENA |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT);
-	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG, reg);
+	if (!(reg & BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT)) {
+		reg |= BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT;
+		btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG, reg);
+	}
 }
 
 static int btintel_pcie_get_mac_access(struct btintel_pcie_data *data)
