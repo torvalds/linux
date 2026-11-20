@@ -204,14 +204,23 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 	addr_t offset, tmp;
 
 	if (addr < offsetof(struct user, regs.acrs)) {
-		/*
-		 * psw and gprs are stored on the stack
-		 */
-		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
+		struct pt_regs *regs = task_pt_regs(child);
+
+		/* psw and gprs are on the stack. */
+		tmp = *(addr_t *)((addr_t)&regs->psw + addr);
 		if (addr == offsetof(struct user, regs.psw.mask)) {
 			/* Return a clean psw mask. */
 			tmp &= PSW_MASK_USER | PSW_MASK_RI;
 			tmp |= PSW_USER_BITS;
+		}
+		/*
+		 * During system call entry gpr2 contains the return
+		 * value. Redirect reads of gpr2 to int_code so that
+		 * readers see the system call number.
+		 */
+		if (addr == offsetof(struct user, regs.gprs[2])) {
+			if (test_pt_regs_flag(regs, PIF_SYSCALL_ENTRY))
+				tmp = syscall_get_nr(child, regs);
 		}
 
 	} else if (addr < offsetof(struct user, regs.orig_gpr2)) {
@@ -347,8 +356,17 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		}
 
 		if (addr == offsetof(struct user, regs.gprs[2])) {
-			if (test_pt_regs_flag(regs, PIF_SYSCALL))
+			if (test_pt_regs_flag(regs, PIF_SYSCALL_ENTRY)) {
+				/*
+				 * System call entry path: only change system
+				 * call number in int_code, but leave gpr2
+				 * alone, which contains the return value.
+				 */
 				syscall_set_nr(child, regs, data);
+				return 0;
+			} else if (test_pt_regs_flag(regs, PIF_SYSCALL)) {
+				syscall_set_nr(child, regs, data);
+			}
 		}
 		*(addr_t *)((addr_t) &regs->psw + addr) = data;
 	} else if (addr < offsetof(struct user, regs.orig_gpr2)) {

@@ -360,21 +360,25 @@ appldata_generic_handler(const struct ctl_table *ctl, int write,
 			pr_err("Starting the data collection for %s "
 			       "failed with rc=%d\n", ops->name, rc);
 			module_put(ops->owner);
+			rc = -EIO;
 		} else
 			ops->active = 1;
 	} else if (!active && (ops->active == 1)) {
-		ops->active = 0;
 		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
 				(unsigned long) ops->data, ops->size,
 				ops->mod_lvl);
-		if (rc != 0)
+		if (rc != 0) {
 			pr_err("Stopping the data collection for %s "
 			       "failed with rc=%d\n", ops->name, rc);
-		module_put(ops->owner);
+			rc = -EIO;
+		} else {
+			ops->active = 0;
+			module_put(ops->owner);
+		}
 	}
 	mutex_unlock(&appldata_ops_mutex);
 	module_put(ops->owner);
-	return 0;
+	return rc;
 }
 
 /*************************** /proc stuff <END> *******************************/

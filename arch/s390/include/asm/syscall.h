@@ -59,7 +59,6 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	set_pt_regs_flag(regs, PIF_SYSCALL_RET_SET);
 	regs->gprs[2] = error ? error : val;
 }
 
