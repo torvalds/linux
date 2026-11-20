@@ -19,7 +19,6 @@ static struct kmem_cache *nvme_chap_buf_cache;
 static mempool_t *nvme_chap_buf_pool;
 
 struct nvme_dhchap_queue_context {
-	struct list_head entry;
 	struct work_struct auth_work;
 	struct nvme_ctrl *ctrl;
 	struct crypto_kpp *dh_tfm;

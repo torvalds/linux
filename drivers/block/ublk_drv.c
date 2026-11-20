@@ -835,23 +835,27 @@ static void __ublk_release_fcmd(struct ublk_queue *ubq)
 	WRITE_ONCE(ubq->active_fcmd, NULL);
 }
 
-/*
- * Nothing can move on, so clear ->active_fcmd, and the caller should stop
- * dispatching
- */
-static void ublk_batch_deinit_fetch_buf(struct ublk_queue *ubq,
-					const struct ublk_batch_io_data *data,
-					struct ublk_batch_fetch_cmd *fcmd,
-					int res)
+static struct ublk_batch_fetch_cmd *__ublk_acquire_fcmd(struct ublk_queue *ubq);
+
+/* Remove the failed fetch and claim the next one before dropping its reference. */
+static struct ublk_batch_fetch_cmd *
+ublk_batch_deinit_fetch_buf(struct ublk_queue *ubq,
+			    const struct ublk_batch_io_data *data,
+			    struct ublk_batch_fetch_cmd *fcmd,
+			    int res)
 {
+	struct ublk_batch_fetch_cmd *next_fcmd;
+
 	spin_lock(&ubq->evts_lock);
 	list_del_init(&fcmd->node);
 	WARN_ON_ONCE(fcmd != ubq->active_fcmd);
 	__ublk_release_fcmd(ubq);
+	next_fcmd = __ublk_acquire_fcmd(ubq);
 	spin_unlock(&ubq->evts_lock);
 
 	io_uring_cmd_done(fcmd->cmd, res, data->issue_flags);
 	ublk_batch_free_fcmd(fcmd);
+	return next_fcmd;
 }
 
 static int ublk_batch_fetch_post_cqe(struct ublk_batch_fetch_cmd *fcmd,
@@ -1012,10 +1016,14 @@ static int ublk_validate_params(const struct ublk_device *ub)
 	if (ub->params.types & UBLK_PARAM_TYPE_DEVT)
 		return -EINVAL;
 
-	if (ub->params.types & UBLK_PARAM_TYPE_ZONED)
-		return ublk_dev_param_zoned_validate(ub);
-	else if (ublk_dev_is_zoned(ub))
+	if (ub->params.types & UBLK_PARAM_TYPE_ZONED) {
+		int ret = ublk_dev_param_zoned_validate(ub);
+
+		if (ret)
+			return ret;
+	} else if (ublk_dev_is_zoned(ub)) {
 		return -EINVAL;
+	}
 
 	if (ub->params.types & UBLK_PARAM_TYPE_DMA_ALIGN) {
 		const struct ublk_param_dma_align *p = &ub->params.dma;
@@ -2041,7 +2049,10 @@ again:
 	}
 
 	if (ret < 0) {
-		ublk_batch_deinit_fetch_buf(ubq, data, fcmd, ret);
+		new_fcmd = ublk_batch_deinit_fetch_buf(ubq, data, fcmd, ret);
+		if (new_fcmd)
+			io_uring_cmd_complete_in_task(new_fcmd->cmd,
+						      ublk_batch_tw_cb);
 		return;
 	}
 

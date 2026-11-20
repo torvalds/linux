@@ -39,7 +39,6 @@ struct nvme_fc_queue {
 	size_t			cmnd_capsule_len;
 	u32			qnum;
 	u32			rqcnt;
-	u32			seqno;
 
 	u64			connection_id;
 	atomic_t		csn;

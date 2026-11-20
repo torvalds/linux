@@ -24,20 +24,26 @@ int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 {
 	unsigned char key_hash;
 	char *dhchap_secret;
+	int offset = 0;
 
 	if (!strlen(secret)) {
+		down_write(&nvmet_config_sem);
 		if (set_ctrl) {
 			kfree(host->dhchap_ctrl_secret);
 			host->dhchap_ctrl_secret = NULL;
 			host->dhchap_ctrl_key_hash = 0;
+			host->dhchap_ctrl_key_offset = 0;
 		} else {
 			kfree(host->dhchap_secret);
 			host->dhchap_secret = NULL;
 			host->dhchap_key_hash = 0;
+			host->dhchap_key_offset = 0;
 		}
+		up_write(&nvmet_config_sem);
 		return 0;
 	}
-	if (sscanf(secret, "DHHC-1:%hhd:%*s", &key_hash) != 1)
+	if (sscanf(secret, "DHHC-1:%hhd:%n", &key_hash, &offset) != 1 ||
+	    !offset)
 		return -EINVAL;
 	if (key_hash > 3) {
 		pr_warn("Invalid DH-HMAC-CHAP hash id %d\n",
@@ -52,10 +58,12 @@ int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 		kfree(host->dhchap_ctrl_secret);
 		host->dhchap_ctrl_secret = strim(dhchap_secret);
 		host->dhchap_ctrl_key_hash = key_hash;
+		host->dhchap_ctrl_key_offset = offset;
 	} else {
 		kfree(host->dhchap_secret);
 		host->dhchap_secret = strim(dhchap_secret);
 		host->dhchap_key_hash = key_hash;
+		host->dhchap_key_offset = offset;
 	}
 	up_write(&nvmet_config_sem);
 	return 0;
@@ -76,8 +84,11 @@ int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id)
 			return 0;
 		}
 		crypto_free_kpp(ctrl->dh_tfm);
+		kfree_sensitive(ctrl->dh_key);
 		ctrl->dh_tfm = NULL;
 		ctrl->dh_gid = 0;
+		ctrl->dh_key = NULL;
+		ctrl->dh_keysize = 0;
 	}
 
 	if (dhgroup_id == NVME_AUTH_DHGROUP_NULL)
@@ -95,38 +106,42 @@ int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id)
 			 __func__, ctrl->cntlid, dhgroup_id,
 			 PTR_ERR(ctrl->dh_tfm));
 		ret = PTR_ERR(ctrl->dh_tfm);
-		ctrl->dh_tfm = NULL;
-		ctrl->dh_gid = 0;
-	} else {
-		ctrl->dh_gid = dhgroup_id;
-		pr_debug("%s: ctrl %d setup DH group %d\n",
-			 __func__, ctrl->cntlid, ctrl->dh_gid);
-		ret = nvme_auth_gen_privkey(ctrl->dh_tfm, ctrl->dh_gid);
-		if (ret < 0) {
-			pr_debug("%s: ctrl %d failed to generate private key, err %d\n",
-				 __func__, ctrl->cntlid, ret);
-			kfree_sensitive(ctrl->dh_key);
-			ctrl->dh_key = NULL;
-			return ret;
-		}
-		ctrl->dh_keysize = crypto_kpp_maxsize(ctrl->dh_tfm);
-		kfree_sensitive(ctrl->dh_key);
-		ctrl->dh_key = kzalloc(ctrl->dh_keysize, GFP_KERNEL);
-		if (!ctrl->dh_key) {
-			pr_warn("ctrl %d failed to allocate public key\n",
-				ctrl->cntlid);
-			return -ENOMEM;
-		}
-		ret = nvme_auth_gen_pubkey(ctrl->dh_tfm, ctrl->dh_key,
-					   ctrl->dh_keysize);
-		if (ret < 0) {
-			pr_warn("ctrl %d failed to generate public key\n",
-				ctrl->cntlid);
-			kfree(ctrl->dh_key);
-			ctrl->dh_key = NULL;
-		}
+		goto err;
 	}
 
+	ctrl->dh_gid = dhgroup_id;
+	pr_debug("%s: ctrl %d setup DH group %d\n",
+		 __func__, ctrl->cntlid, ctrl->dh_gid);
+	ret = nvme_auth_gen_privkey(ctrl->dh_tfm, ctrl->dh_gid);
+	if (ret < 0) {
+		pr_debug("%s: ctrl %d failed to generate private key, err %d\n",
+			 __func__, ctrl->cntlid, ret);
+		goto err;
+	}
+	ctrl->dh_keysize = crypto_kpp_maxsize(ctrl->dh_tfm);
+	ctrl->dh_key = kzalloc(ctrl->dh_keysize, GFP_KERNEL);
+	if (!ctrl->dh_key) {
+		pr_warn("ctrl %d failed to allocate public key\n",
+			ctrl->cntlid);
+		ret = -ENOMEM;
+		goto err;
+	}
+	ret = nvme_auth_gen_pubkey(ctrl->dh_tfm, ctrl->dh_key,
+				   ctrl->dh_keysize);
+	if (ret < 0) {
+		pr_warn("ctrl %d failed to generate public key\n",
+			ctrl->cntlid);
+		goto err;
+	}
+
+	return 0;
+err:
+	kfree_sensitive(ctrl->dh_key);
+	ctrl->dh_key = NULL;
+	crypto_free_kpp(ctrl->dh_tfm);
+	ctrl->dh_tfm = NULL;
+	ctrl->dh_gid = 0;
+	ctrl->dh_keysize = 0;
 	return ret;
 }
 
@@ -177,14 +192,16 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 	 * Skip the 'DHHC-1:XX:' prefix. Keep the old keys until the new ones
 	 * are there: a controller without a host key needs no authentication.
 	 */
-	host_key = nvme_auth_extract_key(host->dhchap_secret + 10,
+	host_key = nvme_auth_extract_key(host->dhchap_secret +
+					 host->dhchap_key_offset,
 					 host->dhchap_key_hash);
 	if (IS_ERR(host_key)) {
 		ret = NVME_AUTH_DHCHAP_FAILURE_NOT_USABLE;
 		goto out_unlock;
 	}
 	if (host->dhchap_ctrl_secret) {
-		ctrl_key = nvme_auth_extract_key(host->dhchap_ctrl_secret + 10,
+		ctrl_key = nvme_auth_extract_key(host->dhchap_ctrl_secret +
+						 host->dhchap_ctrl_key_offset,
 						 host->dhchap_ctrl_key_hash);
 		if (IS_ERR(ctrl_key)) {
 			nvme_auth_free_key(host_key);

@@ -22,11 +22,20 @@
 
 extern const struct pr_ops nvme_pr_ops;
 
+/* Seconds to jiffies, capped for the u32 timeouts and timer delays */
+static inline unsigned int nvme_timeout_to_jiffies(unsigned int timeout)
+{
+	unsigned long max_secs;
+
+	max_secs = min_t(unsigned long, UINT_MAX, MAX_JIFFY_OFFSET) / HZ;
+	return min_t(unsigned long, timeout, max_secs) * HZ;
+}
+
 extern unsigned int nvme_io_timeout;
-#define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
+#define NVME_IO_TIMEOUT	nvme_timeout_to_jiffies(nvme_io_timeout)
 
 extern unsigned int admin_timeout;
-#define NVME_ADMIN_TIMEOUT	(admin_timeout * HZ)
+#define NVME_ADMIN_TIMEOUT	nvme_timeout_to_jiffies(admin_timeout)
 
 #define NVME_DEFAULT_KATO	5
 

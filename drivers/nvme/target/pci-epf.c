@@ -1432,8 +1432,6 @@ static u16 nvmet_pci_epf_delete_sq(struct nvmet_ctrl *tctrl, u16 sqid)
 	destroy_workqueue(sq->iod_wq);
 	sq->iod_wq = NULL;
 
-	nvmet_pci_epf_drain_queue(sq);
-
 	if (sq->nvme_sq.ctrl)
 		nvmet_sq_destroy(&sq->nvme_sq);
 

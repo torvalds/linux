@@ -113,8 +113,21 @@ static void nvmet_file_io_done(struct kiocb *iocb, long ret)
 	}
 
 	if (unlikely(ret != req->transfer_len))
-		status = errno_to_nvme_status(req, ret);
+		status = errno_to_nvme_status(req, ret < 0 ? ret : -EIO);
 	nvmet_req_complete(req, status);
+}
+
+static bool nvmet_file_check_lba_range(struct nvmet_req *req, u64 slba,
+				       u64 len, loff_t *pos)
+{
+	u64 pos64;
+
+	if (check_shl_overflow(slba, req->ns->blksize_shift, &pos64) ||
+	    pos64 > req->ns->size || len > req->ns->size - pos64)
+		return false;
+
+	*pos = pos64;
+	return true;
 }
 
 static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
@@ -131,8 +144,9 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 	if (req->f.mpool_alloc && nr_bvec > NVMET_MAX_MPOOL_BVEC)
 		is_sync = true;
 
-	pos = le64_to_cpu(req->cmd->rw.slba) << req->ns->blksize_shift;
-	if (unlikely(pos + req->transfer_len > req->ns->size)) {
+	if (unlikely(!nvmet_file_check_lba_range(req,
+						 le64_to_cpu(req->cmd->rw.slba),
+						 req->transfer_len, &pos))) {
 		ret = -ENOSPC;
 		goto complete;
 	}
@@ -150,8 +164,11 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 		if (unlikely(is_sync) &&
 		    (nr_bvec - 1 == 0 || bv_cnt == NVMET_MAX_MPOOL_BVEC)) {
 			ret = nvmet_file_submit_bvec(req, pos, bv_cnt, len, 0);
-			if (ret < 0)
+			if (ret != len) {
+				if (ret >= 0)
+					ret = -EIO;
 				goto complete;
+			}
 
 			pos += len;
 			bv_cnt = 0;
@@ -279,19 +296,22 @@ static void nvmet_file_execute_discard(struct nvmet_req *req)
 	int i;
 
 	for (i = 0; i <= le32_to_cpu(req->cmd->dsm.nr); i++) {
+		u64 len64;
+
 		status = nvmet_copy_from_sgl(req, i * sizeof(range), &range,
 					sizeof(range));
 		if (status)
 			break;
 
-		offset = le64_to_cpu(range.slba) << req->ns->blksize_shift;
-		len = le32_to_cpu(range.nlb);
-		len <<= req->ns->blksize_shift;
-		if (offset + len > req->ns->size) {
+		if (check_shl_overflow((u64)le32_to_cpu(range.nlb),
+				       req->ns->blksize_shift, &len64) ||
+		    !nvmet_file_check_lba_range(req, le64_to_cpu(range.slba),
+					len64, &offset)) {
 			req->error_slba = le64_to_cpu(range.slba);
 			status = errno_to_nvme_status(req, -ENOSPC);
 			break;
 		}
+		len = len64;
 
 		ret = vfs_fallocate(req->ns->file, mode, offset, len);
 		if (ret && ret != -EOPNOTSUPP) {
@@ -336,16 +356,17 @@ static void nvmet_file_write_zeroes_work(struct work_struct *w)
 	int mode = FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE;
 	loff_t offset;
 	loff_t len;
+	u64 len64;
 	int ret;
 
-	offset = le64_to_cpu(write_zeroes->slba) << req->ns->blksize_shift;
-	len = (((sector_t)le16_to_cpu(write_zeroes->length) + 1) <<
-			req->ns->blksize_shift);
-
-	if (unlikely(offset + len > req->ns->size)) {
+	if (check_shl_overflow((u64)le16_to_cpu(write_zeroes->length) + 1,
+			       req->ns->blksize_shift, &len64) ||
+	    !nvmet_file_check_lba_range(req, le64_to_cpu(write_zeroes->slba),
+				len64, &offset)) {
 		nvmet_req_complete(req, errno_to_nvme_status(req, -ENOSPC));
 		return;
 	}
+	len = len64;
 
 	ret = vfs_fallocate(req->ns->file, mode, offset, len);
 	nvmet_req_complete(req, ret < 0 ? errno_to_nvme_status(req, ret) : 0);
