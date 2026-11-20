@@ -84,7 +84,7 @@ static int usx2y_urb_capt_retire(struct snd_usx2y_substream *subs)
 	subs->transfer_done += lens;
 	/* update the pointer, call callback if necessary */
 	if (subs->transfer_done >= runtime->period_size) {
-		subs->transfer_done -= runtime->period_size;
+		subs->transfer_done %= runtime->period_size;
 		snd_pcm_period_elapsed(subs->pcm_substream);
 	}
 	return 0;
@@ -184,7 +184,7 @@ static void usx2y_urb_play_retire(struct snd_usx2y_substream *subs, struct urb *
 	if (subs->hwptr_done >= runtime->buffer_size)
 		subs->hwptr_done -= runtime->buffer_size;
 	if (subs->transfer_done >= runtime->period_size) {
-		subs->transfer_done -= runtime->period_size;
+		subs->transfer_done %= runtime->period_size;
 		snd_pcm_period_elapsed(subs->pcm_substream);
 	}
 }
@@ -672,7 +672,7 @@ static void i_usx2y_04int(struct urb *urb)
 	if (urb->status)
 		dev_err(&urb->dev->dev, "%s() urb->status=%i\n",
 			__func__, urb->status);
-	if (!--usx2y->us04->len)
+	if (!--usx2y->us04->pending)
 		wake_up(&usx2y->in04_wait_queue);
 }
 
@@ -691,6 +691,7 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 			goto cleanup;
 		}
 		us->len = NOOF_SETRATE_URBS;
+		us->pending = NOOF_SETRATE_URBS;
 		usbdata = kmalloc_objs(int, NOOF_SETRATE_URBS);
 		if (!usbdata) {
 			err = -ENOMEM;
@@ -712,9 +713,9 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 			goto cleanup;
 		us->submitted =	0;
 		usx2y->us04 =	us;
-		wait_event_timeout(usx2y->in04_wait_queue, !us->len, HZ);
+		wait_event_timeout(usx2y->in04_wait_queue, !us->pending, HZ);
 		usx2y->us04 =	NULL;
-		if (us->len)
+		if (us->pending)
 			err = -ENODEV;
 	cleanup:
 		if (us) {

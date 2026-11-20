@@ -796,8 +796,8 @@ snd_compr_set_metadata(struct snd_compr_stream *stream, unsigned long arg)
 		return -EFAULT;
 
 	retval = stream->ops->set_metadata(stream, &metadata);
-	stream->metadata_set = true;
-
+	if (!retval)
+		stream->metadata_set = true;
 	return retval;
 }
 

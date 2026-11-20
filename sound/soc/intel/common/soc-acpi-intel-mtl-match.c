@@ -1299,8 +1299,9 @@ static const struct snd_soc_acpi_link_adr mtl_cs35l63_x2_link1_link3_fb[] = {
 
 /*
  * Senary SN624x on Meteor Lake: one multi-function device on link 0.
- * Separate mach entries per part ID (adr_d[] is AND, not OR). Amp endpoint
- * is aggregated like the generic SOC_SDW_DAI_TYPE_AMP shape from
+ * Separate mach entries per part ID (adr_d[] is AND, not OR). ADR version
+ * nibble 0x3 matches the silicon SoundWire version. Amp endpoint is
+ * aggregated like the generic SOC_SDW_DAI_TYPE_AMP shape from
  * find_acpi_adr_device().
  */
 static const struct snd_soc_acpi_endpoint sn624x_endpoints[] = {
@@ -1347,11 +1348,13 @@ static const struct snd_soc_acpi_link_adr _sym[] = {			\
 	{}								\
 }
 
-SN624X_MTL_SINGLE_ADR(sn6242_single_adr, 0x0000000496624201ull);
-SN624X_MTL_SINGLE_ADR(sn6244_single_adr, 0x0000000496624401ull);
+SN624X_MTL_SINGLE_ADR(sn6242_single_adr, 0x0000300496624201ull);
+SN624X_MTL_SINGLE_ADR(sn6244_single_adr, 0x0000300496624401ull);
+SN624X_MTL_SINGLE_ADR(sn6245_single_adr, 0x0000300496624501ull);
 
 SN624X_MTL_LINK(mtl_link_sn6242, sn6242_single_adr);
 SN624X_MTL_LINK(mtl_link_sn6244, sn6244_single_adr);
+SN624X_MTL_LINK(mtl_link_sn6245, sn6245_single_adr);
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -1570,6 +1573,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	{
 		.link_mask = BIT(0),
 		.links = mtl_link_sn6244,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-dummy.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(0),
+		.links = mtl_link_sn6245,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-dummy.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,

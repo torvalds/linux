@@ -2579,7 +2579,7 @@ static int tas2781_cali_preproc(struct tasdevice_priv *priv, int i)
 		 */
 		re_org = r0_deflt[0] << 8 | r0_deflt[1];
 		re_cal = data[k + 1] << 8 | data[k + 2];
-		if (re_org > re_cal) {
+		if (re_cal && re_org > re_cal) {
 			rc = tasdevice_dev_read(priv, i, TAS2781_PG_REG,
 						 &pg_id);
 			if (rc < 0) {

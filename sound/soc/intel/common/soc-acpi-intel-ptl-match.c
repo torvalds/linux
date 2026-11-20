@@ -495,10 +495,12 @@ static const struct snd_soc_acpi_link_adr _sym[] = {			\
 
 SN624X_PTL_SINGLE_ADR(sn6242_single_adr, 0x0003300496624201ull);
 SN624X_PTL_SINGLE_ADR(sn6244_single_adr, 0x0003300496624401ull);
+SN624X_PTL_SINGLE_ADR(sn6245_single_adr, 0x0003300496624501ull);
 SN624X_PTL_SINGLE_ADR(sn6247_single_adr, 0x0003300496624701ull);
 
 SN624X_PTL_LINK(ptl_link_sn6242, sn6242_single_adr);
 SN624X_PTL_LINK(ptl_link_sn6244, sn6244_single_adr);
+SN624X_PTL_LINK(ptl_link_sn6245, sn6245_single_adr);
 SN624X_PTL_LINK(ptl_link_sn6247, sn6247_single_adr);
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
@@ -605,6 +607,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 	{
 		.link_mask = BIT(3),
 		.links = ptl_link_sn6244,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-dummy.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_link_sn6245,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-dummy.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,

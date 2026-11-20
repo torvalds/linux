@@ -50,7 +50,7 @@ DSP. Firmware files are essential to enable the full capabilities of the
 amplifier.
 
 Firmware is distributed in the linux-firmware repository:
-https://gitlab.com/kernel-firmware/linux-firmware.git
+https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/
 
 On most SoundWire systems the amplifier has a default minimum capability to
 produce audio. However this will be

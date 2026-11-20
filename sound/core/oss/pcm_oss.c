@@ -1073,19 +1073,21 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 		goto failure;
 	}
 
-	runtime->oss.params = 0;
 	runtime->oss.prepare = 1;
 	runtime->oss.buffer_used = 0;
 	err = snd_pcm_runtime_buffer_set_silence(runtime);
 	if (err < 0)
 		goto failure;
+	runtime->oss.params = 0;
 
 	runtime->oss.period_frames = snd_pcm_alsa_frames(substream, oss_period_size);
 
 	err = 0;
 failure:
-	if (err)
+	if (err) {
+		runtime->oss.params = 1;
 		snd_pcm_oss_release_buffers(substream);
+	}
 	kfree(sw_params);
 	kfree(params);
 	kfree(sparams);

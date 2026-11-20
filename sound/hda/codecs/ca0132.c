@@ -8421,8 +8421,6 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 		u32 ser_base[4], ser_clk[4], ser_out[4];
 	} saved;
 	__le32 *dst;
-	int word_idx = 0;
-	int frame_words;
 	int led, w, i;
 	int retries = 20; /* ~100ms max */
 
@@ -8470,38 +8468,25 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 		usleep_range(5000, 10000);
 	}
 
-	/* 1. Populate the 32KB DMA buffer with repeating WS2812 frames + reset gaps */
+	/* 1. Populate the 32KB DMA buffer: 1 WS2812 frame + reset gap, rest zero */
 	memset(dmab.area, 0, AE5_STRIP_DMA_SIZE);
 	dst = (__le32 *)dmab.area;
 
-	/* Words per frame: preamble + (num_leds * words_per_led) + reset gap */
-	frame_words = AE5_STRIP_PREAMBLE_WORDS + (num_leds * AE5_STRIP_WORDS_PER_LED) +
-		      AE5_STRIP_RESET_GAP_WORDS;
-
-	while (word_idx + frame_words <= AE5_STRIP_TOTAL_WORDS) {
-		/* Preamble per Windows CtxHda FUN_00042944 */
-		for (w = 0; w < AE5_STRIP_PREAMBLE_WORDS; w++) {
-			*dst++ = 0;
-			word_idx++;
-		}
-		/* LEDs */
-		for (led = 0; led < num_leds; led++) {
-			ae5_strip_encode_24(grb_colors[led], enc_words);
-			for (w = 0; w < AE5_STRIP_WORDS_PER_LED; w++) {
-				*dst++ = cpu_to_le32(enc_words[w]);
-				word_idx++;
-			}
-		}
-		/* Zero reset gap (> 1.8 ms; WS2812 requires > 50 us low) */
-		for (w = 0; w < AE5_STRIP_RESET_GAP_WORDS; w++) {
-			*dst++ = 0;
-			word_idx++;
-		}
-	}
-	while (word_idx < AE5_STRIP_TOTAL_WORDS) {
+	/* Preamble per Windows CtxHda FUN_00042944 */
+	for (w = 0; w < AE5_STRIP_PREAMBLE_WORDS; w++)
 		*dst++ = 0;
-		word_idx++;
+
+	/* LEDs */
+	for (led = 0; led < num_leds; led++) {
+		ae5_strip_encode_24(grb_colors[led], enc_words);
+		for (w = 0; w < AE5_STRIP_WORDS_PER_LED; w++)
+			*dst++ = cpu_to_le32(enc_words[w]);
 	}
+
+	/* Zero reset gap (> 1.8 ms; WS2812 requires > 50 us low) */
+	for (w = 0; w < AE5_STRIP_RESET_GAP_WORDS; w++)
+		*dst++ = 0;
+
 	/* Ensure DMA buffer writes are committed before triggering the HDA stream */
 	wmb();
 
@@ -8572,12 +8557,13 @@ static int ae5_strip_send_frame(struct hda_codec *codec, const u32 *grb_colors, 
 	/* 3. Trigger stream transmission on HDA link */
 	snd_hdac_dsp_trigger(hstr, true);
 	/*
-	 * WS2812 latches on the >50us reset gap after one frame. The 32KB buffer holds ~64
-	 * repeating frame+reset cycles; at ~1.4ms/frame a 15ms run transmits ~10 complete
-	 * cycles - more than enough to latch reliably. Keep it short so rapid sysfs writes
-	 * (OpenRGB effects/theme changes) are not serialized behind a 1s blocking sleep.
+	 * WS2812 latches on the >50us reset gap after the frame. At 44.1kHz stereo
+	 * (88.2k words/s), a 100-LED frame + reset gap is 488 words (~5.5ms); a 10-LED
+	 * strip is 128 words (~1.5ms). Sleeping 8-10ms guarantees the entire frame and
+	 * latch reset have completed. The remainder of the 32KB buffer is zero-filled,
+	 * so stopping the stream during the trailing zeros never truncates an active LED.
 	 */
-	usleep_range(15000, 20000);
+	usleep_range(8000, 10000);
 	snd_hdac_dsp_trigger(hstr, false);
 	codec_dbg(codec, "AE5 strip: trigger complete\n");
 

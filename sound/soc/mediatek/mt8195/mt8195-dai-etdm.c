@@ -2355,6 +2355,32 @@ static void mtk_dai_hdmitx_dptx_shutdown(struct snd_pcm_substream *substream,
 		mt8195_afe_disable_clk(afe, afe_priv->clk[cg_id]);
 }
 
+static int mtk_dai_etdm3_startup(struct snd_pcm_substream *substream,
+				       struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt8195_afe_private *afe_priv = afe->platform_priv;
+	int cg_id = mtk_dai_etdm_get_cg_id_by_dai_id(dai->id);
+
+	if (cg_id < 0)
+		return -EINVAL;
+
+	return mt8195_afe_enable_clk(afe, afe_priv->clk[cg_id]);
+}
+
+static void mtk_dai_etdm3_shutdown(struct snd_pcm_substream *substream,
+					 struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt8195_afe_private *afe_priv = afe->platform_priv;
+	int cg_id = mtk_dai_etdm_get_cg_id_by_dai_id(dai->id);
+
+	if (cg_id < 0)
+		return;
+
+	mt8195_afe_disable_clk(afe, afe_priv->clk[cg_id]);
+}
+
 static unsigned int mtk_dai_get_dptx_ch_en(unsigned int channel)
 {
 	switch (channel) {
@@ -2541,8 +2567,8 @@ static const struct snd_soc_dai_ops mtk_dai_hdmitx_dptx_ops = {
 
 static const struct snd_soc_dai_ops mtk_dai_hdmitx_dptx_ops2 = {
 	.probe		= mtk_dai_etdm_probe,
-	.startup	= mtk_dai_hdmitx_dptx_startup,
-	.shutdown	= mtk_dai_hdmitx_dptx_shutdown,
+	.startup	= mtk_dai_etdm3_startup,
+	.shutdown	= mtk_dai_etdm3_shutdown,
 	.hw_params	= mtk_dai_hdmitx_dptx_hw_params,
 	.trigger	= mtk_dai_hdmitx_dptx_trigger,
 	.set_sysclk	= mtk_dai_hdmitx_dptx_set_sysclk,
