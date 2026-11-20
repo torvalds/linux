@@ -982,6 +982,8 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 				    struct sk_buff *skb,
 				    struct mptcp_options_received *mp_opt)
 {
+	struct sock *sk = (struct sock *)msk;
+
 	/* here we can process OoO, in-window pkts, only in-sequence 4th ack
 	 * will make the subflow fully established
 	 */
@@ -1033,6 +1035,10 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 			MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_FALLBACKFAILED);
 			goto reset;
 		}
+		/* this ACK will not reach the fallback path: push from here */
+		mptcp_data_lock(sk);
+		__mptcp_check_push(sk, ssk);
+		mptcp_data_unlock(sk);
 		return false;
 	}
 
@@ -1043,9 +1049,11 @@ set_fully_established:
 	if (mp_opt->deny_join_id0)
 		WRITE_ONCE(msk->pm.remote_deny_join_id0, true);
 
-	mptcp_data_lock((struct sock *)msk);
+	mptcp_data_lock(sk);
 	__mptcp_subflow_fully_established(msk, subflow, mp_opt);
-	mptcp_data_unlock((struct sock *)msk);
+	if (tcp_sk(ssk)->syn_fastopen_child)
+		__mptcp_check_push(sk, ssk);
+	mptcp_data_unlock(sk);
 
 check_notify:
 	/* if the subflow is not already linked into the conn_list, we can't
@@ -1120,9 +1128,11 @@ static void rwin_update(struct mptcp_sock *msk, struct sock *ssk,
 
 static void ack_update_msk(struct mptcp_sock *msk,
 			   struct sock *ssk,
+			   const struct sk_buff *skb,
 			   struct mptcp_options_received *mp_opt)
 {
 	u64 new_wnd_end, new_snd_una, old_snd_una;
+	u32 win = ntohs(tcp_hdr(skb)->window);
 	struct sock *sk = (struct sock *)msk;
 	u64 snd_nxt;
 
@@ -1143,7 +1153,12 @@ static void ack_update_msk(struct mptcp_sock *msk,
 		     after64(new_snd_una, snd_nxt)))
 		new_snd_una = old_snd_una;
 
-	new_wnd_end = new_snd_una + tcp_sk(ssk)->snd_wnd;
+	/* What the peer announced: tcp_sk(ssk)->snd_wnd can be larger, see
+	 * mptcp_check_allowed_size(), and is not always updated.
+	 */
+	if (likely(!tcp_hdr(skb)->syn))
+		win <<= tcp_sk(ssk)->rx_opt.snd_wscale;
+	new_wnd_end = new_snd_una + win;
 
 	if (after64(new_wnd_end, msk->wnd_end))
 		WRITE_ONCE(msk->wnd_end, new_wnd_end);
@@ -1313,7 +1328,7 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 	 * monodirectional flows will stuck
 	 */
 	if (mp_opt.use_ack)
-		ack_update_msk(msk, sk, &mp_opt);
+		ack_update_msk(msk, sk, skb, &mp_opt);
 	rwin_update(msk, sk, skb);
 
 	/* Zero-data-length packets are dropped by the caller and not
