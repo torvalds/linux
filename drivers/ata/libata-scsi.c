@@ -4812,7 +4812,7 @@ static unsigned int ata_scsi_security_inout_xlat(struct ata_queued_cmd *qc)
 		return 1;
 	}
 
-	if (cdb[4] & 7) { /* INC_512 */
+	if (cdb[4] & 0x80) { /* INC_512 */
 		if (len > 0xffff) {
 			ata_scsi_set_invalid_field(qc->dev, scmd, 6, 0);
 			return 1;
@@ -4990,6 +4990,9 @@ ata_scsi_remove_element_and_truncate_xlat(struct ata_queued_cmd *qc)
 		ata_scsi_set_invalid_field(dev, scmd, 2, 0);
 		return 1;
 	}
+
+	if (req_capacity > 1)
+		req_capacity--;
 
 	id = get_unaligned_be32(&cdb[10]);
 
