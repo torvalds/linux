@@ -94,7 +94,7 @@ static int fuse_verify_xattr_list(char *list, size_t size)
 	while (size) {
 		size_t thislen = strnlen(list, size);
 
-		if (!thislen || thislen == size)
+		if (!thislen || thislen == size || thislen > XATTR_NAME_MAX)
 			return -EIO;
 
 		size -= thislen + 1;
