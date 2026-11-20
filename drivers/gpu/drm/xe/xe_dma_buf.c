@@ -242,60 +242,62 @@ static const struct dma_buf_ops xe_dmabuf_ops = {
 struct dma_buf *xe_gem_prime_export(struct drm_gem_object *obj, int flags)
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);
+	struct xe_validation_ctx ctx;
+	struct drm_exec exec;
 	struct dma_buf *buf;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = true,
-		/* We opt to avoid OOM on system pages allocations */
-		.gfp_retry_mayfail = true,
-		.allow_res_evict = false,
-	};
-	int ret;
+	int ret = 0;
 
 	if (bo->vm)
 		return ERR_PTR(-EPERM);
 
-	/*
-	 * Reject exporting purgeable BOs. DONTNEED BOs can be purged
-	 * at any time, making the exported dma-buf unusable. Purged BOs
-	 * have no backing store and are permanently invalid.
-	 */
-	ret = xe_bo_lock(bo, true);
+	xe_validation_guard(&ctx, &xe_bo_device(bo)->val, &exec,
+			    (struct xe_val_flags) {.interruptible = true}, ret) {
+		ret = drm_exec_lock_obj(&exec, &bo->ttm.base);
+		drm_exec_retry_on_contention(&exec);
+		if (ret)
+			break;
+
+		/*
+		 * Reject exporting purgeable BOs. DONTNEED BOs can be purged
+		 * at any time, making the exported dma-buf unusable. Purged BOs
+		 * have no backing store and are permanently invalid.
+		 */
+		if (xe_bo_madv_is_dontneed(bo)) {
+			ret = -EBUSY;
+			break;
+		}
+
+		if (xe_bo_is_purged(bo)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		/*
+		 * Make sure the BO is backed in its preferred placement so that
+		 * the exporter, rather than the importer, is charged for the
+		 * memory allocation.
+		 */
+		ret = xe_bo_validate(bo, NULL, false, &exec);
+		drm_exec_retry_on_contention(&exec);
+		xe_validation_retry_on_oom(&ctx, &ret);
+		if (ret)
+			break;
+
+		xe_bo_willneed_get_locked(bo);
+	}
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (xe_bo_madv_is_dontneed(bo)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
-
-	if (xe_bo_is_purged(bo)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	xe_bo_willneed_get_locked(bo);
-	xe_bo_unlock(bo);
-
-	ret = ttm_bo_setup_export(&bo->ttm, &ctx);
-	if (ret)
-		goto out_put;
-
 	buf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(buf)) {
-		ret = PTR_ERR(buf);
-		goto out_put;
+		xe_bo_lock(bo, false);
+		xe_bo_willneed_put_locked(bo);
+		xe_bo_unlock(bo);
+		return buf;
 	}
 
 	buf->ops = &xe_dmabuf_ops;
 	return buf;
-
-out_put:
-	xe_bo_lock(bo, false);
-	xe_bo_willneed_put_locked(bo);
-out_unlock:
-	xe_bo_unlock(bo);
-	return ERR_PTR(ret);
 }
 
 static struct drm_gem_object *

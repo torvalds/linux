@@ -6,7 +6,6 @@
 #include "xe_query.h"
 
 #include <linux/nospec.h>
-#include <linux/sched/clock.h>
 
 #include <drm/ttm/ttm_placement.h>
 #include <generated/xe_wa_oob.h>
@@ -97,13 +96,14 @@ hwe_read_timestamp(struct xe_hw_engine *hwe, u64 *engine_ts, u64 *cpu_ts,
 	u32 upper, lower, old_upper, loop = 0;
 	struct xe_reg upper_reg = RING_TIMESTAMP_UDW(hwe->mmio_base),
 		      lower_reg = RING_TIMESTAMP(hwe->mmio_base);
+	u64 delta_start;
 
 	upper = xe_mmio_read32(mmio, upper_reg);
 	do {
-		*cpu_delta = local_clock();
+		delta_start = ktime_get_raw_ns();
 		*cpu_ts = cpu_clock();
 		lower = xe_mmio_read32(mmio, lower_reg);
-		*cpu_delta = local_clock() - *cpu_delta;
+		*cpu_delta = ktime_get_raw_ns() - delta_start;
 		old_upper = upper;
 		upper = xe_mmio_read32(mmio, upper_reg);
 	} while (upper != old_upper && loop++ < 2);

@@ -15,6 +15,7 @@
 #include "regs/xe_pcode_regs.h"
 #include "xe_device.h"
 #include "xe_hwmon.h"
+#include "xe_log.h"
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 #include "xe_pcode_api.h"
@@ -375,17 +376,20 @@ static struct xe_reg xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg 
  * same pattern for sysfs, allow arbitrary PL1 limits to be set but display
  * clamped values when read.
  */
-static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *value)
+static int xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *value)
 {
 	u32 reg_val = 0;
 	struct xe_device *xe = hwmon->xe;
 	struct xe_reg rapl_limit, pkg_power_sku;
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
+	int ret = 0;
 
 	mutex_lock(&hwmon->hwmon_lock);
 
 	if (hwmon->xe->info.has_mbx_power_limits) {
-		xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
+		ret = xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
+		if (ret)
+			goto unlock;
 	} else {
 		rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
 		pkg_power_sku = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
@@ -417,6 +421,7 @@ static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channe
 	}
 unlock:
 	mutex_unlock(&hwmon->hwmon_lock);
+	return ret;
 }
 
 static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channel, long value)
@@ -439,7 +444,9 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channe
 			ret = xe_hwmon_pcode_rmw_power_limit(hwmon, attr, channel, PWR_LIM_EN, 0);
 			if (ret)
 				goto unlock;
-			xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
+			ret = xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
+			if (ret)
+				goto unlock;
 		} else {
 			reg_val = xe_mmio_rmw32(mmio, rapl_limit, PWR_LIM_EN, 0);
 			reg_val = xe_mmio_read32(mmio, rapl_limit);
@@ -496,15 +503,18 @@ unlock:
 	return ret;
 }
 
-static void xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, u32 attr, int channel,
-					  long *value)
+static int xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, u32 attr, int channel,
+					 long *value)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	u32 reg_val;
+	int ret = 0;
 
 	if (hwmon->xe->info.has_mbx_power_limits) {
 		/* PL1 is rated max if supported. */
-		xe_hwmon_pcode_read_power_limit(hwmon, PL1_HWMON_ATTR, channel, &reg_val);
+		ret = xe_hwmon_pcode_read_power_limit(hwmon, PL1_HWMON_ATTR, channel, &reg_val);
+		if (ret)
+			return ret;
 	} else {
 		/*
 		 * This sysfs file won't be visible if REG_PKG_POWER_SKU is invalid, so valid check
@@ -518,6 +528,7 @@ static void xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, u32 attr, int 
 
 	reg_val = REG_FIELD_GET(PKG_TDP, reg_val);
 	*value = mul_u64_u32_shr(reg_val, SF_POWER, hwmon->scl_shift_power);
+	return ret;
 }
 
 /*
@@ -540,7 +551,7 @@ static void xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, u32 attr, int 
  * hwmon->scl_shift_energy of 14 bits we have 57 (63 - 20 + 14) bits before
  * energyN_input overflows. This at 1000 W is an overflow duration of 278 years.
  */
-static void
+static int
 xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
@@ -551,7 +562,7 @@ xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 	/* Energy is supported only for card and pkg */
 	if (channel > CHANNEL_PKG) {
 		*energy = 0;
-		return;
+		return 0;
 	}
 
 	if (hwmon->xe->info.platform == XE_BATTLEMAGE) {
@@ -563,7 +574,7 @@ xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 		if (ret != sizeof(pmt_val)) {
 			drm_warn(&hwmon->xe->drm, "energy read from pmt failed, ret %d\n", ret);
 			*energy = 0;
-			return;
+			return ret < 0 ? ret : -EIO;
 		}
 
 		if (channel == CHANNEL_PKG)
@@ -580,6 +591,7 @@ xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 
 	*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
 				  hwmon->scl_shift_energy);
+	return 0;
 }
 
 static ssize_t
@@ -602,10 +614,11 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 	if (hwmon->xe->info.has_mbx_power_limits) {
 		ret = xe_hwmon_pcode_read_power_limit(hwmon, power_attr, channel, &reg_val);
 		if (ret) {
-			drm_err(&hwmon->xe->drm,
-				"power interval read fail, ch %d, attr %d, val 0x%08x, ret %d\n",
-				channel, power_attr, reg_val, ret);
-			reg_val = 0;
+			xe_log_err(hwmon->xe, HWMON, ret,
+				   "Power interval read fail, ch %d, attr %d, val 0x%08x\n",
+				   channel, power_attr, reg_val);
+			mutex_unlock(&hwmon->hwmon_lock);
+			return ret;
 		}
 	} else {
 		reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT,
@@ -1229,7 +1242,8 @@ xe_hwmon_power_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
 		}
 	case hwmon_power_crit:
 		if (channel == CHANNEL_CARD) {
-			xe_hwmon_pcode_read_i1(hwmon, &uval);
+			if (xe_hwmon_pcode_read_i1(hwmon, &uval))
+				return 0;
 			return (uval & POWER_SETUP_I1_WATTS) ? 0644 : 0;
 		}
 		break;
@@ -1248,7 +1262,8 @@ xe_hwmon_power_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
 			}
 		}
 		if ((!(uval & PWR_LIM_EN)) && channel == CHANNEL_CARD) {
-			xe_hwmon_pcode_read_i1(hwmon, &uval);
+			if (xe_hwmon_pcode_read_i1(hwmon, &uval))
+				return 0;
 			return (uval & POWER_SETUP_I1_WATTS) ? 0444 : 0;
 		}
 		return (uval) ? 0444 : 0;
@@ -1264,11 +1279,9 @@ xe_hwmon_power_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *val)
 	switch (attr) {
 	case hwmon_power_max:
 	case hwmon_power_cap:
-		xe_hwmon_power_max_read(hwmon, attr, channel, val);
-		return 0;
+		return xe_hwmon_power_max_read(hwmon, attr, channel, val);
 	case hwmon_power_rated_max:
-		xe_hwmon_power_rated_max_read(hwmon, attr, channel, val);
-		return 0;
+		return xe_hwmon_power_rated_max_read(hwmon, attr, channel, val);
 	case hwmon_power_crit:
 		return xe_hwmon_power_curr_crit_read(hwmon, channel, val, SF_POWER);
 	default:
@@ -1385,8 +1398,7 @@ xe_hwmon_energy_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *val)
 {
 	switch (attr) {
 	case hwmon_energy_input:
-		xe_hwmon_energy_get(hwmon, channel, val);
-		return 0;
+		return xe_hwmon_energy_get(hwmon, channel, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1649,7 +1661,7 @@ int xe_hwmon_register(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 	struct xe_hwmon *hwmon;
-	int ret;
+	int ret, err;
 
 	/* hwmon is available only for dGfx */
 	if (!IS_DGFX(xe))
@@ -1680,9 +1692,11 @@ int xe_hwmon_register(struct xe_device *xe)
 								&hwmon_chip_info,
 								hwmon_groups);
 	if (IS_ERR(hwmon->hwmon_dev)) {
-		drm_err(&xe->drm, "Failed to register xe hwmon (%pe)\n", hwmon->hwmon_dev);
+		err = PTR_ERR(hwmon->hwmon_dev);
+		xe_log_err(xe, HWMON, err,
+			   "Failed to register xe hwmon\n");
 		xe->hwmon = NULL;
-		return PTR_ERR(hwmon->hwmon_dev);
+		return err;
 	}
 
 	return 0;
