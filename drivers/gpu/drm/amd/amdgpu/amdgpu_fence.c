@@ -745,7 +745,8 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 		return;
 	}
 	ring->reemit = true;
-	amdgpu_ring_alloc(ring, ring->ring_backup_entries_to_copy);
+	amdgpu_ring_alloc(ring, ring->ring_backup_entries_to_copy +
+			  (seq - last_seq) * ring->funcs->align_mask);
 	spin_lock_irqsave(&ring->fence_drv.lock, flags);
 	do {
 		last_seq++;
@@ -778,6 +779,10 @@ void amdgpu_ring_set_fence_errors_and_reemit(struct amdgpu_ring *ring,
 					amdgpu_ring_write(ring,
 							  ring->ring_backup[fence->backup_idx + i]);
 			}
+
+			/* A job fence ends a submission, pad it like commit did */
+			if (fence->skip_ib_dw_end_offset)
+				amdgpu_ring_pad_to_align(ring);
 		}
 		rcu_read_unlock();
 	} while (last_seq != seq);

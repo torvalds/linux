@@ -143,6 +143,22 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 }
 
 /**
+ * amdgpu_ring_pad_to_align - pad the ring to the fetch alignment
+ * @ring: amdgpu_ring structure holding ring information
+ */
+void amdgpu_ring_pad_to_align(struct amdgpu_ring *ring)
+{
+	u32 count;
+
+	count = ring->funcs->align_mask + 1 -
+		(ring->wptr & ring->funcs->align_mask);
+	count &= ring->funcs->align_mask;
+
+	if (count != 0)
+		ring->funcs->insert_nop(ring, count);
+}
+
+/**
  * amdgpu_ring_commit - tell the GPU to execute the new
  * commands on the ring buffer
  *
@@ -153,18 +169,11 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
  */
 void amdgpu_ring_commit(struct amdgpu_ring *ring)
 {
-	uint32_t count;
-
 	if (ring->count_dw < 0)
 		drm_err(adev_to_drm(ring->adev), "writing more dwords to the ring than expected!\n");
 
 	/* We pad to match fetch size */
-	count = ring->funcs->align_mask + 1 -
-		(ring->wptr & ring->funcs->align_mask);
-	count &= ring->funcs->align_mask;
-
-	if (count != 0)
-		ring->funcs->insert_nop(ring, count);
+	amdgpu_ring_pad_to_align(ring);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
