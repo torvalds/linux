@@ -274,7 +274,7 @@ efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 		if (efi_guidcmp(vendor, variable_validate[i].vendor))
 			continue;
 
-		if (variable_matches(utf8_name, utf8_size+1, name, &match)) {
+		if (variable_matches(utf8_name, utf8_size, name, &match)) {
 			if (variable_validate[i].validate == NULL)
 				break;
 			kfree(utf8_name);
