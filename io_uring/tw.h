@@ -88,6 +88,17 @@ static inline int io_run_task_work(void)
 	return ret;
 }
 
+/*
+ * Canceled local work may still copy to user memory. Only run it from a kthread,
+ * where such copies fail, or from a task that shares the mm of the submitter.
+ */
+static inline bool io_local_work_cancel_allowed(struct io_ring_ctx *ctx)
+{
+	struct task_struct *tsk = ctx->submitter_task;
+
+	return !current->mm || (tsk && current->mm == READ_ONCE(tsk->mm));
+}
+
 static inline bool io_local_work_pending(struct io_ring_ctx *ctx)
 {
 	return !mpscq_empty(&ctx->work_list);

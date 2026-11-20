@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <linux/rculist_nulls.h>
@@ -741,6 +742,34 @@ static bool io_worker_retire(struct io_wq_acct *acct, struct io_worker *worker)
 	return false;
 }
 
+/*
+ * The CPUs a worker of @wq runs on: those of the io-wq affinity that the
+ * worker's cpuset allows, or the cpuset if they have none in common, as the
+ * scheduler does with a task's requested affinity when its cpuset changes.
+ * Read the cpuset each time: it can change while the io-wq exists.
+ */
+static void io_wq_worker_cpus(struct io_wq *wq, struct task_struct *tsk,
+			      struct cpumask *cpus)
+{
+	cpuset_cpus_allowed(tsk, cpus);
+	if (cpumask_intersects(cpus, wq->cpu_mask))
+		cpumask_and(cpus, cpus, wq->cpu_mask);
+}
+
+/* Is the current worker on a CPU that a new worker would not get? */
+static bool io_wq_worker_off_cpus(struct io_wq *wq)
+{
+	cpumask_var_t cpus;
+	bool off;
+
+	if (!alloc_cpumask_var(&cpus, GFP_KERNEL))
+		return false;
+	io_wq_worker_cpus(wq, current, cpus);
+	off = !cpumask_test_cpu(raw_smp_processor_id(), cpus);
+	free_cpumask_var(cpus);
+	return off;
+}
+
 static int io_wq_worker(void *data)
 {
 	struct io_worker *worker = data;
@@ -819,8 +848,7 @@ static int io_wq_worker(void *data)
 		}
 		if (!ret) {
 			last_timeout = true;
-			exit_mask = !cpumask_test_cpu(raw_smp_processor_id(),
-							wq->cpu_mask);
+			exit_mask = io_wq_worker_off_cpus(wq);
 		}
 	}
 
@@ -870,9 +898,16 @@ void io_wq_worker_sleeping(struct task_struct *tsk)
 static void io_init_new_worker(struct io_wq *wq, struct io_wq_acct *acct, struct io_worker *worker,
 			       struct task_struct *tsk)
 {
+	cpumask_var_t cpus;
+
 	tsk->worker_private = worker;
 	worker->task = tsk;
-	set_cpus_allowed_ptr(tsk, wq->cpu_mask);
+	/* Without a mask, the worker keeps its creator's CPUs. */
+	if (alloc_cpumask_var(&cpus, GFP_KERNEL)) {
+		io_wq_worker_cpus(wq, tsk, cpus);
+		set_cpus_allowed_ptr(tsk, cpus);
+		free_cpumask_var(cpus);
+	}
 
 	raw_spin_lock(&acct->workers_lock);
 	hlist_nulls_add_head_rcu(&worker->nulls_node, &acct->free_list);
@@ -1369,7 +1404,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 
 	if (!alloc_cpumask_var(&wq->cpu_mask, GFP_KERNEL))
 		goto err;
-	cpuset_cpus_allowed(data->task, wq->cpu_mask);
+	cpumask_copy(wq->cpu_mask, cpu_possible_mask);
 	wq->acct[IO_WQ_ACCT_BOUND].max_workers = bounded;
 	wq->acct[IO_WQ_ACCT_UNBOUND].max_workers =
 				task_rlimit(current, RLIMIT_NPROC);
@@ -1448,6 +1483,22 @@ static void io_wq_cancel_tw_create(struct io_wq *wq)
 	}
 }
 
+static bool io_wq_worker_show(struct io_worker *worker, void *data)
+{
+	sched_show_task(worker->task);
+	return false;
+}
+
+/* The exit path is always the same, show what the workers are stuck on */
+static void io_wq_show_stuck_workers(struct io_wq *wq)
+{
+	pr_warn("io-wq: %s/%d stuck waiting for workers to exit\n",
+		current->comm, task_pid_nr(current));
+	rcu_read_lock();
+	io_wq_for_each_worker(wq, io_wq_worker_show, NULL);
+	rcu_read_unlock();
+}
+
 static void io_wq_exit_workers(struct io_wq *wq)
 {
 	unsigned long timeout, warn_timeout;
@@ -1469,8 +1520,8 @@ static void io_wq_exit_workers(struct io_wq *wq)
 	 *
 	 * where completely overloading the system with tons of long running
 	 * io-wq items can easily trigger the hung task timeout. Only sleep
-	 * uninterruptibly for half that time, and warn if we exceeded end
-	 * up waiting more than IO_URING_EXIT_WAIT_MAX.
+	 * uninterruptibly for half that time, and show the stuck workers if
+	 * we end up waiting more than IO_URING_EXIT_WAIT_MAX.
 	 */
 	timeout = sysctl_hung_task_timeout_secs * HZ / 2;
 	if (!timeout)
@@ -1479,7 +1530,8 @@ static void io_wq_exit_workers(struct io_wq *wq)
 	do {
 		if (wait_for_completion_timeout(&wq->worker_done, timeout))
 			break;
-		WARN_ON_ONCE(time_after(jiffies, warn_timeout));
+		if (time_after(jiffies, warn_timeout))
+			DO_ONCE_LITE(io_wq_show_stuck_workers, wq);
 	} while (1);
 
 	spin_lock_irq(&wq->hash->wait.lock);
@@ -1574,7 +1626,7 @@ int io_wq_cpu_affinity(struct io_uring_task *tctx, cpumask_var_t mask)
 		else
 			ret = -EINVAL;
 	} else {
-		cpumask_copy(tctx->io_wq->cpu_mask, allowed_mask);
+		cpumask_copy(tctx->io_wq->cpu_mask, cpu_possible_mask);
 	}
 	rcu_read_unlock();
 
