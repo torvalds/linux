@@ -2704,6 +2704,15 @@ void __weak arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vadd
 }
 
 /*
+ * Can a bpf prog write these bytes of pt_regs? An arch opts in and lists the
+ * registers that ptrace can set to any value.
+ */
+bool __weak arch_uprobe_regs_writable(int off, int size)
+{
+	return false;
+}
+
+/*
  * Run handler and ask thread to singlestep.
  * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
  */

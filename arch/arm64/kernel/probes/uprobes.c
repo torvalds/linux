@@ -152,6 +152,12 @@ bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
 		return regs->sp < ret->stack;
 }
 
+bool arch_uprobe_regs_writable(int off, int size)
+{
+	/* From x0 to x30, sp, pc. */
+	return off + size <= offsetof(struct pt_regs, pstate);
+}
+
 unsigned long
 arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr,
 				  struct pt_regs *regs)
