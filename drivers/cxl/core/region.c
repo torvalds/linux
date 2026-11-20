@@ -1764,9 +1764,6 @@ static int cxl_region_validate_position(struct cxl_region *cxlr,
 		return -ENXIO;
 	}
 
-	if (p->targets[pos] == cxled)
-		return 0;
-
 	if (p->targets[pos]) {
 		struct cxl_endpoint_decoder *cxled_target = p->targets[pos];
 		struct cxl_memdev *cxlmd_target = cxled_to_memdev(cxled_target);
@@ -2044,6 +2041,14 @@ static int cxl_region_sort_targets(struct cxl_region *cxlr)
 	/* Keep the cxlr target list in interleave position order */
 	sort(p->targets, p->nr_targets, sizeof(p->targets[0]),
 	     cmp_interleave_pos, NULL);
+
+	/*
+	 * Restore cxled->pos from its ->targets[] slot so that follow-on
+	 * code paths can reliably do p->targets[cxled->pos] to
+	 * self-reference their entry, whether or not the sort succeeded.
+	 */
+	for (i = 0; i < p->nr_targets; i++)
+		p->targets[i]->pos = i;
 
 	dev_dbg(&cxlr->dev, "region sort %s\n", rc ? "failed" : "successful");
 	return rc;
