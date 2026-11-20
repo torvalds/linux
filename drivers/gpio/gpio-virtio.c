@@ -494,12 +494,13 @@ static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio,
 	struct device *dev = &vgpio->vdev->dev;
 	u8 *gpio_names, *str;
 	const char **names;
-	int i, ret, len;
+	size_t len;
+	int i, ret;
 
 	if (!gpio_names_size)
 		return NULL;
 
-	len = sizeof(*res) + gpio_names_size;
+	len = struct_size(res, value, gpio_names_size);
 	res = devm_kzalloc(dev, len, GFP_KERNEL);
 	if (!res)
 		return NULL;
@@ -520,13 +521,13 @@ static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio,
 	gpio_names[gpio_names_size - 1] = '\0';
 
 	for (i = 0, str = gpio_names; i < ngpio; i++) {
-		names[i] = str;
-		str += strlen(str) + 1; /* zero-length strings are allowed */
-
-		if (str > gpio_names + gpio_names_size) {
+		if (str >= gpio_names + gpio_names_size) {
 			dev_err(dev, "gpio_names block is too short (%d)\n", i);
 			return NULL;
 		}
+
+		names[i] = str;
+		str += strlen(str) + 1; /* zero-length strings are allowed */
 	}
 
 	return names;

@@ -186,7 +186,7 @@ static int gpio_shared_proxy_set_config(struct gpio_chip *gc,
 	}
 
 	ret = gpiod_set_config(desc, cfg);
-	if (ret && ret != -ENOTSUPP)
+	if (ret)
 		return ret;
 
 	shared_desc->cfg = cfg;

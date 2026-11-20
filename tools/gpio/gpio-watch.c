@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 			memset(&chg, 0, sizeof(chg));
 			rd = read(pfd.fd, &chg, sizeof(chg));
 			if (rd < 0 || rd != sizeof(chg)) {
-				if (rd != sizeof(chg))
+				if (rd >= 0 && rd != sizeof(chg))
 					errno = EIO;
 
 				perror("error reading line change event");
