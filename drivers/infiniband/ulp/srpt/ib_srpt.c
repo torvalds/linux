@@ -959,7 +959,7 @@ static int srpt_alloc_rw_ctxs(struct srpt_send_ioctx *ioctx,
 	struct srpt_rdma_ch *ch = ioctx->ch;
 	struct scatterlist *prev = NULL;
 	unsigned prev_nents;
-	u8 n_rdma, n_rw_ctx;
+	int n_rdma, n_rw_ctx;
 	int ret, i;
 
 	if (nbufs == 1) {
@@ -978,6 +978,12 @@ static int srpt_alloc_rw_ctxs(struct srpt_send_ioctx *ioctx,
 		u64 remote_addr = be64_to_cpu(db->va);
 		u32 size = be32_to_cpu(db->len);
 		u32 rkey = be32_to_cpu(db->key);
+
+		if (size == 0) {
+			pr_err("received SRP_CMD buffer descriptor with zero length\n");
+			ret = -EINVAL;
+			goto unwind;
+		}
 
 		ret = target_alloc_sgl(&ctx->sg, &ctx->nents, size, false,
 				i < nbufs - 1);
@@ -1117,6 +1123,7 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		struct srp_indirect_buf *idb = srpt_get_desc_buf(srp_cmd);
 		int nbufs = be32_to_cpu(idb->table_desc.len) /
 				sizeof(struct srp_direct_buf);
+		size_t desc_off = (uintptr_t)idb - (uintptr_t)srp_cmd;
 
 		if (nbufs >
 		    (srp_cmd->data_out_desc_cnt + srp_cmd->data_in_desc_cnt)) {
@@ -1125,6 +1132,18 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 			       srp_cmd->data_in_desc_cnt,
 			       be32_to_cpu(idb->table_desc.len),
 			       sizeof(struct srp_direct_buf));
+			return -EINVAL;
+		}
+
+		if (nbufs == 0) {
+			pr_err("received SRP_CMD with an empty indirect descriptor table\n");
+			return -EINVAL;
+		}
+
+		if (desc_off + struct_size(idb, desc_list, nbufs) >
+		    recv_ioctx->byte_len) {
+			pr_err("received SRP_CMD indirect table (%d descriptors) that does not fit the %d-byte IU\n",
+			       nbufs, recv_ioctx->byte_len);
 			return -EINVAL;
 		}
 

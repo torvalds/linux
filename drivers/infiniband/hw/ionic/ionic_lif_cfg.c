@@ -84,7 +84,7 @@ void ionic_fill_lif_cfg(struct ionic_lif *lif, struct ionic_lif_cfg *cfg)
 	cfg->cq_qtype = ident->rdma.cq_qtype.qtype;
 	cfg->eq_qtype = ident->rdma.eq_qtype.qtype;
 	cfg->udma_qgrp_shift = ident->rdma.udma_shift;
-	cfg->udma_count = 2;
+	cfg->udma_count = cfg->udma_qgrp_shift ? 2 : 1;
 
 	cfg->max_stride = ident->rdma.max_stride;
 	cfg->rcq_sign_bit = ident->rdma.rcq_sign_bit;

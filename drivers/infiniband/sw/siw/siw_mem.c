@@ -115,7 +115,7 @@ void siw_free_mem(struct kref *ref)
 		else
 			kfree(mem->pbl);
 	}
-	kfree(mem);
+	kfree_rcu(mem, rcu);
 }
 
 /*

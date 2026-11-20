@@ -4328,8 +4328,8 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 		ibdev_err(&cq->rdev->ibdev, "POLL CQ : no CQL to use");
 		goto exit;
 	}
-	cqe = &cq->cql[0];
 	while (budget) {
+		cqe = &cq->cql[0];
 		lib_qp = NULL;
 		ncqe = bnxt_qplib_poll_cq(&cq->qplib_cq, cqe, budget, &lib_qp);
 		if (lib_qp) {
@@ -4555,7 +4555,7 @@ static int bnxt_re_set_page(struct ib_mr *ib_mr, u64 addr)
 {
 	struct bnxt_re_mr *mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
 
-	if (unlikely(mr->npages == mr->qplib_frpl.max_pg_ptrs))
+	if (unlikely(mr->npages == mr->max_pages))
 		return -ENOMEM;
 
 	mr->pages[mr->npages++] = addr;
@@ -4584,7 +4584,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 		ibdev_dbg(&rdev->ibdev, "MR type 0x%x not supported", type);
 		return ERR_PTR(-EINVAL);
 	}
-	if (max_num_sg > MAX_PBL_LVL_1_PGS)
+	if (!max_num_sg || max_num_sg > MAX_PBL_LVL_1_PGS)
 		return ERR_PTR(-EINVAL);
 
 	mr = kzalloc_obj(*mr);
@@ -4603,6 +4603,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
 	mr->ib_mr.rkey = mr->ib_mr.lkey;
 
+	mr->max_pages = max_num_sg;
 	mr->pages = kzalloc_objs(u64, max_num_sg);
 	if (!mr->pages) {
 		rc = -ENOMEM;
@@ -4909,6 +4910,8 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 
 	return 0;
 cfail:
+	rdma_user_mmap_entry_remove(uctx->shpage_mmap);
+	uctx->shpage_mmap = NULL;
 	free_page((unsigned long)uctx->shpg);
 	uctx->shpg = NULL;
 fail:

@@ -453,7 +453,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	if (!mthca_is_memfree(dev))
 		return 0;
 
-	if (index < 0 || index > dev->uar_table.uarc_size / 8)
+	if (index < 0 || index >= dev->uar_table.uarc_size / 8)
 		return -EINVAL;
 
 	mutex_lock(&db_tab->mutex);

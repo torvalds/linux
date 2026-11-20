@@ -2199,19 +2199,23 @@ int irdma_map_vm_page_list(struct irdma_hw *hw, void *va, dma_addr_t *pg_dma,
 			   u32 pg_cnt)
 {
 	struct page *vm_page;
-	int i;
+	dma_addr_t dma;
+	u32 i, j;
 	u8 *addr;
 
 	addr = (u8 *)(uintptr_t)va;
-	for (i = 0; i < pg_cnt; i++) {
+	for (i = 0; i < pg_cnt; i += IRDMA_HW_PAGES_PER_PAGE) {
 		vm_page = vmalloc_to_page(addr);
 		if (!vm_page)
 			goto err;
 
-		pg_dma[i] = dma_map_page(hw->device, vm_page, 0, PAGE_SIZE,
-					 DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(hw->device, pg_dma[i]))
+		dma = dma_map_page(hw->device, vm_page, 0, PAGE_SIZE,
+				   DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(hw->device, dma))
 			goto err;
+
+		for (j = 0; j < IRDMA_HW_PAGES_PER_PAGE && i + j < pg_cnt; j++)
+			pg_dma[i + j] = dma + j * IRDMA_HW_PAGE_SIZE;
 
 		addr += PAGE_SIZE;
 	}
@@ -2225,9 +2229,9 @@ err:
 
 void irdma_unmap_vm_page_list(struct irdma_hw *hw, dma_addr_t *pg_dma, u32 pg_cnt)
 {
-	int i;
+	u32 i;
 
-	for (i = 0; i < pg_cnt; i++)
+	for (i = 0; i < pg_cnt; i += IRDMA_HW_PAGES_PER_PAGE)
 		dma_unmap_page(hw->device, pg_dma[i], PAGE_SIZE, DMA_BIDIRECTIONAL);
 }
 
@@ -2254,7 +2258,7 @@ done:
 /**
  * irdma_pble_get_paged_mem -allocate paged memory for pbles
  * @chunk: chunk to add for paged memory
- * @pg_cnt: number of pages needed
+ * @pg_cnt: number of HW (4K) pages needed
  */
 int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 {
@@ -2265,7 +2269,7 @@ int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 	if (!chunk->dmainfo.dmaaddrs)
 		return -ENOMEM;
 
-	size = PAGE_SIZE * pg_cnt;
+	size = pg_cnt * IRDMA_HW_PAGE_SIZE;
 	va = vmalloc(size);
 	if (!va)
 		goto err;

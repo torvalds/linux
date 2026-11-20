@@ -223,7 +223,7 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
  * Current design of this function is -
  * user must hold the completion queue hwq->lock.
  * user must have used existing completion and free the resources.
- * this function will not check queue full condition.
+ * the command is dropped if the cookie slot is in use or the queue is full.
  * this function will explicitly set is_waiter_alive=false.
  * current use case is - send destroy_ah if create_ah is return
  * after waiter of create_ah is lost. It can be extended for other
@@ -245,8 +245,16 @@ static void __send_message_no_waiter(struct bnxt_qplib_rcfw *rcfw,
 	u8 *preq;
 
 	cookie = cmdq->seq_num & RCFW_MAX_COOKIE_VALUE;
-	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
 	crsqe = &rcfw->crsqe_tbl[cookie];
+
+	if (crsqe->is_in_used ||
+	    bnxt_qplib_get_cmd_slots(msg->req) >= HWQ_FREE_SLOTS(hwq)) {
+		dev_warn_ratelimited(&rcfw->pdev->dev,
+				     "CMDQ cookie %#x busy or CMDQ full, dropping internal command\n",
+				     cookie);
+		return;
+	}
+	__set_cmdq_base_cookie(msg->req, msg->req_sz, cpu_to_le16(cookie));
 
 	/* Set cmd_size in terms of 16B slots in req. */
 	bsize = bnxt_qplib_set_cmd_slots(msg->req);
@@ -255,6 +263,7 @@ static void __send_message_no_waiter(struct bnxt_qplib_rcfw *rcfw,
 	 */
 	crsqe->is_internal_cmd = true;
 	crsqe->is_waiter_alive = false;
+	crsqe->resp = NULL;
 	crsqe->is_in_used = true;
 	crsqe->req_size = __get_cmdq_base_cmd_size(msg->req, msg->req_sz);
 
@@ -310,6 +319,12 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 		dev_info_ratelimited(&pdev->dev,
 				     "CMDQ is full req/free %d/%d!",
 				     required_slots, free_slots);
+		spin_unlock_bh(&hwq->lock);
+		return -EAGAIN;
+	}
+	if (crsqe->is_in_used) {
+		dev_info_ratelimited(&pdev->dev,
+				     "CMDQ cookie %#x still in use\n", cookie);
 		spin_unlock_bh(&hwq->lock);
 		return -EAGAIN;
 	}
@@ -487,6 +502,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 {
 	struct creq_qp_event *evnt = (struct creq_qp_event *)msg->resp;
 	struct bnxt_qplib_crsqe *crsqe;
+	bool pending;
 	u16 cookie;
 	int rc;
 	u8 opcode;
@@ -511,15 +527,26 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 	else
 		rc = __poll_for_resp(rcfw, cookie);
 
-	if (rc) {
-		spin_lock_bh(&rcfw->cmdq.hwq.lock);
-		crsqe = &rcfw->crsqe_tbl[cookie];
+	spin_lock_bh(&rcfw->cmdq.hwq.lock);
+	crsqe = &rcfw->crsqe_tbl[cookie];
+	pending = false;
+	if (crsqe->resp == evnt) {
+		pending = true;
 		crsqe->is_waiter_alive = false;
-		if (rc == -ENODEV)
-			set_bit(FIRMWARE_STALL_DETECTED, &rcfw->cmdq.flags);
-		spin_unlock_bh(&rcfw->cmdq.hwq.lock);
-		return -ETIMEDOUT;
+		crsqe->resp = NULL;
+	} else if (rc) {
+		/* The completion was processed after the wait gave up but
+		 * before the lock was taken. The response is valid.
+		 */
+		rc = 0;
 	}
+	if (rc == -ENODEV)
+		set_bit(FIRMWARE_STALL_DETECTED, &rcfw->cmdq.flags);
+	spin_unlock_bh(&rcfw->cmdq.hwq.lock);
+	if (rc)
+		return -ETIMEDOUT;
+	if (pending)
+		return 0;
 
 	if (evnt->status) {
 		/* failed with status */
@@ -620,6 +647,7 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 				       struct creq_qp_event *qp_event,
 				       u32 *num_wait)
 {
+	struct creq_cq_error_notification *cq_err_event;
 	struct creq_qp_error_notification *err_event;
 	struct bnxt_qplib_hwq *hwq = &rcfw->cmdq.hwq;
 	struct bnxt_qplib_crsqe *crsqe;
@@ -634,6 +662,13 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 	pdev = rcfw->pdev;
 	print_hex_dump_bytes("event: ", DUMP_PREFIX_OFFSET, qp_event, sizeof(*qp_event));
 	switch (qp_event->event) {
+	case CREQ_QP_EVENT_EVENT_CQ_ERROR_NOTIFICATION:
+		cq_err_event = (struct creq_cq_error_notification *)qp_event;
+		dev_dbg(&pdev->dev,
+			"Received CQ error notification cqid 0x%x, reason 0x%x\n",
+			le32_to_cpu(cq_err_event->xid),
+			cq_err_event->cq_err_reason);
+		break;
 	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
 		err_event = (struct creq_qp_error_notification *)qp_event;
 		qp_id = le32_to_cpu(err_event->xid);
@@ -683,6 +718,14 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			return rc;
 		}
 
+		if (!crsqe->is_in_used) {
+			dev_warn_ratelimited(&pdev->dev,
+					     "event %#x for cookie %#x with no outstanding command\n",
+					     qp_event->event, cookie);
+			spin_unlock(&hwq->lock);
+			return rc;
+		}
+
 		if (crsqe->is_internal_cmd && !qp_event->status)
 			atomic_dec(&rcfw->timeout_send);
 
@@ -703,8 +746,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		is_waiter_alive = crsqe->is_waiter_alive;
 
 		crsqe->req_size = 0;
-		if (!is_waiter_alive)
-			crsqe->resp = NULL;
+		crsqe->resp = NULL;
+		crsqe->is_waiter_alive = false;
 
 		crsqe->is_in_used = false;
 
@@ -718,9 +761,11 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		 * so let's destroy the same address vector since it is
 		 * no more used in stack. We don't care about completion
 		 * in __send_message_no_waiter.
-		 * If destroy_ah is failued by firmware, there will be AH
-		 * resource leak and relatively not critical +  unlikely
-		 * scenario. Current design is not to handle such case.
+		 * If destroy_ah is failed by firmware, or is dropped locally
+		 * because the cookie slot is in use or the CMDQ is full,
+		 * there will be AH resource leak and relatively not
+		 * critical + unlikely scenario. Current design is not to
+		 * handle such case.
 		 */
 		if (!is_waiter_alive && !qp_event->status &&
 		    qp_event->event == CREQ_QP_EVENT_EVENT_CREATE_AH)

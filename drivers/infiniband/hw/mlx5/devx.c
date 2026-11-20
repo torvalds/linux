@@ -2294,8 +2294,8 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	return 0;
 }
 
-static unsigned int devx_umem_find_best_pgsize(struct ib_umem *umem,
-					       unsigned long pgsz_bitmap)
+static unsigned long devx_umem_find_best_pgsize(struct ib_umem *umem,
+						unsigned long pgsz_bitmap)
 {
 	unsigned long page_size;
 
@@ -2333,7 +2333,7 @@ static int devx_umem_reg_cmd_alloc(struct mlx5_ib_dev *dev,
 				   int access)
 {
 	unsigned long pgsz_bitmap;
-	unsigned int page_size;
+	unsigned long page_size;
 	__be64 *mtt;
 	void *umem;
 	int ret;

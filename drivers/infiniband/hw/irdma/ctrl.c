@@ -1703,8 +1703,10 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 		page_size = IRDMA_PAGE_SIZE_1G;
 	else if (info->page_size == 0x200000)
 		page_size = IRDMA_PAGE_SIZE_2M;
-	else
+	else if (info->page_size == 0x1000)
 		page_size = IRDMA_PAGE_SIZE_4K;
+	else
+		return -EINVAL;
 
 	sq_info.wr_id = info->wr_id;
 	sq_info.signaled = info->signaled;

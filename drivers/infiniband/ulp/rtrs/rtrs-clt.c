@@ -3191,15 +3191,15 @@ void rtrs_clt_ib_event_handler(struct ib_event_handler *handler,
 
 static int rtrs_clt_ib_dev_init(struct rtrs_ib_dev *dev)
 {
-	INIT_IB_EVENT_HANDLER(&dev->event_handler, dev->ib_dev,
-			      rtrs_clt_ib_event_handler);
-	ib_register_event_handler(&dev->event_handler);
-
 	if (!(dev->ib_dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		pr_err("Memory registrations not supported.\n");
 		return -ENOTSUPP;
 	}
+
+	INIT_IB_EVENT_HANDLER(&dev->event_handler, dev->ib_dev,
+			      rtrs_clt_ib_event_handler);
+	ib_register_event_handler(&dev->event_handler);
 
 	return 0;
 }

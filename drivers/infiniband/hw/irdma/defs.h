@@ -159,6 +159,7 @@ enum irdma_protocol_used {
 
 #define IRDMA_HW_PAGE_SIZE	4096
 #define IRDMA_HW_PAGE_SHIFT	12
+#define IRDMA_HW_PAGES_PER_PAGE	(PAGE_SIZE >> IRDMA_HW_PAGE_SHIFT)
 #define IRDMA_CQE_QTYPE_RQ	0
 #define IRDMA_CQE_QTYPE_SQ	1
 

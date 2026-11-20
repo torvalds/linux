@@ -124,6 +124,7 @@ struct bnxt_re_mr {
 	struct ib_umem		*ib_umem;
 	struct bnxt_qplib_mrw	qplib_mr;
 	u32			npages;
+	u32			max_pages;
 	u64			*pages;
 	struct bnxt_qplib_frpl	qplib_frpl;
 };

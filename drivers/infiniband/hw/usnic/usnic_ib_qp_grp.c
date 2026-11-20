@@ -78,8 +78,17 @@ int usnic_ib_qp_grp_dump_rows(void *obj, char *buf, int buf_sz)
 	struct usnic_ib_qp_grp *qp_grp = obj;
 	struct usnic_ib_qp_grp_flow *default_flow;
 	if (obj) {
-		default_flow = list_first_entry(&qp_grp->flows_lst,
-					struct usnic_ib_qp_grp_flow, link);
+		default_flow = list_first_entry_or_null(&qp_grp->flows_lst,
+							struct usnic_ib_qp_grp_flow,
+							link);
+		if (!default_flow)
+			return scnprintf(buf, buf_sz,
+					"|%d\t|%s\t|%d\t|%hu\t|N/A",
+					qp_grp->ibqp.qp_num,
+					usnic_ib_qp_grp_state_to_string(
+							qp_grp->state),
+					qp_grp->owner_pid,
+					usnic_vnic_get_index(qp_grp->vf->vnic));
 		return scnprintf(buf, buf_sz, "|%d\t|%s\t|%d\t|%hu\t|%d",
 					qp_grp->ibqp.qp_num,
 					usnic_ib_qp_grp_state_to_string(

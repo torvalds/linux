@@ -125,10 +125,14 @@ static inline void ionic_resid_put(struct ionic_resid_bits *resid, int id)
 static inline u32 ionic_bitid_to_qid(u32 bitid, u8 qgrp_shift,
 				     u8 half_qid_shift)
 {
-	u32 udma_bit =
-		(bitid & BIT(half_qid_shift)) >> (half_qid_shift - qgrp_shift);
-	u32 grp_bits = (bitid & GENMASK(half_qid_shift - 1, qgrp_shift)) << 1;
-	u32 idx_bits = bitid & (BIT(qgrp_shift) - 1);
+	u32 udma_bit, grp_bits, idx_bits;
+
+	if (!qgrp_shift)
+		return bitid;
+
+	udma_bit = (bitid & BIT(half_qid_shift)) >> (half_qid_shift - qgrp_shift);
+	grp_bits = (bitid & GENMASK(half_qid_shift - 1, qgrp_shift)) << 1;
+	idx_bits = bitid & (BIT(qgrp_shift) - 1);
 
 	return grp_bits | udma_bit | idx_bits;
 }
@@ -145,9 +149,14 @@ static inline u32 ionic_bitid_to_qid(u32 bitid, u8 qgrp_shift,
  */
 static inline u32 ionic_qid_to_bitid(u32 qid, u8 qgrp_shift, u8 half_qid_shift)
 {
-	u32 udma_bit = (qid & BIT(qgrp_shift)) << (half_qid_shift - qgrp_shift);
-	u32 grp_bits = (qid & GENMASK(half_qid_shift, qgrp_shift + 1)) >> 1;
-	u32 idx_bits = qid & (BIT(qgrp_shift) - 1);
+	u32 udma_bit, grp_bits, idx_bits;
+
+	if (!qgrp_shift)
+		return qid;
+
+	udma_bit = (qid & BIT(qgrp_shift)) << (half_qid_shift - qgrp_shift);
+	grp_bits = (qid & GENMASK(half_qid_shift, qgrp_shift + 1)) >> 1;
+	idx_bits = qid & (BIT(qgrp_shift) - 1);
 
 	return udma_bit | grp_bits | idx_bits;
 }

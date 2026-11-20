@@ -157,6 +157,7 @@ struct siw_mem {
 		void *mem_obj;
 	};
 	struct ib_pd *pd;
+	struct rcu_head rcu;
 };
 
 struct siw_mr {

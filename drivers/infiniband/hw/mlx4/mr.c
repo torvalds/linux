@@ -268,6 +268,8 @@ struct ib_mr *mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
 					      *pmpt_entry);
 		if (err) {
 			ib_umem_release(mmr->umem);
+			mmr->mmr.mtt.order = -1;
+			mmr->umem = NULL;
 			goto release_mpt_entry;
 		}
 		mmr->mmr.iova       = virt_addr;
@@ -277,6 +279,7 @@ struct ib_mr *mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
 		if (err) {
 			mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);
 			ib_umem_release(mmr->umem);
+			mmr->umem = NULL;
 			goto release_mpt_entry;
 		}
 	}
