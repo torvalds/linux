@@ -187,8 +187,9 @@ therefore appears as zero while still advancing the ruleset version, and adding
 a member already present still emits an event.
 
 ``landlock_deny_permission_namespace`` reports the denied raw
-``CLONE_NEW*`` value.  ``namespace_id`` is zero for namespace creation and is
-the exact target namespace ID for :manpage:`setns(2)`.
+``CLONE_NEW*`` value.  ``namespace_id`` is the exact target namespace ID.  For
+a denied namespace creation, the namespace never becomes reachable so its ID
+is not directly visible from user space.
 ``landlock_deny_permission_capability`` reports the denied ``CAP_*`` number.
 Like every denial event, both include the denying domain, ``same_exec``, and
 ``logged``.

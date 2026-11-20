@@ -5,7 +5,7 @@
 
   PIO Transmission
 
-  Copyright (c) 2005 Michael Buesch <m@bues.ch>
+  Copyright (c) 2005 Michael Buesch
 
 
 */

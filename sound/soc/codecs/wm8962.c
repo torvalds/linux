@@ -3127,7 +3127,7 @@ static void wm8962_mic_work(struct work_struct *work)
 		/* Don't report a microphone if it's shorted right after
 		 * plugging in, as this may be a TRS plug in a TRRS socket.
 		 */
-		if (!(wm8962->mic_status & WM8962_MICDET_STS))
+		if (!(wm8962->mic_status & SND_JACK_MICROPHONE))
 			status = 0;
 	}
 

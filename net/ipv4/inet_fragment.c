@@ -17,6 +17,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/rhashtable.h>
+#include <linux/sizes.h>
 
 #include <net/sock.h>
 #include <net/inet_frag.h>
@@ -519,6 +520,43 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(inet_frag_queue_insert);
 
+/* When a socket owned fragment completes a queue, the truesize of all
+ * other fragments is charged to its sk_wmem_alloc, although they were
+ * orphaned when queued and possibly sent by someone else.
+ * Bound this like ip_append_data() bounds the memory a socket can
+ * allocate (2 * sk_sndbuf), plus slack for fragments inflated by a
+ * refragmentation using a small MTU. Otherwise, several reassembled skbs
+ * alive at the same time can saturate sk_wmem_alloc, and leak the socket.
+ *
+ * Several queues can complete at the same time for the same socket,
+ * and some sockets (tun) use sk_sndbuf = INT_MAX. The charge is reserved
+ * with a cmpxchg() loop, a refcount_t has no helper for this.
+ */
+#define INET_FRAG_WMEM_SLACK	SZ_4M
+
+static bool inet_frag_wmem_reserve(struct sock *sk, unsigned int charge)
+{
+	u64 limit = 2ULL * READ_ONCE(sk->sk_sndbuf) + INET_FRAG_WMEM_SLACK;
+	int old = refcount_read(&sk->sk_wmem_alloc);
+
+	limit = min_t(u64, limit, INET_FRAG_MAX_TRUESIZE);
+	do {
+		if (old <= 0 || (u64)old + charge > limit)
+			return false;
+	} while (!atomic_try_cmpxchg(&sk->sk_wmem_alloc.refs, &old,
+				     old + charge));
+
+	return true;
+}
+
+static void inet_frag_wmem_adjust(struct sock *sk, int delta)
+{
+	if (delta >= 0)
+		refcount_add(delta, &sk->sk_wmem_alloc);
+	else
+		WARN_ON_ONCE(refcount_sub_and_test(-delta, &sk->sk_wmem_alloc));
+}
+
 void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 			      struct sk_buff *parent)
 {
@@ -530,6 +568,11 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 	int delta;
 
 	if (sk && is_skb_wmem(skb)) {
+		/* skb->truesize is already charged to sk, and is part of
+		 * q->truesize. inet_frag_reasm_finish() settles the charge.
+		 */
+		if (!inet_frag_wmem_reserve(sk, q->truesize - skb->truesize))
+			return NULL;
 		/* TX: skb->sk might have been passed as argument to
 		 * dst->output and must remain valid until tx completes.
 		 *
@@ -605,17 +648,18 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 
 out_restore_sk:
 	if (orig_truesize) {
-		int ts_delta = head->truesize - orig_truesize;
-
 		/* if this reassembled skb is fragmented later,
 		 * fraglist skbs will get skb->sk assigned from head->sk,
 		 * and each frag skb will be released via sock_wfree.
-		 *
-		 * Update sk_wmem_alloc.
 		 */
 		head->sk = sk;
 		head->destructor = destructor;
-		refcount_add(ts_delta, &sk->sk_wmem_alloc);
+		/* On failure, head stays in the queue and will be freed
+		 * with the queue: only charge its truesize.
+		 */
+		if (!nextp)
+			inet_frag_wmem_adjust(sk, (int)head->truesize -
+						  (int)q->truesize);
 	}
 
 	return nextp;
@@ -626,7 +670,6 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 			    void *reasm_data, bool try_coalesce)
 {
 	struct sock *sk = is_skb_wmem(head) ? head->sk : NULL;
-	const unsigned int head_truesize = head->truesize;
 	struct sk_buff **nextp = reasm_data;
 	struct rb_node *rbn;
 	struct sk_buff *fp;
@@ -691,8 +734,12 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 	head->tstamp = q->stamp;
 	head->tstamp_type = q->tstamp_type;
 
+	/* After inet_frag_reasm_prepare(), q->truesize is charged to sk.
+	 * sum_truesize also includes what it added (skb_unclone() and
+	 * frag_list clone).
+	 */
 	if (sk)
-		refcount_add(sum_truesize - head_truesize, &sk->sk_wmem_alloc);
+		inet_frag_wmem_adjust(sk, sum_truesize - (int)q->truesize);
 }
 EXPORT_SYMBOL(inet_frag_reasm_finish);
 

@@ -214,8 +214,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		if (ieee80211_vif_is_mld(&scan_sdata->vif)) {
 			s8 link_id = rx_status->link_id;
 
-			link_conf =
-				rcu_dereference(scan_sdata->vif.link_conf[link_id]);
+			if (link_id != IEEE80211_LINK_UNSPECIFIED)
+				link_conf =
+					rcu_dereference(scan_sdata->vif.link_conf[link_id]);
 		} else {
 			link_conf = &scan_sdata->vif.bss_conf;
 		}

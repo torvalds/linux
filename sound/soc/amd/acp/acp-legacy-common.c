@@ -154,7 +154,10 @@ static void set_acp_pdm_ring_buffer(struct snd_pcm_substream *substream,
 
 	period_bytes = frames_to_bytes(runtime, runtime->period_size);
 	pdm_size = frames_to_bytes(runtime, runtime->buffer_size);
-	physical_addr = stream->reg_offset + MEM_WINDOW_START;
+	if (chip->acp_rev >= ACP70_PCI_ID)
+		physical_addr = ACP7x_DMIC_MEM_WINDOW_START;
+	else
+		physical_addr = stream->reg_offset + MEM_WINDOW_START;
 
 	/* Init ACP PDM Ring buffer */
 	writel(physical_addr, chip->base + ACP_WOV_RX_RINGBUFADDR);

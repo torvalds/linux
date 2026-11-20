@@ -76,6 +76,7 @@ TEST_PROGS := \
 	nk_qlease.py \
 	nl_netdev.py \
 	nl_nlctrl.py \
+	nsh_gso.sh \
 	pmtu.sh \
 	protodown.sh \
 	psock_snd.sh \
@@ -90,6 +91,7 @@ TEST_PROGS := \
 	run_afpackettests \
 	run_netsocktests \
 	rxtimestamp.sh \
+	sctp_ifwdtsn.sh \
 	sctp_vrf.sh \
 	skf_net_off.sh \
 	srv6_encap_lookup_l3vpn_test.sh \
@@ -156,6 +158,7 @@ TEST_GEN_FILES := \
 	ipv6_flowlabel \
 	msg_zerocopy \
 	nettest \
+	nsh_gso \
 	psock_fanout \
 	psock_snd \
 	psock_tpacket \
@@ -163,6 +166,7 @@ TEST_GEN_FILES := \
 	reuseport_addr_any \
 	rxtimestamp \
 	sctp_hello \
+	sctp_ifwdtsn \
 	skf_net_off \
 	so_netns_cookie \
 	so_rcv_listener \

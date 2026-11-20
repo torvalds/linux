@@ -7,7 +7,7 @@ from lib.py import ksft_run, ksft_exit
 from lib.py import ksft_eq, KsftSkipEx, KsftFailEx
 from lib.py import EthtoolFamily, NetDrvEpEnv
 from lib.py import bkg, cmd, wait_port_listen, rand_port
-from lib.py import defer, ethtool, ip
+from lib.py import bpf_map_set, defer, ethtool, ip
 
 no_sleep=False
 
@@ -75,15 +75,22 @@ def _set_xdp_generic_sb_on(cfg) -> None:
     if no_sleep != True:
         time.sleep(10)
 
-def _set_xdp_generic_mb_on(cfg) -> None:
-    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
+def _set_xdp_generic_mb_on(cfg, prog="xdp_dummy.bpf.o", on_attach=None) -> None:
+    prog = cfg.net_lib_dir / prog
     cmd(f"ip link set dev {cfg.remote_ifname} mtu 9000", shell=True, host=cfg.remote)
     defer(ip, f"link set dev {cfg.remote_ifname} mtu 1500", host=cfg.remote)
     ip("link set dev %s mtu 9000 xdpgeneric obj %s sec xdp.frags" % (cfg.ifname, prog))
     defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdpgeneric off")
+    if on_attach:
+        on_attach()
 
     if no_sleep != True:
         time.sleep(10)
+
+def _set_xdp_generic_cpumap_mb_on(cfg) -> None:
+    cfg.require_cmd("bpftool")
+    _set_xdp_generic_mb_on(cfg, "xdp_cpumap.bpf.o",
+                           on_attach=lambda: bpf_map_set("map_cpumap", 0, 2048))
 
 def _set_xdp_native_sb_on(cfg) -> None:
     prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
@@ -192,6 +199,19 @@ def test_xdp_generic_mb(cfg, netnl) -> None:
     _test_v6(cfg)
     _test_tcp(cfg)
 
+def test_xdp_generic_cpumap_mb(cfg, netnl) -> None:
+    """Redirect all packets to a cpumap from a generic xdp.frags program."""
+    _schedule_checksum_reset(cfg, netnl)
+    _set_xdp_generic_cpumap_mb_on(cfg)
+    _set_offload_checksum(cfg, netnl, "off")
+    _test_v4(cfg)
+    _test_v6(cfg)
+    _test_tcp(cfg)
+    _set_offload_checksum(cfg, netnl, "on")
+    _test_v4(cfg)
+    _test_v6(cfg)
+    _test_tcp(cfg)
+
 def test_xdp_native_sb(cfg, netnl) -> None:
     _schedule_checksum_reset(cfg, netnl)
     _set_xdp_native_sb_on(cfg)
@@ -230,6 +250,7 @@ def main() -> None:
                   test_default_v6,
                   test_xdp_generic_sb,
                   test_xdp_generic_mb,
+                  test_xdp_generic_cpumap_mb,
                   test_xdp_native_sb,
                   test_xdp_native_mb,
                   test_xdp_offload],

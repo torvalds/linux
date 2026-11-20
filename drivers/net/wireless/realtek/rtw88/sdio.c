@@ -1308,6 +1308,9 @@ static int rtw_sdio_tx_write(struct rtw_dev *rtwdev,
 	u16 q_map = skb_get_queue_mapping(skb);
 	struct rtw_sdio_tx_data *tx_data;
 
+	if (queue == RTW_TX_QUEUE_HI0 && !rtw_tx_bmc_use_hiq(rtwdev, skb))
+		queue = rtw_tx_ac_to_hwq(q_map);
+
 	rtw_sdio_tx_skb_prepare(rtwdev, pkt_info, skb, queue);
 
 	tx_data = rtw_sdio_get_tx_data(skb);

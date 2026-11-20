@@ -42,3 +42,5 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 			 struct ovl_config *config);
 int ovl_show_options(struct seq_file *m, struct dentry *dentry);
 const char *ovl_xino_mode(struct ovl_config *config);
+const char *ovl_redirect_mode(struct ovl_config *config);
+int ovl_redirect_follow_mode(bool follow_lower, size_t nr_data);

@@ -37,6 +37,7 @@ struct fwnode_handle;
  * @valid_mask: If not %NULL, holds bitmask of GPIOs which are valid to be
  * used from the chip.
  * @desc_srcu: ensures consistent state of GPIO descriptors exposed to users
+ * @desc_lock: synchronizes the updates to descriptor labels
  * @ngpio: the number of GPIO lines on this GPIO device, equal to the size
  * of the @descs array.
  * @can_sleep: indicate whether the GPIO chip driver's callbacks can sleep
@@ -71,6 +72,7 @@ struct gpio_device {
 	struct gpio_desc	*descs;
 	unsigned long		*valid_mask;
 	struct srcu_struct	desc_srcu;
+	spinlock_t		desc_lock;
 	unsigned int		base;
 	u16			ngpio;
 	bool			can_sleep;

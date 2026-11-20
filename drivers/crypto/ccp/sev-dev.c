@@ -1916,6 +1916,8 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp, bool writable)
 	if (!writable)
 		return -EPERM;
 
+	mutex_lock(&sev_cmd_mutex);
+
 	/*
 	 * The SEV spec requires that FACTORY_RESET must be issued in
 	 * UNINIT state. Before we go further lets check if any guest is
@@ -1927,18 +1929,24 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp, bool writable)
 	 */
 	rc = sev_get_platform_state(&state, &argp->error);
 	if (rc)
-		return rc;
+		goto out_unlock;
 
-	if (state == SEV_STATE_WORKING)
-		return -EBUSY;
+	if (state == SEV_STATE_WORKING) {
+		rc = -EBUSY;
+		goto out_unlock;
+	}
 
 	if (state == SEV_STATE_INIT) {
 		rc = __sev_platform_shutdown_locked(&argp->error);
 		if (rc)
-			return rc;
+			goto out_unlock;
 	}
 
-	return __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, NULL, &argp->error);
+	rc = __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, NULL, &argp->error);
+
+out_unlock:
+	mutex_unlock(&sev_cmd_mutex);
+	return rc;
 }
 
 static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
@@ -1948,7 +1956,9 @@ static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
 
 	memset(&data, 0, sizeof(data));
 
+	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_cmd_locked(SEV_CMD_PLATFORM_STATUS, &data, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
 	if (ret)
 		return ret;
 
@@ -1967,16 +1977,21 @@ static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp, bool wr
 	if (!writable)
 		return -EPERM;
 
+	mutex_lock(&sev_cmd_mutex);
+
 	if (sev->sev_plat_status.state == SEV_STATE_UNINIT) {
 		rc = sev_move_to_init_state(argp, &shutdown_required);
 		if (rc)
-			return rc;
+			goto out_unlock;
 	}
 
 	rc = __sev_do_cmd_locked(cmd, NULL, &argp->error);
 
 	if (shutdown_required)
 		__sev_firmware_shutdown(sev, false);
+
+out_unlock:
+	mutex_unlock(&sev_cmd_mutex);
 
 	return rc;
 }
@@ -2016,13 +2031,23 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp, bool writable)
 	data.len = input.length;
 
 cmd:
+	mutex_lock(&sev_cmd_mutex);
+
 	if (sev->sev_plat_status.state == SEV_STATE_UNINIT) {
 		ret = sev_move_to_init_state(argp, &shutdown_required);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&sev_cmd_mutex);
+			/* No shutdown is needed if init fails */
 			goto e_free_blob;
+		}
 	}
 
 	ret = __sev_do_cmd_locked(SEV_CMD_PEK_CSR, &data, &argp->error);
+
+	if (shutdown_required)
+		__sev_firmware_shutdown(sev, false);
+
+	mutex_unlock(&sev_cmd_mutex);
 
 	/*
 	 * Firmware will returns the length of the CSR blob (either the minimum
@@ -2044,9 +2069,6 @@ cmd:
 	}
 
 e_free_blob:
-	if (shutdown_required)
-		__sev_firmware_shutdown(sev, false);
-
 	kfree(blob);
 	return ret;
 }
@@ -2319,19 +2341,26 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp, bool writable)
 	data.oca_cert_address = __psp_pa(oca_blob);
 	data.oca_cert_len = input.oca_cert_len;
 
+	mutex_lock(&sev_cmd_mutex);
+
 	/* If platform is not in INIT state then transition it to INIT */
 	if (sev->sev_plat_status.state != SEV_STATE_INIT) {
 		ret = sev_move_to_init_state(argp, &shutdown_required);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&sev_cmd_mutex);
+			/* No shutdown is needed if init fails */
 			goto e_free_oca;
+		}
 	}
 
 	ret = __sev_do_cmd_locked(SEV_CMD_PEK_CERT_IMPORT, &data, &argp->error);
 
-e_free_oca:
 	if (shutdown_required)
 		__sev_firmware_shutdown(sev, false);
 
+	mutex_unlock(&sev_cmd_mutex);
+
+e_free_oca:
 	kfree(oca_blob);
 e_free_pek:
 	kfree(pek_blob);
@@ -2374,7 +2403,9 @@ static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
 		data.len = 0;
 	}
 
+	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, &data, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
 
 	/*
 	 * Firmware will return the length of the ID value (either the minimum
@@ -2432,7 +2463,9 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 	data->address = __psp_pa(id_blob);
 	data->len = user_size;
 
+	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, data, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
 	if (!ret) {
 		if (copy_to_user((void __user *)argp->data, id_blob, data->len))
 			ret = -EFAULT;
@@ -2494,18 +2527,29 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 	data.cert_chain_len = input.cert_chain_len;
 
 cmd:
+	mutex_lock(&sev_cmd_mutex);
+
 	/* If platform is not in INIT state then transition it to INIT. */
 	if (sev->sev_plat_status.state != SEV_STATE_INIT) {
 		if (!writable) {
 			ret = -EPERM;
+			mutex_unlock(&sev_cmd_mutex);
 			goto e_free_cert;
 		}
 		ret = sev_move_to_init_state(argp, &shutdown_required);
-		if (ret)
+		if (ret) {
+			/* No shutdown is needed if init fails */
+			mutex_unlock(&sev_cmd_mutex);
 			goto e_free_cert;
+		}
 	}
 
 	ret = __sev_do_cmd_locked(SEV_CMD_PDH_CERT_EXPORT, &data, &argp->error);
+
+	if (shutdown_required)
+		__sev_firmware_shutdown(sev, false);
+
+	mutex_unlock(&sev_cmd_mutex);
 
 	/*
 	 * Firmware will return the length of the blobs (either the minimum
@@ -2537,9 +2581,6 @@ cmd:
 	}
 
 e_free_cert:
-	if (shutdown_required)
-		__sev_firmware_shutdown(sev, false);
-
 	kfree(cert_blob);
 e_free_pdh:
 	kfree(pdh_blob);
@@ -2561,6 +2602,8 @@ static int __sev_do_snp_platform_status(struct sev_user_data_snp_status *status,
 
 	data = page_address(status_page);
 
+	mutex_lock(&sev_cmd_mutex);
+
 	/*
 	 * SNP_PLATFORM_STATUS can be executed in any SNP state. But if executed
 	 * when SNP has been initialized, the status page must be firmware-owned.
@@ -2572,6 +2615,7 @@ static int __sev_do_snp_platform_status(struct sev_user_data_snp_status *status,
 		 */
 		if (rmp_mark_pages_firmware(__pa(data), 1, true)) {
 			ret = -EFAULT;
+			mutex_unlock(&sev_cmd_mutex);
 			goto cleanup;
 		}
 	}
@@ -2585,9 +2629,13 @@ static int __sev_do_snp_platform_status(struct sev_user_data_snp_status *status,
 		 * in Firmware state on failure. Use snp_reclaim_pages() to
 		 * transition either case back to Hypervisor-owned state.
 		 */
-		if (snp_reclaim_pages(__pa(data), 1, true))
+		if (snp_reclaim_pages(__pa(data), 1, true)) {
+			mutex_unlock(&sev_cmd_mutex);
 			return -EFAULT;
+		}
 	}
+
+	mutex_unlock(&sev_cmd_mutex);
 
 	if (ret)
 		goto cleanup;
@@ -2625,7 +2673,9 @@ static int sev_ioctl_do_snp_commit(struct sev_issue_cmd *argp)
 
 	buf.len = sizeof(buf);
 
+	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_cmd_locked(SEV_CMD_SNP_COMMIT, &buf, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
 
 	return ret;
 }
@@ -2634,6 +2684,7 @@ static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_snp_config config;
+	int ret;
 
 	if (!argp->data)
 		return -EINVAL;
@@ -2647,7 +2698,11 @@ static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable
 	if (copy_from_user(&config, (void __user *)argp->data, sizeof(config)))
 		return -EFAULT;
 
-	return __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
+	mutex_lock(&sev_cmd_mutex);
+	ret = __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
+
+	return ret;
 }
 
 static int sev_ioctl_do_snp_vlek_load(struct sev_issue_cmd *argp, bool writable)
@@ -2679,7 +2734,10 @@ static int sev_ioctl_do_snp_vlek_load(struct sev_issue_cmd *argp, bool writable)
 
 	input.vlek_wrapped_address = __psp_pa(blob);
 
+	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_cmd_locked(SEV_CMD_SNP_VLEK_LOAD, &input, &argp->error);
+	mutex_unlock(&sev_cmd_mutex);
+
 	kfree(blob);
 
 	return ret;
@@ -2703,8 +2761,6 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 
 	if (input.cmd > SEV_MAX)
 		return -EINVAL;
-
-	mutex_lock(&sev_cmd_mutex);
 
 	switch (input.cmd) {
 
@@ -2756,7 +2812,6 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 	if (copy_to_user(argp, &input, sizeof(struct sev_issue_cmd)))
 		ret = -EFAULT;
 out:
-	mutex_unlock(&sev_cmd_mutex);
 
 	return ret;
 }
@@ -3105,9 +3160,7 @@ static int get_v1_svn(struct sev_device *sev)
 	struct sev_user_data_snp_status status;
 	int ret, error = 0;
 
-	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_snp_platform_status(&status, &error);
-	mutex_unlock(&sev_cmd_mutex);
 	if (ret < 0)
 		return ret;
 
@@ -3122,9 +3175,7 @@ static int get_v2_svn(struct sev_device *sev)
 	struct sev_snp_tcb_version_turin *tcb;
 	int ret, error = 0;
 
-	mutex_lock(&sev_cmd_mutex);
 	ret = __sev_do_snp_platform_status(&status, &error);
-	mutex_unlock(&sev_cmd_mutex);
 	if (ret < 0)
 		return ret;
 

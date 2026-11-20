@@ -2656,22 +2656,26 @@ static int smack_netlbl_add(struct sock *sk)
  *
  * Remove the outbound smack value from a socket
  */
-static void smack_netlbl_delete(struct sock *sk)
+static int smack_netlbl_delete(struct sock *sk)
 {
 	struct socket_smack *ssp = smack_sock(sk);
+	int rc;
 
 	/*
 	 * Take the label off the socket if one is set.
 	 */
 	if (ssp->smk_state != SMK_NETLBL_LABELED)
-		return;
+		return 0;
 
 	local_bh_disable();
 	bh_lock_sock_nested(sk);
-	netlbl_sock_delattr(sk);
+	rc = netlbl_sock_delattr(sk);
 	bh_unlock_sock(sk);
 	local_bh_enable();
+	if (rc)
+		return rc;
 	ssp->smk_state = SMK_NETLBL_UNLABELED;
+	return 0;
 }
 
 /**
@@ -2711,7 +2715,7 @@ static int smk_ipv4_check(struct sock *sk, struct sockaddr_in *sap)
 		 * Clear the socket netlabel if it's set.
 		 */
 		if (!rc)
-			smack_netlbl_delete(sk);
+			rc = smack_netlbl_delete(sk);
 	}
 	rcu_read_unlock();
 
@@ -4548,7 +4552,7 @@ static int smack_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 	if (hskp == NULL)
 		rc = netlbl_req_setattr(req, &ssp->smk_out->smk_netlabel);
 	else
-		netlbl_req_delattr(req);
+		rc = netlbl_req_delattr(req);
 
 	return rc;
 }

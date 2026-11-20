@@ -2104,6 +2104,11 @@ struct rtw_dev {
 
 	struct rtw_tx_report tx_report;
 
+	/* protects hiq_budget and hiq_refill */
+	spinlock_t hiq_lock;
+	u32 hiq_budget;
+	unsigned long hiq_refill;
+
 	struct {
 		/* indicate the mail box to use with fw */
 		u8 last_box_num;

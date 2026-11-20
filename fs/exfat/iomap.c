@@ -179,15 +179,11 @@ static int exfat_write_iomap_begin(struct inode *inode, loff_t offset, loff_t le
 	 * Zero the invalid bytes from valid_size to the end of the block
 	 * to prevent stale data from being exposed through the page cache.
 	 */
-	return iomap_truncate_page(inode, valid_size, NULL, &exfat_iomap_ops,
+	return iomap_truncate_page(inode, valid_size, NULL, exfat_iomap_next,
 				   NULL, NULL);
 }
 
-static DEFINE_IOMAP_ITER_NEXT(exfat_iomap_next, exfat_iomap_begin);
-
-const struct iomap_ops exfat_iomap_ops = {
-	.iomap_next = exfat_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(exfat_iomap_next, exfat_iomap_begin);
 
 #ifdef CONFIG_SWAP
 static int exfat_swap_iomap_begin(struct inode *inode, loff_t offset,
@@ -204,10 +200,6 @@ static int exfat_swap_iomap_begin(struct inode *inode, loff_t offset,
 
 static DEFINE_IOMAP_ITER_NEXT(exfat_swap_iomap_next,
 		exfat_swap_iomap_begin);
-
-static const struct iomap_ops exfat_swap_iomap_ops = {
-	.iomap_next = exfat_swap_iomap_next,
-};
 #endif
 
 /*
@@ -245,12 +237,8 @@ static int exfat_write_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	return written;
 }
 
-static DEFINE_IOMAP_ITER_NEXT_END(exfat_write_iomap_next,
-		exfat_write_iomap_begin, exfat_write_iomap_end);
-
-const struct iomap_ops exfat_write_iomap_ops = {
-	.iomap_next	= exfat_write_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT_END(exfat_write_iomap_next, exfat_write_iomap_begin,
+		exfat_write_iomap_end);
 
 /*
  * exfat_writeback_range - Map folio during writeback
@@ -327,7 +315,7 @@ int exfat_iomap_swap_activate(struct swap_info_struct *sis,
 {
 #ifdef CONFIG_SWAP
 	return iomap_swapfile_activate(sis, file, span,
-				       &exfat_swap_iomap_ops);
+				       exfat_swap_iomap_next);
 #else
 	return -EIO;
 #endif

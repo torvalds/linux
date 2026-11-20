@@ -138,6 +138,8 @@ static int mpfs_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	case IRQ_TYPE_LEVEL_LOW:
 		interrupt_type = MPFS_GPIO_TYPE_INT_LEVEL_LOW;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	regmap_update_bits(mpfs_gpio->regs, MPFS_GPIO_CTRL(gpio_index),

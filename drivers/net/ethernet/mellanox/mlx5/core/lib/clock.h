@@ -50,6 +50,8 @@ struct mlx5_timer {
 	struct timecounter         tc;
 	u32                        nominal_c_mult;
 	unsigned long              overflow_period;
+	u64                        saved_phc_ns;
+	u64                        saved_boot_ns;
 };
 
 struct mlx5_clock {

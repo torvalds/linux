@@ -830,9 +830,4 @@ static int z_erofs_iomap_begin_report(struct inode *inode, loff_t offset,
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(z_erofs_iomap_next_report,
-			      z_erofs_iomap_begin_report);
-
-const struct iomap_ops z_erofs_iomap_report_ops = {
-	.iomap_next = z_erofs_iomap_next_report,
-};
+DEFINE_IOMAP_ITER_NEXT(z_erofs_iomap_next_report, z_erofs_iomap_begin_report);

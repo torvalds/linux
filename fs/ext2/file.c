@@ -55,7 +55,7 @@ static ssize_t ext2_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	trace_ext2_dio_read_begin(iocb, to, 0);
 	inode_lock_shared(inode);
-	ret = iomap_dio_rw(iocb, to, &ext2_iomap_ops, NULL, 0, NULL, 0);
+	ret = iomap_dio_rw(iocb, to, ext2_iomap_next, NULL, 0, NULL, 0);
 	inode_unlock_shared(inode);
 	trace_ext2_dio_read_end(iocb, to, ret);
 
@@ -119,7 +119,7 @@ static ssize_t ext2_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	   (!IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(from), blocksize)))
 		flags |= IOMAP_DIO_FORCE_WAIT;
 
-	ret = iomap_dio_rw(iocb, from, &ext2_iomap_ops, &ext2_dio_write_ops,
+	ret = iomap_dio_rw(iocb, from, ext2_iomap_next, &ext2_dio_write_ops,
 			   flags, NULL, 0);
 
 	/* ENOTBLK is magic return value for fallback to buffered-io */

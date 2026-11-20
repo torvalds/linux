@@ -2905,9 +2905,6 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return false;
 
-	if (skb_linearize(skb))
-		return false;
-
 	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
 	if (tid_tx) {
@@ -2917,6 +2914,10 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
 		if (tid_tx->timeout)
 			tid_tx->last_tx = jiffies;
 	}
+
+	/* this function must not fail after this */
+	if (skb_linearize(skb))
+		return false;
 
 	ieee80211_aggr_check(sdata, sta, skb);
 
@@ -4232,6 +4233,7 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 
 	while ((skb = __skb_dequeue(frames))) {
 		struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+		int link_id;
 
 		/*
 		 * Most fields are valid across frames. However,
@@ -4240,18 +4242,27 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		 * and link_sta accordingly.
 		 */
 		rx->skb = skb;
+		link_id = status->link_id == IEEE80211_LINK_UNSPECIFIED ? -1 : status->link_id;
 		if (ieee80211_vif_is_mld(&rx->sdata->vif) &&
-		    unlikely(rx->link_id != status->link_id)) {
-			if (rx->sta) {
-				rx->link_sta =
-					rcu_dereference(rx->sta->link[rx->link_id]);
+		    unlikely(rx->link_id != link_id)) {
+			rx->link_id = link_id;
 
-				/* Link got disabled, just use deflink */
+			if (link_id >= 0)
+				rx->link = rcu_dereference(rx->sdata->link[link_id]);
+			else
+				rx->link = &rx->sdata->deflink;
+
+			if (rx->sta) {
+				if (WARN_ON_ONCE(link_id < 0))
+					rx->link_sta = NULL;
+				else
+					rx->link_sta =
+						rcu_dereference(rx->sta->link[link_id]);
+
+				/* Link disabled or invalid, just use deflink */
 				if (!rx->link_sta)
 					rx->link_sta = &rx->sta->deflink;
 			}
-			rx->link_id = status->link_id;
-			rx->link = rcu_dereference(rx->sdata->link[status->link_id]);
 		}
 
 		if (WARN_ON_ONCE(!rx->link)) {
@@ -5184,7 +5195,8 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	}
 
 	status = IEEE80211_SKB_RXCB(skb);
-	status->link_id = rx->link_id < 0 ? 0 : rx->link_id;
+	status->link_id =
+		rx->link_id < 0 ? IEEE80211_LINK_UNSPECIFIED : rx->link_id;
 
 	ieee80211_rx_8023(rx, fast_rx, orig_len);
 
@@ -5255,7 +5267,8 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 	}
 
 	status = IEEE80211_SKB_RXCB(rx->skb);
-	status->link_id = rx->link_id < 0 ? 0 : rx->link_id;
+	status->link_id =
+		rx->link_id < 0 ? IEEE80211_LINK_UNSPECIFIED : rx->link_id;
 
 	if (ieee80211_is_s1g_beacon(hdr->frame_control)) {
 		ieee80211_invoke_rx_handlers(rx);
@@ -5346,6 +5359,29 @@ static bool ieee80211_rx_valid_freq(int freq, struct ieee80211_link_data *link)
 		return false;
 
 	return freq == conf->def.chan->center_freq;
+}
+
+static struct ieee80211_link_data *
+ieee80211_link_from_freq(struct ieee80211_sub_if_data *sdata, int freq)
+{
+	struct ieee80211_link_data *link;
+
+	if (ieee80211_vif_is_mld(&sdata->vif)) {
+		struct ieee80211_chanctx_conf *conf;
+
+		for_each_link_data_rcu(sdata, link) {
+			conf = rcu_dereference(link->conf->chanctx_conf);
+			if (!conf || !conf->def.chan)
+				continue;
+
+			if (freq == conf->def.chan->center_freq)
+				return link;
+		}
+
+		return &sdata->deflink;
+	}
+
+	return &sdata->deflink;
 }
 
 /*
@@ -5508,6 +5544,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ieee80211_link_data *link = NULL;
+		const u8 *addr = hdr->addr2;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -5519,16 +5556,32 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		link_sta = NULL;
 		link = NULL;
 
+		/*
+		 * Switch to do the STA lookup using the non-transmitted BSSID
+		 * for beacon frames from the transmitted BSSID. This ensures
+		 * that the keys for beacon protection are available during
+		 * later processing.
+		 */
+		if (ieee80211_is_beacon(fc) &&
+		    sdata->vif.type == NL80211_IFTYPE_STATION) {
+			link = ieee80211_link_from_freq(sdata, status->freq);
+
+			if (link->conf->nontransmitted &&
+			    ether_addr_equal(addr,
+					     link->conf->transmitter_bssid))
+				addr = link->conf->bssid;
+		}
+
 		/* Try to resolve the station */
 		if (!ieee80211_vif_is_mld(&sdata->vif)) {
-			sta = sta_info_get_bss(sdata, hdr->addr2);
+			sta = sta_info_get_bss(sdata, addr);
 
 			if (sta) {
 				link_sta = &sta->deflink;
 				link = &sdata->deflink;
 			}
 		} else {
-			link_sta = link_sta_info_get_bss(sdata, hdr->addr2);
+			link_sta = link_sta_info_get_bss(sdata, addr);
 
 			if (link_sta)
 				link = rcu_dereference(sdata->link[link_sta->link_id]);
@@ -5555,26 +5608,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		}
 
 		/* No station, try to resolve the link and RX */
-		if (ieee80211_vif_is_mld(&sdata->vif)) {
-			struct ieee80211_chanctx_conf *conf;
-			bool found = false;
-
-			for_each_link_data_rcu(sdata, link) {
-				conf = rcu_dereference(link->conf->chanctx_conf);
-				if (!conf || !conf->def.chan)
-					continue;
-
-				if (status->freq == conf->def.chan->center_freq) {
-					found = true;
-					break;
-				}
-			}
-
-			if (!found)
-				link = &sdata->deflink;
-		} else {
-			link = &sdata->deflink;
-		}
+		link = ieee80211_link_from_freq(sdata, status->freq);
 
 		if (rx_data_pending) {
 			ieee80211_prepare_and_rx_handle(&rx, skb, false);

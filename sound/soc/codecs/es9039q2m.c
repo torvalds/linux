@@ -1635,6 +1635,18 @@ static int es9039q2m_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	/*
+	 * Turn the DAC clock on. It is set at power-up, but suspend clears it
+	 * and only resume sets it again, and a reset while asleep skips the
+	 * resume without resetting this part. It then comes back gated: the
+	 * stream runs, the part automutes, and the analogue output is silent
+	 * until power is removed.
+	 */
+	ret = regmap_update_bits(priv->regmap, ES9039_SYS_MODE,
+				 ES9039_ENABLE_DAC_CLK, ES9039_ENABLE_DAC_CLK);
+	if (ret)
+		return ret;
+
+	/*
 	 * Enable the datapath. SYSTEM_CONFIG[1] is clear at reset, so in
 	 * software mode nothing turns the DAC on at power-up: the analogue
 	 * output stays dead until this bit is set.

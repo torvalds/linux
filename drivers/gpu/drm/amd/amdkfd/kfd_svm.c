@@ -4245,14 +4245,13 @@ int kfd_criu_restore_svm(struct kfd_process *p,
 	svm_priv_data_size = sizeof(struct kfd_criu_svm_range_priv_data) +
 								svm_attrs_size;
 
+	if (*priv_data_offset + svm_priv_data_size > max_priv_data_size)
+		return -EINVAL;
+
 	criu_svm_md = kzalloc(svm_object_md_size, GFP_KERNEL);
 	if (!criu_svm_md) {
 		pr_err("failed to allocate memory to store svm metadata\n");
 		return -ENOMEM;
-	}
-	if (*priv_data_offset + svm_priv_data_size > max_priv_data_size) {
-		ret = -EINVAL;
-		goto exit;
 	}
 
 	ret = copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,

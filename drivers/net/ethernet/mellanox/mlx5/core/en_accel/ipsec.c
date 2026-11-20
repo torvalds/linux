@@ -771,53 +771,72 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 				struct xfrm_state *x,
 				struct netlink_ext_ack *extack)
 {
+	bool is_acq = x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ;
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
 	bool allow_tunnel_mode = false;
+	struct mlx5_core_dev *mdev;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
 	gfp_t gfp;
 	int err;
 
 	priv = netdev_priv(dev);
-	if (!priv->ipsec)
-		return -EOPNOTSUPP;
+	/* Profile cleanup can memset an already NULL mdev. */
+	mdev = data_race(READ_ONCE(priv->mdev));
+	/* NULL only during a profile change, which is an eswitch operation. */
+	if (!mdev) {
+		NL_SET_ERR_MSG_MOD(extack, "Eswitch busy, can't add state");
+		return -EBUSY;
+	}
+
+	if (!is_acq) {
+		err = mlx5_eswitch_block_mode(mdev, false);
+		if (err)
+			return err;
+	}
 
 	ipsec = priv->ipsec;
-	gfp = (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) ? GFP_ATOMIC : GFP_KERNEL;
+	if (!ipsec) {
+		err = -EOPNOTSUPP;
+		goto unblock_mode;
+	}
+
+	gfp = is_acq ? GFP_ATOMIC : GFP_KERNEL;
 	sa_entry = kzalloc_obj(*sa_entry, gfp);
-	if (!sa_entry)
-		return -ENOMEM;
+	if (!sa_entry) {
+		err = -ENOMEM;
+		goto unblock_mode;
+	}
 
 	sa_entry->x = x;
 	sa_entry->dev = dev;
 	sa_entry->ipsec = ipsec;
 	/* Check if this SA is originated from acquire flow temporary SA */
-	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) {
+	if (is_acq) {
 		x->xso.offload_handle = (unsigned long)sa_entry;
 		return 0;
 	}
 
-	err = mlx5e_xfrm_validate_state(priv->mdev, x, extack);
+	err = mlx5e_xfrm_validate_state(mdev, x, extack);
 	if (err)
 		goto err_xfrm;
 
-	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+	if (!mlx5_eswitch_block_ipsec(mdev)) {
 		err = -EBUSY;
 		goto err_xfrm;
 	}
 
-	err = mlx5_eswitch_block_mode(priv->mdev);
-	if (err)
-		goto unblock_ipsec;
-
 	if (x->props.mode == XFRM_MODE_TUNNEL &&
 	    x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
-		allow_tunnel_mode = mlx5e_ipsec_fs_tunnel_allowed(sa_entry);
+		err = mlx5e_ipsec_fs_tunnel_allowed(sa_entry);
+		if (err < 0)
+			goto unblock_ipsec;
+		allow_tunnel_mode = err;
 		if (!allow_tunnel_mode) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Packet offload tunnel mode is disabled due to encap settings");
 			err = -EINVAL;
-			goto unblock_mode;
+			goto unblock_ipsec;
 		}
 	}
 
@@ -874,9 +893,9 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	if (allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(priv->mdev);
+		mlx5_eswitch_unblock_encap(mdev);
 
-	mlx5_eswitch_unblock_mode(priv->mdev);
+	mlx5_eswitch_unblock_mode(mdev);
 
 	return 0;
 
@@ -892,14 +911,15 @@ release_work:
 	kfree(sa_entry->work);
 unblock_encap:
 	if (allow_tunnel_mode)
-		mlx5_eswitch_unblock_encap(priv->mdev);
-unblock_mode:
-	mlx5_eswitch_unblock_mode(priv->mdev);
+		mlx5_eswitch_unblock_encap(mdev);
 unblock_ipsec:
-	mlx5_eswitch_unblock_ipsec(priv->mdev);
+	mlx5_eswitch_unblock_ipsec(mdev);
 err_xfrm:
 	kfree(sa_entry);
 	NL_SET_ERR_MSG_WEAK_MOD(extack, "Device failed to offload this state");
+unblock_mode:
+	if (!is_acq)
+		mlx5_eswitch_unblock_mode(mdev);
 	return err;
 }
 
@@ -1265,27 +1285,45 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 {
 	struct net_device *netdev = x->xdo.dev;
 	struct mlx5e_ipsec_pol_entry *pol_entry;
+	struct mlx5_core_dev *mdev;
 	struct mlx5e_priv *priv;
 	int err;
 
 	priv = netdev_priv(netdev);
-	if (!priv->ipsec) {
-		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support IPsec packet offload");
-		return -EOPNOTSUPP;
+	/* Profile cleanup can memset an already NULL mdev. */
+	mdev = data_race(READ_ONCE(priv->mdev));
+	if (!mdev) {
+		NL_SET_ERR_MSG_MOD(extack, "Eswitch busy, can't add policy");
+		return -EBUSY;
 	}
 
-	err = mlx5e_xfrm_validate_policy(priv->mdev, x, extack);
-	if (err)
+	/* Block esw mode changes until the policy holds its own block. */
+	err = mlx5_eswitch_block_mode(mdev, false);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Eswitch busy, can't add policy");
 		return err;
+	}
+
+	if (!priv->ipsec) {
+		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support IPsec packet offload");
+		err = -EOPNOTSUPP;
+		goto unblock_mode;
+	}
+
+	err = mlx5e_xfrm_validate_policy(mdev, x, extack);
+	if (err)
+		goto unblock_mode;
 
 	pol_entry = kzalloc_obj(*pol_entry);
-	if (!pol_entry)
-		return -ENOMEM;
+	if (!pol_entry) {
+		err = -ENOMEM;
+		goto unblock_mode;
+	}
 
 	pol_entry->x = x;
 	pol_entry->ipsec = priv->ipsec;
 
-	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+	if (!mlx5_eswitch_block_ipsec(mdev)) {
 		err = -EBUSY;
 		goto ipsec_busy;
 	}
@@ -1296,13 +1334,16 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 		goto err_fs;
 
 	x->xdo.offload_handle = (unsigned long)pol_entry;
+	mlx5_eswitch_unblock_mode(mdev);
 	return 0;
 
 err_fs:
-	mlx5_eswitch_unblock_ipsec(priv->mdev);
+	mlx5_eswitch_unblock_ipsec(mdev);
 ipsec_busy:
 	kfree(pol_entry);
 	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
+unblock_mode:
+	mlx5_eswitch_unblock_mode(mdev);
 	return err;
 }
 

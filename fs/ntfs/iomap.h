@@ -12,11 +12,11 @@
 #include "volume.h"
 #include "inode.h"
 
-extern const struct iomap_ops ntfs_write_iomap_ops;
-extern const struct iomap_ops ntfs_read_iomap_ops;
-extern const struct iomap_ops ntfs_seek_iomap_ops;
-extern const struct iomap_ops ntfs_page_mkwrite_iomap_ops;
-extern const struct iomap_ops ntfs_dio_iomap_ops;
+DECLARE_IOMAP_ITER_NEXT(ntfs_write_iomap_next);
+DECLARE_IOMAP_ITER_NEXT(ntfs_read_iomap_next);
+DECLARE_IOMAP_ITER_NEXT(ntfs_seek_iomap_next);
+DECLARE_IOMAP_ITER_NEXT(ntfs_page_mkwrite_iomap_next);
+DECLARE_IOMAP_ITER_NEXT(ntfs_dio_iomap_next);
 extern const struct iomap_writeback_ops ntfs_writeback_ops;
 extern const struct iomap_write_ops ntfs_iomap_folio_ops;
 extern int ntfs_dio_zero_range(struct inode *inode, loff_t offset, loff_t length);

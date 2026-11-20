@@ -265,7 +265,7 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
 	rcu_read_unlock();
 
 	/* are all tasks frozen? */
-	css_task_iter_start(css, 0, &it);
+	css_task_iter_start(css, CSS_TASK_ITER_WITH_DEAD, &it);
 
 	while ((task = css_task_iter_next(&it))) {
 		if (freezing(task) && !frozen(task))
@@ -309,7 +309,7 @@ static void freeze_cgroup(struct freezer *freezer)
 	struct css_task_iter it;
 	struct task_struct *task;
 
-	css_task_iter_start(&freezer->css, 0, &it);
+	css_task_iter_start(&freezer->css, CSS_TASK_ITER_WITH_DEAD, &it);
 	while ((task = css_task_iter_next(&it)))
 		freeze_task(task);
 	css_task_iter_end(&it);
@@ -320,7 +320,7 @@ static void unfreeze_cgroup(struct freezer *freezer)
 	struct css_task_iter it;
 	struct task_struct *task;
 
-	css_task_iter_start(&freezer->css, 0, &it);
+	css_task_iter_start(&freezer->css, CSS_TASK_ITER_WITH_DEAD, &it);
 	while ((task = css_task_iter_next(&it)))
 		__thaw_task(task);
 	css_task_iter_end(&it);
@@ -382,6 +382,24 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	 * CGROUP_FREEZING_PARENT.
 	 */
 	mutex_lock(&freezer_mutex);
+
+	/*
+	 * A dead cgroup must not be frozen.
+	 *
+	 * rmdir thaws the cgroup from freezer_css_killed(), but freezer.state
+	 * stays writable until rmdir removes it a moment later. A FROZEN write
+	 * in that gap would freeze the cgroup again, and nothing could thaw it
+	 * after that.
+	 *
+	 * A freezer.state write doesn't take cgroup_mutex, but testing
+	 * cgroup_is_dead() without it is safe. rmdir marks the cgroup dead
+	 * before the thaw, so a write that takes freezer_mutex after the thaw
+	 * sees it dead. One that takes it before the thaw may still see the
+	 * cgroup alive, but the thaw then undoes its freeze.
+	 */
+	if (freeze && data_race(cgroup_is_dead(freezer->css.cgroup)))
+		goto out_unlock;
+
 	rcu_read_lock();
 	css_for_each_descendant_pre(pos, &freezer->css) {
 		struct freezer *pos_f = css_freezer(pos);
@@ -403,8 +421,23 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 		css_put(pos);
 	}
 	rcu_read_unlock();
+out_unlock:
 	mutex_unlock(&freezer_mutex);
 	cpus_read_unlock();
+}
+
+/**
+ * freezer_css_killed - Thaw a freezer cgroup being removed
+ * @css: css being killed
+ *
+ * Exiting tasks hidden from cgroup.procs can still be in the cgroup when it is
+ * removed, and a frozen one has nothing left to thaw it once freezer.state is
+ * gone. Thaw the cgroup as a THAWED write to it would. A frozen ancestor keeps
+ * the tasks frozen through CGROUP_FREEZING_PARENT until the ancestor is thawed.
+ */
+static void freezer_css_killed(struct cgroup_subsys_state *css)
+{
+	freezer_change_state(css_freezer(css), false);
 }
 
 static ssize_t freezer_write(struct kernfs_open_file *of,
@@ -466,6 +499,7 @@ static struct cftype files[] = {
 struct cgroup_subsys freezer_cgrp_subsys = {
 	.css_alloc	= freezer_css_alloc,
 	.css_online	= freezer_css_online,
+	.css_killed	= freezer_css_killed,
 	.css_offline	= freezer_css_offline,
 	.css_free	= freezer_css_free,
 	.attach		= freezer_attach,

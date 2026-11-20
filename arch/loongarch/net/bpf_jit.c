@@ -1819,7 +1819,7 @@ static int invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* update branch with beqz */
 	if (ctx->image) {
 		int offset = (void *)(&ctx->image[ctx->idx]) - (void *)branch;
-		*branch = larch_insn_gen_beq(LOONGARCH_GPR_A0, LOONGARCH_GPR_ZERO, offset);
+		*branch = larch_insn_gen_beqz(LOONGARCH_GPR_A0, offset);
 	}
 
 	/* arg1: prog */
@@ -2132,9 +2132,10 @@ static int __arch_prepare_bpf_trampoline(struct jit_ctx *ctx, struct bpf_tramp_i
 		emit_insn(ctx, std, regmap[BPF_REG_0], LOONGARCH_GPR_FP, -(retval_off - 8));
 	}
 
+	/* update branches with bnez */
 	for (i = 0; ctx->image && i < fmod_ret->nr_nodes; i++) {
 		int offset = (void *)(&ctx->image[ctx->idx]) - (void *)branches[i];
-		*branches[i] = larch_insn_gen_bne(LOONGARCH_GPR_T1, LOONGARCH_GPR_ZERO, offset);
+		*branches[i] = larch_insn_gen_bnez(LOONGARCH_GPR_T1, offset);
 	}
 
 	/* Set "is_return" flag for fsession */
@@ -2489,7 +2490,16 @@ bool bpf_jit_bypass_spec_v4(void)
 
 bool bpf_jit_supports_arena(void)
 {
-	return true;
+	/*
+	 * The arena range tree uses kmalloc_nolock(), which requires
+	 * 128-bit atomic cmpxchg; this is provided by not only hardware
+	 * SCQ extension but also assembler support on LoongArch.
+	 */
+#ifdef system_has_cmpxchg128
+	return system_has_cmpxchg128();
+#else
+	return false;
+#endif
 }
 
 bool bpf_jit_supports_fsession(void)

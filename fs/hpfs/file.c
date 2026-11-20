@@ -158,10 +158,6 @@ static int hpfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 
 static DEFINE_IOMAP_ITER_NEXT(hpfs_iomap_next, hpfs_iomap_begin);
 
-static const struct iomap_ops hpfs_iomap_ops = {
-	.iomap_next		= hpfs_iomap_next,
-};
-
 static int hpfs_read_folio(struct file *file, struct folio *folio)
 {
 	return mpage_read_folio(folio, hpfs_get_block);
@@ -238,7 +234,7 @@ static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, 
 
 	inode_lock(inode);
 	len = min_t(u64, len, i_size_read(inode));
-	ret = iomap_fiemap(inode, fieinfo, start, len, &hpfs_iomap_ops);
+	ret = iomap_fiemap(inode, fieinfo, start, len, hpfs_iomap_next);
 	inode_unlock(inode);
 
 	return ret;

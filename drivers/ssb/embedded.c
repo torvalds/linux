@@ -3,7 +3,7 @@
  * Embedded systems support code
  *
  * Copyright 2005-2008, Broadcom Corporation
- * Copyright 2006-2008, Michael Buesch <m@bues.ch>
+ * Copyright 2006-2008, Michael Buesch
  * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.

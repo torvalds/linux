@@ -629,28 +629,52 @@ nfs_fattr_fixup_delegated(struct inode *inode, struct nfs_fattr *fattr)
 	}
 }
 
+/*
+ * With delegated timestamps, the client's coarse clock can trail the
+ * server's fine-grained ctime cached from an OPEN or SETATTR reply. The
+ * server won't move ctime backward when the times are returned, so a
+ * new stamp must land after the cached ctime.
+ */
+static struct timespec64 nfs_delegated_stamp(struct inode *inode)
+{
+	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 now = current_time(inode);
+
+	if (timespec64_compare(&now, &ctime) <= 0) {
+		now = ctime;
+		timespec64_add_ns(&now, 1);
+	}
+	return now;
+}
+
+/*
+ * The server stamped c/mtime itself (e.g. for a size change). Raise the
+ * cached ctime to the server's so that the next delegated stamp lands
+ * after it.
+ */
+void nfs_delegated_ctime_raise(struct inode *inode,
+			       const struct nfs_fattr *fattr)
+{
+	struct timespec64 ctime = inode_get_ctime(inode);
+
+	if ((fattr->valid & NFS_ATTR_FATTR_CTIME) &&
+	    timespec64_compare(&fattr->ctime, &ctime) > 0)
+		inode_set_ctime_to_ts(inode, fattr->ctime);
+}
+EXPORT_SYMBOL_GPL(nfs_delegated_ctime_raise);
+
 static void nfs_set_timestamps_to_ts(struct inode *inode, struct iattr *attr)
 {
 	unsigned int cache_flags = 0;
 
 	if (attr->ia_valid & ATTR_MTIME_SET) {
-		struct timespec64 ctime = inode_get_ctime(inode);
-		struct timespec64 mtime = inode_get_mtime(inode);
-		struct timespec64 now;
-		bool updated = false;
-
-		now = inode_set_ctime_current(inode);
-		if (!timespec64_equal(&now, &ctime))
-			updated = true;
-
+		/* The stamp is always after the old ctime */
+		inode_set_ctime_to_ts(inode, nfs_delegated_stamp(inode));
 		inode_set_mtime_to_ts(inode, attr->ia_mtime);
-		if (!timespec64_equal(&now, &mtime))
-			updated = true;
-
-		inode_maybe_inc_iversion(inode, updated);
+		inode_maybe_inc_iversion(inode, true);
 		cache_flags |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
 	}
-	if (attr->ia_valid & ATTR_ATIME_SET) {
+	if (attr->ia_valid & ATTR_ATIME) {
 		inode_set_atime_to_ts(inode, attr->ia_atime);
 		cache_flags |= NFS_INO_INVALID_ATIME;
 	}
@@ -665,7 +689,11 @@ static void nfs_update_atime(struct inode *inode)
 
 static void nfs_update_mtime(struct inode *inode)
 {
-	inode_update_time(inode, FS_UPD_CMTIME, 0);
+	struct timespec64 now = nfs_delegated_stamp(inode);
+
+	/* Not inode_update_time(): lockless readers would see its stamp */
+	inode_set_ctime_to_ts(inode, now);
+	inode_set_mtime_to_ts(inode, now);
 	NFS_I(inode)->cache_validity &=
 		~(NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME);
 }
@@ -684,6 +712,7 @@ void nfs_update_delegated_mtime_locked(struct inode *inode)
 	    nfs_have_directory_delegation(inode))
 		nfs_update_mtime(inode);
 }
+EXPORT_SYMBOL_GPL(nfs_update_delegated_mtime_locked);
 
 void nfs_update_delegated_mtime(struct inode *inode)
 {
@@ -746,7 +775,7 @@ nfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 	} else if (nfs_have_delegated_atime(inode) &&
 		   attr->ia_valid & ATTR_ATIME &&
 		   !(attr->ia_valid & ATTR_MTIME)) {
-		if (!(attr->ia_valid & ATTR_ATIME_SET)) {
+		if (!(attr->ia_valid & (ATTR_ATIME_SET | ATTR_TIMES_SET))) {
 			nfs_update_delegated_atime(inode);
 			attr->ia_valid &= ~ATTR_ATIME;
 		}
@@ -808,10 +837,14 @@ static int nfs_vmtruncate(struct inode * inode, loff_t offset)
 		nfs_ooo_clear(NFS_I(inode));
 	}
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
+	/*
+	 * Stamp in the same i_lock section that checked the delegation and
+	 * raised ctime, before a delegation return can start.
+	 */
+	nfs_update_delegated_mtime_locked(inode);
 
 	spin_unlock(&inode->i_lock);
 	truncate_pagecache(inode, offset);
-	nfs_update_delegated_mtime_locked(inode);
 	spin_lock(&inode->i_lock);
 out:
 	return err;
@@ -837,6 +870,8 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 	if ((attr->ia_valid & ATTR_SIZE) != 0) {
 		if (!nfs_have_delegated_mtime(inode))
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_MTIME);
+		else
+			nfs_delegated_ctime_raise(inode, fattr);
 		nfs_set_cache_invalid(inode, NFS_INO_INVALID_BLOCKS);
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		nfs_vmtruncate(inode, attr->ia_size);

@@ -1395,6 +1395,40 @@ static ssize_t available_memory_partition_show(struct device *dev,
 	return size;
 }
 
+void amdgpu_gmc_set_requested_nps_mode(struct amdgpu_device *adev,
+				       enum amdgpu_memory_partition mode)
+{
+	struct amdgpu_hive_info *hive;
+
+	/* If device is part of hive, all devices in the hive should request the
+	 * same mode. Hence store the requested mode in hive.
+	 */
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		atomic_set(&hive->requested_nps_mode, mode);
+		amdgpu_put_xgmi_hive(hive);
+	} else {
+		adev->gmc.requested_nps_mode = mode;
+	}
+}
+
+enum amdgpu_memory_partition
+amdgpu_gmc_get_requested_nps_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive;
+	enum amdgpu_memory_partition mode;
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		mode = atomic_read(&hive->requested_nps_mode);
+		amdgpu_put_xgmi_hive(hive);
+	} else {
+		mode = adev->gmc.requested_nps_mode;
+	}
+
+	return mode;
+}
+
 static ssize_t current_memory_partition_store(struct device *dev,
 					      struct device_attribute *attr,
 					      const char *buf, size_t count)
@@ -1402,7 +1436,6 @@ static ssize_t current_memory_partition_store(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	enum amdgpu_memory_partition mode;
-	struct amdgpu_hive_info *hive;
 	int i;
 
 	mode = UNKNOWN_MEMORY_PARTITION_MODE;
@@ -1416,23 +1449,16 @@ static ssize_t current_memory_partition_store(struct device *dev,
 	if (mode == UNKNOWN_MEMORY_PARTITION_MODE)
 		return -EINVAL;
 
-	if (mode == adev->gmc.gmc_funcs->query_mem_partition_mode(adev)) {
+	if (mode == amdgpu_gmc_get_requested_nps_mode(adev)) {
 		dev_info(
 			adev->dev,
-			"requested NPS mode is same as current NPS mode, skipping\n");
+			"requested NPS mode is same as current/already requested NPS mode, skipping\n");
 		return count;
 	}
 
-	/* If device is part of hive, all devices in the hive should request the
-	 * same mode. Hence store the requested mode in hive.
-	 */
-	hive = amdgpu_get_xgmi_hive(adev);
-	if (hive) {
-		atomic_set(&hive->requested_nps_mode, mode);
-		amdgpu_put_xgmi_hive(hive);
-	} else {
-		adev->gmc.requested_nps_mode = mode;
-	}
+	amdgpu_gmc_set_requested_nps_mode(adev, mode);
+	if (mode == amdgpu_gmc_query_memory_partition(adev))
+		return count;
 
 	dev_info(
 		adev->dev,

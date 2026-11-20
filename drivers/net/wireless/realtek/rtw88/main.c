@@ -2177,6 +2177,9 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	spin_lock_init(&rtwdev->txq_lock);
 	spin_lock_init(&rtwdev->tx_report.q_lock);
+	spin_lock_init(&rtwdev->hiq_lock);
+	rtwdev->hiq_budget = RTW_TX_HIQ_BUDGET_MAX;
+	rtwdev->hiq_refill = jiffies;
 
 	mutex_init(&rtwdev->mutex);
 	mutex_init(&rtwdev->hal.tx_power_mutex);

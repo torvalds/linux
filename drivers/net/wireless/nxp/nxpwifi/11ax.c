@@ -204,38 +204,61 @@ int nxpwifi_ret_11ax_cfg(struct nxpwifi_private *priv,
 {
 	struct host_cmd_11ax_cfg *he_cfg = &resp->params.ax_cfg;
 	struct nxpwifi_ie_types_header *header;
-	u16 left_len, tlv_type, tlv_len;
+	u16 resp_size, left_len, tlv_type, tlv_len;
+	struct nxpwifi_11ax_he_cap_cfg *he_cap;
 	u8 ext_id;
-	struct nxpwifi_11ax_he_cap_cfg *he_cap = &ax_cfg->he_cap_cfg;
 
-	left_len = le16_to_cpu(resp->size) - sizeof(*he_cfg) - S_DS_GEN;
+	if (!ax_cfg)
+		return 0;
+
+	he_cap = &ax_cfg->he_cap_cfg;
+	resp_size = le16_to_cpu(resp->size);
+	if (resp_size < S_DS_GEN + sizeof(*he_cfg))
+		return -EINVAL;
+
+	left_len = resp_size - S_DS_GEN - sizeof(*he_cfg);
 	header = (struct nxpwifi_ie_types_header *)he_cfg->tlv;
 
 	while (left_len > sizeof(*header)) {
 		tlv_type = le16_to_cpu(header->type);
 		tlv_len = le16_to_cpu(header->len);
 
-		if (tlv_type == TLV_TYPE_EXTENSION_ID) {
-			ext_id = *((u8 *)header + sizeof(*header) + 1);
+		if (sizeof(*header) + tlv_len > left_len)
+			return -EINVAL;
+
+		if (tlv_type == TLV_TYPE_EXTENSION_ID && tlv_len >= 1) {
+			ext_id = *((u8 *)header + sizeof(*header));
 			if (ext_id == WLAN_EID_EXT_HE_CAPABILITY) {
+				u8 *user_cap, *user_cap_len;
+				size_t user_cap_size;
+
+				if (he_cfg->band_config & BIT(1)) {
+					user_cap = priv->user_he_cap;
+					user_cap_len = &priv->user_he_cap_len;
+					user_cap_size =
+						sizeof(priv->user_he_cap);
+				} else {
+					user_cap = priv->user_2g_he_cap;
+					user_cap_len =
+						&priv->user_2g_he_cap_len;
+					user_cap_size =
+						sizeof(priv->user_2g_he_cap);
+				}
+
+				if (tlv_len > sizeof(*he_cap) -
+				    offsetof(struct nxpwifi_11ax_he_cap_cfg,
+					     ext_id) ||
+				    sizeof(*header) + tlv_len > user_cap_size)
+					return -EINVAL;
+
 				he_cap->id = tlv_type;
 				he_cap->len = tlv_len;
 				memcpy((u8 *)&he_cap->ext_id,
-				       (u8 *)header + sizeof(*header) + 1,
+				       (u8 *)header + sizeof(*header),
 				       tlv_len);
-				if (he_cfg->band_config & BIT(1)) {
-					memcpy(priv->user_he_cap,
-					       (u8 *)header,
-					       sizeof(*header) + tlv_len);
-					priv->user_he_cap_len =
-						sizeof(*header) + tlv_len;
-				} else {
-					memcpy(priv->user_2g_he_cap,
-					       (u8 *)header,
-					       sizeof(*header) + tlv_len);
-					priv->user_2g_he_cap_len =
-						sizeof(*header) + tlv_len;
-				}
+				memcpy(user_cap, (u8 *)header,
+				       sizeof(*header) + tlv_len);
+				*user_cap_len = sizeof(*header) + tlv_len;
 			}
 		}
 
@@ -345,6 +368,9 @@ int nxpwifi_ret_11ax_cmd(struct nxpwifi_private *priv,
 	struct nxpwifi_adapter *adapter = priv->adapter;
 	struct host_cmd_11ax_cmd *he_cmd = &resp->params.ax_cmd;
 	struct nxpwifi_ie_types_data *tlv;
+
+	if (!ax_cmd)
+		return 0;
 
 	ax_cmd->sub_id = le16_to_cpu(he_cmd->sub_id);
 
@@ -583,6 +609,9 @@ int nxpwifi_ret_twt_cfg(struct nxpwifi_private *priv,
 {
 	struct host_cmd_twt_cfg *twt_cfg_cmd = &resp->params.twt_cfg;
 	u16 action;
+
+	if (!twt_cfg)
+		return 0;
 
 	action = le16_to_cpu(twt_cfg_cmd->action);
 	twt_cfg->sub_id = le16_to_cpu(twt_cfg_cmd->sub_id);

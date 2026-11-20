@@ -124,7 +124,8 @@ static int __maybe_unused meson_gxbb_wdt_resume(struct device *dev)
 {
 	struct meson_gxbb_wdt *data = dev_get_drvdata(dev);
 
-	if (watchdog_active(&data->wdt_dev))
+	if (watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev))
 		meson_gxbb_wdt_start(&data->wdt_dev);
 
 	return 0;
@@ -134,7 +135,8 @@ static int __maybe_unused meson_gxbb_wdt_suspend(struct device *dev)
 {
 	struct meson_gxbb_wdt *data = dev_get_drvdata(dev);
 
-	if (watchdog_active(&data->wdt_dev))
+	if (watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev))
 		meson_gxbb_wdt_stop(&data->wdt_dev);
 
 	return 0;

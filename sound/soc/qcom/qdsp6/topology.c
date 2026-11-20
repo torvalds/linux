@@ -1240,7 +1240,9 @@ static void audioreach_connect_sub_graphs(struct q6apm *apm,
 		info->dst_mod_inst_id = m2->module_instance_id;
 		info->dst_mod_ip_port_id = 2;
 
-	} else {
+	} else if (info->src_mod_inst_id == m1->module_instance_id &&
+		   info->dst_mod_inst_id == m2->module_instance_id) {
+		/* only drop the link this control made, not another FE's */
 		info->src_mod_inst_id = 0;
 		info->src_mod_op_port_id = 0;
 		info->dst_mod_inst_id = 0;

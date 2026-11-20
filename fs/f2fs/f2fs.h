@@ -25,6 +25,7 @@
 #include <linux/quotaops.h>
 #include <linux/part_stat.h>
 #include <linux/rw_hint.h>
+#include <linux/iomap.h>
 
 #include <linux/fscrypt.h>
 #include <linux/fsverity.h>
@@ -4397,7 +4398,7 @@ int f2fs_init_post_read_processing(void);
 void f2fs_destroy_post_read_processing(void);
 int f2fs_init_wq(struct f2fs_sb_info *sbi);
 void f2fs_destroy_wq(struct f2fs_sb_info *sbi);
-extern const struct iomap_ops f2fs_iomap_ops;
+DECLARE_IOMAP_ITER_NEXT(f2fs_iomap_next);
 
 /*
  * gc.c

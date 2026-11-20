@@ -104,6 +104,36 @@ int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_setup_master_slave);
 
+/* Type selection value for the BASE-T1 PMA/PMD control register (1.2100,
+ * 802.3-2022 Table 45-178) matching the forced speed. 10 Mbit/s is ambiguous
+ * between 10BASE-T1L and 10BASE-T1S, so the supported link modes decide.
+ * 2.5G, 5G and 10GBASE-T1 are not handled as there are no link modes for them
+ * yet.
+ */
+static int genphy_c45_baset1_type_sel(struct phy_device *phydev)
+{
+	switch (phydev->speed) {
+	case SPEED_10:
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+				      phydev->supported))
+			return MDIO_PMA_PMD_BT1_CTRL_TYPE_SEL_10BT1L;
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1S_Full_BIT,
+				      phydev->supported) ||
+		    linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1S_Half_BIT,
+				      phydev->supported) ||
+		    linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1S_P2MP_Half_BIT,
+				      phydev->supported))
+			return MDIO_PMA_PMD_BT1_CTRL_TYPE_SEL_10BT1S;
+		return -EINVAL;
+	case SPEED_100:
+		return MDIO_PMA_PMD_BT1_CTRL_TYPE_SEL_100BT1;
+	case SPEED_1000:
+		return MDIO_PMA_PMD_BT1_CTRL_TYPE_SEL_1000BT1;
+	default:
+		return -EINVAL;
+	}
+}
+
 /**
  * genphy_c45_pma_setup_forced - configures a forced speed
  * @phydev: target phy_device struct
@@ -166,6 +196,16 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
+	/* Resolve the type before the first write, so a speed without a
+	 * matching type leaves the PHY untouched.
+	 */
+	bt1_ctrl = 0;
+	if (genphy_c45_baset1_able(phydev)) {
+		bt1_ctrl = genphy_c45_baset1_type_sel(phydev);
+		if (bt1_ctrl < 0)
+			return bt1_ctrl;
+	}
+
 	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1, ctrl1);
 	if (ret < 0)
 		return ret;
@@ -179,12 +219,8 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		if (ret < 0)
 			return ret;
 
-		bt1_ctrl = 0;
-		if (phydev->speed == SPEED_1000)
-			bt1_ctrl = MDIO_PMA_PMD_BT1_CTRL_STRAP_B1000;
-
 		ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
-				     MDIO_PMA_PMD_BT1_CTRL_STRAP, bt1_ctrl);
+				     MDIO_PMA_PMD_BT1_CTRL_TYPE_SEL, bt1_ctrl);
 		if (ret < 0)
 			return ret;
 	}

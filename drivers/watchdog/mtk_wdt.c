@@ -540,6 +540,18 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	mtk_wdt->reset_by_toprgu =
 		of_property_read_bool(dev->of_node, "mediatek,reset-by-toprgu");
 
+	wdt_data = of_device_get_match_data(dev);
+	if (wdt_data) {
+		mtk_wdt->toprgu_sw_rst_num = wdt_data->toprgu_sw_rst_num;
+		mtk_wdt->toprgu_sw_rst_tb = wdt_data->toprgu_sw_rst_tb;
+		mtk_wdt->has_swsysrst_en = wdt_data->has_swsysrst_en;
+
+		err = toprgu_register_reset_controller(pdev,
+						       wdt_data->toprgu_sw_rst_num);
+		if (err)
+			return err;
+	}
+
 	mtk_wdt_init(&mtk_wdt->wdt_dev);
 
 	watchdog_stop_on_reboot(&mtk_wdt->wdt_dev);
@@ -553,18 +565,6 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)\n",
 		 mtk_wdt->wdt_dev.timeout, nowayout);
 
-	wdt_data = of_device_get_match_data(dev);
-	if (wdt_data) {
-		mtk_wdt->toprgu_sw_rst_num = wdt_data->toprgu_sw_rst_num;
-		mtk_wdt->toprgu_sw_rst_tb = wdt_data->toprgu_sw_rst_tb;
-		mtk_wdt->has_swsysrst_en = wdt_data->has_swsysrst_en;
-
-		err = toprgu_register_reset_controller(pdev,
-						       wdt_data->toprgu_sw_rst_num);
-		if (err)
-			return err;
-	}
-
 	return 0;
 }
 
@@ -572,7 +572,8 @@ static int mtk_wdt_suspend(struct device *dev)
 {
 	struct mtk_wdt_dev *mtk_wdt = dev_get_drvdata(dev);
 
-	if (watchdog_active(&mtk_wdt->wdt_dev))
+	if (watchdog_active(&mtk_wdt->wdt_dev) ||
+	    watchdog_hw_running(&mtk_wdt->wdt_dev))
 		mtk_wdt_stop(&mtk_wdt->wdt_dev);
 
 	return 0;
@@ -582,7 +583,8 @@ static int mtk_wdt_resume(struct device *dev)
 {
 	struct mtk_wdt_dev *mtk_wdt = dev_get_drvdata(dev);
 
-	if (watchdog_active(&mtk_wdt->wdt_dev)) {
+	if (watchdog_active(&mtk_wdt->wdt_dev) ||
+	    watchdog_hw_running(&mtk_wdt->wdt_dev)) {
 		mtk_wdt_start(&mtk_wdt->wdt_dev);
 		mtk_wdt_ping(&mtk_wdt->wdt_dev);
 	}

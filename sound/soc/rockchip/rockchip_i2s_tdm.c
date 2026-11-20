@@ -243,6 +243,21 @@ static void rockchip_snd_xfer_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 		regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
 		retry--;
 		if (!retry) {
+			/*
+			 * In consumer mode the clear only completes while the
+			 * provider runs the bit clock, which it may have
+			 * stopped, e.g. an HDMI receiver whose source sends
+			 * no audio. Resetting the controller while the clear
+			 * is pending can leave it unable to transfer data
+			 * until the next reboot, so leave the clear pending.
+			 * rockchip_i2s_tdm_prepare() waits for it to complete
+			 * before the next start.
+			 */
+			if (!i2s_tdm->is_master_mode) {
+				dev_dbg(i2s_tdm->dev,
+					"clear pending, no bit clock\n");
+				break;
+			}
 			dev_warn(i2s_tdm->dev, "clear failed, reset %s%s\n",
 				 tx ? "tx" : "", rx ? "rx" : "");
 			if (rx && tx)
@@ -781,6 +796,37 @@ static int rockchip_i2s_tdm_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rockchip_i2s_tdm_prepare(struct snd_pcm_substream *substream,
+				    struct snd_soc_dai *dai)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
+	unsigned int clr, val;
+	int ret;
+
+	if (i2s_tdm->clk_trcm)
+		clr = I2S_CLR_TXC | I2S_CLR_RXC;
+	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		clr = I2S_CLR_RXC;
+	else
+		clr = I2S_CLR_TXC;
+
+	/*
+	 * A clear left pending by rockchip_snd_xfer_clear() completes once
+	 * the provider runs the bit clock again, usually within a few ms
+	 * of its own hw_params. Wait for it rather than starting the
+	 * transfer while it is pending, and fail if the clock does not
+	 * come back.
+	 */
+	ret = regmap_read_poll_timeout(i2s_tdm->regmap, I2S_CLR, val,
+				       !(val & clr), 1000, 100000);
+	if (ret)
+		dev_err_ratelimited(i2s_tdm->dev,
+				    "clear still pending (%#x), no bit clock?\n",
+				    val);
+
+	return ret;
+}
+
 static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
@@ -840,6 +886,7 @@ static const u64 rockchip_dai_selectable_formats =
 static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
 	.probe				= rockchip_i2s_tdm_dai_probe,
 	.hw_params			= rockchip_i2s_tdm_hw_params,
+	.prepare			= rockchip_i2s_tdm_prepare,
 	.set_bclk_ratio			= rockchip_i2s_tdm_set_bclk_ratio,
 	.set_fmt			= rockchip_i2s_tdm_set_fmt,
 	.set_sysclk			= rockchip_i2s_tdm_set_sysclk,

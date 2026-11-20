@@ -164,6 +164,7 @@ struct workqueue_struct	*cifsoplockd_wq;
 struct workqueue_struct	*deferredclose_wq;
 struct workqueue_struct	*serverclose_wq;
 struct workqueue_struct	*cfid_put_wq;
+struct workqueue_struct	*cifs_writeback_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -293,9 +294,115 @@ out_no_root:
 	return rc;
 }
 
+struct cifs_tcon_ref {
+	struct list_head	list;
+	struct tcon_link	*tlink;
+	struct cifs_tcon	*tcon;
+	bool			shared;
+};
+
+static bool used_by_other_mounts(struct cifs_tcon *tcon,
+				 struct list_head *tcons)
+{
+	struct cifs_tcon_ref *ref;
+	int n = 0;
+
+	list_for_each_entry(ref, tcons, list)
+		n += ref->tcon == tcon;
+
+	guard(spinlock)(&tcon->tc_lock);
+	return tcon->mnt_refs - tcon->mnt_unlinked > n;
+}
+
+static void get_sb_tcons(struct cifs_sb_info *cifs_sb, struct list_head *tcons)
+{
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct cifs_tcon_ref *ref;
+	struct tcon_link *tlink;
+	struct cifs_tcon *tcon;
+	struct rb_node *node;
+
+	guard(spinlock)(&cifs_sb->tlink_tree_lock);
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+		tcon = tlink_tcon(tlink);
+		if (IS_ERR_OR_NULL(tcon))
+			continue;
+
+		ref = kmalloc_obj(struct cifs_tcon_ref, GFP_ATOMIC);
+		if (!ref)
+			break;
+
+		ref->tlink = cifs_get_tlink(tlink);
+		ref->tcon = tcon;
+		list_add_tail(&ref->list, tcons);
+	}
+	list_for_each_entry(ref, tcons, list)
+		ref->shared = used_by_other_mounts(ref->tcon, tcons);
+}
+
+static void put_sb_tcons(struct list_head *tcons)
+{
+	struct cifs_tcon_ref *ref, *tmp;
+
+	list_for_each_entry_safe(ref, tmp, tcons, list) {
+		cifs_put_tlink(ref->tlink);
+		list_del(&ref->list);
+		kfree(ref);
+	}
+}
+
+/*
+ * While a forced unmount tears a superblock down, keep its tcons from
+ * reconnecting or replaying so the teardown (flushing close and oplock work,
+ * sending the tree disconnect) can't hang on a server that is gone.  It is a
+ * count, not a flag, so a tcon shared with another mount only has its retries
+ * suppressed for the duration of this teardown; one no mount uses any more
+ * stays dying until it is freed.
+ */
+static void set_tcons_dying(struct cifs_sb_info *cifs_sb,
+			    struct list_head *tcons)
+{
+	struct cifs_tcon_ref *ref;
+
+	get_sb_tcons(cifs_sb, tcons);
+	list_for_each_entry(ref, tcons, list) {
+		atomic_inc(&ref->tcon->dying);
+		cifs_wake_ses_waiters(ref->tcon->ses);
+	}
+}
+
+static void clear_tcons_dying(struct list_head *tcons)
+{
+	struct cifs_tcon_ref *ref;
+
+	flush_workqueue(serverclose_wq);
+	list_for_each_entry(ref, tcons, list) {
+		guard(spinlock)(&ref->tcon->tc_lock);
+		if (ref->tcon->mnt_refs)
+			atomic_dec(&ref->tcon->dying);
+	}
+	put_sb_tcons(tcons);
+}
+
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	LIST_HEAD(tcons);
+	bool force;
+
+	force = atomic_read(&cifs_sb->umount_aborts);
+
+	/*
+	 * Reaching here after a umount -f means the mount is going away for
+	 * good, so stop retrying I/O that can no longer complete (e.g.
+	 * writeback to a server that is gone) rather than looping forever on
+	 * a hard mount and hanging the teardown below.
+	 */
+	if (force) {
+		WRITE_ONCE(cifs_sb->exiting, true);
+		set_tcons_dying(cifs_sb, &tcons);
+	}
 
 	/*
 	 * We need to release all dentries for the cached directories
@@ -329,6 +436,9 @@ static void cifs_kill_sb(struct super_block *sb)
 
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
+
+	if (force)
+		clear_tcons_dying(&tcons);
 }
 
 static int
@@ -827,46 +937,46 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	return 0;
 }
 
+static void abort_reconnect(struct cifs_tcon *tcon)
+{
+	scoped_guard(spinlock, &tcon->tc_lock)
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_see_umount);
+
+	atomic_inc(&tcon->umount_aborts);
+	if (tcon->ses && tcon->ses->server) {
+		cifs_dbg(FYI, "wake up tasks now - umount begin not complete\n");
+		cifs_wake_ses_waiters(tcon->ses);
+		msleep(1); /* yield */
+		/* we have to kick the requests once more */
+		cifs_wake_ses_waiters(tcon->ses);
+		msleep(1);
+	}
+}
+
 static void cifs_umount_begin(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifs_tcon *tcon;
+	struct cifs_tcon_ref *ref;
+	LIST_HEAD(tcons);
 
 	if (cifs_sb == NULL)
 		return;
 
-	tcon = cifs_sb_master_tcon(cifs_sb);
+	atomic_inc(&cifs_sb->umount_aborts);
 
-	spin_lock(&cifs_tcp_ses_lock);
-	spin_lock(&tcon->tc_lock);
-	trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
-			    netfs_trace_tcon_ref_see_umount);
-	if ((tcon->tc_count > 1) || (tcon->status == TID_EXITING)) {
-		/* we have other mounts to same share or we have
-		   already tried to umount this and woken up
-		   all waiting network requests, nothing to do */
-		spin_unlock(&tcon->tc_lock);
-		spin_unlock(&cifs_tcp_ses_lock);
-		return;
-	}
 	/*
-	 * can not set tcon->status to TID_EXITING yet since we don't know if umount -f will
-	 * fail later (e.g. due to open files).  TID_EXITING will be set just before tdis req sent
+	 * Abort the reconnect waits of the master tcon and of any per-user
+	 * tcons of a multiuser mount that no other mount uses, pinning their
+	 * tlinks so that they stay alive, and aren't pruned, while we abort and
+	 * sleep outside the tree lock.
 	 */
-	spin_unlock(&tcon->tc_lock);
-	spin_unlock(&cifs_tcp_ses_lock);
-
-	if (tcon->ses && tcon->ses->server) {
-		cifs_dbg(FYI, "wake up tasks now - umount begin not complete\n");
-		wake_up_all(&tcon->ses->server->request_q);
-		wake_up_all(&tcon->ses->server->response_q);
-		msleep(1); /* yield */
-		/* we have to kick the requests once more */
-		wake_up_all(&tcon->ses->server->response_q);
-		msleep(1);
+	get_sb_tcons(cifs_sb, &tcons);
+	list_for_each_entry(ref, &tcons, list) {
+		if (!ref->shared)
+			abort_reconnect(ref->tcon);
 	}
-
-	return;
+	put_sb_tcons(&tcons);
 }
 
 static int cifs_freeze(struct super_block *sb)
@@ -2123,9 +2233,16 @@ init_cifs(void)
 		goto out_destroy_serverclose_wq;
 	}
 
+	cifs_writeback_wq = alloc_workqueue("cifswritebackd",
+					    WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+	if (!cifs_writeback_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cfid_put_wq;
+	}
+
 	rc = cifs_init_inodecache();
 	if (rc)
-		goto out_destroy_cfid_put_wq;
+		goto out_destroy_writeback_wq;
 
 	rc = cifs_init_netfs();
 	if (rc)
@@ -2196,6 +2313,8 @@ out_destroy_netfs:
 	cifs_destroy_netfs();
 out_destroy_inodecache:
 	cifs_destroy_inodecache();
+out_destroy_writeback_wq:
+	destroy_workqueue(cifs_writeback_wq);
 out_destroy_cfid_put_wq:
 	destroy_workqueue(cfid_put_wq);
 out_destroy_serverclose_wq:
@@ -2241,6 +2360,7 @@ exit_cifs(void)
 	destroy_workqueue(fileinfo_put_wq);
 	destroy_workqueue(serverclose_wq);
 	destroy_workqueue(cfid_put_wq);
+	destroy_workqueue(cifs_writeback_wq);
 	destroy_workqueue(cifsiod_wq);
 }
 

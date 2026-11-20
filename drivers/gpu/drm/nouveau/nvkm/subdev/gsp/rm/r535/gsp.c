@@ -64,7 +64,9 @@ r535_gsp_intr(struct nvkm_inth *inth)
 	u32 intr = nvkm_falcon_rd32(&gsp->falcon, 0x0008);
 	u32 inte = nvkm_falcon_rd32(&gsp->falcon, gsp->falcon.func->addr2 +
 						  gsp->falcon.func->riscv_irqmask);
-	u32 stat = intr & inte;
+	u32 dest = nvkm_falcon_rd32(&gsp->falcon, gsp->falcon.func->addr2 +
+						  gsp->falcon.func->riscv_irqdest);
+	u32 stat = intr & inte & dest;
 
 	if (!stat) {
 		nvkm_debug(subdev, "inte %08x %08x\n", intr, inte);

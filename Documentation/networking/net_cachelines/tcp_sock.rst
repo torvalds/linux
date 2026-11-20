@@ -107,6 +107,7 @@ u32[3]                        received_ecn_bytes      read_mostly         read_w
 u8:4                          received_ce_pending     read_mostly         read_write
 u32[3]                        delivered_ecn_bytes                         read_write
 u16                           pkts_acked_ewma                             read_write
+u32                           rcv_collapse_credit                         read_write          tcp_queue_rcv,tcp_data_queue_ofo,tcp_prune_queue
 u8:2                          syn_ect_snt             write_mostly        read_write
 u8:2                          syn_ect_rcv             read_mostly         read_write
 u8:2                          accecn_minlen           write_mostly        read_write

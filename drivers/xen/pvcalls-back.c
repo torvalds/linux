@@ -337,7 +337,7 @@ static struct sock_mapping *pvcalls_new_active_socket(
 
 	ret = xenbus_map_ring_valloc(fedata->dev, &ref, 1, &page);
 	if (ret < 0)
-		goto out;
+		goto out_map;
 	map->ring = page;
 	map->ring_order = map->ring->ring_order;
 	/* first read the order, then map the data ring */
@@ -345,19 +345,19 @@ static struct sock_mapping *pvcalls_new_active_socket(
 	if (map->ring_order > MAX_RING_ORDER) {
 		pr_warn("%s frontend requested ring_order %u, which is > MAX (%u)\n",
 				__func__, map->ring_order, MAX_RING_ORDER);
-		goto out;
+		goto out_unmap_ring;
 	}
 	ret = xenbus_map_ring_valloc(fedata->dev, map->ring->ref,
 				     (1 << map->ring_order), &page);
 	if (ret < 0)
-		goto out;
+		goto out_unmap_ring;
 	map->bytes = page;
 
 	ret = bind_interdomain_evtchn_to_irqhandler_lateeoi(
 			fedata->dev, evtchn,
 			pvcalls_back_conn_event, 0, "pvcalls-backend", map);
 	if (ret < 0)
-		goto out;
+		goto out_unmap_bytes;
 	map->irq = ret;
 
 	map->data.in = map->bytes;
@@ -365,7 +365,7 @@ static struct sock_mapping *pvcalls_new_active_socket(
 
 	map->ioworker.wq = alloc_ordered_workqueue("pvcalls_io", 0);
 	if (!map->ioworker.wq)
-		goto out;
+		goto out_unbind;
 	atomic_set(&map->io, 1);
 	INIT_WORK(&map->ioworker.register_work,	pvcalls_back_ioworker);
 
@@ -381,11 +381,16 @@ static struct sock_mapping *pvcalls_new_active_socket(
 	write_unlock_bh(&map->sock->sk->sk_callback_lock);
 
 	return map;
-out:
-	down(&fedata->socket_lock);
-	list_del(&map->list);
-	pvcalls_back_release_active(fedata->dev, fedata, map);
-	up(&fedata->socket_lock);
+
+out_unbind:
+	unbind_from_irqhandler(map->irq, map);
+out_unmap_bytes:
+	xenbus_unmap_ring_vfree(fedata->dev, map->bytes);
+out_unmap_ring:
+	xenbus_unmap_ring_vfree(fedata->dev, (void *)map->ring);
+out_map:
+	sock_release(sock);
+	kfree(map);
 	return NULL;
 }
 
@@ -447,6 +452,7 @@ static int pvcalls_back_release_active(struct xenbus_device *dev,
 
 	atomic_set(&map->release, 1);
 	flush_work(&map->ioworker.register_work);
+	destroy_workqueue(map->ioworker.wq);
 
 	xenbus_unmap_ring_vfree(dev, map->bytes);
 	xenbus_unmap_ring_vfree(dev, (void *)map->ring);

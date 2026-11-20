@@ -420,7 +420,12 @@ bool ksmbd_has_stream_without_delete_share(struct ksmbd_file *fp)
 		if (file_inode(fp->filp) != file_inode(prev_fp->filp))
 			continue;
 
-		if (!(prev_fp->saccess & FILE_SHARE_DELETE_LE)) {
+		/*
+		 * A stream open with no right in FILE_SHARE_CHECKED_ACCESS_LE,
+		 * implied writes included, never conflicts.
+		 */
+		if (!(prev_fp->saccess & FILE_SHARE_DELETE_LE) &&
+		    ksmbd_sharing_daccess(prev_fp) & FILE_SHARE_CHECKED_ACCESS_LE) {
 			ret = true;
 			break;
 		}

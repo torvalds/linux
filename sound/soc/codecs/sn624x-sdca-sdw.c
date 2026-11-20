@@ -1771,6 +1771,8 @@ static void sn624x_sdca_sdw_remove(struct sdw_slave *slave)
 static const struct sdw_device_id sn624x_sdca_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x0496, 0x6242, 0x3, 0x1, 0),
 	SDW_SLAVE_ENTRY_EXT(0x0496, 0x6244, 0x3, 0x1, 0),
+	/* SN6245 is register-compatible with SN6244 (jack/amp/dmic). */
+	SDW_SLAVE_ENTRY_EXT(0x0496, 0x6245, 0x3, 0x1, 0),
 	SDW_SLAVE_ENTRY_EXT(0x0496, 0x6247, 0x3, 0x1, 0),
 	{ }
 };

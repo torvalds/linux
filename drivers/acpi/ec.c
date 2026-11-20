@@ -2167,19 +2167,19 @@ static bool acpi_ec_work_in_progress(struct acpi_ec *ec)
 	return ec->events_in_progress + ec->queries_in_progress > 0;
 }
 
-bool acpi_ec_dispatch_gpe(void)
+int acpi_ec_dispatch_gpe(void)
 {
 	bool work_in_progress = false;
 
 	if (!first_ec)
-		return acpi_any_gpe_status_set(U32_MAX);
+		return -ENODEV;
 
 	/*
 	 * Report wakeup if the status bit is set for any enabled GPE other
 	 * than the EC one.
 	 */
 	if (acpi_any_gpe_status_set(first_ec->gpe))
-		return true;
+		return 1;
 
 	/*
 	 * Cancel the SCI wakeup and process all pending events in case there
@@ -2207,7 +2207,7 @@ bool acpi_ec_dispatch_gpe(void)
 	spin_unlock_irq(&first_ec->lock);
 
 	if (!work_in_progress)
-		return false;
+		return 0;
 
 	pm_pr_dbg("ACPI EC GPE dispatched\n");
 
@@ -2224,7 +2224,7 @@ bool acpi_ec_dispatch_gpe(void)
 		spin_unlock_irq(&first_ec->lock);
 	} while (work_in_progress && !pm_wakeup_pending());
 
-	return false;
+	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
 

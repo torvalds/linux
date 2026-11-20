@@ -3366,6 +3366,7 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	u32 *rx_mcs, *tx_mcs;
 	u16 *eht_mcs_mask;
 	u8 max_nss = 0;
+	u8 mcs15;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -3415,6 +3416,16 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	       sizeof(eht_cap->eht_cap_elem.mac_cap_info));
 	memcpy(arg->peer_eht_cap_phy, eht_cap->eht_cap_elem.phy_cap_info,
 	       sizeof(eht_cap->eht_cap_elem.phy_cap_info));
+
+	/*
+	 * Firmware rate control enables EHT-MCS15 based only on the peer's
+	 * MCS15 support bits, so keep only the ones we support ourselves.
+	 */
+	mcs15 = u8_get_bits(eht_cap->eht_cap_elem.phy_cap_info[6] &
+			    own_eht_cap->eht_cap_elem.phy_cap_info[6],
+			    IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK);
+	u8p_replace_bits(&((u8 *)arg->peer_eht_cap_phy)[6], mcs15,
+			 IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK);
 
 	rx_mcs = arg->peer_eht_rx_mcs_set;
 	tx_mcs = arg->peer_eht_tx_mcs_set;
@@ -7845,7 +7856,7 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 				ath12k_hw_warn(ah, "failed to verify assoc link setting with link id %u\n",
 					       link_id);
 				ret = -EINVAL;
-				goto exit;
+				goto free_unassign_link;
 			}
 
 			arsta->is_assoc_link = true;
@@ -7903,7 +7914,7 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 
 			if (old_state == IEEE80211_STA_NOTEXIST &&
 			    new_state == IEEE80211_STA_NONE)
-				goto peer_delete;
+				goto free_unassign_link;
 			else
 				goto exit;
 		}
@@ -7943,6 +7954,8 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	ret = 0;
 	goto exit;
 
+free_unassign_link:
+	ath12k_mac_free_unassign_link_sta(ah, ahsta, link_id);
 peer_delete:
 	ath12k_dp_peer_delete(&ah->dp_hw, sta->addr, sta);
 ml_peer_id_clear:

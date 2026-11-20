@@ -367,6 +367,41 @@ to the mailing list, e.g.::
 Posting as one thread is discouraged because it confuses patchwork
 (as of patchwork 2.2.2).
 
+Co-posting iproute2 patches
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The official git repositories for iproute2 are:
+
+- iproute2: https://git.kernel.org/pub/scm/network/iproute2/iproute2.git
+- iproute2-next: https://git.kernel.org/pub/scm/network/iproute2/iproute2-next.git
+
+Patches for iproute2 must have a subject prefix of ``[PATCH iproute2]``
+or ``[PATCH iproute2-next]`` to indicate the target repository where the
+patch should be applied. If kernel changes target net-next or bpf-next,
+then the related iproute2 changes need to target iproute2-next, else they
+must target iproute2. The iproute2-next tree will be merged into the
+iproute2 tree after the current iproute2 version has been released.
+
+Patches are tracked in patchwork under the netdevbpf project. iproute2
+patches are delegated to 'shemminger' (Stephen Hemminger), iproute2-next
+patches to 'dsa' (David Ahern):
+
+- iproute2: https://patchwork.kernel.org/project/netdevbpf/list/?delegate=7961&state=*
+- iproute2-next: https://patchwork.kernel.org/project/netdevbpf/list/?delegate=123859&state=*
+
+Send patches to netdev@vger.kernel.org and always include the iproute2
+maintainers in the email Cc: list. See the MAINTAINERS file in the
+repository for email addresses and other details:
+
+  https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/MAINTAINERS
+
+For patches that target iproute2's BPF loader, also include
+bpf@vger.kernel.org and the BPF maintainers.
+
+For more information, see also README.devel in the repository:
+
+  https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/README.devel
+
 Co-posting selftests
 ~~~~~~~~~~~~~~~~~~~~
 

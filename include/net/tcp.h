@@ -1554,6 +1554,15 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 
 #define TCP_INFINITE_SSTHRESH	0x7fffffff
 
+/* Default and maximum snd_cwnd_clamp, in packets.
+ * A peer can not advertise more than 65535 << 14 bytes, so a larger
+ * cwnd is useless with any MSS of 1024 bytes or more.
+ * Congestion control modules multiply cwnd by u32 factors up to 2047
+ * (cwnd * (BICTCP_BETA_SCALE + beta) in CUBIC), and CUBIC's
+ * bictcp_update() expects cwnd to stay below about one million packets.
+ */
+#define TCP_MAX_SND_CWND	(1U << 20)
+
 static inline u32 tcp_snd_cwnd(const struct tcp_sock *tp)
 {
 	return tp->snd_cwnd;

@@ -73,8 +73,9 @@ AUDIT_LANDLOCK_ACCESS
           :manpage:`open_tree(2)`, or :manpage:`fsmount(2)`, or joining via
           :manpage:`setns(2)`);
           ``namespace_type`` indicates the type (hex ``CLONE_NEW*`` bitmask),
-          and ``namespace_id`` identifies the target namespace for
-          :manpage:`setns(2)` operations (zero for creation)
+          and ``namespace_id`` identifies the target namespace (for a denied
+          creation, the namespace never becomes reachable so its ID is not
+          directly visible from user space)
 
     **capability.*** - Capability restrictions (ABI 12+):
         - capability.use - Capability use was denied;

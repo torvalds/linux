@@ -1350,6 +1350,7 @@ void ice_ptp_link_change(struct ice_pf *pf, bool linkup)
 		int pin, err;
 
 		mutex_lock(&pf->dplls.lock);
+		mutex_lock(&pf->adapter->cgu_synce_lock);
 		for (pin = 0; pin < ICE_SYNCE_CLK_NUM; pin++) {
 			enum ice_synce_clk clk_pin;
 			bool active;
@@ -1368,14 +1369,19 @@ void ice_ptp_link_change(struct ice_pf *pf, bool linkup)
 				break;
 			}
 
+			/* The divider is shared, set it only for our port */
+			if (!active)
+				continue;
+
 			err = ice_tspll_cfg_synce_ethdiv_e825c(hw, clk_pin);
-			if (active && err) {
+			if (err) {
 				dev_err_once(ice_pf_to_dev(pf),
 					     "Failed to configure SyncE ETH divider for pin %d, err %d\n",
 					     pin, err);
 				break;
 			}
 		}
+		mutex_unlock(&pf->adapter->cgu_synce_lock);
 		mutex_unlock(&pf->dplls.lock);
 
 		if (linkup)

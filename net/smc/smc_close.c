@@ -155,6 +155,7 @@ void smc_close_active_abort(struct smc_sock *smc)
 		if (sk->sk_state != SMC_PEERABORTWAIT)
 			break;
 		sk->sk_state = SMC_CLOSED;
+		sk->sk_prot->unhash(sk);
 		smc_conn_free(&smc->conn);
 		release_clcsock = true;
 		sock_put(sk); /* passive closing */
@@ -166,6 +167,7 @@ void smc_close_active_abort(struct smc_sock *smc)
 		if (sk->sk_state != SMC_PEERABORTWAIT)
 			break;
 		sk->sk_state = SMC_CLOSED;
+		sk->sk_prot->unhash(sk);
 		smc_conn_free(&smc->conn);
 		release_clcsock = true;
 		break;
@@ -370,6 +372,17 @@ static void smc_close_passive_work(struct work_struct *work)
 	lock_sock(sk);
 	old_state = sk->sk_state;
 
+	if (conn->freed) {
+		/* conn->freed is set under the socket lock, which is
+		 * held here as well, so this cannot race with the free; the
+		 * state machine and its postponed sock_put() are not owed
+		 * anymore
+		 */
+		release_sock(sk);
+		sock_put(sk); /* sock_hold done by schedulers of close_work */
+		return;
+	}
+
 	rxflags = &conn->local_rx_ctrl.conn_state_flags;
 	if (rxflags->peer_conn_abort) {
 		/* peer has not received all data */
@@ -437,6 +450,7 @@ wakeup:
 		sk->sk_state_change(sk);
 		if ((sk->sk_state == SMC_CLOSED) &&
 		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket)) {
+			sk->sk_prot->unhash(sk);
 			smc_conn_free(conn);
 			if (smc->clcsock)
 				release_clcsock = true;

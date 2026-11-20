@@ -33,7 +33,7 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 	if (WARN_ON_ONCE(!ref->node_name || ref->path_consumed < 0))
 		return -EINVAL;
 
-	if (strlen(full_path) - ref->path_consumed) {
+	if ((size_t)ref->path_consumed < strlen(full_path)) {
 		prepath = full_path + ref->path_consumed;
 		/* skip initial delimiter */
 		if (*prepath == '/' || *prepath == '\\')
@@ -103,6 +103,7 @@ static int setup_dfs_ref(struct dfs_info3_param *tgt, struct dfs_ref_walk *rw)
 	struct cifs_sb_info *cifs_sb = rw->mnt_ctx->cifs_sb;
 	struct smb3_fs_context *ctx = rw->mnt_ctx->fs_ctx;
 	char *ref_path, *full_path;
+	const char *raw_path;
 	int rc;
 
 	set_root_smb_session(rw->mnt_ctx);
@@ -114,9 +115,10 @@ static int setup_dfs_ref(struct dfs_info3_param *tgt, struct dfs_ref_walk *rw)
 
 	if (!tgt || (tgt->server_type == DFS_TYPE_LINK &&
 		     DFS_INTERLINK(tgt->flags)))
-		ref_path = dfs_get_path(cifs_sb, ctx->UNC);
+		raw_path = ctx->UNC;
 	else
-		ref_path = dfs_get_path(cifs_sb, full_path);
+		raw_path = full_path;
+	ref_path = dfs_get_path(cifs_sb, raw_path);
 	if (IS_ERR(ref_path)) {
 		rc = PTR_ERR(ref_path);
 		kfree(full_path);
@@ -125,9 +127,7 @@ static int setup_dfs_ref(struct dfs_info3_param *tgt, struct dfs_ref_walk *rw)
 	ref_walk_path(rw) = ref_path;
 	ref_walk_fpath(rw) = full_path;
 
-	return dfs_get_referral(rw->mnt_ctx,
-				ref_walk_path(rw) + 1,
-				ref_walk_tl(rw));
+	return dfs_get_referral(rw->mnt_ctx, raw_path + 1, ref_walk_tl(rw));
 }
 
 static int __dfs_referral_walk(struct dfs_ref_walk *rw)

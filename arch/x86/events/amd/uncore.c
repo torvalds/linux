@@ -595,7 +595,7 @@ static void amd_uncore_ctx_move(struct amd_uncore *uncore, unsigned int cpu)
 	for (i = 0; i < uncore->num_pmus; i++) {
 		pmu = &uncore->pmus[i];
 		curr = *per_cpu_ptr(pmu->ctx, cpu);
-		if (!curr)
+		if (!curr || curr->cpu != cpu)
 			continue;
 
 		/* Migrate to a shared sibling if possible */

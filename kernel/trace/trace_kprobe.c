@@ -548,10 +548,6 @@ static void __unregister_trace_kprobe(struct trace_kprobe *tk)
 /* Unregister a trace_probe and probe_event */
 static int unregister_trace_kprobe(struct trace_kprobe *tk)
 {
-	/* If other probes are on the event, just unregister kprobe */
-	if (trace_probe_has_sibling(&tk->tp))
-		goto unreg;
-
 	/* Enabled event can not be unregistered */
 	if (trace_probe_is_enabled(&tk->tp))
 		return -EBUSY;
@@ -559,6 +555,10 @@ static int unregister_trace_kprobe(struct trace_kprobe *tk)
 	/* If there's a reference to the dynamic event */
 	if (trace_event_dyn_busy(trace_probe_event_call(&tk->tp)))
 		return -EBUSY;
+
+	/* If other probes are on the event, just unregister kprobe */
+	if (trace_probe_has_sibling(&tk->tp))
+		goto unreg;
 
 	/* Will fail if probe is being used by ftrace or perf */
 	if (unregister_kprobe_event(tk))
@@ -2016,6 +2016,9 @@ static __init void setup_boot_kprobe_events(void)
 {
 	char *p, *cmd = kprobe_boot_events_buf;
 	int ret;
+
+	if (!kprobe_boot_events_buf[0])
+		return;
 
 	strreplace(kprobe_boot_events_buf, ',', ' ');
 

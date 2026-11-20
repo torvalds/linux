@@ -3335,7 +3335,7 @@ static struct inode *__shmem_get_inode(const struct mnt_idmap *idmap,
 		inode->i_size = 2 * BOGO_DIRENT_SIZE;
 		inode->i_op = &shmem_dir_inode_operations;
 		inode->i_fop = &simple_offset_dir_operations;
-		simple_offset_init(shmem_get_offset_ctx(inode));
+		simple_offset_init(shmem_get_offset_ctx(inode), inode);
 		break;
 	case S_IFLNK:
 		/*
@@ -3703,15 +3703,8 @@ static void zero_pipe_buf_release(struct pipe_inode_info *pipe,
 {
 }
 
-static bool zero_pipe_buf_try_steal(struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return false;
-}
-
 static const struct pipe_buf_operations zero_pipe_buf_ops = {
 	.release	= zero_pipe_buf_release,
-	.try_steal	= zero_pipe_buf_try_steal,
 	.get		= zero_pipe_buf_get,
 };
 

@@ -1750,6 +1750,7 @@ restart:
 	newu = unix_sk(newsk);
 	otheru = unix_sk(other);
 	newu->listener = other;
+	newu->recvmsg_inq = READ_ONCE(otheru->recvmsg_inq);
 	newu->scm_rights_notrunc = READ_ONCE(otheru->scm_rights_notrunc);
 	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
 

@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/printk.h>
 #include <linux/syscore_ops.h>
 #include <soc/sa1100/pwer.h>
 #include <mach/hardware.h>
@@ -322,17 +323,12 @@ static const int sa1100_gpio_irqs[] __initconst = {
 void __init sa1100_init_gpio(void)
 {
 	struct sa1100_gpio_chip *sgc = &sa1100_gpio_chip;
-	struct gpio_chip *gc = &sgc->chip;
 	int i;
 
 	/* clear all GPIO edge detects */
 	writel_relaxed(0, sgc->membase + R_GFER);
 	writel_relaxed(0, sgc->membase + R_GRER);
 	writel_relaxed(-1, sgc->membase + R_GEDR);
-
-	software_node_register(&sa1100_gpiochip_node);
-	gc->fwnode = software_node_fwnode(&sa1100_gpiochip_node);
-	gpiochip_add_data(gc, NULL);
 
 	sa1100_gpio_irqdomain = irq_domain_create_simple(NULL,
 			28, IRQ_GPIO0,
@@ -342,3 +338,29 @@ void __init sa1100_init_gpio(void)
 		irq_set_chained_handler_and_data(sa1100_gpio_irqs[i],
 						 sa1100_gpio_handler, sgc);
 }
+
+static int __init sa1100_gpio_init_chip(void)
+{
+	struct gpio_chip *gc = &sa1100_gpio_chip.chip;
+	int error;
+
+	error = software_node_register(&sa1100_gpiochip_node);
+	if (error) {
+		pr_err("failed to register sa1100 gpiochip software node: %d\n",
+		       error);
+		return error;
+	}
+
+	gc->fwnode = software_node_fwnode(&sa1100_gpiochip_node);
+
+	error = gpiochip_add_data(gc, NULL);
+	if (error) {
+		pr_err("failed to add sa1100 gpiochip: %d\n", error);
+		gc->fwnode = NULL;
+		software_node_unregister(&sa1100_gpiochip_node);
+		return error;
+	}
+
+	return 0;
+}
+postcore_initcall(sa1100_gpio_init_chip);

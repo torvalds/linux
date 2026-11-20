@@ -197,9 +197,10 @@ static inline netdev_features_t tun_vnet_hdr_guest_features(int vnet_hdr_sz)
 static inline int
 tun_vnet_hdr_tnl_to_skb(unsigned int flags, netdev_features_t features,
 			struct sk_buff *skb,
-			const struct virtio_net_hdr_v1_hash_tunnel *hdr)
+			const struct virtio_net_hdr_v1_hash_tunnel *hdr,
+			bool has_eth)
 {
-	return virtio_net_hdr_tnl_to_skb(skb, hdr,
+	return virtio_net_hdr_tnl_to_skb(skb, hdr, has_eth,
 				features & NETIF_F_GSO_UDP_TUNNEL,
 				features & NETIF_F_GSO_UDP_TUNNEL_CSUM,
 				tun_vnet_is_little_endian(flags));

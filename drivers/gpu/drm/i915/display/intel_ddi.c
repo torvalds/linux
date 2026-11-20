@@ -4723,10 +4723,10 @@ static void intel_ddi_encoder_reset(struct drm_encoder *encoder)
 	intel_dp->reset_link_params = true;
 	intel_dp_invalidate_source_oui(intel_dp);
 
-	intel_pps_encoder_reset(intel_dp);
-
 	if (intel_encoder_is_tc(&dig_port->base))
 		intel_tc_port_init_mode(dig_port);
+
+	intel_pps_encoder_reset(intel_dp);
 }
 
 static int intel_ddi_encoder_late_register(struct drm_encoder *_encoder)
@@ -5053,6 +5053,8 @@ static enum hpd_pin xelpd_hpd_pin(struct intel_display *display, enum port port)
 		return HPD_PORT_D + port - PORT_D_XELPD;
 	else if (port >= PORT_TC1)
 		return HPD_PORT_TC1 + port - PORT_TC1;
+	else if (intel_phy_is_tc(display, intel_port_to_phy(display, port)))
+		return HPD_PORT_TC1 + intel_port_to_tc(display, port) - TC_PORT_1;
 	else
 		return HPD_PORT_A + port - PORT_A;
 }

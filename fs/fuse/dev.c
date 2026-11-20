@@ -1099,128 +1099,6 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 	return ncpy;
 }
 
-static int fuse_check_folio(struct folio *folio)
-{
-	if (folio_mapped(folio) ||
-	    folio->mapping != NULL ||
-	    (folio->flags.f & PAGE_FLAGS_CHECK_AT_PREP &
-	     ~(1 << PG_locked |
-	       1 << PG_referenced |
-	       1 << PG_lru |
-	       1 << PG_active |
-	       1 << PG_workingset |
-	       1 << PG_reclaim |
-	       1 << PG_waiters |
-	       LRU_GEN_MASK | LRU_REFS_MASK))) {
-		dump_page(&folio->page, "fuse: trying to steal weird page");
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * Attempt to steal a page from the splice() pipe and move it into the
- * pagecache. If successful, the pointer in @pagep will be updated. The
- * folio that was originally in @pagep will lose a reference and the new
- * folio returned in @pagep will carry a reference.
- */
-static int fuse_try_move_folio(struct fuse_copy_state *cs, struct folio **foliop)
-{
-	int err;
-	struct folio *oldfolio = *foliop;
-	struct folio *newfolio;
-	struct pipe_buffer *buf = cs->pipebufs;
-
-	folio_get(oldfolio);
-	err = unlock_request(cs->req);
-	if (err)
-		goto out_put_old;
-
-	fuse_copy_finish(cs);
-
-	err = pipe_buf_confirm(cs->pipe, buf);
-	if (err)
-		goto out_put_old;
-
-	BUG_ON(!cs->nr_segs);
-	cs->currbuf = buf;
-	cs->len = buf->len;
-	cs->pipebufs++;
-	cs->nr_segs--;
-
-	if (cs->len != folio_size(oldfolio))
-		goto out_fallback;
-
-	newfolio = page_folio(buf->page);
-
-	if (folio_test_large(newfolio))
-		goto out_fallback;
-
-	/*
-	 * This is a new and locked page, it shouldn't be mapped or
-	 * have any special flags on it
-	 */
-	if (WARN_ON(folio_mapped(oldfolio)))
-		goto out_fallback;
-	if (WARN_ON(folio_has_private(oldfolio)))
-		goto out_fallback;
-	if (WARN_ON(folio_test_dirty(oldfolio) ||
-				folio_test_writeback(oldfolio)))
-		goto out_fallback;
-	if (WARN_ON(folio_test_mlocked(oldfolio)))
-		goto out_fallback;
-
-	if (!pipe_buf_try_steal(cs->pipe, buf))
-		goto out_fallback;
-
-	folio_clear_uptodate(newfolio);
-	folio_clear_mappedtodisk(newfolio);
-
-	if (fuse_check_folio(newfolio) != 0)
-		goto out_fallback_unlock;
-
-	err = lock_request(cs->req);
-	if (err)
-		goto out_fallback_unlock;
-
-	replace_page_cache_folio(oldfolio, newfolio);
-
-	folio_get(newfolio);
-
-	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-		folio_add_lru(newfolio);
-
-	/*
-	 * Release while we have extra ref on stolen page.  Otherwise
-	 * anon_pipe_buf_release() might think the page can be reused.
-	 */
-	pipe_buf_release(cs->pipe, buf);
-
-	*foliop = newfolio;
-	folio_unlock(oldfolio);
-	/* Drop ref for ap->pages[] array */
-	folio_put(oldfolio);
-	cs->len = 0;
-
-	err = 0;
-out_put_old:
-	/* Drop ref obtained in this function */
-	folio_put(oldfolio);
-	return err;
-
-out_fallback_unlock:
-	folio_unlock(newfolio);
-out_fallback:
-	cs->pg = buf->page;
-	cs->offset = buf->offset;
-
-	err = lock_request(cs->req);
-	if (!err)
-		err = 1;
-
-	goto out_put_old;
-}
-
 static int fuse_ref_folio(struct fuse_copy_state *cs, struct folio *folio,
 			  unsigned offset, unsigned count)
 {
@@ -1275,16 +1153,9 @@ int fuse_copy_folio(struct fuse_copy_state *cs, struct folio **foliop,
 				return fuse_ref_folio(cs, folio, offset, count);
 			}
 		} else if (!cs->len) {
-			if (cs->move_folios && folio &&
-			    offset == 0 && count == folio_size(folio)) {
-				err = fuse_try_move_folio(cs, foliop);
-				if (err <= 0)
-					return err;
-			} else {
-				err = fuse_copy_fill(cs);
-				if (err)
-					return err;
-			}
+			err = fuse_copy_fill(cs);
+			if (err)
+				return err;
 		}
 		if (folio) {
 			void *mapaddr = kmap_local_folio(folio, offset);
@@ -1756,7 +1627,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 		 * Need to be careful about this.  Having buf->ops in module
 		 * code can Oops if the buffer persists after module unload.
 		 */
-		bufs[page_nr].ops = &nosteal_pipe_buf_ops;
+		bufs[page_nr].ops = &default_pipe_buf_ops;
 		bufs[page_nr].flags = 0;
 		ret = add_to_pipe(pipe, &bufs[page_nr++]);
 		if (unlikely(ret < 0))
@@ -1920,9 +1791,6 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 		if (!smp_load_acquire(&fch->initialized) || !fch->connected)
 			goto copy_finish;
 
-		/* Don't try to move folios (yet) */
-		cs->move_folios = false;
-
 		err = fuse_notify(fch->conn, oh.error, nbytes - sizeof(oh), cs);
 		goto copy_finish;
 	}
@@ -1966,8 +1834,6 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	set_bit(FR_LOCKED, &req->flags);
 	spin_unlock(&fpq->lock);
 	cs->req = req;
-	if (!req->args->page_replace)
-		cs->move_folios = false;
 
 	if (oh.error)
 		err = nbytes != sizeof(oh) ? -EINVAL : 0;
@@ -2068,7 +1934,6 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 				goto out_free;
 
 			*obuf = *ibuf;
-			obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
 			obuf->len = rem;
 			ibuf->offset += obuf->len;
 			ibuf->len -= obuf->len;
@@ -2082,9 +1947,6 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	cs.pipebufs = bufs;
 	cs.nr_segs = nbuf;
 	cs.pipe = pipe;
-
-	if (flags & SPLICE_F_MOVE)
-		cs.move_folios = true;
 
 	ret = fuse_dev_do_write(fud, &cs, len);
 

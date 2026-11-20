@@ -7,6 +7,7 @@
 #include <linux/dev_printk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/iopoll.h>
 #include <linux/types.h>
 
 #include "fbnic.h"
@@ -176,9 +177,24 @@ static void fbnic_mbx_unmap_and_free_msg(struct fbnic_dev *fbd, int mbx_idx,
 
 static void fbnic_mbx_clean_desc_ring(struct fbnic_dev *fbd, int mbx_idx)
 {
+	u32 flush_done, val;
 	int i;
 
 	fbnic_mbx_reset_desc_ring(fbd, mbx_idx);
+
+	/* Arming the flush only starts it. Wait for the outbound path to
+	 * retire the requests it still holds before the buffers they may
+	 * target are unmapped and freed. A lost link reads back as all ones,
+	 * which ends the poll on the first pass.
+	 */
+	flush_done = mbx_idx == FBNIC_IPC_MBX_RX_IDX ?
+		     FBNIC_PUL_USER_IP_LINK_RST_STATUS_AW_FLUSH_DONE :
+		     FBNIC_PUL_USER_IP_LINK_RST_STATUS_AR_FLUSH_DONE;
+	if (read_poll_timeout_atomic(fbnic_rd32, val, val & flush_done, 2,
+				     1000, false, fbd,
+				     FBNIC_PUL_USER_IP_LINK_RST_STATUS))
+		dev_warn(fbd->dev, "Outbound flush did not complete: %08x\n",
+			 val);
 
 	for (i = FBNIC_IPC_MBX_DESC_LEN; i--;)
 		fbnic_mbx_unmap_and_free_msg(fbd, mbx_idx, i);

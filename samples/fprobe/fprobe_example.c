@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Here's a sample kernel module showing the use of fprobe to dump a
- * stack trace and selected registers when kernel_clone() is called.
+ * stack trace and function entry/exit when kernel_clone() is called.
  *
- * For more information on theory of operation of kprobes, see
- * Documentation/trace/kprobes.rst
+ * For more information on theory of operation of fprobe, see
+ * Documentation/trace/fprobe.rst
  *
- * You will see the trace data in /var/log/messages and on the console
+ * You will see the trace data in /sys/kernel/tracing/trace
  * whenever kernel_clone() is invoked to create a new process.
  */
 
@@ -15,10 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fprobe.h>
-#include <linux/sched/debug.h>
 #include <linux/slab.h>
+#include <linux/trace_printk.h>
 
-#define BACKTRACE_DEPTH 16
 #define MAX_SYMBOL_LEN 4096
 static struct fprobe sample_probe;
 static unsigned long nhit;
@@ -35,34 +34,14 @@ static bool stackdump = true;
 module_param(stackdump, bool, 0644);
 MODULE_PARM_DESC(stackdump, "Enable stackdump.");
 
-static bool use_trace = false;
-module_param(use_trace, bool, 0644);
-MODULE_PARM_DESC(use_trace, "Use trace_printk instead of printk. This is only for debugging.");
-
-static void show_backtrace(void)
-{
-	unsigned long stacks[BACKTRACE_DEPTH];
-	unsigned int len;
-
-	len = stack_trace_save(stacks, BACKTRACE_DEPTH, 2);
-	stack_trace_print(stacks, len, 24);
-}
-
 static int sample_entry_handler(struct fprobe *fp, unsigned long ip,
 				unsigned long ret_ip,
 				struct ftrace_regs *fregs, void *data)
 {
-	if (use_trace)
-		/*
-		 * This is just an example, no kernel code should call
-		 * trace_printk() except when actively debugging.
-		 */
-		trace_printk("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
-	else
-		pr_info("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
+	trace_printk("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
 	nhit++;
 	if (stackdump)
-		show_backtrace();
+		trace_dump_stack(0);
 	return 0;
 }
 
@@ -72,19 +51,11 @@ static void sample_exit_handler(struct fprobe *fp, unsigned long ip,
 {
 	unsigned long rip = ret_ip;
 
-	if (use_trace)
-		/*
-		 * This is just an example, no kernel code should call
-		 * trace_printk() except when actively debugging.
-		 */
-		trace_printk("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
-			(void *)ip, (void *)ip, (void *)rip, (void *)rip);
-	else
-		pr_info("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
-			(void *)ip, (void *)ip, (void *)rip, (void *)rip);
+	trace_printk("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
+		     (void *)ip, (void *)ip, (void *)rip, (void *)rip);
 	nhit++;
 	if (stackdump)
-		show_backtrace();
+		trace_dump_stack(0);
 }
 
 static int __init fprobe_init(void)

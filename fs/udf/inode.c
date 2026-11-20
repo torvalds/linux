@@ -152,8 +152,6 @@ void udf_evict_inode(struct inode *inode)
 		}
 	}
 	truncate_inode_pages_final(&inode->i_data);
-	if (!want_delete)
-		mmb_sync(&iinfo->i_metadata_bhs);
 	mmb_invalidate(&iinfo->i_metadata_bhs);
 	clear_inode(inode);
 	kfree(iinfo->i_data);
@@ -1747,25 +1745,24 @@ void udf_update_extra_perms(struct inode *inode, umode_t mode)
 int udf_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 {
 	struct buffer_head *bh;
+	unsigned long block;
 	int err = 0;
 
-	bh = sb_getblk(inode->i_sb,
-			udf_get_lb_pblock(inode->i_sb,
-					  &UDF_I(inode)->i_location, 0));
-	if (!bh)
-		return -EIO;
-
-	sync_dirty_buffer(bh);
-	if (buffer_write_io_error(bh)) {
-		udf_warn(inode->i_sb, "IO error syncing udf inode [%08llx]\n",
-			 inode->i_ino);
-		err = -EIO;
-		goto out;
+	block = udf_get_lb_pblock(inode->i_sb, &UDF_I(inode)->i_location, 0);
+	/* A block that isn't cached is neither dirty nor under writeback. */
+	bh = sb_find_get_block_nonatomic(inode->i_sb, block);
+	if (bh) {
+		sync_dirty_buffer(bh);
+		if (buffer_write_io_error(bh)) {
+			udf_warn(inode->i_sb, "IO error syncing udf inode [%08llx]\n",
+				 inode->i_ino);
+			err = -EIO;
+		}
+		brelse(bh);
+		if (err)
+			return err;
 	}
-	err = mmb_sync(&UDF_I(inode)->i_metadata_bhs);
-out:
-	brelse(bh);
-	return err;
+	return mmb_sync(&UDF_I(inode)->i_metadata_bhs);
 }
 
 static void udf_adjust_time(struct udf_inode_info *iinfo, struct timespec64 time)

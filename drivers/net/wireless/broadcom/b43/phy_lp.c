@@ -4,7 +4,7 @@
   Broadcom B43 wireless driver
   IEEE 802.11a/g LP-PHY driver
 
-  Copyright (c) 2008-2009 Michael Buesch <m@bues.ch>
+  Copyright (c) 2008-2009 Michael Buesch
   Copyright (c) 2009 Gábor Stefanik <netrolller.3d@gmail.com>
 
 

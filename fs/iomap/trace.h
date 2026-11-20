@@ -218,9 +218,9 @@ TRACE_EVENT(iomap_add_to_ioend,
 );
 
 TRACE_EVENT(iomap_iter,
-	TP_PROTO(struct iomap_iter *iter, const void *ops,
+	TP_PROTO(struct iomap_iter *iter, const void *next,
 		 unsigned long caller),
-	TP_ARGS(iter, ops, caller),
+	TP_ARGS(iter, next, caller),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(u64, ino)
@@ -228,7 +228,7 @@ TRACE_EVENT(iomap_iter,
 		__field(u64, length)
 		__field(int, status)
 		__field(unsigned int, flags)
-		__field(const void *, ops)
+		__field(const void *, next)
 		__field(unsigned long, caller)
 	),
 	TP_fast_assign(
@@ -238,10 +238,10 @@ TRACE_EVENT(iomap_iter,
 		__entry->length = iomap_length(iter);
 		__entry->status = iter->status;
 		__entry->flags = iter->flags;
-		__entry->ops = ops;
+		__entry->next = next;
 		__entry->caller = caller;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx length 0x%llx status %d flags %s (0x%x) ops %ps caller %pS",
+	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx length 0x%llx status %d flags %s (0x%x) next %ps caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		   __entry->ino,
 		   __entry->pos,
@@ -249,7 +249,7 @@ TRACE_EVENT(iomap_iter,
 		   __entry->status,
 		   __print_flags(__entry->flags, "|", IOMAP_FLAGS_STRINGS),
 		   __entry->flags,
-		   __entry->ops,
+		   __entry->next,
 		   (void *)__entry->caller)
 );
 

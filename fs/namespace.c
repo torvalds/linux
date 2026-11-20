@@ -3296,7 +3296,7 @@ static struct mnt_namespace *create_new_namespace(struct path *path,
 	}
 
 	new_ns->root = new_ns_root;
-	ns_tree_add_raw(new_ns);
+	ns_tree_add(new_ns);
 	return new_ns;
 }
 
@@ -4394,8 +4394,6 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(ret);
 	}
-	ns_tree_gen_id(new_ns);
-
 	new_ns->is_anon = anon;
 	refcount_set(&new_ns->passive, 1);
 	new_ns->mounts = RB_ROOT;
@@ -4499,7 +4497,7 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 				p = next_mnt(skip_mnt_tree(p), old);
 		}
 	}
-	ns_tree_add_raw(new_ns);
+	ns_tree_add(new_ns);
 	return new_ns;
 }
 

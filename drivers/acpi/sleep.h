@@ -20,6 +20,14 @@ extern int acpi_s2idle_prepare(void);
 extern bool acpi_s2idle_wake(void);
 extern void acpi_s2idle_restore(void);
 extern void acpi_s2idle_end(void);
+#if defined(CONFIG_X86) && defined(CONFIG_SUSPEND)
+extern bool acpi_x86_s2idle_check_ixx_gpes(void);
+#else
+static inline bool acpi_x86_s2idle_check_ixx_gpes(void)
+{
+	return acpi_any_gpe_status_set(U32_MAX);
+}
+#endif
 
 extern void acpi_s2idle_setup(void);
 

@@ -228,8 +228,8 @@ static int scmi_thermal_sensor_register(struct device *dev,
 
 static int scmi_hwmon_probe(struct scmi_device *sdev)
 {
-	int i, idx;
 	u16 nr_sensors;
+	int i, idx, ret;
 	enum hwmon_sensor_types type;
 	struct scmi_sensors *scmi_sensors;
 	const struct scmi_sensor_info *sensor;
@@ -297,8 +297,12 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		if (!nr_count[type])
 			continue;
 
-		scmi_hwmon_add_chan_info(scmi_hwmon_chan, dev, nr_count[type],
-					 type, hwmon_attributes[type]);
+		ret = scmi_hwmon_add_chan_info(scmi_hwmon_chan, dev,
+					       nr_count[type], type,
+					       hwmon_attributes[type]);
+		if (ret)
+			return ret;
+
 		*ptr_scmi_ci++ = scmi_hwmon_chan++;
 
 		scmi_sensors->info[type] =
@@ -321,6 +325,12 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		case ENERGY:
 			type = scmi_types[sensor->type];
 			idx = --nr_count[type];
+			ret = sensor_ops->config_set(ph, sensor->id, sensor_config);
+			if (ret) {
+				dev_err(dev, "Error enabling sensor %s. err=%d\n",
+					sensor->name, ret);
+				continue;
+			}
 			*(scmi_sensors->info[type] + idx) = sensor;
 			break;
 		}
@@ -333,18 +343,9 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		return PTR_ERR(hwdev);
 
 	for (i = 0; i < nr_count_temp; i++) {
-		int ret;
-
 		sensor = *(scmi_sensors->info[hwmon_temp] + i);
 		if (!sensor)
 			continue;
-
-		ret = sensor_ops->config_set(ph, i, sensor_config);
-		if (ret) {
-			dev_err(dev, "Error enabling sensor %s. err=%d\n",
-				sensor->name, ret);
-			continue;
-		}
 
 		/*
 		 * Warn on any misconfiguration related to thermal zones but

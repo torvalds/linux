@@ -1632,6 +1632,10 @@ int ntfs_ioctl_list_streams(struct file *filp, unsigned long arg)
 	ubuf = (void __user *)arg + sizeof(hdr);
 
 	mutex_lock(&ni->mrec_lock);
+	if (NInoBeingDeleted(ni) || !inode->i_nlink) {
+		mutex_unlock(&ni->mrec_lock);
+		return -ENOENT;
+	}
 	actx = ntfs_attr_get_search_ctx(ni, NULL);
 	if (!actx) {
 		mutex_unlock(&ni->mrec_lock);
@@ -1731,7 +1735,7 @@ int ntfs_ioctl_list_streams(struct file *filp, unsigned long arg)
 		}
 
 		entry_size = ALIGN(name_offset + name_len, 8);
-		if (offset > required - entry_size) {
+		if (offset > required || entry_size > required - offset) {
 			ret = -EOVERFLOW;
 			kfree(sn);
 			sn = NULL;

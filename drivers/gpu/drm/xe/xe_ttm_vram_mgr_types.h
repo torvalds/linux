@@ -81,8 +81,6 @@ struct xe_ttm_vram_offline_resource {
 	u64 addr;
 	/** @status: buddy reservation status */
 	enum xe_page_reserve_status status;
-	/** @rcu: RCU head for deferred freeing */
-	struct rcu_head rcu;
 };
 
 #endif
