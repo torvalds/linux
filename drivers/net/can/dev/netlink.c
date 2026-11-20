@@ -330,9 +330,17 @@ static int can_ctrlmode_changelink(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
+	/* static control modes can not be switched off */
+	if (deactivated & ctrlstatic) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "static control mode %s can not be switched off",
+				   can_get_ctrlmode_str(deactivated & ctrlstatic));
+		return -EOPNOTSUPP;
+	}
+
 	/* do not check for static fd-non-iso if 'fd' is disabled */
 	if (!(maskedflags & CAN_CTRLMODE_FD))
-		ctrlstatic &= ~CAN_CTRLMODE_FD_NON_ISO;
+		ctrlstatic_missing &= ~CAN_CTRLMODE_FD_NON_ISO;
 
 	if (ctrlstatic_missing) {
 		NL_SET_ERR_MSG_FMT(extack,
