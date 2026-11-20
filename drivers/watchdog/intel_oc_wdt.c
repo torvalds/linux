@@ -44,6 +44,7 @@ struct intel_oc_wdt {
 	struct resource *ctrl_res;
 	struct watchdog_info info;
 	bool locked;
+	bool suspended;
 };
 
 static int heartbeat;
@@ -204,6 +205,7 @@ static int intel_oc_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	platform_set_drvdata(pdev, oc_wdt);
 	watchdog_set_drvdata(wdd, oc_wdt);
 	watchdog_set_nowayout(wdd, nowayout);
 	watchdog_stop_on_reboot(wdd);
@@ -211,6 +213,55 @@ static int intel_oc_wdt_probe(struct platform_device *pdev)
 
 	return devm_watchdog_register_device(dev, wdd);
 }
+
+/*
+ * Neither user space nor the watchdog core can ping the watchdog while the
+ * system sleeps, and in suspend-to-idle the counter keeps running, so stop the
+ * watchdog late in suspend and restart it early in resume. Check the hardware
+ * enable bit, as the watchdog may also have been started by the firmware.
+ */
+static int intel_oc_wdt_suspend_noirq(struct device *dev)
+{
+	struct intel_oc_wdt *oc_wdt = dev_get_drvdata(dev);
+
+	oc_wdt->suspended = false;
+
+	if (oc_wdt->locked ||
+	    !(inl(INTEL_OC_WDT_CTRL_REG(oc_wdt)) & INTEL_OC_WDT_EN))
+		return 0;
+
+	intel_oc_wdt_stop(&oc_wdt->wdd);
+	oc_wdt->suspended = true;
+
+	return 0;
+}
+
+static int intel_oc_wdt_resume_noirq(struct device *dev)
+{
+	struct intel_oc_wdt *oc_wdt = dev_get_drvdata(dev);
+
+	if (oc_wdt->locked)
+		return 0;
+
+	/*
+	 * The timeout in hardware may have been reset by the platform firmware
+	 * or, when resuming from hibernation, set by the boot kernel, and
+	 * intel_oc_wdt_start() does not program it.
+	 */
+	intel_oc_wdt_set_timeout(&oc_wdt->wdd, oc_wdt->wdd.timeout);
+
+	if (!oc_wdt->suspended)
+		return 0;
+
+	intel_oc_wdt_start(&oc_wdt->wdd);
+	intel_oc_wdt_ping(&oc_wdt->wdd);
+	oc_wdt->suspended = false;
+
+	return 0;
+}
+
+static DEFINE_NOIRQ_DEV_PM_OPS(intel_oc_wdt_pm_ops, intel_oc_wdt_suspend_noirq,
+			       intel_oc_wdt_resume_noirq);
 
 static const struct acpi_device_id intel_oc_wdt_match[] = {
 	{ "INT3F0D" },
@@ -223,6 +274,7 @@ static struct platform_driver intel_oc_wdt_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = intel_oc_wdt_match,
+		.pm = pm_sleep_ptr(&intel_oc_wdt_pm_ops),
 	},
 	.probe = intel_oc_wdt_probe,
 };
