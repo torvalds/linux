@@ -509,14 +509,16 @@ static int apply_xbc(const char *path, const char *xbc_path)
 	total_size = size + BOOTCONFIG_FOOTER_SIZE;
 
 	ret = write(fd, data, total_size);
-	if (ret < total_size) {
-		if (ret < 0)
-			ret = -errno;
+	if (ret < 0) {
+		ret = -errno;
 		pr_err("Failed to apply a boot config: %d\n", ret);
-		if (ret >= 0)
-			goto out_rollback;
-	} else
-		ret = 0;
+		goto out;
+	}
+	if ((size_t)ret != total_size) {
+		pr_err("Failed to apply a boot config: %d\n", ret);
+		goto out_rollback;
+	}
+	ret = 0;
 
 out:
 	close(fd);
