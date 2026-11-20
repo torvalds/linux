@@ -319,10 +319,16 @@ arm64_hdr_outdir := $(tools_dir)/
 endif
 
 GEN_HDRS := $(arm64_hdr_outdir)arch/arm64/include/generated/
+GEN_SYSREG_DEFS := $(GEN_HDRS)asm/sysreg-defs.h
 CFLAGS += -I$(GEN_HDRS)
 
-$(GEN_HDRS): $(wildcard $(arm64_tools_dir)/*)
+# The inner Makefile tracks the generator's inputs and leaves the header
+# untouched when nothing changed, so dependents rebuild only when it does.
+$(GEN_SYSREG_DEFS): FORCE
 	$(MAKE) -C $(arm64_tools_dir) OUTPUT=$(arm64_hdr_outdir)
+
+FORCE:
+.PHONY: FORCE
 endif
 
 no-pie-option := $(call try-run, echo 'int main(void) { return 0; }' | \
@@ -375,10 +381,10 @@ EXTRA_CLEAN += $(GEN_HDRS) \
 	       $(TEST_GEN_OBJ) \
 	       cscope.*
 
-$(LIBKVM_C_OBJ): $(OUTPUT)/%.o: %.c $(GEN_HDRS)
+$(LIBKVM_C_OBJ): $(OUTPUT)/%.o: %.c $(GEN_SYSREG_DEFS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
-$(LIBKVM_S_OBJ): $(OUTPUT)/%.o: %.S $(GEN_HDRS)
+$(LIBKVM_S_OBJ): $(OUTPUT)/%.o: %.S $(GEN_SYSREG_DEFS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 # Compile the string overrides as freestanding to prevent the compiler from
@@ -388,10 +394,10 @@ $(LIBKVM_STRING_OBJ): $(OUTPUT)/%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -ffreestanding $< -o $@
 
 $(shell mkdir -p $(sort $(dir $(TEST_GEN_PROGS))))
-$(SPLIT_TEST_GEN_OBJ): $(GEN_HDRS)
+$(SPLIT_TEST_GEN_OBJ): $(GEN_SYSREG_DEFS)
 $(TEST_GEN_PROGS): $(LIBKVM_OBJS)
 $(TEST_GEN_PROGS_EXTENDED): $(LIBKVM_OBJS)
-$(TEST_GEN_OBJ): $(GEN_HDRS)
+$(TEST_GEN_OBJ): $(GEN_SYSREG_DEFS)
 
 cscope: include_paths = $(LINUX_TOOL_INCLUDE) $(LINUX_HDR_PATH) include lib ..
 cscope:
