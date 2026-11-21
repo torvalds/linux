@@ -661,8 +661,12 @@ static int ufx_set_vid_mode(struct ufx_data *dev, struct fb_var_screeninfo *var)
 	u32 temp;
 	u16 h_total, h_active, h_blank_start, h_blank_end, h_sync_start, h_sync_end;
 	u16 v_total, v_active, v_blank_start, v_blank_end, v_sync_start, v_sync_end;
+	int status;
 
-	int status = ufx_reg_write(dev, 0x8028, 0);
+	if (!atomic_read(&dev->usb_active))
+		return -ENODEV;
+
+	status = ufx_reg_write(dev, 0x8028, 0);
 	check_warn_return(status, "ufx_set_vid_mode error disabling RGB pad");
 
 	status = ufx_reg_write(dev, 0x8024, 0);
@@ -1067,6 +1071,7 @@ static void ufx_free(struct kref *kref)
 {
 	struct ufx_data *dev = container_of(kref, struct ufx_data, kref);
 
+	usb_put_dev(dev->udev);
 	kfree(dev);
 }
 
@@ -1280,9 +1285,10 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 
 	if (PAGE_ALIGN(new_len) > old_len) {
 		/*
-		 * Alloc system memory for virtual framebuffer
+		 * Alloc system memory for virtual framebuffer.  smem_len is
+		 * rounded up to a page, so allocate that much as well.
 		 */
-		new_fb = vmalloc(new_len);
+		new_fb = vmalloc(PAGE_ALIGN(new_len));
 		if (!new_fb)
 			return -ENOMEM;
 
@@ -1609,6 +1615,8 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	dev->udev = usbdev;
 	dev->gdev = &usbdev->dev; /* our generic struct device * */
+	/* keep the device alive until the last ufx_data user is gone */
+	usb_get_dev(usbdev);
 	usb_set_intfdata(interface, dev);
 
 	dev_dbg(dev->gdev, "%s %s - serial #%s\n",
@@ -1700,8 +1708,16 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	dev_dbg(dev->gdev, "registering framebuffer");
 	retval = register_framebuffer(info);
 	if (retval < 0) {
-		dev_err(dev->gdev, "error %d register_framebuffer", retval);
-		goto reset_active;
+		/*
+		 * info is installed before the takeover can fail; freeing @dev
+		 * here would leave registered_fb[] and /dev/fbN pointing at
+		 * freed memory.
+		 */
+		if (!refcount_read(&info->count)) { /* not registered */
+			dev_err(dev->gdev, "error %d register_framebuffer", retval);
+			goto reset_active;
+		}
+		dev_warn(dev->gdev, "console takeover failed: %d\n", retval);
 	}
 
 	dev_info(dev->gdev, "SMSC UDX USB device /dev/fb%d attached. %dx%d resolution."
