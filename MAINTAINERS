@@ -21768,7 +21768,7 @@ S:	Odd Fixes
 F:	drivers/pci/controller/pci-thunder-*
 
 PCIE DRIVER FOR ESWIN
-M:	Senchuan Zhang <zhangsenchuan@eswincomputing.com>
+M:	Donghui Zhao <zhaodonghui@eswincomputing.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/eswin,pcie.yaml
