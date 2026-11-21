@@ -438,7 +438,7 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 		sr_off = config_desc->base_bit + config_desc->slew_rate_offset;
 		reg_off = config_desc->reg_offset;
 		mask = 0x3 << sr_off;
-		val = arg << sr_off;
+		val = set_val << sr_off;
 		break;
 
 	case PIN_CONFIG_INPUT_VOLTAGE_UV:
