@@ -22,7 +22,7 @@ static __init pgprot_t efimem_to_pgprot_map(efi_memory_desc_t *md)
 	u32 type = md->type;
 
 	if (type == EFI_MEMORY_MAPPED_IO)
-		return PAGE_KERNEL;
+		return PAGE_KERNEL_IO;
 
 	/* R-- */
 	if ((attr & (EFI_MEMORY_XP | EFI_MEMORY_RO)) ==
