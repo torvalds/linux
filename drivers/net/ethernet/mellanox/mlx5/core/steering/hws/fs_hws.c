@@ -441,6 +441,8 @@ dest_load:
 
 	dest = mlx5hws_action_create_dest_vport(ctx, vport_num,	vhca_id_valid,
 						dest_attr->vport.vhca_id, flags);
+	if (!dest)
+		return NULL;
 
 	err = xa_insert(dests_xa, idx, dest, GFP_KERNEL);
 	if (err) {
