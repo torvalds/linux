@@ -568,19 +568,17 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 	if (unlikely(ftrace_graph_is_dead()))
 		return -EBUSY;
 
-	if (!current->ret_stack)
+	/*
+	 * We must make sure the ret_stack is tested before we read
+	 * anything else (See alloc_retstack_tasklist()).
+	 */
+	if (!smp_load_acquire(&current->ret_stack))
 		return -EBUSY;
 
 	BUILD_BUG_ON(SHADOW_STACK_SIZE % sizeof(long));
 
 	/* Set val to "reserved" with the delta to the new fgraph frame */
 	val = (FGRAPH_TYPE_RESERVED << FGRAPH_TYPE_SHIFT) | FGRAPH_FRAME_OFFSET;
-
-	/*
-	 * We must make sure the ret_stack is tested before we read
-	 * anything else.
-	 */
-	smp_rmb();
 
 	/*
 	 * Check if there's room on the shadow stack to fit a fraph frame
@@ -700,11 +698,7 @@ int function_graph_enter_regs(unsigned long ret, unsigned long func,
 	if (!bitmap)
 		goto out_ret;
 
-	/*
-	 * Since this function uses fgraph_idx = 0 as a tail-call checking
-	 * flag, set that bit always.
-	 */
-	set_bitmap(current, offset, bitmap | BIT(0));
+	set_bitmap(current, offset, bitmap);
 	ftrace_test_recursion_unlock(bit);
 	return 0;
  out_ret:
@@ -1033,13 +1027,16 @@ void ftrace_stub_graph(struct ftrace_graph_ret *trace, struct fgraph_ops *gops,
 trace_func_graph_ret_t ftrace_graph_return = ftrace_stub_graph;
 trace_func_graph_ent_t ftrace_graph_entry = ftrace_graph_entry_stub;
 
-/* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
+/*
+ * Loop thru all the tasks in the system and assign ret_stack.
+ * The @ret_stack_list is a small pre-allocated fallback, in case
+ * the GFP_NOWAIT allocations here fail.
+ */
 static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 {
-	int i;
-	int ret = 0;
 	int start = 0, end = FTRACE_RETSTACK_ALLOC_SIZE;
 	struct task_struct *g, *t;
+	int i, ret = 0;
 
 	if (WARN_ON_ONCE(!fgraph_stack_cachep))
 		return -ENOMEM;
@@ -1054,26 +1051,31 @@ static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 		}
 	}
 
-	rcu_read_lock();
-	for_each_process_thread(g, t) {
-		if (start == end) {
-			ret = -EAGAIN;
-			goto unlock;
-		}
+	scoped_guard (rcu) {
+		for_each_process_thread(g, t) {
+			unsigned long *rs;
 
-		if (t->ret_stack == NULL) {
+			if (t->ret_stack)
+				continue;
+
+			rs = kmem_cache_alloc(fgraph_stack_cachep, GFP_NOWAIT);
+			if (!rs) {
+				if (start == end) {
+					ret = -EAGAIN;
+					goto free;
+				}
+				rs = ret_stack_list[start++];
+			}
+
 			atomic_set(&t->trace_overrun, 0);
-			ret_stack_init_task_vars(ret_stack_list[start]);
+			ret_stack_init_task_vars(rs);
 			t->curr_ret_stack = 0;
 			t->curr_ret_depth = -1;
 			/* Make sure the tasks see the 0 first: */
-			smp_wmb();
-			t->ret_stack = ret_stack_list[start++];
+			smp_store_release(&t->ret_stack, rs);
 		}
 	}
 
-unlock:
-	rcu_read_unlock();
 free:
 	for (i = start; i < end; i++)
 		kmem_cache_free(fgraph_stack_cachep, ret_stack_list[i]);
@@ -1117,8 +1119,7 @@ graph_init_task(struct task_struct *t, unsigned long *ret_stack)
 	t->curr_ret_stack = 0;
 	t->curr_ret_depth = -1;
 	/* make curr_ret_stack visible before we add the ret_stack */
-	smp_wmb();
-	t->ret_stack = ret_stack;
+	smp_store_release(&t->ret_stack, ret_stack);
 }
 
 /*

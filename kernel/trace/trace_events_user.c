@@ -256,6 +256,11 @@ static void delayed_destroy_user_event(struct work_struct *work)
 		 * attempt to delete it later.
 		 */
 		pr_warn("user_events: Unable to delete event\n");
+		/*
+		 * Keep it as persistent so it can be still deleted
+		 * since nobody own this event
+		 */
+		user->reg_flags |= USER_EVENT_REG_PERSIST;
 		refcount_set(&user->refcnt, 1);
 	}
 out:
@@ -1035,6 +1040,9 @@ static int user_event_parse_cmd(struct user_event_group *group,
 	if (flags)
 		*flags++ = '\0';
 
+	if (strstr(name, "/") != NULL)
+		return -EINVAL;
+
 	return user_event_parse(group, name, args, flags, newuser, reg_flags);
 }
 
@@ -1505,6 +1513,10 @@ static int destroy_user_event(struct user_event *user)
 	int ret = 0;
 
 	lockdep_assert_held(&event_mutex);
+
+	/* If there is a reference to a dynamic event */
+	if (trace_event_dyn_busy(&user->call))
+		return -EBUSY;
 
 	/*
 	 * Detach the fields before removing the call. Removing the event

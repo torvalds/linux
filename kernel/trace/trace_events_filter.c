@@ -758,7 +758,7 @@ static int filter_pred_##size##_cpumask(struct filter_pred *pred, void *event)	\
 	unsigned int cpu = *addr;						\
 										\
 	if (cpu >= nr_cpu_ids)							\
-		return 0;							\
+		return pred->op == OP_NE;					\
 										\
 	return do_filter_scalar_cpumask(pred->op, cpu, pred->mask);		\
 }
@@ -891,6 +891,25 @@ static int filter_pred_pchar_user(struct filter_pred *pred, void *event)
 	return filter_pchar(pred, str);
 }
 
+static __always_inline int filter_dyn_string(struct filter_pred *pred,
+					     char *str, int len)
+{
+	int cmp;
+
+	/*
+	 * The regex callbacks use zero for an unknown-length, NUL-terminated
+	 * string. A zero-length data_loc or rel_loc field has no bytes at all.
+	 * Match an empty string instead of reading past the end of the field.
+	 */
+	if (!len) {
+		str = "";
+		len = 1;
+	}
+
+	cmp = pred->regex->match(str, pred->regex, len);
+	return cmp ^ pred->not;
+}
+
 /*
  * Filter predicate for dynamic sized arrays of characters.
  * These are implemented through a list of strings at the end
@@ -907,13 +926,8 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event)
 	int str_loc = str_item & 0xffff;
 	int str_len = str_item >> 16;
 	char *addr = (char *)(event + str_loc);
-	int cmp, match;
 
-	cmp = pred->regex->match(addr, pred->regex, str_len);
-
-	match = cmp ^ pred->not;
-
-	return match;
+	return filter_dyn_string(pred, addr, str_len);
 }
 
 /*
@@ -930,13 +944,8 @@ static int filter_pred_strrelloc(struct filter_pred *pred, void *event)
 	int str_loc = str_item & 0xffff;
 	int str_len = str_item >> 16;
 	char *addr = (char *)(&item[1]) + str_loc;
-	int cmp, match;
 
-	cmp = pred->regex->match(addr, pred->regex, str_len);
-
-	match = cmp ^ pred->not;
-
-	return match;
+	return filter_dyn_string(pred, addr, str_len);
 }
 
 /* Filter predicate for CPUs. */
@@ -1037,7 +1046,8 @@ static int filter_pred_within(struct filter_pred *pred, void *event)
  *
  * @str: the string to be searched
  * @r:   the regex structure containing the pattern string
- * @len: the length of the string to be searched (including '\0')
+ * @len: the length of the string to be searched (including '\0'), or zero
+ *       for a NUL-terminated string of unknown length
  *
  * Note:
  * - @str might not be NULL-terminated if it's of type DYN_STRING
@@ -1046,7 +1056,7 @@ static int filter_pred_within(struct filter_pred *pred, void *event)
 
 static int regex_match_full(char *str, struct regex *r, int len)
 {
-	/* len of zero means str is dynamic and ends with '\0' */
+	/* Zero is reserved for a NUL-terminated string of unknown length. */
 	if (!len)
 		return strcmp(str, r->pattern) == 0;
 
@@ -1078,6 +1088,30 @@ static int regex_match_end(char *str, struct regex *r, int len)
 
 	if (strlen >= r->len &&
 	    memcmp(str + strlen - r->len, r->pattern, r->len) == 0)
+		return 1;
+	return 0;
+}
+
+static int regex_match_end_str(char *str, struct regex *r, int len)
+{
+	int slen;
+
+	if (len < r->len)
+		return 0;
+
+	slen = strnlen(str, len);
+	if (slen >= r->len &&
+	    memcmp(str + slen - r->len, r->pattern, r->len) == 0)
+		return 1;
+	return 0;
+}
+
+static int regex_match_end_dynstr(char *str, struct regex *r, int len)
+{
+	int slen = strlen(str);
+
+	if (slen >= r->len &&
+	    memcmp(str + slen - r->len, r->pattern, r->len) == 0)
 		return 1;
 	return 0;
 }
@@ -1118,9 +1152,6 @@ enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 
 	*search = buff;
 
-	if (isdigit(buff[0]))
-		return MATCH_INDEX;
-
 	for (i = 0; i < len; i++) {
 		if (buff[i] == '*') {
 			if (!i) {
@@ -1158,8 +1189,6 @@ static void filter_build_regex(struct filter_pred *pred)
 	}
 
 	switch (type) {
-	/* MATCH_INDEX should not happen, but if it does, match full */
-	case MATCH_INDEX:
 	case MATCH_FULL:
 		r->match = regex_match_full;
 		break;
@@ -1708,7 +1737,9 @@ static int parse_pred(const char *str, void *data,
 
 	/* See if the field is a kernel function name */
 	if ((len = str_has_prefix(str + i, ".function"))) {
-		function = true;
+		/* Ignore if event is already a function */
+		if (!ftrace_event_is_function(call))
+			function = true;
 		i += len;
 	}
 
@@ -1731,6 +1762,11 @@ static int parse_pred(const char *str, void *data,
 
 	while (isspace(str[i]))
 		i++;
+
+	if (!str[i]) {
+		parse_error(pe, FILT_ERR_INVALID_FILTER, pos + i);
+		goto err_free;
+	}
 
 	s = i;
 
@@ -2021,10 +2057,18 @@ static int parse_pred(const char *str, void *data,
 
 		if (field->filter_type == FILTER_COMM) {
 			pred->fn_num = FILTER_PRED_FN_COMM;
+			if (pred->regex->match == regex_match_end)
+				pred->regex->match = regex_match_end_str;
 
 		} else if (field->filter_type == FILTER_STATIC_STRING) {
 			pred->fn_num = FILTER_PRED_FN_STRING;
 			pred->regex->field_len = field->size;
+			if (pred->regex->match == regex_match_end) {
+				if (!field->size)
+					pred->regex->match = regex_match_end_dynstr;
+				else
+					pred->regex->match = regex_match_end_str;
+			}
 
 		} else if (field->filter_type == FILTER_DYN_STRING) {
 			pred->fn_num = FILTER_PRED_FN_STRLOC;
@@ -2305,6 +2349,7 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 	struct event_filter *filter = NULL;
 	struct filter_head *filter_list;
 	bool fail = true;
+	int ret = -ENOMEM;
 	int err;
 
 	filter_list = kmalloc_obj(*filter_list);
@@ -2331,9 +2376,10 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 			filter_disable(file);
 			parse_error(pe, FILT_ERR_BAD_SUBSYS_FILTER, 0);
 			append_filter_err(tr, pe, filter);
-		} else
+		} else {
 			event_set_filtered_flag(file);
-
+			fail = false;
+		}
 
 		filter_item = kzalloc_obj(*filter_item);
 		if (!filter_item)
@@ -2347,8 +2393,6 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 		filter_item->filter = event_filter(file);
 		event_set_filter(file, filter);
 		filter = NULL;
-
-		fail = false;
 	}
 
 	if (fail)
@@ -2363,19 +2407,18 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 	return 0;
  fail:
 	/* No call succeeded */
-	free_filter_list(filter_list);
 	parse_error(pe, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-	return -EINVAL;
+	ret = -EINVAL;
  fail_mem:
 	__free_filter(filter);
 
-	/* If any call succeeded, we still need to sync */
-	if (!fail)
+	/* If any filter was replaced, we still need to sync */
+	if (!list_empty(&filter_list->list))
 		delay_free_filter(filter_list);
 	else
 		free_filter_list(filter_list);
 
-	return -ENOMEM;
+	return ret;
 }
 
 static int create_filter_start(char *filter_string, bool set_str,
@@ -2749,6 +2792,28 @@ static int ftrace_function_set_filter(struct perf_event *event,
 }
 #endif /* CONFIG_FUNCTION_TRACER */
 
+static int ftrace_profile_filter_perm(struct event_filter *filter)
+{
+	struct prog_entry *prog = rcu_dereference_protected(filter->prog,
+						lockdep_is_held(&event_mutex));
+	int i, err;
+
+	for (i = 0; prog[i].pred; i++) {
+		if (prog[i].pred->fn_num != FILTER_PRED_FN_PCHAR)
+			continue;
+
+		/*
+		 * Even a counting filter can reveal kernel string data.
+		 * Require the same access as raw kernel tracepoints.
+		 */
+		err = perf_allow_kernel();
+		if (err)
+			return err;
+		return perf_allow_tracepoint();
+	}
+	return 0;
+}
+
 int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 			      char *filter_str)
 {
@@ -2767,6 +2832,10 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 		return -EEXIST;
 
 	err = create_filter(NULL, call, filter_str, false, &filter);
+	if (err)
+		goto free_filter;
+
+	err = ftrace_profile_filter_perm(filter);
 	if (err)
 		goto free_filter;
 
@@ -2789,6 +2858,8 @@ free_filter:
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+#include "trace_probe.h"
+
 #define CREATE_TRACE_POINTS
 #include "trace_events_filter_test.h"
 
@@ -2800,12 +2871,22 @@ free_filter:
 	.match  = m, \
 	.not_visited = nvisit, \
 }
+
+#define DATA_STR(m, s) \
+{ \
+	.filter = FILTER, \
+	.str    = s, \
+	.match  = m, \
+	.not_visited = "", \
+}
+
 #define YES 1
 #define NO  0
 
 static struct test_filter_data_t {
 	char *filter;
 	struct trace_event_raw_ftrace_test_filter rec;
+	const char *str;
 	int match;
 	char *not_visited;
 } test_filter_data[] = {
@@ -2857,9 +2938,46 @@ static struct test_filter_data_t {
 	DATA_REC(YES, 1, 1, 1, 1, 1, 1, 1, 1, "bdfh"),
 	DATA_REC(YES, 0, 1, 0, 1, 0, 1, 0, 1, ""),
 	DATA_REC(YES, 1, 0, 1, 0, 1, 0, 1, 0, "bdfh"),
+#undef FILTER
+#define FILTER "str ~ \"0001:*\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "0001:"),
+	DATA_STR(NO,  "0002:01:00.0"),
+	DATA_STR(NO,  "pci:0001:01:00.0"),
+	DATA_STR(NO,  "0001"),
+#undef FILTER
+#define FILTER "str ~ \"!0001:*\""
+	DATA_STR(NO,  "0001:01:00.0"),
+	DATA_STR(YES, "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"0001:*:00.[0-9]\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "0001:ff:00.7"),
+	DATA_STR(NO,  "0001:01:00.a"),
+	DATA_STR(NO,  "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"0001:01:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
+	DATA_STR(NO,  "0001:01:00.00"),
+	DATA_STR(NO,  "0001:01:00"),
+#undef FILTER
+#define FILTER "str == \"0001:01:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
+#undef FILTER
+#define FILTER "str ~ \"*0001:*\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(YES, "pci:0001:01:00.0"),
+	DATA_STR(NO,  "0002:01:00.0"),
+#undef FILTER
+#define FILTER "str ~ \"*:00.0\""
+	DATA_STR(YES, "0001:01:00.0"),
+	DATA_STR(NO,  "0001:01:00.1"),
 };
 
 #undef DATA_REC
+#undef DATA_STR
 #undef FILTER
 #undef YES
 #undef NO
@@ -2910,7 +3028,28 @@ static __init int ftrace_test_event_filter(void)
 	for (i = 0; i < DATA_CNT; i++) {
 		struct event_filter *filter = NULL;
 		struct test_filter_data_t *d = &test_filter_data[i];
+		union {
+			struct trace_event_raw_ftrace_test_filter rec;
+			/* Add some spare, to append the string contents. */
+			char buf[sizeof(struct trace_event_raw_ftrace_test_filter) + 32];
+		} event = { .rec = d->rec };
 		int err;
+
+		if (d->str) {
+			struct ftrace_event_field *field;
+			u32 offset = offsetof(typeof(event.rec), __data);
+			u32 len = strlen(d->str) + 1;
+			u32 *str_item;
+
+			field = trace_find_event_field(&event_ftrace_test_filter, "str");
+			if (WARN_ON_ONCE(!field))
+				break;
+			if (WARN_ON_ONCE(offset + len > sizeof(event.buf)))
+				break;
+			str_item = (u32 *)&event.buf[field->offset];
+			*str_item = make_data_loc(len, offset);
+			memcpy(&event.buf[offset], d->str, len);
+		}
 
 		err = create_filter(NULL, &event_ftrace_test_filter,
 				    d->filter, false, &filter);
@@ -2933,7 +3072,7 @@ static __init int ftrace_test_event_filter(void)
 			update_pred_fn(filter, d->not_visited);
 
 		test_pred_visited = 0;
-		err = filter_match_preds(filter, &d->rec);
+		err = filter_match_preds(filter, &event.rec);
 		preempt_enable();
 
 		mutex_unlock(&event_mutex);
@@ -2960,7 +3099,7 @@ static __init int ftrace_test_event_filter(void)
 
 	/* Need to call ftrace_test_filter to prevent a warning */
 	if (!trace_ftrace_test_filter_enabled())
-		trace_ftrace_test_filter(1, 2, 3, 4, 5, 6, 7, 8);
+		trace_ftrace_test_filter(1, 2, 3, 4, 5, 6, 7, 8, "");
 
 	return 0;
 }

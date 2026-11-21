@@ -1430,6 +1430,11 @@ static int parse_map_size(char *str)
 	if (ret)
 		goto out;
 
+	if (!size) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	map_bits = ilog2(roundup_pow_of_two(size));
 	if (map_bits < TRACING_MAP_BITS_MIN ||
 	    map_bits > TRACING_MAP_BITS_MAX)
@@ -6761,6 +6766,17 @@ static bool hist_trigger_check_refs(struct event_trigger_data *data,
 	return false;
 }
 
+void hist_put_synth_event(struct trace_event_file *file)
+{
+	struct synth_event *se;
+
+	lockdep_assert_held(&event_mutex);
+
+	se = find_synth_event_call(file->event_call);
+	if (se)
+		se->ref--;
+}
+
 static void hist_unregister_trigger(char *glob,
 				    struct event_trigger_data *data,
 				    struct trace_event_file *file)
@@ -6816,7 +6832,6 @@ static void hist_unreg_all(struct trace_event_file *file)
 {
 	struct event_trigger_data *test, *n;
 	struct hist_trigger_data *hist_data;
-	struct synth_event *se;
 
 	lockdep_assert_held(&event_mutex);
 
@@ -6829,9 +6844,7 @@ static void hist_unreg_all(struct trace_event_file *file)
 			list_del_rcu(&test->list);
 			trace_event_trigger_enable_disable(file, 0);
 
-			se = find_synth_event_call(file->event_call);
-			if (se)
-				se->ref--;
+			hist_put_synth_event(file);
 
 			update_cond_flag(file);
 			if (hist_data->enable_timestamps)
@@ -6946,9 +6959,7 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 		}
 
 		event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
-		se = find_synth_event_call(file->event_call);
-		if (se)
-			se->ref--;
+		hist_put_synth_event(file);
 		ret = 0;
 		goto out_free;
 	}

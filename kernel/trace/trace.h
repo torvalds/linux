@@ -1807,7 +1807,6 @@ enum regex_type {
 	MATCH_MIDDLE_ONLY,
 	MATCH_END_ONLY,
 	MATCH_GLOB,
-	MATCH_INDEX,
 };
 
 struct regex {
@@ -1912,9 +1911,11 @@ extern const struct file_operations event_inject_fops;
 #ifdef CONFIG_HIST_TRIGGERS
 extern int register_trigger_hist_cmd(void);
 extern int register_trigger_hist_enable_disable_cmds(void);
+extern void hist_put_synth_event(struct trace_event_file *file);
 #else
 static inline int register_trigger_hist_cmd(void) { return 0; }
 static inline int register_trigger_hist_enable_disable_cmds(void) { return 0; }
+static inline void hist_put_synth_event(struct trace_event_file *file) { }
 #endif
 
 extern int register_trigger_cmds(void);

@@ -139,6 +139,13 @@ int simple_ring_buffer_swap_reader_page(struct simple_rb_per_cpu *cpu_buffer)
 
 	reader = cpu_buffer->reader_page;
 
+	/*
+	 * The reader is already the tail page. See simple_rb_move_tail() for
+	 * memory ordering.
+	 */
+	if (reader == smp_load_acquire(&cpu_buffer->tail_page))
+		return 0;
+
 	do {
 		/* Run after the writer to find the head */
 		ret = simple_rb_find_head(cpu_buffer);
@@ -196,7 +203,13 @@ static struct simple_buffer_page *simple_rb_move_tail(struct simple_rb_per_cpu *
 	}
 
 	simple_bpage_reset(new_tail);
-	cpu_buffer->tail_page = new_tail;
+
+	/*
+	 * Setting a new tail may unblock the swap in
+	 * simple_ring_buffer_swap_reader_page(). Ensure the reader observes the
+	 * page::commit reset.
+	 */
+	smp_store_release(&cpu_buffer->tail_page, new_tail);
 
 	simple_rb_meta_inc(cpu_buffer->meta->pages_touched, 1);
 
@@ -294,8 +307,19 @@ EXPORT_SYMBOL_GPL(simple_ring_buffer_reserve);
  */
 void simple_ring_buffer_commit(struct simple_rb_per_cpu *cpu_buffer)
 {
+	/*
+	 * Order page::data and page::time_stamp before page::commit. Paired
+	 * with __rb_get_reader_page_from_remote().
+	 */
+	smp_wmb();
 	local_set(&cpu_buffer->tail_page->page->commit,
 		  cpu_buffer->tail_page->write);
+
+	/*
+	 * Order page::commit before meta::entries. Paired with
+	 * __rb_get_reader_page_from_remote().
+	 */
+	smp_wmb();
 	simple_rb_meta_inc(cpu_buffer->meta->entries, 1);
 
 	/*

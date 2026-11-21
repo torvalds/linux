@@ -1456,6 +1456,13 @@ static void free_tracers(struct trace_array *tr)
 	}
 }
 
+static void free_tracer_options(struct trace_array *tr)
+{
+	for (int i = 0; i < tr->nr_topts; i++)
+		kfree(tr->topts[i].topts);
+	kfree(tr->topts);
+}
+
 /**
  * register_tracer - register a tracer with the ftrace system.
  * @type: the plugin for the tracer
@@ -4028,7 +4035,9 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		break;
 
 	case TRACE_ITER(COPY_MARKER):
-		update_marker_trace(tr, enabled);
+		/* Writers of the top level trace_marker may still be on this instance */
+		if (update_marker_trace(tr, enabled) && !enabled)
+			synchronize_rcu();
 		/* update_marker_trace updates the tr->trace_flags */
 		return 0;
 	}
@@ -6289,7 +6298,7 @@ char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 		if (copy_func) {
 			ret = copy_func(buffer, ptr, size, data);
 		} else {
-			ret = __copy_from_user(buffer, ptr, size);
+			ret = copy_from_user(buffer, ptr, size);
 		}
 
 		preempt_disable_notrace();
@@ -6345,9 +6354,10 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (tr == &global_trace) {
 		guard(rcu)();
 		list_for_each_entry_rcu(tr, &marker_copies, marker_list) {
-			written = write_marker_to_buffer(tr, buf, cnt, ip);
-			if (written < 0)
-				break;
+			ssize_t w = write_marker_to_buffer(tr, buf, cnt, ip);
+
+			if (w >= 0 && w > written)
+				written = w;
 		}
 	} else {
 		written = write_marker_to_buffer(tr, buf, cnt, ip);
@@ -6424,9 +6434,10 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	if (tr == &global_trace) {
 		guard(rcu)();
 		list_for_each_entry_rcu(tr, &marker_copies, marker_list) {
-			written = write_raw_marker_to_buffer(tr, buf, cnt);
-			if (written < 0)
-				break;
+			ssize_t w = write_raw_marker_to_buffer(tr, buf, cnt);
+
+			if (w >= 0 && w > written)
+				written = w;
 		}
 	} else {
 		written = write_raw_marker_to_buffer(tr, buf, cnt);
@@ -7404,8 +7415,12 @@ static long tracing_buffers_ioctl(struct file *file, unsigned int cmd, unsigned 
 				return err;
 		}
 
-		return ring_buffer_map_get_reader(iter->array_buffer->buffer,
-						  iter->cpu_file);
+		trace_access_lock(iter->cpu_file);
+		err = ring_buffer_map_get_reader(iter->array_buffer->buffer,
+						 iter->cpu_file);
+		trace_access_unlock(iter->cpu_file);
+
+		return err;
 	} else if (cmd) {
 		return -ENOTTY;
 	}
@@ -8761,7 +8776,7 @@ trace_array_create_systems(const char *name, const char *systems,
 	if (trace_instance_dir) {
 		ret = trace_array_create_dir(tr);
 		if (ret)
-			goto out_free_tr;
+			goto out_free_tracers;
 	} else
 		__trace_early_add_events(tr);
 
@@ -8771,6 +8786,9 @@ trace_array_create_systems(const char *name, const char *systems,
 
 	return tr;
 
+ out_free_tracers:
+	free_tracers(tr);
+	free_tracer_options(tr);
  out_free_tr:
 	ftrace_free_ftrace_ops(tr);
 	free_trace_buffers(tr);
@@ -8924,10 +8942,7 @@ static int __remove_instance(struct trace_array *tr)
 	if (tr->flags & TRACE_ARRAY_FL_VMALLOC)
 		vfree((void *)tr->range_addr_start);
 
-	for (i = 0; i < tr->nr_topts; i++) {
-		kfree(tr->topts[i].topts);
-	}
-	kfree(tr->topts);
+	free_tracer_options(tr);
 
 	free_cpumask_var(tr->pipe_cpumask);
 	free_cpumask_var(tr->tracing_cpumask);

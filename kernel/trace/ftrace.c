@@ -5029,7 +5029,8 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 	if (unlikely(ftrace_disabled))
 		return 0;
 
-	if (func_g.type == MATCH_INDEX)
+	if (func_g.type == MATCH_FULL && !mod &&
+	    func_g.search && isdigit(func_g.search[0]))
 		return add_rec_by_index(hash, &func_g, clear_filter);
 
 	do_for_each_ftrace_rec(pg, rec) {
