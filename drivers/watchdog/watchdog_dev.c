@@ -445,6 +445,9 @@ static void watchdog_get_timeleft(struct watchdog_device *wdd,
 {
 	*timeleft = 0;
 
+	if (!watchdog_active(wdd) && !watchdog_hw_running(wdd))
+		return;
+
 	if (wdd->ops->get_timeleft) {
 		*timeleft = wdd->ops->get_timeleft(wdd);
 	} else {
