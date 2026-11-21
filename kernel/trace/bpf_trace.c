@@ -1397,8 +1397,16 @@ static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type 
 	if (off + size > sizeof(struct pt_regs))
 		return false;
 
-	if (type == BPF_WRITE)
+	if (type == BPF_WRITE) {
+		/*
+		 * pt_regs also holds what the kernel restores on the way to
+		 * user space: cs and flags on x86, pstate on arm64, status on
+		 * riscv. A prog can write the registers of the task only.
+		 */
+		if (!arch_uprobe_regs_writable(off, size))
+			return false;
 		prog->aux->kprobe_write_ctx = true;
+	}
 
 	return true;
 }

@@ -99,8 +99,8 @@ static struct bpf_iter_reg bpf_map_reg_info = {
 
 /*
  * For an iterator that hands the live map value to the program as a writable
- * buffer: the verifier knows nothing of the map, so the special fields of the
- * value have to lie outside of what the program may write.
+ * buffer: the verifier knows nothing of the map, so read-only maps
+ * and special fields of the value have to be protected from writes.
  */
 int bpf_iter_map_check_value_write(const struct bpf_prog *prog,
 				   const struct bpf_map *map)
@@ -109,7 +109,13 @@ int bpf_iter_map_check_value_write(const struct bpf_prog *prog,
 	const struct btf_field *field;
 	u32 i;
 
-	if (IS_ERR_OR_NULL(rec) || !prog->aux->max_rdwr_write)
+	if (!prog->aux->max_rdwr_write)
+		return 0;
+
+	if (map->map_flags & BPF_F_RDONLY_PROG)
+		return -EACCES;
+
+	if (IS_ERR_OR_NULL(rec))
 		return 0;
 
 	for (i = 0; i < rec->cnt; i++) {

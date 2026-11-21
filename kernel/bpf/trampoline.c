@@ -584,7 +584,7 @@ static void __bpf_tramp_image_put_rcu(struct rcu_head *rcu)
 
 	im = container_of(rcu, struct bpf_tramp_image, rcu);
 	INIT_WORK(&im->work, __bpf_tramp_image_put_deferred);
-	schedule_work(&im->work);
+	queue_work(bpf_prog_free_wq, &im->work);
 }
 
 /* callback, fexit step 2. Called after percpu_ref_kill confirms. */

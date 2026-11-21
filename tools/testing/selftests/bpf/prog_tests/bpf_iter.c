@@ -1100,6 +1100,39 @@ out:
 	bpf_iter_bpf_array_map__destroy(skel);
 }
 
+static void test_bpf_array_map_rdonly(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	struct bpf_iter_bpf_array_map *skel;
+	union bpf_iter_link_info linfo = {};
+	struct bpf_link *link;
+	int err;
+
+	skel = bpf_iter_bpf_array_map__open();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_bpf_array_map__open"))
+		return;
+
+	err = bpf_map__set_map_flags(skel->maps.arraymap1, BPF_F_RDONLY_PROG);
+	if (!ASSERT_OK(err, "set_map_flags"))
+		goto out;
+
+	err = bpf_iter_bpf_array_map__load(skel);
+	if (!ASSERT_OK(err, "bpf_iter_bpf_array_map__load"))
+		goto out;
+
+	linfo.map.map_fd = bpf_map__fd(skel->maps.arraymap1);
+	opts.link_info = &linfo;
+	opts.link_info_len = sizeof(linfo);
+	link = bpf_program__attach_iter(skel->progs.dump_bpf_array_map, &opts);
+	err = libbpf_get_error(link);
+	ASSERT_EQ(err, -EACCES, "attach_rdonly_write_iter");
+	if (!err)
+		bpf_link__destroy(link);
+
+out:
+	bpf_iter_bpf_array_map__destroy(skel);
+}
+
 static void test_bpf_array_map_iter_fd(void)
 {
 	struct bpf_iter_bpf_array_map *skel;
@@ -1770,6 +1803,8 @@ void test_bpf_iter(void)
 		test_bpf_percpu_hash_map();
 	if (test__start_subtest("bpf_array_map"))
 		test_bpf_array_map();
+	if (test__start_subtest("bpf_array_map_rdonly"))
+		test_bpf_array_map_rdonly();
 	if (test__start_subtest("bpf_array_map_iter_fd"))
 		test_bpf_array_map_iter_fd();
 	if (test__start_subtest("bpf_percpu_array_map"))

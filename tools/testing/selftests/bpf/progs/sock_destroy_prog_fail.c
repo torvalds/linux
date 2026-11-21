@@ -20,3 +20,14 @@ int BPF_PROG(trace_tcp_destroy_sock, struct sock *sk)
 	return 0;
 }
 
+SEC("iter/sockmap")
+__failure __msg("calling kernel function bpf_sock_destroy is not allowed")
+int iter_sockmap_destroy(struct bpf_iter__sockmap *ctx)
+{
+	struct sock *sk = ctx->sk;
+
+	if (sk)
+		bpf_sock_destroy((struct sock_common *)sk);
+
+	return 0;
+}

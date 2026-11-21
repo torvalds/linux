@@ -53,6 +53,7 @@ enum cgroup_bpf_attach_type {
 	MAX_CGROUP_BPF_ATTACH_TYPE
 };
 
+/* Locking: see cgroup_bpf_mutex in kernel/bpf/cgroup.c */
 struct cgroup_bpf {
 	/* array of effective progs in this cgroup */
 	struct bpf_prog_array __rcu *effective[MAX_CGROUP_BPF_ATTACH_TYPE];

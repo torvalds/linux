@@ -10,13 +10,12 @@
 
 char _license[] SEC("license") = "GPL";
 
-struct sock {
+struct bpf_iter__sockmap {
+	struct sock *sk;
 } __attribute__((preserve_access_index));
 
-struct bpf_iter__sockmap {
-	union {
-		struct sock *sk;
-	};
+struct bpf_iter__unix {
+	struct sock *unix_sk;
 } __attribute__((preserve_access_index));
 
 struct {
@@ -110,6 +109,14 @@ __success
 int test_trace_iter(struct bpf_iter__sockmap *ctx)
 {
 	test_sockmap_mutate(ctx->sk);
+	return 0;
+}
+
+SEC("iter/unix")
+__failure __msg("cannot update sockmap in this context")
+int test_trace_iter_unix(struct bpf_iter__unix *ctx)
+{
+	test_sockmap_mutate(ctx->unix_sk);
 	return 0;
 }
 
