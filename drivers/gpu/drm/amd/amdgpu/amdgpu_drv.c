@@ -3221,7 +3221,7 @@ static int __init amdgpu_init(void)
 	/* Ignore KFD init failures when CONFIG_HSA_AMD is not set. */
 	r = amdgpu_amdkfd_init();
 	if (r && r != -ENOENT)
-		goto error_fini_sync;
+		goto error_release_acpi;
 
 	if (amdgpu_pp_feature_mask & PP_OVERDRIVE_MASK) {
 		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
@@ -3230,9 +3230,17 @@ static int __init amdgpu_init(void)
 	}
 
 	/* let modprobe override vga console setting */
-	return pci_register_driver(&amdgpu_kms_pci_driver);
+	r = pci_register_driver(&amdgpu_kms_pci_driver);
+	if (r)
+		goto error_fini_kfd;
 
-error_fini_sync:
+	return 0;
+
+error_fini_kfd:
+	amdgpu_amdkfd_fini();
+error_release_acpi:
+	amdgpu_acpi_release();
+	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
 	return r;
 }

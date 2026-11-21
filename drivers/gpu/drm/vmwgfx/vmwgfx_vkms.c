@@ -299,7 +299,7 @@ vmw_vkms_crtc_cleanup(struct drm_crtc *crtc)
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 
 	if (vmw->vkms_enabled)
-		drm_crtc_vblank_cancel_timer(crtc);
+		drm_crtc_vblank_stop_timer(crtc);
 
 	if (du->vkms.surface)
 		vmw_surface_unreference(&du->vkms.surface);

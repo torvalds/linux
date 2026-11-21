@@ -45,6 +45,7 @@ struct amdgpu_atpx {
 static struct amdgpu_atpx_priv {
 	bool atpx_detected;
 	bool bridge_pm_usable;
+	bool handler_registered;
 	unsigned int quirks;
 	/* handle for device - and atpx */
 	acpi_handle dhandle;
@@ -663,7 +664,8 @@ void amdgpu_register_atpx_handler(void)
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&amdgpu_atpx_handler, handler_flags);
+	if (!vga_switcheroo_register_handler(&amdgpu_atpx_handler, handler_flags))
+		amdgpu_atpx_priv.handler_registered = true;
 }
 
 /**
@@ -673,5 +675,14 @@ void amdgpu_register_atpx_handler(void)
  */
 void amdgpu_unregister_atpx_handler(void)
 {
+	/*
+	 * vga_switcheroo has a single handler slot and unregistering clears it
+	 * no matter who set it, so leave a handler registered by another
+	 * driver, such as apple-gmux, in place.
+	 */
+	if (!amdgpu_atpx_priv.handler_registered)
+		return;
+
 	vga_switcheroo_unregister_handler();
+	amdgpu_atpx_priv.handler_registered = false;
 }

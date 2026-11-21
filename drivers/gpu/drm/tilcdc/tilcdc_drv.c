@@ -235,7 +235,8 @@ static const struct drm_driver tilcdc_driver = {
 
 static int tilcdc_pm_suspend(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct tilcdc_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *ddev = &priv->ddev;
 	int ret = 0;
 
 	ret = drm_mode_config_helper_suspend(ddev);
@@ -248,7 +249,8 @@ static int tilcdc_pm_suspend(struct device *dev)
 
 static int tilcdc_pm_resume(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct tilcdc_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *ddev = &priv->ddev;
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);

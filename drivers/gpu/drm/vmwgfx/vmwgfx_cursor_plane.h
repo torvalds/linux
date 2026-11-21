@@ -14,6 +14,8 @@
 #include "drm/drm_fourcc.h"
 #include "drm/drm_plane.h"
 
+#include <drm/ttm/ttm_bo.h>
+
 #include <linux/types.h>
 
 struct SVGA3dCmdHeader;
@@ -41,6 +43,8 @@ struct vmw_cursor_plane_state {
 	enum vmw_cursor_update_type update_type;
 	bool changed;
 	bool surface_changed;
+	/* The mapped buffer is referenced and pinned by this state. */
+	struct ttm_bo_kmap_obj map;
 	struct vmw_bo *mob;
 	struct {
 		s32 hotspot_x;

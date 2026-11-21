@@ -1527,6 +1527,37 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 	snprintf(ucode_prefix, len, "%s_%d_%d_%d", ip_name, maj, min, rev);
 }
 
+/* Add the suffix of the firmware variant before the extension: foo.bin -> foo_l.bin */
+static int amdgpu_ucode_set_suffix(struct amdgpu_device *adev, char *fname)
+{
+	const char *suffix;
+	size_t base;
+
+	switch (adev->firmware.sign_type) {
+	case AMDGPU_FW_SIGN_PREPROD:
+		suffix = "_p.bin";
+		break;
+	case AMDGPU_FW_SIGN_ALT:
+		suffix = "_l.bin";
+		break;
+	case AMDGPU_FW_SIGN_UNKNOWN:
+		drm_warn(adev_to_drm(adev), "Unknown firmware signing\n");
+		return -EINVAL;
+	default:
+		/* Default variant: the name is unchanged */
+		return 0;
+	}
+
+	if (!strends(fname, ".bin"))
+		return -EINVAL;
+
+	base = strlen(fname) - strlen(".bin");
+	if (strscpy(fname + base, suffix, AMDGPU_UCODE_NAME_MAX - base) < 0)
+		return -EOVERFLOW;
+
+	return 0;
+}
+
 /*
  * amdgpu_ucode_request - Fetch and validate amdgpu microcode
  *
@@ -1554,6 +1585,10 @@ int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
 		dev_warn(adev->dev, "amdgpu firmware name buffer overflow\n");
 		return -EOVERFLOW;
 	}
+
+	r = amdgpu_ucode_set_suffix(adev, fname);
+	if (r)
+		return r;
 
 	if (required == AMDGPU_UCODE_REQUIRED)
 		r = request_firmware(fw, fname, adev->dev);

@@ -55,6 +55,8 @@ static void vmw_bo_free(struct ttm_buffer_object *bo)
 			/* Reserve and switch the backing mob. */
 			mutex_lock(&res->dev_priv->cmdbuf_mutex);
 			(void)vmw_resource_reserve(res, false, true);
+			/* TTM drops the reservation before calling the destructor. */
+			dma_resv_lock(bo->base.resv, NULL);
 			vmw_resource_mob_detach(res);
 			if (res->dirty)
 				res->func->dirty_free(res);
@@ -62,6 +64,7 @@ static void vmw_bo_free(struct ttm_buffer_object *bo)
 				vmw_bo_dirty_release(res->guest_memory_bo);
 			res->guest_memory_bo = NULL;
 			res->guest_memory_offset = 0;
+			dma_resv_unlock(bo->base.resv);
 			vmw_resource_unreserve(res, true, false, false, NULL,
 					       0);
 			mutex_unlock(&res->dev_priv->cmdbuf_mutex);

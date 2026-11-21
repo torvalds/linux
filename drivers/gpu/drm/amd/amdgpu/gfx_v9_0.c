@@ -1369,6 +1369,9 @@ struct amdgpu_gfxoff_quirk {
 	u8 revision;
 };
 
+/* Match any chip revision in amdgpu_gfxoff_quirk.revision */
+#define AMDGPU_GFXOFF_QUIRK_ANY_REV	0xff
+
 static const struct amdgpu_gfxoff_quirk amdgpu_gfxoff_quirk_list[] = {
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=204689 */
 	{ 0x1002, 0x15dd, 0x1002, 0x15dd, 0xc8 },
@@ -1378,6 +1381,7 @@ static const struct amdgpu_gfxoff_quirk amdgpu_gfxoff_quirk_list[] = {
 	{ 0x1002, 0x15dd, 0x1002, 0x15dd, 0xc6 },
 	/* Apple MacBook Pro (15-inch, 2019) Radeon Pro Vega 20 4 GB */
 	{ 0x1002, 0x69af, 0x106b, 0x019a, 0xc0 },
+	{ 0x1002, 0x15d8, 0x17aa, 0x318f, AMDGPU_GFXOFF_QUIRK_ANY_REV },
 	/* https://bbs.openkylin.top/t/topic/171497 */
 	{ 0x1002, 0x15d8, 0x19e5, 0x3e14, 0xc2 },
 	/* HP 705G4 DM with R5 2400G */
@@ -1394,7 +1398,8 @@ static bool gfx_v9_0_should_disable_gfxoff(struct pci_dev *pdev)
 		    pdev->device == p->chip_device &&
 		    pdev->subsystem_vendor == p->subsys_vendor &&
 		    pdev->subsystem_device == p->subsys_device &&
-		    pdev->revision == p->revision) {
+		    (p->revision == AMDGPU_GFXOFF_QUIRK_ANY_REV ||
+		     pdev->revision == p->revision)) {
 			return true;
 		}
 		++p;

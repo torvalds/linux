@@ -1256,6 +1256,11 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 			goto unlock_bo;
 		}
 
+		if (bo->dbc->id != dbc->id) {
+			ret = -EINVAL;
+			goto unlock_bo;
+		}
+
 		if (is_partial && pexec[i].resize > bo->base.size) {
 			ret = -EINVAL;
 			goto unlock_bo;
@@ -1769,6 +1774,17 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	}
 
 	bo = to_qaic_bo(obj);
+
+	if (!bo->sliced) {
+		ret = -EINVAL;
+		goto put_obj;
+	}
+
+	if (bo->dbc->id != dbc->id) {
+		ret = -EINVAL;
+		goto put_obj;
+	}
+
 	timeout = args->timeout ? args->timeout : wait_exec_default_timeout_ms;
 	timeout = msecs_to_jiffies(timeout);
 	ret = wait_for_completion_interruptible_timeout(&bo->xfer_done, timeout);

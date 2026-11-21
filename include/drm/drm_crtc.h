@@ -909,6 +909,15 @@ struct drm_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 
 	/**
+	 * @sync_vblank:
+	 *
+	 * Synchronizes vblank hardware and software state after switching off
+	 * vblanks for the given CRTC. Called without holding vblank locks. Allows
+	 * the driver to clean up vblank state outside of critical sections.
+	 */
+	void (*sync_vblank)(struct drm_crtc *crtc);
+
+	/**
 	 * @get_vblank_timestamp:
 	 *
 	 * Called by drm_get_last_vbltimestamp(). Should return a precise

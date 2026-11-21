@@ -496,7 +496,7 @@ enum xe_ras_recovery_action xe_ras_process_errors(struct xe_device *xe)
 	}
 
 	if (!xe->info.has_sysctrl)
-		return XE_RAS_RECOVERY_ACTION_RESET;
+		return XE_RAS_RECOVERY_ACTION_RECOVERED;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(sent) < XE_RAS_COMP_MAX);
 	/* Default action */

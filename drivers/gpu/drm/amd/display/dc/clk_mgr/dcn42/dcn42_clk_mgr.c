@@ -643,6 +643,9 @@ DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
 	DC_LOG_SMU("dp_dto_source_clock %d, dprefclk %d\n", clk_mgr_base->dp_dto_source_clock_in_khz, clk_mgr_base->dprefclk_khz);
 	dcn42_dump_clk_registers(&clk_mgr_base->boot_snapshot, clk_mgr);
 
+	/* Snapshot is in 10kHz units; seed clks so update_clocks() does not lower the pre-OS clocks */
+	clk_mgr_base->clks.dispclk_khz = clk_mgr_base->boot_snapshot.dispclk * 10;
+	clk_mgr_base->clks.dppclk_khz = clk_mgr_base->boot_snapshot.dppclk * 10;
 	clk_mgr_base->clks.ref_dtbclk_khz =  clk_mgr_base->boot_snapshot.dtbclk * 10;
 	clk_mgr_base->clks.dtbclk_en = clk_mgr_base->boot_snapshot.dtbclk > 59000;
 }

@@ -2815,11 +2815,11 @@ enum dc_status link_set_dpms_on(
 
 		switch (step_result) {
 		case DC_DPMS_SUCCESS:
-		case DC_DPMS_FAILED_HANDSHAKE:
 			// Enum is ordered from "best" to "worst" results
 			result = max(result, step_result);
 			break;
 
+		case DC_DPMS_FAILED_HANDSHAKE:
 		case DC_DPMS_SKIPPED_HANDSHAKE:
 			return step_result;
 

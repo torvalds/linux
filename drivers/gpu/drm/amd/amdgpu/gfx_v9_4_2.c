@@ -23,12 +23,14 @@
 #include "amdgpu.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "soc15_common.h"
 
 #include "gc/gc_9_4_2_offset.h"
 #include "gc/gc_9_4_2_sh_mask.h"
 #include "gfx_v9_0.h"
 
 #include "gfx_v9_4_2.h"
+#include "gfx_v9_4_3.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_gfx.h"
 
@@ -716,56 +718,88 @@ pro_end:
 
 static int gfx_v9_clean_shaders(struct amdgpu_device *adev)
 {
-	int r;
+	int r = 0;
 	/* CU_ID: 0~15, SIMD_ID: 0~3, WAVE_ID: 0 ~ 9 */
 	int wb_size = adev->gfx.config.max_shader_engines *
 			 CU_ID_MAX * SIMD_ID_MAX * WAVE_ID_MAX;
 	struct amdgpu_ib wb_ib;
+	struct amdgpu_ring *ring;
 	struct dma_fence *fence = NULL;
+	const struct soc15_reg_entry *init_regs;
+	u32 init_regs_size;
 	u32 pattern = 0xa;
+	int xcc_id;
 
-	/* bail if the compute ring is not ready */
-	if (!adev->gfx.compute_ring[0].sched.ready)
+	if (adev->gfx.disable_kq) {
+		dev_warn(adev->dev, "Cannot run shader cleaner with kernel queues disabled");
 		return 0;
-
-	/* allocate the write-back buffer from IB */
-	memset(&wb_ib, 0, sizeof(wb_ib));
-	r = amdgpu_ib_get(adev, NULL, (1 + wb_size) * sizeof(uint32_t),
-			  AMDGPU_IB_POOL_DIRECT, &wb_ib);
-	if (r) {
-		dev_err(adev->dev, "failed to get ib (%d) for wb.\n", r);
-		return r;
-	}
-	memset(wb_ib.ptr, 0, (1 + wb_size) * sizeof(uint32_t));
-
-	r = gfx_v9_4_2_run_shader(adev,
-			&adev->gfx.compute_ring[0],
-			fault_cleaner_compute_shader_aldebaran,
-			sizeof(fault_cleaner_compute_shader_aldebaran),
-			fault_cleaner_init_regs_aldebaran,
-			ARRAY_SIZE(fault_cleaner_init_regs_aldebaran),
-			adev->gfx.cu_info.number * 32,
-			wb_ib.gpu_addr, pattern, &fence);
-
-	if (r) {
-		dev_err(adev->dev, "failed to clear MI200\n");
-		goto pro_end;
 	}
 
-	/* wait for the GPU to finish processing the IB */
-	r = dma_fence_wait(fence, false);
-	if (r)
-		dev_err(adev->dev, "timeout to clear MI200\n");
+	/* gfx943+ has different register layout compared to gfx942.*/
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
+		init_regs = gfx_v9_4_3_fault_cleaner_init_regs;
+		init_regs_size = gfx_v9_4_3_fault_cleaner_init_regs_size;
+		break;
+	default:
+		init_regs = fault_cleaner_init_regs_aldebaran;
+		init_regs_size = ARRAY_SIZE(fault_cleaner_init_regs_aldebaran);
+		break;
+	}
+
+	for_each_inst(xcc_id, adev->gfx.xcc_mask) {
+		ring = &adev->gfx.compute_ring[xcc_id * adev->gfx.num_compute_rings];
+
+		/* bail if the compute ring is not ready */
+		if (!ring->sched.ready)
+			continue;
+
+		/* allocate the write-back buffer from IB */
+		memset(&wb_ib, 0, sizeof(wb_ib));
+		r = amdgpu_ib_get(adev, NULL, (1 + wb_size) * sizeof(uint32_t),
+				  AMDGPU_IB_POOL_DIRECT, &wb_ib);
+		if (r) {
+			dev_err(adev->dev, "failed to get ib (%d) for wb.\n", r);
+			return r;
+		}
+		memset(wb_ib.ptr, 0, (1 + wb_size) * sizeof(uint32_t));
+
+		r = gfx_v9_4_2_run_shader(adev,
+				ring,
+				fault_cleaner_compute_shader_aldebaran,
+				sizeof(fault_cleaner_compute_shader_aldebaran),
+				init_regs,
+				init_regs_size,
+				adev->gfx.cu_info.number * SIMD_ID_MAX * WAVE_ID_MAX,
+				wb_ib.gpu_addr, pattern, &fence);
+
+		if (r) {
+			dev_err(adev->dev, "failed to clear GPR on xcc %d\n", xcc_id);
+			goto pro_end;
+		}
+
+		/* wait for the GPU to finish processing the IB */
+		r = dma_fence_wait(fence, false);
+		if (r)
+			dev_err(adev->dev, "timeout to clear GPR on xcc %d\n", xcc_id);
 
 pro_end:
-	if (fence)
-		dma_fence_put(fence);
-	amdgpu_ib_free(&wb_ib, NULL);
+		if (fence) {
+			dma_fence_put(fence);
+			fence = NULL;
+		}
+		amdgpu_ib_free(&wb_ib, NULL);
+
+		if (r)
+			break;
+	}
 
 	if (r)
-		dev_dbg(adev->dev, "Clean GPR Failed\n");
+		dev_dbg(adev->dev, "Clearing fault state failed\n");
 	else
-		dev_dbg(adev->dev, "Clean GPR Successfully\n");
+		dev_dbg(adev->dev, "Fault state cleared Successfully\n");
 
 	return r;
 }

@@ -404,6 +404,26 @@ static uint64_t psp_get_runtime_db_header_pos(struct amdgpu_device *adev)
 }
 
 /*
+ * Which firmware the platform needs, as reported by the PSP in C2PMSG_63: the
+ * signing scheme and whether this is a preproduction part. The defaults are kept if
+ * the ASIC doesn't report it or it can't be read.
+ */
+void amdgpu_psp_init_fw_variant(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(15, 0, 0):
+	case IP_VERSION(15, 0, 9):
+		psp_v15_0_0_get_fw_variant(adev);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
  * Helper funciton to query psp runtime database entry
  *
  * @adev: amdgpu_device pointer

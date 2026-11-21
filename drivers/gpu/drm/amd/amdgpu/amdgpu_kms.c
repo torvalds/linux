@@ -474,7 +474,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			    !adev->gfx.compute_ring[i].no_user_submission)
 				++num_rings;
 
-		if (!adev->sdma.disable_uq) {
+		if (!adev->gfx.disable_uq) {
 			for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++)
 				num_slots += hweight32(adev->mes.compute_hqd_mask[i]);
 		}
@@ -489,7 +489,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			    !adev->sdma.instance[i].ring.no_user_submission)
 				++num_rings;
 
-		if (!adev->gfx.disable_uq) {
+		if (!adev->sdma.disable_uq) {
 			for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++)
 				num_slots += hweight32(adev->mes.sdma_hqd_mask[i]);
 		}
@@ -1688,6 +1688,7 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
 	struct amdgpu_device *adev = drm_to_adev(dev);
+	bool locked = false;
 	int vpos, hpos, stat;
 	u32 count;
 
@@ -1695,9 +1696,26 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
-	if (!down_read_trylock(&adev->reset_domain->sem))
-		return drm_crtc_vblank_count(crtc);
 
+	/*
+	 * A GPU reset is in progress and the display hardware cannot be read
+	 * safely. Return the hardware counter value DRM already cached rather
+	 * than the software vblank count: the core feeds this callback's
+	 * result back into vblank->last, and a software count lives in a
+	 * different numeric domain, which later trips
+	 * drm_WARN_ON_ONCE(cur_vblank != vblank->last) in
+	 * drm_update_vblank_count().
+	 *
+	 * Only task context has to back off. Vblank interrupts only arrive
+	 * while a CRTC is scanning out, so the interrupt path can read the
+	 * hardware, and it has to keep counting: vblank waits that already
+	 * sleep when a reset takes the semaphore never complete otherwise.
+	 */
+	if (in_task()) {
+		if (!down_read_trylock(&adev->reset_domain->sem))
+			return drm_crtc_vblank_crtc(crtc)->last;
+		locked = true;
+	}
 
 	/* The hw increments its frame counter at start of vsync, not at start
 	 * of vblank, as is required by DRM core vblank counter handling.
@@ -1743,7 +1761,8 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 		DRM_DEBUG_VBL("NULL mode info! Returned count may be wrong.\n");
 	}
 
-	up_read(&adev->reset_domain->sem);
+	if (locked)
+		up_read(&adev->reset_domain->sem);
 	return count;
 }
 

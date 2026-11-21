@@ -94,9 +94,12 @@ bool mod_power_psr_notify_mode_change(struct mod_power *mod_power,
 	 * The value of DSC slice height is determined in DSC Driver but it does not
 	 * propagated out here, so we need to calculate it as below 'slice_height'.
 	 */
-	psr_su_set_dsc_slice_height(dc, link,
-				(struct dc_stream_state *) stream,
-				&psr_config);
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
+		if (!psr_su_set_dsc_slice_height(dc, link,
+						 (struct dc_stream_state *)stream,
+						 &psr_config))
+			return false;
+	}
 
 	dc_link_setup_psr(link, stream, &psr_config, &psr_context);
 

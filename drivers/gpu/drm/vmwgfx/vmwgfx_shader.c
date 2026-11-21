@@ -597,7 +597,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	shader = kmalloc_obj(*shader);
+	shader = kzalloc_obj(*shader);
 	if (!shader) {
 		return -ENOMEM;
 	}

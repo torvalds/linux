@@ -1269,18 +1269,7 @@ static void skl_set_cdclk(struct intel_display *display,
 
 static void skl_sanitize_cdclk(struct intel_display *display)
 {
-	u32 cdctl, expected, swf18;
-
-	/*
-	 * check if the pre-os initialized the display
-	 * There is SWF18 scratchpad register defined which is set by the
-	 * pre-os which can be used by the OS drivers to check the status
-	 */
-	swf18 = intel_de_read(display, SWF_ILK(0x18));
-	if ((swf18 & 0x00FFFFFF) == 0) {
-		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to SWF18 0x%x\n", swf18);
-		goto sanitize;
-	}
+	u32 cdctl, expected;
 
 	intel_update_cdclk(display);
 	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");

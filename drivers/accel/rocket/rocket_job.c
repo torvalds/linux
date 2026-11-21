@@ -201,12 +201,13 @@ static int rocket_acquire_object_fences(struct drm_gem_object **bos,
 
 static void rocket_attach_object_fences(struct drm_gem_object **bos,
 					int bo_count,
-					struct dma_fence *fence)
+					struct dma_fence *fence,
+					enum dma_resv_usage usage)
 {
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		dma_resv_add_fence(bos[i]->resv, fence, DMA_RESV_USAGE_WRITE);
+		dma_resv_add_fence(bos[i]->resv, fence, usage);
 }
 
 static int rocket_job_push(struct rocket_job *job)
@@ -248,7 +249,10 @@ static int rocket_job_push(struct rocket_job *job)
 		drm_sched_entity_push_job(&job->base);
 	}
 
-	rocket_attach_object_fences(job->out_bos, job->out_bo_count, job->inference_done_fence);
+	rocket_attach_object_fences(job->in_bos, job->in_bo_count,
+				    job->inference_done_fence, DMA_RESV_USAGE_READ);
+	rocket_attach_object_fences(job->out_bos, job->out_bo_count,
+				    job->inference_done_fence, DMA_RESV_USAGE_WRITE);
 
 err_unlock:
 	drm_gem_unlock_reservations(bos, bo_count, &acquire_ctx);
@@ -264,7 +268,7 @@ static void rocket_job_cleanup(struct kref *ref)
 						refcount);
 	unsigned int i;
 
-	rocket_iommu_domain_put(job->domain);
+	rocket_vm_put(job->vm);
 
 	dma_fence_put(job->done_fence);
 	dma_fence_put(job->inference_done_fence);
@@ -345,7 +349,7 @@ static struct dma_fence *rocket_job_run(struct drm_sched_job *sched_job)
 	if (ret < 0)
 		goto err_put_fences;
 
-	ret = iommu_attach_group(job->domain->domain, core->iommu_group);
+	ret = iommu_attach_group(job->vm->domain, core->iommu_group);
 	if (ret < 0)
 		goto err_put_pm;
 
@@ -369,39 +373,56 @@ static void rocket_job_handle_irq(struct rocket_core *core)
 {
 	pm_runtime_mark_last_busy(core->dev);
 
-	rocket_pc_writel(core, OPERATION_ENABLE, 0x0);
-	rocket_pc_writel(core, INTERRUPT_CLEAR, 0x1ffff);
+	scoped_guard(mutex, &core->job_lock) {
+		/*
+		 * Stopping the block belongs under the lock. hw_submit() writes
+		 * OPERATION_ENABLE too, and outside the lock this zero can land
+		 * after that one and stop a task that has only just started.
+		 */
+		rocket_pc_writel(core, OPERATION_ENABLE, 0x0);
+		rocket_pc_writel(core, INTERRUPT_CLEAR, 0x1ffff);
 
-	scoped_guard(mutex, &core->job_lock)
 		if (core->in_flight_job) {
 			if (core->in_flight_job->next_task_idx < core->in_flight_job->task_count) {
 				rocket_job_hw_submit(core, core->in_flight_job);
 				return;
 			}
 
-			iommu_detach_group(NULL, iommu_group_get(core->dev));
+			iommu_detach_group(NULL, core->iommu_group);
 			dma_fence_signal(core->in_flight_job->done_fence);
 			pm_runtime_put_autosuspend(core->dev);
 			core->in_flight_job = NULL;
 		}
+	}
 }
 
 static void
 rocket_reset(struct rocket_core *core, struct drm_sched_job *bad)
 {
+	bool put_job_ref;
+
 	if (!atomic_read(&core->reset.pending))
 		return;
 
 	drm_sched_stop(&core->sched, bad);
 
+	scoped_guard(mutex, &core->job_lock) {
+		if (pm_runtime_get_if_active(core->dev) > 0) {
+			rocket_pc_writel(core, INTERRUPT_MASK, 0x0);
+			rocket_pc_writel(core, INTERRUPT_CLEAR, 0x1ffff);
+			pm_runtime_put_autosuspend(core->dev);
+		}
+	}
+
+	synchronize_irq(core->irq);
+
 	/*
 	 * Remaining interrupts have been handled, but we might still have
 	 * stuck jobs. Let's make sure the PM counters stay balanced by
-	 * manually calling pm_runtime_put_noidle().
+	 * dropping the job's reference once the core has been reset.
 	 */
 	scoped_guard(mutex, &core->job_lock) {
-		if (core->in_flight_job)
-			pm_runtime_put_noidle(core->dev);
+		put_job_ref = core->in_flight_job;
 
 		iommu_detach_group(NULL, core->iommu_group);
 
@@ -410,6 +431,9 @@ rocket_reset(struct rocket_core *core, struct drm_sched_job *bad)
 
 	/* Proceed with reset now. */
 	rocket_core_reset(core);
+
+	if (put_job_ref)
+		pm_runtime_put_autosuspend(core->dev);
 
 	/* NPU has been reset, we can clear the reset pending bit. */
 	atomic_set(&core->reset.pending, 0);
@@ -538,6 +562,9 @@ int rocket_job_open(struct rocket_file_priv *rocket_priv)
 	unsigned int core;
 	int ret;
 
+	if (!scheds)
+		return -ENOMEM;
+
 	for (core = 0; core < rdev->num_cores; core++)
 		scheds[core] = &rdev->cores[core].sched;
 
@@ -545,18 +572,20 @@ int rocket_job_open(struct rocket_file_priv *rocket_priv)
 				    DRM_SCHED_PRIORITY_NORMAL,
 				    scheds,
 				    rdev->num_cores, NULL);
-	if (WARN_ON(ret))
-		return ret;
+	if (ret)
+		kfree(scheds);
+	else
+		rocket_priv->scheds = scheds;
 
-	return 0;
+	return ret;
 }
 
 void rocket_job_close(struct rocket_file_priv *rocket_priv)
 {
 	struct drm_sched_entity *entity = &rocket_priv->sched_entity;
 
-	kfree(entity->sched_list);
 	drm_sched_entity_destroy(entity);
+	kfree(rocket_priv->scheds);
 }
 
 int rocket_job_is_idle(struct rocket_core *core)
@@ -586,7 +615,7 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	kref_init(&rjob->refcount);
 
 	rjob->rdev = rdev;
-	rjob->domain = rocket_iommu_domain_get(file_priv);
+	rjob->vm = rocket_vm_get(file_priv);
 
 	ret = drm_sched_job_init(&rjob->base,
 				 &file_priv->sched_entity,

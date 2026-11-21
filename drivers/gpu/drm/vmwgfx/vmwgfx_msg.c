@@ -431,7 +431,7 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 		/* Remove reply code, which are the first 2 characters of
 		 * the reply
 		 */
-		reply_len = max(reply_len - 2, (size_t) 0);
+		reply_len = reply_len > 2 ? reply_len - 2 : 0;
 		reply_len = min(reply_len, *length);
 
 		if (reply_len > 0)
@@ -939,9 +939,12 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	struct vmw_private *const dev_priv = vmw_priv(dev);
 
-	const size_t num_pages_stat = PFN_UP(arg->stat_len);
-	const size_t num_pages_info = PFN_UP(arg->info_len);
-	const size_t num_pages_strs = PFN_UP(arg->strs_len);
+	const u64 max_stat_len = (u64)MKS_GUEST_STAT_INSTANCE_MAX_STAT_PPNS * PAGE_SIZE;
+	const u64 max_info_len = (u64)MKS_GUEST_STAT_INSTANCE_MAX_INFO_PPNS * PAGE_SIZE;
+	const u64 max_strs_len = (u64)MKS_GUEST_STAT_INSTANCE_MAX_STRS_PPNS * PAGE_SIZE;
+	size_t num_pages_stat;
+	size_t num_pages_info;
+	size_t num_pages_strs;
 	long desc_len;
 	long nr_pinned_stat;
 	long nr_pinned_info;
@@ -965,10 +968,14 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	if (!arg->description)
 		return -EINVAL;
 
-	if (num_pages_stat > ARRAY_SIZE(pdesc->statPPNs) ||
-		num_pages_info > ARRAY_SIZE(pdesc->infoPPNs) ||
-		num_pages_strs > ARRAY_SIZE(pdesc->strsPPNs))
+	if (arg->stat_len > max_stat_len ||
+	    arg->info_len > max_info_len ||
+	    arg->strs_len > max_strs_len)
 		return -EINVAL;
+
+	num_pages_stat = PFN_UP(arg->stat_len);
+	num_pages_info = PFN_UP(arg->info_len);
+	num_pages_strs = PFN_UP(arg->strs_len);
 
 	/* Find an available slot in the mksGuestStats user array and reserve it */
 	for (slot = 0; slot < ARRAY_SIZE(dev_priv->mksstat_user_pids); ++slot)
