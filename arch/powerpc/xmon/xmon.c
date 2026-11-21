@@ -3240,8 +3240,9 @@ memzcan(void)
 		printf("%.8lx\n", a - mskip);
 }
 
-static void show_task(struct task_struct *volatile tsk)
+static void show_task(struct task_struct *volatile vol_tsk)
 {
+	struct task_struct *tsk = vol_tsk;
 	unsigned int p_state = READ_ONCE(tsk->__state);
 	char state;
 

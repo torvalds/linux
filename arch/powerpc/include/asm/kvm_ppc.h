@@ -720,7 +720,7 @@ static inline int kvmppc_xive_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
  * new "XIVE" interrupt controller.
  */
 extern int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
-				u32 priority);
+				u8 priority);
 extern int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 				u32 *priority);
 extern int kvmppc_xive_int_on(struct kvm *kvm, u32 irq);
@@ -758,7 +758,7 @@ extern bool kvmppc_xive_native_supported(void);
 
 #else
 static inline int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
-				       u32 priority) { return -1; }
+				       u8 priority) { return -1; }
 static inline int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 				       u32 *priority) { return -1; }
 static inline int kvmppc_xive_int_on(struct kvm *kvm, u32 irq) { return -1; }

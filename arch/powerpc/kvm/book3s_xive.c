@@ -1267,7 +1267,7 @@ static int xive_target_interrupt(struct kvm *kvm,
  */
 
 int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
-			 u32 priority)
+			 u8 priority)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
 	struct kvmppc_xive_src_block *sb;

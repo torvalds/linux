@@ -464,7 +464,7 @@ static inline bool arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-#define hard_irq_disable()		arch_local_irq_disable()
+#define hard_irq_disable()		local_irq_disable()
 
 static inline bool regs_irqs_disabled(struct pt_regs *regs)
 {
