@@ -1663,7 +1663,7 @@ xfs_reflink_zero_posteof(
 /*
  * Prepare two files for range cloning.  Upon a successful return both inodes
  * will have the iolock and mmaplock held, the page cache of the out file will
- * be truncated, and any leases on the out file will have been broken.  This
+ * be invalidated, and any leases on the out file will have been broken.  This
  * function borrows heavily from xfs_file_aio_write_checks.
  *
  * The VFS allows partial EOF blocks to "match" for dedupe even though it hasn't

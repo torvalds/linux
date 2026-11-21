@@ -143,7 +143,6 @@ STATIC size_t
 xchk_stats_estimate_bufsize(
 	struct xchk_stats	*cs)
 {
-	struct xchk_scrub_stats	*css = &cs->cs_stats[0];
 	unsigned int		i;
 	size_t			field_width;
 	size_t			ret = 0;
@@ -157,7 +156,7 @@ xchk_stats_estimate_bufsize(
 			      offsetof(struct xchk_scrub_stats, checktime_us)) /
 			     sizeof(uint64_t));
 
-	for (i = 0; i < XFS_SCRUB_TYPE_NR; i++, css++) {
+	for (i = 0; i < XFS_SCRUB_TYPE_NR; i++) {
 		if (!name_map[i])
 			continue;
 

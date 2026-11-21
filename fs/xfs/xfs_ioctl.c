@@ -564,11 +564,13 @@ xfs_ioctl_setattr_xflags(
 
 		/*
 		 * If S_DAX is enabled on this file, we can only switch the
-		 * device if both support fsdax.  We can't update S_DAX because
-		 * there might be other threads walking down the access paths.
+		 * device if both support fsdax, and the zoned code does not.
+		 * We can't update S_DAX because there might be other threads
+		 * walking down the access paths.
 		 */
 		if (IS_DAX(VFS_I(ip)) &&
-		    (mp->m_ddev_targp->bt_daxdev == NULL ||
+		    (xfs_has_zoned(mp) ||
+		     mp->m_ddev_targp->bt_daxdev == NULL ||
 		     (mp->m_rtdev_targp &&
 		      mp->m_rtdev_targp->bt_daxdev == NULL)))
 			return -EINVAL;
@@ -595,7 +597,7 @@ xfs_ioctl_setattr_xflags(
 	 * Make the stable writes flag match that of the device the inode
 	 * resides on when flipping the RT flag.
 	 */
-	if (rtflag != XFS_IS_REALTIME_INODE(ip) && S_ISREG(VFS_I(ip)->i_mode))
+	if (S_ISREG(VFS_I(ip)->i_mode))
 		xfs_update_stable_writes(ip);
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
@@ -757,6 +759,7 @@ xfs_fileattr_set(
 	struct xfs_trans	*tp;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_dquot	*olddquot = NULL;
+	bool			isreg = S_ISREG(VFS_I(ip)->i_mode);
 	int			error;
 
 	trace_xfs_ioctl_setattr(ip);
@@ -804,10 +807,18 @@ xfs_fileattr_set(
 
 	xfs_ioctl_setattr_prepare_dax(ip, fa);
 
+	/*
+	 * A write fault only holds the MMAPLOCK, and it looks at the realtime
+	 * flag and at the extent size hints more than once.  Only regular files
+	 * have write faults.
+	 */
+	if (isreg)
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+
 	tp = xfs_ioctl_setattr_get_trans(ip, pdqp);
 	if (IS_ERR(tp)) {
 		error = PTR_ERR(tp);
-		goto error_free_dquots;
+		goto error_unlock;
 	}
 
 	error = xfs_ioctl_setattr_check_extsize(ip, fa);
@@ -864,6 +875,8 @@ xfs_fileattr_set(
 
 skip_xattr:
 	error = xfs_trans_commit(tp);
+	if (isreg)
+		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -875,7 +888,9 @@ skip_xattr:
 
 error_trans_cancel:
 	xfs_trans_cancel(tp);
-error_free_dquots:
+error_unlock:
+	if (isreg)
+		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	xfs_qm_dqrele(pdqp);
 	return error;
 }

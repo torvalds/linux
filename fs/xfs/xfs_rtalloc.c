@@ -1997,10 +1997,14 @@ xfs_rtallocate_rtg(
 		if (error == -ENOSPC) {
 			xfs_rtbuf_cache_relse(&args);
 			error = 0;
+			start = 0;
 		}
 	}
 
-	if (!error) {
+	/*
+	 * Global search, runs when the near search did not find space.
+	 */
+	if (!error && !start) {
 		error = xfs_rtallocate_extent_size(&args, minlen, maxlen, &len,
 				prod, &rtx);
 	}

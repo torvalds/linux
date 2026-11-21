@@ -148,21 +148,6 @@ xfs_fs_map_blocks(
 		return -EIO;
 
 	/*
-	 * We can't export inodes residing on the realtime device.  The realtime
-	 * device doesn't have a UUID to identify it, so the client has no way
-	 * to find it.
-	 */
-	if (XFS_IS_REALTIME_INODE(ip))
-		return -ENXIO;
-
-	/*
-	 * The pNFS block layout spec actually supports reflink like
-	 * functionality, but the Linux pNFS server doesn't implement it yet.
-	 */
-	if (xfs_is_reflink_inode(ip))
-		return -ENXIO;
-
-	/*
 	 * Lock out any other I/O before we flush and invalidate the pagecache,
 	 * and then hand out a layout to the remote system.  This is very
 	 * similar to direct I/O, except that the synchronization is much more
@@ -173,6 +158,23 @@ xfs_fs_map_blocks(
 	 * delalloc extents to the range while it is being mapped.
 	 */
 	xfs_ilock(ip, XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL);
+
+	/*
+	 * We can't export inodes residing on the realtime device.  The realtime
+	 * device doesn't have a UUID to identify it, so the client has no way
+	 * to find it.  The flag is set under the IOLOCK, so test only now.
+	 */
+	error = -ENXIO;
+	if (XFS_IS_REALTIME_INODE(ip))
+		goto out_unlock;
+
+	/*
+	 * The pNFS block layout spec actually supports reflink like
+	 * functionality, but the Linux pNFS server doesn't implement it yet.
+	 * This flag is set under the IOLOCK as well.
+	 */
+	if (xfs_is_reflink_inode(ip))
+		goto out_unlock;
 
 	error = -EINVAL;
 	limit = mp->m_super->s_maxbytes;

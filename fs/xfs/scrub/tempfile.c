@@ -490,7 +490,6 @@ xrep_tempfile_copyin(
 	struct xfs_buf		*bp;
 	xfs_fileoff_t		flush_mask;
 	xfs_fileoff_t		end = off + len;
-	loff_t			pos = XFS_FSB_TO_B(mp, off);
 	int			error = 0;
 
 	ASSERT(S_ISREG(VFS_I(sc->tempip)->i_mode));
@@ -498,7 +497,7 @@ xrep_tempfile_copyin(
 	/* Flush buffers to disk every 512K */
 	flush_mask = XFS_B_TO_FSBT(mp, (1U << 19)) - 1;
 
-	for (; off < end; off++, pos += mp->m_sb.sb_blocksize) {
+	for (; off < end; off++) {
 		struct xfs_bmbt_irec	map;
 		int			nmaps = 1;
 

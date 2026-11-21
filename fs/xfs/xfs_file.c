@@ -442,6 +442,19 @@ restart:
 	}
 
 	/*
+	 * Now that we are in the same IOLOCK critical section as the actual
+	 * write, check that the inode still has the realtime flag in the state
+	 * that the caller expects.  If not, some deliberately cleared it while
+	 * I/O is ongoing, so bail out.
+	 */
+	if (xfs_is_zoned_inode(XFS_I(inode)) != !!ac) {
+		xfs_warn_ratelimited(XFS_I(inode)->i_mount,
+			"RT flag modifying during write for inode 0x%llx.",
+			inode->i_ino);
+		return -EINVAL;
+	}
+
+	/*
 	 * If the offset is beyond the size of the file, we need to zero all
 	 * blocks that fall between the existing EOF and the start of this
 	 * write.
@@ -695,14 +708,6 @@ xfs_file_dio_write_aligned(
 	unsigned int		dio_flags = 0;
 	ssize_t			ret;
 
-	/*
-	 * For always COW inodes, each bio must be aligned to the file system
-	 * block size and not just the device sector size because we need to
-	 * allocate a block-aligned amount of space for each write.
-	 */
-	if (xfs_is_always_cow_inode(ip))
-		dio_flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
-
 	ret = xfs_ilock_iocb_for_write(iocb, &iolock);
 	if (ret)
 		return ret;
@@ -719,6 +724,15 @@ xfs_file_dio_write_aligned(
 		xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		iolock = XFS_IOLOCK_SHARED;
 	}
+
+	/*
+	 * For always COW inodes, each bio must be aligned to the file system
+	 * block size and not just the device sector size because we need to
+	 * allocate a block-aligned amount of space for each write.  The
+	 * realtime flag can change until we hold the IOLOCK, so test only now.
+	 */
+	if (xfs_is_always_cow_inode(ip))
+		dio_flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 	if (mapping_stable_writes(iocb->ki_filp->f_mapping))
 		dio_flags |= IOMAP_DIO_BOUNCE;
 	trace_xfs_file_direct_write(iocb, from);
@@ -867,19 +881,21 @@ retry_exclusive:
 	if (ret)
 		return ret;
 
+	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
+	if (ret)
+		goto out_unlock;
+
 	/*
 	 * We can't properly handle unaligned direct I/O to reflink files yet,
-	 * as we can't unshare a partial block.
+	 * as we can't unshare a partial block.  xfs_file_write_checks() can
+	 * drop the iolock and take it again, and the file can be reflinked in
+	 * between, so test for that only now.
 	 */
 	if (xfs_is_cow_inode(ip)) {
 		trace_xfs_reflink_bounce_dio_write(iocb, from);
 		ret = -ENOTBLK;
 		goto out_unlock;
 	}
-
-	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
-	if (ret)
-		goto out_unlock;
 
 	/*
 	 * If we are doing exclusive unaligned I/O, this must be the only I/O
@@ -1202,6 +1218,22 @@ xfs_falloc_setsize(
 			&iattr);
 }
 
+/*
+ * Collapse and insert range change the file in several steps, and each step
+ * writes back and empties the part of the page cache that it needs.  That can
+ * fail.  Do it here for everything that is going to move, before the first
+ * step, so that a failure leaves the file as it was.  xfs_prepare_shift()
+ * starts one allocation unit before the offset, so do the same.
+ */
+static int
+xfs_falloc_flush_shift_range(
+	struct xfs_inode	*ip,
+	loff_t			offset)
+{
+	offset -= min_t(loff_t, offset, xfs_inode_alloc_unitsize(ip));
+	return xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip) - offset);
+}
+
 static int
 xfs_falloc_collapse_range(
 	struct file		*file,
@@ -1222,6 +1254,10 @@ xfs_falloc_collapse_range(
 	 */
 	if (offset + len >= i_size_read(inode))
 		return -EINVAL;
+
+	error = xfs_falloc_flush_shift_range(XFS_I(inode), offset);
+	if (error)
+		return error;
 
 	error = xfs_collapse_file_space(XFS_I(inode), offset, len, ac);
 	if (error)
@@ -1264,9 +1300,10 @@ xfs_falloc_insert_range(
 	 * fork. This shifts back out beyond EOF, but creates an expectedly
 	 * written post-eof block. The insert is going to flush, unmap and
 	 * cancel prealloc across this whole range, so flush EOF now before we
-	 * bump i_size to provide consistent behavior.
+	 * bump i_size to provide consistent behavior.  Flush and unmap the rest
+	 * of the range as well, so that a failure to do so leaves i_size alone.
 	 */
-	error = filemap_write_and_wait_range(inode->i_mapping, isize, isize);
+	error = xfs_falloc_flush_shift_range(XFS_I(inode), offset);
 	if (error)
 		return error;
 
@@ -1500,6 +1537,21 @@ xfs_falloc_allocate_range(
 		 FALLOC_FL_ZERO_RANGE |	FALLOC_FL_INSERT_RANGE |	\
 		 FALLOC_FL_UNSHARE_RANGE | FALLOC_FL_WRITE_ZEROES)
 
+/*
+ * For zoned file systems, zeroing the first and last block of a hole punch
+ * requires allocating a new block to rewrite the remaining data and new zeroes
+ * out of place, which needs a space reservation.
+ */
+static inline bool
+xfs_falloc_needs_zoned_resv(
+	struct xfs_inode	*ip,
+	int			mode)
+{
+	return xfs_is_zoned_inode(ip) &&
+		(mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE |
+			 FALLOC_FL_COLLAPSE_RANGE));
+}
+
 STATIC long
 __xfs_file_fallocate(
 	struct file		*file,
@@ -1517,6 +1569,19 @@ __xfs_file_fallocate(
 	error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
 	if (error)
 		goto out_unlock;
+
+	/*
+	 * The caller looked at the realtime flag before we took the IOLOCK, to
+	 * decide if it has to reserve space.  Bail out if the flag has changed
+	 * since.
+	 */
+	if (xfs_falloc_needs_zoned_resv(ip, mode) != !!ac) {
+		xfs_warn_ratelimited(ip->i_mount,
+			"RT flag modifying during fallocate for inode 0x%llx.",
+			inode->i_ino);
+		error = -EINVAL;
+		goto out_unlock;
+	}
 
 	/*
 	 * Must wait for all AIO to complete before we continue as AIO can
@@ -1613,16 +1678,11 @@ xfs_file_fallocate(
 		return -EOPNOTSUPP;
 
 	/*
-	 * For zoned file systems, zeroing the first and last block of a hole
-	 * punch requires allocating a new block to rewrite the remaining data
-	 * and new zeroes out of place.  Get a reservations for those before
-	 * taking the iolock.  Dip into the reserved pool because we are
-	 * expected to be able to punch a hole even on a completely full
-	 * file system.
+	 * Get the reservation before taking the iolock.  Dip into the reserved
+	 * pool because we are expected to be able to punch a hole even on a
+	 * completely full file system.
 	 */
-	if (xfs_is_zoned_inode(XFS_I(inode)) &&
-	    (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE |
-		     FALLOC_FL_COLLAPSE_RANGE)))
+	if (xfs_falloc_needs_zoned_resv(XFS_I(inode), mode))
 		return xfs_file_zoned_fallocate(file, mode, offset, len);
 	return __xfs_file_fallocate(file, mode, offset, len, NULL);
 }
@@ -1980,11 +2040,22 @@ __xfs_write_fault(
 		lock_mode = XFS_MMAPLOCK_EXCL;
 	}
 
-	if (IS_DAX(inode))
+	/*
+	 * The caller picked the zoned or the regular path with no lock held.
+	 * The realtime flag cannot change under the MMAPLOCK, so look at it
+	 * again, and start over if it has changed.
+	 */
+	if (xfs_is_zoned_inode(ip) != !!ac) {
+		xfs_warn_ratelimited(ip->i_mount,
+			"RT flag modifying during page fault for inode 0x%llx.",
+			inode->i_ino);
+		ret = VM_FAULT_NOPAGE;
+	} else if (IS_DAX(inode)) {
 		ret = xfs_dax_fault_locked(vmf, order, true);
-	else
+	} else {
 		ret = iomap_page_mkwrite(vmf, xfs_buffered_write_iomap_next,
 				ac);
+	}
 	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
