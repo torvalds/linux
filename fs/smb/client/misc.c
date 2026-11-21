@@ -371,6 +371,8 @@ void cifs_put_writer(struct cifsInodeInfo *cinode)
  */
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry);
+
 	/*
 	 * Bump the handle refcount now while we hold the
 	 * open_file_lock to enforce the validity of it for the oplock
@@ -379,8 +381,10 @@ void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 	 *
 	 * Only take a reference if the work is actually queued.
 	 */
-	if (queue_work(cifsoplockd_wq, &cfile->oplock_break))
+	if (queue_work(cifsoplockd_wq, &cfile->oplock_break)) {
 		cifsFileInfo_get(cfile);
+		atomic_inc(&cifs_sb->outstanding_rreq);
+	}
 }
 
 void cifs_done_oplock_break(struct cifsInodeInfo *cinode)

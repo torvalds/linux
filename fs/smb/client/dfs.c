@@ -85,16 +85,87 @@ static void set_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 	ctx->dfs_root_ses = ses;
 }
 
+static bool dfs_is_delim(wchar_t c)
+{
+	return c == '/' || c == '\\';
+}
+
+/*
+ * @consumed counts bytes of the canonical (cache charset) path @cpath.
+ * Return the matching byte offset in @fpath, which holds the same path in
+ * the mount charset.  Offsets are matched by path component, since the
+ * delimiters are ASCII in every charset and survive remapping.
+ */
+static int dfs_consumed_to_local(const struct nls_table *nls,
+				 const char *cpath, const char *fpath,
+				 int consumed)
+{
+	size_t clen = strlen(cpath), flen = strlen(fpath), off = 0;
+	int ndelims = 0, seen = 0, i;
+	bool ends_on_delim;
+
+	if (consumed < 0)
+		return -EINVAL;
+
+	/* Identical bytes in both strings: units already agree */
+	if ((size_t)consumed <= min(clen, flen) &&
+	    !memcmp(cpath, fpath, consumed))
+		return consumed;
+
+	if ((size_t)consumed > clen)
+		consumed = clen;
+
+	for (i = 0; i < consumed; i++)
+		if (dfs_is_delim(cpath[i]))
+			ndelims++;
+	ends_on_delim = consumed && dfs_is_delim(cpath[consumed - 1]);
+
+	while (off < flen) {
+		wchar_t uni;
+		int len;
+
+		len = nls->char2uni((const unsigned char *)fpath + off,
+				    flen - off, &uni);
+		if (len <= 0) {
+			uni = (unsigned char)fpath[off];
+			len = 1;
+		}
+		if (dfs_is_delim(uni)) {
+			/* check if start of next component */
+			if (!ends_on_delim && seen == ndelims)
+				break;
+			seen++;
+			if (ends_on_delim && seen == ndelims) {
+				/* just past the last consumed delimiter */
+				off += len;
+				break;
+			}
+		}
+		off += len;
+	}
+	return off;
+}
+
 static inline int parse_dfs_target(struct smb3_fs_context *ctx,
 				   struct dfs_ref_walk *rw,
 				   struct dfs_info3_param *tgt)
 {
-	int rc;
 	const char *fpath = ref_walk_fpath(rw) + 1;
+	const char *cpath = ref_walk_path(rw) + 1;
+	int rc;
 
 	rc = ref_walk_get_tgt(rw, tgt);
-	if (!rc)
-		rc = dfs_parse_target_referral(fpath, tgt, ctx);
+	if (!rc) {
+		struct dfs_info3_param local = *tgt;
+		int off;
+
+		off = dfs_consumed_to_local(rw->mnt_ctx->cifs_sb->local_nls,
+					    cpath, fpath, tgt->path_consumed);
+		if (off < 0)
+			return off;
+		local.path_consumed = off;
+		rc = dfs_parse_target_referral(fpath, &local, ctx);
+	}
 	return rc;
 }
 

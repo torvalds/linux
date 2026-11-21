@@ -2044,6 +2044,7 @@ bool
 cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *open_file, *tmp;
+	struct cifs_sb_info *cifs_sb;
 	LIST_HEAD(tmp_list);
 	bool retry = false;
 	int rc;
@@ -2060,12 +2061,15 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 	list_for_each_entry(open_file, &tcon->openFileList, tlist) {
 		if (!open_file->invalidHandle)
 			continue;
+		cifs_sb = CIFS_SB(open_file->dentry);
 		cifsFileInfo_get(open_file);
+		atomic_inc(&cifs_sb->outstanding_rreq);
 		list_add_tail(&open_file->rlist, &tmp_list);
 	}
 	spin_unlock(&tcon->open_file_lock);
 
 	list_for_each_entry_safe(open_file, tmp, &tmp_list, rlist) {
+		cifs_sb = CIFS_SB(open_file->dentry);
 		/* do not flush */
 		rc = cifs_reopen_file(open_file, false,
 				      CIFS_REOPEN_BOUND | CIFS_REOPEN_NOWAIT);
@@ -2075,6 +2079,8 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 		}
 		list_del_init(&open_file->rlist);
 		cifsFileInfo_put(open_file);
+		if (atomic_dec_and_test(&cifs_sb->outstanding_rreq))
+			wake_up_var(&cifs_sb->outstanding_rreq);
 	}
 	return retry;
 }
@@ -4023,6 +4029,8 @@ oplock_break_ack:
 out:
 	cifs_done_oplock_break(cinode);
 	iput(inode);
+	if (atomic_dec_and_test(&cifs_sb->outstanding_rreq))
+		wake_up_var(&cifs_sb->outstanding_rreq);
 }
 
 #ifdef CONFIG_SWAP
