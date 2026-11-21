@@ -441,6 +441,7 @@ static int __key_instantiate_and_link(struct key *key,
 	ret = -EBUSY;
 
 	mutex_lock(&key_construction_mutex);
+	down_write_nested(&key->sem, 2);
 
 	/* can't instantiate twice */
 	if (key->state == KEY_IS_UNINSTANTIATED) {
@@ -473,6 +474,7 @@ static int __key_instantiate_and_link(struct key *key,
 		}
 	}
 
+	up_write(&key->sem);
 	mutex_unlock(&key_construction_mutex);
 
 	/* wake up anyone waiting for a key to be constructed */
@@ -609,6 +611,7 @@ int key_reject_and_link(struct key *key,
 	}
 
 	mutex_lock(&key_construction_mutex);
+	down_write_nested(&key->sem, 2);
 
 	/* can't instantiate twice */
 	if (key->state == KEY_IS_UNINSTANTIATED) {
@@ -632,6 +635,7 @@ int key_reject_and_link(struct key *key,
 			key_invalidate(authkey);
 	}
 
+	up_write(&key->sem);
 	mutex_unlock(&key_construction_mutex);
 
 	if (keyring && link_ret == 0)
