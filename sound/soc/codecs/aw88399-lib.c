@@ -552,7 +552,7 @@ static void aw_dev_i2s_tx_enable(struct aw_device *aw_dev, bool flag)
 		ret = regmap_update_bits(aw_dev->regmap, AW88399_I2SCTRL3_REG,
 			~AW88399_I2STXEN_MASK, AW88399_I2STXEN_ENABLE_VALUE);
 	else
-		ret = regmap_update_bits(aw_dev->regmap, AW88399_I2SCFG1_REG,
+		ret = regmap_update_bits(aw_dev->regmap, AW88399_I2SCTRL3_REG,
 			~AW88399_I2STXEN_MASK, AW88399_I2STXEN_DISABLE_VALUE);
 
 	if (ret)
