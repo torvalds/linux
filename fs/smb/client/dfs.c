@@ -404,6 +404,26 @@ static int target_share_matches_server(struct TCP_Server_Info *server, char *sha
 	return rc;
 }
 
+
+/*
+ * @prefix is in the DFS cache charset, the superblock prefix in the mount
+ * charset.
+ */
+static int set_super_prepath(struct cifs_sb_info *cifs_sb, const char *prefix)
+{
+	char *lprefix = NULL;
+	int rc;
+
+	if (prefix && *prefix) {
+		lprefix = dfs_cache_local_path(prefix, cifs_sb->local_nls);
+		if (IS_ERR(lprefix))
+			return PTR_ERR(lprefix);
+	}
+	rc = cifs_update_super_prepath(cifs_sb, lprefix);
+	kfree(lprefix);
+	return rc;
+}
+
 static int tree_connect_dfs_target(const unsigned int xid,
 				   struct cifs_tcon *tcon,
 				   struct cifs_sb_info *cifs_sb,
@@ -444,7 +464,7 @@ static int tree_connect_dfs_target(const unsigned int xid,
 		rc = ops->tree_connect(xid, tcon->ses, tree,
 				       tcon);
 		if (islink && !rc && cifs_sb)
-			rc = cifs_update_super_prepath(cifs_sb, prefix);
+			rc = set_super_prepath(cifs_sb, prefix);
 		break;
 	}
 

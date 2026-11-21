@@ -105,6 +105,37 @@ char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int
 	return npath;
 }
 
+/**
+ * dfs_cache_local_path - convert a path from the DFS cache charset
+ *
+ * @path: path in the DFS cache charset
+ * @cp: codepage to convert to
+ *
+ * Return the converted path, which the caller must free, or an error pointer.
+ */
+char *dfs_cache_local_path(const char *path, const struct nls_table *cp)
+{
+	char *tmp, *npath;
+	int plen = 0;
+
+	if (!path || !cp || unlikely(!cache_cp))
+		return ERR_PTR(-EINVAL);
+
+	if (!strcmp(cp->charset, cache_cp->charset)) {
+		npath = kstrdup(path, GFP_KERNEL);
+		return npath ?: ERR_PTR(-ENOMEM);
+	}
+
+	tmp = (char *)cifs_strndup_to_utf16(path, strlen(path), &plen,
+					    cache_cp, NO_MAP_UNI_RSVD);
+	if (!tmp)
+		return ERR_PTR(-ENOMEM);
+
+	npath = cifs_strndup_from_utf16(tmp, plen, true, cp);
+	kfree(tmp);
+	return npath ?: ERR_PTR(-ENOMEM);
+}
+
 static inline bool cache_entry_expired(const struct cache_entry *ce)
 {
 	struct timespec64 ts;
