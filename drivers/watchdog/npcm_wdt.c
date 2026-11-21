@@ -180,7 +180,7 @@ static int npcm_wdt_start(struct watchdog_device *wdd)
 {
 	struct npcm_wdt *wdt = to_npcm_wdt(wdd);
 
-	clk_prepare_enable(wdt->clk);
+	clk_enable(wdt->clk);
 
 	__npcm_wdt_start(wdd);
 
@@ -193,7 +193,7 @@ static int npcm_wdt_stop(struct watchdog_device *wdd)
 
 	writel(0, wdt->reg);
 
-	clk_disable_unprepare(wdt->clk);
+	clk_disable(wdt->clk);
 
 	return 0;
 }
@@ -242,8 +242,12 @@ static int npcm_wdt_restart(struct watchdog_device *wdd,
 {
 	struct npcm_wdt *wdt = to_npcm_wdt(wdd);
 
-	/* For reset, we start the WDT clock and leave it running. */
-	clk_prepare_enable(wdt->clk);
+	/*
+	 * For reset, we start the WDT clock and leave it running.
+	 * The clock was prepared at probe time; only clk_enable() is
+	 * safe in this atomic (restart notifier) context.
+	 */
+	clk_enable(wdt->clk);
 
 	writel(NPCM_WTR | NPCM_WTRE | NPCM_WTE, wdt->reg);
 	udelay(1000);
@@ -417,7 +421,12 @@ static int npcm_wdt_probe(struct platform_device *pdev)
 
 	start = res->start;
 
-	wdt->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	/*
+	 * Keep the clock prepared for the lifetime of the driver:
+	 * npcm_wdt_restart() runs in atomic context and may only call
+	 * clk_enable().
+	 */
+	wdt->clk = devm_clk_get_optional_prepared(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk))
 		return PTR_ERR(wdt->clk);
 
