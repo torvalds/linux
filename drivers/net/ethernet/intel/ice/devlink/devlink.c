@@ -1953,7 +1953,7 @@ static int ice_devlink_nvm_read(struct devlink *devlink,
 		return -EOPNOTSUPP;
 	}
 
-	if (offset + size >= nvm_size) {
+	if (offset + size > nvm_size) {
 		NL_SET_ERR_MSG_MOD(extack, "Cannot read beyond the region size");
 		return -ERANGE;
 	}
