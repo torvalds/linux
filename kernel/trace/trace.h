@@ -1729,24 +1729,26 @@ __event_trigger_test_discard(struct trace_event_file *file,
 			     void *entry,
 			     enum event_trigger_type *tt)
 {
-	unsigned long eflags = file->flags;
+	unsigned long eflags = READ_ONCE(file->flags);
 
-	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
+	if (eflags & EVENT_FILE_FL_TRIGGER_COND) {
 		*tt = event_triggers_call(file, buffer, entry, event);
+		eflags = READ_ONCE(file->flags);
+	}
 
-	if (likely(!(file->flags & (EVENT_FILE_FL_SOFT_DISABLED |
-				    EVENT_FILE_FL_FILTERED |
-				    EVENT_FILE_FL_PID_FILTER))))
+	if (likely(!(eflags & (EVENT_FILE_FL_SOFT_DISABLED |
+			       EVENT_FILE_FL_FILTERED |
+			       EVENT_FILE_FL_PID_FILTER))))
 		return false;
 
-	if (file->flags & EVENT_FILE_FL_SOFT_DISABLED)
+	if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 		goto discard;
 
-	if (file->flags & EVENT_FILE_FL_FILTERED &&
+	if (eflags & EVENT_FILE_FL_FILTERED &&
 	    !filter_match_preds(file->filter, entry))
 		goto discard;
 
-	if ((file->flags & EVENT_FILE_FL_PID_FILTER) &&
+	if ((eflags & EVENT_FILE_FL_PID_FILTER) &&
 	    trace_event_ignore_this_pid(file))
 		goto discard;
 

@@ -764,7 +764,7 @@ bool __trace_trigger_soft_disabled(struct trace_event_file *file);
 static __always_inline bool
 trace_trigger_soft_disabled(struct trace_event_file *file)
 {
-	unsigned long eflags = file->flags;
+	unsigned long eflags = READ_ONCE(file->flags);
 
 	if (likely(!(eflags & (EVENT_FILE_FL_TRIGGER_MODE |
 			       EVENT_FILE_FL_SOFT_DISABLED |
