@@ -1897,11 +1897,14 @@ TEST(setns_inherited_fd)
 
 /* Audit tests */
 
+#define REGEX_LANDLOCK_NS_CREATE \
+	REGEX_LANDLOCK_PREFIX " blockers=namespace\\.use namespace_op=create"
+
 static int matches_log_ns_create(int audit_fd, __u64 ns_type)
 {
 	/* A denied creation logs the ID allocated for the new namespace. */
-	static const char log_template[] = REGEX_LANDLOCK_PREFIX
-		" blockers=namespace\\.use namespace_type=0x%x namespace_id=[1-9][0-9]*$";
+	static const char log_template[] = REGEX_LANDLOCK_NS_CREATE
+		" namespace_type=0x%x namespace_id=[1-9][0-9]*$";
 	char log_match[sizeof(log_template) + 10];
 	int log_match_len;
 
@@ -1917,12 +1920,12 @@ static int matches_log_ns_create(int audit_fd, __u64 ns_type)
 static int matches_log_ns_setns(int audit_fd, __u64 ns_type, __u64 ns_id)
 {
 	static const char log_template[] = REGEX_LANDLOCK_PREFIX
-		" blockers=namespace\\.use namespace_type=0x%x namespace_id=%llu$";
+		" blockers=namespace\\.use namespace_op=%s namespace_type=0x%x namespace_id=%llu$";
 	char log_match[sizeof(log_template) + 32];
 	int log_match_len;
 
 	log_match_len = snprintf(log_match, sizeof(log_match), log_template,
-				 (unsigned int)ns_type,
+				 "enter", (unsigned int)ns_type,
 				 (unsigned long long)ns_id);
 	if (log_match_len >= sizeof(log_match))
 		return -E2BIG;
@@ -1958,7 +1961,7 @@ FIXTURE_TEARDOWN(ns_audit)
 
 /*
  * Verifies that a denied namespace creation produces the expected audit record
- * with the namespace.use blocker string and namespace_type.
+ * with the namespace.use blocker string, namespace type, and create operation.
  */
 TEST_F(ns_audit, create_denied)
 {
@@ -2542,6 +2545,11 @@ static void test_ns_trace_denial(struct __test_metadata *const _metadata,
 	EXPECT_STRNE("0", field);
 	if (use_setns)
 		EXPECT_EQ(expected_ns_id, strtoull(field, NULL, 10));
+	ret = tracefs_extract_field(buf,
+				    REGEX_DENY_PERMISSION_NAMESPACE(TRACE_TASK),
+				    "namespace_op", field, sizeof(field));
+	ASSERT_EQ(0, ret);
+	EXPECT_STREQ(use_setns ? "enter" : "create", field);
 
 	free(buf);
 }
@@ -2565,6 +2573,13 @@ TEST_F(ns_trace, deny_setns)
 	if (!self->tracefs_ok)
 		SKIP(return, "tracefs not available");
 	test_ns_trace_denial(_metadata, true, false);
+}
+
+TEST_F(ns_trace, deny_setns_quiet)
+{
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+	test_ns_trace_denial(_metadata, true, true);
 }
 
 /* clang-format off */

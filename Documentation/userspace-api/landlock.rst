@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: October 2026
+:Date: November 2026
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -532,7 +532,7 @@ acquisition via :manpage:`open_tree(2)` / :manpage:`fsmount(2)`.  Namespaces
 the process is already a member of when the domain is enforced are implicitly
 allowed (the process could not continue running otherwise); rules describe
 which new namespace types the process may acquire.
-``LANDLOCK_PERMISSION_CAPABILITY_USE`` gates every exercise of a capability
+``LANDLOCK_PERMISSION_CAPABILITY_USE`` gates the exercise of capabilities
 after the domain is enforced, regardless
 of how the capability was obtained (inherited credentials, ``CLONE_NEWUSER``
 grant, ``setuid``/file-cap-bearing :manpage:`execve(2)`, etc.).  Configuring
@@ -641,9 +641,9 @@ after a domain is enforced through user namespace entry or :manpage:`capset(2)`;
 privileged sandboxes that did not set ``PR_SET_NO_NEW_PRIVS`` may also gain
 capabilities through :manpage:`execve(2)` of binaries with file capabilities.
 In all cases, :manpage:`capget(2)` will report the credential's capability sets,
-but any denied capability will fail with ``EPERM`` when exercised.  Do not rely
+but any denied capability will fail when exercised.  Do not rely
 on :manpage:`capget(2)` to determine whether the policy permits a given
-capability; only the actual operation will return ``EPERM`` upon denial.
+capability.
 
 Truncating files
 ----------------
@@ -779,6 +779,9 @@ in the running kernel.
 
 .. kernel-doc:: security/landlock/errata/abi-1.h
     :doc: erratum_4
+
+.. kernel-doc:: security/landlock/errata/abi-4.h
+    :doc: erratum_5
 
 How to check for errata
 ~~~~~~~~~~~~~~~~~~~~~~~

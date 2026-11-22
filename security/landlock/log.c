@@ -388,7 +388,8 @@ static bool is_valid_request(const struct landlock_request *const request)
 		return false;
 
 	switch (request->type) {
-	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_NAMESPACE_CREATE:
+	case LANDLOCK_REQUEST_NAMESPACE_ENTER:
 		if (WARN_ON_ONCE(request->permission !=
 				 LANDLOCK_PERMISSION_NAMESPACE_USE) ||
 		    WARN_ON_ONCE(request->audit.type != LSM_AUDIT_DATA_NS))
@@ -485,7 +486,8 @@ is_denial_quieted(const struct landlock_request *const request,
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 		return !!(youngest_denied->quiet_access.scope &
 			  LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
-	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_NAMESPACE_CREATE:
+	case LANDLOCK_REQUEST_NAMESPACE_ENTER:
 		return !!(youngest_denied->quiet_permission.ns_types &
 			  landlock_ns_type_to_bit(request->audit.u.ns.ns_type));
 	case LANDLOCK_REQUEST_CAPABILITY:

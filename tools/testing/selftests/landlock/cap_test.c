@@ -12,7 +12,9 @@
 #include <linux/landlock.h>
 #include <sched.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
@@ -738,6 +740,247 @@ TEST(cap_target_userns_independent)
 	EXPECT_EQ(0, close(target_userns_fd));
 }
 
+/*
+ * Capability checks that commoncap makes from hooks other than the capable
+ * hook.  Each test first checks that the operation needs the capability, then
+ * checks it with the capability effective.  Variants cover an unsandboxed
+ * baseline, a domain that denies the capability, a domain that allows it, and a
+ * domain that does not handle capabilities.
+ */
+/* clang-format off */
+FIXTURE(cap_other_hooks) {};
+/* clang-format on */
+
+FIXTURE_VARIANT(cap_other_hooks)
+{
+	const bool is_sandboxed;
+	const bool handle_caps;
+	const bool is_allowed;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(cap_other_hooks, unsandboxed) {
+	.is_sandboxed = false,
+	.handle_caps = false,
+	.is_allowed = true,
+};
+/* clang-format on */
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(cap_other_hooks, denied) {
+	.is_sandboxed = true,
+	.handle_caps = true,
+	.is_allowed = false,
+};
+/* clang-format on */
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(cap_other_hooks, allowed) {
+	.is_sandboxed = true,
+	.handle_caps = true,
+	.is_allowed = true,
+};
+/* clang-format on */
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(cap_other_hooks, unhandled) {
+	.is_sandboxed = true,
+	.handle_caps = false,
+	.is_allowed = true,
+};
+/* clang-format on */
+
+FIXTURE_SETUP(cap_other_hooks)
+{
+	disable_caps(_metadata);
+}
+
+FIXTURE_TEARDOWN(cap_other_hooks)
+{
+}
+
+/*
+ * Creates a ruleset that handles capabilities and allows @cap if @allow_cap,
+ * or, if !@handle_caps, a ruleset that only handles a filesystem access right.
+ * Returns the ruleset FD, or -1 with errno set.
+ */
+static int create_variant_ruleset(const bool handle_caps, const bool allow_cap,
+				  const int cap)
+{
+	const struct landlock_ruleset_attr fs_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	int ruleset_fd, err;
+
+	if (!handle_caps)
+		return landlock_create_ruleset(&fs_attr, sizeof(fs_attr), 0);
+
+	ruleset_fd = create_cap_ruleset();
+	if (ruleset_fd < 0 || !allow_cap)
+		return ruleset_fd;
+
+	if (add_cap_rule(ruleset_fd, cap)) {
+		err = errno;
+		close(ruleset_fd);
+		errno = err;
+		return -1;
+	}
+	return ruleset_fd;
+}
+
+static void
+enforce_cap_variant(struct __test_metadata *const _metadata,
+		    const FIXTURE_VARIANT(cap_other_hooks) *const variant,
+		    const int cap)
+{
+	int ruleset_fd;
+
+	if (!variant->is_sandboxed)
+		return;
+
+	ruleset_fd = create_variant_ruleset(variant->handle_caps,
+					    variant->is_allowed, cap);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
+static unsigned long read_sysctl(struct __test_metadata *const _metadata,
+				 const char *const path)
+{
+	char buf[32];
+	ssize_t len;
+	int fd;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	ASSERT_LE(0, fd)
+	{
+		TH_LOG("Failed to open %s: %s", path, strerror(errno));
+	}
+	len = read(fd, buf, sizeof(buf) - 1);
+	ASSERT_LT(0, len);
+	EXPECT_EQ(0, close(fd));
+
+	buf[len] = '\0';
+	return strtoul(buf, NULL, 10);
+}
+
+/*
+ * Returns the last page below the vm.mmap_min_addr sysctl, or MAP_FAILED if
+ * there is none or if the architecture rejects it before the mmap_addr hook
+ * (e.g. below FIRST_USER_ADDRESS on 32-bit ARM).  The caller must not have
+ * CAP_SYS_RAWIO in its effective set.
+ */
+static void *get_low_page(struct __test_metadata *const _metadata)
+{
+	const size_t page_size = sysconf(_SC_PAGESIZE);
+	unsigned long min_addr;
+	void *addr, *ret;
+
+	min_addr = read_sysctl(_metadata, "/proc/sys/vm/mmap_min_addr");
+	if (!min_addr)
+		return MAP_FAILED;
+
+	addr = (void *)((min_addr - 1) & ~(page_size - 1));
+	ret = mmap(addr, page_size, PROT_READ,
+		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	ASSERT_EQ(MAP_FAILED, ret);
+	if (errno == EINVAL)
+		return MAP_FAILED;
+
+	ASSERT_EQ(EPERM, errno);
+	return addr;
+}
+
+/*
+ * cap_mmap_addr() requires CAP_SYS_RAWIO to map below the vm.mmap_min_addr
+ * sysctl (dac_mmap_min_addr).
+ */
+TEST_F(cap_other_hooks, mmap_min_addr)
+{
+	const size_t page_size = sysconf(_SC_PAGESIZE);
+	void *low_page, *addr;
+
+	low_page = get_low_page(_metadata);
+	if (low_page == MAP_FAILED)
+		SKIP(return, "Cannot map below vm.mmap_min_addr");
+
+	enforce_cap_variant(_metadata, variant, CAP_SYS_RAWIO);
+
+	addr = mmap(low_page, page_size, PROT_READ,
+		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	ASSERT_EQ(MAP_FAILED, addr);
+	EXPECT_EQ(EPERM, errno);
+
+	set_cap(_metadata, CAP_SYS_RAWIO);
+	addr = mmap(low_page, page_size, PROT_READ,
+		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	if (variant->is_allowed) {
+		ASSERT_EQ(low_page, addr)
+		{
+			TH_LOG("Failed to map below vm.mmap_min_addr: %s",
+			       strerror(errno));
+		}
+	} else {
+		ASSERT_EQ(MAP_FAILED, addr);
+		EXPECT_EQ(EPERM, errno);
+	}
+	clear_cap(_metadata, CAP_SYS_RAWIO);
+}
+
+static int add_inheritable_cap(const cap_value_t cap)
+{
+	cap_t cap_p;
+	int ret, err;
+
+	cap_p = cap_get_proc();
+	if (!cap_p)
+		return -1;
+
+	ret = cap_set_flag(cap_p, CAP_INHERITABLE, 1, &cap, CAP_SET);
+	if (!ret)
+		ret = cap_set_proc(cap_p);
+	err = errno;
+	cap_free(cap_p);
+	errno = err;
+	return ret;
+}
+
+/*
+ * cap_capset() requires CAP_SETPCAP to add an inheritable capability that is
+ * not in the permitted set.  CAP_NET_RAW is in the bounding set, but
+ * disable_caps() does not put it in the permitted set.
+ */
+TEST_F(cap_other_hooks, capset_inheritable)
+{
+	enforce_cap_variant(_metadata, variant, CAP_SETPCAP);
+
+	ASSERT_EQ(-1, add_inheritable_cap(CAP_NET_RAW));
+	EXPECT_EQ(EPERM, errno);
+
+	set_cap(_metadata, CAP_SETPCAP);
+	if (variant->is_allowed) {
+		EXPECT_EQ(0, add_inheritable_cap(CAP_NET_RAW))
+		{
+			TH_LOG("Failed to raise CAP_NET_RAW: %s",
+			       strerror(errno));
+		}
+	} else {
+		ASSERT_EQ(-1, add_inheritable_cap(CAP_NET_RAW));
+		EXPECT_EQ(EPERM, errno);
+	}
+	clear_cap(_metadata, CAP_SETPCAP);
+}
+
+/*
+ * cap_vm_enough_memory() lets CAP_SYS_ADMIN use the vm.admin_reserve_kbytes
+ * reserve, but only with vm.overcommit_memory=2.  The Landlock check of this
+ * reserve has no functional test: it would have to change these system-wide
+ * settings and set a tight commit limit, which could make allocations of other
+ * processes fail and would race with them.  cap_audit.other_hooks checks that
+ * this check is not logged.
+ */
+
 /* Audit tests */
 
 static int matches_log_cap(int audit_fd, int cap_number)
@@ -826,6 +1069,160 @@ TEST_F(cap_audit, denied)
 	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
 	EXPECT_EQ(0, records.access);
 	EXPECT_EQ(0, records.domain);
+}
+
+/*
+ * A privileged denial allocates the domain ID.  The following unprivileged-only
+ * change must not create a hidden Landlock denial, so the domain's deallocation
+ * record must report exactly one denial.
+ */
+TEST_F(cap_audit, securebits)
+{
+	const unsigned long unpriv = SECBIT_EXEC_RESTRICT_FILE |
+				     SECBIT_EXEC_RESTRICT_FILE_LOCKED;
+	__u64 *domain_id, deallocated_dom = 0;
+	unsigned long bits;
+	int err, ruleset_fd, status;
+	pid_t child;
+
+	domain_id = mmap(NULL, sizeof(*domain_id), PROT_READ | PROT_WRITE,
+			 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	ASSERT_NE(MAP_FAILED, domain_id);
+	*domain_id = 0;
+
+	ruleset_fd = create_cap_ruleset();
+	ASSERT_LE(0, ruleset_fd);
+	/* Allow the child to replace the audit filter before exiting. */
+	ASSERT_EQ(0, add_cap_rule(ruleset_fd, CAP_AUDIT_CONTROL));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		enforce_ruleset(_metadata, ruleset_fd);
+		EXPECT_EQ(0, close(ruleset_fd));
+
+		set_cap(_metadata, CAP_SETPCAP);
+		bits = prctl(PR_GET_SECUREBITS);
+		ASSERT_EQ(-1, prctl(PR_SET_SECUREBITS,
+				    bits | SECBIT_NO_CAP_AMBIENT_RAISE));
+		EXPECT_EQ(EPERM, errno);
+
+		EXPECT_EQ(0, matches_log_cap(self->audit_fd, CAP_SETPCAP));
+		EXPECT_EQ(0, matches_log_domain_allocated(self->audit_fd,
+							  getpid(), domain_id));
+
+		EXPECT_EQ(0, prctl(PR_SET_SECUREBITS, bits | unpriv));
+		clear_cap(_metadata, CAP_SETPCAP);
+
+		/* Receive the asynchronous domain deallocation record. */
+		set_cap(_metadata, CAP_AUDIT_CONTROL);
+		EXPECT_EQ(0, audit_filter_drop(self->audit_fd, AUDIT_ADD_RULE));
+		EXPECT_EQ(0,
+			  audit_filter_exe(self->audit_fd, &self->audit_filter,
+					   AUDIT_DEL_RULE));
+		clear_cap(_metadata, CAP_AUDIT_CONTROL);
+
+		_exit(_metadata->exit_code);
+		return;
+	}
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
+		_metadata->exit_code = KSFT_FAIL;
+
+	EXPECT_NE(0, *domain_id);
+	err = matches_log_domain_deallocated(self->audit_fd, 1, *domain_id,
+					     &deallocated_dom);
+	EXPECT_EQ(0, err);
+	EXPECT_EQ(*domain_id, deallocated_dom);
+	EXPECT_EQ(0, munmap(domain_id, sizeof(*domain_id)));
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
+/*
+ * Denials in the capset and mmap_addr paths are audited like capable hook
+ * denials.  The vm_enough_memory hook only withholds the admin reserve, with
+ * CAP_OPT_NOAUDIT, so an accounted mapping made with CAP_SYS_ADMIN effective
+ * leaves no record.
+ */
+TEST_F(cap_audit, other_hooks)
+{
+	const size_t page_size = sysconf(_SC_PAGESIZE);
+	struct audit_records records = {};
+	void *low_page, *addr;
+	int ruleset_fd;
+	__u64 domain_id;
+
+	low_page = get_low_page(_metadata);
+	ruleset_fd = create_cap_ruleset();
+	ASSERT_LE(0, ruleset_fd);
+	/* Allow CAP_AUDIT_CONTROL for child-side audit cleanup. */
+	ASSERT_EQ(0, add_cap_rule(ruleset_fd, CAP_AUDIT_CONTROL));
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	set_cap(_metadata, CAP_SETPCAP);
+	ASSERT_EQ(-1, add_inheritable_cap(CAP_NET_RAW));
+	EXPECT_EQ(EPERM, errno);
+	clear_cap(_metadata, CAP_SETPCAP);
+	EXPECT_EQ(0, matches_log_cap(self->audit_fd, CAP_SETPCAP));
+	EXPECT_EQ(0, matches_log_domain_allocated(self->audit_fd, getpid(),
+						  &domain_id));
+
+	if (low_page != MAP_FAILED) {
+		set_cap(_metadata, CAP_SYS_RAWIO);
+		addr = mmap(low_page, page_size, PROT_READ,
+			    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+		ASSERT_EQ(MAP_FAILED, addr);
+		EXPECT_EQ(EPERM, errno);
+		clear_cap(_metadata, CAP_SYS_RAWIO);
+		EXPECT_EQ(0, matches_log_cap(self->audit_fd, CAP_SYS_RAWIO));
+	}
+
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	ASSERT_NE(MAP_FAILED, addr);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	ASSERT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(0, records.domain);
+}
+
+/* Allowed capability uses in the capset and mmap_addr paths. */
+TEST_F(cap_audit, other_hooks_allowed)
+{
+	const size_t page_size = sysconf(_SC_PAGESIZE);
+	struct audit_records records = {};
+	void *low_page, *addr;
+	int ruleset_fd;
+
+	low_page = get_low_page(_metadata);
+	ruleset_fd = create_cap_ruleset();
+	ASSERT_LE(0, ruleset_fd);
+	ASSERT_EQ(0, add_cap_rule(ruleset_fd, CAP_SETPCAP));
+	ASSERT_EQ(0, add_cap_rule(ruleset_fd, CAP_SYS_RAWIO));
+	/* Allow CAP_AUDIT_CONTROL for child-side audit cleanup. */
+	ASSERT_EQ(0, add_cap_rule(ruleset_fd, CAP_AUDIT_CONTROL));
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	set_cap(_metadata, CAP_SETPCAP);
+	EXPECT_EQ(0, add_inheritable_cap(CAP_NET_RAW));
+	clear_cap(_metadata, CAP_SETPCAP);
+
+	if (low_page != MAP_FAILED) {
+		set_cap(_metadata, CAP_SYS_RAWIO);
+		addr = mmap(low_page, page_size, PROT_READ,
+			    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+		ASSERT_EQ(low_page, addr);
+		clear_cap(_metadata, CAP_SYS_RAWIO);
+	}
+
+	ASSERT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
 }
 
 TEST_F(cap_audit, allowed)

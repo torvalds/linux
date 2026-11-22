@@ -21,6 +21,7 @@
 #include <net/af_unix.h>
 
 enum landlock_request_type;
+struct cred;
 struct dentry;
 struct landlock_blockers;
 struct landlock_domain;
@@ -30,13 +31,15 @@ struct landlock_ruleset;
 struct path;
 struct sock;
 struct task_struct;
+struct user_namespace;
 
 static_assert(sizeof(access_mask_t) <= sizeof(u64));
 
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_FS_ACCESS);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NET_ACCESS);
-TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE_CREATE);
+TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_NAMESPACE_ENTER);
 TRACE_DEFINE_ENUM(LANDLOCK_REQUEST_CAPABILITY);
 
 #ifdef CREATE_TRACE_POINTS
@@ -990,7 +993,8 @@ TRACE_EVENT(landlock_deny_access_net,
  * @namespace_id: Namespace ID, not directly visible from user space when
  *                creation was denied.
  *
- * Emitted when a Landlock domain denies namespace use.
+ * Emitted when a Landlock domain denies namespace creation or entry.  The
+ * namespace_op field distinguishes these operations.
  */
 TRACE_EVENT(landlock_deny_permission_namespace,
 
@@ -1021,13 +1025,18 @@ TRACE_EVENT(landlock_deny_permission_namespace,
 		__entry->namespace_id	= namespace_id;
 	),
 
-	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s namespace_type=0x%x namespace_id=%llu",
-		__entry->domain_id, __entry->same_exec, __entry->logged,
-		__entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE ?
-			__print_flags(__entry->blockers_access, "|",
-				      _LANDLOCK_PERMISSION_BLOCKER_NAMES) :
-			"unknown",
-		__entry->namespace_type, __entry->namespace_id)
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s namespace_op=%s namespace_type=0x%x namespace_id=%llu",
+		  __entry->domain_id, __entry->same_exec, __entry->logged,
+		  (__entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_CREATE ||
+		   __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_ENTER) ?
+			  __print_flags(__entry->blockers_access, "|",
+					_LANDLOCK_PERMISSION_BLOCKER_NAMES) :
+			  "unknown",
+		  __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_CREATE ?
+			  "create" :
+		  __entry->blockers_type == LANDLOCK_REQUEST_NAMESPACE_ENTER ?
+			  "enter" : "unknown",
+		  __entry->namespace_type, __entry->namespace_id)
 );
 
 /**
@@ -1039,6 +1048,9 @@ TRACE_EVENT(landlock_deny_permission_namespace,
  * @logged: Whether this denial was selected for audit logging.
  * @blockers: Request type and final missing permission subset (never NULL).
  * @capability: CAP_* number that was denied.
+ * @cred: Credentials used by commoncap's capability check (never NULL).
+ * @user_ns: Target user namespace used by commoncap's capability check (never
+ *           NULL).
  *
  * Emitted when a Landlock domain denies capability use, except for checks
  * made with CAP_OPT_NOAUDIT, which are denied without emitting this event.
@@ -1047,9 +1059,11 @@ TRACE_EVENT(landlock_deny_permission_capability,
 
 	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
 		 bool logged, const struct landlock_blockers *blockers,
-		 int capability),
+		 int capability, const struct cred *cred,
+		 const struct user_namespace *user_ns),
 
-	TP_ARGS(hierarchy, same_exec, logged, blockers, capability),
+	TP_ARGS(hierarchy, same_exec, logged, blockers, capability, cred,
+		user_ns),
 
 	TP_STRUCT__entry(
 		__field(	u64,		domain_id	)

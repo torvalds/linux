@@ -185,6 +185,7 @@
 	"same_exec=[01] "                      \
 	"logged=[01] "                         \
 	"blockers=[a-z_|]* "                   \
+	"namespace_op=\\(create\\|enter\\) "   \
 	"namespace_type=0x[0-9a-f]\\+ "        \
 	"namespace_id=[0-9]\\+$"
 

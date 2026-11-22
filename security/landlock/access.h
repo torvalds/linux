@@ -18,10 +18,9 @@
 #include "limits.h"
 
 /*
- * All access rights that are denied by default whether they are handled or not
- * by a ruleset/layer.  This must be ORed with the .handled field of all
- * domain->layers[] entries when we need to get the absolute handled access
- * masks, see landlock_upgrade_handled_layer_config().
+ * All filesystem access rights that are denied by default when a layer handles
+ * any filesystem access right, even if they are not explicitly declared as
+ * handled themselves.  See landlock_upgrade_handled_layer_config().
  */
 /* clang-format off */
 #define _LANDLOCK_ACCESS_FS_INITIALLY_DENIED ( \
@@ -178,8 +177,8 @@ static inline struct layer_config
 landlock_upgrade_handled_layer_config(struct layer_config layer_config)
 {
 	/*
-	 * All access rights that are denied by default whether they are
-	 * explicitly handled or not.
+	 * All filesystem access rights that are denied by default as soon as
+	 * any other filesystem access right is handled.
 	 */
 	if (layer_config.handled.fs)
 		layer_config.handled.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;

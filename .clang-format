@@ -481,7 +481,6 @@ ForEachMacros:
   - 'genradix_for_each'
   - 'genradix_for_each_from'
   - 'genradix_for_each_reverse'
-  - 'guard'
   - 'hash_for_each'
   - 'hash_for_each_possible'
   - 'hash_for_each_possible_rcu'

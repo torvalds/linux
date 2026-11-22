@@ -13,10 +13,12 @@
 
 #include "access.h"
 
+struct cred;
 struct landlock_cred_security;
 struct landlock_hierarchy;
 struct sockaddr;
 struct task_struct;
+struct user_namespace;
 
 enum landlock_request_type {
 	LANDLOCK_REQUEST_PTRACE = 1,
@@ -25,7 +27,8 @@ enum landlock_request_type {
 	LANDLOCK_REQUEST_NET_ACCESS,
 	LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
 	LANDLOCK_REQUEST_SCOPE_SIGNAL,
-	LANDLOCK_REQUEST_NAMESPACE,
+	LANDLOCK_REQUEST_NAMESPACE_CREATE,
+	LANDLOCK_REQUEST_NAMESPACE_ENTER,
 	LANDLOCK_REQUEST_CAPABILITY,
 };
 
@@ -51,6 +54,11 @@ struct landlock_ptrace_trace {
 struct landlock_signal_trace {
 	u64 target_domain_id;
 	int signal;
+};
+
+struct landlock_cap_trace {
+	const struct cred *cred;
+	const struct user_namespace *user_ns;
 };
 
 #endif /* CONFIG_TRACEPOINTS */
@@ -103,6 +111,8 @@ struct landlock_request {
 		const struct landlock_ptrace_trace *trace_ptrace;
 		/* Synchronous context for a signal denial. */
 		const struct landlock_signal_trace *trace_signal;
+		/* Synchronous context for a capability denial. */
+		const struct landlock_cap_trace *trace_cap;
 	};
 #endif /* CONFIG_TRACEPOINTS */
 };

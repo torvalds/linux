@@ -6,7 +6,7 @@ Landlock Trace Events
 =====================
 
 :Author: Mickaël Salaün
-:Date: October 2026
+:Date: November 2026
 
 Landlock emits trace events for sandbox lifecycle operations and access
 denials.  These events can be consumed by ftrace (for human-readable
@@ -186,13 +186,19 @@ known allowed and quiet member masks.  Capability masks and the raw
 therefore appears as zero while still advancing the ruleset version, and adding
 a member already present still emits an event.
 
-``landlock_deny_permission_namespace`` reports the denied raw
-``CLONE_NEW*`` value.  ``namespace_id`` is the exact target namespace ID.  For
-a denied namespace creation, the namespace never becomes reachable so its ID
-is not directly visible from user space.
+``landlock_deny_permission_namespace`` reports ``namespace_op`` as ``create``
+for namespace construction, for example through :manpage:`clone(2)`,
+:manpage:`clone3(2)`, :manpage:`unshare(2)`, :manpage:`open_tree(2)`, or
+:manpage:`fsmount(2)`, and ``enter`` for :manpage:`setns(2)`.  These values
+describe the semantic namespace hook, not the exact system call.
+``namespace_type`` is the denied raw ``CLONE_NEW*`` value.  For a denied
+creation, ``namespace_id`` is allocated for the new namespace, which never
+becomes reachable, so its ID is not directly visible from user space.  For a
+denied entry, ``namespace_id`` is the exact existing target ID.
+
 ``landlock_deny_permission_capability`` reports the denied ``CAP_*`` number.
-Like every denial event, both include the denying domain, ``same_exec``, and
-``logged``.
+Like every denial event, the namespace and capability events include the
+denying domain, ``same_exec``, and ``logged``.
 
 Per-member quiet masks suppress audit submission but never these trace events,
 which report ``logged=0``.
@@ -303,9 +309,9 @@ event prototypes in `Event reference`_ document their argument layouts.
 The arguments include both standard kernel objects and Landlock-internal
 objects:
 
-- Standard kernel objects (``struct task_struct``, ``struct sock``,
-  ``struct path``, ``struct dentry``) can be used with existing BPF
-  helpers.
+- Standard kernel objects (for example ``struct task_struct``, ``struct cred``,
+  ``struct user_namespace``, ``struct sock``, ``struct path``, and
+  ``struct dentry``) can be used with existing BPF helpers.
 - Landlock-internal objects (``struct landlock_domain``,
   ``struct landlock_ruleset``, ``struct landlock_rule``,
   ``struct landlock_hierarchy``) can be read via ``BPF_CORE_READ``.
