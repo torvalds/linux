@@ -23,9 +23,10 @@
 int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx)
 {
-	int rc;
 	const char *prepath = NULL;
+	char *node_name = NULL;
 	char *path;
+	int rc;
 
 	if (!full_path || !*full_path || !ref || !ctx)
 		return -EINVAL;
@@ -40,7 +41,12 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 			prepath++;
 	}
 
-	path = cifs_build_devname(ref->node_name, prepath);
+	node_name = dfs_cache_local_path(ref->node_name, ctx->local_nls);
+	if (IS_ERR(node_name))
+		return PTR_ERR(node_name);
+
+	path = cifs_build_devname(node_name, prepath);
+	kfree(node_name);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
