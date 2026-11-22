@@ -7576,6 +7576,21 @@ static void scx_root_disable(struct scx_sched *sch)
 
 	was_switched_all = scx_switched_all();
 
+	/*
+	 * Tasks fall back to fair from here on. Attach fair_server now, or an
+	 * RT task can starve them while we wait for RCU grace periods below.
+	 * If its bandwidth doesn't fit, the swap at the end attaches it.
+	 */
+	if (was_switched_all) {
+		for_each_possible_cpu(cpu) {
+			struct rq *rq = cpu_rq(cpu);
+
+			guard(rq_lock_irqsave)(rq);
+			update_rq_clock(rq);
+			dl_server_attach_bw(&rq->fair_server);
+		}
+	}
+
 	static_branch_disable(&__scx_switched_all);
 	WRITE_ONCE(scx_switching_all, false);
 	WRITE_ONCE(scx_task_switch_enabled, false);
@@ -7626,8 +7641,8 @@ static void scx_root_disable(struct scx_sched *sch)
 
 	/*
 	 * Re-balance the dl_server bandwidth reservations: detach ext_server
-	 * (no more sched_ext tasks) and reinstate fair_server if it was
-	 * previously detached because we were running in full mode.
+	 * (no more sched_ext tasks) and attach fair_server if the attach
+	 * above failed.
 	 *
 	 * Unlike the enable path, this runs on a recovery path that cannot
 	 * fail, so we use dl_server_swap_bw() to atomically free ext_server's
