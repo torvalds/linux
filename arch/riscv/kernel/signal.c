@@ -123,7 +123,9 @@ static long __restore_v_state(struct pt_regs *regs, void __user *sc_vec)
 	 * to avoid getting the vstate incorrectly clobbered by the
 	 *  discarded vector state.
 	 */
+	preempt_disable();
 	riscv_v_vstate_set_restore(current, regs);
+	preempt_enable();
 
 	/* Copy everything of __sc_riscv_v_state except datap. */
 	err = __copy_from_user(&current->thread.vstate, &state->v_state,

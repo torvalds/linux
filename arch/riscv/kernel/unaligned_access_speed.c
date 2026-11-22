@@ -322,7 +322,7 @@ static int __init set_unaligned_scalar_speed_param(char *str)
 	else if (!strcmp(str, speed_str[RISCV_HWPROBE_MISALIGNED_SCALAR_UNSUPPORTED]))
 		unaligned_scalar_speed_param = RISCV_HWPROBE_MISALIGNED_SCALAR_UNSUPPORTED;
 	else
-		return -EINVAL;
+		return 0;
 
 	return 1;
 }
@@ -337,7 +337,7 @@ static int __init set_unaligned_vector_speed_param(char *str)
 	else if (!strcmp(str, speed_str[RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED]))
 		unaligned_vector_speed_param = RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED;
 	else
-		return -EINVAL;
+		return 0;
 
 	return 1;
 }

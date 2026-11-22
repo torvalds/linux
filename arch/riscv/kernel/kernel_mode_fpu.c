@@ -14,7 +14,7 @@
 void kernel_fpu_begin(void)
 {
 	preempt_disable();
-	fstate_save(current, task_pt_regs(current));
+	fstate_save_preempt_off(current, task_pt_regs(current));
 	csr_set(CSR_SSTATUS, SR_FS);
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_begin);
@@ -22,7 +22,7 @@ EXPORT_SYMBOL_GPL(kernel_fpu_begin);
 void kernel_fpu_end(void)
 {
 	csr_clear(CSR_SSTATUS, SR_FS);
-	fstate_restore(current, task_pt_regs(current));
+	fstate_restore_preempt_off(current, task_pt_regs(current));
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_end);

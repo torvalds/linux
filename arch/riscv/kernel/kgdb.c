@@ -319,13 +319,28 @@ static int kgdb_riscv_kgdbbreak(unsigned long addr)
 	return kgdb_has_hit_break(addr);
 }
 
+static int kgdb_riscv_handle(struct die_args *args, unsigned long cmd,
+			     int type)
+{
+	struct pt_regs *regs = args->regs;
+
+	if (kgdb_handle_exception(type == KGDB_SW_SINGLE_STEP ? 0 : 1,
+				  args->signr, cmd, regs))
+		return NOTIFY_DONE;
+
+	if (type == KGDB_COMPILED_BREAK)
+		regs->epc += 4;
+
+	return NOTIFY_STOP;
+}
+
 static int kgdb_riscv_notify(struct notifier_block *self, unsigned long cmd,
 			     void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
 	struct pt_regs *regs = args->regs;
 	unsigned long flags;
-	int type;
+	int type, ret;
 
 	if (user_mode(regs))
 		return NOTIFY_DONE;
@@ -335,17 +350,10 @@ static int kgdb_riscv_notify(struct notifier_block *self, unsigned long cmd,
 		return NOTIFY_DONE;
 
 	local_irq_save(flags);
-
-	if (kgdb_handle_exception(type == KGDB_SW_SINGLE_STEP ? 0 : 1,
-				  args->signr, cmd, regs))
-		return NOTIFY_DONE;
-
-	if (type == KGDB_COMPILED_BREAK)
-		regs->epc += 4;
-
+	ret = kgdb_riscv_handle(args, cmd, type);
 	local_irq_restore(flags);
 
-	return NOTIFY_STOP;
+	return ret;
 }
 
 static struct notifier_block kgdb_notifier = {

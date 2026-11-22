@@ -602,7 +602,7 @@ config RISCV_ISA_SSQOSID
 
 config RISCV_ISA_SV48
 	bool "Page-Based 48-bit Virtual-Memory System"
-	depends on 64BIT
+	depends on 64BIT && MMU
 	default y
 	help
 	  Add support for the Page-Based 48-bit Virtual-Memory System.
@@ -614,7 +614,7 @@ config RISCV_ISA_SV48
 
 config RISCV_ISA_SV57
 	bool "Page-Based 57-bit Virtual-Memory System"
-	depends on 64BIT
+	depends on 64BIT && MMU
 	default y
 	help
 	  Add support for the Page-Based 57-bit Virtual-Memory System.

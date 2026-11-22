@@ -948,7 +948,7 @@
 				resets = <&syscon_apmu RESET_DMA>;
 				interrupts = <72>;
 				dma-channels = <16>;
-				#dma-cells= <1>;
+				#dma-cells = <1>;
 				status = "disabled";
 			};
 
