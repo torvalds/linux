@@ -1058,8 +1058,8 @@ static int __init xbc_verify_tree(void)
 			return xbc_parse_error("Too long key length",
 				xbc_node_get_data(n));
 
-		m = xbc_node_get_child(n);
-		if (m && xbc_node_is_key(m)) {
+		m = xbc_node_get_subkey(n);
+		if (m) {
 			n = m;
 			depth++;
 			if (depth > XBC_DEPTH_MAX)
