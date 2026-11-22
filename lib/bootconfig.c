@@ -421,11 +421,11 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 	uint16_t keys[XBC_DEPTH_MAX];
 	int depth = 0, ret = 0, total = 0;
 
+	while (node && xbc_node_is_value(node))
+		node = xbc_node_get_parent(node);
+
 	if (!node || node == root)
 		return -EINVAL;
-
-	if (xbc_node_is_value(node))
-		node = xbc_node_get_parent(node);
 
 	while (node && node != root) {
 		if (depth == XBC_DEPTH_MAX)
