@@ -14,7 +14,6 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/delay.h>
 #include "fcp.h"
 #include "lib.h"
 #include "amdtp-stream.h"
@@ -22,7 +21,6 @@
 #define CTS_AVC 0x00
 
 #define ERROR_RETRIES	3
-#define ERROR_DELAY_MS	5
 #define FCP_TIMEOUT_MS	125
 
 int avc_general_set_sig_fmt(struct fw_unit *unit, unsigned int rate,
@@ -272,7 +270,8 @@ deferred:
 			ret = t.response_size;
 			break;
 		} else if (t.state == STATE_BUS_RESET) {
-			msleep(ERROR_DELAY_MS);
+			ret = -EAGAIN;
+			break;
 		} else if (++tries >= ERROR_RETRIES) {
 			dev_err(&t.unit->device, "FCP command timed out\n");
 			ret = -EIO;
