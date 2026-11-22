@@ -281,6 +281,8 @@ static int goodix_prepare_bak_ref(struct goodix_ts_data *ts)
 		driver_num, sensor_num, have_key);
 
 	ts->bak_ref_len = (driver_num * (sensor_num - 2) + 2) * 2;
+	if (ts->bak_ref_len < 2)
+		return -EINVAL;
 
 	ts->bak_ref = devm_kzalloc(&ts->client->dev,
 				   ts->bak_ref_len, GFP_KERNEL);
@@ -409,7 +411,7 @@ void goodix_save_bak_ref(struct goodix_ts_data *ts)
 	int error;
 	u8 val;
 
-	if (!ts->firmware_name)
+	if (!ts->firmware_name || !ts->bak_ref)
 		return;
 
 	error = goodix_i2c_read(ts->client, GOODIX_REG_STATUS, &val, 1);

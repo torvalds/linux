@@ -278,6 +278,7 @@ static int max77693_haptic_open(struct input_dev *dev)
 	if (error) {
 		dev_err(haptic->dev,
 			"failed to enable regulator: %d\n", error);
+		max77843_haptic_bias(haptic, false);
 		return error;
 	}
 

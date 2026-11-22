@@ -30,6 +30,7 @@
 #define TP_VARIANT_NXP			0x04
 #define TP_VARIANT_JYT_SYNAPTICS	0x05
 #define TP_VARIANT_SYNAPTICS		0x06
+#define TP_VARIANT_JYT_NDT		0x07
 
 /*
  * Commands
