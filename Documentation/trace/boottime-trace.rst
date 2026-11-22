@@ -36,20 +36,20 @@ these options are passed as a part of kernel legacy command line.
 kernel.tp_printk
    Output trace-event data on printk buffer too.
 
-kernel.dump_on_oops [= MODE]
+kernel.ftrace_dump_on_oops [= MODE]
    Dump ftrace on Oops. If MODE = 1 or omitted, dump trace buffer
    on all CPUs. If MODE = 2, dump a buffer on a CPU which kicks Oops.
 
 kernel.traceoff_on_warning
    Stop tracing if WARN_ON() occurs.
 
-kernel.fgraph_max_depth = MAX_DEPTH
+kernel.ftrace_graph_max_depth = MAX_DEPTH
    Set MAX_DEPTH to maximum depth of fgraph tracer.
 
-kernel.fgraph_filters = FILTER[, FILTER2...]
+kernel.ftrace_graph_filter = FILTER[, FILTER2...]
    Add fgraph tracing function filters.
 
-kernel.fgraph_notraces = FILTER[, FILTER2...]
+kernel.ftrace_graph_notrace = FILTER[, FILTER2...]
    Add fgraph non-tracing function filters.
 
 
