@@ -137,11 +137,19 @@ static int sysctl_k2u_int_conv_userhz(bool *negp, ulong *u_ptr, const int *k_ptr
 	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, sysctl_jiffies_to_clock_t);
 }
 
+/*
+ * Calc ms <-> jiffies conversions for sysctls in unsigned long arithmetic.
+ * Think hard about using the non-sysctl converters (msecs_to_jiffies &
+ * jiffies_to_msecs) as the interaction between ulong and uint is not trivial.
+ */
 static ulong sysctl_msecs_to_jiffies(const ulong val)
 {
-	if (val > jiffies_to_msecs(MAX_JIFFY_OFFSET))
-		return MAX_JIFFY_OFFSET;
-	return msecs_to_jiffies(val);
+	ulong secs = val / MSEC_PER_SEC;
+
+	if (secs >= ULONG_MAX / HZ)
+		return ULONG_MAX;
+
+	return secs * HZ + DIV_ROUND_UP((val % MSEC_PER_SEC) * HZ, MSEC_PER_SEC);
 }
 
 static int sysctl_u2k_int_conv_ms(const bool *negp, const ulong *u_ptr, int *k_ptr)
@@ -151,7 +159,12 @@ static int sysctl_u2k_int_conv_ms(const bool *negp, const ulong *u_ptr, int *k_p
 
 static ulong sysctl_jiffies_to_msecs(const ulong val)
 {
-	return jiffies_to_msecs(val);
+	ulong secs = val / HZ;
+
+	if (secs >= ULONG_MAX / MSEC_PER_SEC)
+		return ULONG_MAX;
+
+	return secs * MSEC_PER_SEC + (val % HZ) * MSEC_PER_SEC / HZ;
 }
 
 static int sysctl_k2u_int_conv_ms(bool *negp, ulong *u_ptr, const int *k_ptr)
