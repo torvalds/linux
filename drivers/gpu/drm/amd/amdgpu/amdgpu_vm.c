@@ -1327,6 +1327,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		}
 	} else if (!bo) {
 		mem = NULL;
+		r = 0;
 
 		/* PRT map operations don't need to sync to anything. */
 
