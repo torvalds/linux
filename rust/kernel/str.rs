@@ -645,7 +645,7 @@ impl fmt::Write for RawFormatter {
 /// Fails if callers attempt to write more than will fit in the buffer.
 pub struct Formatter<'a>(RawFormatter, PhantomData<&'a mut ()>);
 
-impl Formatter<'_> {
+impl<'a> Formatter<'a> {
     /// Creates a new instance of [`Formatter`] with the given buffer.
     ///
     /// # Safety
@@ -658,7 +658,7 @@ impl Formatter<'_> {
     }
 
     /// Create a new [`Self`] instance.
-    pub fn new(buffer: &mut [u8]) -> Self {
+    pub fn new(buffer: &'a mut [u8]) -> Self {
         // SAFETY: `buffer` is valid for writes for the entire length for
         // the lifetime of `Self`.
         unsafe { Formatter::from_buffer(buffer.as_mut_ptr(), buffer.len()) }

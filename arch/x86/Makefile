@@ -21,6 +21,7 @@ RETPOLINE_CFLAGS	:= -mretpoline-external-thunk
 RETPOLINE_VDSO_CFLAGS	:= -mretpoline
 endif
 RETPOLINE_CFLAGS	+= $(CONFIG_CC_OPT_INDIRECT_BRANCH_CS_PREFIX)
+RETPOLINE_RUSTFLAGS	+= $(if $(call rustc-min-version,109100),-Zindirect-branch-cs-prefix,-Zllvm_module_flag=indirect_branch_cs_prefix:u32:1:override)
 
 ifdef CONFIG_MITIGATION_RETHUNK
 RETHUNK_CFLAGS		:= -mfunction-return=thunk-extern
