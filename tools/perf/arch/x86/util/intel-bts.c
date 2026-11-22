@@ -299,6 +299,7 @@ static int intel_bts_alloc_snapshot_refs(struct intel_bts_recording *btsr,
 
 	memcpy(refs, btsr->snapshot_refs, cnt * sz);
 
+	free(btsr->snapshot_refs);
 	btsr->snapshot_refs = refs;
 	btsr->snapshot_ref_cnt = new_cnt;
 

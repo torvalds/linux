@@ -602,6 +602,7 @@ class ReportApp(App):
         """
         super().__init__()
         self.input_file = input_file
+        self.sub_title = input_file
         self.root = root if root else ProfileNode("root", parent=None)
         self.loaded = root is not None
         # Held when reading or changing the profile, which is built in a
@@ -622,7 +623,6 @@ class ReportApp(App):
 
     def on_mount(self) -> None:
         """Start loading the profile unless it was given."""
-        self.sub_title = self.input_file
         if self.loaded:
             self.update_views()
         else:

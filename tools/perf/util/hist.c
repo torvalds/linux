@@ -1055,7 +1055,7 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	 * and not events sampled. Thus we use a pseudo period of 1.
 	 */
 	sample->period = 1;
-	sample->weight = bi->flags.cycles ? bi->flags.cycles : 1;
+	sample->weight = bi[i].flags.cycles ? bi[i].flags.cycles : 1;
 
 	he = hists__add_entry(hists, al, iter->parent, &bi[i], NULL, NULL,
 			      sample, true);

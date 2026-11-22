@@ -36,19 +36,19 @@ static void event_get_key(struct perf_sample *sample,
 }
 
 static bool event_begin(struct perf_sample *sample,
-			struct event_key *key __maybe_unused)
-{
-	return evsel__name_is(sample->evsel, kvm_entry_trace(EM_AARCH64));
-}
-
-static bool event_end(struct perf_sample *sample,
-		      struct event_key *key)
+			struct event_key *key)
 {
 	if (evsel__name_is(sample->evsel, kvm_exit_trace(EM_AARCH64))) {
 		event_get_key(sample, key);
 		return true;
 	}
 	return false;
+}
+
+static bool event_end(struct perf_sample *sample,
+		      struct event_key *key __maybe_unused)
+{
+	return evsel__name_is(sample->evsel, kvm_entry_trace(EM_AARCH64));
 }
 
 static const struct kvm_events_ops exit_events = {

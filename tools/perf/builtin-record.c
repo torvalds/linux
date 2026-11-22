@@ -1580,7 +1580,7 @@ static struct perf_event_header finished_init_event = {
 
 static void record__adjust_affinity(struct record *rec, struct mmap *map)
 {
-	if (rec->opts.affinity != PERF_AFFINITY_SYS &&
+	if (map->core.cpu.cpu >= 0 && rec->opts.affinity != PERF_AFFINITY_SYS &&
 	    !bitmap_equal(thread->mask->affinity.bits, map->affinity_mask.bits,
 			  thread->mask->affinity.nbits)) {
 		bitmap_zero(thread->mask->affinity.bits, thread->mask->affinity.nbits);
@@ -3704,8 +3704,8 @@ static int record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cp
 		return 0;
 
 	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, cpus) {
-		/* Return ENODEV is input cpu is greater than max cpu */
-		if ((unsigned long)cpu.cpu > mask->nbits)
+		/* Return ENODEV if the CPU index is outside the mask. */
+		if ((unsigned long)cpu.cpu >= mask->nbits)
 			return -ENODEV;
 		__set_bit(cpu.cpu, mask->bits);
 	}

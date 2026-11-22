@@ -396,7 +396,7 @@ class JsonEvent:
         event += f',{value}{canonicalize_value(jd[key])}'
     if filter:
       event += f',{filter}'
-    if msr:
+    if msr and msrval:
       event += f',{msr}{msrval}'
     if self.desc and extra_desc:
       self.desc += extra_desc

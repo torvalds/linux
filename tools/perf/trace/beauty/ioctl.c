@@ -81,9 +81,11 @@ static size_t ioctl__scnprintf_kvm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/kvm_ioctl_array.c"
 	static DEFINE_STRARRAY(kvm_ioctl_cmds, "");
+	static DEFINE_STRARRAY(kvm_ioctl_read_cmds, "");
+	struct strarray *s = (dir & _IOC_READ) ? &strarray__kvm_ioctl_read_cmds : &strarray__kvm_ioctl_cmds;
 
-	if (nr < strarray__kvm_ioctl_cmds.nr_entries && strarray__kvm_ioctl_cmds.entries[nr] != NULL)
-		return scnprintf(bf, size, "KVM_%s", strarray__kvm_ioctl_cmds.entries[nr]);
+	if (nr < s->nr_entries && s->entries[nr] != NULL)
+		return scnprintf(bf, size, "KVM_%s", s->entries[nr]);
 
 	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
 }

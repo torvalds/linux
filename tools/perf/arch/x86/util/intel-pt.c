@@ -941,6 +941,7 @@ static int intel_pt_alloc_snapshot_refs(struct intel_pt_recording *ptr, int idx)
 
 	memcpy(refs, ptr->snapshot_refs, cnt * sz);
 
+	free(ptr->snapshot_refs);
 	ptr->snapshot_refs = refs;
 	ptr->snapshot_ref_cnt = new_cnt;
 

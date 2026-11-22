@@ -1065,6 +1065,7 @@ class TimelineView(ScrollView):
         self.can_focus = True
         self.data = data
         self.rows = rows
+        self.virtual_size = Size(0, 0)
         self.cache: Dict[int, List[Cell]] = {}
         self.cache_key: Tuple[float, float, int, Optional[ThemeColors]] = (0.0, 0.0, 0, None)
         self.label_style = Style()
@@ -1332,6 +1333,7 @@ class TimechartApp(App):
         """
         super().__init__()
         self.input_name = input_name
+        self.sub_title = input_name
         self.power_only = power_only
         self.tasks_only = tasks_only
         self.filters = filters

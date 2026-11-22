@@ -6,6 +6,15 @@
 printf "static const char *kvm_ioctl_cmds[] = {\n"
 regex='^#[[:space:]]*define[[:space:]]+KVM_(\w+)[[:space:]]+_IO[RW]*\([[:space:]]*KVMIO[[:space:]]*,[[:space:]]*(0x[[:xdigit:]]+).*'
 grep -E $regex ${header_dir}/kvm.h	| \
+	grep -E "_IO(W)?[[:space:]]*\("		| \
+	sed -r "s/$regex/\2 \1/g"	| \
+	grep -E -v " ((ARM|PPC|S390)_|[GS]ET_(DEBUGREGS|PIT2|XSAVE|TSC_KHZ)|CREATE_SPAPR_TCE_64)" | \
+	sort | xargs printf "\t[%s] = \"%s\",\n"
+printf "};\n"
+
+printf "static const char *kvm_ioctl_read_cmds[] = {\n"
+grep -E $regex ${header_dir}/kvm.h	| \
+	grep -E "_IO(W)?R[[:space:]]*\("	| \
 	sed -r "s/$regex/\2 \1/g"	| \
 	grep -E -v " ((ARM|PPC|S390)_|[GS]ET_(DEBUGREGS|PIT2|XSAVE|TSC_KHZ)|CREATE_SPAPR_TCE_64)" | \
 	sort | xargs printf "\t[%s] = \"%s\",\n"

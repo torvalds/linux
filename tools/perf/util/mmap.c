@@ -292,8 +292,8 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu
 		return -1;
 	}
 
-	if (mp->affinity != PERF_AFFINITY_SYS &&
-		perf_mmap__setup_affinity_mask(map, mp)) {
+	if (cpu.cpu >= 0 && mp->affinity != PERF_AFFINITY_SYS &&
+	    perf_mmap__setup_affinity_mask(map, mp)) {
 		pr_debug2("failed to alloc mmap affinity mask, error %d\n",
 			  errno);
 		return -1;

@@ -292,13 +292,13 @@ merge_pickup_commits() {
 		git rev-list --no-walk=unsorted --stdin --min-parents=2 2>/dev/null
 }
 
-# Render commit ids with FORMAT at the usual 12 chars, keeping their order.
+# Render commit ids with FORMAT at the usual 16 chars, keeping their order.
 format_commits() {
 	local format="$1"
 	local ids="$2"
 
 	[[ -n "$ids" ]] || return 0
-	printf '%s\n' "$ids" | git log --no-walk=unsorted --abbrev=12 \
+	printf '%s\n' "$ids" | git log --no-walk=unsorted --abbrev=16 \
 		--format="$format" --stdin 2>/dev/null
 }
 
@@ -875,7 +875,7 @@ beauty_body_fragment() {
 		printf '  $ diff -u before.txt after.txt\n'
 	fi
 	printf '\n'
-	diff -u "$before" "$after" | tail -n +3 | sed 's/^/  /'
+	diff -u "$before" "$after" | tail -n +3 | sed -e '/^@@ /d' -e 's/^/  /'
 	printf '\n'
 }
 
@@ -914,7 +914,7 @@ process_header() {
 
 	local kernel_commits=""
 	if [[ -n "$pickup_commits" ]]; then
-		kernel_commits=$(format_commits '  %h ("%s")' "$pickup_commits")
+		kernel_commits=$(format_commits '  commit %h ("%s")' "$pickup_commits")
 	fi
 
 	# A merge can bring content of its own; list it too, it is not the
@@ -926,7 +926,7 @@ process_header() {
 		if [[ -n "$kernel_commits" ]]; then
 			kernel_commits+=$'\n'
 		fi
-		kernel_commits+=$(format_commits '  %h ("%s")' "$merge_commits")
+		kernel_commits+=$(format_commits '  commit %h ("%s")' "$merge_commits")
 	fi
 
 	if [[ -n "$kernel_commits" ]]; then
@@ -1235,10 +1235,10 @@ process_group() {
 				echo ""
 				echo "  Kernel commits since last sync ($tools_path):"
 				if [[ -n "$pickup_commits" ]]; then
-					format_commits '  %h ("%s")' "$pickup_commits"
+					format_commits '  commit %h ("%s")' "$pickup_commits"
 				fi
 				if [[ -n "$merge_commits" ]]; then
-					format_commits '  %h ("%s")' "$merge_commits"
+					format_commits '  commit %h ("%s")' "$merge_commits"
 				fi
 				local ccs
 				ccs=$(format_commits 'Cc: %an <%ae>' "$pickup_commits" | sort -u)
@@ -1290,7 +1290,7 @@ process_group() {
 			warn "No previous sync commit found for $tools_path"
 		fi
 		if [[ -n "$pickup_commits" ]]; then
-			all_kernel_commits+=$(format_commits '  %h ("%s")' "$pickup_commits")
+			all_kernel_commits+=$(format_commits '  commit %h ("%s")' "$pickup_commits")
 			all_kernel_commits+=$'\n'
 
 			local ccs
@@ -1306,7 +1306,7 @@ process_group() {
 		merge_commits=$(merge_pickup_commits "$kernel_path" "$tools_path" \
 			"$sync_point")
 		if [[ -n "$merge_commits" ]]; then
-			all_kernel_commits+=$(format_commits '  %h ("%s")' "$merge_commits")
+			all_kernel_commits+=$(format_commits '  commit %h ("%s")' "$merge_commits")
 			all_kernel_commits+=$'\n'
 		fi
 
