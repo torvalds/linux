@@ -1949,11 +1949,7 @@ ENDPROC_CFI(mcount)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-#ifdef CONFIG_64BIT
 #define FTRACE_FRAME_SIZE (2*FRAME_SIZE)
-#else
-#define FTRACE_FRAME_SIZE FRAME_SIZE
-#endif
 ENTRY_CFI(ftrace_caller, caller,frame=FTRACE_FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
 ftrace_caller:
 	.global ftrace_caller

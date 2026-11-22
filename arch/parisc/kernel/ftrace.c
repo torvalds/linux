@@ -146,7 +146,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 #else
 	u32 ftrace_trampoline[] = {
 		(u32)addr,
-		0x6fc10080, /* stw,ma r1,40(sp) */
+		0x6fc10100, /* stw,ma r1,80(sp) */
 		0x48213fd1, /* ldw -18(r1),r1 */
 		0xe820c002, /* bv,n r0(r1) */
 		0xe83f1fdf, /* b,l,n .-c,r1 */
