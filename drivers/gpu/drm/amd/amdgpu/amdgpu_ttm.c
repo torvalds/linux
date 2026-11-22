@@ -2718,6 +2718,8 @@ int amdgpu_ttm_clear_buffer(struct amdgpu_ttm_buffer_entity *entity,
 
 		amdgpu_res_next(&dst, cur_size);
 	}
+	r = 0;
+
 error:
 	mutex_unlock(&entity->lock);
 	*out_fence = fence;
