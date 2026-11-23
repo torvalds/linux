@@ -73,6 +73,13 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 		},
 	},
 	{
+		/* Lenovo IdeaPad Slim 5 16AKP10 (Krackan Point, ACP 7.0) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83HY"),
+		},
+	},
+	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK COMPUTER INC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FA401EA"),
