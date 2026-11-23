@@ -9308,15 +9308,17 @@ static int bpf_scx_check_member(const struct btf_type *t,
 	 * sub-scheds and sub-scheds themselves but I don't know how to access
 	 * struct_ops from here.
 	 */
-	switch (moff) {
-	case offsetof(struct sched_ext_ops, dispatch):
-		prog->aux->priv_stack_requested = true;
-		prog->aux->recursion_detected = scx_pstack_recursion_on_dispatch;
-		break;
-	case offsetof(struct sched_ext_ops, sub_caps_updated):
-		prog->aux->priv_stack_requested = true;
-		prog->aux->recursion_detected = scx_pstack_recursion_on_caps_updated;
-		break;
+	if (bpf_jit_supports_private_stack()) {
+		switch (moff) {
+		case offsetof(struct sched_ext_ops, dispatch):
+			prog->aux->priv_stack_requested = true;
+			prog->aux->recursion_detected = scx_pstack_recursion_on_dispatch;
+			break;
+		case offsetof(struct sched_ext_ops, sub_caps_updated):
+			prog->aux->priv_stack_requested = true;
+			prog->aux->recursion_detected = scx_pstack_recursion_on_caps_updated;
+			break;
+		}
 	}
 #endif	/* CONFIG_EXT_SUB_SCHED */
 

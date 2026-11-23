@@ -2246,6 +2246,12 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 		goto out_unlock;
 	}
 
+	/* nesting ops need private stacks, see bpf_scx_check_member() */
+	if (!bpf_jit_supports_private_stack()) {
+		ret = -EOPNOTSUPP;
+		goto out_unlock;
+	}
+
 	cgrp = cgroup_get_from_id(ops->sub_cgroup_id);
 	if (IS_ERR(cgrp)) {
 		ret = PTR_ERR(cgrp);
