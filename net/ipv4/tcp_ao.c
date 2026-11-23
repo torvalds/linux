@@ -799,8 +799,8 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 		return -ENOTCONN;
 
 	if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV)) {
-		unsigned int family = READ_ONCE(sk->sk_family);
 		union tcp_ao_addr *addr;
+		unsigned int family;
 		__be32 disn, sisn;
 
 		if (sk->sk_state == TCP_NEW_SYN_RECV) {
@@ -813,14 +813,14 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 			sisn = th->seq;
 			disn = 0;
 		}
-		if (IS_ENABLED(CONFIG_IPV6) && family == AF_INET6)
+		if (IS_ENABLED(CONFIG_IPV6) &&
+		    skb->protocol == htons(ETH_P_IPV6)) {
+			family = AF_INET6;
 			addr = (union tcp_md5_addr *)&ipv6_hdr(skb)->saddr;
-		else
-			addr = (union tcp_md5_addr *)&ip_hdr(skb)->saddr;
-#if IS_ENABLED(CONFIG_IPV6)
-		if (family == AF_INET6 && ipv6_addr_v4mapped(&sk->sk_v6_daddr))
+		} else {
 			family = AF_INET;
-#endif
+			addr = (union tcp_md5_addr *)&ip_hdr(skb)->saddr;
+		}
 
 		sk = sk_const_to_full_sk(sk);
 		ao_info = rcu_dereference(tcp_sk(sk)->ao_info);
