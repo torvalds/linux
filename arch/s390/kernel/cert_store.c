@@ -46,6 +46,9 @@
 static debug_info_t *cert_store_dbf;
 static debug_info_t *cert_store_hexdump;
 
+/* Task currently running refresh_store(). Written under cs_refresh_lock. */
+static struct task_struct *cs_refresh_task;
+
 #define pr_dbf_msg(fmt, ...) \
 	debug_sprintf_event(cert_store_dbf, 3, fmt "\n", ## __VA_ARGS__)
 
@@ -149,11 +152,23 @@ static void cert_store_key_describe(const struct key *key, struct seq_file *m)
 }
 
 /*
+ * Only the kernel may create keys of this type. Accept the task which runs
+ * refresh_store(), as it cannot execute userspace during the refresh.
+ */
+static int cert_store_key_vet_description(const char *description)
+{
+	if (READ_ONCE(cs_refresh_task) != current)
+		return -EPERM;
+	return 0;
+}
+
+/*
  * Certificate store key type takes over properties of
  * user key but cannot be updated.
  */
 static struct key_type key_type_cert_store_key = {
 	.name		= CERT_STORE_KEY_TYPE_NAME,
+	.vet_description = cert_store_key_vet_description,
 	.preparse	= user_preparse,
 	.free_preparse	= user_free_preparse,
 	.instantiate	= generic_key_instantiate,
@@ -768,6 +783,7 @@ static ssize_t refresh_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (rc)
 		return rc;
 
+	WRITE_ONCE(cs_refresh_task, current);
 	for (retries = 0; retries < DIAG_MAX_RETRIES; retries++) {
 		/* Request certificates from certificate store. */
 		rc = fill_cs_keyring();
@@ -776,6 +792,7 @@ static ssize_t refresh_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (rc != -EAGAIN)
 			break;
 	}
+	WRITE_ONCE(cs_refresh_task, NULL);
 	cs_status_val = rc;
 	mutex_unlock(&cs_refresh_lock);
 
