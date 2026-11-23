@@ -184,6 +184,20 @@ static const struct reg_default tegra264_admaif_reg_defaults[] = {
 	{(TEGRA_ADMAIF_GLOBAL_CG_0 + TEGRA264_ADMAIF_GLOBAL_BASE), 0x00000003}
 };
 
+static const struct reg_default tegra268_admaif_reg_defaults[] = {
+	ADMAIF_RX_REG_DEFAULTS(1, TEGRA268),
+	ADMAIF_RX_REG_DEFAULTS(2, TEGRA268),
+	ADMAIF_RX_REG_DEFAULTS(3, TEGRA268),
+	ADMAIF_RX_REG_DEFAULTS(4, TEGRA268),
+	ADMAIF_RX_REG_DEFAULTS(5, TEGRA268),
+	ADMAIF_TX_REG_DEFAULTS(1, TEGRA268),
+	ADMAIF_TX_REG_DEFAULTS(2, TEGRA268),
+	ADMAIF_TX_REG_DEFAULTS(3, TEGRA268),
+	ADMAIF_TX_REG_DEFAULTS(4, TEGRA268),
+	ADMAIF_TX_REG_DEFAULTS(5, TEGRA268),
+	{(TEGRA_ADMAIF_GLOBAL_CG_0 + TEGRA268_ADMAIF_GLOBAL_BASE), 0x00000003}
+};
+
 static bool tegra_admaif_wr_reg(struct device *dev, unsigned int reg)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
@@ -338,6 +352,20 @@ static const struct regmap_config tegra264_admaif_regmap_config = {
 	.volatile_reg		= tegra_admaif_volatile_reg,
 	.reg_defaults		= tegra264_admaif_reg_defaults,
 	.num_reg_defaults	= TEGRA264_ADMAIF_CHANNEL_COUNT * 6 + 1,
+	.reg_default_cb		= regmap_default_zero_cb,
+	.cache_type		= REGCACHE_FLAT,
+};
+
+static const struct regmap_config tegra268_admaif_regmap_config = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	.max_register		= TEGRA264_ADMAIF_LAST_REG,
+	.writeable_reg		= tegra_admaif_wr_reg,
+	.readable_reg		= tegra_admaif_rd_reg,
+	.volatile_reg		= tegra_admaif_volatile_reg,
+	.reg_defaults		= tegra268_admaif_reg_defaults,
+	.num_reg_defaults	= TEGRA268_ADMAIF_CHANNEL_COUNT * 6 + 1,
 	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
@@ -796,6 +824,14 @@ static struct snd_soc_dai_driver tegra264_admaif_cmpnt_dais[] = {
 	DAI("ADMAIF32", TEGRA264_ADMAIF_MAX_CHANNEL),
 };
 
+static struct snd_soc_dai_driver tegra268_admaif_cmpnt_dais[] = {
+	DAI("ADMAIF1", TEGRA268_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF2", TEGRA268_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF3", TEGRA268_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF4", TEGRA268_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF5", TEGRA268_ADMAIF_MAX_CHANNEL),
+};
+
 static const char * const tegra_admaif_stereo_conv_text[] = {
 	"CH0", "CH1", "AVG",
 };
@@ -908,6 +944,14 @@ static struct snd_kcontrol_new tegra264_admaif_controls[] = {
 	TEGRA_ADMAIF_CIF_CTRL(32),
 };
 
+static struct snd_kcontrol_new tegra268_admaif_controls[] = {
+	TEGRA_ADMAIF_CIF_CTRL(1),
+	TEGRA_ADMAIF_CIF_CTRL(2),
+	TEGRA_ADMAIF_CIF_CTRL(3),
+	TEGRA_ADMAIF_CIF_CTRL(4),
+	TEGRA_ADMAIF_CIF_CTRL(5),
+};
+
 static const struct snd_soc_component_driver tegra210_admaif_cmpnt = {
 	.controls		= tegra210_admaif_controls,
 	.num_controls		= ARRAY_SIZE(tegra210_admaif_controls),
@@ -931,6 +975,16 @@ static const struct snd_soc_component_driver tegra186_admaif_cmpnt = {
 static const struct snd_soc_component_driver tegra264_admaif_cmpnt = {
 	.controls		= tegra264_admaif_controls,
 	.num_controls		= ARRAY_SIZE(tegra264_admaif_controls),
+	.pcm_new		= tegra_pcm_new,
+	.open			= tegra_pcm_open,
+	.close			= tegra_pcm_close,
+	.hw_params		= tegra_pcm_hw_params,
+	.pointer		= tegra_pcm_pointer,
+};
+
+static const struct snd_soc_component_driver tegra268_admaif_cmpnt = {
+	.controls		= tegra268_admaif_controls,
+	.num_controls		= ARRAY_SIZE(tegra268_admaif_controls),
 	.pcm_new		= tegra_pcm_new,
 	.open			= tegra_pcm_open,
 	.close			= tegra_pcm_close,
@@ -971,10 +1025,22 @@ static const struct tegra_admaif_soc_data soc_data_tegra264 = {
 	.rx_base	= TEGRA264_ADMAIF_RX_BASE,
 };
 
+static const struct tegra_admaif_soc_data soc_data_tegra268 = {
+	.num_ch		= TEGRA268_ADMAIF_CHANNEL_COUNT,
+	.max_stream_ch	= TEGRA268_ADMAIF_MAX_CHANNEL,
+	.cmpnt		= &tegra268_admaif_cmpnt,
+	.dais		= tegra268_admaif_cmpnt_dais,
+	.regmap_conf	= &tegra268_admaif_regmap_config,
+	.global_base	= TEGRA268_ADMAIF_GLOBAL_BASE,
+	.tx_base	= TEGRA268_ADMAIF_TX_BASE,
+	.rx_base	= TEGRA268_ADMAIF_RX_BASE,
+};
+
 static const struct of_device_id tegra_admaif_of_match[] = {
 	{ .compatible = "nvidia,tegra210-admaif", .data = &soc_data_tegra210 },
 	{ .compatible = "nvidia,tegra186-admaif", .data = &soc_data_tegra186 },
 	{ .compatible = "nvidia,tegra264-admaif", .data = &soc_data_tegra264 },
+	{ .compatible = "nvidia,tegra268-admaif", .data = &soc_data_tegra268 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_admaif_of_match);
