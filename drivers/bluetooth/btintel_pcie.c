@@ -732,31 +732,18 @@ static int btintel_pcie_reset_bt(struct btintel_pcie_data *data)
 	return reg == 0 ? 0 : -ENODEV;
 }
 
-static void btintel_pcie_mac_init(struct btintel_pcie_data *data)
-{
-	u32 reg;
-
-	/* Set MAC_INIT bit to start primary bootloader */
-	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
-	reg &= ~(BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_INIT |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_DISCON |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_SW_RESET);
-	reg |= (BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_ENA |
-			BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT);
-	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG, reg);
-}
-
 static int btintel_pcie_get_mac_access(struct btintel_pcie_data *data)
 {
-	u32 reg;
+	u32 reg, val;
 	int retry = 15;
+	const u32 req = BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT |
+			BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_REQ;
 
 	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
 
-	if (!(reg & BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_REQ)) {
-		reg |= BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_REQ;
-		btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG, reg);
-	}
+	val = reg | req;
+	if (val != reg)
+		btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG, val);
 
 	do {
 		reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
@@ -1659,8 +1646,6 @@ static int btintel_parse_mbox_tlv(struct btintel_pcie_data *data)
 	if (!buffer)
 		return -ENOMEM;
 
-	btintel_pcie_mac_init(data);
-
 	err = btintel_pcie_read_device_mem(data, buffer, tbl_addr,
 					   buffer_len);
 	if (err)
@@ -2325,8 +2310,6 @@ static void btintel_pcie_read_hwexp(struct btintel_pcie_data *data)
 	if (!buf)
 		goto exit_on_error;
 
-	btintel_pcie_mac_init(data);
-
 	err = btintel_pcie_read_device_mem(data, buf, addr, len);
 	if (err)
 		goto exit_on_error;
@@ -2413,8 +2396,6 @@ static int btintel_pcie_dump_fwtrigger_event(struct btintel_pcie_data *data)
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-
-	btintel_pcie_mac_init(data);
 
 	err = btintel_pcie_read_device_mem(data, buf, data->debug_evt_addr,
 					   len);
