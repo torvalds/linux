@@ -404,7 +404,7 @@ static int aw_dev_init_re_update(struct aw88166 *aw88166, int flag)
 static void aw_dev_backup_sec_record(struct aw88166 *aw88166)
 {
 	aw_dev_init_vcalb_update(aw88166, AW88166_RECORD_SEC_DATA);
-	aw_dev_init_re_update(aw88166, AW88166_RECOVERY_SEC_DATA);
+	aw_dev_init_re_update(aw88166, AW88166_RECORD_SEC_DATA);
 }
 
 static void aw_dev_backup_sec_recovery(struct aw88166 *aw88166)
