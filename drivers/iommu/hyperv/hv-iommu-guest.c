@@ -540,9 +540,22 @@ static struct iommu_domain *hv_iommu_domain_alloc_paging(struct device *dev)
 	settings.page_table_root = pt_info.gcr3_pt;
 	settings.flags.first_stage_paging_mode = pt_info.levels == 5;
 
-	ret = hv_create_configure_device_domain(hv_domain, &settings);
+	ret = hv_create_device_domain(hv_domain);
 	if (ret)
 		goto err_pt_deinit;
+
+	ret = hv_configure_device_domain(hv_domain, &settings);
+	if (ret) {
+		/*
+		 * The current hypervisor does not adopt the page table root
+		 * when the configure call fails. Still, keep the page tables
+		 * while it has the domain, as hv_iommu_paging_domain_free()
+		 * does.
+		 */
+		if (hv_delete_device_domain(hv_domain))
+			return ERR_PTR(ret);
+		goto err_pt_deinit;
+	}
 
 	return &hv_domain->domain;
 
