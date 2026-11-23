@@ -684,7 +684,10 @@ bool inet6_mc_check(const struct sock *sk, const struct in6_addr *mc_addr,
 static void igmp6_group_added(struct ifmcaddr6 *mc)
 {
 	struct net_device *dev = mc->idev->dev;
-	char buf[MAX_ADDR_LEN];
+	/* RTNL might not be held: dev->type and dev->addr_len can change.
+	 * Make sure dev_mc_{add|del}() do not use uninitialized bytes.
+	 */
+	char buf[MAX_ADDR_LEN] = {};
 
 	mc_assert_locked(mc->idev);
 
@@ -720,7 +723,10 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 static void igmp6_group_dropped(struct ifmcaddr6 *mc)
 {
 	struct net_device *dev = mc->idev->dev;
-	char buf[MAX_ADDR_LEN];
+	/* RTNL might not be held: dev->type and dev->addr_len can change.
+	 * Make sure dev_mc_{add|del}() do not use uninitialized bytes.
+	 */
+	char buf[MAX_ADDR_LEN] = {};
 
 	mc_assert_locked(mc->idev);
 
