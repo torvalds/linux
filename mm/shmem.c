@@ -2687,10 +2687,12 @@ failed:
 	 * A large folio that does not fit the mapping, e.g. because its swap
 	 * entries were freed and reused, would be found again on every retry.
 	 * Drop it from the swap cache so the retry can swap in a fitting one.
+	 * A failed swap write sets dirty and then ends writeback without the
+	 * folio lock, so test writeback before dirty.
 	 */
 	if (error == -EEXIST && folio && folio_test_large(folio) &&
-	    !folio_test_anon(folio) && !folio_test_dirty(folio) &&
-	    !folio_test_writeback(folio))
+	    !folio_test_anon(folio) && !folio_test_writeback(folio) &&
+	    !folio_test_dirty(folio))
 		swap_cache_del_folio(folio);
 unlock:
 	if (folio)
