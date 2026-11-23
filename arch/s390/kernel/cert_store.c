@@ -409,6 +409,7 @@ static void cleanup_cs_keys(void)
 
 static struct key *create_cs_keyring(void)
 {
+	struct key_restriction *restriction;
 	struct key *cs_keyring, *us_keyring;
 
 	/* Cleanup previous cs_keyring and all associated keys if any. */
@@ -416,13 +417,21 @@ static struct key *create_cs_keyring(void)
 	us_keyring = get_user_session_keyring();
 	if (IS_ERR(us_keyring))
 		return NULL;
+	restriction = kzalloc_obj(*restriction);
+	if (!restriction) {
+		key_put(us_keyring);
+		return NULL;
+	}
+	/* Reject all links, the kernel bypasses the restriction. */
+	restriction->check = restrict_link_reject;
 	cs_keyring = keyring_alloc(CERT_STORE_KEYRING_NAME, GLOBAL_ROOT_UID,
 				   GLOBAL_ROOT_GID, current_cred(),
 				   (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ,
 				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
-				   NULL, us_keyring);
+				   restriction, us_keyring);
 	key_put(us_keyring);
 	if (IS_ERR(cs_keyring)) {
+		kfree(restriction);
 		pr_dbf_msg("Can't allocate cert_store keyring");
 		return NULL;
 	}
@@ -485,7 +494,7 @@ static int create_key_from_vce(struct vcssb *vcssb, struct vce *vce,
 		desc, (u8 *)vce + vce->vce_hdr.vc_offset,
 		vce->vce_hdr.vc_length,
 		(KEY_POS_ALL & ~KEY_POS_SETATTR)  | KEY_USR_VIEW | KEY_USR_READ,
-		KEY_ALLOC_NOT_IN_QUOTA);
+		KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BYPASS_RESTRICTION);
 
 	rc = PTR_ERR_OR_ZERO(newkey);
 	if (rc) {
@@ -652,14 +661,6 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 	}
 
 	pr_info("Added %d of %d keys to cert_store keyring", added, count);
-
-	/*
-	 * Do not allow to link more keys to certificate store keyring after all
-	 * the VCEs were processed.
-	 */
-	rc = keyring_restrict(make_key_ref(keyring, true), NULL, NULL);
-	if (rc)
-		pr_dbf_msg("Failed to set restriction to cert_store keyring (%d)", rc);
 
 	return 0;
 }
