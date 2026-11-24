@@ -107,6 +107,7 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 
 	data->rcdev.ops = &scmi_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
+	data->rcdev.dev = dev;
 	data->rcdev.of_node = np;
 	data->rcdev.nr_resets = reset_ops->num_domains_get(ph);
 	data->ph = ph;
