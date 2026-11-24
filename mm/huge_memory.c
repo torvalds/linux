@@ -4425,10 +4425,19 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	const bool is_swapcache = folio_test_swapcache(folio);
 	int old_order = folio_order(folio);
 	struct folio *new_folio, *next;
+	unsigned int nofs_flags;
 	int ret;
 
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_locked(folio), folio);
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_large(folio), folio);
+
+	/*
+	 * We might allocate memory while holding the folio lock. Direct
+	 * reclaim or compaction could try evicting the inode, isolating and
+	 * locking our folio, or wait for writeback on cgroup v1, to then
+	 * deadlock on folio locks.
+	 */
+	nofs_flags = memalloc_nofs_save();
 
 	if (folio != page_folio(split_at) || folio != page_folio(lock_at)) {
 		ret = -EINVAL;
@@ -4478,6 +4487,7 @@ out:
 	if (is_pmd_order(old_order))
 		count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);
 	count_mthp_stat(old_order, !ret ? MTHP_STAT_SPLIT : MTHP_STAT_SPLIT_FAILED);
+	memalloc_nofs_restore(nofs_flags);
 	return ret;
 }
 
