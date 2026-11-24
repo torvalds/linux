@@ -15,11 +15,13 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
 #include <asm/sbi.h>
+#include <asm/vendorid_list.h>
 #include <asm/kvm_vcpu_vector.h>
 
 static DEFINE_PER_CPU(bool, kvm_riscv_virtualization_enabled);
 
 DEFINE_STATIC_KEY_FALSE(kvm_riscv_vsstage_tlb_no_gpa);
+DEFINE_STATIC_KEY_FALSE(kvm_riscv_no_xenvcfg);
 
 static void kvm_riscv_setup_vendor_features(void)
 {
@@ -28,6 +30,13 @@ static void kvm_riscv_setup_vendor_features(void)
 	    (riscv_cached_marchid(0) & 0xFFFF) == 0x8A66) {
 		static_branch_enable(&kvm_riscv_vsstage_tlb_no_gpa);
 		kvm_info("VS-stage TLB does not cache guest physical address and VMID\n");
+	}
+
+	/* SiFive P550 (ESWIN EIC7700X): H on a 1.11 base, no henvcfg/senvcfg */
+	if (riscv_cached_mvendorid(0) == SIFIVE_VENDOR_ID &&
+	    riscv_cached_marchid(0) == 0x8000000000000008ULL) {
+		static_branch_enable(&kvm_riscv_no_xenvcfg);
+		kvm_info("henvcfg and senvcfg CSRs not implemented\n");
 	}
 }
 

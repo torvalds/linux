@@ -564,6 +564,9 @@ Kernel parameters
 	arm64.nohaft	[ARM64] Unconditionally disable Hardware managed Access
 			Flag for Table descriptors support
 
+	arm64.nols64	[ARM64] Unconditionally disable 64-byte Load/Store
+			instructions support
+
 	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
 			Set instructions support
 

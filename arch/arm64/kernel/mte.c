@@ -36,6 +36,14 @@ DEFINE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
 EXPORT_SYMBOL_GPL(mte_async_or_asymm_mode);
 #endif
 
+void mte_clear_folio_tags(struct folio *folio)
+{
+	unsigned long i;
+
+	for (i = 0; i < folio_nr_pages(folio); i++)
+		mte_clear_page_tags(page_address(folio_page(folio, i)));
+}
+
 void mte_sync_tags(pte_t pte, unsigned int nr_pages)
 {
 	struct page *page = pte_page(pte);
@@ -43,12 +51,9 @@ void mte_sync_tags(pte_t pte, unsigned int nr_pages)
 	unsigned long i;
 
 	if (folio_test_hugetlb(folio)) {
-		unsigned long nr = folio_nr_pages(folio);
-
-		/* Hugetlb MTE flags are set for head page only */
+		/* A hugetlb folio is marked tagged as a whole, so clear every page */
 		if (folio_try_hugetlb_mte_tagging(folio)) {
-			for (i = 0; i < nr; i++, page++)
-				mte_clear_page_tags(page_address(page));
+			mte_clear_folio_tags(folio);
 			folio_set_hugetlb_mte_tagged(folio);
 		}
 

@@ -593,7 +593,7 @@ EXPORT_SYMBOL_FOR_MODULES(kvm_s390_is_gpa_in_memslot, "vfio_ap");
  */
 static int handle_pqap(struct kvm_vcpu *vcpu)
 {
-	struct ap_queue_status status = {};
+	union ap_queue_status_reg status = {};
 	crypto_hook pqap_hook;
 	unsigned long reg0;
 	int ret;
@@ -662,8 +662,8 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 	 * No hook means no driver to enable the SIE CRYCB and no queues.
 	 * We send this response to the guest.
 	 */
-	status.response_code = 0x01;
-	memcpy(&vcpu->run->s.regs.gprs[1], &status, sizeof(status));
+	status.status.response_code = 0x01;
+	vcpu->run->s.regs.gprs[1] = status.value;
 	kvm_s390_set_psw_cc(vcpu, 3);
 	return 0;
 }
@@ -1169,6 +1169,8 @@ static inline int __do_essa(struct kvm_vcpu *vcpu, const int orc)
 	entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
 
 	nappended = dat_perform_essa(vcpu->arch.gmap->asce, gfn, orc, &state, &dirtied);
+	if (nappended == PGM_ADDRESSING)
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	vcpu->run->s.regs.gprs[r1] = state.val;
 	if (nappended < 0)
 		return 0;

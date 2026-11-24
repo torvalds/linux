@@ -159,6 +159,11 @@ static void its_encode_target(struct its_cmd_block *cmd, u64 target_addr)
 	its_mask_encode(&cmd->raw_cmd[2], target_addr >> 16, 51, 16);
 }
 
+static void its_encode_target2(struct its_cmd_block *cmd, u64 target_addr)
+{
+	its_mask_encode(&cmd->raw_cmd[3], target_addr >> 16, 51, 16);
+}
+
 static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
 {
 	its_mask_encode(&cmd->raw_cmd[2], col, 15, 0);
@@ -249,6 +254,29 @@ void its_send_invall_cmd(void *cmdq_base, u32 collection_id)
 
 	its_encode_cmd(&cmd, GITS_CMD_INVALL);
 	its_encode_collection(&cmd, collection_id);
+
+	its_send_cmd(cmdq_base, &cmd);
+}
+
+void its_send_movi_cmd(void *cmdq_base, u32 device_id, u32 event_id, u32 collection_id)
+{
+	struct its_cmd_block cmd = {};
+
+	its_encode_cmd(&cmd, GITS_CMD_MOVI);
+	its_encode_devid(&cmd, device_id);
+	its_encode_event_id(&cmd, event_id);
+	its_encode_collection(&cmd, collection_id);
+
+	its_send_cmd(cmdq_base, &cmd);
+}
+
+void its_send_movall_cmd(void *cmdq_base, u32 from_vcpu, u32 to_vcpu)
+{
+	struct its_cmd_block cmd = {};
+
+	its_encode_cmd(&cmd, GITS_CMD_MOVALL);
+	its_encode_target(&cmd, procnum_to_rdbase(from_vcpu));
+	its_encode_target2(&cmd, procnum_to_rdbase(to_vcpu));
 
 	its_send_cmd(cmdq_base, &cmd);
 }

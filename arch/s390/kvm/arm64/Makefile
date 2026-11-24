@@ -29,7 +29,7 @@ $(obj)/%-arm64.o: $(src)/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
 	$(call cmd,force_checksrc)
 
-# %-arm64.o stems don't match any kvm-arm64-y entry so Kbuild derives wrong
+# %-arm64.o stems don't match any kvm_arm64-y entry so Kbuild derives wrong
 # KBUILD_MODNAME/KBUILD_MODFILE. Force include a generated header to override.
 KVM_ARM64_MODNAME_H := $(obj)/generated/kvm_arm64_modname.h
 ccflags-y += -include $(KVM_ARM64_MODNAME_H)
@@ -48,7 +48,7 @@ define filechk_kvm_arm64_modname
 	echo '#undef __KBUILD_MODNAME';				\
 	echo '#define __KBUILD_MODNAME $(KVM_DEV_NAME)';	\
 	echo '#undef KBUILD_MODFILE';				\
-	echo '#define KBUILD_MODFILE "$(obj)/kvm-arm64"';	\
+	echo '#define KBUILD_MODFILE "$(obj)/kvm_arm64"';	\
 	echo '#endif /* __KVM_ARM64_MODNAME_H */'
 endef
 
@@ -60,7 +60,7 @@ $(addprefix $(obj)/,$(kvm-arm64-obj)): private part-of-builtin := y
 
 ifeq ($(CONFIG_KVM),m)
 
-kvm-arm64-y = $(kvm-arm64-obj)
+kvm_arm64-y = $(kvm-arm64-obj)
 
 else ifeq ($(CONFIG_KVM),y)
 
@@ -86,7 +86,7 @@ $(obj)/kvm_symbol_list: $(obj)/kvm-unnamespaced.o FORCE
 
 # cmd_oc_o_o carries -DKBUILD_MODFILE so generate_builtin_ranges.awk
 # can attribute kvm-namespaced.o to kvm_arm64 via its .cmd file.
-cmd_oc_o_o = $(cmd_objcopy) -DKBUILD_MODFILE='"$(obj)/kvm-arm64"'
+cmd_oc_o_o = $(cmd_objcopy) -DKBUILD_MODFILE='"$(obj)/kvm_arm64"'
 define rule_oc_o_o
 	$(call cmd,objcopy)
 	@printf '%s\n' 'savedcmd_$@ := $(call make-cmd,oc_o_o)' > $(dot-target).cmd
@@ -98,7 +98,7 @@ OBJCOPYFLAGS_kvm-namespaced.o := -O $(LD_BFD) --localize-symbols=$(obj)/kvm_symb
 $(obj)/kvm-namespaced.o: $(obj)/kvm-unnamespaced.o $(obj)/kvm_symbol_list FORCE
 	$(call if_changed_rule,oc_o_o)
 
-kvm-arm64-y = kvm-namespaced.o
+kvm_arm64-y = kvm-namespaced.o
 
 targets += kvm-unnamespaced.o kvm_symbol_list kvm-namespaced.o
 
@@ -106,5 +106,5 @@ endif
 
 clean-files += kvm-unnamespaced.o kvm_symbol_list kvm-namespaced.o
 
-obj-$(CONFIG_KVM) += kvm-arm64.o
+obj-$(CONFIG_KVM) += kvm_arm64.o
 

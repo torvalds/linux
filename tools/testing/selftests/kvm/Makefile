@@ -11,6 +11,6 @@ endif
 include Makefile.kvm
 else
 # Empty targets for unsupported architectures
-all:
-clean:
+all clean run_tests install emit_tests:
+.PHONY: all clean run_tests install emit_tests
 endif

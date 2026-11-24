@@ -552,7 +552,8 @@ retry:
 	irq->pending_latch = status;
 	vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 
-	if (status) {
+	/* Enabling LPIs resets the latch from the table: leave the bit for it */
+	if (status && vgic_lpis_enabled(vcpu)) {
 		/* clear consumed data */
 		val &= ~(1 << bit_nr);
 		ret = vgic_write_guest_lock(kvm, ptr, &val, 1);

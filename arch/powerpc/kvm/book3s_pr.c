@@ -1893,7 +1893,13 @@ out:
 static void kvmppc_core_flush_memslot_pr(struct kvm *kvm,
 					 struct kvm_memory_slot *memslot)
 {
-	return;
+	struct kvm_gfn_range range = {
+		.slot = memslot,
+		.start = memslot->base_gfn,
+		.end = memslot->base_gfn + memslot->npages,
+	};
+
+	kvm_unmap_gfn_range_pr(kvm, &range);
 }
 
 static int kvmppc_core_prepare_memory_region_pr(struct kvm *kvm,
@@ -2066,7 +2072,7 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.emulate_op = kvmppc_core_emulate_op_pr,
 	.emulate_mtspr = kvmppc_core_emulate_mtspr_pr,
 	.emulate_mfspr = kvmppc_core_emulate_mfspr_pr,
-	.fast_vcpu_kick = kvm_vcpu_kick,
+	.fast_vcpu_kick = kvmppc_vcpu_kick,
 	.arch_vm_ioctl  = kvm_arch_vm_ioctl_pr,
 #ifdef CONFIG_PPC_BOOK3S_64
 	.hcall_implemented = kvmppc_hcall_impl_pr,

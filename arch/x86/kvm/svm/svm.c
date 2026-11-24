@@ -2213,18 +2213,31 @@ static int shutdown_interception(struct kvm_vcpu *vcpu)
 
 
 	/*
-	 * VMCB is undefined after a SHUTDOWN intercept.  INIT the vCPU to put
-	 * the VMCB in a known good state.  Unfortuately, KVM doesn't have
-	 * KVM_MP_STATE_SHUTDOWN and can't add it without potentially breaking
-	 * userspace.  At a platform view, INIT is acceptable behavior as
-	 * there exist bare metal platforms that automatically INIT the CPU
-	 * in response to shutdown.
+	 * The VMCB save area is undefined after a SHUTDOWN intercept, as are
+	 * control area offsets 60h, 61h, and 68h (int_ctl[15:0] and int_state).
+	 * INIT the vCPU to put the VMCB in a known good state.  Unfortunately,
+	 * KVM doesn't have KVM_MP_STATE_SHUTDOWN and can't add it without
+	 * potentially breaking userspace.  At a platform view, INIT is
+	 * acceptable behavior as there exist bare metal platforms that
+	 * automatically INIT the CPU in response to shutdown.
 	 *
 	 * The VM save area for SEV-ES guests has already been encrypted so it
 	 * cannot be reinitialized, i.e. synthesizing INIT is futile.
 	 */
 	if (!is_sev_es_guest(vcpu)) {
-		clear_page(svm->vmcb);
+		struct vmcb_control_area *control = &svm->vmcb->control;
+
+		memset(&svm->vmcb->save, 0, sizeof(svm->vmcb->save));
+		control->int_ctl &= ~GENMASK(15, 0);
+		control->int_state = 0;
+
+		/*
+		 * EVENTINJ is cleared on #VMEXIT, but only if VMRUN fully
+		 * entered the guest.  Manually clear the fields even though it
+		 * should be redundant, as there is no downside to doing so.
+		 */
+		control->event_inj = 0;
+		control->event_inj_err = 0;
 #ifdef CONFIG_KVM_SMM
 		if (is_smm(vcpu))
 			kvm_smm_changed(vcpu, false);
@@ -3880,7 +3893,8 @@ static int pre_svm_run(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If the previous VMRUN of the VMCB occurred on a different physical
-	 * cpu, then mark the VMCB dirty as hardware's clean bits are per pCPU.
+	 * cpu, mark the VMCB dirty and reset the ASID generation, as hardware's
+	 * clean bits and ASIDs are per pCPU.
 	 *
 	 * Reset the ASID generation in both VMCBs. This will lead to assigning
 	 * a new ASID now, and then again when switching to the other VMCB.
@@ -3894,11 +3908,16 @@ static int pre_svm_run(struct kvm_vcpu *vcpu)
 	 *   another vCPU/VM.
 	 */
 	if (unlikely(svm->current_vmcb->cpu != vcpu->cpu)) {
-		vmcb_mark_all_dirty(svm->vmcb);
-		svm->current_vmcb->cpu = vcpu->cpu;
+		vmcb_mark_all_dirty(svm->vmcb01.ptr);
+		svm->vmcb01.cpu = vcpu->cpu;
 		svm->vmcb01.asid_generation = 0;
-		svm->nested.vmcb02.asid_generation = 0;
-        }
+
+		if (svm->nested.initialized) {
+			svm->nested.vmcb02.cpu = vcpu->cpu;
+			svm->nested.vmcb02.asid_generation = 0;
+			vmcb_mark_all_dirty(svm->nested.vmcb02.ptr);
+		}
+	}
 
 	if (is_sev_guest(vcpu))
 		return pre_sev_run(svm, vcpu->cpu);
@@ -5327,19 +5346,29 @@ static int svm_check_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	}
 
 	/*
-	 * Emulate for SEV guests if the insn buffer is not empty.  The buffer
-	 * will be empty if the DecodeAssist microcode cannot fetch bytes for
-	 * the faulting instruction because the code fetch itself faulted, e.g.
-	 * the guest attempted to fetch from emulated MMIO or a guest page
-	 * table used to translate CS:RIP resides in emulated MMIO.
+	 * Under SEV, page tables are encrypted and cannot be read by the
+	 * hypervisor, so there is no way to resolve a fault on page tables.
 	 */
+	error_code = svm->vmcb->control.exit_info_1;
+	if (error_code & PFERR_GUEST_PAGE_MASK)
+		goto resume_guest;
+
 	if (likely(insn_len))
 		return X86EMUL_CONTINUE;
 
 	/*
-	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
+	 * The insn buffer was empty; the DecodeAssist microcode could not fetch
+	 * bytes for the faulting instruction because the code fetch itself faulted,
+	 * e.g. the guest attempted to fetch from emulated MMIO or a guest page
+	 * table used to translate CS:RIP resides in emulated MMIO.
 	 *
-	 * Errata:
+	 * A data fault instead could be Errata 1096 Fam_17h_00_0Fh, so only
+	 * retry for a fetch fault and otherwise try to workaround it.
+	 */
+	if (error_code & PFERR_FETCH_MASK)
+		goto resume_guest;
+
+	/*
 	 * When CPU raises #NPF on guest data access and vCPU CR4.SMAP=1, it is
 	 * possible that CPU microcode implementing DecodeAssist will fail to
 	 * read guest memory at CS:RIP and vmcb.GuestIntrBytes will incorrectly
@@ -5366,12 +5395,8 @@ static int svm_check_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	 *       retrieve the instruction bytes is legitimate (see abvoe).
 	 *
 	 * In addition, don't apply the erratum workaround if the #NPF occurred
-	 * while translating guest page tables (see below).
+	 * while translating guest page tables (see above).
 	 */
-	error_code = svm->vmcb->control.exit_info_1;
-	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
-		goto resume_guest;
-
 	smep = kvm_is_cr4_bit_set(vcpu, X86_CR4_SMEP);
 	smap = kvm_is_cr4_bit_set(vcpu, X86_CR4_SMAP);
 	is_user = svm_get_cpl(vcpu) == 3;

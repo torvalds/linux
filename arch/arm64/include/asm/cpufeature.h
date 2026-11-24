@@ -872,6 +872,11 @@ static inline bool system_supports_lpa2(void)
 	return cpus_have_final_cap(ARM64_HAS_LPA2);
 }
 
+static inline bool system_supports_pie(void)
+{
+	return alternative_has_cap_unlikely(ARM64_HAS_S1PIE);
+}
+
 static inline bool system_supports_poe(void)
 {
 	return alternative_has_cap_unlikely(ARM64_HAS_S1POE);

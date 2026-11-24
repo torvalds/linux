@@ -1210,6 +1210,14 @@ int hyp_pin_shared_mem(void *from, void *to)
 							    PAGE_HYP));
 	}
 
+	/*
+	 * Only the first pin of a page maps it, and that CPU's barriers order
+	 * only its own accesses. Order this CPU's accesses through the range
+	 * after the mapping, whichever pin made it.
+	 */
+	dsb(ish);
+	isb();
+
 unlock:
 	hyp_unlock_component();
 	host_unlock_component();

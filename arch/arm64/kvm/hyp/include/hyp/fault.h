@@ -38,8 +38,9 @@ static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 	 * saved the guest context yet, and we may return early...
 	 */
 	par = read_sysreg_par();
-	ret = system_supports_poe() ? __kvm_at(OP_AT_S1E1A, far) :
-	                              __kvm_at(OP_AT_S1E1R, far);
+	ret = system_supports_poe() || system_supports_pie() ?
+		__kvm_at(OP_AT_S1E1A, far) :
+		__kvm_at(OP_AT_S1E1R, far);
 	if (!ret)
 		tmp = read_sysreg_par();
 	else

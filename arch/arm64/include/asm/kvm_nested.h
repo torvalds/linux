@@ -20,16 +20,36 @@ static inline u64 tcr_el2_ps_to_tcr_el1_ips(u64 tcr_el2)
 	return (u64)FIELD_GET(TCR_EL2_PS_MASK, tcr_el2) << TCR_IPS_SHIFT;
 }
 
-static inline u64 translate_tcr_el2_to_tcr_el1(u64 tcr)
+#define __xlate_tcr_nvhe_to_vhe(nfld, vfld, nvhe, vhe)				\
+	FIELD_MODIFY(VHE_TCR_EL2_##vfld, vhe, FIELD_GET(TCR_EL2_##nfld, *(nvhe)))
+
+#define __xlate_tcr_nvhe_to_vhe_field(fld, nvhe, vhe)				\
+	__xlate_tcr_nvhe_to_vhe(fld, fld, nvhe, vhe)
+
+static inline u64 translate_tcr_el2_to_tcr_el1(u64 nvhe)
 {
-	return TCR_EPD1_MASK |				/* disable TTBR1_EL1 */
-	       ((tcr & TCR_EL2_DS) ? TCR_DS : 0) |
-	       ((tcr & TCR_EL2_TBI) ? TCR_TBI0 : 0) |
-	       tcr_el2_ps_to_tcr_el1_ips(tcr) |
-	       (tcr & TCR_EL2_TG0_MASK) |
-	       (tcr & TCR_EL2_ORGN0_MASK) |
-	       (tcr & TCR_EL2_IRGN0_MASK) |
-	       (tcr & TCR_EL2_T0SZ_MASK);
+	u64 vhe = VHE_TCR_EL2_EPD1 |			/* disable TTBR1_EL1 */
+		  tcr_el2_ps_to_tcr_el1_ips(nvhe);
+
+	__xlate_tcr_nvhe_to_vhe(MTX,	MTX0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(TCMA,	TCMA0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(TBID,	TBID0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(HWU62,	HWU062,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(HWU61,	HWU061,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(HWU60,	HWU060,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(HWU59,	HWU059,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(HPD,	HPD0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe(TBI,	TBI0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	DS,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	HA,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	HD,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	TG0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	SH0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	ORGN0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	IRGN0,	&nvhe,	&vhe);
+	__xlate_tcr_nvhe_to_vhe_field(	T0SZ,	&nvhe,	&vhe);
+
+	return vhe;
 }
 
 static inline u64 translate_cptr_el2_to_cpacr_el1(u64 cptr_el2)

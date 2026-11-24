@@ -280,9 +280,11 @@ static int vgic_set_common_attr(struct kvm_device *dev,
 	case KVM_DEV_ARM_VGIC_GRP_CTRL: {
 		switch (attr->attr) {
 		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			mutex_lock(&dev->kvm->lock);
 			mutex_lock(&dev->kvm->arch.config_lock);
 			r = vgic_init(dev->kvm);
 			mutex_unlock(&dev->kvm->arch.config_lock);
+			mutex_unlock(&dev->kvm->lock);
 			return r;
 		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
 			/*

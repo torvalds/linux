@@ -820,7 +820,7 @@ void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
 
 static int match_region(const void *key, const void *elt)
 {
-	const unsigned int offset = (unsigned long)key;
+	const u64 offset = (unsigned long)key;
 	const struct vgic_register_region *region = elt;
 
 	if (offset < region->reg_offset)
@@ -834,7 +834,7 @@ static int match_region(const void *key, const void *elt)
 
 const struct vgic_register_region *
 vgic_find_mmio_region(const struct vgic_register_region *regions,
-		      int nr_regions, unsigned int offset)
+		      int nr_regions, u64 offset)
 {
 	return bsearch((void *)(uintptr_t)offset, regions, nr_regions,
 		       sizeof(regions[0]), match_region);

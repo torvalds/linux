@@ -45,7 +45,7 @@ bool vgic_has_its(struct kvm *kvm)
 	return dist->its_model && dist->its_model == dist->vgic_model;
 }
 
-bool vgic_supports_direct_msis(struct kvm *kvm)
+bool vgic_supports_vpes(struct kvm *kvm)
 {
 	/*
 	 * Deliberately conflate vLPI and vSGI support on GICv4.1 hardware,
@@ -55,7 +55,12 @@ bool vgic_supports_direct_msis(struct kvm *kvm)
 	if (system_supports_direct_sgis() && !vgic_supports_direct_sgis(kvm))
 		return false;
 
-	return kvm_vgic_global_state.has_gicv4 && vgic_has_its(kvm);
+	return kvm_vgic_global_state.has_gicv4 && vgic_is_v3(kvm);
+}
+
+bool vgic_supports_direct_msis(struct kvm *kvm)
+{
+	return vgic_supports_vpes(kvm) && vgic_has_its(kvm);
 }
 
 bool system_supports_direct_sgis(void)
@@ -291,27 +296,30 @@ static void vgic_mmio_write_v3r_ctlr(struct kvm_vcpu *vcpu,
 
 	if (!(val & GICR_CTLR_ENABLE_LPIS)) {
 		/*
+		 * Yes, disabling LPIs is painful, since it can be done from
+		 * a *remote* vcpu! So let's not take any chance, and make
+		 * sure that the target vCPU has written their LRs back to the
+		 * irq structures, and release any reference they would have.
+		 * Pause it before its LPIs read as disabled, so that the exit's
+		 * prune leaves them for vgic_flush_pending_lpis() to retire.
+		 *
+		 * If it hurts, don't do it.
+		 */
+		kvm_pause_vcpu(vcpu);
+
+		/*
 		 * Don't disable if RWP is set, as there already an
 		 * ongoing disable. Funky guest...
 		 */
 		ctlr = atomic_cmpxchg_acquire(&vgic_cpu->ctlr,
 					      GICR_CTLR_ENABLE_LPIS,
 					      GICR_CTLR_RWP);
-		if (ctlr != GICR_CTLR_ENABLE_LPIS)
-			return;
+		if (ctlr == GICR_CTLR_ENABLE_LPIS) {
+			vgic_flush_pending_lpis(vcpu);
+			vgic_its_invalidate_all_caches(vcpu->kvm);
+			atomic_set_release(&vgic_cpu->ctlr, 0);
+		}
 
-		/*
-		 * Yes, disabling LPIs is painful, since it can be done from
-		 * a *remote* vcpu! So let's not take any chance, and make
-		 * sure that the target vCPU has written their LRs back to the
-		 * irq structures, and release any reference they would have.
-		 *
-		 * If it hurts, don't do it.
-		 */
-		kvm_pause_vcpu(vcpu);
-		vgic_flush_pending_lpis(vcpu);
-		vgic_its_invalidate_all_caches(vcpu->kvm);
-		atomic_set_release(&vgic_cpu->ctlr, 0);
 		kvm_resume_vcpu(vcpu);
 	} else {
 		ctlr = atomic_cmpxchg_acquire(&vgic_cpu->ctlr, 0,

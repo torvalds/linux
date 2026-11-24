@@ -6495,8 +6495,14 @@ restart:
 		/* Save the faulting GPA (cr2) in the address field */
 		ctxt->exception.address = cr2_or_gpa;
 
-		/* With shadow page tables, cr2 contains a GVA or nGPA. */
-		if (vcpu->arch.mmu->root_role.direct) {
+		/*
+		 * Remember the GPA if available; with shadow page tables,
+		 * cr2 contains a GVA or nGPA, and if the fault occurred while
+		 * walking the guest's page tables, the GPA is that of a guest
+		 * paging structure.
+		 */
+		if (vcpu->arch.mmu->root_role.direct &&
+		    !(emulation_type & EMULTYPE_PF_GUEST_PAGE)) {
 			ctxt->gpa_access = ACC_READ_MASK;
 			/*
 			 * Always allow writes for guests with protected page
@@ -10474,11 +10480,6 @@ unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 		return 0;
 
 	return kvm_rip_read(vcpu);
-}
-
-int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
-{
-	return kvm_vcpu_exiting_guest_mode(vcpu) == IN_GUEST_MODE;
 }
 
 static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
