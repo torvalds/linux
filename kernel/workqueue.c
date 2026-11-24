@@ -7224,6 +7224,14 @@ int workqueue_online_cpu(unsigned int cpu)
 		mutex_unlock(&wq_pool_attach_mutex);
 	}
 
+	/*
+	 * Before topology initialization, the SYSTEM pod covers all possible
+	 * CPUs, so CPU onlining does not require updating pwq mappings.
+	 * wq_update_node_max_active() also returns early at this stage.
+	 */
+	if (!wq_topo_initialized)
+		goto out_unlock;
+
 	/* update pod affinity of unbound workqueues */
 	list_for_each_entry(wq, &workqueues, list) {
 		struct workqueue_attrs *attrs = wq->attrs;
@@ -7241,6 +7249,7 @@ int workqueue_online_cpu(unsigned int cpu)
 		}
 	}
 
+out_unlock:
 	mutex_unlock(&wq_pool_mutex);
 	return 0;
 }
