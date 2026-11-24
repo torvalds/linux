@@ -92,7 +92,7 @@ convert_sfm_char(const __u16 src_char, char *target)
 /*
  * cifs_mapchar - convert a host-endian char to proper char in codepage
  * @target - where converted character should be copied
- * @src_char - 2 byte host-endian source character
+ * @from - 2 byte host-endian source character
  * @cp - codepage to which character should be converted
  * @map_type - How should the 7 NTFS/SMB reserved characters be mapped to UCS2?
  *
@@ -126,7 +126,7 @@ surrogate_pair:
 	/* convert SURROGATE_PAIR and IVS */
 	if (strcmp(cp->charset, "utf8"))
 		goto unknown;
-	len = utf16s_to_utf8s(from, 3, UTF16_LITTLE_ENDIAN, target, 6);
+	len = utf16s_to_utf8s(from, 3, UTF16_HOST_ENDIAN, target, 6);
 	if (len <= 0)
 		goto unknown;
 	return len;
@@ -518,7 +518,7 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 			} else
 				goto unknown;
 			ret  = utf8s_to_utf16s(source + i, charlen,
-					       UTF16_LITTLE_ENDIAN,
+					       UTF16_HOST_ENDIAN,
 					       wchar_to, 6);
 			if (ret < 0)
 				goto unknown;
