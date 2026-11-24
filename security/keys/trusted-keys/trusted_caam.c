@@ -110,7 +110,7 @@ static int trusted_caam_seal(struct trusted_key_payload *p, char *datablob)
 		info.pkey_info.is_pkey = 1;
 		ret = get_pkey_options(datablob, &info.pkey_info);
 		if (ret < 0)
-			return 0;
+			return ret;
 		dump_options(&info.pkey_info);
 	}
 
@@ -142,7 +142,7 @@ static int trusted_caam_unseal(struct trusted_key_payload *p, char *datablob)
 		info.pkey_info.is_pkey = 1;
 		ret = get_pkey_options(datablob, &info.pkey_info);
 		if (ret < 0)
-			return 0;
+			return ret;
 		dump_options(&info.pkey_info);
 
 		p->key_len = p->blob_len + sizeof(struct caam_pkey_info);
