@@ -2302,6 +2302,7 @@ void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock)
 {
 	struct list_head *head = list_head, drain, *pos, *n;
+	unsigned long flags;
 
 	BUILD_BUG_ON(sizeof(struct list_head) > sizeof(struct bpf_list_head));
 	BUILD_BUG_ON(__alignof__(struct list_head) > __alignof__(struct bpf_list_head));
@@ -2313,7 +2314,8 @@ void bpf_list_head_free(const struct btf_field *field, void *list_head,
 	 * section, and end up doing map ops that call bpf_list_head_free for
 	 * the same map value again.
 	 */
-	__bpf_spin_lock_irqsave(spin_lock);
+	local_irq_save(flags);
+	__bpf_spin_lock(spin_lock);
 	if (!head->next || list_empty(head))
 		goto unlock;
 	list_for_each_safe(pos, n, head) {
@@ -2325,7 +2327,8 @@ void bpf_list_head_free(const struct btf_field *field, void *list_head,
 	}
 unlock:
 	INIT_LIST_HEAD(head);
-	__bpf_spin_unlock_irqrestore(spin_lock);
+	__bpf_spin_unlock(spin_lock);
+	local_irq_restore(flags);
 
 	while (!list_empty(&drain)) {
 		struct bpf_list_node_kern *node;
@@ -2362,19 +2365,22 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 	struct rb_root_cached orig_root, *root = rb_root;
 	struct bpf_rb_node_kern *node;
 	struct rb_node *pos, *n;
+	unsigned long flags;
 	void *obj;
 
 	BUILD_BUG_ON(sizeof(struct rb_root_cached) > sizeof(struct bpf_rb_root));
 	BUILD_BUG_ON(__alignof__(struct rb_root_cached) > __alignof__(struct bpf_rb_root));
 
-	__bpf_spin_lock_irqsave(spin_lock);
+	local_irq_save(flags);
+	__bpf_spin_lock(spin_lock);
 	orig_root = *root;
 	bpf_rbtree_postorder_for_each_entry_safe(pos, n, &orig_root.rb_root) {
 		node = rb_entry(pos, struct bpf_rb_node_kern, rb_node);
 		WRITE_ONCE(node->owner, BPF_PTR_POISON);
 	}
 	*root = RB_ROOT_CACHED;
-	__bpf_spin_unlock_irqrestore(spin_lock);
+	__bpf_spin_unlock(spin_lock);
+	local_irq_restore(flags);
 
 	bpf_rbtree_postorder_for_each_entry_safe(pos, n, &orig_root.rb_root) {
 		obj = pos;
