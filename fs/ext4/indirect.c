@@ -163,7 +163,7 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 			ret = -EFSCORRUPTED;
 			goto failure;
 		}
-		bh = sb_getblk(sb, key);
+		bh = ext4_sb_getblk(sb, key);
 		if (unlikely(!bh)) {
 			ret = -ENOMEM;
 			goto failure;
@@ -354,7 +354,8 @@ static int ext4_alloc_branch(handle_t *handle,
 		if (i == 0)
 			continue;
 
-		bh = branch[i].bh = sb_getblk(ar->inode->i_sb, new_blocks[i-1]);
+		bh = branch[i].bh = ext4_sb_getblk(ar->inode->i_sb,
+						   new_blocks[i - 1]);
 		if (unlikely(!bh)) {
 			err = -ENOMEM;
 			goto failed;
@@ -620,7 +621,7 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 		EXT4_ERROR_INODE(inode, "Can't allocate blocks for "
 				 "non-extent mapped inodes with bigalloc");
 		err = -EFSCORRUPTED;
-		goto out;
+		goto cleanup;
 	}
 
 	/* Set up for the direct block allocation */
@@ -688,6 +689,7 @@ out:
 	trace_ext4_ind_map_blocks_exit(inode, flags, map, err);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ind_map_blocks);
 
 /*
  * Calculate number of indirect blocks touched by mapping @nrblocks logically
@@ -702,6 +704,7 @@ int ext4_ind_trans_blocks(struct inode *inode, int nrblocks)
 	 */
 	return DIV_ROUND_UP(nrblocks, EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ind_trans_blocks);
 
 static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
 				     struct buffer_head *bh, int *dropped)
@@ -1230,6 +1233,7 @@ do_indirects:
 		;
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ind_truncate);
 
 /**
  *	ext4_ind_remove_space - remove space from the range
@@ -1489,3 +1493,13 @@ do_indirects:
 	}
 	goto cleanup;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ind_remove_space);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_block_to_path_test(struct inode *inode, ext4_lblk_t i_block,
+			    ext4_lblk_t offsets[4], int *boundary)
+{
+	return ext4_block_to_path(inode, i_block, offsets, boundary);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_to_path_test);
+#endif

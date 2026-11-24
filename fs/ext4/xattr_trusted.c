@@ -45,3 +45,7 @@ const struct xattr_handler ext4_xattr_trusted_handler = {
 	.get	= ext4_xattr_trusted_get,
 	.set	= ext4_xattr_trusted_set,
 };
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_trusted_handler);
+#endif

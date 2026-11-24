@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
+#include <kunit/static_stub.h>
 
 #include "ext4_jbd2.h"
 
@@ -42,6 +43,16 @@ void ext4_kvfree_array_rcu(void *to_free)
 	synchronize_rcu();
 	kvfree(to_free);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_kvfree_array_rcu);
+
+int ext4_resize_issue_zeroout(struct super_block *sb, sector_t blk,
+			      sector_t nr_blks, gfp_t gfp_mask)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_resize_issue_zeroout, sb, blk,
+				   nr_blks, gfp_mask);
+	return sb_issue_zeroout(sb, blk, nr_blks, gfp_mask);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_resize_issue_zeroout);
 
 int ext4_resize_begin(struct super_block *sb)
 {
@@ -94,6 +105,7 @@ int ext4_resize_begin(struct super_block *sb)
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_resize_begin);
 
 int ext4_resize_end(struct super_block *sb, bool update_backups)
 {
@@ -103,6 +115,7 @@ int ext4_resize_end(struct super_block *sb, bool update_backups)
 		return ext4_update_overhead(sb, true);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_resize_end);
 
 static ext4_grpblk_t ext4_group_overhead_blocks(struct super_block *sb,
 						ext4_group_t group) {
@@ -208,21 +221,6 @@ static int verify_group_input(struct super_block *sb,
 
 	return err;
 }
-
-/*
- * ext4_new_flex_group_data is used by 64bit-resize interface to add a flex
- * group each time.
- */
-struct ext4_new_flex_group_data {
-	struct ext4_new_group_data *groups;	/* new_group_data for groups
-						   in the flex group */
-	__u16 *bg_flags;			/* block group flags of groups
-						   in @groups */
-	ext4_group_t resize_bg;			/* number of allocated
-						   new_group_data */
-	ext4_group_t count;			/* number of groups in @groups
-						 */
-};
 
 /*
  * Avoiding memory allocation failures due to too many groups added each time.
@@ -424,7 +422,7 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	struct buffer_head *bh;
 	int err;
 
-	bh = sb_getblk(sb, blk);
+	bh = ext4_sb_getblk(sb, blk);
 	if (unlikely(!bh))
 		return ERR_PTR(-ENOMEM);
 	BUFFER_TRACE(bh, "get_write_access");
@@ -488,7 +486,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		if (err < 0)
 			return err;
 
-		bh = sb_getblk(sb, flex_gd->groups[group].block_bitmap);
+		bh = ext4_sb_getblk(sb, flex_gd->groups[group].block_bitmap);
 		if (unlikely(!bh))
 			return -ENOMEM;
 
@@ -577,7 +575,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 			if (err < 0)
 				goto out;
 
-			gdb = sb_getblk(sb, block);
+			gdb = ext4_sb_getblk(sb, block);
 			if (unlikely(!gdb)) {
 				err = -ENOMEM;
 				goto out;
@@ -606,8 +604,8 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 		 * table blocks
 		 */
 		if (ext4_bg_has_super(sb, group)) {
-			err = sb_issue_zeroout(sb, gdblocks + start + 1,
-					reserved_gdb, GFP_NOFS);
+			err = ext4_resize_issue_zeroout(sb, gdblocks + start + 1,
+							reserved_gdb, GFP_NOFS);
 			if (err)
 				goto out;
 		}
@@ -621,8 +619,8 @@ handle_itb:
 		block = group_data[i].inode_table;
 		ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
 			   block, sbi->s_itb_per_group);
-		err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group,
-				       GFP_NOFS);
+		err = ext4_resize_issue_zeroout(sb, block, sbi->s_itb_per_group,
+						GFP_NOFS);
 		if (err)
 			goto out;
 
@@ -766,6 +764,7 @@ unsigned int ext4_list_backups(struct super_block *sb, unsigned int *three,
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_list_backups);
 
 /*
  * Check that all of the backup GDT blocks are held in the primary GDT block.
@@ -795,7 +794,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 				     blk);
 			return -EINVAL;
 		}
-		if (++gdbackups > EXT4_ADDR_PER_BLOCK(sb))
+		if (++gdbackups >= EXT4_ADDR_PER_BLOCK(sb))
 			return -EFBIG;
 	}
 
@@ -1181,7 +1180,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 		else
 			backup_block = first_block + has_super;
 
-		bh = sb_getblk(sb, backup_block);
+		bh = ext4_sb_getblk(sb, backup_block);
 		if (unlikely(!bh)) {
 			err = -ENOMEM;
 			break;
@@ -1294,7 +1293,7 @@ static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
 
 static struct buffer_head *ext4_get_bitmap(struct super_block *sb, __u64 block)
 {
-	struct buffer_head *bh = sb_getblk(sb, block);
+	struct buffer_head *bh = ext4_sb_getblk(sb, block);
 	if (unlikely(!bh))
 		return NULL;
 	if (!bh_uptodate_or_lock(bh)) {
@@ -1765,6 +1764,7 @@ out:
 	iput(inode);
 	return err;
 } /* ext4_group_add */
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_group_add);
 
 /*
  * extend a group without checking assuming that checking has been done.
@@ -1896,6 +1896,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	return ext4_group_extend_no_check(sb, o_blocks_count, add);
 } /* ext4_group_extend */
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_group_extend);
 
 
 static int num_desc_blocks(struct super_block *sb, ext4_group_t groups)
@@ -2192,3 +2193,56 @@ out:
 		 ext4_blocks_count(es));
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_resize_fs);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_verify_group_input_test(struct super_block *sb,
+				 struct ext4_new_group_data *input)
+{
+	return verify_group_input(sb, input);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_verify_group_input_test);
+
+struct ext4_new_flex_group_data *
+ext4_alloc_flex_gd_test(unsigned int flexbg_size, ext4_group_t o_group,
+			ext4_group_t n_group)
+{
+	return alloc_flex_gd(flexbg_size, o_group, n_group);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_alloc_flex_gd_test);
+
+void ext4_free_flex_gd_test(struct ext4_new_flex_group_data *flex_gd)
+{
+	free_flex_gd(flex_gd);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_flex_gd_test);
+
+int ext4_alloc_group_tables_test(struct super_block *sb,
+				 struct ext4_new_flex_group_data *flex_gd,
+				 unsigned int flexbg_size)
+{
+	return ext4_alloc_group_tables(sb, flex_gd, flexbg_size);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_alloc_group_tables_test);
+
+int ext4_verify_reserved_gdb_test(struct super_block *sb, ext4_group_t end,
+				  struct buffer_head *primary)
+{
+	return verify_reserved_gdb(sb, end, primary);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_verify_reserved_gdb_test);
+
+int ext4_setup_next_flex_gd_test(struct super_block *sb,
+				 struct ext4_new_flex_group_data *flex_gd,
+				 ext4_fsblk_t n_blocks_count)
+{
+	return ext4_setup_next_flex_gd(sb, flex_gd, n_blocks_count);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_setup_next_flex_gd_test);
+
+int ext4_convert_meta_bg_test(struct super_block *sb, struct inode *inode)
+{
+	return ext4_convert_meta_bg(sb, inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_convert_meta_bg_test);
+#endif

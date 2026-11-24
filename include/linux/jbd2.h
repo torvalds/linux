@@ -482,6 +482,7 @@ struct jbd2_revoke_table_s;
  * @h_sync: Flag for sync-on-close.
  * @h_reserved: Flag for handle for reserved credits.
  * @h_aborted: Flag indicating fatal error on handle.
+ * @h_invalid: Flag for a handle not attached to a journal (ext4 nojournal mode).
  * @h_type: For handle statistics.
  * @h_line_no: For handle statistics.
  * @h_start_jiffies: Handle Start time.

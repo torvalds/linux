@@ -57,6 +57,7 @@
 #include <linux/mbcache.h>
 #include <linux/quotaops.h>
 #include <linux/iversion.h>
+#include <kunit/static_stub.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
@@ -107,6 +108,7 @@ const struct xattr_handler * const ext4_xattr_handlers[] = {
 	&ext4_xattr_hurd_handler,
 	NULL
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_handlers);
 
 #define EA_BLOCK_CACHE(inode)	(((struct ext4_sb_info *) \
 				inode->i_sb->s_fs_info)->s_ea_block_cache)
@@ -168,6 +170,14 @@ static void ext4_xattr_block_csum_set(struct inode *inode,
 		BHDR(bh)->h_checksum = ext4_xattr_block_csum(inode,
 						bh->b_blocknr, BHDR(bh));
 }
+
+struct buffer_head *ext4_xattr_getblk(struct super_block *sb,
+				      ext4_fsblk_t block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_xattr_getblk, sb, block);
+	return sb_getblk(sb, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_getblk);
 
 static inline const char *ext4_xattr_prefix(int name_index,
 					    struct dentry *dentry)
@@ -315,6 +325,7 @@ __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 	return check_xattrs(inode, NULL, IFIRST(header), end, IFIRST(header),
 			    function, line);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__xattr_check_inode);
 
 static int
 xattr_find_entry(struct inode *inode, struct ext4_xattr_entry **pentry,
@@ -493,6 +504,7 @@ void ext4_evict_ea_inode(struct inode *inode)
 		mb_cache_entry_put(EA_INODE_CACHE(inode), oe);
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_evict_ea_inode);
 
 static int
 ext4_xattr_inode_verify_hashes(struct inode *ea_inode,
@@ -693,6 +705,7 @@ cleanup:
 	brelse(iloc.bh);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_ibody_get);
 
 /*
  * ext4_xattr_get()
@@ -725,6 +738,7 @@ ext4_xattr_get(struct inode *inode, int name_index, const char *name,
 	up_read(&EXT4_I(inode)->xattr_sem);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_get);
 
 static int
 ext4_xattr_list_entries(struct dentry *dentry, struct ext4_xattr_entry *entry,
@@ -841,6 +855,7 @@ errout:
 	up_read(&EXT4_I(d_inode(dentry))->xattr_sem);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_listxattr);
 
 /*
  * If the EXT4_FEATURE_COMPAT_EXT_ATTR feature of this file system is
@@ -912,6 +927,7 @@ out:
 	brelse(bh);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_inode_usage);
 
 static inline size_t round_up_cluster(struct inode *inode, size_t length)
 {
@@ -1029,6 +1045,7 @@ int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
 	}
 	return credits;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_xattr_set_credits);
 
 static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 				       int ref_change)
@@ -1712,6 +1729,18 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 		}
 	}
 
+	if (!s->not_found && here->e_value_size && !here->e_value_inum) {
+		size_t offs = le16_to_cpu(here->e_value_offs);
+
+		if (offs < min_offs) {
+			EXT4_ERROR_INODE(inode,
+					 "corrupted xattr: value offset %zu < min_offs %zu",
+					 offs, min_offs);
+			ret = -EFSCORRUPTED;
+			goto out;
+		}
+	}
+
 	/*
 	 * Getting access to old and new ea inodes is subject to failures.
 	 * Finish that work before doing any modifications to the xattr data.
@@ -2113,6 +2142,24 @@ inserted:
 			mb_cache_entry_touch(ea_block_cache, ce);
 			mb_cache_entry_put(ea_block_cache, ce);
 			ce = NULL;
+			if (ea_inode && !(bs->bh && s->base == bs->bh->b_data)) {
+				/*
+				 * The cached block already owns its EA inode
+				 * references.  For an in-place update the lookup
+				 * reference belongs to the old block and is
+				 * dropped when that block is released.
+				 */
+				error = ext4_xattr_inode_dec_ref(handle,
+								 ea_inode);
+				if (error) {
+					EXT4_ERROR_INODE(inode,
+							 "dec ref error=%d",
+							 error);
+					ext4_put_ea_inode(ea_inode);
+					ea_inode = NULL;
+					goto cleanup;
+				}
+			}
 		} else if (bs->bh && s->base == bs->bh->b_data) {
 			/* We were modifying this block in-place. */
 			ea_bdebug(bs->bh, "keeping this block");
@@ -2136,7 +2183,7 @@ inserted:
 			ea_idebug(inode, "creating block %llu",
 				  (unsigned long long)block);
 
-			new_bh = sb_getblk(sb, block);
+			new_bh = ext4_xattr_getblk(sb, block);
 			if (unlikely(!new_bh)) {
 				error = -ENOMEM;
 getblk_failed:
@@ -2252,6 +2299,7 @@ int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_ibody_find);
 
 int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 				struct ext4_xattr_info *i,
@@ -2274,6 +2322,14 @@ int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 		if (IS_ERR(ea_inode))
 			return PTR_ERR(ea_inode);
 	}
+
+	/*
+	 * Make sure xattr space is properly initialized so that
+	 * IS_LAST_ENTRY() returns true for its first entry
+	 */
+	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR))
+		*(__u32 *)s->first = 0;
+
 	error = ext4_xattr_set_entry(i, s, handle, inode, ea_inode,
 				     false /* is_block */);
 	if (error) {
@@ -2302,6 +2358,7 @@ int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 	ext4_put_ea_inode(ea_inode);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_ibody_set);
 
 static int ext4_xattr_value_same(struct ext4_xattr_search *s,
 				 struct ext4_xattr_info *i)
@@ -2499,6 +2556,7 @@ cleanup:
 	ext4_write_unlock_xattr(inode, &no_expand);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_set_handle);
 
 int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
 			   bool is_create, int *credits)
@@ -2526,6 +2584,7 @@ int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
 	up_read(&EXT4_I(inode)->xattr_sem);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_set_credits);
 
 /*
  * ext4_xattr_set()
@@ -2574,6 +2633,7 @@ retry:
 
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_set);
 
 /*
  * Shift the EA entries in the inode to create space for the increased
@@ -2865,6 +2925,7 @@ cleanup:
 	}
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_expand_extra_isize_ea);
 
 /*
  * ext4_xattr_delete_inode()
@@ -2973,6 +3034,7 @@ cleanup:
 	brelse(bh);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_delete_inode);
 
 /*
  * Worker function for deferred EA inode iput.  Processes all inodes queued
@@ -3026,12 +3088,14 @@ void ext4_put_ea_inode(struct inode *inode)
 	 */
 	schedule_delayed_work(&EXT4_SB(inode->i_sb)->s_ea_inode_work, 1);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_put_ea_inode);
 
 void ext4_init_ea_inode_work(struct ext4_sb_info *sbi)
 {
 	init_llist_head(&sbi->s_ea_inode_to_free);
 	INIT_DELAYED_WORK(&sbi->s_ea_inode_work, ext4_ea_inode_work);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_ea_inode_work);
 
 /*
  * ext4_xattr_block_cache_insert()
@@ -3229,10 +3293,12 @@ ext4_xattr_create_cache(void)
 {
 	return mb_cache_create(HASH_BUCKET_BITS);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_create_cache);
 
 void ext4_xattr_destroy_cache(struct mb_cache *cache)
 {
 	if (cache)
 		mb_cache_destroy(cache);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_destroy_cache);
 

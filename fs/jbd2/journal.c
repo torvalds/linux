@@ -700,7 +700,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
  * it to complete. Returns 0 if a new fast commit was started. Returns -EALREADY
  * if a fast commit is not needed, either because there's an already a commit
  * going on or this tid has already been committed. Returns -EINVAL if no jbd2
- * commit has yet been performed.
+ * commit has yet been performed, or none since the journal was last marked
+ * empty.
  */
 int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 {
@@ -717,6 +718,16 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 	if (tid_geq(journal->j_commit_sequence, tid)) {
 		write_unlock(&journal->j_state_lock);
 		return -EALREADY;
+	}
+
+	/*
+	 * The log was emptied and the superblock on disk says so, which makes
+	 * recovery skip the fast commit area as well. Only a full commit
+	 * records the log tail again.
+	 */
+	if (journal->j_flags & JBD2_FLUSHED) {
+		write_unlock(&journal->j_state_lock);
+		return -EINVAL;
 	}
 
 	if (journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
@@ -1268,9 +1279,21 @@ static unsigned long jbd2_journal_shrink_scan(struct shrinker *shrink,
 	trace_jbd2_shrink_scan_enter(journal, sc->nr_to_scan, count);
 
 	nr_shrunk = jbd2_journal_shrink_checkpoint_list(journal, &nr_to_scan);
+	sc->nr_scanned = sc->nr_to_scan - nr_to_scan;
 
 	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
 	trace_jbd2_shrink_scan_exit(journal, nr_to_scan, nr_shrunk, count);
+
+	/*
+	 * Key SHRINK_STOP off sc->nr_scanned (buffers actually examined),
+	 * not nr_shrunk (buffers actually freed): a batch can find every
+	 * buffer in its transactions busy and free none, while later
+	 * transactions may still hold buffers whose writeback has
+	 * completed. sc->nr_scanned only comes back 0 when the checkpoint
+	 * list had nothing left to walk.
+	 */
+	if (sc->nr_scanned == 0)
+		return SHRINK_STOP;
 
 	return nr_shrunk;
 }
@@ -2096,7 +2119,10 @@ int jbd2_journal_load(journal_t *journal)
 		return err;
 	}
 
+	/* kjournald2 is already running, see journal_reset(). */
+	write_lock(&journal->j_state_lock);
 	journal->j_flags |= JBD2_LOADED;
+	write_unlock(&journal->j_state_lock);
 	return 0;
 }
 

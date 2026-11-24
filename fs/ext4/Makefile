@@ -15,7 +15,17 @@ ext4-y	:= balloc.o bitmap.o block_validity.o dir.o ext4_jbd2.o extents.o \
 ext4-$(CONFIG_EXT4_FS_POSIX_ACL)	+= acl.o
 ext4-$(CONFIG_EXT4_FS_SECURITY)		+= xattr_security.o
 ext4-test-objs				+= inode-test.o mballoc-test.o \
-					   extents-test.o hash-test.o
+					   extents-test.o hash-test.o \
+					   extents_status-test.o xattr-test.o \
+					   namei-test.o inline-test.o \
+					   fast_commit-test.o ialloc-test.o \
+					   balloc-test.o orphan-test.o \
+					   block_validity-test.o super-test.o \
+					   sysfs-test.o ioctl-test.o \
+					   resize-test.o migrate-test.o \
+					   indirect-test.o fsmap-test.o \
+					   move_extent-test.o mmp-test.o \
+					   dir-test.o
 obj-$(CONFIG_EXT4_KUNIT_TESTS)		+= ext4-test.o
 ext4-$(CONFIG_FS_VERITY)		+= verity.o
 ext4-$(CONFIG_FS_ENCRYPTION)		+= crypto.o

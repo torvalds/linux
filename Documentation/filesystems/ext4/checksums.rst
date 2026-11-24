@@ -10,9 +10,9 @@ of October 2012 the only supported algorithm is crc32c. Some data
 structures did not have space to fit a full 32-bit checksum, so only the
 lower 16 bits are stored. Enabling the 64bit feature increases the data
 structure size so that full 32-bit checksums can be stored for many data
-structures. However, existing 32-bit filesystems cannot be extended to
-enable 64bit mode, at least not without the experimental resize2fs
-patches to do so.
+structures. ``resize2fs`` in ``e2fsprogs`` 1.43 or later can be used to
+convert filesystems from 32-bit to 64-bit and back (using the ``-b``
+and ``-s`` options).
 
 Existing filesystems can have checksumming added by running
 ``tune2fs -O metadata_csum`` against the underlying device. If tune2fs

@@ -4,11 +4,14 @@
  */
 
 #include "ext4_jbd2.h"
+#include <kunit/static_stub.h>
 
 #include <trace/events/ext4.h>
 
 int ext4_inode_journal_mode(struct inode *inode)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_inode_journal_mode, inode);
+
 	if (EXT4_JOURNAL(inode) == NULL)
 		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
 	/* We do not support data journalling with delayed allocation */
@@ -126,6 +129,7 @@ handle_t *__ext4_journal_start_sb(struct inode *inode,
 	return jbd2__journal_start(journal, blocks, rsv_blocks, revoke_creds,
 				   GFP_NOFS, type, line);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_start_sb);
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 {
@@ -153,6 +157,7 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 		__ext4_std_error(sb, where, line, err);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_stop);
 
 handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 					int type)
@@ -181,6 +186,9 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
 				  int extend_cred, int revoke_cred)
 {
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_journal_ensure_credits, handle,
+				   check_cred, extend_cred, revoke_cred);
+
 	if (!ext4_handle_valid(handle))
 		return 0;
 	if (is_handle_aborted(handle))
@@ -192,6 +200,7 @@ int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
 	revoke_cred = max(0, revoke_cred - handle->h_revoke_credits);
 	return ext4_journal_extend(handle, extend_cred, revoke_cred);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_ensure_credits);
 
 static void ext4_journal_abort_handle(const char *caller, unsigned int line,
 				      const char *err_fn,
@@ -247,6 +256,9 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 {
 	int err;
 
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_journal_get_write_access, where, line,
+				   handle, sb, bh, trigger_type);
+
 	might_sleep();
 
 	if (ext4_handle_valid(handle)) {
@@ -266,6 +278,7 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 		&EXT4_SB(sb)->s_journal_triggers[trigger_type].tr_triggers);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_journal_get_write_access);
 
 /*
  * The ext4 forget function must perform a revoke if we are freeing data
@@ -383,6 +396,9 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 {
 	int err = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_handle_dirty_metadata, where, line,
+				   handle, inode, bh);
+
 	might_sleep();
 
 	set_buffer_meta(bh);
@@ -435,3 +451,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	}
 	return err;
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_journal_mode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_handle_dirty_metadata);
+#endif

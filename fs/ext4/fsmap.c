@@ -26,6 +26,7 @@ void ext4_fsmap_from_internal(struct super_block *sb, struct fsmap *dest,
 	dest->fmr_reserved[1] = 0;
 	dest->fmr_reserved[2] = 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fsmap_from_internal);
 
 /* Convert an fsmap to an ext4_fsmap. */
 void ext4_fsmap_to_internal(struct super_block *sb, struct ext4_fsmap *dest,
@@ -37,6 +38,7 @@ void ext4_fsmap_to_internal(struct super_block *sb, struct ext4_fsmap *dest,
 	dest->fmr_owner = src->fmr_owner;
 	dest->fmr_length = src->fmr_length >> sb->s_blocksize_bits;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fsmap_to_internal);
 
 /* getfsmap query state */
 struct ext4_getfsmap_info {
@@ -790,3 +792,4 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 	head->fmh_oflags = FMH_OF_DEV_T;
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_getfsmap);

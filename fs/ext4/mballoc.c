@@ -234,7 +234,7 @@
  *
  * there are two types of preallocations:
  *  - inode
- *    assiged to specific inode and can be used for this inode only.
+ *    assigned to specific inode and can be used for this inode only.
  *    it describes part of inode's space preallocated to specific
  *    physical blocks. any block from that preallocated can be used
  *    independent. the descriptor just tracks number of blocks left
@@ -2324,11 +2324,11 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
  *   stop the scan and use it immediately
  *
  * * If free extent found is smaller than goal, then keep retrying
- *   upto a max of sbi->s_mb_max_to_scan times (default 200). After
+ *   up to a max of sbi->s_mb_max_to_scan times (default 200). After
  *   that stop scanning and use whatever we have.
  *
  * * If free extent found is bigger than goal, then keep retrying
- *   upto a max of sbi->s_mb_min_to_scan times (default 10) before
+ *   up to a max of sbi->s_mb_min_to_scan times (default 10) before
  *   stopping the scan and using the extent.
  *
  *
@@ -3027,7 +3027,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	 * is greater than equal to the sbi_s_mb_order2_reqs
 	 * You can tune it via /sys/fs/ext4/<partition>/mb_order2_req
 	 * We also support searching for power-of-two requests only for
-	 * requests upto maximum buddy size we have constructed.
+	 * requests up to maximum buddy size we have constructed.
 	 */
 	if (i >= sbi->s_mb_order2_reqs && i <= MB_NUM_ORDERS(sb)) {
 		if (is_power_of_2(ac->ac_g_ex.fe_len))
@@ -3896,6 +3896,8 @@ void ext4_mb_release(struct super_block *sb)
 	 * wait the discard work to drain all of ext4_free_data
 	 */
 	flush_work(&sbi->s_discard_work);
+	/* Prevent the later journal teardown from requeueing discard work. */
+	disable_work_sync(&sbi->s_discard_work);
 	WARN_ON_ONCE(!list_empty(&sbi->s_discard_list));
 
 	group_info = rcu_access_pointer(sbi->s_group_info);
@@ -3955,10 +3957,13 @@ void ext4_mb_release(struct super_block *sb)
 	kfree(sbi->s_mb_last_groups);
 }
 
-static inline int ext4_issue_discard(struct super_block *sb,
+int ext4_issue_discard(struct super_block *sb,
 		ext4_group_t block_group, ext4_grpblk_t cluster, int count)
 {
 	ext4_fsblk_t discard_block;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_issue_discard, sb, block_group,
+				   cluster, count);
 
 	discard_block = (EXT4_C2B(EXT4_SB(sb), cluster) +
 			 ext4_group_first_block_no(sb, block_group));
@@ -4263,6 +4268,8 @@ void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 	ext4_grpblk_t blkoff;
 	int err = 0;
 	unsigned int clen, thisgrp_len;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mb_mark_bb, sb, block, len, state);
 
 	while (len > 0) {
 		ext4_get_group_no_and_offset(sb, block, &group, &blkoff);
@@ -6237,6 +6244,8 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	int retries = 0;
 	u64 seq;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mb_new_blocks, handle, ar, errp);
+
 	might_sleep();
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
@@ -6695,6 +6704,9 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	unsigned int overflow;
 	struct ext4_sb_info *sbi;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_free_blocks, handle, inode, bh, block,
+				   count, flags);
+
 	sbi = EXT4_SB(sb);
 
 	if (bh) {
@@ -7139,6 +7151,9 @@ ext4_mballoc_query_range(
 	struct ext4_buddy		e4b;
 	int				error;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mballoc_query_range, sb, group, first,
+				   end, meta_formatter, formatter, priv);
+
 	error = ext4_mb_load_buddy(sb, group, &e4b);
 	if (error)
 		return error;
@@ -7268,15 +7283,177 @@ void ext4_free_blocks_simple_test(struct inode *inode, ext4_fsblk_t block,
 }
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_blocks_simple_test);
 
+void mb_set_bit_test(int bit, void *addr)
+{
+	mb_set_bit(bit, addr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_bit_test);
+
+int mb_test_and_clear_bits_test(void *bm, int cur, int len)
+{
+	return mb_test_and_clear_bits(bm, cur, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_test_and_clear_bits_test);
+
+void *mb_find_buddy_test(struct ext4_buddy *e4b, int order, int *max)
+{
+	return mb_find_buddy(e4b, order, max);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_find_buddy_test);
+
+int mb_find_order_for_block_test(struct ext4_buddy *e4b, int block)
+{
+	return mb_find_order_for_block(e4b, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_find_order_for_block_test);
+
+int mb_find_extent_test(struct ext4_buddy *e4b, int block, int needed,
+			struct ext4_free_extent *ex)
+{
+	return mb_find_extent(e4b, block, needed, ex);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_find_extent_test);
+
+int mb_avg_fragment_size_order_test(struct super_block *sb, ext4_grpblk_t len)
+{
+	return mb_avg_fragment_size_order(sb, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_avg_fragment_size_order_test);
+
+void mb_update_avg_fragment_size_test(struct super_block *sb,
+				      struct ext4_group_info *grp)
+{
+	mb_update_avg_fragment_size(sb, grp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_update_avg_fragment_size_test);
+
+void mb_set_largest_free_order_test(struct super_block *sb,
+				    struct ext4_group_info *grp)
+{
+	mb_set_largest_free_order(sb, grp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_largest_free_order_test);
+
+bool ext4_mb_good_group_test(struct ext4_allocation_context *ac,
+			     ext4_group_t group, enum criteria cr)
+{
+	return ext4_mb_good_group(ac, group, cr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_good_group_test);
+
+int ext4_mb_good_group_nolock_test(struct ext4_allocation_context *ac,
+				   ext4_group_t group, enum criteria cr)
+{
+	return ext4_mb_good_group_nolock(ac, group, cr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_good_group_nolock_test);
+
+int ext4_mb_find_by_goal_test(struct ext4_allocation_context *ac,
+			      struct ext4_buddy *e4b)
+{
+	return ext4_mb_find_by_goal(ac, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_find_by_goal_test);
+
+void ext4_mb_simple_scan_group_test(struct ext4_allocation_context *ac,
+				    struct ext4_buddy *e4b)
+{
+	ext4_mb_simple_scan_group(ac, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_simple_scan_group_test);
+
+void ext4_mb_scan_aligned_test(struct ext4_allocation_context *ac,
+			       struct ext4_buddy *e4b)
+{
+	ext4_mb_scan_aligned(ac, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_scan_aligned_test);
+
+void ext4_mb_complex_scan_group_test(struct ext4_allocation_context *ac,
+				     struct ext4_buddy *e4b)
+{
+	ext4_mb_complex_scan_group(ac, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_complex_scan_group_test);
+
+void ext4_mb_try_best_found_test(struct ext4_allocation_context *ac,
+				 struct ext4_buddy *e4b)
+{
+	ext4_mb_try_best_found(ac, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_try_best_found_test);
+
+int ext4_mb_regular_allocator_test(struct ext4_allocation_context *ac)
+{
+	return ext4_mb_regular_allocator(ac);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_regular_allocator_test);
+
+void ext4_mb_initialize_context_test(struct ext4_allocation_context *ac,
+				     struct ext4_allocation_request *ar)
+{
+	ext4_mb_initialize_context(ac, ar);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_initialize_context_test);
+
+void ext4_mb_normalize_request_test(struct ext4_allocation_context *ac,
+				    struct ext4_allocation_request *ar)
+{
+	ext4_mb_normalize_request(ac, ar);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_normalize_request_test);
+
+void ext4_mb_new_preallocation_test(struct ext4_allocation_context *ac)
+{
+	ext4_mb_new_preallocation(ac);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_new_preallocation_test);
+
+void ext4_mb_release_context_test(struct ext4_allocation_context *ac)
+{
+	ext4_mb_release_context(ac);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_release_context_test);
+
+int ext4_mb_pa_alloc_test(struct ext4_allocation_context *ac)
+{
+	return ext4_mb_pa_alloc(ac);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_pa_alloc_test);
+
+void ext4_mb_generate_from_pa_test(struct super_block *sb, void *bitmap,
+				   ext4_group_t group)
+{
+	ext4_mb_generate_from_pa(sb, bitmap, group);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_generate_from_pa_test);
+
+int ext4_mb_discard_preallocations_test(struct super_block *sb, int needed)
+{
+	return ext4_mb_discard_preallocations(sb, needed);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_discard_preallocations_test);
+
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_wait_block_bitmap);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_init);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_desc);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_free_clusters);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_info);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters_set);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_no_and_offset);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_number);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_release);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_block_bitmap_nowait);
 EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_bits);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_context);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_new_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_prefetch);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_prefetch_fini);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_discard_preallocations);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_bb);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_process_freed_data);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_group_add_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_trim_fs);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mballoc_query_range);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_issue_discard);
 #endif

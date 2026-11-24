@@ -229,3 +229,5 @@ static inline void ext4_xattr_inode_set_class(struct inode *ea_inode) { }
 #endif
 
 extern int ext4_get_inode_usage(struct inode *inode, qsize_t *usage);
+extern struct buffer_head *ext4_xattr_getblk(struct super_block *sb,
+					     ext4_fsblk_t block);

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <kunit/static_stub.h>
 #include <linux/fs.h>
 #include <linux/random.h>
 #include <linux/buffer_head.h>
@@ -35,6 +36,20 @@ static void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp)
 	mmp->mmp_checksum = ext4_mmp_csum(sb, mmp);
 }
 
+int ext4_mmp_submit_write(struct buffer_head *bh)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mmp_submit_write, bh);
+
+	lock_buffer(bh);
+	bh_submit(bh, REQ_OP_WRITE | REQ_SYNC | REQ_META | REQ_PRIO,
+		  bh_end_write);
+	wait_on_buffer(bh);
+	if (unlikely(buffer_write_io_error(bh)))
+		return -EIO;
+	return 0;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_submit_write);
+
 /*
  * Write the MMP block using REQ_SYNC to try to get the block on-disk
  * faster.
@@ -45,13 +60,7 @@ static int write_mmp_block_thawed(struct super_block *sb,
 	struct mmp_struct *mmp = (struct mmp_struct *)(bh->b_data);
 
 	ext4_mmp_csum_set(sb, mmp);
-	lock_buffer(bh);
-	bh_submit(bh, REQ_OP_WRITE | REQ_SYNC | REQ_META | REQ_PRIO,
-			bh_end_write);
-	wait_on_buffer(bh);
-	if (unlikely(buffer_write_io_error(bh)))
-		return -EIO;
-	return 0;
+	return ext4_mmp_submit_write(bh);
 }
 
 static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
@@ -63,6 +72,35 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	scoped_guard(super_write, sb)
 		return write_mmp_block_thawed(sb, bh);
 }
+
+int ext4_mmp_load_bh(struct super_block *sb, struct buffer_head **bh,
+		     ext4_fsblk_t mmp_block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mmp_load_bh, sb, bh, mmp_block);
+
+	/*
+	 * This would be sb_bread(sb, mmp_block), except we need to be sure
+	 * that the MD RAID device cache has been bypassed, and that the read
+	 * is not blocked in the elevator.
+	 */
+	if (!*bh) {
+		*bh = sb_getblk(sb, mmp_block);
+		if (!*bh)
+			return -ENOMEM;
+	}
+
+	lock_buffer(*bh);
+	return ext4_read_bh(*bh, REQ_META | REQ_PRIO, NULL, false);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_load_bh);
+
+long ext4_mmp_wait_timeout(long timeout)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mmp_wait_timeout, timeout);
+
+	return schedule_timeout_interruptible(timeout);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_wait_timeout);
 
 /*
  * Read the MMP block. It _must_ be read from disk and hence we clear the
@@ -77,19 +115,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	if (*bh)
 		clear_buffer_uptodate(*bh);
 
-	/* This would be sb_bread(sb, mmp_block), except we need to be sure
-	 * that the MD RAID device cache has been bypassed, and that the read
-	 * is not blocked in the elevator. */
-	if (!*bh) {
-		*bh = sb_getblk(sb, mmp_block);
-		if (!*bh) {
-			ret = -ENOMEM;
-			goto warn_exit;
-		}
-	}
-
-	lock_buffer(*bh);
-	ret = ext4_read_bh(*bh, REQ_META | REQ_PRIO, NULL, false);
+	ret = ext4_mmp_load_bh(sb, bh, mmp_block);
 	if (ret)
 		goto warn_exit;
 
@@ -185,8 +211,7 @@ static int kmmpd(void *data)
 
 		diff = jiffies - last_update_time;
 		if (diff < mmp_update_interval * HZ)
-			schedule_timeout_interruptible(mmp_update_interval *
-						       HZ - diff);
+			ext4_mmp_wait_timeout(mmp_update_interval * HZ - diff);
 
 		/*
 		 * We need to make sure that more than mmp_check_interval
@@ -250,6 +275,16 @@ wait_to_exit:
 	return retval;
 }
 
+struct task_struct *ext4_mmp_run_thread(struct super_block *sb,
+					const char *bdevname, int bdevname_len)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mmp_run_thread, sb, bdevname,
+				   bdevname_len);
+
+	return kthread_run(kmmpd, sb, "kmmpd-%.*s", bdevname_len, bdevname);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_run_thread);
+
 void ext4_stop_mmpd(struct ext4_sb_info *sbi)
 {
 	if (sbi->s_mmp_tsk) {
@@ -258,6 +293,7 @@ void ext4_stop_mmpd(struct ext4_sb_info *sbi)
 		sbi->s_mmp_tsk = NULL;
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_stop_mmpd);
 
 /*
  * Get a random new sequence number but make sure it is not greater than
@@ -323,7 +359,7 @@ int ext4_multi_mount_protect(struct super_block *sb,
 		ext4_warning(sb, "MMP interval %u higher than expected, please"
 			     " wait.\n", wait_time * 2);
 
-	if (schedule_timeout_interruptible(HZ * wait_time) != 0) {
+	if (ext4_mmp_wait_timeout(HZ * wait_time) != 0) {
 		ext4_warning(sb, "MMP startup interrupted, failing mount\n");
 		retval = -ETIMEDOUT;
 		goto failed;
@@ -358,7 +394,7 @@ skip:
 	/*
 	 * wait for MMP interval and check mmp_seq.
 	 */
-	if (schedule_timeout_interruptible(HZ * wait_time) != 0) {
+	if (ext4_mmp_wait_timeout(HZ * wait_time) != 0) {
 		ext4_warning(sb, "MMP startup interrupted, failing mount");
 		retval = -ETIMEDOUT;
 		goto failed;
@@ -384,9 +420,8 @@ skip:
 	/*
 	 * Start a kernel thread to update the MMP block periodically.
 	 */
-	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, sb, "kmmpd-%.*s",
-					     (int)sizeof(mmp->mmp_bdevname),
-					     mmp->mmp_bdevname);
+	EXT4_SB(sb)->s_mmp_tsk = ext4_mmp_run_thread(sb, mmp->mmp_bdevname,
+					     (int)sizeof(mmp->mmp_bdevname));
 	if (IS_ERR(EXT4_SB(sb)->s_mmp_tsk)) {
 		EXT4_SB(sb)->s_mmp_tsk = NULL;
 		ext4_warning(sb, "Unable to create kmmpd thread for %s.",
@@ -401,3 +436,31 @@ failed:
 	brelse(bh);
 	return retval;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_multi_mount_protect);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_mmp_csum_verify_test(struct super_block *sb, struct mmp_struct *mmp)
+{
+	return ext4_mmp_csum_verify(sb, mmp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_csum_verify_test);
+
+void ext4_mmp_csum_set_test(struct super_block *sb, struct mmp_struct *mmp)
+{
+	ext4_mmp_csum_set(sb, mmp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mmp_csum_set_test);
+
+int ext4_read_mmp_block_test(struct super_block *sb, struct buffer_head **bh,
+			     ext4_fsblk_t mmp_block)
+{
+	return read_mmp_block(sb, bh, mmp_block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_mmp_block_test);
+
+int ext4_write_mmp_block_test(struct super_block *sb, struct buffer_head *bh)
+{
+	return write_mmp_block(sb, bh);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_write_mmp_block_test);
+#endif

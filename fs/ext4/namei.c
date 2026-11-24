@@ -36,11 +36,13 @@
 #include <linux/bio.h>
 #include <linux/iversion.h>
 #include <linux/unicode.h>
+#include <kunit/static_stub.h>
 #include "ext4.h"
 #include "ext4_jbd2.h"
 
 #include "xattr.h"
 #include "acl.h"
+#include "namei.h"
 
 #include <trace/events/ext4.h>
 /*
@@ -104,26 +106,12 @@ out:
 static int ext4_dx_csum_verify(struct inode *inode,
 			       struct ext4_dir_entry *dirent);
 
-/*
- * Hints to ext4_read_dirblock regarding whether we expect a directory
- * block being read to be an index block, or a block containing
- * directory entries (and if the latter, whether it was found via a
- * logical block in an htree index block).  This is used to control
- * what sort of sanity checkinig ext4_read_dirblock() will do on the
- * directory block read from the storage device.  EITHER will means
- * the caller doesn't know what kind of directory block will be read,
- * so no specific verification will be done.
- */
-typedef enum {
-	EITHER, INDEX, DIRENT, DIRENT_HTREE
-} dirblock_type_t;
-
 #define ext4_read_dirblock(inode, block, type) \
 	__ext4_read_dirblock((inode), (block), (type), __func__, __LINE__)
 
 static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 						ext4_lblk_t block,
-						dirblock_type_t type,
+						enum dirblock_type type,
 						const char *func,
 						unsigned int line)
 {
@@ -218,79 +206,6 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 #define dxtrace(command)
 #endif
 
-struct fake_dirent
-{
-	__le32 inode;
-	__le16 rec_len;
-	u8 name_len;
-	u8 file_type;
-};
-
-struct dx_countlimit
-{
-	__le16 limit;
-	__le16 count;
-};
-
-struct dx_entry
-{
-	__le32 hash;
-	__le32 block;
-};
-
-/*
- * dx_root_info is laid out so that if it should somehow get overlaid by a
- * dirent the two low bits of the hash version will be zero.  Therefore, the
- * hash version mod 4 should never be 0.  Sincerely, the paranoia department.
- */
-
-struct dx_root
-{
-	struct fake_dirent dot;
-	char dot_name[4];
-	struct fake_dirent dotdot;
-	char dotdot_name[4];
-	struct dx_root_info
-	{
-		__le32 reserved_zero;
-		u8 hash_version;
-		u8 info_length; /* 8 */
-		u8 indirect_levels;
-		u8 unused_flags;
-	}
-	info;
-	struct dx_entry	entries[];
-};
-
-struct dx_node
-{
-	struct fake_dirent fake;
-	struct dx_entry	entries[];
-};
-
-
-struct dx_frame
-{
-	struct buffer_head *bh;
-	struct dx_entry *entries;
-	struct dx_entry *at;
-};
-
-struct dx_map_entry
-{
-	u32 hash;
-	u16 offs;
-	u16 size;
-};
-
-/*
- * This goes at the end of each htree block.
- */
-struct dx_tail {
-	u32 dt_reserved;
-	__le32 dt_checksum;	/* crc32c(uuid+inum+dirblock) */
-};
-
 static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 		struct ext4_filename *fname,
 		struct ext4_dir_entry_2 **res_dir);
@@ -308,6 +223,7 @@ void ext4_initialize_dirent_tail(struct buffer_head *bh,
 			sizeof(struct ext4_dir_entry_tail), blocksize);
 	t->det_reserved_ft = EXT4_FT_DIR_CSUM;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_initialize_dirent_tail);
 
 /* Walk through a dirent block to find a checksum "dirent" at the tail */
 static struct ext4_dir_entry_tail *get_dirent_tail(struct inode *inode,
@@ -382,6 +298,7 @@ int ext4_dirblock_csum_verify(struct inode *inode, struct buffer_head *bh)
 
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dirblock_csum_verify);
 
 static void ext4_dirblock_csum_set(struct inode *inode,
 				 struct buffer_head *bh)
@@ -408,6 +325,7 @@ int ext4_handle_dirty_dirblock(handle_t *handle,
 	ext4_dirblock_csum_set(inode, bh);
 	return ext4_handle_dirty_metadata(handle, inode, bh);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_handle_dirty_dirblock);
 
 static struct dx_countlimit *get_dx_countlimit(struct inode *inode,
 					       struct ext4_dir_entry *dirent,
@@ -517,82 +435,6 @@ static inline int ext4_handle_dirty_dx_node(handle_t *handle,
 {
 	ext4_dx_csum_set(inode, (struct ext4_dir_entry *)bh->b_data);
 	return ext4_handle_dirty_metadata(handle, inode, bh);
-}
-
-/*
- * p is at least 6 bytes before the end of page
- */
-static inline struct ext4_dir_entry_2 *
-ext4_next_entry(struct ext4_dir_entry_2 *p, unsigned long blocksize)
-{
-	return (struct ext4_dir_entry_2 *)((char *)p +
-		ext4_rec_len_from_disk(p->rec_len, blocksize));
-}
-
-/*
- * Future: use high four bits of block for coalesce-on-delete flags
- * Mask them off for now.
- */
-
-static inline ext4_lblk_t dx_get_block(struct dx_entry *entry)
-{
-	return le32_to_cpu(entry->block) & 0x0fffffff;
-}
-
-static inline void dx_set_block(struct dx_entry *entry, ext4_lblk_t value)
-{
-	entry->block = cpu_to_le32(value);
-}
-
-static inline unsigned dx_get_hash(struct dx_entry *entry)
-{
-	return le32_to_cpu(entry->hash);
-}
-
-static inline void dx_set_hash(struct dx_entry *entry, unsigned value)
-{
-	entry->hash = cpu_to_le32(value);
-}
-
-static inline unsigned dx_get_count(struct dx_entry *entries)
-{
-	return le16_to_cpu(((struct dx_countlimit *) entries)->count);
-}
-
-static inline unsigned dx_get_limit(struct dx_entry *entries)
-{
-	return le16_to_cpu(((struct dx_countlimit *) entries)->limit);
-}
-
-static inline void dx_set_count(struct dx_entry *entries, unsigned value)
-{
-	((struct dx_countlimit *) entries)->count = cpu_to_le16(value);
-}
-
-static inline void dx_set_limit(struct dx_entry *entries, unsigned value)
-{
-	((struct dx_countlimit *) entries)->limit = cpu_to_le16(value);
-}
-
-static inline unsigned dx_root_limit(struct inode *dir, unsigned infosize)
-{
-	unsigned int entry_space = dir->i_sb->s_blocksize -
-			ext4_dir_rec_len(1, NULL) -
-			ext4_dir_rec_len(2, NULL) - infosize;
-
-	if (ext4_has_feature_metadata_csum(dir->i_sb))
-		entry_space -= sizeof(struct dx_tail);
-	return entry_space / sizeof(struct dx_entry);
-}
-
-static inline unsigned dx_node_limit(struct inode *dir)
-{
-	unsigned int entry_space = dir->i_sb->s_blocksize -
-			ext4_dir_rec_len(0, dir);
-
-	if (ext4_has_feature_metadata_csum(dir->i_sb))
-		entry_space -= sizeof(struct dx_tail);
-	return entry_space / sizeof(struct dx_entry);
 }
 
 /*
@@ -1161,6 +1003,9 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	__u32 hashval;
 	struct fscrypt_str tmp_str;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_htree_fill_tree, dir_file, start_hash,
+				   start_minor_hash, next_hash);
+
 	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
 	dir = file_inode(dir_file);
@@ -1258,6 +1103,7 @@ errout:
 	dx_release(frames);
 	return (err);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_fill_tree);
 
 static inline int search_dirblock(struct buffer_head *bh,
 				  struct inode *dir,
@@ -1395,6 +1241,7 @@ int ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 	else
 		return ext4fs_dirhash(dir, iname->name, iname->len, hinfo);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fname_setup_ci_filename);
 #endif
 
 /*
@@ -1488,6 +1335,7 @@ int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_search_dir);
 
 static int is_dx_internal_node(struct inode *dir, ext4_lblk_t block,
 			       struct ext4_dir_entry *de)
@@ -1837,6 +1685,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 
 	return d_obtain_alias(ext4_iget(child->d_sb, ino, EXT4_IGET_NORMAL));
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_parent);
 
 /*
  * Move count entries from end of map between two memory locations.
@@ -2066,6 +1915,7 @@ int ext4_find_dest_de(struct inode *dir, struct buffer_head *bh,
 	*dest_de = de;
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_dest_de);
 
 void ext4_insert_dentry(struct inode *dir,
 			struct inode *inode,
@@ -2098,6 +1948,7 @@ void ext4_insert_dentry(struct inode *dir,
 						cpu_to_le32(hinfo->minor_hash);
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_insert_dentry);
 
 /*
  * Add a new entry into a directory (leaf) block.  If de is non-NULL,
@@ -2705,6 +2556,7 @@ int ext4_generic_delete_entry(struct inode *dir,
 	}
 	return -ENOENT;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_generic_delete_entry);
 
 static int ext4_delete_entry(handle_t *handle,
 			     struct inode *dir,
@@ -2967,6 +2819,7 @@ int ext4_init_dirblock(handle_t *handle, struct inode *inode,
 	set_buffer_verified(bh);
 	return ext4_handle_dirty_dirblock(handle, inode, bh);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_dirblock);
 
 int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 			     struct inode *inode)
@@ -2993,6 +2846,7 @@ out:
 	brelse(dir_block);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_new_dir);
 
 static struct dentry *ext4_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
@@ -3134,6 +2988,7 @@ bool ext4_empty_dir(struct inode *inode)
 	brelse(bh);
 	return true;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_empty_dir);
 
 static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 {
@@ -3298,6 +3153,7 @@ out_bh:
 	brelse(bh);
 	return retval;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_unlink);
 
 static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 {
@@ -3491,6 +3347,7 @@ retry:
 		goto retry;
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_link);
 
 static int ext4_link(struct dentry *old_dentry,
 		     struct inode *dir, struct dentry *dentry)
@@ -4242,6 +4099,7 @@ const struct inode_operations ext4_dir_inode_operations = {
 	.fileattr_get	= ext4_fileattr_get,
 	.fileattr_set	= ext4_fileattr_set,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_inode_operations);
 
 const struct inode_operations ext4_special_inode_operations = {
 	.setattr	= ext4_setattr,
@@ -4250,3 +4108,159 @@ const struct inode_operations ext4_special_inode_operations = {
 	.get_inode_acl	= ext4_get_acl,
 	.set_acl	= ext4_set_acl,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_special_inode_operations);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+struct buffer_head *ext4_append_test(handle_t *handle, struct inode *inode,
+				     ext4_lblk_t *block)
+{
+	return ext4_append(handle, inode, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_append_test);
+
+struct buffer_head *ext4_read_dirblock_test(struct inode *inode,
+					    ext4_lblk_t block,
+					    enum dirblock_type type)
+{
+	return ext4_read_dirblock(inode, block, type);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_dirblock_test);
+
+void ext4_dx_csum_set_test(struct inode *inode, struct ext4_dir_entry *dirent)
+{
+	ext4_dx_csum_set(inode, dirent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dx_csum_set_test);
+
+int ext4_dx_csum_verify_test(struct inode *inode,
+			     struct ext4_dir_entry *dirent)
+{
+	return ext4_dx_csum_verify(inode, dirent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dx_csum_verify_test);
+
+struct dx_frame *dx_probe_test(struct ext4_filename *fname, struct inode *dir,
+			       struct dx_hash_info *hinfo,
+			       struct dx_frame *frame_in)
+{
+	return dx_probe(fname, dir, hinfo, frame_in);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_probe_test);
+
+void dx_release_test(struct dx_frame *frames)
+{
+	dx_release(frames);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_release_test);
+
+int ext4_htree_next_block_test(struct inode *dir, __u32 hash,
+			       struct dx_frame *frame,
+			       struct dx_frame *frames, __u32 *start_hash)
+{
+	return ext4_htree_next_block(dir, hash, frame, frames, start_hash);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_next_block_test);
+
+int dx_make_map_test(struct inode *dir, struct buffer_head *bh,
+		     struct dx_hash_info *hinfo,
+		     struct dx_map_entry *map_tail)
+{
+	return dx_make_map(dir, bh, hinfo, map_tail);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_make_map_test);
+
+void dx_sort_map_test(struct dx_map_entry *map, unsigned int count)
+{
+	dx_sort_map(map, count);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_sort_map_test);
+
+void dx_insert_block_test(struct dx_frame *frame, u32 hash, ext4_lblk_t block)
+{
+	dx_insert_block(frame, hash, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_insert_block_test);
+
+struct ext4_dir_entry_2 *dx_move_dirents_test(struct inode *dir, char *from,
+					      char *to,
+					      struct dx_map_entry *map,
+					      int count,
+					      unsigned int blocksize)
+{
+	return dx_move_dirents(dir, from, to, map, count, blocksize);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_move_dirents_test);
+
+struct ext4_dir_entry_2 *dx_pack_dirents_test(struct inode *dir, char *base,
+					      unsigned int blocksize)
+{
+	return dx_pack_dirents(dir, base, blocksize);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(dx_pack_dirents_test);
+
+struct ext4_dir_entry_2 *do_split_test(handle_t *handle, struct inode *dir,
+				       struct buffer_head **bh,
+				       struct dx_frame *frame,
+				       struct dx_hash_info *hinfo)
+{
+	return do_split(handle, dir, bh, frame, hinfo);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(do_split_test);
+
+bool ext4_check_dx_root_test(struct inode *dir, struct dx_root *root)
+{
+	return ext4_check_dx_root(dir, root);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_dx_root_test);
+
+struct buffer_head *ext4_find_entry_test(struct inode *dir,
+					 const struct qstr *d_name,
+					 struct ext4_dir_entry_2 **res_dir,
+					 int *inlined)
+{
+	return ext4_find_entry(dir, d_name, res_dir, inlined);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_entry_test);
+
+struct buffer_head *ext4_lookup_entry_test(struct inode *dir,
+					   struct dentry *dentry,
+					   struct ext4_dir_entry_2 **res_dir)
+{
+	return ext4_lookup_entry(dir, dentry, res_dir);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_lookup_entry_test);
+
+int ext4_add_entry_test(handle_t *handle, struct dentry *dentry,
+			struct inode *inode)
+{
+	return ext4_add_entry(handle, dentry, inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_add_entry_test);
+
+int ext4_delete_entry_test(handle_t *handle, struct inode *dir,
+			   struct ext4_dir_entry_2 *de_del,
+			   struct buffer_head *bh)
+{
+	return ext4_delete_entry(handle, dir, de_del, bh);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_delete_entry_test);
+
+void ext4_inc_count_test(struct inode *inode)
+{
+	ext4_inc_count(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inc_count_test);
+
+void ext4_dec_count_test(struct inode *inode)
+{
+	ext4_dec_count(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dec_count_test);
+
+int ext4_init_symlink_block_test(handle_t *handle, struct inode *inode,
+				 struct fscrypt_str *disk_link)
+{
+	return ext4_init_symlink_block(handle, inode, disk_link);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_symlink_block_test);
+#endif

@@ -40,6 +40,7 @@ ext4_double_down_write_data_sem(struct inode *first, struct inode *second)
 		down_write_nested(&EXT4_I(first)->i_data_sem, I_DATA_SEM_OTHER);
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_double_down_write_data_sem);
 
 /**
  * ext4_double_up_write_data_sem - Release two inodes' write lock of i_data_sem
@@ -55,6 +56,7 @@ ext4_double_up_write_data_sem(struct inode *orig_inode,
 	up_write(&EXT4_I(orig_inode)->i_data_sem);
 	up_write(&EXT4_I(donor_inode)->i_data_sem);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_double_up_write_data_sem);
 
 /* Grab and lock folio on both @inode1 and @inode2 by inode order. */
 static int mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
@@ -667,3 +669,23 @@ out:
 	unlock_two_nondirectories(orig_inode, donor_inode);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_move_extents);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_mext_check_validity_test(struct inode *orig_inode,
+				  struct inode *donor_inode)
+{
+	return mext_check_validity(orig_inode, donor_inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mext_check_validity_test);
+
+int ext4_mext_check_adjust_range_test(struct inode *orig_inode,
+				      struct inode *donor_inode,
+				      __u64 orig_start, __u64 donor_start,
+				      __u64 *len)
+{
+	return mext_check_adjust_range(orig_inode, donor_inode, orig_start,
+				       donor_start, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mext_check_adjust_range_test);
+#endif

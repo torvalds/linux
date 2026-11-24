@@ -429,7 +429,7 @@ block (precisely the length of one dx_entry) are used to store a
 ``count`` entries in the dx_root/dx_node structures are adjusted as
 necessary to fit the dx_tail into the block. If there is no space for
 the dx_tail, the user is notified to run e2fsck -D to rebuild the
-directory index (which will ensure that there's space for the checksum.
+directory index, which will ensure that there's space for the checksum.
 The dx_tail structure is 8 bytes long and looks like this:
 
 .. list-table::

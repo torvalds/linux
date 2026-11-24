@@ -14,6 +14,7 @@
 
 #include <linux/lockdep.h>
 #include <linux/wait_bit.h>
+#include <kunit/static_stub.h>
 /*
  * Ext4 Fast Commits
  * -----------------
@@ -661,10 +662,24 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 	trace_ext4_fc_track_range(handle, inode, start, end, ret);
 }
 
-static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
+int ext4_fc_get_buf(journal_t *journal, struct buffer_head **bh)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_get_buf, journal, bh);
+	return jbd2_fc_get_buf(journal, bh);
+}
+
+int ext4_fc_issue_flush(struct block_device *bdev)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_issue_flush, bdev);
+	return blkdev_issue_flush(bdev);
+}
+
+void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 {
 	blk_opf_t write_flags = JBD2_JOURNAL_REQ_FLAGS;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_submit_bh, sb, is_tail);
 
 	/* Add REQ_FUA | REQ_PREFLUSH only its tail */
 	if (test_opt(sb, BARRIER) && is_tail)
@@ -707,7 +722,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 		return NULL;
 
 	if (!sbi->s_fc_bh) {
-		ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
+		ret = ext4_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 		if (ret)
 			return NULL;
 		sbi->s_fc_bh = bh;
@@ -737,7 +752,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 
 	ext4_fc_submit_bh(sb, false);
 
-	ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
+	ret = ext4_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 	if (ret)
 		return NULL;
 	sbi->s_fc_bh = bh;
@@ -1425,8 +1440,12 @@ static int ext4_fc_perform_commit(journal_t *journal, tid_t commit_tid)
 	 * Step 5: If file system device is different from journal device,
 	 * issue a cache flush before we start writing fast commit blocks.
 	 */
-	if (journal->j_fs_dev != journal->j_dev)
-		blkdev_issue_flush(journal->j_fs_dev);
+	if (journal->j_fs_dev != journal->j_dev &&
+	    journal->j_flags & JBD2_BARRIER) {
+		ret = ext4_fc_issue_flush(journal->j_fs_dev);
+		if (ret)
+			return ret;
+	}
 
 	blk_start_plug(&plug);
 	alloc_ctx = ext4_fc_lock(sb);
@@ -1941,8 +1960,11 @@ static int ext4_fc_replay_inode(struct super_block *sb,
 
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
 	if (!IS_ERR(inode)) {
-		ext4_ext_clear_bb(inode);
+		ret = ext4_ext_clear_bb(inode);
 		iput(inode);
+		inode = NULL;
+		if (ret)
+			goto out;
 	}
 	inode = NULL;
 
@@ -2002,8 +2024,11 @@ static int ext4_fc_replay_inode(struct super_block *sb,
 	 * crashing. This should be fixed but until then, we calculate
 	 * the number of blocks the inode.
 	 */
-	if (!ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA))
-		ext4_ext_replay_set_iblocks(inode);
+	if (!ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA)) {
+		ret = ext4_ext_replay_set_iblocks(inode);
+		if (ret)
+			goto out_brelse;
+	}
 
 	inode->i_generation = le32_to_cpu(ext4_raw_inode(&iloc)->i_generation);
 	ext4_reset_inode_seed(inode);
@@ -2016,7 +2041,7 @@ out_brelse:
 out:
 	iput(inode);
 	if (!ret)
-		blkdev_issue_flush(sb->s_bdev);
+		ext4_fc_issue_flush(sb->s_bdev);
 
 	return ret;
 }
@@ -2062,12 +2087,12 @@ static int ext4_fc_replay_create(struct super_block *sb,
 		dir = ext4_iget(sb, darg.parent_ino, EXT4_IGET_NORMAL);
 		if (IS_ERR(dir)) {
 			ext4_debug("Dir %d not found.", darg.ino);
+			ret = PTR_ERR(dir);
 			goto out;
 		}
 		ret = ext4_init_new_dir(NULL, dir, inode);
 		iput(dir);
 		if (ret) {
-			ret = 0;
 			goto out;
 		}
 	}
@@ -2075,7 +2100,7 @@ static int ext4_fc_replay_create(struct super_block *sb,
 	if (ret)
 		goto out;
 	set_nlink(inode, 1);
-	ext4_mark_inode_dirty(NULL, inode);
+	ret = ext4_mark_inode_dirty(NULL, inode);
 out:
 	iput(inode);
 	return ret;
@@ -2314,13 +2339,13 @@ out:
 	return ret;
 }
 
-static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
+static int ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 {
 	struct ext4_fc_replay_state *state;
 	struct inode *inode;
 	struct ext4_ext_path *path = NULL;
 	struct ext4_map_blocks map;
-	int i, ret, j;
+	int i, ret = 0, j;
 	ext4_lblk_t cur, end;
 
 	state = &EXT4_SB(sb)->s_fc_replay_state;
@@ -2348,13 +2373,14 @@ static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 
 			if (ret > 0) {
 				path = ext4_find_extent(inode, map.m_lblk, path, 0);
-				if (!IS_ERR(path)) {
-					for (j = 0; j < path->p_depth; j++)
-						ext4_mb_mark_bb(inode->i_sb,
-							path[j].p_block, 1, true);
-				} else {
+				if (IS_ERR(path)) {
+					ret = PTR_ERR(path);
 					path = NULL;
+					break;
 				}
+				for (j = 0; j < path->p_depth; j++)
+					ext4_mb_mark_bb(inode->i_sb,
+							path[j].p_block, 1, true);
 				cur += ret;
 				ext4_mb_mark_bb(inode->i_sb, map.m_pblk,
 							map.m_len, true);
@@ -2363,9 +2389,14 @@ static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 			}
 		}
 		iput(inode);
+		if (ret < 0)
+			goto out;
 	}
 
+	ret = 0;
+out:
 	ext4_free_ext_path(path);
+	return ret;
 }
 
 /*
@@ -2397,7 +2428,9 @@ void ext4_fc_replay_cleanup(struct super_block *sb)
 
 	sbi->s_mount_state &= ~EXT4_FC_REPLAY;
 	kfree(sbi->s_fc_replay_state.fc_regions);
+	sbi->s_fc_replay_state.fc_regions = NULL;
 	kfree(sbi->s_fc_replay_state.fc_modified_inodes);
+	sbi->s_fc_replay_state.fc_modified_inodes = NULL;
 }
 
 static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
@@ -2443,6 +2476,12 @@ static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
  * It returns a negative error to indicate that there was an error. At the end
  * of a successful scan phase, sbi->s_fc_replay_state.fc_replay_num_tags is set
  * to indicate the number of tags that need to replayed during the replay phase.
+ *
+ * An invalid tag or a tail that does not match ends the scan without an error.
+ * This is what a fast commit that was only partially written before a crash
+ * looks like.  Its tail is written last and fsync() does not return before
+ * the tail is on disk, so such a fast commit was never reported as durable and
+ * is simply dropped, like jbd2 drops a transaction without a commit block.
  */
 static int ext4_fc_replay_scan(journal_t *journal,
 				struct buffer_head *bh, int off,
@@ -2489,8 +2528,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 		val = cur + EXT4_FC_TAG_BASE_LEN;
 		if (tl.fc_len > end - val ||
 		    !ext4_fc_value_len_isvalid(sbi, tl.fc_tag, tl.fc_len)) {
-			ret = state->fc_replay_num_tags ?
-				JBD2_FC_REPLAY_STOP : -ECANCELED;
+			ext4_debug("Scan phase, invalid tag length, blk %lld\n",
+				   bh->b_blocknr);
+			ret = JBD2_FC_REPLAY_STOP;
 			goto out_err;
 		}
 		ext4_debug("Scan phase, tag:%s, blk %lld\n",
@@ -2530,8 +2570,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 				state->fc_regions_valid =
 					state->fc_regions_used;
 			} else {
-				ret = state->fc_replay_num_tags ?
-					JBD2_FC_REPLAY_STOP : -EFSBADCRC;
+				ext4_debug("Scan phase, invalid tail, blk %lld\n",
+					   bh->b_blocknr);
+				ret = JBD2_FC_REPLAY_STOP;
 			}
 			state->fc_crc = 0;
 			break;
@@ -2551,8 +2592,9 @@ static int ext4_fc_replay_scan(journal_t *journal,
 				EXT4_FC_TAG_BASE_LEN + tl.fc_len);
 			break;
 		default:
-			ret = state->fc_replay_num_tags ?
-				JBD2_FC_REPLAY_STOP : -ECANCELED;
+			ext4_debug("Scan phase, unknown tag %d, blk %lld\n",
+				   tl.fc_tag, bh->b_blocknr);
+			ret = JBD2_FC_REPLAY_STOP;
 		}
 		if (ret < 0 || ret == JBD2_FC_REPLAY_STOP)
 			break;
@@ -2589,8 +2631,7 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 	}
 	if (!sbi->s_fc_replay_state.fc_replay_num_tags) {
 		ext4_debug("Replay stops\n");
-		ext4_fc_set_bitmaps_and_counters(sb);
-		return 0;
+		return ext4_fc_set_bitmaps_and_counters(sb);
 	}
 
 #ifdef CONFIG_EXT4_DEBUG
@@ -2609,8 +2650,7 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 		val = cur + EXT4_FC_TAG_BASE_LEN;
 
 		if (state->fc_replay_num_tags == 0) {
-			ret = JBD2_FC_REPLAY_STOP;
-			ext4_fc_set_bitmaps_and_counters(sb);
+			ret = ext4_fc_set_bitmaps_and_counters(sb);
 			break;
 		}
 
@@ -2764,3 +2804,158 @@ void ext4_fc_destroy_dentry_cache(void)
 	kmem_cache_destroy(ext4_fc_range_cachep);
 	kmem_cache_destroy(ext4_fc_dentry_cachep);
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+void ext4_fc_set_snap_err_test(int *snap_err, int err)
+{
+	ext4_fc_set_snap_err(snap_err, err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_set_snap_err_test);
+
+bool ext4_fc_disabled_test(struct super_block *sb)
+{
+	return ext4_fc_disabled(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_disabled_test);
+
+bool ext4_fc_eligible_test(struct super_block *sb)
+{
+	return ext4_fc_eligible(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_eligible_test);
+
+void ext4_fc_snap_stats_update_max_test(atomic64_t *stat, u64 value)
+{
+	ext4_fc_snap_stats_update_max(stat, value);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snap_stats_update_max_test);
+
+void ext4_fc_wake_inode_state_test(struct inode *inode, int bit)
+{
+	ext4_fc_wake_inode_state(inode, bit);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_wake_inode_state_test);
+
+u8 *ext4_fc_reserve_space_test(struct super_block *sb, int len, u32 *crc)
+{
+	return ext4_fc_reserve_space(sb, len, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_reserve_space_test);
+
+int ext4_fc_write_tail_test(struct super_block *sb, u32 crc)
+{
+	return ext4_fc_write_tail(sb, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_tail_test);
+
+bool ext4_fc_add_tlv_test(struct super_block *sb, u16 tag, u16 len, u8 *val,
+			  u32 *crc)
+{
+	return ext4_fc_add_tlv(sb, tag, len, val, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_add_tlv_test);
+
+int ext4_fc_write_inode_test(struct inode *inode, u32 *crc)
+{
+	return ext4_fc_write_inode(inode, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_inode_test);
+
+int ext4_fc_write_inode_data_test(struct inode *inode, u32 *crc)
+{
+	return ext4_fc_write_inode_data(inode, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_inode_data_test);
+
+void ext4_fc_free_inode_snap_test(struct inode *inode)
+{
+	ext4_fc_free_inode_snap(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_free_inode_snap_test);
+
+int ext4_fc_snapshot_inode_test(struct inode *inode,
+				unsigned int nr_ranges_total,
+				unsigned int *nr_rangesp, int *snap_err)
+{
+	return ext4_fc_snapshot_inode(inode, nr_ranges_total, nr_rangesp,
+				      snap_err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snapshot_inode_test);
+
+unsigned int ext4_fc_count_snapshot_inodes_test(struct super_block *sb)
+{
+	return ext4_fc_count_snapshot_inodes(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_count_snapshot_inodes_test);
+
+int ext4_fc_alloc_snapshot_inodes_test(struct super_block *sb,
+				       struct inode ***inodesp,
+				       unsigned int *nr_inodesp)
+{
+	return ext4_fc_alloc_snapshot_inodes(sb, inodesp, nr_inodesp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_alloc_snapshot_inodes_test);
+
+int ext4_fc_snapshot_inodes_test(journal_t *journal, struct inode **inodes,
+				 unsigned int inodes_size,
+				 unsigned int *nr_inodesp,
+				 unsigned int *nr_rangesp, int *snap_err)
+{
+	return ext4_fc_snapshot_inodes(journal, inodes, inodes_size,
+				       nr_inodesp, nr_rangesp, snap_err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snapshot_inodes_test);
+
+void ext4_fc_update_stats_test(struct super_block *sb, int status,
+			       u64 commit_time, int nblks, tid_t commit_tid)
+{
+	ext4_fc_update_stats(sb, status, commit_time, nblks, commit_tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_update_stats_test);
+
+void ext4_fc_cleanup_test(journal_t *journal, int full, tid_t tid)
+{
+	ext4_fc_cleanup(journal, full, tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_cleanup_test);
+
+int ext4_fc_record_modified_inode_test(struct super_block *sb, int ino)
+{
+	return ext4_fc_record_modified_inode(sb, ino);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_record_modified_inode_test);
+
+bool ext4_fc_value_len_isvalid_test(struct ext4_sb_info *sbi, int tag, int len)
+{
+	return ext4_fc_value_len_isvalid(sbi, tag, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_value_len_isvalid_test);
+
+int ext4_fc_replay_test(journal_t *journal, struct buffer_head *bh,
+			enum passtype pass, int off, tid_t expected_tid)
+{
+	return ext4_fc_replay(journal, bh, pass, off, expected_tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_test);
+
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_get_buf);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_submit_bh);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_issue_flush);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_del);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_mark_ineligible);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_unlink);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_unlink);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_link);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_link);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_create);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_create);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_range);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_commit);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_record_regions);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_check_excluded);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_cleanup);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_info_show);
+#endif

@@ -49,6 +49,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/fserror.h>
+#include <kunit/static_stub.h>
 
 #include "ext4.h"
 #include "ext4_extents.h"	/* Needed for trace points definition */
@@ -195,6 +196,9 @@ static inline void __ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 			 bio_end_io_t end_io, bool simu_fail)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_bh_nowait, bh, op_flags,
+				   end_io, simu_fail);
+
 	BUG_ON(!buffer_locked(bh));
 
 	if (ext4_buffer_uptodate(bh)) {
@@ -203,10 +207,14 @@ void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 	}
 	__ext4_read_bh(bh, op_flags, end_io, simu_fail);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_bh_nowait);
 
 int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 		 bio_end_io_t end_io, bool simu_fail)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_bh, bh, op_flags,
+				   end_io, simu_fail);
+
 	BUG_ON(!buffer_locked(bh));
 
 	if (ext4_buffer_uptodate(bh)) {
@@ -221,9 +229,12 @@ int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 		return 0;
 	return -EIO;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_bh);
 
 int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_bh_lock, bh, op_flags, wait);
+
 	lock_buffer(bh);
 	if (!wait) {
 		ext4_read_bh_nowait(bh, op_flags, NULL, false);
@@ -231,6 +242,7 @@ int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait)
 	}
 	return ext4_read_bh(bh, op_flags, NULL, false);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_bh_lock);
 
 /*
  * This works like __bread_gfp() except it uses ERR_PTR for error
@@ -262,7 +274,11 @@ static struct buffer_head *__ext4_sb_bread_gfp(struct super_block *sb,
 struct buffer_head *ext4_sb_bread(struct super_block *sb, sector_t block,
 				   blk_opf_t op_flags)
 {
-	gfp_t gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
+	gfp_t gfp;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_bread, sb, block, op_flags);
+
+	gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
 			~__GFP_FS) | __GFP_MOVABLE;
 
 	return __ext4_sb_bread_gfp(sb, block, op_flags, gfp);
@@ -280,16 +296,24 @@ struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 struct buffer_head *ext4_sb_bread_nofail(struct super_block *sb,
 					 sector_t block)
 {
-	gfp_t gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
+	gfp_t gfp;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_bread_nofail, sb, block);
+
+	gfp = mapping_gfp_constraint(sb->s_bdev->bd_mapping,
 			~__GFP_FS) | __GFP_MOVABLE | __GFP_NOFAIL;
 
 	return __ext4_sb_bread_gfp(sb, block, 0, gfp);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_bread_nofail);
 
 void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
 {
-	struct buffer_head *bh = bdev_getblk(sb->s_bdev, block,
-			sb->s_blocksize, GFP_NOWAIT);
+	struct buffer_head *bh;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_breadahead_unmovable, sb, block);
+
+	bh = bdev_getblk(sb->s_bdev, block, sb->s_blocksize, GFP_NOWAIT);
 
 	if (likely(bh)) {
 		if (trylock_buffer(bh))
@@ -297,6 +321,7 @@ void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
 		brelse(bh);
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_breadahead_unmovable);
 
 static int ext4_verify_csum_type(struct super_block *sb,
 				 struct ext4_super_block *es)
@@ -316,6 +341,7 @@ __le32 ext4_superblock_csum(struct ext4_super_block *es)
 
 	return cpu_to_le32(csum);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_superblock_csum);
 
 static int ext4_superblock_csum_verify(struct super_block *sb,
 				       struct ext4_super_block *es)
@@ -335,6 +361,7 @@ void ext4_superblock_csum_set(struct super_block *sb)
 
 	es->s_checksum = ext4_superblock_csum(es);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_superblock_csum_set);
 
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 			       struct ext4_group_desc *bg)
@@ -343,6 +370,7 @@ ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (ext4_fsblk_t)le32_to_cpu(bg->bg_block_bitmap_hi) << 32 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_bitmap);
 
 ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
 			       struct ext4_group_desc *bg)
@@ -351,6 +379,7 @@ ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (ext4_fsblk_t)le32_to_cpu(bg->bg_inode_bitmap_hi) << 32 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_bitmap);
 
 ext4_fsblk_t ext4_inode_table(struct super_block *sb,
 			      struct ext4_group_desc *bg)
@@ -359,6 +388,7 @@ ext4_fsblk_t ext4_inode_table(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (ext4_fsblk_t)le32_to_cpu(bg->bg_inode_table_hi) << 32 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_table);
 
 __u32 ext4_free_group_clusters(struct super_block *sb,
 			       struct ext4_group_desc *bg)
@@ -367,6 +397,7 @@ __u32 ext4_free_group_clusters(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (__u32)le16_to_cpu(bg->bg_free_blocks_count_hi) << 16 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters);
 
 __u32 ext4_free_inodes_count(struct super_block *sb,
 			      struct ext4_group_desc *bg)
@@ -375,6 +406,7 @@ __u32 ext4_free_inodes_count(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (__u32)le16_to_cpu(READ_ONCE(bg->bg_free_inodes_count_hi)) << 16 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_inodes_count);
 
 __u32 ext4_used_dirs_count(struct super_block *sb,
 			      struct ext4_group_desc *bg)
@@ -383,6 +415,7 @@ __u32 ext4_used_dirs_count(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (__u32)le16_to_cpu(bg->bg_used_dirs_count_hi) << 16 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_used_dirs_count);
 
 __u32 ext4_itable_unused_count(struct super_block *sb,
 			      struct ext4_group_desc *bg)
@@ -391,6 +424,7 @@ __u32 ext4_itable_unused_count(struct super_block *sb,
 		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
 		 (__u32)le16_to_cpu(bg->bg_itable_unused_hi) << 16 : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_itable_unused_count);
 
 void ext4_block_bitmap_set(struct super_block *sb,
 			   struct ext4_group_desc *bg, ext4_fsblk_t blk)
@@ -399,6 +433,7 @@ void ext4_block_bitmap_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_block_bitmap_hi = cpu_to_le32(blk >> 32);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_bitmap_set);
 
 void ext4_inode_bitmap_set(struct super_block *sb,
 			   struct ext4_group_desc *bg, ext4_fsblk_t blk)
@@ -407,6 +442,7 @@ void ext4_inode_bitmap_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_inode_bitmap_hi = cpu_to_le32(blk >> 32);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_bitmap_set);
 
 void ext4_inode_table_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, ext4_fsblk_t blk)
@@ -415,6 +451,7 @@ void ext4_inode_table_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_inode_table_hi = cpu_to_le32(blk >> 32);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_table_set);
 
 void ext4_free_group_clusters_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, __u32 count)
@@ -423,6 +460,7 @@ void ext4_free_group_clusters_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_free_blocks_count_hi = cpu_to_le16(count >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters_set);
 
 void ext4_free_inodes_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, __u32 count)
@@ -431,6 +469,7 @@ void ext4_free_inodes_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		WRITE_ONCE(bg->bg_free_inodes_count_hi, cpu_to_le16(count >> 16));
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_inodes_set);
 
 void ext4_used_dirs_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, __u32 count)
@@ -439,6 +478,7 @@ void ext4_used_dirs_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_used_dirs_count_hi = cpu_to_le16(count >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_used_dirs_set);
 
 void ext4_itable_unused_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, __u32 count)
@@ -447,6 +487,7 @@ void ext4_itable_unused_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_itable_unused_hi = cpu_to_le16(count >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_itable_unused_set);
 
 static void __ext4_update_tstamp(__le32 *lo, __u8 *hi, time64_t now)
 {
@@ -1145,6 +1186,7 @@ void ext4_mark_group_bitmap_corrupted(struct super_block *sb,
 		}
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_group_bitmap_corrupted);
 
 void ext4_update_dynamic_rev(struct super_block *sb)
 {
@@ -1170,6 +1212,7 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	 * can leave it up to e2fsck to clean up any inconsistencies there.
 	 */
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_dynamic_rev);
 
 static inline struct inode *orphan_list_entry(struct list_head *l)
 {
@@ -1603,6 +1646,7 @@ void ext4_clear_inode(struct inode *inode)
 	}
 	fscrypt_put_encryption_info(inode);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_clear_inode);
 
 static struct inode *ext4_nfs_get_inode(struct super_block *sb,
 					u64 ino, u32 generation)
@@ -3161,6 +3205,7 @@ int ext4_seq_options_show(struct seq_file *seq, void *offset)
 	seq_putc(seq, '\n');
 	return rc;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_seq_options_show);
 
 static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			    int read_only)
@@ -3266,6 +3311,7 @@ int ext4_alloc_flex_bg_array(struct super_block *sb, ext4_group_t ngroup)
 		ext4_kvfree_array_rcu(old_groups);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_alloc_flex_bg_array);
 
 static int ext4_fill_flex_info(struct super_block *sb)
 {
@@ -3354,6 +3400,7 @@ int ext4_group_desc_csum_verify(struct super_block *sb, __u32 block_group,
 
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_group_desc_csum_verify);
 
 void ext4_group_desc_csum_set(struct super_block *sb, __u32 block_group,
 			      struct ext4_group_desc *gdp)
@@ -3362,6 +3409,7 @@ void ext4_group_desc_csum_set(struct super_block *sb, __u32 block_group,
 		return;
 	gdp->bg_checksum = ext4_group_desc_csum(sb, block_group, gdp);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_group_desc_csum_set);
 
 /* Called at mount-time, super-block is locked */
 static int ext4_check_descriptors(struct super_block *sb,
@@ -3737,6 +3785,7 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
 #endif  /* CONFIG_QUOTA */
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_feature_set_ok);
 
 /*
  * This function is called once a day by default if we have errors logged
@@ -3835,7 +3884,8 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	if (!ret) {
 		start_time = ktime_get_ns();
 		ret = ext4_init_inode_table(sb, group,
-					    elr->lr_timeout ? 0 : 1);
+					    !elr->lr_timeout &&
+					    test_opt(sb, BARRIER));
 		trace_ext4_lazy_itable_init(sb, group);
 		if (elr->lr_timeout == 0) {
 			elr->lr_timeout = nsecs_to_jiffies((ktime_get_ns() - start_time) *
@@ -4347,6 +4397,7 @@ int ext4_calculate_overhead(struct super_block *sb)
 	kvfree(buf);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_calculate_overhead);
 
 static void ext4_set_resv_clusters(struct super_block *sb)
 {
@@ -5819,6 +5870,12 @@ failed_mount8: __maybe_unused
 failed_mount7:
 	ext4_unregister_li_request(sb);
 failed_mount6:
+	/*
+	 * We can have a running transaction from orphan replay or quota
+	 * setup. Commit it so that discard work after commit runs before
+	 * we shutdown mballoc.
+	 */
+	ext4_force_commit(sb);
 	ext4_mb_release(sb);
 	ext4_flex_groups_free(sbi);
 failed_mount5:
@@ -5847,6 +5904,7 @@ failed_mount_wq:
 failed_mount3a:
 	/* Drain deferred EA inode iputs from journal replay */
 	flush_delayed_work(&sbi->s_ea_inode_work);
+	ext4_fc_replay_cleanup(sb);
 	ext4_es_unregister_shrinker(sbi);
 	ext4_es_destroy_stats(sbi);
 failed_mount3:
@@ -6010,7 +6068,9 @@ static int ext4_journal_bmap(journal_t *journal, sector_t *block)
 		ext4_msg(journal->j_inode->i_sb, KERN_CRIT,
 			 "journal bmap failed: block %llu ret %d\n",
 			 *block, ret);
-		jbd2_journal_abort(journal, ret ? ret : -EFSCORRUPTED);
+		if (!ret)
+			ret = -EFSCORRUPTED;
+		jbd2_journal_abort(journal, ret);
 		return ret;
 	}
 	*block = map.m_pblk;
@@ -7690,3 +7750,221 @@ MODULE_DESCRIPTION("Fourth Extended Filesystem");
 MODULE_LICENSE("GPL");
 module_init(ext4_init_fs)
 module_exit(ext4_exit_fs)
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_bread);
+
+int ext4_errno_to_code_test(int err)
+{
+	return ext4_errno_to_code(err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_errno_to_code_test);
+
+void ext4_save_error_info_test(struct super_block *sb, int error,
+			       __u32 ino, __u64 block,
+			       const char *func, unsigned int line)
+{
+	save_error_info(sb, error, ino, block, func, line);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_save_error_info_test);
+
+void ext4_update_super_test(struct super_block *sb)
+{
+	ext4_update_super(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_super_test);
+
+int ext4_check_descriptors_test(struct super_block *sb,
+				ext4_fsblk_t sb_block,
+				ext4_group_t *first_not_zeroed)
+{
+	return ext4_check_descriptors(sb, sb_block, first_not_zeroed);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_descriptors_test);
+
+loff_t ext4_max_size_test(int blkbits, int has_huge_files)
+{
+	return ext4_max_size(blkbits, has_huge_files);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_max_size_test);
+
+loff_t ext4_max_bitmap_size_test(int bits, int has_huge_files)
+{
+	return ext4_max_bitmap_size(bits, has_huge_files);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_max_bitmap_size_test);
+
+ext4_fsblk_t ext4_descriptor_loc_test(struct super_block *sb,
+				      ext4_fsblk_t logical_sb_block, int nr)
+{
+	return descriptor_loc(sb, logical_sb_block, nr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_descriptor_loc_test);
+
+unsigned long ext4_get_stripe_size_test(struct ext4_sb_info *sbi)
+{
+	return ext4_get_stripe_size(sbi);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_stripe_size_test);
+
+int ext4_count_overhead_test(struct super_block *sb, ext4_group_t grp,
+			     char *buf)
+{
+	return count_overhead(sb, grp, buf);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_overhead_test);
+
+void ext4_set_resv_clusters_test(struct super_block *sb)
+{
+	ext4_set_resv_clusters(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_resv_clusters_test);
+
+void ext4_set_def_opts_test(struct super_block *sb,
+			    struct ext4_super_block *es)
+{
+	ext4_set_def_opts(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_def_opts_test);
+
+int ext4_handle_clustersize_test(struct super_block *sb)
+{
+	return ext4_handle_clustersize(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_handle_clustersize_test);
+
+int ext4_inode_info_init_test(struct super_block *sb,
+			      struct ext4_super_block *es)
+{
+	return ext4_inode_info_init(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_info_init_test);
+
+int ext4_init_metadata_csum_test(struct super_block *sb,
+				 struct ext4_super_block *es)
+{
+	return ext4_init_metadata_csum(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_init_metadata_csum_test);
+
+int ext4_check_feature_compatibility_test(struct super_block *sb,
+					  struct ext4_super_block *es,
+					  int silent)
+{
+	return ext4_check_feature_compatibility(sb, es, silent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_feature_compatibility_test);
+
+int ext4_check_geometry_test(struct super_block *sb,
+			     struct ext4_super_block *es)
+{
+	return ext4_check_geometry(sb, es);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_geometry_test);
+
+int ext4_hash_info_init_test(struct super_block *sb)
+{
+	return ext4_hash_info_init(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_hash_info_init_test);
+
+int ext4_block_group_meta_init_test(struct super_block *sb, int silent)
+{
+	return ext4_block_group_meta_init(sb, silent);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_group_meta_init_test);
+
+int ext4_fill_flex_info_test(struct super_block *sb)
+{
+	return ext4_fill_flex_info(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fill_flex_info_test);
+
+void ext4_flex_groups_free_test(struct ext4_sb_info *sbi)
+{
+	ext4_flex_groups_free(sbi);
+	rcu_assign_pointer(sbi->s_flex_groups, NULL);
+	sbi->s_flex_groups_allocated = 0;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_flex_groups_free_test);
+
+int ext4_show_options_test(struct seq_file *seq, struct super_block *sb,
+			   int nodefs)
+{
+	return _ext4_show_options(seq, sb, nodefs);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_show_options_test);
+
+int ext4_statfs_test(struct dentry *dentry, struct kstatfs *buf)
+{
+	return ext4_statfs(dentry, buf);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_statfs_test);
+
+int ext4_parse_and_apply_options_test(struct super_block *sb,
+				      const char *options, bool is_remount)
+{
+	struct ext4_fs_context *ctx;
+	struct fs_context *fc;
+	char *opts_copy = NULL;
+	int ret;
+
+	if (options) {
+		opts_copy = kstrdup(options, GFP_KERNEL);
+		if (!opts_copy)
+			return -ENOMEM;
+	}
+
+	fc = kzalloc_obj(*fc);
+	if (!fc) {
+		kfree(opts_copy);
+		return -ENOMEM;
+	}
+
+	ctx = kzalloc_obj(*ctx);
+	if (!ctx) {
+		kfree(fc);
+		kfree(opts_copy);
+		return -ENOMEM;
+	}
+
+	fc->fs_private = ctx;
+	fc->s_fs_info = EXT4_SB(sb);
+	fc->purpose = is_remount ? FS_CONTEXT_FOR_RECONFIGURE :
+				   FS_CONTEXT_FOR_MOUNT;
+
+	ret = parse_options(fc, opts_copy);
+	if (ret == 0) {
+		down_write(&sb->s_umount);
+		ret = ext4_check_opt_consistency(fc, sb);
+		if (ret == 0)
+			ext4_apply_options(fc, sb);
+		up_write(&sb->s_umount);
+	}
+
+	kfree(opts_copy);
+	ext4_fc_free(fc);
+	kfree(fc);
+	return ret;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_parse_and_apply_options_test);
+
+int ext4_parse_sb_mount_options_test(struct super_block *sb,
+				     unsigned long *journal_devnum,
+				     unsigned int *journal_ioprio)
+{
+	struct ext4_fs_context m_ctx = {};
+	int ret;
+
+	down_write(&sb->s_umount);
+	ret = parse_apply_sb_mount_options(sb, &m_ctx);
+	up_write(&sb->s_umount);
+
+	if (journal_devnum)
+		*journal_devnum = m_ctx.journal_devnum;
+	if (journal_ioprio)
+		*journal_ioprio = m_ctx.journal_ioprio;
+	return ret;
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_parse_sb_mount_options_test);
+#endif

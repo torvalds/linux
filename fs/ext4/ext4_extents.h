@@ -267,7 +267,10 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 extern int __ext4_ext_dirty(const char *where, unsigned int line,
 			    handle_t *handle, struct inode *inode,
 			    struct ext4_ext_path *path);
-extern int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex);
+extern int ext4_ext_zeroout(handle_t *handle, struct inode *inode,
+			    struct ext4_extent *ex);
+extern struct buffer_head *ext4_ext_getblk(struct inode *inode,
+					   ext4_fsblk_t pblk, gfp_t gfp_flags);
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
 extern int ext4_ext_space_root_idx_test(struct inode *inode, int check);
 extern struct ext4_ext_path *ext4_split_convert_extents_test(
@@ -275,6 +278,25 @@ extern struct ext4_ext_path *ext4_split_convert_extents_test(
 				struct ext4_map_blocks *map,
 				struct ext4_ext_path *path,
 				int flags, unsigned int *allocated);
+extern int ext4_ext_check_test(struct inode *inode,
+			       struct ext4_extent_header *eh, int depth,
+			       ext4_fsblk_t pblk, ext4_lblk_t lblk);
+extern void ext4_extent_block_csum_set_test(struct inode *inode,
+					    struct ext4_extent_header *eh);
+extern int ext4_can_extents_be_merged_test(struct inode *inode,
+					   struct ext4_extent *ex1,
+					   struct ext4_extent *ex2);
+extern int ext4_ext_search_left_test(struct inode *inode,
+				     struct ext4_ext_path *path,
+				     ext4_lblk_t *logical, ext4_fsblk_t *phys);
+extern int ext4_ext_search_right_test(struct inode *inode,
+				      struct ext4_ext_path *path,
+				      ext4_lblk_t *logical, ext4_fsblk_t *phys,
+				      struct ext4_extent *ret_ex, int flags);
+extern ext4_lblk_t ext4_ext_next_leaf_block_test(struct ext4_ext_path *path);
+extern int ext4_ext_shift_extents_test(struct inode *inode, handle_t *handle,
+				       ext4_lblk_t start, ext4_lblk_t shift,
+				       enum SHIFT_DIRECTION direction);
 #endif
 #endif /* _EXT4_EXTENTS */
 

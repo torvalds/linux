@@ -346,8 +346,14 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	 * need this to guarantee correctness.  Fortunately
 	 * jbd2_cleanup_journal_tail() doesn't get called all that often.
 	 */
-	if (journal->j_flags & JBD2_BARRIER)
-		blkdev_issue_flush(journal->j_fs_dev);
+	if (journal->j_flags & JBD2_BARRIER) {
+		int err = blkdev_issue_flush(journal->j_fs_dev);
+
+		if (err) {
+			jbd2_journal_abort(journal, err);
+			return err;
+		}
+	}
 
 	return __jbd2_update_log_tail(journal, first_tid, blocknr);
 }

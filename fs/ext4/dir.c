@@ -126,6 +126,7 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_check_dir_entry);
 
 static int ext4_readdir(struct file *file, struct dir_context *ctx)
 {
@@ -256,7 +257,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 							    sb->s_blocksize);
 			}
 			offset = i;
-			ctx->pos = (ctx->pos & ~(sb->s_blocksize - 1))
+			ctx->pos = (ctx->pos & ~((loff_t)sb->s_blocksize - 1))
 				| offset;
 			info->cookie = inode_query_iversion(inode);
 		}
@@ -475,6 +476,7 @@ void ext4_htree_free_dir_info(struct dir_private_info *p)
 	free_rb_tree_fname(&p->root);
 	kfree(p);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_free_dir_info);
 
 /*
  * Given a directory entry, enter it into the fname rb tree.
@@ -535,6 +537,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	rb_insert_color(&new_fn->rb_hash, &info->root);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_store_dirent);
 
 
 
@@ -683,6 +686,7 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_all_de);
 
 static int ext4_dir_open(struct inode *inode, struct file *file)
 {
@@ -708,3 +712,36 @@ const struct file_operations ext4_dir_operations = {
 	.release	= ext4_release_dir,
 	.setlease	= generic_setlease,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_operations);
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_is_dx_dir_test(struct inode *inode)
+{
+	return is_dx_dir(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_is_dx_dir_test);
+
+loff_t ext4_dir_hash2pos_test(struct file *filp, __u32 major, __u32 minor)
+{
+	return hash2pos(filp, major, minor);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_hash2pos_test);
+
+__u32 ext4_dir_pos2maj_hash_test(struct file *filp, loff_t pos)
+{
+	return pos2maj_hash(filp, pos);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_pos2maj_hash_test);
+
+__u32 ext4_dir_pos2min_hash_test(struct file *filp, loff_t pos)
+{
+	return pos2min_hash(filp, pos);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dir_pos2min_hash_test);
+
+loff_t ext4_get_htree_eof_test(struct file *filp)
+{
+	return ext4_get_htree_eof(filp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_htree_eof_test);
+#endif
