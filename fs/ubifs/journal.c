@@ -303,7 +303,9 @@ static void __queue_and_wait(struct ubifs_info *c)
 {
 	DEFINE_WAIT(wait);
 
-	__add_wait_queue_entry_tail_exclusive(&c->reserve_space_wq, &wait);
+	/* c->reserve_space_wq.lock is held */
+	wait.flags |= WQ_FLAG_EXCLUSIVE;
+	__add_wait_queue(&c->reserve_space_wq, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	spin_unlock(&c->reserve_space_wq.lock);
 

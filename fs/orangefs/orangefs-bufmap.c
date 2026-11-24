@@ -85,8 +85,11 @@ static int wait_for_free(struct slot_map *m)
 
 	do {
 		long n = left, t;
-		if (likely(list_empty(&wait.entry)))
-			__add_wait_queue_entry_tail_exclusive(&m->q, &wait);
+		if (likely(list_empty(&wait.entry))) {
+			/* m->q.lock is held */
+			wait.flags |= WQ_FLAG_EXCLUSIVE;
+			__add_wait_queue(&m->q, &wait);
+		}
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (m->c > 0)

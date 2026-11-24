@@ -174,23 +174,6 @@ static inline void __add_wait_queue(struct wait_queue_head *wq_head, struct wait
 	list_add_tail(&wq_entry->entry, &wq_head->head);
 }
 
-/*
- * Adds at the head, for epoll's LIFO wakeup of its epoll_wait()ers.
- */
-static inline void
-__add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
-{
-	wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
-	list_add(&wq_entry->entry, &wq_head->head);
-}
-
-static inline void
-__add_wait_queue_entry_tail_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
-{
-	wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
-	__add_wait_queue(wq_head, wq_entry);
-}
-
 static inline void
 __remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {

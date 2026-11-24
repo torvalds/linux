@@ -2351,8 +2351,11 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		 * important.
 		 */
 		eavail = ep_events_available(ep);
-		if (!eavail)
-			__add_wait_queue_exclusive(&ep->wq, &wait);
+		if (!eavail) {
+			/* Head, for LIFO wakeups; ep->lock serializes ep->wq */
+			wait.flags |= WQ_FLAG_EXCLUSIVE;
+			list_add(&wait.entry, &ep->wq.head);
+		}
 
 		spin_unlock_irq(&ep->lock);
 
