@@ -2764,7 +2764,7 @@ iocg_handle_over_budget(struct rq_qos *rqos, struct ioc_gq *iocg,
 	wait->abs_cost = abs_cost;
 	wait->committed = false; /* will be set true by waker */
 
-	__add_wait_queue_entry_tail(&iocg->waitq, &wait->wait);
+	__add_wait_queue(&iocg->waitq, &wait->wait);
 	iocg_kick_waitq(iocg, ioc_locked, now);
 	return action_wait;
 }

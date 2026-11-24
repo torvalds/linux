@@ -48,7 +48,7 @@ static void run_down(struct slot_map *m)
 	if (m->c != -1) {
 		for (;;) {
 			if (likely(list_empty(&wait.entry)))
-				__add_wait_queue_entry_tail(&m->q, &wait);
+				__add_wait_queue(&m->q, &wait);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 			if (m->c == -1)

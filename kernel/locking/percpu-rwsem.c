@@ -152,7 +152,7 @@ static void percpu_rwsem_wait(struct percpu_rw_semaphore *sem, bool reader,
 	wait = !__percpu_rwsem_trylock(sem, reader);
 	if (wait) {
 		wq_entry.flags |= WQ_FLAG_EXCLUSIVE | reader * WQ_FLAG_CUSTOM;
-		__add_wait_queue_entry_tail(&sem->waiters, &wq_entry);
+		__add_wait_queue(&sem->waiters, &wq_entry);
 	}
 	spin_unlock_irq(&sem->waiters.lock);
 

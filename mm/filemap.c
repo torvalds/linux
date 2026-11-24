@@ -1293,7 +1293,7 @@ repeat:
 	spin_lock_irq(&q->lock);
 	folio_set_waiters(folio);
 	if (!folio_trylock_flag(folio, bit_nr, wait))
-		__add_wait_queue_entry_tail(q, wait);
+		__add_wait_queue(q, wait);
 	spin_unlock_irq(&q->lock);
 
 	/*
@@ -1439,7 +1439,7 @@ void softleaf_entry_wait_on_locked(softleaf_t entry, spinlock_t *ptl)
 	spin_lock_irq(&q->lock);
 	folio_set_waiters(folio);
 	if (!folio_trylock_flag(folio, PG_locked, wait))
-		__add_wait_queue_entry_tail(q, wait);
+		__add_wait_queue(q, wait);
 	spin_unlock_irq(&q->lock);
 
 	/*
@@ -1757,7 +1757,7 @@ static int __folio_lock_async(struct folio *folio, struct wait_page_queue *wait)
 	wait->bit_nr = PG_locked;
 
 	spin_lock_irq(&q->lock);
-	__add_wait_queue_entry_tail(q, &wait->wait);
+	__add_wait_queue(q, &wait->wait);
 	folio_set_waiters(folio);
 	ret = !folio_trylock(folio);
 	/*

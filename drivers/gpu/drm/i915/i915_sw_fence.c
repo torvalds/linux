@@ -382,7 +382,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 
 	spin_lock_irqsave(&signaler->wait.lock, flags);
 	if (likely(!i915_sw_fence_done(signaler))) {
-		__add_wait_queue_entry_tail(&signaler->wait, wq);
+		__add_wait_queue(&signaler->wait, wq);
 		pending = 1;
 	} else {
 		i915_sw_fence_wake(wq, 0, signaler->error, NULL);
