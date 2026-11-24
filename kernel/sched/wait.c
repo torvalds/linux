@@ -85,6 +85,11 @@ EXPORT_SYMBOL(remove_wait_queue);
  * may be at the head of the list, and can consume the event without any other
  * tasks being woken if it's also an exclusive task.
  *
+ * An exclusive waiter that returns >0 promises to handle the event. Pollers
+ * (EPOLLEXCLUSIVE) can't promise that, since userspace may never consume it.
+ * They use WQ_FLAG_POLL_EXCLUSIVE instead: only one of them is woken, but they
+ * never count against nr_exclusive or stop the walk.
+ *
  * There are circumstances in which we can try to wake a task which has already
  * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
@@ -93,6 +98,7 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 			int nr_exclusive, int wake_flags, void *key)
 {
 	wait_queue_entry_t *curr, *next;
+	bool poll_woken = false;
 
 	lockdep_assert_held(&wq_head->lock);
 
@@ -105,10 +111,16 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 		unsigned flags = curr->flags;
 		int ret;
 
+		if ((flags & WQ_FLAG_POLL_EXCLUSIVE) && poll_woken)
+			continue;
 		ret = curr->func(curr, mode, wake_flags, key);
 		if (ret < 0)
 			break;
-		if (ret && (flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
+		if (!ret)
+			continue;
+		if (flags & WQ_FLAG_POLL_EXCLUSIVE)
+			poll_woken = nr_exclusive > 0;
+		else if ((flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
 			break;
 	}
 
