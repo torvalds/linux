@@ -143,7 +143,7 @@ int efivar_lock(void)
 {
 	if (down_interruptible(&efivars_lock))
 		return -EINTR;
-	if (!__efivars->ops) {
+	if (!__efivars || !__efivars->ops) {
 		up(&efivars_lock);
 		return -ENODEV;
 	}
@@ -159,7 +159,7 @@ int efivar_trylock(void)
 {
 	if (down_trylock(&efivars_lock))
 		 return -EBUSY;
-	if (!__efivars->ops) {
+	if (!__efivars || !__efivars->ops) {
 		up(&efivars_lock);
 		return -ENODEV;
 	}
