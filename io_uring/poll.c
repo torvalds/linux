@@ -533,11 +533,9 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 	poll->head = head;
 	poll->wait.private = (void *) wqe_private;
 
-	if (poll->events & EPOLLEXCLUSIVE) {
-		add_wait_queue_exclusive(head, &poll->wait);
-	} else {
-		add_wait_queue(head, &poll->wait);
-	}
+	if (poll->events & EPOLLEXCLUSIVE)
+		poll->wait.flags |= WQ_FLAG_POLL_EXCLUSIVE;
+	add_wait_queue(head, &poll->wait);
 }
 
 static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
