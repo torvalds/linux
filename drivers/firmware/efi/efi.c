@@ -186,7 +186,7 @@ static const struct attribute_group efi_subsys_attr_group = {
 	.is_visible_const = efi_attr_is_visible,
 };
 
-struct blocking_notifier_head efivar_ops_nh;
+BLOCKING_NOTIFIER_HEAD(efivar_ops_nh);
 EXPORT_SYMBOL_GPL(efivar_ops_nh);
 
 static struct efivars generic_efivars;
@@ -486,8 +486,6 @@ static int __init efisubsys_init(void)
 			pr_err("efi: failed to load SSDT, error %d.\n", error);
 		platform_device_register_simple("efivars", 0, NULL, 0);
 	}
-
-	BLOCKING_INIT_NOTIFIER_HEAD(&efivar_ops_nh);
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
