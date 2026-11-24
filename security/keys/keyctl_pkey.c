@@ -323,9 +323,9 @@ out_up_key_sem:
 		ret = -EFAULT;
 
 error_out:
-	kfree(out);
+	kfree_sensitive(out);
 error_in:
-	kfree(in);
+	kfree_sensitive(in);
 error_params:
 	keyctl_pkey_params_free(&params);
 	return ret;
