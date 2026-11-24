@@ -3,6 +3,7 @@
 #ifndef _NET_GSO_H
 #define _NET_GSO_H
 
+#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 
 /* Keeps track of mac header offset relative to skb->head.
@@ -37,6 +38,38 @@ static inline int skb_tnl_header_len(const struct sk_buff *inner_skb)
 {
 	return (skb_mac_header(inner_skb) - inner_skb->head) -
 		SKB_GSO_CB(inner_skb)->mac_offset;
+}
+
+/**
+ * skb_gso_fraglist_ok - test whether skb_segment_list() can segment an skb
+ * @skb: SKB_GSO_FRAGLIST skb to segment
+ * @features: features for the output path
+ * @hdrlen: transport header length
+ * @proto: network protocol, for checksum offload
+ *
+ * Return: false if the skb must be passed to the more general skb_segment().
+ */
+static inline bool skb_gso_fraglist_ok(const struct sk_buff *skb,
+				       netdev_features_t features,
+				       unsigned int hdrlen, __be16 proto)
+{
+	/* Geometry modified, e.g., by a pull from frag_list */
+	if (skb_pagelen(skb) - hdrlen != skb_shinfo(skb)->gso_size)
+		return false;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_DODGY)
+		return false;
+
+	/* Tunnel headers and outer checksums are not rebuilt */
+	if (skb->encapsulation || skb_tnl_header_len(skb))
+		return false;
+
+	/* Checksums are not resolved in software */
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    !can_checksum_protocol(features, proto))
+		return false;
+
+	return true;
 }
 
 static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)

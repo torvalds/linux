@@ -519,8 +519,9 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		 * the frag_list skbs still have the IP family we segment for,
 		 * as their network headers are not rebuilt.
 		 */
-		if ((skb_pagelen(gso_skb) - sizeof(*uh) == skb_shinfo(gso_skb)->gso_size) &&
-		    !(skb_shinfo(gso_skb)->gso_type & SKB_GSO_DODGY) &&
+		if (skb_gso_fraglist_ok(gso_skb, features, sizeof(*uh),
+					is_ipv6 ? htons(ETH_P_IPV6) :
+						  htons(ETH_P_IP)) &&
 		    ip_hdr(skb_shinfo(gso_skb)->frag_list)->version == (is_ipv6 ? 6 : 4))
 			return __udp_gso_segment_list(gso_skb, features, is_ipv6);
 
