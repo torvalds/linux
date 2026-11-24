@@ -95,14 +95,15 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
 			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",
-				 pnotify->FileName, pnotify->Action);
+				 pnotify->FileName,
+				 le32_to_cpu(pnotify->Action));
 			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
 			cifs_dbg(FYI, "notify err 0x%x\n",
-				 pSMBr->hdr.Status.CifsError);
+				 le32_to_cpu(pSMBr->hdr.Status.CifsError));
 			return true;
 		}
 		return false;

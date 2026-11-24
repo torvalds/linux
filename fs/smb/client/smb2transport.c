@@ -380,7 +380,7 @@ generate_smb3signingkey(struct cifs_ses *ses,
 	 */
 	cifs_dbg(VFS, "Session Id    %*ph\n", (int)sizeof(ses->Suid),
 			&ses->Suid);
-	cifs_dbg(VFS, "Cipher type   %d\n", server->cipher_type);
+	cifs_dbg(VFS, "Cipher type   %d\n", le16_to_cpu(server->cipher_type));
 	cifs_dbg(VFS, "Session Key   %*ph\n",
 		 (int)ses->auth_key.len, ses->auth_key.response);
 	cifs_dbg(VFS, "Signing Key   %*ph\n",
@@ -570,7 +570,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	/* Do not need to verify session setups with signature "BSRSPYL " */
 	if (memcmp(shdr->Signature, "BSRSPYL ", 8) == 0)
 		cifs_dbg(FYI, "dummy signature received for smb command 0x%x\n",
-			 shdr->Command);
+			 le16_to_cpu(shdr->Command));
 
 	/*
 	 * Save off the original signature so we can modify the smb and check
@@ -588,7 +588,8 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (crypto_memneq(server_response_sig, shdr->Signature,
 			  SMB2_SIGNATURE_SIZE)) {
 		cifs_dbg(VFS, "sign fail cmd 0x%x message id 0x%llx\n",
-			shdr->Command, shdr->MessageId);
+			 le16_to_cpu(shdr->Command),
+			 le64_to_cpu(shdr->MessageId));
 		return -EACCES;
 	} else
 		return 0;
