@@ -233,6 +233,9 @@ config CC_OPT_WNO_FORMAT_OVERFLOW
 config CC_OPT_WNO_STRINGOP_TRUNCATION
 	def_string "$(cc-option-str,-Wno-stringop-truncation)"
 
+config CC_OPT_WNO_CONSTANT_LOGICAL_OPERAND
+	def_string "$(cc-option-str,-Wno-constant-logical-operand)"
+
 config CC_HAS_COUNTED_BY
 	bool
 	# clang needs to be at least 20.1.0 to avoid potential crashes

@@ -167,6 +167,7 @@ endif
 
 ifdef CONFIG_CC_IS_GCC
 KBUILD_CFLAGS += -Wno-maybe-uninitialized
+KBUILD_CFLAGS += $(CONFIG_CC_OPT_WNO_CONSTANT_LOGICAL_OPERAND)
 endif
 
 endif
