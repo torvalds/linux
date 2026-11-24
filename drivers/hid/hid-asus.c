@@ -584,16 +584,24 @@ static int asus_raw_event(struct hid_device *hdev,
 
 static int asus_kbd_set_report(struct hid_device *hdev, const u8 *buf, size_t buf_size)
 {
+	int ret;
 	u8 *dmabuf __free(kfree) = kmemdup(buf, buf_size, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
+
+	/* The device may be runtime suspended, e.g. for a deferred backlight change */
+	ret = hid_hw_power(hdev, PM_HINT_FULLON);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * The report ID should be set from the incoming buffer due to LED and key
 	 * interfaces having different pages
 	 */
-	return hid_hw_raw_request(hdev, buf[0], dmabuf, buf_size, HID_FEATURE_REPORT,
-				  HID_REQ_SET_REPORT);
+	ret = hid_hw_raw_request(hdev, buf[0], dmabuf, buf_size, HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
+	hid_hw_power(hdev, PM_HINT_NORMAL);
+	return ret;
 }
 
 static int asus_kbd_init(struct hid_device *hdev, u8 report_id)
@@ -1363,6 +1371,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0xe2: /* Mute */
 		case 0xe9: /* Volume up */
 		case 0xea: /* Volume down */
+		case 0x6f: /* Display brightness increment */
+		case 0x70: /* Display brightness decrement */
 			return 0;
 		default:
 			/* Ignore dummy Consumer usages which make the

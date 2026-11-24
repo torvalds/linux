@@ -2617,7 +2617,7 @@ static void wacom_wireless_work(struct work_struct *work)
 
 	wacom_destroy_battery(wacom);
 
-	if (!usbdev)
+	if (!usbdev || usbdev->config->desc.bNumInterfaces < 3)
 		return;
 
 	/* Stylus interface */

@@ -562,16 +562,16 @@ static int quickspi_alloc_report_buf(struct quickspi_device *qsdev)
 	max_report_len = max(le16_to_cpu(qsdev->dev_desc.max_output_len),
 			     le16_to_cpu(qsdev->dev_desc.max_input_len));
 
-	/*
-	 * write_cmd_to_txdma() writes the output report header ahead of the
-	 * content in this buffer, so it has to hold both.
-	 */
-	qsdev->report_buf_size = HIDSPI_OUTPUT_REPORT_SIZE(max_report_len);
-
-	qsdev->report_buf = devm_kzalloc(qsdev->dev, qsdev->report_buf_size,
-					 GFP_KERNEL);
+	qsdev->report_buf = devm_kzalloc(qsdev->dev,
+					 HIDSPI_OUTPUT_REPORT_SIZE(max_report_len), GFP_KERNEL);
 	if (!qsdev->report_buf)
 		return -ENOMEM;
+
+	/*
+	 * Store the max data length of this report buffer, then compare it with output/input
+	 * packet content when write or read into this report buffer to avoid buffer overflow.
+	 */
+	qsdev->report_buf_size = max_report_len;
 
 	return 0;
 }

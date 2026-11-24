@@ -21,6 +21,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -55,6 +56,67 @@ static void i2c_hid_acpi_restore_sequence(struct i2chid_ops *ops)
 	i2c_hid_acpi_get_descriptor(ihid_acpi->adev);
 }
 
+/*
+ * HP OmniBook X Flip 14 (board 8D9F), OmniBook 7 Flip 16 (8DA0) and
+ * OmniBook X Flip 16 (8DA1): the touchscreen power resource
+ * \_SB.PC00.I2C4.PTPL._ON writes the wrong value to the GPIROUTIOXAPIC bit
+ * of the touchscreen interrupt pad, disconnecting it from the IO-APIC. The
+ * level-triggered interrupt then never deasserts, the controller is read
+ * continuously (~630 reads/s while idle) and it cannot deliver pen reports
+ * at its native rate. Windows does not run _ON while the resource already
+ * reports on, so it is not affected. Linux runs _ON at probe and on every
+ * resume, so re-enable the routing with the firmware's own helper before
+ * the HID reset.
+ */
+static const struct dmi_system_id i2c_hid_acpi_irq_route_dmi[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "8D9F"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "8DA0"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "8DA1"),
+		},
+	},
+	{ }
+};
+
+static int i2c_hid_acpi_restore_irq_route(struct i2chid_ops *ops)
+{
+	struct i2c_hid_acpi *ihid_acpi = container_of(ops, struct i2c_hid_acpi, ops);
+	union acpi_object args[2];
+	struct acpi_object_list arg_list = { ARRAY_SIZE(args), args };
+	unsigned long long pad;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(NULL, "\\GPLI", NULL, &pad);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	args[0].type = ACPI_TYPE_INTEGER;
+	args[0].integer.value = pad;
+	args[1].type = ACPI_TYPE_INTEGER;
+	args[1].integer.value = 1;
+
+	status = acpi_evaluate_object(NULL, "\\_SB.SGRA", &arg_list, NULL);
+	if (ACPI_FAILURE(status))
+		acpi_handle_warn(acpi_device_handle(ihid_acpi->adev),
+				 "failed to restore interrupt routing: %s\n",
+				 acpi_format_exception(status));
+
+	/* Never fail probe or resume because of this workaround */
+	return 0;
+}
+
 static void i2c_hid_acpi_shutdown_tail(struct i2chid_ops *ops)
 {
 	struct i2c_hid_acpi *ihid_acpi = container_of(ops, struct i2c_hid_acpi, ops);
@@ -85,6 +147,9 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 	ihid_acpi->adev = adev;
 	ihid_acpi->ops.shutdown_tail = i2c_hid_acpi_shutdown_tail;
 	ihid_acpi->ops.restore_sequence = i2c_hid_acpi_restore_sequence;
+	if (acpi_dev_hid_uid_match(ihid_acpi->adev, "ELAN2514", NULL) &&
+	    dmi_check_system(i2c_hid_acpi_irq_route_dmi))
+		ihid_acpi->ops.power_up = i2c_hid_acpi_restore_irq_route;
 
 	acpi_device_fix_up_power(adev);
 

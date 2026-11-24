@@ -2154,7 +2154,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hdev->quirks & (HID_QUIRK_X_INVERT | HID_QUIRK_Y_INVERT) &&
 	    !((hdev->quirks & HID_QUIRK_X_INVERT)
 	      && (hdev->quirks & HID_QUIRK_Y_INVERT)))
-		td->mtclass.quirks = MT_QUIRK_ORIENTATION_INVERT;
+		td->mtclass.quirks |= MT_QUIRK_ORIENTATION_INVERT;
 
 	/* This allows the driver to correctly support devices
 	 * that emit events over several HID messages.

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/kfifo.h>
+#include <linux/kref.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
@@ -37,6 +38,9 @@ struct hid_sensor_custom_field {
 
 struct hid_sensor_custom {
 	struct mutex mutex;
+	struct mutex read_mutex;
+	struct kref ref;
+	bool removed;
 	struct platform_device *pdev;
 	struct hid_sensor_hub_device *hsdev;
 	struct hid_sensor_hub_callbacks callbacks;
@@ -643,6 +647,15 @@ static void hid_sensor_custom_remove_attributes(struct hid_sensor_custom *
 	kfree(sensor_inst->fields);
 }
 
+static void hid_sensor_custom_free(struct kref *ref)
+{
+	struct hid_sensor_custom *sensor_inst =
+		container_of(ref, struct hid_sensor_custom, ref);
+
+	kfifo_free(&sensor_inst->data_fifo);
+	kfree(sensor_inst);
+}
+
 static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 				      size_t count, loff_t *f_ps)
 {
@@ -656,22 +669,41 @@ static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 	if (count < sizeof(struct hid_sensor_sample))
 		return -EINVAL;
 
-	do {
-		if (kfifo_is_empty(&sensor_inst->data_fifo)) {
-			if (file->f_flags & O_NONBLOCK)
-				return -EAGAIN;
-
-			ret = wait_event_interruptible(sensor_inst->wait,
-				!kfifo_is_empty(&sensor_inst->data_fifo));
-			if (ret)
-				return ret;
-		}
-		ret = kfifo_to_user(&sensor_inst->data_fifo, buf, count,
-				    &copied);
+	if (file->f_flags & O_NONBLOCK) {
+		if (!mutex_trylock(&sensor_inst->read_mutex))
+			return -EAGAIN;
+	} else {
+		ret = mutex_lock_interruptible(&sensor_inst->read_mutex);
 		if (ret)
 			return ret;
+	}
 
-	} while (copied == 0);
+	for (;;) {
+		if (READ_ONCE(sensor_inst->removed)) {
+			ret = -ENODEV;
+			break;
+		}
+
+		ret = kfifo_to_user(&sensor_inst->data_fifo, buf, count,
+				    &copied);
+		if (ret || copied)
+			break;
+
+		if (file->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
+
+		ret = wait_event_interruptible(sensor_inst->wait,
+			READ_ONCE(sensor_inst->removed) ||
+			!kfifo_is_empty(&sensor_inst->data_fifo));
+		if (ret)
+			break;
+	}
+
+	mutex_unlock(&sensor_inst->read_mutex);
+	if (ret)
+		return ret;
 
 	return copied;
 }
@@ -684,6 +716,7 @@ static int hid_sensor_custom_release(struct inode *inode, struct file *file)
 				   struct hid_sensor_custom, custom_dev);
 
 	clear_bit(0, &sensor_inst->misc_opened);
+	kref_put(&sensor_inst->ref, hid_sensor_custom_free);
 
 	return 0;
 }
@@ -691,14 +724,25 @@ static int hid_sensor_custom_release(struct inode *inode, struct file *file)
 static int hid_sensor_custom_open(struct inode *inode, struct file *file)
 {
 	struct hid_sensor_custom *sensor_inst;
+	int ret;
 
 	sensor_inst = container_of(file->private_data,
 				   struct hid_sensor_custom, custom_dev);
+	if (READ_ONCE(sensor_inst->removed))
+		return -ENODEV;
+
 	/* We essentially have single reader and writer */
 	if (test_and_set_bit(0, &sensor_inst->misc_opened))
 		return -EBUSY;
 
-	return stream_open(inode, file);
+	kref_get(&sensor_inst->ref);
+	ret = stream_open(inode, file);
+	if (ret) {
+		clear_bit(0, &sensor_inst->misc_opened);
+		kref_put(&sensor_inst->ref, hid_sensor_custom_free);
+	}
+
+	return ret;
 }
 
 static __poll_t hid_sensor_custom_poll(struct file *file,
@@ -712,6 +756,9 @@ static __poll_t hid_sensor_custom_poll(struct file *file,
 
 	poll_wait(file, &sensor_inst->wait, wait);
 
+	if (READ_ONCE(sensor_inst->removed))
+		return EPOLLHUP | EPOLLERR;
+
 	if (!kfifo_is_empty(&sensor_inst->data_fifo))
 		mask = EPOLLIN | EPOLLRDNORM;
 
@@ -719,6 +766,7 @@ static __poll_t hid_sensor_custom_poll(struct file *file,
 }
 
 static const struct file_operations hid_sensor_custom_fops = {
+	.owner = THIS_MODULE,
 	.open =  hid_sensor_custom_open,
 	.read =  hid_sensor_custom_read,
 	.release = hid_sensor_custom_release,
@@ -740,21 +788,15 @@ static int hid_sensor_custom_dev_if_add(struct hid_sensor_custom *sensor_inst)
 	sensor_inst->custom_dev.minor = MISC_DYNAMIC_MINOR;
 	sensor_inst->custom_dev.name = dev_name(&sensor_inst->pdev->dev);
 	sensor_inst->custom_dev.fops = &hid_sensor_custom_fops;
-	ret = misc_register(&sensor_inst->custom_dev);
-	if (ret) {
-		kfifo_free(&sensor_inst->data_fifo);
-		return ret;
-	}
-	return 0;
+	return misc_register(&sensor_inst->custom_dev);
 }
 
 static void hid_sensor_custom_dev_if_remove(struct hid_sensor_custom
 								*sensor_inst)
 {
-	wake_up(&sensor_inst->wait);
+	WRITE_ONCE(sensor_inst->removed, true);
+	wake_up_interruptible_all(&sensor_inst->wait);
 	misc_deregister(&sensor_inst->custom_dev);
-	kfifo_free(&sensor_inst->data_fifo);
-
 }
 
 /*
@@ -977,7 +1019,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	int ret;
 	const struct hid_sensor_custom_match *match;
 
-	sensor_inst = devm_kzalloc_obj(&pdev->dev, *sensor_inst);
+	sensor_inst = kzalloc_obj(*sensor_inst);
 	if (!sensor_inst)
 		return -ENOMEM;
 
@@ -987,6 +1029,8 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	sensor_inst->hsdev = hsdev;
 	sensor_inst->pdev = pdev;
 	mutex_init(&sensor_inst->mutex);
+	mutex_init(&sensor_inst->read_mutex);
+	kref_init(&sensor_inst->ref);
 	platform_set_drvdata(pdev, sensor_inst);
 
 	ret = hid_sensor_custom_get_known(hsdev, &match);
@@ -998,7 +1042,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"register_platform_device failed\n");
-			return ret;
+			goto err_put;
 		}
 
 		return 0;
@@ -1008,31 +1052,32 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 					   &sensor_inst->callbacks);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "callback reg failed\n");
-		return ret;
+		goto err_put;
 	}
 
 	ret = hid_sensor_custom_add_attributes(sensor_inst);
 	if (ret)
 		goto err_remove_callback;
 
-	ret = sysfs_create_group(&sensor_inst->pdev->dev.kobj,
-				 &enable_sensor_attr_group);
+	ret = hid_sensor_custom_dev_if_add(sensor_inst);
 	if (ret)
 		goto err_remove_attributes;
 
-	ret = hid_sensor_custom_dev_if_add(sensor_inst);
+	ret = sysfs_create_group(&sensor_inst->pdev->dev.kobj,
+				 &enable_sensor_attr_group);
 	if (ret)
-		goto err_remove_group;
+		goto err_remove_dev_if;
 
 	return 0;
 
-err_remove_group:
-	sysfs_remove_group(&sensor_inst->pdev->dev.kobj,
-			   &enable_sensor_attr_group);
+err_remove_dev_if:
+	hid_sensor_custom_dev_if_remove(sensor_inst);
 err_remove_attributes:
 	hid_sensor_custom_remove_attributes(sensor_inst);
 err_remove_callback:
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
+err_put:
+	kref_put(&sensor_inst->ref, hid_sensor_custom_free);
 
 	return ret;
 }
@@ -1044,15 +1089,24 @@ static void hid_sensor_custom_remove(struct platform_device *pdev)
 
 	if (sensor_inst->custom_pdev) {
 		platform_device_unregister(sensor_inst->custom_pdev);
-		return;
+		goto out;
 	}
 
+	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	hid_sensor_custom_dev_if_remove(sensor_inst);
 	/* Remove enable_sensor first as it uses fields via power_state/report_state. */
 	sysfs_remove_group(&sensor_inst->pdev->dev.kobj,
 			   &enable_sensor_attr_group);
+	mutex_lock(&sensor_inst->mutex);
+	if (sensor_inst->enable) {
+		set_power_report_state(sensor_inst, false);
+		sensor_hub_device_close(hsdev);
+		sensor_inst->enable = false;
+	}
+	mutex_unlock(&sensor_inst->mutex);
 	hid_sensor_custom_remove_attributes(sensor_inst);
-	sensor_hub_remove_callback(hsdev, hsdev->usage);
+out:
+	kref_put(&sensor_inst->ref, hid_sensor_custom_free);
 }
 
 static const struct platform_device_id hid_sensor_custom_ids[] = {

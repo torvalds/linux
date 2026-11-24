@@ -5,11 +5,13 @@
  * Copyright (C) 2022 Google, Inc
  */
 
+#include <linux/cleanup.h>
 #include <linux/export.h>
 #include <linux/hid.h>
 #include <linux/input/vivaldi-fmap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 #include "hid-vivaldi-common.h"
@@ -33,70 +35,55 @@ void vivaldi_feature_mapping(struct hid_device *hdev,
 {
 	struct vivaldi_data *data = hid_get_drvdata(hdev);
 	struct hid_report *report = field->report;
-	u8 *report_data, *buf;
-	u32 report_len;
 	unsigned int fn_key;
+	unsigned int offset;
+	u32 report_len;
 	int ret;
+	int i;
 
-	if (field->logical != HID_USAGE_FN_ROW_PHYSMAP ||
-	    (usage->hid & HID_USAGE_PAGE) != HID_UP_ORDINAL)
+	if (field->logical != HID_USAGE_FN_ROW_PHYSMAP || usage->usage_index)
 		return;
 
-	fn_key = usage->hid & HID_USAGE;
-	if (fn_key < MIN_FN_ROW_KEY || fn_key > MAX_FN_ROW_KEY)
+	u8 *buf __free(kfree) = hid_alloc_report_buf(report, GFP_KERNEL);
+	if (!buf)
 		return;
 
-	if (fn_key > data->num_function_row_keys)
-		data->num_function_row_keys = fn_key;
+	/*
+	 * hid_hw_raw_request() will stuff report ID (which will be 0)
+	 * into the first byte of the buffer even for unnumbered
+	 * reports, so we need to account for this to avoid getting
+	 * -EOVERFLOW in return.
+	 * Note that hid_alloc_report_buf() adds 7 bytes to the size
+	 * so we can safely say that we have space for an extra byte.
+	 */
+	report_len = hid_report_len(report) + !report->id;
 
-	report_data = buf = hid_alloc_report_buf(report, GFP_KERNEL);
-	if (!report_data)
+	ret = hid_hw_raw_request(hdev, report->id, buf, report_len,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (ret != report_len) {
+		dev_warn(&hdev->dev, "failed to fetch feature %d: %d\n",
+			 report->id, ret);
 		return;
-
-	report_len = hid_report_len(report);
-	if (!report->id) {
-		/*
-		 * hid_hw_raw_request() will stuff report ID (which will be 0)
-		 * into the first byte of the buffer even for unnumbered
-		 * reports, so we need to account for this to avoid getting
-		 * -EOVERFLOW in return.
-		 * Note that hid_alloc_report_buf() adds 7 bytes to the size
-		 * so we can safely say that we have space for an extra byte.
-		 */
-		report_len++;
 	}
 
-	ret = hid_hw_raw_request(hdev, report->id, report_data,
-				 report_len, HID_FEATURE_REPORT,
-				 HID_REQ_GET_REPORT);
-	if (ret < 0) {
-		dev_warn(&hdev->dev, "failed to fetch feature %d\n",
-			 field->report->id);
-		goto out;
+	for (i = 0; i < field->maxusage && i < field->report_count; i++) {
+		usage = &field->usage[i];
+
+		if ((usage->hid & HID_USAGE_PAGE) != HID_UP_ORDINAL)
+			continue;
+
+		fn_key = usage->hid & HID_USAGE;
+		if (fn_key < MIN_FN_ROW_KEY || fn_key > MAX_FN_ROW_KEY)
+			continue;
+
+		if (fn_key > data->num_function_row_keys)
+			data->num_function_row_keys = fn_key;
+
+		offset = field->report_offset + i * field->report_size;
+		data->function_row_physmap[fn_key - MIN_FN_ROW_KEY] =
+			hid_field_extract(hdev, buf + 1, offset,
+					  field->report_size);
 	}
-
-	if (!report->id) {
-		/*
-		 * Undo the damage from hid_hw_raw_request() for unnumbered
-		 * reports.
-		 */
-		report_data++;
-		report_len--;
-	}
-
-	ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT, report_data,
-				   report_len, report_len, 0);
-	if (ret) {
-		dev_warn(&hdev->dev, "failed to report feature %d\n",
-			 field->report->id);
-		goto out;
-	}
-
-	data->function_row_physmap[fn_key - MIN_FN_ROW_KEY] =
-		field->value[usage->usage_index];
-
-out:
-	kfree(buf);
 }
 EXPORT_SYMBOL_GPL(vivaldi_feature_mapping);
 

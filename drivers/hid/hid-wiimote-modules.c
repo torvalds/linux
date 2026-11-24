@@ -118,7 +118,7 @@ static const struct wiimod_ops wiimod_keys = {
  */
 
 /* used by wiimod_rumble and wiipro_rumble */
-static void wiimod_rumble_worker(struct work_struct *work)
+void wiimod_rumble_worker(struct work_struct *work)
 {
 	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
 						  rumble_worker);
@@ -156,8 +156,6 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 static int wiimod_rumble_probe(const struct wiimod_ops *ops,
 			       struct wiimote_data *wdata)
 {
-	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
-
 	set_bit(FF_RUMBLE, wdata->input->ffbit);
 	if (input_ff_create_memless(wdata->input, NULL, wiimod_rumble_play))
 		return -ENOMEM;
@@ -1857,7 +1855,6 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	int ret, i;
 	unsigned long flags;
 
-	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
 	wdata->state.calib_pro_sticks[0] = 0;
 	wdata->state.calib_pro_sticks[1] = 0;
 	wdata->state.calib_pro_sticks[2] = 0;

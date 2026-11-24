@@ -30,7 +30,7 @@ static int write_cmd_to_txdma(struct quickspi_device *qsdev,
 
 	write_buf = (struct output_report *)qsdev->report_buf;
 
-	if (HIDSPI_OUTPUT_REPORT_SIZE(report_buf_len) > qsdev->report_buf_size)
+	if (report_buf_len > qsdev->report_buf_size)
 		return -EINVAL;
 
 	write_buf->output_hdr.report_type = report_type;
@@ -161,6 +161,7 @@ void quickspi_handle_input_data(struct quickspi_device *qsdev, u32 buf_len)
 	struct input_report_body *input_body;
 	u8 *input_report;
 	u32 input_len;
+	u32 report_len;
 	int ret = 0;
 
 	input_body = (struct input_report_body *)qsdev->input_buf;
@@ -210,7 +211,14 @@ void quickspi_handle_input_data(struct quickspi_device *qsdev, u32 buf_len)
 
 	case GET_FEATURE_RESPONSE:
 	case GET_INPUT_REPORT_RESPONSE:
-		qsdev->report_len = sizeof(body_hdr->content_id) + input_len;
+		report_len = sizeof(body_hdr->content_id) + input_len;
+		if (input_len > qsdev->report_buf_size) {
+			dev_err_once(qsdev->dev, "Get report response too big: %u\n",
+				     input_len);
+			return;
+		}
+
+		qsdev->report_len = report_len;
 		input_report = input_body->content - sizeof(body_hdr->content_id);
 
 		memcpy(qsdev->report_buf, input_report, qsdev->report_len);

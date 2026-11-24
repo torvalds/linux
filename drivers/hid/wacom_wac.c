@@ -1960,6 +1960,16 @@ static void wacom_wac_battery_usage_mapping(struct hid_device *hdev,
 	return;
 }
 
+static __s32 wacom_wac_battery_percentage(struct hid_field *field, __s32 value)
+{
+	__s32 range = field->logical_maximum - field->logical_minimum;
+
+	if (range <= 0)
+		return 0;
+
+	return clamp_val((value - field->logical_minimum) * 100 / range, 0, 100);
+}
+
 static void wacom_wac_battery_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
@@ -1973,7 +1983,7 @@ static void wacom_wac_battery_event(struct hid_device *hdev, struct hid_field *f
 			wacom_wac->hid_data.bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
 		}
 		else {
-			value = value * 100 / (field->logical_maximum - field->logical_minimum);
+			value = wacom_wac_battery_percentage(field, value);
 			wacom_wac->hid_data.battery_capacity = value;
 			wacom_wac->hid_data.bat_connected = 1;
 			wacom_wac->hid_data.bat_status = WACOM_POWER_SUPPLY_STATUS_AUTO;
@@ -1981,7 +1991,7 @@ static void wacom_wac_battery_event(struct hid_device *hdev, struct hid_field *f
 		wacom_wac->features.quirks |= WACOM_QUIRK_BATTERY;
 		break;
 	case WACOM_HID_WD_BATTERY_LEVEL:
-		value = value * 100 / (field->logical_maximum - field->logical_minimum);
+		value = wacom_wac_battery_percentage(field, value);
 		wacom_wac->hid_data.battery_capacity = value;
 		wacom_wac->hid_data.bat_connected = 1;
 		wacom_wac->hid_data.bat_status = WACOM_POWER_SUPPLY_STATUS_AUTO;
@@ -2426,6 +2436,13 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	}
 }
 
+static int wacom_hid_wrapped_dist(int after, int before, int min, int max)
+{
+	if (after >= before)
+		return after - before;
+	return (max - before) + (after - min) + 1;
+}
+
 static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
@@ -2551,8 +2568,11 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	case WACOM_HID_WD_SEQUENCENUMBER:
 		if (wacom_wac->hid_data.sequence_number != value &&
 		    wacom_wac->hid_data.sequence_number >= 0) {
-			int sequence_size = field->logical_maximum - field->logical_minimum + 1;
-			int drop_count = (value - wacom_wac->hid_data.sequence_number) % sequence_size;
+			int drop_count = wacom_hid_wrapped_dist(
+				value,
+				wacom_wac->hid_data.sequence_number,
+				field->logical_minimum,
+				field->logical_maximum);
 			hid_warn(hdev, "Dropped %d packets", drop_count);
 		}
 		wacom_wac->hid_data.sequence_number = value + 1;
@@ -4414,7 +4434,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case HID_GENERIC:
-		if (wacom_wac->shared) {
+		if (wacom_wac->shared && wacom_wac->has_mute_touch_switch) {
 			/*
 			 * The setup of touch switch capability can only be done
 			 * here for those devices, such as Cintiq Pro 13 and 16,
@@ -4425,11 +4445,12 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 			 * stylus first or touch first. This path covers the touch
 			 * input first case.
 			 */
-			if (wacom_wac->has_mute_touch_switch &&
-			    wacom_wac->shared->touch_input) {
-				input_set_capability(wacom_wac->shared->touch_input,
-				    EV_SW, SW_MUTE_DEVICE);
-			}
+                        struct input_dev *touch_input;
+
+                        guard(rcu)();
+                        touch_input = rcu_dereference(wacom_wac->shared->touch_input);
+			if (touch_input)
+				input_set_capability(touch_input, EV_SW, SW_MUTE_DEVICE);
 		}
 		break;
 

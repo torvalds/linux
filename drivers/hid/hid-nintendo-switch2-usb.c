@@ -52,12 +52,10 @@ static void switch2_bulk_in(struct urb *urb)
 {
 	struct switch2_usb *ns2_usb = urb->context;
 	int i;
-	bool schedule = false;
 	unsigned long flags;
 
 	switch (urb->status) {
 	case 0:
-		schedule = true;
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
@@ -71,16 +69,14 @@ static void switch2_bulk_in(struct urb *urb)
 	}
 
 	spin_lock_irqsave(&ns2_usb->bulk_in_lock, flags);
-	if (ns2_usb->shutdown)
-		schedule = false;
-
 	for (i = 0; i < NS2_IN_URBS; i++) {
 		int err;
 		struct switch2_urb *ns2_urb;
 
 		if (ns2_usb->bulk_in[i].urb == urb) {
-			if (schedule) {
+			if (urb->status == 0 && !ns2_usb->shutdown) {
 				ns2_usb->bulk_in[i].state = NS2_URB_IN;
+				schedule_work(&ns2_usb->message_in_work);
 				continue;
 			} else {
 				ns2_usb->bulk_in[i].state = NS2_URB_FREE;
@@ -115,9 +111,6 @@ static void switch2_bulk_in(struct urb *urb)
 		}
 	}
 	spin_unlock_irqrestore(&ns2_usb->bulk_in_lock, flags);
-
-	if (schedule)
-		schedule_work(&ns2_usb->message_in_work);
 }
 
 static void switch2_bulk_out(struct urb *urb)
@@ -295,6 +288,9 @@ static void switch2_usb_message_in_work(struct work_struct *work)
 
 	spin_lock_irqsave(&ns2_usb->bulk_in_lock, flags);
 	for (i = 0; i < NS2_IN_URBS; i++) {
+		if (ns2_usb->shutdown)
+			break;
+
 		urb = &ns2_usb->bulk_in[i];
 		if (urb->state != NS2_URB_IN)
 			continue;
@@ -311,7 +307,7 @@ static void switch2_usb_message_in_work(struct work_struct *work)
 		}
 
 		spin_lock_irqsave(&ns2_usb->bulk_in_lock, flags);
-		if (!urb->urb)
+		if (ns2_usb->shutdown || !urb->urb)
 			/* We're shutting down and this URB was freed */
 			break;
 
@@ -431,6 +427,8 @@ static int switch2_usb_probe(struct usb_interface *intf, const struct usb_device
 	ns2_usb->bulk_in[0].state = NS2_URB_OUT;
 	usb_anchor_urb(ns2_usb->bulk_in[0].urb, &ns2_usb->bulk_in_anchor);
 	ret = usb_submit_urb(ns2_usb->bulk_in[0].urb, GFP_ATOMIC);
+	if (ret < 0)
+		usb_unanchor_urb(ns2_usb->bulk_in[0].urb);
 	spin_unlock_irqrestore(&ns2_usb->bulk_in_lock, flags);
 
 	if (ret < 0)

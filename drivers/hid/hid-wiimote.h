@@ -263,6 +263,7 @@ enum wiiproto_reqs {
 #define dev_to_wii(pdev) hid_get_drvdata(to_hid_device(pdev))
 
 void __wiimote_schedule(struct wiimote_data *wdata);
+void wiimod_rumble_worker(struct work_struct *work);
 
 extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
 extern void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble);

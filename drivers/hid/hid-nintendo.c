@@ -2272,10 +2272,9 @@ static int joycon_player_led_brightness_set(struct led_classdev *led,
 		return -ENODEV;
 	}
 
+	mutex_lock(&ctlr->output_mutex);
 	for (i = 0; i < JC_NUM_LEDS; i++)
 		val |= ctlr->leds[i].brightness << i;
-
-	mutex_lock(&ctlr->output_mutex);
 	ret = joycon_set_player_leds(ctlr, 0, val);
 	mutex_unlock(&ctlr->output_mutex);
 
@@ -2792,7 +2791,7 @@ static int joycon_probe(struct hid_device *hdev,
 	ret = joycon_leds_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create leds; ret=%d\n", ret);
-		goto err_io_stop;
+		goto err_ida;
 	}
 
 	/* Initialize the battery power supply */
@@ -4292,6 +4291,7 @@ int switch2_controller_attach_cfg(const char *phys, struct switch2_cfg_intf *cfg
 	mutex_lock(&ns2->lock);
 	if (ns2->cfg) {
 		ret = -EBUSY;
+		mutex_unlock(&ns2->lock);
 		goto out;
 	}
 	cfg->parent = ns2;
@@ -4301,15 +4301,16 @@ int switch2_controller_attach_cfg(const char *phys, struct switch2_cfg_intf *cfg
 		ret = switch2_init_controller(ns2);
 
 	if (ret < 0) {
+		ns2->cfg = NULL;
+		mutex_unlock(&ns2->lock);
 		if (cfg->shutdown)
 			cfg->shutdown(cfg);
 		cfg->parent = NULL;
-		ns2->cfg = NULL;
+	} else {
+		mutex_unlock(&ns2->lock);
 	}
 
 out:
-	mutex_unlock(&ns2->lock);
-
 	if (ret < 0)
 		kref_put(&ns2->refcount, switch2_kref_put);
 	return ret;
