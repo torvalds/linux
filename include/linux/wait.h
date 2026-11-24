@@ -171,25 +171,17 @@ extern void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue
 
 static inline void __add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	struct list_head *head = &wq_head->head;
-	struct wait_queue_entry *wq;
-
-	list_for_each_entry(wq, &wq_head->head, entry) {
-		if (!(wq->flags & WQ_FLAG_PRIORITY))
-			break;
-		head = &wq->entry;
-	}
-	list_add(&wq_entry->entry, head);
+	list_add_tail(&wq_entry->entry, &wq_head->head);
 }
 
 /*
- * Used for wake-one threads:
+ * Adds at the head, for epoll's LIFO wakeup of its epoll_wait()ers.
  */
 static inline void
 __add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
 	wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
-	__add_wait_queue(wq_head, wq_entry);
+	list_add(&wq_entry->entry, &wq_head->head);
 }
 
 static inline void __add_wait_queue_entry_tail(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
