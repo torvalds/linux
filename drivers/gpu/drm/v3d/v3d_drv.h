@@ -669,10 +669,8 @@ static __always_inline int v3d_pm_runtime_put(struct v3d_dev *v3d)
 }
 
 /* v3d_sched.c */
-void v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
-				   unsigned int count);
-void v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
-				     unsigned int count);
+void v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info);
+void v3d_performance_query_info_free(struct v3d_performance_query_info *query_info);
 struct v3d_stats *v3d_stats_alloc(void);
 void v3d_stats_release(struct kref *refcount);
 void v3d_job_update_stats(struct v3d_job *job);
