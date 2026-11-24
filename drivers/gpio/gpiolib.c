@@ -1461,12 +1461,12 @@ void gpiochip_remove(struct gpio_chip *gc)
 
 	/*
 	 * No new interrupts can be requested through the character device now.
-	 * Have it free the ones it holds before forcibly freeing the rest, and
-	 * both before the irqchip and its mappings go away.
+	 * Have it free the ones it holds, also on the shared proxies, before
+	 * forcibly freeing the rest and removing the irqchip.
 	 */
 	blocking_notifier_call_chain(&gdev->device_notifier, 0, NULL);
-	gpiochip_free_remaining_irqs(gc);
 	gpio_device_teardown_shared(gdev);
+	gpiochip_free_remaining_irqs(gc);
 	gpiochip_irqchip_remove(gc);
 	acpi_gpiochip_remove(gc);
 	of_gpiochip_remove(gc);
