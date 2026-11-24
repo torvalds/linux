@@ -9070,6 +9070,15 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 	return 0;
 }
 
+/* Don't take wakeups for other events, e.g. EPOLLOUT from write space. */
+static int sctp_receiver_wake_function(wait_queue_entry_t *wait,
+				       unsigned int mode, int sync, void *key)
+{
+	if (key && !(key_to_poll(key) & (EPOLLIN | EPOLLERR)))
+		return 0;
+	return autoremove_wake_function(wait, mode, sync, key);
+}
+
 /*
  * Wait for a packet..
  * Note: This function is the same function as in core/datagram.c
@@ -9078,7 +9087,7 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 static int sctp_wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 {
 	int error;
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, sctp_receiver_wake_function);
 
 	prepare_to_wait_exclusive(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
