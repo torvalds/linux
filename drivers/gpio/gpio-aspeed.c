@@ -944,10 +944,6 @@ int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
 	if (!aspeed_gpio_support_copro(gpio))
 		return -EOPNOTSUPP;
 
-	if (!gpio->cf_copro_bankmap)
-		gpio->cf_copro_bankmap = kzalloc(gpio->chip.ngpio >> 3, GFP_KERNEL);
-	if (!gpio->cf_copro_bankmap)
-		return -ENOMEM;
 	if (offset < 0 || offset > gpio->chip.ngpio)
 		return -EINVAL;
 	bindex = offset >> 3;
@@ -1379,6 +1375,14 @@ static int aspeed_gpio_probe(struct platform_device *pdev)
 		for (i = 0; i < banks; i++)
 			gpio->dcache[i] =
 				gpio->config->llops->reg_bank_get(gpio, (i << 5), reg_rdata);
+	}
+
+	if (aspeed_gpio_support_copro(gpio)) {
+		gpio->cf_copro_bankmap = devm_kzalloc_objs(gpio->dev,
+							   *gpio->cf_copro_bankmap,
+							   DIV_ROUND_UP(gpio->chip.ngpio, 8));
+		if (!gpio->cf_copro_bankmap)
+			return -ENOMEM;
 	}
 
 	if (gpio->config->llops->privilege_init)
