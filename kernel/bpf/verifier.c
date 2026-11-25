@@ -19608,7 +19608,8 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 		 * matches the operator's return type and is in its unmodified
 		 * form. A scalar zero (i.e., a null pointer) is also allowed.
 		 */
-		reg_type = reg->btf ? btf_type_by_id(reg->btf, reg->btf_id) : NULL;
+		reg_type = base_type(reg->type) == PTR_TO_BTF_ID ?
+			   btf_type_by_id(reg->btf, reg->btf_id) : NULL;
 		ret_type = btf_type_resolve_ptr(prog->aux->attach_btf,
 						prog->aux->attach_func_proto->type,
 						NULL);
