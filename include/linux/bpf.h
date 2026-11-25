@@ -1841,6 +1841,7 @@ struct bpf_stream {
 	struct llist_node *backlog_tail; /* tail of the list above */
 	wait_queue_head_t waitq;
 	struct irq_work notify_work;
+	int refused;		/* length of the last stage that did not fit */
 	bool notify_used;	/* notify_work was queued at least once */
 	bool dead;
 };
@@ -4339,6 +4340,7 @@ int bpf_prog_stream_init(struct bpf_prog *prog, gfp_t gfp_extra_flags);
 void bpf_prog_stream_free(struct bpf_prog *prog);
 int bpf_prog_stream_read(struct bpf_prog *prog, enum bpf_stream_id stream_id, void __user *buf, u32 len);
 int bpf_prog_stream_new_fd(struct bpf_prog *prog, enum bpf_stream_id stream_id, u32 flags);
+bool bpf_stream_has_room(struct bpf_prog *prog, enum bpf_stream_id stream_id);
 void bpf_stream_stage_init(struct bpf_stream_stage *ss);
 void bpf_stream_stage_free(struct bpf_stream_stage *ss);
 __printf(2, 3)
@@ -4353,7 +4355,8 @@ int bpf_stream_stage_dump_stack(struct bpf_stream_stage *ss);
 #define bpf_stream_stage(ss, prog, stream_id, expr)            \
 	({                                                     \
 		bpf_stream_stage_init(&ss);                    \
-		(expr);                                        \
+		if (bpf_stream_has_room(prog, stream_id))      \
+			(expr);                                \
 		bpf_stream_stage_commit(&ss, prog, stream_id); \
 		bpf_stream_stage_free(&ss);                    \
 	})

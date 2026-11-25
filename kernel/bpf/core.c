@@ -3713,6 +3713,15 @@ void bpf_timed_may_goto_restore(const struct bpf_prog *prog, struct bpf_timed_ma
 		*cur = *saved;
 }
 
+/* A walk of the stack is too long for BPF_MAX_TIMED_LOOPS trips. The next one looks at the time. */
+void bpf_timed_may_goto_check_time(const struct bpf_prog *prog)
+{
+	struct bpf_timed_may_goto __percpu *tmg = prog->aux->main_prog_aux->timed_may_goto;
+
+	if (tmg && this_cpu_read(tmg->count))
+		this_cpu_write(tmg->count, 1);
+}
+
 /* for configs without MMU or 32-bit */
 __weak const struct bpf_map_ops arena_map_ops;
 __weak u64 bpf_arena_get_user_vm_start(struct bpf_arena *arena)
