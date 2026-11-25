@@ -1055,7 +1055,7 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		struct bpffs_btf_enums info;
 		const struct btf_type *enum_t;
 		const char *enum_pfx;
-		u64 *delegate_msk, msk = 0;
+		u64 *delegate_msk, msk = 0, num;
 		char *p, *str;
 		int val;
 
@@ -1094,9 +1094,10 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			} else if (find_btf_enum_const(info.btf, enum_t, enum_pfx, p, &val)) {
 				msk |= 1ULL << val;
 			} else {
-				err = kstrtou64(p, 0, &msk);
+				err = kstrtou64(p, 0, &num);
 				if (err)
 					return err;
+				msk |= num;
 			}
 		}
 
