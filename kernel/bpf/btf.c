@@ -4579,7 +4579,7 @@ static int btf_enum_check_kflag_member(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		nr_bits = int_bitsize;
+		nr_bits = member_type->size * BITS_PER_BYTE;
 	} else if (nr_bits > int_bitsize) {
 		btf_verifier_log_member(env, struct_type, member,
 					"Invalid member bitfield_size");
@@ -4662,12 +4662,30 @@ static void btf_enum_log(struct btf_verifier_env *env,
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
 }
 
+static s64 btf_enum_read(const struct btf_type *t, const void *data)
+{
+	bool sign = btf_type_kflag(t);
+
+	switch (t->size) {
+	case 1:
+		return sign ? *(s8 *)data : *(u8 *)data;
+	case 2:
+		return sign ? *(s16 *)data : *(u16 *)data;
+	case 4:
+		return sign ? (s64)*(s32 *)data : *(u32 *)data;
+	default:
+		return *(s64 *)data;
+	}
+}
+
 static void btf_enum_show(const struct btf *btf, const struct btf_type *t,
 			  u32 type_id, void *data, u8 bits_offset,
 			  struct btf_show *show)
 {
 	const struct btf_enum *enums = btf_type_enum(t);
 	u32 i, nr_enums = btf_type_vlen(t);
+	/* Old compilers don't set the flag for negative values */
+	u32 mask = t->size < 4 ? BIT(t->size * BITS_PER_BYTE) - 1 : U32_MAX;
 	void *safe_data;
 	int v;
 
@@ -4675,10 +4693,10 @@ static void btf_enum_show(const struct btf *btf, const struct btf_type *t,
 	if (!safe_data)
 		return;
 
-	v = *(int *)safe_data;
+	v = btf_enum_read(t, safe_data);
 
 	for (i = 0; i < nr_enums; i++) {
-		if (v != enums[i].val)
+		if ((v ^ enums[i].val) & mask)
 			continue;
 
 		btf_show_type_value(show, "%s",
@@ -4778,7 +4796,7 @@ static void btf_enum64_show(const struct btf *btf, const struct btf_type *t,
 	if (!safe_data)
 		return;
 
-	v = *(u64 *)safe_data;
+	v = btf_enum_read(t, safe_data);
 
 	for (i = 0; i < nr_enums; i++) {
 		if (v != btf_enum64_value(enums + i))
