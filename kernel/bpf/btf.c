@@ -7449,6 +7449,16 @@ static const struct bpf_raw_tp_null_args raw_tp_null_args[] = {
 	{ "amdtp_packet", 0x100 },
 };
 
+u64 btf_raw_tp_null_mask(const struct bpf_prog *prog)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(raw_tp_null_args); i++)
+		if (!strcmp(prog->aux->attach_func_name, raw_tp_null_args[i].func))
+			return raw_tp_null_args[i].mask;
+	return btf_is_module(prog->aux->attach_btf) ? U64_MAX : 0;
+}
+
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info)

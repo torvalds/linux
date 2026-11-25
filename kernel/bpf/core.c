@@ -2515,6 +2515,18 @@ static unsigned int __bpf_prog_ret0_warn(const void *ctx,
 	return 0;
 }
 
+/* What the verifier took from the hook, next to its prototype */
+static u64 bpf_prog_hook_key(const struct bpf_prog *fp)
+{
+	if (IS_ENABLED(CONFIG_BPF_SYSCALL) && fp->aux->attach_btf_trace)
+		return btf_raw_tp_null_mask(fp);
+	if (fp->type == BPF_PROG_TYPE_TRACING && fp->expected_attach_type != BPF_TRACE_ITER)
+		return fp->aux->saved_dst_ctx_type;
+	if (fp->type == BPF_PROG_TYPE_TRACING || fp->type == BPF_PROG_TYPE_LSM)
+		return fp->aux->attach_btf_id;
+	return 0;
+}
+
 static bool __bpf_prog_map_compatible(struct bpf_map *map,
 				      const struct bpf_prog *fp)
 {
@@ -2522,8 +2534,8 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 	enum bpf_prog_type prog_type = resolve_prog_type(fp);
 	struct bpf_prog_aux *aux = fp->aux;
 	enum bpf_cgroup_storage_type i;
+	u64 cookie, hook_key = bpf_prog_hook_key(fp);
 	bool ret = false;
-	u64 cookie;
 
 	if (fp->kprobe_override)
 		return ret;
@@ -2543,6 +2555,8 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		map->owner->sleepable = fp->sleepable;
 		map->owner->expected_attach_type = attach_type;
 		map->owner->attach_func_proto = aux->attach_func_proto;
+		map->owner->st_ops = aux->st_ops;
+		map->owner->hook_key = hook_key;
 		for_each_cgroup_storage_type(i) {
 			map->owner->storage_cookie[i] =
 				aux->cgroup_storage[i] ?
@@ -2553,7 +2567,9 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		ret = map->owner->type  == prog_type &&
 		      map->owner->jited == fp->jited &&
 		      map->owner->xdp_has_frags == aux->xdp_has_frags &&
-		      map->owner->sleepable == fp->sleepable;
+		      map->owner->sleepable == fp->sleepable &&
+		      map->owner->st_ops == aux->st_ops &&
+		      map->owner->hook_key == hook_key;
 		if (ret &&
 		    map->map_type == BPF_MAP_TYPE_PROG_ARRAY &&
 		    map->owner->expected_attach_type != attach_type)
