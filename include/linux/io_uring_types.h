@@ -517,8 +517,8 @@ struct io_ring_ctx {
 
 	/* ctx exit and cancelation */
 	struct work_struct		exit_work;
-	/* the ctx is freed after a grace period, see io_uring_del_tctx_node() */
-	struct rcu_head			rcu;
+	/* the ctx is freed after a grace period, see io_ring_exit_work() */
+	struct rcu_work			free_rwork;
 	struct completion		ref_comp;
 
 	/* io-wq management, e.g. thread count */

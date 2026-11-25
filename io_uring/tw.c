@@ -184,7 +184,7 @@ void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	struct io_ring_ctx *ctx = req->ctx;
 	int nr_wait;
 
-	/* pairs with synchronize_rcu() in io_ring_exit_work() */
+	/* pairs with the grace period before the free in io_ring_exit_work() */
 	guard(rcu)();
 
 	/*
