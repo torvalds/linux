@@ -4044,7 +4044,7 @@ static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 	if (skb_transport_header_was_set(skb)) {
 		offset = skb_transport_offset(skb);
 		if (offset > 0)
-			min_len = offset;
+			min_len = max_t(u32, min_len, offset);
 	}
 	return min_len;
 }
