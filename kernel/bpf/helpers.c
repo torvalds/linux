@@ -22,7 +22,7 @@
 #include <linux/security.h>
 #include <linux/btf_ids.h>
 #include <linux/bpf_mem_alloc.h>
-#include <linux/kasan.h>
+#include <linux/kprobes.h>
 #include <linux/bpf_verifier.h>
 #include <linux/uaccess.h>
 #include <linux/verification.h>
@@ -3463,7 +3463,8 @@ static bool bpf_stack_walker(void *cookie, u64 ip, u64 sp, u64 bp)
 	return false;
 }
 
-__bpf_kfunc void bpf_throw(u64 cookie)
+/* It does not return. What a tracer keeps for the return would stay behind, redzones too. */
+__bpf_kfunc notrace __no_sanitize_address void bpf_throw(u64 cookie)
 {
 	struct bpf_throw_ctx ctx = {};
 
@@ -3473,16 +3474,10 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 		WARN_ON_ONCE(!ctx.aux->exception_boundary);
 	WARN_ON_ONCE(!ctx.bp);
 	WARN_ON_ONCE(!ctx.cnt);
-	/*
-	 * Prevent KASAN false positives for CONFIG_KASAN_STACK by unpoisoning
-	 * deeper stack depths than ctx.sp as we do not return from bpf_throw,
-	 * which skips compiler generated instrumentation to do the same. Some
-	 * architectures cannot recover sp while unwinding, so fall back to bp.
-	 */
-	kasan_unpoison_task_stack_below((void *)(long)(ctx.sp ?: ctx.bp));
 	ctx.aux->bpf_exception_cb(cookie, ctx.sp + ctx.aux->stack_arg_sp_adjust, ctx.bp, 0, 0);
 	WARN(1, "A call to BPF exception callback should never return\n");
 }
+NOKPROBE_SYMBOL(bpf_throw);
 
 __bpf_kfunc int bpf_wq_init(struct bpf_wq *wq, void *p__const_map, unsigned int flags)
 {
