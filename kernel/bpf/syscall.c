@@ -6747,10 +6747,12 @@ static const struct bpf_func_proto bpf_kallsyms_lookup_name_proto = {
 static const struct bpf_func_proto *
 syscall_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return bpf_base_func_proto(func_id, prog);
+
 	switch (func_id) {
 	case BPF_FUNC_sys_bpf:
-		return !bpf_token_capable(prog->aux->token, CAP_PERFMON)
-		       ? NULL : &bpf_sys_bpf_proto;
+		return &bpf_sys_bpf_proto;
 	case BPF_FUNC_btf_find_by_name_kind:
 		return &bpf_btf_find_by_name_kind_proto;
 	case BPF_FUNC_sys_close:
