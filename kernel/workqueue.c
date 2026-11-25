@@ -281,6 +281,7 @@ struct pool_workqueue {
 	int			total_in_flight; /* L: sum of nr_in_flight[] */
 	int			nr_in_flight[WORK_NR_COLORS];
 						/* L: nr of in_flight works */
+	unsigned long		nr_started;	/* L: see drain_workqueue() */
 	struct list_head	flush_node;	/* FN: node on wq_flush_pnode->pwqs */
 	bool			plugged;	/* L: execution suspended */
 
@@ -3455,6 +3456,7 @@ __acquires(&pool->lock)
 	 */
 	set_work_pool_and_clear_pending(work, pool->id, pool_offq_flags(pool));
 
+	pwq->nr_started++;
 	pwq->stats[PWQ_STAT_STARTED]++;
 
 	rcu_read_lock();
@@ -4449,6 +4451,33 @@ out_unlock:
 }
 EXPORT_SYMBOL(__flush_workqueue);
 
+/*
+ * Return 0 if any pwq of @wq is busy. Otherwise, return the sum of nr_started
+ * of all pwqs encoded as 2 * sum + 1, which is always odd, so that 0 can only
+ * mean busy.
+ */
+static unsigned long pwqs_nr_started(struct workqueue_struct *wq)
+{
+	struct pool_workqueue *pwq;
+	unsigned long sum = 0;
+
+	lockdep_assert_held(&wq->mutex);
+
+	for_each_pwq(pwq, wq) {
+		bool empty;
+
+		raw_spin_lock_irq(&pwq->pool->lock);
+		empty = pwq_is_empty(pwq);
+		sum += pwq->nr_started;
+		raw_spin_unlock_irq(&pwq->pool->lock);
+
+		if (!empty)
+			return 0;
+	}
+
+	return 2 * sum + 1;
+}
+
 /**
  * drain_workqueue - drain a workqueue
  * @wq: workqueue to drain
@@ -4462,8 +4491,8 @@ EXPORT_SYMBOL(__flush_workqueue);
  */
 void drain_workqueue(struct workqueue_struct *wq)
 {
+	unsigned long started;
 	unsigned int flush_cnt = 0;
-	struct pool_workqueue *pwq;
 
 	/*
 	 * __queue_work() needs to test whether there are drainers, is much
@@ -4479,16 +4508,16 @@ reflush:
 
 	mutex_lock(&wq->mutex);
 
-	for_each_pwq(pwq, wq) {
-		bool drained;
-
-		raw_spin_lock_irq(&pwq->pool->lock);
-		drained = pwq_is_empty(pwq);
-		raw_spin_unlock_irq(&pwq->pool->lock);
-
-		if (drained)
-			continue;
-
+	/*
+	 * A pass isn't atomic across pwqs, so a chained work item can land on
+	 * a pwq it already found empty. Anything slipping past the second pass
+	 * needs a work item that was in flight at its pwq's first check, or
+	 * that started between its pwq's two checks. The first makes the first
+	 * pass fail, the second changes nr_started. wq->mutex keeps the set of
+	 * pwqs stable across both passes.
+	 */
+	started = pwqs_nr_started(wq);
+	if (!started || pwqs_nr_started(wq) != started) {
 		if (++flush_cnt == 10 ||
 		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
 			pr_warn("workqueue %s: %s() isn't complete after %u tries\n",
@@ -7195,6 +7224,14 @@ int workqueue_online_cpu(unsigned int cpu)
 		mutex_unlock(&wq_pool_attach_mutex);
 	}
 
+	/*
+	 * Before topology initialization, the SYSTEM pod covers all possible
+	 * CPUs, so CPU onlining does not require updating pwq mappings.
+	 * wq_update_node_max_active() also returns early at this stage.
+	 */
+	if (!wq_topo_initialized)
+		goto out_unlock;
+
 	/* update pod affinity of unbound workqueues */
 	list_for_each_entry(wq, &workqueues, list) {
 		struct workqueue_attrs *attrs = wq->attrs;
@@ -7212,6 +7249,7 @@ int workqueue_online_cpu(unsigned int cpu)
 		}
 	}
 
+out_unlock:
 	mutex_unlock(&wq_pool_mutex);
 	return 0;
 }
