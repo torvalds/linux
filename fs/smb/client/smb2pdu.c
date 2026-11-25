@@ -4391,8 +4391,8 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	/* if the server is marked for termination, drop the ref count here */
 	if (server->terminate) {
-		cifs_put_tcp_session(server, true);
 		mutex_unlock(&pserver->reconnect_mutex);
+		cifs_put_tcp_session(server, true);
 		return;
 	}
 
