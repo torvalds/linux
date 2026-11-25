@@ -14,6 +14,7 @@
 #include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/user_namespace.h>
 #include <linux/xattr.h>
 
 #include "ext4.h"
@@ -495,6 +496,8 @@ static int xattr_test_init(struct kunit *test)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_time_gran = 1;
 	sb->s_xattr = ext4_xattr_handlers;
+	/* i_uid_read()/i_gid_read() map through sb->s_user_ns */
+	sb->s_user_ns = &init_user_ns;
 	strscpy(sb->s_id, "ext4_xattr_kunit", sizeof(sb->s_id));
 	init_rwsem(&sb->s_umount);
 

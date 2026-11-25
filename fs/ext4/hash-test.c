@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/unicode.h>
+#include <linux/user_namespace.h>
 #include "ext4.h"
 
 static void ext4_hash_init_fake_dir(struct inode *dir, struct super_block *sb)
@@ -16,6 +17,7 @@ static void ext4_hash_init_fake_dir(struct inode *dir, struct super_block *sb)
 	memset(sb, 0, sizeof(*sb));
 	memset(dir, 0, sizeof(*dir));
 	dir->i_sb = sb;
+	sb->s_user_ns = &init_user_ns;
 	strscpy(sb->s_id, "kunit-ext4", sizeof(sb->s_id));
 }
 
@@ -48,6 +50,7 @@ static void ext4_hash_init_fake_ext4_dir(struct ext4_inode_info *ei,
 	memset(sbi, 0, sizeof(*sbi));
 
 	strscpy(sb->s_id, "kunit-ext4", sizeof(sb->s_id));
+	sb->s_user_ns = &init_user_ns;
 	sb->s_fs_info = sbi;
 	sbi->s_sb = sb;
 

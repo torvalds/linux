@@ -15,6 +15,7 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/user_namespace.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -364,6 +365,7 @@ static int dir_test_init(struct kunit *test)
 	ctx->sb.s_maxbytes = 64ULL * DIR_TEST_BLK_SIZE;
 	ctx->sb.s_op = &dir_test_sops;
 	ctx->sb.s_fs_info = &ctx->sbi;
+	ctx->sb.s_user_ns = &init_user_ns;
 	ctx->sb.s_bdev = &ctx->bdev;
 	ctx->bdev.bd_mapping = &ctx->bd_mapping;
 	bdev_set_flag(&ctx->bdev, BD_READ_ONLY);
