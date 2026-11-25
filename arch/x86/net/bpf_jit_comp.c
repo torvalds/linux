@@ -683,6 +683,12 @@ static void __emit_indirect_jump(u8 **pprog, int reg, bool ereg)
 	*pprog = prog;
 }
 
+/* its_static_thunk() can give the one that completes the check of a hash */
+static u8 *its_thunk(int reg)
+{
+	return IS_ENABLED(CONFIG_MITIGATION_ITS) ? __x86_indirect_its_thunk_array[reg] : NULL;
+}
+
 static void emit_indirect_jump(u8 **pprog, int bpf_reg, u8 *ip)
 {
 	u8 *prog = *pprog;
@@ -691,7 +697,7 @@ static void emit_indirect_jump(u8 **pprog, int bpf_reg, u8 *ip)
 
 	if (cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS)) {
 		OPTIMIZER_HIDE_VAR(reg);
-		emit_jump(&prog, its_static_thunk(reg + 8*ereg), ip);
+		emit_jump(&prog, its_thunk(reg + 8*ereg), ip);
 	} else if (cpu_feature_enabled(X86_FEATURE_RETPOLINE_LFENCE)) {
 		EMIT_LFENCE();
 		__emit_indirect_jump(&prog, reg, ereg);
@@ -732,7 +738,7 @@ static int emit_indirect_call(u8 **pprog, int bpf_reg, u8 *ip)
 
 	if (cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS)) {
 		OPTIMIZER_HIDE_VAR(reg);
-		err = emit_call(&prog, its_static_thunk(reg + 8*ereg), ip);
+		err = emit_call(&prog, its_thunk(reg + 8*ereg), ip);
 	} else if (cpu_feature_enabled(X86_FEATURE_RETPOLINE_LFENCE)) {
 		EMIT_LFENCE();
 		__emit_indirect_call(&prog, reg, ereg);
@@ -4675,6 +4681,7 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 
 static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, u8 *buf)
 {
+	void *nop_func = bpf_dispatcher_nop_func;
 	u8 *jg_reloc, *prog = *pprog;
 	int pivot, err, jg_bytes = 1;
 	s64 jg_offset;
@@ -4694,7 +4701,11 @@ static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, 
 		if (err)
 			return err;
 
-		emit_indirect_jump(&prog, BPF_REG_3 /* R3 -> rdx */, image + (prog - buf));
+		/* With FineIBT there is no ENDBR at bpf_func, go through the preamble */
+		OPTIMIZER_HIDE_VAR(nop_func);
+		err = emit_jump(&prog, nop_func, image + (prog - buf));
+		if (err)
+			return err;
 
 		*pprog = prog;
 		return 0;
