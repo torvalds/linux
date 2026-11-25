@@ -1948,13 +1948,14 @@ static __always_inline long __bpf_xdp_redirect_map(struct bpf_map *map, u64 inde
 						   u64 flags, const u64 flag_mask,
 						   void *lookup_elem(struct bpf_map *map, u32 key))
 {
-	struct bpf_redirect_info *ri = bpf_net_ctx_get_ri();
 	const u64 action_mask = XDP_ABORTED | XDP_DROP | XDP_PASS | XDP_TX;
+	struct bpf_redirect_info *ri;
 
 	/* Lower bits of the flags are used as return code on lookup failure */
-	if (unlikely(flags & ~(action_mask | flag_mask)))
+	if (unlikely(!bpf_net_ctx_get() || flags & ~(action_mask | flag_mask)))
 		return XDP_ABORTED;
 
+	ri = bpf_net_ctx_get_ri();
 	ri->tgt_value = lookup_elem(map, index);
 	if (unlikely(!ri->tgt_value) && !(flags & BPF_F_BROADCAST)) {
 		/* If the lookup fails we want to clear out the state in the

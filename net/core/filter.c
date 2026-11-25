@@ -4889,11 +4889,12 @@ err:
 
 BPF_CALL_2(bpf_xdp_redirect, u32, ifindex, u64, flags)
 {
-	struct bpf_redirect_info *ri = bpf_net_ctx_get_ri();
+	struct bpf_redirect_info *ri;
 
-	if (unlikely(flags))
+	if (unlikely(!bpf_net_ctx_get() || flags))
 		return XDP_ABORTED;
 
+	ri = bpf_net_ctx_get_ri();
 	/* NB! Map type UNSPEC and map_id == INT_MAX (never generated
 	 * by map_idr) is used for ifindex based XDP redirect.
 	 */
