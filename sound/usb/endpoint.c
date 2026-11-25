@@ -449,6 +449,9 @@ static void push_back_to_ready_list(struct snd_usb_endpoint *ep,
 				    struct snd_urb_ctx *ctx)
 {
 	guard(spinlock_irqsave)(&ep->lock);
+	/* don't re-queue after stop_urbs() flushed the list */
+	if (!ep_state_running(ep))
+		return;
 	/* ctx may still be linked: a stale completion racing a stop/restart. */
 	if (list_empty(&ctx->ready_list))
 		list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
