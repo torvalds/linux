@@ -310,6 +310,11 @@ static int bpffs_map_open(struct inode *inode, struct file *file)
 	struct seq_file *m;
 	int err;
 
+	/* Special fields are printed as they are. Most have addresses. */
+	if (btf_record_has_field(map->record, ~(BPF_SPIN_LOCK | BPF_RES_SPIN_LOCK)) &&
+	    !perfmon_capable())
+		return -EPERM;
+
 	iter = map_iter_alloc(map);
 	if (!iter)
 		return -ENOMEM;
