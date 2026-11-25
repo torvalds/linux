@@ -23850,6 +23850,13 @@ static int bpf_prog_verify_signature(struct bpf_verifier_env *env,
 			err = -EPERM;
 			goto out;
 		}
+		/* The freeze is not final for it, see bpf_map_mmap() */
+		if ((map->map_flags & BPF_F_MMAPABLE) && !(map->map_flags & BPF_F_RDONLY_PROG)) {
+			verbose(env, "signed program metadata map '%s' must not be mmapable\n",
+				map->name);
+			err = -EPERM;
+			goto out;
+		}
 		data_sz += map->value_size;
 	}
 	if (bpf_dynptr_check_size(data_sz)) {
