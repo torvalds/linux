@@ -3847,6 +3847,24 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 		err = -EINVAL;
 		goto out_unlock;
 	}
+	/* Where the return can be overridden is checked for the target only */
+	if (prog->type == BPF_PROG_TYPE_EXT &&
+	    prog->kprobe_override && !tgt_prog->kprobe_override) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+	/* bpf_prog_run_save_cb() and bpf_prog_run_clear_cb() look at the target only */
+	if (prog->type == BPF_PROG_TYPE_EXT &&
+	    (tgt_prog->type == BPF_PROG_TYPE_SOCKET_FILTER ||
+	     tgt_prog->type == BPF_PROG_TYPE_CGROUP_SKB ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_IN ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_OUT ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_XMIT ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_SEG6LOCAL) &&
+	    prog->cb_access && !tgt_prog->cb_access) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
 	/*
 	 * The size of these contexts depends on what the program is attached
 	 * to, or run with. That is compared with max_ctx_offset of the program,

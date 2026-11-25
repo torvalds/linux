@@ -22675,6 +22675,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 	}
 	if (tgt_prog) {
 		struct bpf_prog_aux *aux = tgt_prog->aux;
+		enum bpf_cgroup_storage_type stype;
 		bool tgt_changes_pkt_data;
 		bool tgt_might_sleep;
 		bool tgt_can_unwind;
@@ -22728,6 +22729,16 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 				bpf_log(log,
 					"Extension programs should be JITed\n");
 				return -EINVAL;
+			}
+			/* bpf_get_local_storage() returns the storage of the target */
+			for_each_cgroup_storage_type(stype) {
+				struct bpf_map *storage = prog->aux->cgroup_storage[stype];
+
+				if (storage && storage != aux->cgroup_storage[stype]) {
+					bpf_log(log,
+						"Extension program has another cgroup storage than original\n");
+					return -EINVAL;
+				}
 			}
 			/*
 			 * How much of the buffer of the tracepoint is used
@@ -22793,16 +22804,14 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			bpf_log(log, "Cannot recursively attach\n");
 			return -EINVAL;
 		}
-		if (tgt_prog->type == BPF_PROG_TYPE_TRACING &&
-		    prog_extension &&
-		    (tgt_prog->expected_attach_type == BPF_TRACE_FENTRY ||
-		     tgt_prog->expected_attach_type == BPF_TRACE_FEXIT ||
-		     tgt_prog->expected_attach_type == BPF_TRACE_FENTRY_MULTI ||
-		     tgt_prog->expected_attach_type == BPF_TRACE_FEXIT_MULTI ||
-		     tgt_prog->expected_attach_type == BPF_TRACE_FSESSION ||
-		     tgt_prog->expected_attach_type == BPF_TRACE_FSESSION_MULTI)) {
-			/* Program extensions can extend all program types
-			 * except fentry/fexit. The reason is the following.
+		if (prog_extension &&
+		    (tgt_prog->type == BPF_PROG_TYPE_TRACING ||
+		     tgt_prog->type == BPF_PROG_TYPE_LSM ||
+		     tgt_prog->type == BPF_PROG_TYPE_STRUCT_OPS)) {
+			/*
+			 * These types are checked against the BTF of their hook,
+			 * and an extension has the BTF of its target instead.
+			 * There is one more reason for fentry/fexit.
 			 * The fentry/fexit programs are used for performance
 			 * analysis, stats and can be attached to any program
 			 * type. When extension program is replacing XDP function
@@ -22815,7 +22824,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			 * beyond reasonable stack size. Hence extending fentry
 			 * is not allowed.
 			 */
-			bpf_log(log, "Cannot extend fentry/fexit/fsession\n");
+			bpf_log(log, "Cannot extend tracing, LSM and struct_ops programs\n");
 			return -EINVAL;
 		}
 	} else {
@@ -23163,10 +23172,13 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		prog->aux->saved_dst_attach_type = tgt_prog->expected_attach_type;
 	}
 
-	if (prog->expected_attach_type == BPF_TRACE_RAW_TP) {
+	/* An extension has expected_attach_type of its target, it can be any value */
+	if (prog->type != BPF_PROG_TYPE_EXT &&
+	    prog->expected_attach_type == BPF_TRACE_RAW_TP) {
 		prog->aux->attach_btf_trace = true;
 		return 0;
-	} else if (prog->expected_attach_type == BPF_TRACE_ITER) {
+	} else if (prog->type != BPF_PROG_TYPE_EXT &&
+		   prog->expected_attach_type == BPF_TRACE_ITER) {
 		return bpf_iter_prog_supported(prog);
 	}
 
