@@ -648,11 +648,10 @@ static struct latch_tree_root bpf_tree __cacheline_aligned;
 
 void bpf_ksym_add(struct bpf_ksym *ksym)
 {
-	spin_lock_bh(&bpf_lock);
+	guard(spinlock_irqsave)(&bpf_lock);
 	WARN_ON_ONCE(!list_empty(&ksym->lnode));
 	list_add_tail_rcu(&ksym->lnode, &bpf_kallsyms);
 	latch_tree_insert(&ksym->tnode, &bpf_tree, &bpf_tree_ops);
-	spin_unlock_bh(&bpf_lock);
 }
 
 static void __bpf_ksym_del(struct bpf_ksym *ksym)
@@ -666,9 +665,8 @@ static void __bpf_ksym_del(struct bpf_ksym *ksym)
 
 void bpf_ksym_del(struct bpf_ksym *ksym)
 {
-	spin_lock_bh(&bpf_lock);
+	guard(spinlock_irqsave)(&bpf_lock);
 	__bpf_ksym_del(ksym);
-	spin_unlock_bh(&bpf_lock);
 }
 
 static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
