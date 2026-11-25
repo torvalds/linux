@@ -844,8 +844,8 @@ next:
 			priv->rx_read_ptr = 0;
 	}
 
-	priv->dim.packets = processed;
-	priv->dim.bytes = processed_bytes;
+	priv->dim.packets += processed;
+	priv->dim.bytes += processed_bytes;
 
 	return processed;
 }
@@ -1012,16 +1012,17 @@ static int bcm_sysport_poll(struct napi_struct *napi, int budget)
 	else
 		rdma_writel(priv, priv->rx_c_index << 16, RDMA_CONS_INDEX);
 
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
-		/* re-enable RX interrupts */
-		intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE);
-	}
-
+	/* net_dim() can queue work, so run it while NAPI is still owned */
 	if (priv->dim.use_dim) {
 		dim_update_sample(priv->dim.event_ctr, priv->dim.packets,
 				  priv->dim.bytes, &dim_sample);
 		net_dim(&priv->dim.dim, &dim_sample);
+	}
+
+	if (work_done < budget) {
+		napi_complete_done(napi, work_done);
+		/* re-enable RX interrupts */
+		intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE);
 	}
 
 	return work_done;
@@ -1452,8 +1453,11 @@ static void bcm_sysport_init_dim(struct bcm_sysport_priv *priv,
 {
 	struct bcm_sysport_net_dim *dim = &priv->dim;
 
+	memset(&dim->dim, 0, sizeof(dim->dim));
 	INIT_WORK(&dim->dim.work, cb);
 	dim->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	/* Match the profile bcm_sysport_init_rx_coalesce() programs */
+	dim->dim.profile_ix = NET_DIM_DEF_PROFILE_EQE;
 	dim->event_ctr = 0;
 	dim->packets = 0;
 	dim->bytes = 0;
