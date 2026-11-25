@@ -233,7 +233,8 @@ void bpf_prog_fill_jited_linfo(struct bpf_prog *prog,
 	const struct bpf_line_info *linfo;
 	void **jited_linfo;
 
-	if (!prog->aux->jited_linfo || prog->aux->func_idx > prog->aux->func_cnt)
+	if (!prog->aux->jited_linfo ||
+	    (prog->aux->func_idx && prog->aux->func_idx >= prog->aux->func_cnt))
 		/* Userspace did not provide linfo */
 		return;
 
