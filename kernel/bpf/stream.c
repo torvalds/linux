@@ -268,6 +268,8 @@ int bpf_prog_stream_read(struct bpf_prog *prog, enum bpf_stream_id stream_id, vo
 {
 	struct bpf_stream *stream;
 
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return -EPERM;
 	stream = bpf_stream_get(stream_id, prog->aux);
 	if (!stream)
 		return -ENOENT;
@@ -368,6 +370,8 @@ int bpf_prog_stream_new_fd(struct bpf_prog *prog, enum bpf_stream_id stream_id, 
 	int fd_flags = O_RDONLY | O_CLOEXEC;
 	int fd;
 
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return -EPERM;
 	stream = bpf_stream_get(stream_id, prog->aux);
 	if (!stream)
 		return -ENOENT;
