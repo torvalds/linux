@@ -7970,6 +7970,10 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, struct bpf_reg_
 		return check_mem_region_access(env, reg, argno, 0, access_size,
 					       reg->map_ptr->key_size, false);
 	case PTR_TO_MAP_VALUE:
+		if (reg->map_ptr->map_type == BPF_MAP_TYPE_INSN_ARRAY && !env->allow_ptr_leaks) {
+			verbose(env, "%s leaks addr from insn_array\n", reg_arg_name(env, argno));
+			return -EACCES;
+		}
 		if (check_map_access_type(env, reg, 0, access_size, access_type))
 			return -EACCES;
 		return check_map_access(env, reg, argno, 0, access_size,
