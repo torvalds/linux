@@ -5261,7 +5261,8 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 		struct bpf_insn *insns_sanitized;
 		bool fault;
 
-		if (!prog->blinded || bpf_dump_raw_ok(file->f_cred)) {
+		/* The verifier puts addresses to ld_imm64 and mov insns */
+		if (bpf_dump_raw_ok(file->f_cred) || (!prog->blinded && perfmon_capable())) {
 			insns_sanitized = bpf_insn_prepare_dump(prog, file->f_cred);
 			if (!insns_sanitized)
 				return -ENOMEM;
