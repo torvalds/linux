@@ -15851,6 +15851,12 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				return err;
 		} else if (btf_type_is_void(ptr_type)) {
 			/* kfunc returning 'void *' is equivalent to returning scalar */
+			if (!env->allow_ptr_leaks) {
+				verbose(env,
+					"%s is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
+					func_name);
+				return -EPERM;
+			}
 			mark_reg_unknown(env, regs, BPF_REG_0);
 		} else if (!__btf_type_is_struct(ptr_type)) {
 			if (!meta.ret_mem.found) {
