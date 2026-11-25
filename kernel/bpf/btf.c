@@ -7444,6 +7444,7 @@ static const struct bpf_raw_tp_null_args raw_tp_null_args[] = {
 	/* iptfs */
 	{ "iptfs_ingress_postq_event", 0x1000 },
 	/* neigh */
+	{ "neigh_create", 0x4000 },
 	{ "neigh_update", 0x10 },
 	/* snd_firewire_lib */
 	{ "amdtp_packet", 0x100 },
@@ -7656,6 +7657,9 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			/* Is the current arg IS_ERR? */
 			if (raw_tp_null_args[i].mask & (0x2ULL << (arg * 4)))
 				ptr_err_raw_tp = true;
+			/* It can be NULL, and programs that do not check it have to load */
+			if (raw_tp_null_args[i].mask & (0x4ULL << (arg * 4)))
+				info->reg_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
 			break;
 		}
 		/* If we don't know NULL-ness specification and the tracepoint
