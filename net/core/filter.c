@@ -2367,7 +2367,11 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 	}
 
 	rcu_read_lock();
-	if (!nh) {
+	if (!nh && netif_is_l3_master(dev)) {
+		/* The route leads to another device, this one looks it up again */
+		skb_dst_drop(skb);
+		neigh = ip_neigh_gw4(dev, htonl(INADDR_ANY));
+	} else if (!nh) {
 		struct rtable *rt = skb_rtable(skb);
 
 		neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
