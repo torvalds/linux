@@ -1248,6 +1248,24 @@ static bool cgroup_bpf_storages_compatible(struct bpf_prog *old_prog,
 	return true;
 }
 
+/* See bpf_prog_attach_check_attach_type() */
+static bool prog_is_for_attach_type(const struct bpf_prog *prog, enum bpf_attach_type type)
+{
+	switch (prog->type) {
+	case BPF_PROG_TYPE_CGROUP_SKB:
+		if (!prog->enforce_expected_attach_type)
+			return true;
+		fallthrough;
+	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+	case BPF_PROG_TYPE_LSM:
+		return prog->expected_attach_type == type;
+	default:
+		return true;
+	}
+}
+
 /**
  * __cgroup_bpf_replace() - Replace link's program and propagate the change
  *                          to descendants
@@ -1274,7 +1292,8 @@ static int __cgroup_bpf_replace(struct cgroup *cgrp,
 
 	progs = &cgrp->bpf.progs[atype];
 
-	if (link->link.prog->type != new_prog->type)
+	if (link->link.prog->type != new_prog->type ||
+	    !prog_is_for_attach_type(new_prog, link->link.attach_type))
 		return -EINVAL;
 
 	hlist_for_each_entry(pl, progs, node) {
