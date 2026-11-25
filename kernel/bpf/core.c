@@ -2518,6 +2518,7 @@ static unsigned int __bpf_prog_ret0_warn(const void *ctx,
 static bool __bpf_prog_map_compatible(struct bpf_map *map,
 				      const struct bpf_prog *fp)
 {
+	enum bpf_attach_type attach_type = fp->expected_attach_type;
 	enum bpf_prog_type prog_type = resolve_prog_type(fp);
 	struct bpf_prog_aux *aux = fp->aux;
 	enum bpf_cgroup_storage_type i;
@@ -2526,6 +2527,9 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 
 	if (fp->kprobe_override)
 		return ret;
+
+	if (fp->type == BPF_PROG_TYPE_EXT)
+		attach_type = aux->saved_dst_attach_type;
 
 	spin_lock(&map->owner_lock);
 	/* There's no owner yet where we could check for compatibility. */
@@ -2537,7 +2541,7 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		map->owner->jited = fp->jited;
 		map->owner->xdp_has_frags = aux->xdp_has_frags;
 		map->owner->sleepable = fp->sleepable;
-		map->owner->expected_attach_type = fp->expected_attach_type;
+		map->owner->expected_attach_type = attach_type;
 		map->owner->attach_func_proto = aux->attach_func_proto;
 		for_each_cgroup_storage_type(i) {
 			map->owner->storage_cookie[i] =
@@ -2552,7 +2556,7 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		      map->owner->sleepable == fp->sleepable;
 		if (ret &&
 		    map->map_type == BPF_MAP_TYPE_PROG_ARRAY &&
-		    map->owner->expected_attach_type != fp->expected_attach_type)
+		    map->owner->expected_attach_type != attach_type)
 			ret = false;
 		for_each_cgroup_storage_type(i) {
 			if (!ret)
