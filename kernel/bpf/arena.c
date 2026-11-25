@@ -637,16 +637,13 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 		return -EINVAL;
 	if (len > (u64)map->max_entries * PAGE_SIZE)
 		return -E2BIG;
+	/* each page in the range tree needs an address */
+	if (len < (u64)map->max_entries * PAGE_SIZE)
+		return -EINVAL;
 
 	/* if user_vm_start was specified at arena creation time */
-	if (arena->user_vm_start) {
-		if (len > arena->user_vm_end - arena->user_vm_start)
-			return -E2BIG;
-		if (len != arena->user_vm_end - arena->user_vm_start)
-			return -EINVAL;
-		if (addr != arena->user_vm_start)
-			return -EINVAL;
-	}
+	if (arena->user_vm_start && addr != arena->user_vm_start)
+		return -EINVAL;
 
 	/*
 	 * Without MAP_FIXED the mm finds a free range. Ask for twice the
