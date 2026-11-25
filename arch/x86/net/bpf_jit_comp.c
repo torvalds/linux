@@ -1687,6 +1687,23 @@ static int emit_atomic_rmw_index(u8 **pprog, u32 atomic_op, u32 size,
 	return 0;
 }
 
+/*
+ * AUX_REG = dst_reg, with the low bits of dst_reg + off in the top bits. r12 + AUX_REG + off
+ * is not canonical when it's not aligned: the access faults, no split lock is taken.
+ */
+static void emit_arena_align_check(u8 **pprog, const struct bpf_insn *insn, u32 dst_reg)
+{
+	int size = BPF_LDST_BYTES(insn);
+	u8 *prog = *pprog;
+
+	/* lea r11, [dst_reg + off % size] */
+	EMIT2(add_2mod(0x48, dst_reg, AUX_REG), 0x8D);
+	emit_insn_suffix(&prog, dst_reg, AUX_REG, insn->off & (size - 1));
+	emit_shift_imm(&prog, BPF_LSH, AUX_REG, 64 - ilog2(size), true);
+	emit_alu_reg(&prog, BPF_OR, AUX_REG, dst_reg, true);
+	*pprog = prog;
+}
+
 static int emit_atomic_ld_st(struct bpf_verifier_env *env, u8 **pprog,
 			     struct bpf_insn *insn, u8 *ip, u32 dst_reg,
 			     u32 src_reg, bool accesses_stack_only)
@@ -1771,12 +1788,14 @@ static int emit_atomic_fetch_rmw(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
 	branch_target = prog;
 
 	/* Load old value */
+	if (index_reg >= 0)
+		emit_arena_align_check(&prog, insn, dst_reg);
 	if (fault)
 		fault[0] = prog;
 	if (index_reg < 0)
 		emit_ldx(&prog, BPF_SIZE(insn->code), BPF_REG_0, dst_reg, insn->off);
 	else
-		emit_ldx_index(&prog, BPF_SIZE(insn->code), BPF_REG_0, dst_reg,
+		emit_ldx_index(&prog, BPF_SIZE(insn->code), BPF_REG_0, AUX_REG,
 			       index_reg, insn->off);
 
 	/*
@@ -3409,6 +3428,8 @@ populate_extable:
 				}
 				break;
 			}
+			if (!bpf_atomic_is_load_store(insn))
+				emit_arena_align_check(&prog, insn, dst_reg);
 			start_of_ldx = prog;
 
 			if (bpf_atomic_is_load_store(insn))
@@ -3417,7 +3438,7 @@ populate_extable:
 							      src_reg, X86_REG_R12, insn->off);
 			else
 				err = emit_atomic_rmw_index(&prog, insn->imm, BPF_SIZE(insn->code),
-							    dst_reg, src_reg, X86_REG_R12,
+							    AUX_REG, src_reg, X86_REG_R12,
 							    insn->off);
 			if (err)
 				return err;
