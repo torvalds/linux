@@ -20989,6 +20989,12 @@ static int __check_pseudo_btf_id(struct bpf_verifier_env *env,
 		}
 	}
 
+	if (!percpu && !env->allow_ptr_leaks) {
+		verbose(env, "access to '%s' is allowed only to CAP_PERFMON and CAP_SYS_ADMIN\n",
+			sym_name);
+		return -EPERM;
+	}
+
 	type = t->type;
 	t = btf_type_skip_modifiers(btf, type, NULL);
 	if (percpu) {
@@ -21032,6 +21038,11 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 		btf = btf_get_by_fd(btf_fd);
 		if (IS_ERR(btf)) {
 			verbose(env, "invalid module BTF object FD specified.\n");
+			return -EINVAL;
+		}
+		if (!btf_is_kernel(btf)) {
+			verbose(env, "BTF fd for ksym is not a kernel BTF\n");
+			btf_put(btf);
 			return -EINVAL;
 		}
 	} else {
