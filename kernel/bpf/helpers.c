@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/uidgid.h>
 #include <linux/filter.h>
+#include <net/xdp.h>
 #include <linux/ctype.h>
 #include <linux/jiffies.h>
 #include <linux/pid_namespace.h>
@@ -3144,7 +3145,8 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u64 offset,
 		if (!IS_ERR_OR_NULL(xdp_ptr))
 			return xdp_ptr;
 
-		if (!buffer__nullable)
+		/* the packet may be shorter than it was for bpf_dynptr_from_xdp() */
+		if (!buffer__nullable || ptr->offset + offset + len > xdp_get_buff_len(ptr->data))
 			return NULL;
 		bpf_xdp_copy_buf(ptr->data, ptr->offset + offset, buffer__nullable, len, false);
 		return buffer__nullable;

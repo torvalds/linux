@@ -4326,7 +4326,7 @@ void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 	if (unlikely(offset + len > xdp_get_buff_len(xdp)))
 		return ERR_PTR(-EINVAL);
 
-	if (likely(offset < size)) /* linear area */
+	if (likely(offset < size || !xdp_buff_has_frags(xdp))) /* linear area */
 		goto out;
 
 	sinfo = xdp_get_shared_info_from_buff(xdp);
