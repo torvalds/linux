@@ -3025,7 +3025,8 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, struct bpf_log_at
 	if (is_perfmon_prog_type(type) && !bpf_token_capable(token, CAP_PERFMON))
 		goto put_token;
 
-	multi_func = is_tracing_multi(attr->expected_attach_type);
+	multi_func = type != BPF_PROG_TYPE_STRUCT_OPS &&
+		     is_tracing_multi(attr->expected_attach_type);
 
 	/* attach_prog_fd/attach_btf_obj_fd can specify fd of either bpf_prog
 	 * or btf, we need to check which one it is

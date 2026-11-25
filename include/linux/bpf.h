@@ -2517,6 +2517,9 @@ static inline int bpf_fsession_cnt(struct bpf_tramp_nodes *nodes)
 	struct bpf_tramp_nodes fentries = nodes[BPF_TRAMP_FENTRY];
 	int cnt = 0;
 
+	if (is_struct_ops_tramp(&fentries))
+		return 0;
+
 	for (int i = 0; i < nodes[BPF_TRAMP_FENTRY].nr_nodes; i++) {
 		if (fentries.nodes[i]->link->prog->expected_attach_type == BPF_TRACE_FSESSION)
 			cnt++;

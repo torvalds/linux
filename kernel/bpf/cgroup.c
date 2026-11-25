@@ -399,7 +399,7 @@ static void bpf_cgroup_link_auto_detach(struct bpf_cgroup_link *link)
 		return;
 	}
 
-	if (link->link.prog->expected_attach_type == BPF_LSM_CGROUP)
+	if (link->link.prog->type == BPF_PROG_TYPE_LSM)
 		bpf_trampoline_unlink_cgroup_shim(link->link.prog);
 	cgroup_put(link->cgroup);
 	link->cgroup = NULL;
@@ -509,7 +509,7 @@ static void cgroup_bpf_release(struct work_struct *work)
 		hlist_for_each_entry_safe(pl, pltmp, progs, node) {
 			hlist_del(&pl->node);
 			if (pl->prog) {
-				if (pl->prog->expected_attach_type == BPF_LSM_CGROUP)
+				if (pl->prog->type == BPF_PROG_TYPE_LSM)
 					bpf_trampoline_unlink_cgroup_shim(pl->prog);
 				bpf_prog_put(pl->prog);
 			}

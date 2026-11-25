@@ -7485,7 +7485,8 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		nr_args--;
 	}
 
-	if (arg > nr_args) {
+	/* expected_attach_type of struct_ops is the index of the member */
+	if (arg > nr_args || (arg == nr_args && prog->type == BPF_PROG_TYPE_STRUCT_OPS)) {
 		bpf_log(log, "func '%s' doesn't have %d-th argument\n",
 			tname, arg + 1);
 		return false;
@@ -7622,7 +7623,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	if (btf_param_match_suffix(btf, &args[arg], "__nullable"))
 		info->reg_type |= PTR_MAYBE_NULL;
 
-	if (prog->expected_attach_type == BPF_TRACE_RAW_TP) {
+	if (prog->aux->attach_btf_trace) {
 		struct btf *btf = prog->aux->attach_btf;
 		const struct btf_type *t;
 		const char *tname;
