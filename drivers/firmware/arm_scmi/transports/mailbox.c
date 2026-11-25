@@ -206,8 +206,11 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 
 	smbox->shmem = core->shmem->setup_iomap(cinfo, dev, tx, NULL,
 						&smbox->io_ops);
-	if (IS_ERR(smbox->shmem))
-		return PTR_ERR(smbox->shmem);
+	if (IS_ERR(smbox->shmem)) {
+		ret = PTR_ERR(smbox->shmem);
+		devm_kfree(dev, smbox);
+		return ret;
+	}
 
 	cl = &smbox->cl;
 	cl->dev = cdev;

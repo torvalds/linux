@@ -218,41 +218,6 @@
 	status = "okay";
 };
 
-&gpioa {
-	gpio-line-names = "", "DHCOS-M", "DHCOS-K", "DHCOS-L",
-			  "DHCOS-E", "DHCOS-J", "", "",
-			  "DHCOS-D", "", "", "",
-			  "", "", "", "";
-};
-
-&gpiof {
-	gpio-line-names = "", "", "", "",
-			  "", "", "", "",
-			  "", "", "", "",
-			  "", "", "", "DHCOS_RAM-CODE_2";
-};
-
-&gpiog {
-	gpio-line-names = "", "", "", "",
-			  "", "", "", "",
-			  "", "DHCOS_RAM-CODE_0", "DHCOS_RAM-CODE_1", "",
-			  "", "", "DHCOS-F", "DHCOS_HW-CODE_0";
-};
-
-&gpioh {
-	gpio-line-names = "", "", "DHCOS-I", "DHCOS-N",
-			  "", "", "DHCOS-O", "DHCOS-H",
-			  "DHCOS-G", "", "", "",
-			  "", "", "", "";
-};
-
-&gpioi {
-	gpio-line-names = "DHCOS_HW-CODE_1", "DHCOS_HW-CODE_2", "", "",
-			  "", "", "", "",
-			  "", "DHCOS-C", "", "",
-			  "", "", "", "";
-};
-
 &gpioz {
 	gpio-line-names = "", "", "DHCOS-A", "DHCOS-B",
 			  "", "", "", "",
@@ -278,16 +243,6 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		wakeup-source;
-
-		gpio-line-names =
-			"#ETH1_RST_P0_0", "#ETH0_RST_P0_1",
-			"BT_REG_ON_P0_2", "WL_REG_ON_P0_3",
-			"USB1_PWR_EN_P0_4", "USB1_PWR_STAT_P0_5",
-			"USB0_PWR_EN_P0_6", "USB0_PWR_STAT_P0_7",
-			"SDIO0_CD_P1_0", "USB0_SS_SEL_P1_1",
-			"#PCIe_RST_1_2", "#PCIe_Wake_P1_3",
-			"#QSPI_RST_P1_4", "#CSI0_PWDN_P1_5",
-			"#CSI0_RST_P1_6", "#ETH3_RST_P1_7";
 	};
 
 	eeprom0: eeprom@50 {

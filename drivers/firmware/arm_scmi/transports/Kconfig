@@ -5,7 +5,7 @@ config ARM_SCMI_HAVE_TRANSPORT
 	bool
 	help
 	  This declares whether at least one SCMI transport has been configured.
-	  Used to trigger a build bug when trying to build SCMI without any
+	  Used to trigger a runtime warning when enabling SCMI without any
 	  configured transport.
 
 config ARM_SCMI_HAVE_SHMEM

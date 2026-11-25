@@ -20,16 +20,79 @@
 	};
 };
 
+&gpioa {
+	gpio-line-names = "", "", "", "",
+			  "", "", "", "",
+			  "", "", "", "",
+			  "DHCOS-C", "", "", "";
+};
+
+&gpiod {
+	gpio-line-names = "", "DHCOS-K", "DHCOS-J", "",
+			  "", "", "", "",
+			  "", "", "", "",
+			  "", "", "", "";
+};
+
+&gpiof {
+	gpio-line-names = "", "", "", "",
+			  "", "", "", "",
+			  "", "", "", "DHCOS-E",
+			  "DHCOS-N", "", "", "DHCOS_RAM-CODE_2";
+};
+
+&gpiog {
+	gpio-line-names = "", "", "", "",
+			  "", "", "", "DHCOS-P",
+			  "DHCOS-O", "DHCOS_RAM-CODE_0", "DHCOS_RAM-CODE_1", "",
+			  "", "", "DHCOS-F", "DHCOS_HW-CODE_0";
+};
+
+&gpioh {
+	gpio-line-names = "", "", "DHCOS-I", "",
+			  "", "DHCOS-H", "DHCOS-L", "",
+			  "DHCOS-G", "", "", "",
+			  "", "", "", "";
+};
+
+&gpioi {
+	gpio-line-names = "DHCOS_HW-CODE_1", "DHCOS_HW-CODE_2", "", "",
+			  "", "DHCOS-M", "", "",
+			  "", "", "", "DHCOS-D",
+			  "", "", "", "";
+};
+
+&ioexp {
+	gpio-line-names =
+		"#ETH1_RST_P0_0", "#ETH0_RST_P0_1",
+		"BT_REG_ON_P0_2", "WL_REG_ON_P0_3",
+		"USB1_PWR_EN_P0_4", "USB1_PWR_STAT_P0_5",
+		"USB0_PWR_EN_P0_6", "USB0_PWR_STAT_P0_7",
+		"SDIO0_CD_P1_0", "USB0_SS_SEL_P1_1",
+		"#PCIe_RST_1_2", "#PCIe_Wake_P1_3",
+		"#QSPI_RST_P1_4", "#CSI0_PWDN_P1_5",
+		"#CSI0_RST_P1_6", "#PCIE_CLKREQ_GPIO_Q_P1_7";
+};
+
 &rv3032 {
 	interrupts-extended = <&gpiod 10 IRQ_TYPE_EDGE_FALLING>;
 };
 
-/* Bluetooth */
 &usart1 {
 	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&usart1_pins_a>;
 	pinctrl-1 = <&usart1_sleep_pins_a>;
 	pinctrl-2 = <&usart1_idle_pins_a>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+/* Bluetooth */
+&usart2 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&usart2_pins_b>;
+	pinctrl-1 = <&usart2_sleep_pins_b>;
+	pinctrl-2 = <&usart2_idle_pins_b>;
 	uart-has-rtscts;
 	status = "okay";
 
@@ -39,13 +102,4 @@
 		max-speed = <3000000>;
 		shutdown-gpios = <&ioexp 2 GPIO_ACTIVE_HIGH>;
 	};
-};
-
-&usart2 {
-	pinctrl-names = "default", "sleep", "idle";
-	pinctrl-0 = <&usart2_pins_b>;
-	pinctrl-1 = <&usart2_sleep_pins_b>;
-	pinctrl-2 = <&usart2_idle_pins_b>;
-	uart-has-rtscts;
-	status = "okay";
 };

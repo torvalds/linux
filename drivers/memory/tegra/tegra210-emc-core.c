@@ -1946,12 +1946,6 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 			config->same_freq = true;
 	}
 
-	err = tegra210_clk_emc_attach(emc->clk, &emc->provider);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to attach to EMC clock: %d\n", err);
-		goto release;
-	}
-
 	emc->clkchange_delay = 100;
 	emc->training_interval = 100;
 	dev_set_drvdata(emc->dev, emc);
@@ -1962,6 +1956,12 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	emc->refresh_poll_interval = 1000;
 
 	timer_setup(&emc->training, tegra210_emc_train, 0);
+
+	err = tegra210_clk_emc_attach(emc->clk, &emc->provider);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to attach to EMC clock: %d\n", err);
+		goto release;
+	}
 
 	tegra210_emc_debugfs_init(emc);
 
@@ -1978,6 +1978,8 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 
 detach:
 	debugfs_remove_recursive(emc->debugfs.root);
+	timer_shutdown_sync(&emc->training);
+	timer_shutdown_sync(&emc->refresh_timer);
 	tegra210_clk_emc_detach(emc->clk);
 release:
 	of_reserved_mem_device_release(emc->dev);
@@ -1990,6 +1992,8 @@ static void tegra210_emc_remove(struct platform_device *pdev)
 	struct tegra210_emc *emc = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(emc->debugfs.root);
+	timer_shutdown_sync(&emc->training);
+	timer_shutdown_sync(&emc->refresh_timer);
 	tegra210_clk_emc_detach(emc->clk);
 	of_reserved_mem_device_release(emc->dev);
 }

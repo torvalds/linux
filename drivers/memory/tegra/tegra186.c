@@ -146,6 +146,7 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 			}
 		}
 
+		of_node_put(args.np);
 		index++;
 	}
 #endif

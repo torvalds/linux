@@ -1393,8 +1393,10 @@ static int scmi_notifier_register(const struct scmi_handle *handle,
 	/* Enable events for not pending handlers */
 	if (!IS_HNDL_PENDING(hndl)) {
 		ret = scmi_event_handler_enable_events(hndl);
-		if (ret)
+		if (ret) {
+			blocking_notifier_chain_unregister(&hndl->chain, nb);
 			scmi_put_handler(ni, hndl);
+		}
 	}
 
 	return ret;
