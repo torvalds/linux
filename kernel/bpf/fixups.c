@@ -1572,6 +1572,9 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	prog->jited_len = func[0]->jited_len;
 	prog->aux->extable = func[0]->aux->extable;
 	prog->aux->num_exentries = func[0]->aux->num_exentries;
+	prog->aux->ksym.fp_start = func[0]->aux->ksym.fp_start;
+	prog->aux->ksym.fp_end = func[0]->aux->ksym.fp_end;
+	prog->aux->ksym.fp_ret = func[0]->aux->ksym.fp_ret;
 	prog->aux->func = func;
 	prog->aux->func_cnt = env->subprog_cnt - env->hidden_subprog_cnt;
 	prog->aux->real_func_cnt = env->subprog_cnt;

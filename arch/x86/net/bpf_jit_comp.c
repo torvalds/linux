@@ -2600,7 +2600,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		      bpf_prog_was_classic(bpf_prog), tail_call_reachable,
 		      bpf_is_subprog(bpf_prog), bpf_prog->aux->exception_cb);
 
-	bpf_prog->aux->ksym.fp_start = prog - temp;
+	bpf_prog->aux->ksym.fp_start = prog - temp - cfi_get_offset();
+	bpf_prog->aux->ksym.fp_end = U32_MAX;
 
 	/* Exception callback will clobber callee regs for its own use, and
 	 * restore the original callee regs from main prog's stack frame.
@@ -3828,7 +3829,7 @@ emit_jmp:
 					pop_r12(&prog);
 			}
 			EMIT1(0xC9);         /* leave */
-			bpf_prog->aux->ksym.fp_end = prog - temp;
+			bpf_prog->aux->ksym.fp_ret = proglen + (prog - temp) - cfi_get_offset();
 
 			emit_return(&prog, image + addrs[i - 1] + (prog - temp));
 			break;
@@ -4480,8 +4481,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	}
 	EMIT1(0x55);		 /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp, rsp */
-	if (im)
-		im->ksym.fp_start = prog - (u8 *)rw_image;
+	im->ksym.fp_start = prog - (u8 *)rw_image;
 
 	/* sub rsp, stack_size */
 	emit_sub_rsp(&prog, stack_size);
@@ -4622,8 +4622,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	emit_ldx(&prog, BPF_DW, BPF_REG_6, BPF_REG_FP, -rbx_off);
 
 	EMIT1(0xC9); /* leave */
-	if (im)
-		im->ksym.fp_end = prog - (u8 *)rw_image;
+	im->ksym.fp_end = prog - (u8 *)rw_image;
 
 	if (flags & BPF_TRAMP_F_SKIP_FRAME) {
 		/* skip our return address and return to parent */

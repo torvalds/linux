@@ -785,7 +785,7 @@ bool bpf_has_frame_pointer(unsigned long ip)
 
 	offset = ip - ksym->start;
 
-	return offset >= ksym->fp_start && offset < ksym->fp_end;
+	return offset >= ksym->fp_start && offset < ksym->fp_end && offset != ksym->fp_ret;
 }
 
 const struct exception_table_entry *search_bpf_extables(unsigned long addr)

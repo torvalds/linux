@@ -1426,6 +1426,7 @@ struct bpf_ksym {
 	bool			 prog;
 	u32			 fp_start;
 	u32			 fp_end;
+	u32			 fp_ret; /* a return in between, it has no frame */
 };
 
 enum bpf_tramp_prog_type {
@@ -1470,7 +1471,7 @@ static inline void bpf_tramp_image_add_skip(struct bpf_tramp_image *im, struct b
 {
 	struct bpf_tramp_skip *skip;
 
-	/* struct_ops trampolines and arch_bpf_trampoline_size() have no image */
+	/* struct_ops trampolines and arch_bpf_trampoline_size() have none */
 	if (!im || !im->skips)
 		return;
 	skip = &im->skips[im->nr_skips++];
@@ -2400,7 +2401,7 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_nodes *tnodes,
 				      const struct btf_func_model *model,
 				      void *stub_func,
 				      void **image, u32 *image_off,
-				      bool allow_alloc);
+				      bool allow_alloc, struct bpf_ksym *ksym);
 void bpf_struct_ops_image_free(void *image);
 static inline bool bpf_try_module_get(const void *data, struct module *owner)
 {
