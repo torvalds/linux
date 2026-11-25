@@ -2254,6 +2254,10 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 			 * the program array.
 			 */
 			prog->cb_access = 1;
+			prog->call_get_func_ip = 1;
+			if (prog_type == BPF_PROG_TYPE_TRACING &&
+			    (eatype == BPF_TRACE_FSESSION || eatype == BPF_TRACE_FSESSION_MULTI))
+				prog->call_session_cookie = 1;
 			if (!bpf_allow_tail_call_in_subprogs(env))
 				prog->aux->stack_depth = MAX_BPF_STACK;
 			prog->aux->max_pkt_offset = MAX_PACKET_OFF;
