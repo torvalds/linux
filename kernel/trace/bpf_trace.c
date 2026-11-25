@@ -980,6 +980,10 @@ BTF_SET_END(btf_allowlist_d_path_fentry)
 
 static bool bpf_d_path_allowed(const struct bpf_prog *prog)
 {
+	/* attach_btf_id is a function of the target program */
+	if (prog->aux->dst_prog)
+		return false;
+
 	if (prog->type == BPF_PROG_TYPE_TRACING &&
 	    prog->expected_attach_type == BPF_TRACE_ITER)
 		return true;
