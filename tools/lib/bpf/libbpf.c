@@ -1454,6 +1454,7 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 	__s32 type_id, datasec_id;
 	const struct btf *btf;
 	struct bpf_map *map;
+	bool optional;
 	__u32 i;
 
 	if (shndx == -1)
@@ -1467,6 +1468,14 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 			sec_name);
 		return -EINVAL;
 	}
+
+	/*
+	 * Follow same convention as for programs autoload:
+	 * SEC("?.struct_ops") means map is not created by default.
+	 */
+	optional = sec_name[0] == '?';
+	/* from now on forget there was ? in section name */
+	sec_name += optional;
 
 	datasec = btf__type_by_id(btf, datasec_id);
 	vsi = btf_var_secinfos(datasec);
@@ -1503,14 +1512,8 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 			return -ENOMEM;
 		map->btf_value_type_id = type_id;
 
-		/* Follow same convention as for programs autoload:
-		 * SEC("?.struct_ops") means map is not created by default.
-		 */
-		if (sec_name[0] == '?') {
+		if (optional)
 			map->autocreate = false;
-			/* from now on forget there was ? in section name */
-			sec_name++;
-		}
 
 		map->def.type = BPF_MAP_TYPE_STRUCT_OPS;
 		map->def.key_size = sizeof(int);
@@ -8407,7 +8410,7 @@ static int libbpf_prepare_prog_load(struct bpf_program *prog,
 		opts->attach_btf_id = btf_type_id;
 	}
 
-	if (is_tracing_multi(prog->expected_attach_type)) {
+	if (prog->type == BPF_PROG_TYPE_TRACING && is_tracing_multi(prog->expected_attach_type)) {
 		int err, btf_obj_fd = 0;
 
 		err = tracing_multi_mod_fd(prog, &btf_obj_fd);
