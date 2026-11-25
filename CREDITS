@@ -3939,6 +3939,12 @@ D: mandocs and mandocs_install build targets
 S: (Email me and ask)
 S: Australia
 
+N: Lorenzo Stoakes
+E: ljs@kernel.org
+W: https://ljs.io
+D: THP co-maintainer
+S: UK
+
 N: Henrik Storner
 E: storner@image.dk
 W: http://www.image.dk/~storner/
