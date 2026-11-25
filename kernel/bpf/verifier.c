@@ -6217,6 +6217,7 @@ static void coerce_reg_to_size_sx(struct bpf_reg_state *reg, int size)
 	u64 top_smax_value, top_smin_value;
 	u64 num_bits = size * 8;
 	s64 limit = 1LL << (num_bits - 1);
+	struct cnum32 r32;
 
 	/* If every value fits the signed N-bit range sign extension is a noop. */
 	if (reg_smin(reg) >= -limit && reg_smax(reg) < limit)
@@ -6271,7 +6272,13 @@ static void coerce_reg_to_size_sx(struct bpf_reg_state *reg, int size)
 	}
 
 out:
+	r32 = reg->r32;
 	set_sext64_default_val(reg, size);
+	/* the low 32 bits fit, they do not change */
+	if (cnum32_smin(r32) >= -limit && cnum32_smax(r32) < limit) {
+		reg->r32 = r32;
+		reg->r64 = cnum64_from_srange(cnum32_smin(r32), cnum32_smax(r32));
+	}
 }
 
 static void set_sext32_default_val(struct bpf_reg_state *reg, int size)
@@ -15538,12 +15545,10 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		for (i = 0; i < CALLER_SAVED_REGS; i++)
 			bpf_mark_reg_not_init(env, &regs[caller_saved[i]]);
 
+		/* The kfunc returns int, the upper half of r0 is not known */
 		mark_reg_unknown(env, regs, BPF_REG_0);
-		err = __mark_reg_s32_range(env, regs, BPF_REG_0, -MAX_ERRNO, -1);
-		if (err) {
-			verbose(env, "failed to mark s32 range for retval in forked state for lock\n");
-			return err;
-		}
+		reg_set_srange32(&regs[BPF_REG_0], -MAX_ERRNO, -1);
+		reg_bounds_sync(&regs[BPF_REG_0]);
 	} else if (!insn->off && insn->imm == special_kfunc_list[KF___bpf_trap]) {
 		verbose(env, "unexpected __bpf_trap() due to uninitialized variable?\n");
 		return -EFAULT;
