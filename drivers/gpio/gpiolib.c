@@ -1047,9 +1047,9 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			for (unsigned int j = 0; j < cells; j++)
 				gpiospec.args[j] = gpios[i * cells + j];
 
-			ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
-			if (ret)
-				return ret;
+			desc = of_gpiochip_get_hog_desc(gc, &gpiospec, &lflags);
+			if (IS_ERR(desc))
+				return PTR_ERR(desc);
 
 			/*
 			 * If no line-name property is present, fall back to the OF
@@ -1065,11 +1065,11 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			 */
 			if (cells > 1 && gpios[i * cells + 1])
 				lflags |= GPIO_ACTIVE_LOW;
-		}
 
-		desc = gpiochip_get_desc(gc, gpios[i * cells]);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
+			desc = gpiochip_get_desc(gc, gpios[i * cells]);
+			if (IS_ERR(desc))
+				return PTR_ERR(desc);
+		}
 
 		ret = gpiod_hog(desc, name, lflags, dflags);
 		if (ret)
