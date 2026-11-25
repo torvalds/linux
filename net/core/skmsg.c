@@ -1149,7 +1149,9 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 	psock = sk_psock(sk);
 	if (likely(psock)) {
 		read_lock_bh(&sk->sk_callback_lock);
-		strp_data_ready(&psock->strp);
+		/* This psock may be not the one that has set the callback */
+		if (likely(sk_psock_test_state(psock, SK_PSOCK_RX_STRP_ENABLED)))
+			strp_data_ready(&psock->strp);
 		read_unlock_bh(&sk->sk_callback_lock);
 	}
 	rcu_read_unlock();
@@ -1157,7 +1159,7 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 
 int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 {
-	int ret;
+	int ret = 0;
 
 	static const struct strp_callbacks cb = {
 		.rcv_msg	= sk_psock_strp_read,
@@ -1165,7 +1167,11 @@ int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 		.parse_msg	= sk_psock_strp_parse,
 	};
 
-	ret = strp_init(&psock->strp, sk, &cb);
+	/* A stopped parser keeps its works and its skb until strp_done() */
+	if (sk_psock_test_state(psock, SK_PSOCK_RX_STRP_ENABLED))
+		psock->strp.stopped = 0;
+	else
+		ret = strp_init(&psock->strp, sk, &cb);
 	if (!ret)
 		sk_psock_set_state(psock, SK_PSOCK_RX_STRP_ENABLED);
 

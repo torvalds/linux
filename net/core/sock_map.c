@@ -169,7 +169,8 @@ static void sock_map_del_link(struct sock *sk,
 
 	write_lock_bh(&sk->sk_callback_lock);
 	if (psock->saved_data_ready) {
-		if (strp_stop)
+		/* The parser can be from another map, it loses sk_data_ready too */
+		if (strp_stop || psock->progs.stream_parser)
 			sk_psock_stop_strp(sk, psock);
 		if (verdict_stop)
 			sk_psock_stop_verdict(sk, psock);
