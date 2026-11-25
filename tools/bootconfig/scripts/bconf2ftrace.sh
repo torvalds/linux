@@ -275,15 +275,26 @@ setup_instance() { # [instance]
 }
 
 # ftrace global configs (kernel.*)
-if xbc_has_key "kernel.dump_on_oops"; then
-	dump_mode=`xbc_get_val "kernel.dump_on_oops" 1`
+# Prefer the kernel parameter names and accept the old script keys as fallbacks.
+dump_key=kernel.ftrace_dump_on_oops
+xbc_has_key "$dump_key" || dump_key=kernel.dump_on_oops
+if xbc_has_key "$dump_key"; then
+	dump_mode=`xbc_get_val "$dump_key" 1`
 	[ "$dump_mode" ] && dump_mode=`eval echo $dump_mode` || dump_mode=1
 	run_cmd "echo \"$dump_mode\" > /proc/sys/kernel/ftrace_dump_on_oops"
 fi
 
-set_value_of kernel.fgraph_max_depth $TRACEFS/max_graph_depth
-set_array_of kernel.fgraph_filters $TRACEFS/set_graph_function
-set_array_of kernel.fgraph_notraces $TRACEFS/set_graph_notrace
+graph_depth_key=kernel.ftrace_graph_max_depth
+xbc_has_key "$graph_depth_key" || graph_depth_key=kernel.fgraph_max_depth
+set_value_of "$graph_depth_key" $TRACEFS/max_graph_depth
+
+graph_filter_key=kernel.ftrace_graph_filter
+xbc_has_key "$graph_filter_key" || graph_filter_key=kernel.fgraph_filters
+set_array_of "$graph_filter_key" $TRACEFS/set_graph_function
+
+graph_notrace_key=kernel.ftrace_graph_notrace
+xbc_has_key "$graph_notrace_key" || graph_notrace_key=kernel.fgraph_notraces
+set_array_of "$graph_notrace_key" $TRACEFS/set_graph_notrace
 
 # Per-instance/per-event configs
 if ! xbc_has_branch "ftrace" ; then

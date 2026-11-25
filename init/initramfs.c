@@ -582,6 +582,7 @@ char * __init unpack_to_rootfs(char *buf, unsigned long len)
 }
 
 static int __initdata do_retain_initrd;
+unsigned long initrd_mem_end __initdata;
 
 static int __init retain_initrd_param(char *str)
 {
@@ -749,6 +750,15 @@ static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 		unpack_initramfs(cookie);
 		security_initramfs_populated();
 	}
+
+	/*
+	 * The bootconfig loader trims the bootconfig off initrd_end. Restore
+	 * it to free the memory used by the bootconfig too, unless the initrd
+	 * is retained (which must not expose the bootconfig).
+	 */
+	if (!do_retain_initrd && initrd_start && initrd_end < initrd_mem_end)
+		initrd_end = initrd_mem_end;
+	initrd_mem_end = 0;
 
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,

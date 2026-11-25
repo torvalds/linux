@@ -421,11 +421,11 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 	uint16_t keys[XBC_DEPTH_MAX];
 	int depth = 0, ret = 0, total = 0;
 
+	while (node && xbc_node_is_value(node))
+		node = xbc_node_get_parent(node);
+
 	if (!node || node == root)
 		return -EINVAL;
-
-	if (xbc_node_is_value(node))
-		node = xbc_node_get_parent(node);
 
 	while (node && node != root) {
 		if (depth == XBC_DEPTH_MAX)
@@ -587,8 +587,8 @@ int __init xbc_snprint_cmdline_filter(char *buf, size_t size, struct xbc_node *r
 
 		vnode = xbc_node_get_child(knode);
 		if (!vnode) {
-			ret = snprintf(buf ? buf + len : NULL, rest(len, size),
-				       "%s ", xbc_namebuf);
+			ret = snprintf(buf && len < size ? buf + len : NULL,
+				       rest(len, size), "%s ", xbc_namebuf);
 			if (ret < 0)
 				return ret;
 			len += ret;
@@ -601,7 +601,8 @@ int __init xbc_snprint_cmdline_filter(char *buf, size_t size, struct xbc_node *r
 			 * whitespace.
 			 */
 			q = strpbrk(val, " \t\r\n") ? "\"" : "";
-			ret = snprintf(buf ? buf + len : NULL, rest(len, size),
+			ret = snprintf(buf && len < size ? buf + len : NULL,
+				       rest(len, size),
 				       "%s=%s%s%s ", xbc_namebuf, q, val, q);
 			if (ret < 0)
 				return ret;
@@ -1058,8 +1059,8 @@ static int __init xbc_verify_tree(void)
 			return xbc_parse_error("Too long key length",
 				xbc_node_get_data(n));
 
-		m = xbc_node_get_child(n);
-		if (m && xbc_node_is_key(m)) {
+		m = xbc_node_get_subkey(n);
+		if (m) {
 			n = m;
 			depth++;
 			if (depth > XBC_DEPTH_MAX)

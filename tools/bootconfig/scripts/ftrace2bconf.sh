@@ -46,10 +46,11 @@ emit_kv() { # key =|+= value
 
 global_options() {
 	val=`cat $TRACEFS/max_graph_depth`
-	[ $val != 0 ] && emit_kv kernel.fgraph_max_depth = $val
+	[ $val != 0 ] && emit_kv kernel.ftrace_graph_max_depth = $val
 	if grep -qv "^#" $TRACEFS/set_graph_function $TRACEFS/set_graph_notrace ; then
 		cat 1>&2 << EOF
-# WARN: kernel.fgraph_filters and kernel.fgraph_notrace are not supported, since the wild card expression was expanded and lost from memory.
+# WARN: Cannot export kernel.ftrace_graph_filter and kernel.ftrace_graph_notrace.
+# Only the expanded function list is available.
 EOF
 	fi
 }

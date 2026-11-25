@@ -118,10 +118,23 @@ dd if=/dev/urandom bs=768 count=32 | base64 -w0 >> $TEMPCONF
 printf "\"\n" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
+dd if=$TEMPCONF of=$OUTFILE bs=1 count=32765
+cp $OUTFILE $TEMPCONF
+printf "\"\n" >> $TEMPCONF	# 32767 bytes + terminal ('\0') = 32768 (> max)
+xfail $BOOTCONF -a $TEMPCONF $INITRD
+
 dd if=$TEMPCONF of=$OUTFILE bs=1 count=32764
 cp $OUTFILE $TEMPCONF
-printf "\"\n" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0')
-xpass $BOOTCONF -a $TEMPCONF $INITRD
+printf "\"\n" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0') = 32767
+# Test max size across all 4 alignment paddings (0..3 bytes)
+for sz in 4096 4097 4098 4099; do
+  dd if=/dev/zero of=$INITRD bs=1 count=$sz 2>/dev/null
+  xpass $BOOTCONF -a $TEMPCONF $INITRD
+  $BOOTCONF -l $INITRD > $OUTFILE
+  xpass cmp $TEMPCONF $OUTFILE
+  xpass $BOOTCONF -d $INITRD
+  xpass test $(wc -c < $INITRD) -eq $sz
+done
 
 echo "Adding same-key values"
 cat > $TEMPCONF << EOF
@@ -219,6 +232,39 @@ printf "key = value\n\0" > $TEMPCONF
 xpass $BOOTCONF -a $TEMPCONF $INITRD
 $BOOTCONF $INITRD > $OUTFILE
 xpass grep -q "value" $OUTFILE
+
+echo "Unclosed brace error position"
+cat > $TEMPCONF << EOF
+a {
+  b = 1
+}
+c {
+  d = 2
+EOF
+echo > $INITRD
+
+xfail $BOOTCONF -a $TEMPCONF $INITRD
+$BOOTCONF -a $TEMPCONF $INITRD > $OUTFILE 2>&1
+xpass grep -q "Brace.is.not.closed.at.4:1" $OUTFILE
+$BOOTCONF -a samples/bad-tree.bconf $INITRD > $OUTFILE 2>&1
+xpass grep -q "Brace.is.not.closed.at.2:1" $OUTFILE
+
+echo "Mixed value and subkey depth/length limits"
+cat > $TEMPCONF << EOF
+k1 = v1
+k1.k2.k3.k4.k5.k6.k7.k8.k9.k10.k11.k12.k13.k14.k15.k16.k17 = v2
+EOF
+xfail $BOOTCONF -a $TEMPCONF $INITRD
+
+awk '
+BEGIN {
+  printf("root = v\nroot.")
+  for (i = 0; i < 255; i += 1)
+      printf("a")
+  printf(" = v2\n")
+}
+' > $TEMPCONF
+xfail $BOOTCONF -a $TEMPCONF $INITRD
 
 echo "=== expected failure cases ==="
 for i in samples/bad-* ; do

@@ -182,7 +182,7 @@ static int load_xbc_fd(int fd, char **buf, int size)
 {
 	int ret;
 
-	if (size < 0 || size > XBC_DATA_MAX)
+	if (size < 0 || size > XBC_DATA_MAX_PADDED)
 		return -EINVAL;
 
 	*buf = malloc(size + 1);
@@ -190,8 +190,12 @@ static int load_xbc_fd(int fd, char **buf, int size)
 		return -ENOMEM;
 
 	ret = read(fd, *buf, size);
-	if (ret < 0)
-		return -errno;
+	if (ret != size) {
+		ret = ret < 0 ? -errno : -EIO;
+		free(*buf);
+		*buf = NULL;
+		return ret;
+	}
 	(*buf)[size] = '\0';
 
 	return ret;
@@ -237,7 +241,7 @@ static int load_xbc_from_initrd(int fd, char **buf)
 {
 	struct stat stat;
 	int ret;
-	uint32_t size = 0, csum = 0, rcsum;
+	uint32_t size = 0, data_size, csum = 0, rcsum;
 	char magic[BOOTCONFIG_MAGIC_LEN];
 
 	ret = fstat(fd, &stat);
@@ -269,7 +273,7 @@ static int load_xbc_from_initrd(int fd, char **buf)
 	csum = le32toh(csum);
 
 	/* Wrong size error  */
-	if (size > XBC_DATA_MAX ||
+	if (size > XBC_DATA_MAX_PADDED ||
 	    size > stat.st_size - BOOTCONFIG_FOOTER_SIZE) {
 		pr_err("bootconfig size is too big\n");
 		return -E2BIG;
@@ -283,6 +287,12 @@ static int load_xbc_from_initrd(int fd, char **buf)
 	if (ret < 0)
 		return ret;
 
+	data_size = xbc_exclude_padding(*buf, size);
+	if (data_size > XBC_DATA_MAX) {
+		pr_err("bootconfig size is too big\n");
+		return -E2BIG;
+	}
+
 	/* Wrong Checksum */
 	rcsum = xbc_calc_checksum(*buf, size);
 	if (csum != rcsum) {
@@ -290,7 +300,7 @@ static int load_xbc_from_initrd(int fd, char **buf)
 		return -EINVAL;
 	}
 
-	ret = init_xbc_with_error(*buf, size);
+	ret = init_xbc_with_error(*buf, data_size);
 
 	return ret < 0 ? ret : size;
 }
@@ -499,14 +509,16 @@ static int apply_xbc(const char *path, const char *xbc_path)
 	total_size = size + BOOTCONFIG_FOOTER_SIZE;
 
 	ret = write(fd, data, total_size);
-	if (ret < total_size) {
-		if (ret < 0)
-			ret = -errno;
+	if (ret < 0) {
+		ret = -errno;
 		pr_err("Failed to apply a boot config: %d\n", ret);
-		if (ret >= 0)
-			goto out_rollback;
-	} else
-		ret = 0;
+		goto out;
+	}
+	if ((size_t)ret != total_size) {
+		pr_err("Failed to apply a boot config: %d\n", ret);
+		goto out_rollback;
+	}
+	ret = 0;
 
 out:
 	close(fd);
