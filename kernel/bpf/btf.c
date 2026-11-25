@@ -8127,6 +8127,10 @@ int btf_struct_access(struct bpf_verifier_log *log,
 			 */
 			*next_btf_id = id;
 			*flag = tmp_flag;
+			/* nothing tells where a flexible array ends */
+			t = btf_type_skip_modifiers(btf, reg->btf_id, NULL);
+			if (min_off + size > t->size)
+				*flag = (tmp_flag & ~MEM_RCU) | PTR_UNTRUSTED;
 			ret = PTR_TO_BTF_ID;
 			goto check_variable_offset;
 		case WALK_PTR_UNTRUSTED:
