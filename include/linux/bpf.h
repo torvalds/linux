@@ -2411,7 +2411,8 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 int bpf_struct_ops_link_create(union bpf_attr *attr);
 int bpf_prog_assoc_struct_ops(struct bpf_prog *prog, struct bpf_map *map);
 void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog);
-void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux);
+void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux,
+				    const struct bpf_struct_ops *st_ops);
 u32 bpf_struct_ops_id(const void *kdata);
 int bpf_struct_ops_for_each_prog(const void *kdata,
 				 int (*cb)(struct bpf_prog *prog, void *data),
@@ -2475,7 +2476,8 @@ static inline int bpf_prog_assoc_struct_ops(struct bpf_prog *prog, struct bpf_ma
 static inline void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog)
 {
 }
-static inline void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux)
+static inline void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux,
+						  const struct bpf_struct_ops *st_ops)
 {
 	return NULL;
 }

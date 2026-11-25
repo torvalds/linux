@@ -845,6 +845,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		}
 
 		if (prog->type != BPF_PROG_TYPE_STRUCT_OPS ||
+		    prog->aux->attach_btf != st_map->btf ||
 		    prog->aux->attach_btf_id != st_ops_desc->type_id ||
 		    prog->expected_attach_type != i) {
 			bpf_prog_put(prog);
@@ -1591,13 +1592,14 @@ void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog)
  * Get a reference to the struct_ops struct (i.e., kdata) associated with a
  * program. Should only be called in BPF program context (e.g., in a kfunc).
  *
- * If the returned pointer is not NULL, it must points to a valid struct_ops.
+ * If the returned pointer is not NULL, it must points to a valid @st_ops.
  * The struct_ops map is not guaranteed to be initialized nor attached.
  * Kernel struct_ops implementers are responsible for tracking and checking
  * the state of the struct_ops if the use case requires an initialized or
  * attached struct_ops.
  */
-void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux)
+void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux,
+				    const struct bpf_struct_ops *st_ops)
 {
 	struct bpf_struct_ops_map *st_map;
 	struct bpf_map *st_ops_assoc;
@@ -1607,6 +1609,8 @@ void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux)
 		return NULL;
 
 	st_map = (struct bpf_struct_ops_map *)st_ops_assoc;
+	if (st_map->st_ops_desc->st_ops != st_ops)
+		return NULL;
 
 	return &st_map->kvalue.data;
 }
