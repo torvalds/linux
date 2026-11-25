@@ -502,6 +502,10 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 		nr_maps++;
 	}
 
+	/* It's a dump of all maps, see bpf_sk_storage_diag_put() */
+	if (!nr_maps && !perfmon_capable())
+		return ERR_PTR(-EPERM);
+
 	diag = kzalloc_flex(*diag, maps, nr_maps);
 	if (!diag)
 		return ERR_PTR(-ENOMEM);
