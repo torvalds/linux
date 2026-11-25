@@ -566,7 +566,14 @@ static inline void bpf_obj_init(const struct btf_record *rec, void *obj)
  */
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
-	bpf_obj_init(map->record, dst);
+	const struct btf_record *rec = map->record;
+	int i;
+
+	if (IS_ERR_OR_NULL(rec))
+		return;
+	/* Not bpf_obj_init(): an empty list_head has the address of 'dst' */
+	for (i = 0; i < rec->cnt; i++)
+		memset(dst + rec->fields[i].offset, 0, rec->fields[i].size);
 }
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
