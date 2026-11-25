@@ -12633,6 +12633,7 @@ __bpf_kfunc int bpf_sock_addr_set_sun_path(struct bpf_sock_addr_kern *sa_kern,
 		return -EINVAL;
 
 	un = (struct sockaddr_un *)sa_kern->uaddr;
+	un->sun_family = AF_UNIX;
 	memcpy(un->sun_path, sun_path, sun_path__sz);
 	sa_kern->uaddrlen = offsetof(struct sockaddr_un, sun_path) + sun_path__sz;
 

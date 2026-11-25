@@ -2010,6 +2010,10 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 		ctx.uaddrlen = 0;
 	} else {
 		ctx.uaddrlen = *uaddrlen;
+		/* Programs read the family and the port also of a short address. */
+		if (ctx.uaddrlen < offsetofend(struct sockaddr_in, sin_port))
+			memset((void *)uaddr + ctx.uaddrlen, 0,
+			       offsetofend(struct sockaddr_in, sin_port) - ctx.uaddrlen);
 	}
 
 	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
