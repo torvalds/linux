@@ -807,7 +807,7 @@ const struct bpf_func_proto bpf_get_current_task_btf_proto = {
 
 BPF_CALL_1(bpf_task_pt_regs, struct task_struct *, task)
 {
-	return (unsigned long) task_pt_regs(task);
+	return task ? (unsigned long)task_pt_regs(task) : 0;
 }
 
 BTF_ID_LIST_SINGLE(bpf_task_pt_regs_ids, struct, pt_regs)
@@ -946,6 +946,8 @@ BPF_CALL_3(bpf_d_path, const struct path *, path, char *, buf, u32, sz)
 	len = copy_from_kernel_nofault(&copy, path, sizeof(*path));
 	if (len < 0)
 		return len;
+	if (!copy.mnt || !copy.dentry)
+		return -EFAULT;
 
 	p = d_path(&copy, buf, sz);
 	if (IS_ERR(p)) {

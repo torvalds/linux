@@ -726,7 +726,7 @@ BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
 	if (unlikely(!size))
 		return 0;
 
-	mm = get_task_mm(tsk);
+	mm = tsk ? get_task_mm(tsk) : NULL;
 	if (!mm) {
 		memset(dst, 0, size);
 		return -EFAULT;

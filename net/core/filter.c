@@ -4215,10 +4215,15 @@ static const struct bpf_func_proto bpf_xdp_get_buff_len_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_xdp_get_buff_len_trace, struct xdp_buff *, xdp)
+{
+	return xdp ? xdp_get_buff_len(xdp) : 0;
+}
+
 BTF_ID_LIST_SINGLE(bpf_xdp_get_buff_len_bpf_ids, struct, xdp_buff)
 
 const struct bpf_func_proto bpf_xdp_get_buff_len_trace_proto = {
-	.func		= bpf_xdp_get_buff_len,
+	.func		= bpf_xdp_get_buff_len_trace,
 	.gpl_only	= false,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_xdp_get_buff_len_bpf_ids[0],
@@ -5856,7 +5861,7 @@ static int sol_ipv6_sockopt(struct sock *sk, int optname,
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	if (!sk_fullsock(sk))
+	if (!sk || !sk_fullsock(sk))
 		return -EINVAL;
 
 	if (level == SOL_SOCKET)
@@ -5879,7 +5884,7 @@ static bool is_locked_tcp_sock_ops(struct bpf_sock_ops_kern *bpf_sock)
 static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk_fullsock(sk))
+	if (sk && sk_fullsock(sk))
 		sock_owned_by_me(sk);
 	return __bpf_setsockopt(sk, level, optname, optval, optlen);
 }
@@ -5889,7 +5894,7 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 {
 	int err, saved_optlen = optlen;
 
-	if (!sk_fullsock(sk)) {
+	if (!sk || !sk_fullsock(sk)) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -5916,7 +5921,7 @@ done:
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk_fullsock(sk))
+	if (sk && sk_fullsock(sk))
 		sock_owned_by_me(sk);
 	return __bpf_getsockopt(sk, level, optname, optval, optlen);
 }
@@ -12469,7 +12474,7 @@ const struct bpf_func_proto bpf_skc_to_mptcp_sock_proto = {
 
 BPF_CALL_1(bpf_sock_from_file, struct file *, file)
 {
-	return (unsigned long)sock_from_file(file);
+	return file ? (unsigned long)sock_from_file(file) : 0;
 }
 
 BTF_ID_LIST(bpf_sock_from_file_btf_ids)
