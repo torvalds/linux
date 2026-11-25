@@ -232,7 +232,8 @@ static int bpf_skb_load_helper_convert_offset(const struct sk_buff *skb, int off
 		return offset;
 
 	if (offset >= SKF_NET_OFF)
-		return offset - SKF_NET_OFF + skb_network_offset(skb);
+		return bpf_skb_has_network_header(skb) ?
+		       offset - SKF_NET_OFF + skb_network_offset(skb) : INT_MIN;
 
 	if (offset >= SKF_LL_OFF && skb_mac_header_was_set(skb))
 		return offset - SKF_LL_OFF + skb_mac_offset(skb);
@@ -1862,6 +1863,8 @@ BPF_CALL_5(bpf_skb_load_bytes_relative, const struct sk_buff *, skb,
 		start = skb_mac_header(skb);
 		break;
 	case BPF_HDR_START_NET:
+		if (unlikely(!bpf_skb_has_network_header(skb)))
+			goto err_clear;
 		start = skb_network_header(skb);
 		break;
 	default:

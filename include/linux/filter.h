@@ -1055,6 +1055,15 @@ static inline void bpf_restore_data_end(
 	cb->data_end = saved_data_end;
 }
 
+/*
+ * If nothing has set the header, it points to headroom that was not written.
+ * The packet starts at skb->head when skb->data or the MAC header is there.
+ */
+static inline bool bpf_skb_has_network_header(const struct sk_buff *skb)
+{
+	return skb->network_header || !skb->mac_header || !skb_headroom(skb);
+}
+
 static inline u8 *bpf_skb_cb(const struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta

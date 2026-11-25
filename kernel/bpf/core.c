@@ -83,6 +83,8 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 	u8 *ptr = NULL;
 
 	if (k >= SKF_NET_OFF) {
+		if (unlikely(!bpf_skb_has_network_header(skb)))
+			return NULL;
 		ptr = skb_network_header(skb) + k - SKF_NET_OFF;
 	} else if (k >= SKF_LL_OFF) {
 		if (unlikely(!skb_mac_header_was_set(skb)))
