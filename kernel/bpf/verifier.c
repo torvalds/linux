@@ -12305,6 +12305,10 @@ static int do_refine_retval_range(struct bpf_verifier_env *env,
 		    env->prog->expected_attach_type == BPF_CGROUP_GETSOCKOPT)
 			break;
 
+		/* It is what the previous struct bpf_tcp_ops returned, any int */
+		if (prog_type == BPF_PROG_TYPE_STRUCT_OPS)
+			break;
+
 		if (prog_type == BPF_PROG_TYPE_LSM &&
 		    env->prog->expected_attach_type == BPF_LSM_CGROUP) {
 			if (!env->prog->aux->attach_func_proto->type)
