@@ -1131,7 +1131,9 @@ static int sk_psock_strp_parse(struct strparser *strp, struct sk_buff *skb)
 	prog = READ_ONCE(psock->progs.stream_parser);
 	if (likely(prog)) {
 		skb->sk = psock->sk;
+		skb_dst_drop(skb);
 		ret = bpf_prog_run_pin_on_cpu(prog, skb);
+		skb_bpf_redirect_clear(skb);
 		skb->sk = NULL;
 	}
 	rcu_read_unlock();
