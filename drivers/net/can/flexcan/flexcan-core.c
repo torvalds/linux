@@ -2077,10 +2077,9 @@ MODULE_DEVICE_TABLE(of, flexcan_of_match);
 static const struct platform_device_id flexcan_id_table[] = {
 	{
 		.name = "flexcan-mcf5441x",
-		.driver_data = (kernel_ulong_t)&fsl_mcf5441x_devtype_data,
 	}, {
 		/* sentinel */
-	},
+	}
 };
 MODULE_DEVICE_TABLE(platform, flexcan_id_table);
 
@@ -2148,6 +2147,15 @@ static int flexcan_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	devtype_data = device_get_match_data(&pdev->dev);
+	if (!devtype_data)
+		/*
+		 * If the device was instantiated via the traditional platform
+		 * mechanisms (i.e. not by device tree), device_get_match_data()
+		 * returns NULL. The only remaining such device is mcf_flexcan0
+		 * (defined in arch/m68k/coldfire/device.c). Pick the right
+		 * device type for that.
+		 */
+		devtype_data = &fsl_mcf5441x_devtype_data;
 
 	if ((devtype_data->quirks & FLEXCAN_QUIRK_SUPPORT_FD) &&
 	    !((devtype_data->quirks &
