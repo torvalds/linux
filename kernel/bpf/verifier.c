@@ -3825,7 +3825,7 @@ static bool __is_pointer_value(bool allow_ptr_leaks,
 	if (allow_ptr_leaks)
 		return false;
 
-	return is_pointer_regtype(reg->type);
+	return reg->type != SCALAR_VALUE;
 }
 
 static void assign_scalar_id_before_mov(struct bpf_verifier_env *env,
