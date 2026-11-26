@@ -4804,6 +4804,9 @@ static int bpf_task_work_schedule(struct task_struct *task, struct bpf_task_work
 
 	BTF_TYPE_EMIT(struct bpf_task_work);
 
+	if (task->flags & PF_KTHREAD)
+		return -EPERM;
+
 	prog = bpf_prog_inc_not_zero(aux->prog);
 	if (IS_ERR(prog))
 		return -EBADF;
