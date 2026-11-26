@@ -2421,6 +2421,46 @@ TEST_F(tls, rekey_poll_delay)
 	}
 }
 
+TEST_F(tls, rekey_poll_queued)
+{
+	char const *test_str = "test_message";
+	struct tls_crypto_info_keys tls12;
+	struct pollfd pfd = { };
+	char buf[100];
+	int send_len;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	if (variant->tls_version != TLS_1_3_VERSION)
+		return;
+
+	/* data followed by a KeyUpdate */
+	send_len = strlen(test_str) + 1;
+	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
+	tls_send_keyupdate(_metadata, self->fd);
+
+	/* reading the data decrypts the KeyUpdate and leaves it queued */
+	EXPECT_EQ(recv(self->cfd, buf, sizeof(buf), MSG_WAITALL), send_len);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+
+	/* KeyUpdate hasn't been read, expect cfd to be readable */
+	pfd.fd = self->cfd;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 0), 1);
+
+	/* get KeyUpdate */
+	tls_recv_keyupdate(_metadata, self->cfd, 0);
+
+	/* update TX key and send with it */
+	tls_crypto_info_init(variant->tls_version, variant->cipher_type, &tls12, 1);
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, tls12.len), 0);
+	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
+
+	/* key hasn't been updated, expect cfd to be non-readable */
+	EXPECT_EQ(poll(&pfd, 1, 0), 0);
+}
+
 struct raw_rec {
 	unsigned int plain_len;
 	unsigned char plain_data[100];
