@@ -432,7 +432,6 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 	cancel_delayed_work_sync(&trans->restart.wk);
 
 	trans->op_mode = NULL;
-	memset(&trans->conf, 0, sizeof(trans->conf));
 
 	trans->state = IWL_TRANS_NO_FW;
 }

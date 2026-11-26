@@ -224,6 +224,14 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 				MGMT_STATUS_INVALID_PARAMS);
 		}
 
+		/* A zero rotation duration would make the advertising instance
+		 * scheduler requeue itself with no delay.
+		 */
+		if (type == 0x000c && !TLV_GET_LE16(buffer))
+			return mgmt_cmd_status(sk, hdev->id,
+				MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+				MGMT_STATUS_INVALID_PARAMS);
+
 		buffer_left -= exp_len;
 		buffer += exp_len;
 	}

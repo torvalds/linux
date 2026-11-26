@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
-#include <linux/rtnetlink.h>
-
 #include "fbnic.h"
 
 static void fbnic_hw_stat_rst32(struct fbnic_dev *fbd, u32 reg,
@@ -541,9 +539,10 @@ static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
 	mac->get_rmon_stats(fbd, true, &mac_stats->rmon);
 }
 
-void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
+void __fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats.lock);
+	lockdep_assert_held(&fbd->hw_stats.lock);
+
 	fbnic_reset_phy_stats(fbd, &fbd->hw_stats.phy);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
@@ -551,17 +550,14 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
-	spin_unlock(&fbd->hw_stats.lock);
-
-	/* Once registered, the only other access to MAC stats is via the
-	 * ethtool API which is protected by the rtnl_lock. The call to
-	 * fbnic_reset_hw_stats() during PCI recovery is also protected
-	 * by the rtnl_lock hence, we don't need the spinlock to access
-	 * the MAC stats.
-	 */
-	if (fbd->netdev)
-		ASSERT_RTNL();
 	fbnic_reset_hw_mac_stats(fbd, &fbd->hw_stats.mac);
+}
+
+void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
+{
+	spin_lock(&fbd->hw_stats.lock);
+	__fbnic_reset_hw_stats(fbd);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 void fbnic_init_hw_stats(struct fbnic_dev *fbd)

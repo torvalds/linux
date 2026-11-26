@@ -2712,11 +2712,18 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 	if (!pfkey_can_dump(&pfk->sk))
 		return -ENOBUFS;
 
+	/* Both halves derive the size from xfrm_vec[].encap_family, so
+	 * hold xp->lock against a concurrent xfrm_policy_migrate().
+	 */
+	read_lock(&xp->lock);
 	out_skb = pfkey_xfrm_policy2msg_prep(xp);
-	if (IS_ERR(out_skb))
+	if (IS_ERR(out_skb)) {
+		read_unlock(&xp->lock);
 		return PTR_ERR(out_skb);
+	}
 
 	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	read_unlock(&xp->lock);
 	if (err < 0) {
 		kfree_skb(out_skb);
 		return err;

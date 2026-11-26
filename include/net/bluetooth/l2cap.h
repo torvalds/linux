@@ -45,6 +45,11 @@
 #define L2CAP_DEFAULT_ACC_LAT		0xFFFFFFFF
 #define L2CAP_BREDR_MAX_PAYLOAD		1019    /* 3-DH5 packet */
 #define L2CAP_LE_MIN_MTU		23
+
+/* Identifier used by L2CAP_LE_CREDITS, it has no response so it is not
+ * tracked in conn->tx_ida and is never allocated for any other command.
+ */
+#define L2CAP_IDENT_LE_CREDITS		255
 #define L2CAP_ECRED_CONN_SCID_MAX	5
 
 #define L2CAP_DISC_TIMEOUT		msecs_to_jiffies(100)

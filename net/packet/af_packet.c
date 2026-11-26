@@ -200,7 +200,7 @@ static void packet_increment_head(struct packet_ring_buffer *buff);
 static int prb_curr_blk_in_use(struct tpacket_block_desc *);
 static void *prb_dispatch_next_block(struct tpacket_kbdq_core *,
 			struct packet_sock *);
-static void prb_retire_current_block(struct tpacket_kbdq_core *,
+static bool prb_retire_current_block(struct tpacket_kbdq_core *,
 		struct packet_sock *, unsigned int status);
 static int prb_queue_frozen(struct tpacket_kbdq_core *);
 static void prb_open_block(struct tpacket_kbdq_core *,
@@ -678,6 +678,24 @@ static void init_prb_bdqc(struct packet_sock *po,
 }
 
 /*
+ * Wait for an in-flight skb_copy_bits() before retiring the current block.
+ * On PREEMPT_RT the read lock can be held by a task that has been preempted
+ * or is running on another CPU, so do not block while holding
+ * sk_receive_queue.lock; return false and let the caller retry.
+ */
+static bool prb_wait_for_copy_bits(struct tpacket_kbdq_core *pkc)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		if (!write_trylock(&pkc->blk_fill_in_prog_lock))
+			return false;
+	} else {
+		write_lock(&pkc->blk_fill_in_prog_lock);
+	}
+	write_unlock(&pkc->blk_fill_in_prog_lock);
+	return true;
+}
+
+/*
  * With a 1MB block-size, on a 1Gbps line, it will take
  * i) ~8 ms to fill a block + ii) memcpy etc.
  * In this cut we are not accounting for the memcpy time.
@@ -711,9 +729,9 @@ static enum hrtimer_restart prb_retire_rx_blk_timer_expired(struct hrtimer *t)
 	 *
 	 */
 	if (BLOCK_NUM_PKTS(pbd)) {
-		/* Waiting for skb_copy_bits to finish... */
-		write_lock(&pkc->blk_fill_in_prog_lock);
-		write_unlock(&pkc->blk_fill_in_prog_lock);
+		/* Retry later if a packet copy is still in progress. */
+		if (!prb_wait_for_copy_bits(pkc))
+			goto refresh_timer;
 	}
 
 	if (!frozen) {
@@ -738,6 +756,7 @@ static enum hrtimer_restart prb_retire_rx_blk_timer_expired(struct hrtimer *t)
 		}
 	}
 
+refresh_timer:
 	hrtimer_forward_now(&pkc->retire_blk_timer, pkc->interval_ktime);
 	spin_unlock(&po->sk.sk_receive_queue.lock);
 	return HRTIMER_RESTART;
@@ -946,7 +965,7 @@ static void *prb_dispatch_next_block(struct tpacket_kbdq_core *pkc,
 	return (void *)pkc->nxt_offset;
 }
 
-static void prb_retire_current_block(struct tpacket_kbdq_core *pkc,
+static bool prb_retire_current_block(struct tpacket_kbdq_core *pkc,
 		struct packet_sock *po, unsigned int status)
 {
 	struct tpacket_block_desc *pbd = GET_CURR_PBLOCK_DESC_FROM_CORE(pkc);
@@ -963,13 +982,13 @@ static void prb_retire_current_block(struct tpacket_kbdq_core *pkc,
 		 * the timer-handler already handled this case.
 		 */
 		if (!(status & TP_STATUS_BLK_TMO)) {
-			/* Waiting for skb_copy_bits to finish... */
-			write_lock(&pkc->blk_fill_in_prog_lock);
-			write_unlock(&pkc->blk_fill_in_prog_lock);
+			/* Do not wait for copies while holding the queue lock. */
+			if (!prb_wait_for_copy_bits(pkc))
+				return false;
 		}
 		prb_close_block(pkc, pbd, po, status);
-		return;
 	}
+	return true;
 }
 
 static int prb_curr_blk_in_use(struct tpacket_block_desc *pbd)
@@ -1097,7 +1116,8 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 	}
 
 	/* Ok, close the current block */
-	prb_retire_current_block(pkc, po, 0);
+	if (!prb_retire_current_block(pkc, po, 0))
+		return NULL;
 
 	/* Now, try to dispatch the next block */
 	curr = (char *)prb_dispatch_next_block(pkc, po);

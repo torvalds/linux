@@ -501,7 +501,8 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 int hci_clear_adv_instance_sync(struct hci_dev *hdev, struct sock *sk,
 				u8 instance, bool force)
 {
-	struct adv_info *adv_instance, *n, *next_instance = NULL;
+	struct adv_info *adv_instance, *n;
+	u8 next_instance = 0;
 	int err;
 	u8 rem_inst;
 
@@ -509,12 +510,20 @@ int hci_clear_adv_instance_sync(struct hci_dev *hdev, struct sock *sk,
 	if (!instance || hdev->cur_adv_instance == instance)
 		cancel_adv_timeout(hdev);
 
+	/* This is safe as long as there is no command send while the
+	 * lock is held.
+	 */
+	hci_dev_lock(hdev);
+
 	/* Get the next instance to advertise BEFORE we remove
 	 * the current one. This can be the same instance again
 	 * if there is only one instance.
 	 */
-	if (instance && hdev->cur_adv_instance == instance)
-		next_instance = hci_get_next_instance(hdev, instance);
+	if (instance && hdev->cur_adv_instance == instance) {
+		adv_instance = hci_get_next_instance(hdev, instance);
+		if (adv_instance)
+			next_instance = adv_instance->instance;
+	}
 
 	if (instance == 0x00) {
 		list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances,
@@ -533,9 +542,8 @@ int hci_clear_adv_instance_sync(struct hci_dev *hdev, struct sock *sk,
 		if (force || (adv_instance && adv_instance->timeout &&
 			      !adv_instance->remaining_time)) {
 			/* Don't advertise a removed instance. */
-			if (next_instance &&
-			    next_instance->instance == instance)
-				next_instance = NULL;
+			if (next_instance == instance)
+				next_instance = 0;
 
 			err = hci_remove_adv_instance(hdev, instance);
 			if (!err)
@@ -543,12 +551,13 @@ int hci_clear_adv_instance_sync(struct hci_dev *hdev, struct sock *sk,
 		}
 	}
 
+	hci_dev_unlock(hdev);
+
 	if (!hdev_is_powered(hdev) || hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return 0;
 
 	if (next_instance && !ext_adv_capable(hdev))
-		return hci_schedule_adv_instance_sync(hdev,
-						      next_instance->instance,
+		return hci_schedule_adv_instance_sync(hdev, next_instance,
 						      false);
 
 	return 0;
@@ -1226,16 +1235,26 @@ static int hci_disable_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_ext_adv_set *set;
 	u8 data[sizeof(*cp) + sizeof(*set) * 1];
 	u8 size;
-	struct adv_info *adv = NULL;
+	u8 handle = instance;
 
 	/* If request specifies an instance that doesn't exist, fail */
 	if (instance > 0) {
+		struct adv_info *adv;
+		bool enabled = false;
+
+		hci_dev_lock(hdev);
 		adv = hci_find_adv_instance(hdev, instance);
+		if (adv) {
+			enabled = adv->enabled;
+			handle = adv->handle;
+		}
+		hci_dev_unlock(hdev);
+
 		if (!adv)
 			return -EINVAL;
 
 		/* If not enabled there is nothing to do */
-		if (!adv->enabled)
+		if (!enabled)
 			return 0;
 	}
 
@@ -1248,7 +1267,7 @@ static int hci_disable_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 	cp->num_of_sets = !!instance;
 	cp->enable = 0x00;
 
-	set->handle = adv ? adv->handle : instance;
+	set->handle = handle;
 
 	size = sizeof(*cp) + sizeof(*set) * cp->num_of_sets;
 
@@ -1419,13 +1438,20 @@ static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
 }
 
 static int hci_set_adv_data_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	struct hci_cp_le_set_adv_data cp;
 	u8 len;
 
 	memset(&cp, 0, sizeof(cp));
 
+	if (instance)
+		hci_dev_lock(hdev);
+
 	len = eir_create_adv_data(hdev, instance, cp.data, sizeof(cp.data));
+
+	if (instance)
+		hci_dev_unlock(hdev);
 
 	/* There's nothing to do if the data hasn't changed */
 	if (hdev->adv_data_len == len &&
@@ -1715,17 +1741,33 @@ int hci_enable_ext_advertising_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_le_set_ext_adv_enable *cp;
 	struct hci_cp_ext_adv_set *set;
 	u8 data[sizeof(*cp) + sizeof(*set) * 1];
-	struct adv_info *adv;
+	u8 handle = instance;
+	u32 duration = 0;
 
 	if (instance > 0) {
+		struct adv_info *adv;
+
+		hci_dev_lock(hdev);
 		adv = hci_find_adv_instance(hdev, instance);
-		if (!adv)
+		if (!adv) {
+			hci_dev_unlock(hdev);
 			return -EINVAL;
+		}
 		/* If already enabled there is nothing to do */
-		if (adv->enabled)
+		if (adv->enabled) {
+			hci_dev_unlock(hdev);
 			return 0;
-	} else {
-		adv = NULL;
+		}
+
+		handle = adv->handle;
+
+		/* Set duration per instance since controller is
+		 * responsible for scheduling it.
+		 */
+		if (adv->timeout)
+			duration = adv->mesh ? adv->timeout :
+					       adv->timeout * MSEC_PER_SEC;
+		hci_dev_unlock(hdev);
 	}
 
 	cp = (void *)data;
@@ -1738,18 +1780,10 @@ int hci_enable_ext_advertising_sync(struct hci_dev *hdev, u8 instance)
 
 	memset(set, 0, sizeof(*set));
 
-	set->handle = adv ? adv->handle : instance;
+	set->handle = handle;
 
-	/* Set duration per instance since controller is responsible for
-	 * scheduling it.
-	 */
-	if (adv && adv->timeout) {
-		u16 duration = adv->mesh ? adv->timeout :
-					   adv->timeout * MSEC_PER_SEC;
-
-		/* Time = N * 10 ms */
-		set->duration = cpu_to_le16(duration / 10);
-	}
+	/* Time = N * 10 ms */
+	set->duration = cpu_to_le16(min_t(u32, duration / 10, U16_MAX));
 
 	/* Track which instance owns the advertising set since the handle
 	 * alone is ambiguous when instances share handle 0x00, see
@@ -1781,20 +1815,57 @@ int hci_start_ext_adv_sync(struct hci_dev *hdev, u8 instance)
 int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 {
 	struct hci_cp_le_set_per_adv_enable cp;
-	struct adv_info *adv = NULL;
+	struct adv_info *adv;
+	bool enabled;
+	u8 handle = instance;
+	int err;
 
 	/* If periodic advertising already disabled there is nothing to do. */
+	hci_dev_lock(hdev);
 	adv = hci_find_adv_instance(hdev, instance);
-	if (!adv || !adv->periodic_enabled)
+	enabled = adv && adv->periodic_enabled;
+	if (adv)
+		handle = adv->handle;
+	hci_dev_unlock(hdev);
+	if (!enabled)
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
 
 	cp.enable = 0x00;
-	cp.handle = instance;
+	cp.handle = handle;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err || handle == instance)
+		return err;
+
+	/* Handle 0 is shared with global advertising, so the completion
+	 * cannot identify the software instance from the command alone.
+	 */
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		adv->periodic_enabled = false;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+/* Map a management instance number to its controller handle. */
+static u8 hci_adv_instance_handle(struct hci_dev *hdev, u8 instance)
+	__must_not_hold(&hdev->lock)
+{
+	struct adv_info *adv;
+	u8 handle = instance;
+
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		handle = adv->handle;
+	hci_dev_unlock(hdev);
+
+	return handle;
 }
 
 static int hci_set_per_adv_params_sync(struct hci_dev *hdev, u8 instance,
@@ -1810,7 +1881,7 @@ static int hci_set_per_adv_params_sync(struct hci_dev *hdev, u8 instance,
 	if (!max_interval)
 		max_interval = DISCOV_LE_PER_ADV_INT_MAX;
 
-	cp.handle = instance;
+	cp.handle = hci_adv_instance_handle(hdev, instance);
 	cp.min_interval = cpu_to_le16(min_interval);
 	cp.max_interval = cpu_to_le16(max_interval);
 	cp.periodic_properties = 0x0000;
@@ -1854,44 +1925,76 @@ static int hci_set_per_adv_data_sync(struct hci_dev *hdev, u8 instance)
 static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 {
 	struct hci_cp_le_set_per_adv_enable cp;
-	struct adv_info *adv = NULL;
+	struct adv_info *adv;
+	bool enabled;
+	u8 handle = instance;
+	int err;
 
 	/* If periodic advertising already enabled there is nothing to do. */
+	hci_dev_lock(hdev);
 	adv = hci_find_adv_instance(hdev, instance);
-	if (adv && adv->periodic_enabled)
+	enabled = adv && adv->periodic_enabled;
+	if (adv)
+		handle = adv->handle;
+	hci_dev_unlock(hdev);
+	if (enabled)
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
 
 	cp.enable = 0x01;
-	cp.handle = instance;
+	cp.handle = handle;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PER_ADV_ENABLE,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err || handle == instance)
+		return err;
+
+	/* Handle 0 is shared with global advertising, so the completion
+	 * cannot identify the software instance from the command alone.
+	 */
+	hci_dev_lock(hdev);
+	adv = hci_find_adv_instance(hdev, instance);
+	if (adv)
+		adv->periodic_enabled = true;
+	hci_dev_unlock(hdev);
+
+	return 0;
 }
 
 /* Checks if periodic advertising data contains a Basic Announcement and if it
  * does generates a Broadcast ID and add Broadcast Announcement.
  */
-static int hci_adv_bcast_annoucement(struct hci_dev *hdev, struct adv_info *adv)
+static int hci_adv_bcast_annoucement(struct hci_dev *hdev, u8 instance)
 {
+	struct adv_info *adv;
 	u8 bid[3];
 	u8 ad[HCI_MAX_EXT_AD_LENGTH];
 	u8 len;
+	int err = 0;
 
-	/* Skip if NULL adv as instance 0x00 is used for general purpose
+	/* Skip if instance 0x00 as it is used for general purpose
 	 * advertising so it cannot used for the likes of Broadcast Announcement
 	 * as it can be overwritten at any point.
 	 */
-	if (!adv)
+	if (!instance)
 		return 0;
+
+	hci_dev_lock(hdev);
+
+	/* The instance may have been removed while waiting for the
+	 * controller, in which case there is nothing to announce.
+	 */
+	adv = hci_find_adv_instance(hdev, instance);
+	if (!adv)
+		goto unlock;
 
 	/* Check if PA data doesn't contains a Basic Audio Announcement then
 	 * there is nothing to do.
 	 */
 	if (!eir_get_service_data(adv->per_adv_data, adv->per_adv_data_len,
 				  0x1851, NULL))
-		return 0;
+		goto unlock;
 
 	/* Check if advertising data already has a Broadcast Announcement since
 	 * the process may want to control the Broadcast ID directly and in that
@@ -1899,34 +2002,44 @@ static int hci_adv_bcast_annoucement(struct hci_dev *hdev, struct adv_info *adv)
 	 */
 	if (eir_get_service_data(adv->adv_data, adv->adv_data_len, 0x1852,
 				 NULL))
-		return 0;
+		goto unlock;
 
 	/* Generate Broadcast ID */
 	get_random_bytes(bid, sizeof(bid));
 	len = eir_append_service_data(ad, 0, 0x1852, bid, sizeof(bid));
 	if (adv->adv_data_len > sizeof(ad) - len) {
 		bt_dev_err(hdev, "No room for Broadcast Announcement");
-		return -EINVAL;
+		err = -EINVAL;
+		goto unlock;
 	}
 
 	memcpy(ad + len, adv->adv_data, adv->adv_data_len);
-	hci_set_adv_instance_data(hdev, adv->instance, len + adv->adv_data_len,
+	hci_set_adv_instance_data(hdev, instance, len + adv->adv_data_len,
 				  ad, 0, NULL);
 
-	return hci_update_adv_data_sync(hdev, adv->instance);
+	hci_dev_unlock(hdev);
+
+	return hci_update_adv_data_sync(hdev, instance);
+
+unlock:
+	hci_dev_unlock(hdev);
+	return err;
 }
 
 int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 sid,
 			   u8 data_len, u8 *data, u32 flags, u16 min_interval,
 			   u16 max_interval, u16 sync_interval)
 {
-	struct adv_info *adv = NULL;
+	struct adv_info *adv;
+	u8 bcast_instance = 0;
 	int err;
 	bool added = false;
 
 	hci_disable_per_advertising_sync(hdev, instance);
 
 	if (instance) {
+		hci_dev_lock(hdev);
+
 		adv = hci_find_adv_instance(hdev, instance);
 		if (adv) {
 			if (sid != HCI_SID_INVALID && adv->sid != sid) {
@@ -1935,6 +2048,7 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 sid,
 				 */
 				adv = hci_find_adv_sid(hdev, sid);
 				if (!adv) {
+					hci_dev_unlock(hdev);
 					bt_dev_err(hdev,
 						   "Unable to find adv_info");
 					return -EINVAL;
@@ -1953,11 +2067,17 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 sid,
 						   data_len, data,
 						   sync_interval,
 						   sync_interval);
-			if (IS_ERR(adv))
+			if (IS_ERR(adv)) {
+				hci_dev_unlock(hdev);
 				return PTR_ERR(adv);
+			}
 			adv->pending = false;
 			added = true;
 		}
+
+		bcast_instance = adv->instance;
+
+		hci_dev_unlock(hdev);
 	}
 
 	/* Start advertising */
@@ -1965,7 +2085,7 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 sid,
 	if (err < 0)
 		goto fail;
 
-	err = hci_adv_bcast_annoucement(hdev, adv);
+	err = hci_adv_bcast_annoucement(hdev, bcast_instance);
 	if (err < 0)
 		goto fail;
 
@@ -1985,8 +2105,11 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 sid,
 	return 0;
 
 fail:
-	if (added)
+	if (added) {
+		hci_dev_lock(hdev);
 		hci_remove_adv_instance(hdev, instance);
+		hci_dev_unlock(hdev);
+	}
 
 	return err;
 }
@@ -2016,6 +2139,7 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 	u8 own_addr_type, enable = 0x01;
 	bool connectable;
 	u16 adv_min_interval, adv_max_interval;
+	bool scannable;
 	u32 flags;
 	u8 status;
 
@@ -2023,8 +2147,25 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 		return hci_enable_ext_advertising_sync(hdev,
 						       hdev->cur_adv_instance);
 
+	/* Snapshot the instance under hdev->lock since it may be removed
+	 * while waiting for the commands below to complete.
+	 */
+	hci_dev_lock(hdev);
+
 	flags = hci_adv_instance_flags(hdev, hdev->cur_adv_instance);
+	scannable = hci_adv_instance_is_scannable(hdev,
+						  hdev->cur_adv_instance);
+
 	adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
+	if (adv_instance) {
+		adv_min_interval = adv_instance->min_interval;
+		adv_max_interval = adv_instance->max_interval;
+	} else {
+		adv_min_interval = hdev->le_adv_min_interval;
+		adv_max_interval = hdev->le_adv_max_interval;
+	}
+
+	hci_dev_unlock(hdev);
 
 	/* If the "connectable" instance flag was not set, then choose between
 	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
@@ -2058,18 +2199,10 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (adv_instance) {
-		adv_min_interval = adv_instance->min_interval;
-		adv_max_interval = adv_instance->max_interval;
-	} else {
-		adv_min_interval = hdev->le_adv_min_interval;
-		adv_max_interval = hdev->le_adv_max_interval;
-	}
-
 	if (connectable) {
 		cp.type = LE_ADV_IND;
 	} else {
-		if (hci_adv_instance_is_scannable(hdev, hdev->cur_adv_instance))
+		if (scannable)
 			cp.type = LE_ADV_SCAN_IND;
 		else
 			cp.type = LE_ADV_NONCONN_IND;
@@ -2197,9 +2330,13 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 	if (hdev->adv_instance_timeout)
 		return -EBUSY;
 
+	hci_dev_lock(hdev);
+
 	adv = hci_find_adv_instance(hdev, instance);
-	if (!adv)
+	if (!adv) {
+		hci_dev_unlock(hdev);
 		return -ENOENT;
+	}
 
 	/* A zero timeout means unlimited advertising. As long as there is
 	 * only one instance, duration should be ignored. We still set a timeout
@@ -2228,6 +2365,8 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 				   adv->mesh ? msecs_to_jiffies(timeout) :
 					       secs_to_jiffies(timeout));
 	}
+
+	hci_dev_unlock(hdev);
 
 	/* If we're just re-scheduling the same instance again then do not
 	 * execute any HCI commands. This happens when a single instance is
@@ -2326,7 +2465,7 @@ static int hci_remove_adv_sync(struct hci_dev *hdev, u8 instance,
 int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 				u8 instance, bool force)
 {
-	struct adv_info *next = NULL;
+	u8 next_instance = 0;
 	int err;
 
 	/* Cancel any timeout concerning the removed instance(s). */
@@ -2337,20 +2476,34 @@ int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 	 * the current one. This can be the same instance again
 	 * if there is only one instance.
 	 */
-	if (hdev->cur_adv_instance == instance)
+	if (hdev->cur_adv_instance == instance) {
+		struct adv_info *next;
+
+		hci_dev_lock(hdev);
 		next = hci_get_next_instance(hdev, instance);
+		if (next)
+			next_instance = next->instance;
+		hci_dev_unlock(hdev);
+	}
 
 	if (!instance) {
 		err = hci_clear_adv_sync(hdev, sk, force);
 		if (err)
 			return err;
 	} else {
-		struct adv_info *adv = hci_find_adv_instance(hdev, instance);
+		struct adv_info *adv;
+		bool remove;
 
-		if (force || (adv && adv->timeout && !adv->remaining_time)) {
+		hci_dev_lock(hdev);
+		adv = hci_find_adv_instance(hdev, instance);
+		remove = force ||
+			 (adv && adv->timeout && !adv->remaining_time);
+		hci_dev_unlock(hdev);
+
+		if (remove) {
 			/* Don't advertise a removed instance. */
-			if (next && next->instance == instance)
-				next = NULL;
+			if (next_instance == instance)
+				next_instance = 0;
 
 			err = hci_remove_adv_sync(hdev, instance, sk);
 			if (err)
@@ -2361,8 +2514,8 @@ int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 	if (!hdev_is_powered(hdev) || hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return 0;
 
-	if (next && !ext_adv_capable(hdev))
-		hci_schedule_adv_instance_sync(hdev, next->instance, false);
+	if (next_instance && !ext_adv_capable(hdev))
+		hci_schedule_adv_instance_sync(hdev, next_instance, false);
 
 	return 0;
 }
@@ -2827,10 +2980,28 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 	return 0;
 }
 
+/* Copy the instance identifiers in list order under hdev->lock.
+ * There are at most U8_MAX instances, with identifiers 1..U8_MAX.
+ * Callers can then wait for commands without retaining list pointers.
+ */
+static size_t adv_instance_list_copy(struct hci_dev *hdev, u8 *ids)
+{
+	struct adv_info *adv;
+	size_t n = 0;
+
+	hci_dev_lock(hdev);
+
+	list_for_each_entry(adv, &hdev->adv_instances, list)
+		ids[n++] = adv->instance;
+
+	hci_dev_unlock(hdev);
+
+	return n;
+}
+
 /* This function enables all user advertising instances */
 static int hci_resume_advertising_sync(struct hci_dev *hdev)
 {
-	struct adv_info *adv, *tmp;
 	int err = 0;
 
 	/* If advertising has not been paused there is nothing  to do. */
@@ -2847,15 +3018,20 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "Resuming advertising instances");
 
 	if (ext_adv_capable(hdev)) {
+		u8 ids[U8_MAX];
+		size_t i, n;
+
+		n = adv_instance_list_copy(hdev, ids);
+
 		/* Call for each tracked instance to be re-enabled */
-		list_for_each_entry_safe(adv, tmp, &hdev->adv_instances, list) {
+		for (i = 0; i < n; i++) {
 			err = hci_enable_ext_advertising_sync(hdev,
-							      adv->instance);
+							      ids[i]);
 			if (!err)
 				continue;
 
 			/* If the instance cannot be resumed remove it */
-			hci_remove_ext_adv_instance_sync(hdev, adv->instance,
+			hci_remove_ext_adv_instance_sync(hdev, ids[i],
 							 NULL);
 		}
 
@@ -3680,7 +3856,8 @@ int hci_write_le_host_supported_sync(struct hci_dev *hdev, u8 le, u8 simul)
 
 static int hci_powered_update_adv_sync(struct hci_dev *hdev)
 {
-	struct adv_info *adv, *tmp;
+	u8 ids[U8_MAX];
+	size_t i, n;
 	int err;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
@@ -3716,9 +3893,11 @@ static int hci_powered_update_adv_sync(struct hci_dev *hdev)
 			hci_enable_advertising_sync(hdev);
 	}
 
+	n = adv_instance_list_copy(hdev, ids);
+
 	/* Call for each tracked instance to be scheduled */
-	list_for_each_entry_safe(adv, tmp, &hdev->adv_instances, list)
-		hci_schedule_adv_instance_sync(hdev, adv->instance, true);
+	for (i = 0; i < n; i++)
+		hci_schedule_adv_instance_sync(hdev, ids[i], true);
 
 	return 0;
 }
@@ -3876,7 +4055,9 @@ int hci_powered_update_sync(struct hci_dev *hdev)
 	 * registration is required so that LE SMP can clearly decide if
 	 * the public address or static address is used.
 	 */
+	hci_dev_lock(hdev);
 	smp_register(hdev);
+	hci_dev_unlock(hdev);
 
 	err = hci_write_ssp_mode_sync(hdev, 0x01);
 	if (err)
@@ -5692,7 +5873,9 @@ int hci_dev_open_sync(struct hci_dev *hdev)
 	if (!ret) {
 		hci_dev_hold(hdev);
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
+		hci_dev_lock(hdev);
 		hci_adv_instances_set_rpa_expired(hdev, true);
+		hci_dev_unlock(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_sock_dev_event(hdev, HCI_DEV_UP);
 		hci_leds_update_powered(hdev, true);
@@ -5836,8 +6019,10 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 
 		cancel_delayed_work_sync(&hdev->rpa_expired);
 
+		hci_dev_lock(hdev);
 		list_for_each_entry(adv_instance, &hdev->adv_instances, list)
 			cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
+		hci_dev_unlock(hdev);
 	}
 
 	/* A delayed work whose timer was armed before close would queue
@@ -5866,6 +6051,11 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
 	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
+
+	/* Nothing is going to send the mesh transmissions left, whether or not
+	 * mgmt is told about the controller being powered off.
+	 */
+	mgmt_mesh_flush(hdev);
 
 	if (!auto_off && !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    hci_dev_test_flag(hdev, HCI_MGMT))
@@ -8097,6 +8287,7 @@ static int hci_le_past_set_info_sync(struct hci_dev *hdev, void *data)
 {
 	struct past_data *past = data;
 	struct hci_cp_le_past_set_info cp;
+	struct adv_info *adv;
 
 	hci_dev_lock(hdev);
 
@@ -8109,6 +8300,9 @@ static int hci_le_past_set_info_sync(struct hci_dev *hdev, void *data)
 	memset(&cp, 0, sizeof(cp));
 	cp.handle = cpu_to_le16(past->le->handle);
 	cp.adv_handle = past->conn->iso_qos.bcast.bis;
+	adv = hci_find_adv_instance(hdev, cp.adv_handle);
+	if (adv)
+		cp.adv_handle = adv->handle;
 
 	hci_dev_unlock(hdev);
 

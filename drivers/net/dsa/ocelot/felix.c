@@ -1239,8 +1239,19 @@ static int felix_port_enable(struct dsa_switch *ds, int port,
 
 	if (ocelot->npi >= 0) {
 		struct net_device *conduit = dsa_port_to_conduit(dp);
+		int cpu;
 
-		if (felix_cpu_port_for_conduit(ds, conduit) != ocelot->npi) {
+		/* Do not use conduit->dsa_ptr for a physical conduit. It is
+		 * NULL before DSA sets up the conduit and after it tears it
+		 * down, and opening a user port can reach this check in both
+		 * cases.
+		 */
+		if (netif_is_lag_master(conduit))
+			cpu = felix_cpu_port_for_conduit(ds, conduit);
+		else
+			cpu = dp->cpu_dp->index;
+
+		if (cpu != ocelot->npi) {
 			dev_err(ds->dev, "Multiple conduits are not allowed\n");
 			return -EINVAL;
 		}

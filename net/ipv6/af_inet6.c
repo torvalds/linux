@@ -398,10 +398,10 @@ int __inet6_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
 		if (!(flags & BIND_FROM_BPF)) {
 			err = BPF_CGROUP_RUN_PROG_INET6_POST_BIND(sk);
 			if (err) {
-				sk->sk_ipv6only = saved_ipv6only;
-				inet_reset_saddr(sk);
 				if (sk->sk_prot->put_port)
 					sk->sk_prot->put_port(sk);
+				sk->sk_ipv6only = saved_ipv6only;
+				inet_reset_saddr(sk);
 				goto out;
 			}
 		}

@@ -922,12 +922,18 @@ static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
 	return max(rto, 1U);
 }
 
+static inline unsigned long tcp_reqsk_timeout_sk(const struct sock *sk,
+						 const struct request_sock *req)
+{
+	/* timeout << 32 is already above tcp_rto_max(). */
+	u64 timeout = (u64)req->timeout << min_t(u8, req->num_timeout, 32);
+
+	return (unsigned long)min_t(u64, timeout, tcp_rto_max(sk));
+}
+
 static inline unsigned long tcp_reqsk_timeout(struct request_sock *req)
 {
-	u64 timeout = (u64)req->timeout << req->num_timeout;
-
-	return (unsigned long)min_t(u64, timeout,
-				    tcp_rto_max(req->rsk_listener));
+	return tcp_reqsk_timeout_sk(req->rsk_listener, req);
 }
 
 u32 tcp_delack_max(const struct sock *sk);
@@ -2897,6 +2903,15 @@ void tcp_get_available_ulp(char *buf, size_t len);
 void tcp_cleanup_ulp(struct sock *sk);
 void tcp_update_ulp(struct sock *sk, struct proto *p,
 		    void (*write_space)(struct sock *sk));
+
+static inline bool tcp_kcm_attached(const struct sock *sk)
+{
+#if IS_ENABLED(CONFIG_AF_KCM)
+	return tcp_sk(sk)->kcm_attached;
+#else
+	return false;
+#endif
+}
 
 #define MODULE_ALIAS_TCP_ULP(name)				\
 	MODULE_INFO(alias, name);		\

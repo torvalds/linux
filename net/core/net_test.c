@@ -1723,7 +1723,58 @@ static void netmem_ref_test_tcp_devmem_recv(struct kunit *test)
 #endif
 #endif
 
+/* Can @nr pages of @order be allocated and held at the same time? */
+static bool alloc_skb_with_frags_test_have_pages(unsigned int nr,
+						 unsigned int order)
+{
+	struct page *pages[MAX_SKB_FRAGS];
+	unsigned int i, n;
+
+	for (n = 0; n < nr; n++) {
+		pages[n] = alloc_pages(GFP_KERNEL | __GFP_NOWARN |
+				       __GFP_NORETRY, order);
+		if (!pages[n])
+			break;
+	}
+	for (i = 0; i < n; i++)
+		__free_pages(pages[i], order);
+
+	return n == nr;
+}
+
+static void alloc_skb_with_frags_test_tail(struct kunit *test)
+{
+	/* MAX_SKB_FRAGS - 2 full chunks plus a 7 page tail: rounding the
+	 * tail down to 4 + 2 + 1 pages would need one frag too many.
+	 */
+	unsigned long len = (MAX_SKB_FRAGS - 2) *
+			    (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) +
+			    7 * PAGE_SIZE;
+	unsigned long frags_len = 0;
+	struct sk_buff *skb;
+	int err, i;
+
+	skb = alloc_skb_with_frags(0, len, PAGE_ALLOC_COSTLY_ORDER, &err,
+				   GFP_KERNEL);
+	/* The full chunks can't fall back to smaller pages here, so the
+	 * call needs up to MAX_SKB_FRAGS - 1 order-3 pages at once. Don't
+	 * report a lack of them as a failure.
+	 */
+	if (!skb && !alloc_skb_with_frags_test_have_pages(MAX_SKB_FRAGS - 1,
+							  PAGE_ALLOC_COSTLY_ORDER))
+		kunit_skip(test, "not enough order-%d pages",
+			   PAGE_ALLOC_COSTLY_ORDER);
+	KUNIT_ASSERT_NOT_NULL_MSG(test, skb, "err %d", err);
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+		frags_len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
+	KUNIT_EXPECT_EQ(test, frags_len, len);
+
+	kfree_skb(skb);
+}
+
 static struct kunit_case net_test_cases[] = {
+	KUNIT_CASE(alloc_skb_with_frags_test_tail),
 	KUNIT_CASE_PARAM(gso_test_func, gso_test_gen_params),
 	KUNIT_CASE_PARAM(ip_tunnel_flags_test_run,
 			 ip_tunnel_flags_test_gen_params),

@@ -414,9 +414,9 @@ static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
 	tls_ctx = tls_get_ctx(sk);
 	ctx = tls_sw_ctx_rx(tls_ctx);
 
-	if ((skb_queue_empty_lockless(&ctx->rx_list) &&
-	     !tls_strp_msg_ready(ctx)) ||
-	    READ_ONCE(ctx->key_update_pending))
+	if (skb_queue_empty_lockless(&ctx->rx_list) &&
+	    (!tls_strp_msg_ready(ctx) ||
+	     READ_ONCE(ctx->key_update_pending)))
 		mask &= ~(EPOLLIN | EPOLLRDNORM);
 
 	return mask;
@@ -1066,6 +1066,9 @@ static int tls_init(struct sock *sk)
 	 */
 	if (sk->sk_state != TCP_ESTABLISHED)
 		return -ENOTCONN;
+
+	if (tcp_kcm_attached(sk))
+		return -EBUSY;
 
 	/* allocate tls context */
 	write_lock_bh(&sk->sk_callback_lock);

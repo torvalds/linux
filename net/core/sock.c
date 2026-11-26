@@ -1746,8 +1746,10 @@ static int sk_getsockopt_peerpidfd(struct sock *sk, enum pid_type type,
 	struct pid *peer_pid;
 	int pidfd;
 
-	if (len > sizeof(pidfd))
-		len = sizeof(pidfd);
+	/* Userspace can't close a pidfd whose number it didn't get. */
+	if (len < sizeof(pidfd))
+		return -EINVAL;
+	len = sizeof(pidfd);
 
 	spin_lock(&sk->sk_peer_lock);
 	peer_pid = get_pid(sk->sk_peer_pid[type]);
@@ -2545,6 +2547,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority,
 
 	sk_node_init(&newsk->sk_node);
 	sock_lock_init(newsk);
+	spin_lock_init(&newsk->sk_peer_lock);
 
 	if (lock)
 		bh_lock_sock(newsk);

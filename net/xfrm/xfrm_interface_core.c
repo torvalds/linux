@@ -531,6 +531,14 @@ static netdev_tx_t xfrmi_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl, 0, sizeof(fl));
 
+	switch (skb->protocol) {
+	case htons(ETH_P_IPV6):
+	case htons(ETH_P_IP):
+		break;
+	default:
+		goto tx_err;
+	}
+
 	if (!pskb_inet_may_pull(skb))
 		goto tx_err;
 

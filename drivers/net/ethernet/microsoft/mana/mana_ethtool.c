@@ -505,9 +505,12 @@ static int mana_set_coalesce(struct net_device *ndev,
 	bool dim_changed = false;
 	struct gdma_context *gc;
 	u32 max_cqe_frames;
+	bool modr_sup;
 	int err;
 
 	gc = apc->ac->gdma_dev->gdma_context;
+	modr_sup = gc->pf_cap_flags1 &
+		   GDMA_PF_CAP_FLAG_1_DYN_INTERRUPT_MODERATION;
 	max_cqe_frames = gc->cqe8_coalescing_sup ? MANA_CQE_COAL_PKTS_8 :
 						   MANA_RXCOMP_OOB_NUM_PPI;
 
@@ -517,7 +520,7 @@ static int mana_set_coalesce(struct net_device *ndev,
 	if ((ec->use_adaptive_rx_coalesce || ec->use_adaptive_tx_coalesce ||
 	     ec->rx_coalesce_usecs || ec->tx_coalesce_usecs ||
 	     ec->rx_max_coalesced_frames || ec->tx_max_coalesced_frames) &&
-	    !(gc->pf_cap_flags1 & GDMA_PF_CAP_FLAG_1_DYN_INTERRUPT_MODERATION)) {
+	    !modr_sup) {
 		NL_SET_ERR_MSG(extack,
 			       "Interrupt Moderation is not supported by HW");
 		return -EOPNOTSUPP;
@@ -534,18 +537,27 @@ static int mana_set_coalesce(struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs > MANA_INTR_MODR_USEC_MAX ||
-	    ec->tx_coalesce_usecs > MANA_INTR_MODR_USEC_MAX) {
+	/* Without the HW capability, only zero values pass the check above */
+	if (modr_sup &&
+	    (ec->rx_coalesce_usecs < MANA_INTR_MODR_USEC_MIN ||
+	     ec->tx_coalesce_usecs < MANA_INTR_MODR_USEC_MIN ||
+	     ec->rx_coalesce_usecs > MANA_INTR_MODR_USEC_MAX ||
+	     ec->tx_coalesce_usecs > MANA_INTR_MODR_USEC_MAX)) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "coalesce usecs must be <= %lu",
+				   "coalesce usecs must be between %d and %lu",
+				   MANA_INTR_MODR_USEC_MIN,
 				   MANA_INTR_MODR_USEC_MAX);
 		return -EINVAL;
 	}
 
-	if (ec->rx_max_coalesced_frames > MANA_INTR_MODR_COMP_MAX ||
-	    ec->tx_max_coalesced_frames > MANA_INTR_MODR_COMP_MAX) {
+	if (modr_sup &&
+	    (ec->rx_max_coalesced_frames < MANA_INTR_MODR_COMP_MIN ||
+	     ec->tx_max_coalesced_frames < MANA_INTR_MODR_COMP_MIN ||
+	     ec->rx_max_coalesced_frames > MANA_INTR_MODR_COMP_MAX ||
+	     ec->tx_max_coalesced_frames > MANA_INTR_MODR_COMP_MAX)) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "coalesce frames must be <= %lu",
+				   "coalesce frames must be between %d and %lu",
+				   MANA_INTR_MODR_COMP_MIN,
 				   MANA_INTR_MODR_COMP_MAX);
 		return -EINVAL;
 	}

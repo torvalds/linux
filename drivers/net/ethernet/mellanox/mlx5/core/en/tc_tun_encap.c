@@ -1718,9 +1718,9 @@ static void mlx5e_tc_fib_event_work(struct work_struct *work)
 		r->flags |= MLX5E_ROUTE_ENTRY_VALID;
 out:
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	mlx5e_put_flow_list(priv, &flow_list);
 	rtnl_unlock();
 
-	mlx5e_put_flow_list(priv, &flow_list);
 	mlx5e_route_put(priv, event_data->r);
 	dev_put(event_data->ul_dev);
 	kfree(event_data);

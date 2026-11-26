@@ -2269,7 +2269,9 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	eth_filter->nentries = nentries;
 
 	for (i = 0; i < adap->params.nports; i++) {
-		eth_filter->port[i].loc_array = kvzalloc(nentries, GFP_KERNEL);
+		eth_filter->port[i].loc_array =
+			kvcalloc(nentries, sizeof(*eth_filter->port[i].loc_array),
+				 GFP_KERNEL);
 		if (!eth_filter->port[i].loc_array) {
 			ret = -ENOMEM;
 			goto free_eth_finfo;

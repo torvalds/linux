@@ -627,6 +627,8 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 	 * outside of the create and destruct socket functions.
 	 */
 	vsk = vsock_sk(sk);
+	if (!vsock_net_mode_global(vsk))
+		return VMCI_ERROR_NO_ACCESS;
 	if (!vmci_transport_allow_dgram(vsk, dg->src.context))
 		return VMCI_ERROR_NO_ACCESS;
 
@@ -1696,6 +1698,10 @@ static int vmci_transport_dgram_bind(struct vsock_sock *vsk,
 	u32 port;
 	u32 flags;
 	int err;
+
+	/* VMCI handles are global and cannot serve local namespaces. */
+	if (!vsock_net_mode_global(vsk))
+		return -EOPNOTSUPP;
 
 	/* VMCI will select a resource ID for us if we provide
 	 * VMCI_INVALID_ID.

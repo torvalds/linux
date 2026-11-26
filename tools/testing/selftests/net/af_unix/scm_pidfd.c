@@ -1155,4 +1155,55 @@ TEST(so_peerpidfd_thread)
 	close(server);
 }
 
+/* The lowest free file descriptor, where the next pidfd would land. */
+static int lowest_free_fd(int fd)
+{
+	int nfd;
+
+	nfd = dup(fd);
+	if (nfd >= 0)
+		close(nfd);
+	return nfd;
+}
+
+/* A short optlen must fail without installing a pidfd. */
+TEST(so_peerpidfd_short_optlen)
+{
+	const int optnames[] = { SO_PEERPIDFD, SO_PEERPIDFD_THREAD };
+	int sv[2], i, free_fd, pidfd;
+	socklen_t len, optlen;
+
+	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sv));
+
+	for (i = 0; i < ARRAY_SIZE(optnames); i++) {
+		for (len = 0; len < sizeof(pidfd); len++) {
+			free_fd = lowest_free_fd(sv[0]);
+			ASSERT_LE(0, free_fd);
+
+			pidfd = -1;
+			optlen = len;
+			ASSERT_EQ(-1, getsockopt(sv[0], SOL_SOCKET, optnames[i],
+						 &pidfd, &optlen));
+			ASSERT_EQ(EINVAL, errno);
+			EXPECT_EQ(len, optlen);
+			EXPECT_EQ(-1, pidfd);
+
+			/* No pidfd was installed behind our back. */
+			ASSERT_EQ(free_fd, lowest_free_fd(sv[0]));
+		}
+
+		/* A full-sized buffer still gets the pidfd. */
+		free_fd = lowest_free_fd(sv[0]);
+		optlen = sizeof(pidfd);
+		ASSERT_EQ(0, getsockopt(sv[0], SOL_SOCKET, optnames[i],
+					&pidfd, &optlen));
+		EXPECT_EQ(sizeof(pidfd), optlen);
+		EXPECT_EQ(free_fd, pidfd);
+		close(pidfd);
+	}
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
 TEST_HARNESS_MAIN

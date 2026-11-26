@@ -3096,8 +3096,12 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	if (grp)
 		return -EACCES;
 	grp = tipc_group_create(net, tsk->portid, mreq, &tsk->group_is_open);
-	if (!grp)
+	if (!grp) {
+		/* tipc_group_create() may have cleared it before failing */
+		tsk->group_is_open = true;
+		tsk->sk.sk_write_space(&tsk->sk);
 		return -ENOMEM;
+	}
 	tsk->group = grp;
 	msg_set_lookup_scope(hdr, mreq->scope);
 	msg_set_nametype(hdr, mreq->type);
@@ -3109,6 +3113,8 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	if (rc) {
 		tipc_group_delete(net, grp);
 		tsk->group = NULL;
+		tsk->group_is_open = true;
+		tsk->sk.sk_write_space(&tsk->sk);
 		return rc;
 	}
 	/* Eliminate any risk that a broadcast overtakes sent JOINs */
@@ -3132,7 +3138,9 @@ static int tipc_sk_leave(struct tipc_sock *tsk)
 	ua.scope = scope;
 	tipc_group_delete(net, grp);
 	tsk->group = NULL;
+	tsk->group_is_open = true;
 	tipc_sk_withdraw(tsk, &ua);
+	tsk->sk.sk_write_space(&tsk->sk);
 	return 0;
 }
 

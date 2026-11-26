@@ -105,11 +105,15 @@ static struct sk_buff *tcp4_gso_segment(struct sk_buff *skb,
 		return ERR_PTR(-EINVAL);
 
 	if (skb_shinfo(skb)->gso_type & SKB_GSO_FRAGLIST) {
-		struct tcphdr *th = tcp_hdr(skb);
+		int err;
 
-		if ((skb_pagelen(skb) - th->doff * 4 == skb_shinfo(skb)->gso_size) &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_DODGY))
+		if (skb_gso_fraglist_ok(skb, features, tcp_hdrlen(skb),
+					htons(ETH_P_IP)))
 			return __tcp4_gso_segment_list(skb, features);
+
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return ERR_PTR(err);
 
 		skb->ip_summed = CHECKSUM_NONE;
 	}

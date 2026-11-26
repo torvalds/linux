@@ -758,7 +758,8 @@ static void esw_vport_change_handler(struct work_struct *work)
 	struct mlx5_eswitch *esw = vport->dev->priv.eswitch;
 
 	mutex_lock(&esw->state_lock);
-	esw_vport_change_handle_locked(vport);
+	if (vport->enabled)
+		esw_vport_change_handle_locked(vport);
 	mutex_unlock(&esw->state_lock);
 }
 

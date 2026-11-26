@@ -6944,17 +6944,40 @@ struct sk_buff *alloc_skb_with_frags(unsigned long header_len,
 	while (data_len) {
 		if (nr_frags == MAX_SKB_FRAGS)
 			goto failure;
-		while (order && PAGE_ALIGN(data_len) < (PAGE_SIZE << order))
-			order--;
+		if (order && PAGE_ALIGN(data_len) < (PAGE_SIZE << order)) {
+			unsigned long pages = DIV_ROUND_UP(data_len, PAGE_SIZE);
+
+			/* If splitting the rest into smaller pages would need
+			 * more frags than we have left, use one larger page.
+			 */
+			if (hweight_long(pages) > MAX_SKB_FRAGS - nr_frags)
+				order = order_base_2(pages);
+			else
+				order = ilog2(pages);
+		}
 
 		if (order) {
 			page = alloc_pages((gfp_mask & ~__GFP_DIRECT_RECLAIM) |
 					   __GFP_COMP |
 					   __GFP_NOWARN,
 					   order);
-			if (!page) {
-				order--;
-				continue;
+			if (unlikely(!page)) {
+				unsigned int shift = PAGE_SHIFT + order - 1;
+
+				/* Can smaller pages hold the rest? */
+				if (((data_len - 1) >> shift) + 1 <=
+				    MAX_SKB_FRAGS - nr_frags) {
+					order--;
+					continue;
+				}
+				/* No, retry this order with direct reclaim. */
+				if (!gfpflags_allow_blocking(gfp_mask))
+					goto failure;
+				page = alloc_pages(gfp_mask | __GFP_COMP |
+						   __GFP_NOWARN | __GFP_NORETRY,
+						   order);
+				if (!page)
+					goto failure;
 			}
 		} else {
 			page = alloc_page(gfp_mask);
@@ -6988,7 +7011,6 @@ static void skb_carve_reset_headers(struct sk_buff *skb)
 	skb_unset_mac_header(skb);
 	skb_unset_transport_header(skb);
 	skb_reset_network_header(skb);
-	skb->mac_len = 0;
 
 	/* Inner offsets have no "unset" marker, zero them so that
 	 * skb_inner_network_header_was_set() becomes false and no

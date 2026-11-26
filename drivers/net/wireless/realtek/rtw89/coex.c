@@ -6604,7 +6604,8 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 
 	if (!(bt->run_patch_code && bt->enable.now)) {
 		is_preagc = BTC_PREAGC_DISABLE;
-	} else if (dm->tdd_bind.rf_band == BIT(RTW89_BAND_5G)) {
+	} else if (dm->out_of_band ||
+		   dm->tdd_bind.rf_band == BIT(RTW89_BAND_5G)) {
 		is_preagc = BTC_PREAGC_DISABLE;
 	} else if (rinfo->link_mode[RTW89_MAC_0] == BTC_WLINK_NOLINK ||
 		 btc->cx.bt0.link_info.link_cnt.now == 0) {

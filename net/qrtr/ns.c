@@ -374,11 +374,11 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 		msg.msg_name = (struct sockaddr *)&sq;
 		msg.msg_namelen = sizeof(sq);
 
+		/* A server that cannot take it must not hide it from the rest */
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-		if (ret < 0 && ret != -ENODEV) {
-			pr_err("failed to send bye cmd\n");
-			goto delete_node;
-		}
+		if (ret < 0 && ret != -ENODEV)
+			pr_err_ratelimited("failed to send bye cmd to %u:%u: %d\n",
+					   srv->node, srv->port, ret);
 	}
 
 	/* Ignore -ENODEV */
@@ -458,11 +458,11 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 		msg.msg_name = (struct sockaddr *)&sq;
 		msg.msg_namelen = sizeof(sq);
 
+		/* A server that cannot take it must not hide it from the rest */
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-		if (ret < 0 && ret != -ENODEV) {
-			pr_err("failed to send del client cmd\n");
-			return ret;
-		}
+		if (ret < 0 && ret != -ENODEV)
+			pr_err_ratelimited("failed to send del client cmd to %u:%u: %d\n",
+					   srv->node, srv->port, ret);
 	}
 	return 0;
 }
@@ -487,11 +487,10 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
 		return -EINVAL;
 
 	if (srv->node == qrtr_ns.local_node) {
+		/* The lookups below still need to hear about the server */
 		ret = service_announce_new(&qrtr_ns.bcast_sq, srv);
-		if (ret < 0) {
+		if (ret < 0)
 			pr_err("failed to announce new service\n");
-			return ret;
-		}
 	}
 
 	/* Notify any potential lookups about the new server */

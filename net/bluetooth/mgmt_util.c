@@ -409,16 +409,31 @@ struct mgmt_mesh_tx *mgmt_mesh_add(struct sock *sk, struct hci_dev *hdev,
 				   void *data, u16 len)
 {
 	struct mgmt_mesh_tx *mesh_tx;
+	u8 handle = hdev->mesh_send_ref;
+	int i;
+
+	/* The handle is all that identifies a transmission, so it must not be
+	 * in use by one still pending when the counter wraps around.
+	 */
+	for (i = 0; i < 255; i++) {
+		handle++;
+		if (!handle)
+			handle++;
+
+		if (!mgmt_mesh_find(hdev, handle))
+			break;
+	}
+
+	if (i == 255)
+		return NULL;
 
 	mesh_tx = kzalloc_obj(*mesh_tx);
 	if (!mesh_tx)
 		return NULL;
 
-	hdev->mesh_send_ref++;
-	if (!hdev->mesh_send_ref)
-		hdev->mesh_send_ref++;
+	hdev->mesh_send_ref = handle;
 
-	mesh_tx->handle = hdev->mesh_send_ref;
+	mesh_tx->handle = handle;
 	mesh_tx->index = hdev->id;
 	memcpy(mesh_tx->param, data, len);
 	mesh_tx->param_len = len;

@@ -58,6 +58,7 @@
 #include <linux/nsproxy.h>
 #include <linux/virtio_net.h>
 #include <linux/rcupdate.h>
+#include <net/hotdata.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
@@ -227,6 +228,16 @@ struct veth {
 static void tun_flow_init(struct tun_struct *tun);
 static void tun_flow_uninit(struct tun_struct *tun);
 
+/* In IFF_NAPI mode written packets wait in the tfile's sk_write_queue for the
+ * NAPI poll, which may run later in a kthread or ksoftirqd. Bound that queue
+ * like the per-CPU backlog.
+ */
+static bool tun_napi_queue_full(const struct sk_buff_head *queue)
+{
+	return skb_queue_len_lockless(queue) >
+	       READ_ONCE(net_hotdata.max_backlog);
+}
+
 static int tun_napi_receive(struct napi_struct *napi, int budget)
 {
 	struct tun_file *tfile = container_of(napi, struct tun_file, napi);
@@ -237,19 +248,20 @@ static int tun_napi_receive(struct napi_struct *napi, int budget)
 
 	__skb_queue_head_init(&process_queue);
 
+	/* At most budget skbs: the rest stays on the queue writers check */
 	spin_lock(&queue->lock);
-	skb_queue_splice_tail_init(queue, &process_queue);
+	if (skb_queue_len(queue) <= budget) {
+		skb_queue_splice_tail_init(queue, &process_queue);
+	} else {
+		while (skb_queue_len(&process_queue) < budget &&
+		       (skb = __skb_dequeue(queue)))
+			__skb_queue_tail(&process_queue, skb);
+	}
 	spin_unlock(&queue->lock);
 
-	while (received < budget && (skb = __skb_dequeue(&process_queue))) {
+	while ((skb = __skb_dequeue(&process_queue))) {
 		napi_gro_receive(napi, skb);
 		++received;
-	}
-
-	if (!skb_queue_empty(&process_queue)) {
-		spin_lock(&queue->lock);
-		skb_queue_splice(&process_queue, queue);
-		spin_unlock(&queue->lock);
 	}
 
 	return received;
@@ -1871,8 +1883,15 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		err = PTR_ERR_OR_ZERO(skb);
 		if (err)
 			goto drop;
-		if (!skb)
+		if (!skb) {
+			/* consumed by XDP, after copying */
+			if (msg_control) {
+				struct ubuf_info *uarg = msg_control;
+
+				uarg->ops->complete(NULL, uarg, false);
+			}
 			return total_len;
+		}
 	} else {
 		if (!zerocopy) {
 			copylen = len;
@@ -2042,6 +2061,19 @@ napi_busy:
 	} else if (tfile->napi_enabled) {
 		struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
 		int queue_len;
+
+		/* Queue full: drop, and schedule NAPI, which a MSG_MORE sender
+		 * may not have done yet. Lockless: concurrent writers can each
+		 * still add one.
+		 */
+		if (unlikely(tun_napi_queue_full(queue))) {
+			local_bh_disable();
+			napi_schedule(&tfile->napi);
+			local_bh_enable();
+			rcu_read_unlock();
+			drop_reason = SKB_DROP_REASON_FULL_RING;
+			goto drop;
+		}
 
 		spin_lock_bh(&queue->lock);
 
@@ -2658,6 +2690,17 @@ build:
 
 	if (tfile->napi_enabled) {
 		queue = &tfile->sk.sk_write_queue;
+
+		/* Queue full: drop, and schedule NAPI so that it drains even if
+		 * nothing in this batch gets queued.
+		 */
+		if (unlikely(tun_napi_queue_full(queue))) {
+			napi_schedule(&tfile->napi);
+			kfree_skb_reason(skb, SKB_DROP_REASON_FULL_RING);
+			dev_core_stats_rx_dropped_inc(tun->dev);
+			return 0;
+		}
+
 		spin_lock(&queue->lock);
 
 		if (unlikely(tfile->detached)) {
@@ -3379,6 +3422,8 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			   (unsigned short)arg == ARPHRD_MCTP) {
 			ret = -EINVAL;
 		} else {
+			unsigned char addr_len = tun_get_addr_len(arg);
+
 			ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
 						       tun->dev);
 			ret = notifier_to_errno(ret);
@@ -3387,8 +3432,13 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 					   "Refused to change device type\n");
 				break;
 			}
+			/* Addresses were added with the old dev->addr_len. */
+			if (addr_len != tun->dev->addr_len) {
+				dev_uc_flush(tun->dev);
+				dev_mc_flush(tun->dev);
+			}
 			tun->dev->type = (int) arg;
-			tun->dev->addr_len = tun_get_addr_len(tun->dev->type);
+			tun->dev->addr_len = addr_len;
 			netif_info(tun, drv, tun->dev, "linktype set to %d\n",
 				   tun->dev->type);
 			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,

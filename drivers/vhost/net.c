@@ -538,7 +538,7 @@ static int sock_has_rx_data(struct socket *sock)
 	if (sock->ops->peek_len)
 		return sock->ops->peek_len(sock);
 
-	return skb_queue_empty(&sock->sk->sk_receive_queue);
+	return !skb_queue_empty(&sock->sk->sk_receive_queue);
 }
 
 static void vhost_net_busy_poll_try_queue(struct vhost_net *net,

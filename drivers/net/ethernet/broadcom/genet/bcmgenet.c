@@ -2486,8 +2486,8 @@ next:
 		bcmgenet_rdma_ring_writel(priv, ring->index, ring->c_index, RDMA_CONS_INDEX);
 	}
 
-	ring->dim.bytes = bytes_processed;
-	ring->dim.packets = rxpktprocessed;
+	ring->dim.bytes += bytes_processed;
+	ring->dim.packets += rxpktprocessed;
 
 	return rxpktprocessed;
 }
@@ -2502,14 +2502,15 @@ static int bcmgenet_rx_poll(struct napi_struct *napi, int budget)
 
 	work_done = bcmgenet_desc_rx(ring, budget);
 
-	if (work_done < budget && napi_complete_done(napi, work_done))
-		bcmgenet_rx_ring_int_enable(ring);
-
+	/* net_dim() can queue work, so run it while NAPI is still owned */
 	if (ring->dim.use_dim) {
 		dim_update_sample(ring->dim.event_ctr, ring->dim.packets,
 				  ring->dim.bytes, &dim_sample);
 		net_dim(&ring->dim.dim, &dim_sample);
 	}
+
+	if (work_done < budget && napi_complete_done(napi, work_done))
+		bcmgenet_rx_ring_int_enable(ring);
 
 	return work_done;
 }
@@ -2702,8 +2703,11 @@ static void bcmgenet_init_dim(struct bcmgenet_rx_ring *ring,
 {
 	struct bcmgenet_net_dim *dim = &ring->dim;
 
+	memset(&dim->dim, 0, sizeof(dim->dim));
 	INIT_WORK(&dim->dim.work, cb);
 	dim->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	/* Match the profile bcmgenet_init_rx_coalesce() programs */
+	dim->dim.profile_ix = NET_DIM_DEF_PROFILE_EQE;
 	dim->event_ctr = 0;
 	dim->packets = 0;
 	dim->bytes = 0;
@@ -2822,6 +2826,8 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	ring->read_ptr = start_ptr;
 	ring->cb_ptr = start_ptr;
 	ring->end_ptr = end_ptr - 1;
+	/* Zeroing RDMA_PROD_INDEX below also clears the discard counter */
+	ring->old_discards = 0;
 
 	ret = bcmgenet_rx_ring_create_pool(priv, ring);
 	if (ret)
@@ -3014,7 +3020,8 @@ static void bcmgenet_disable_rx_napi(struct bcmgenet_priv *priv)
 	for (i = 0; i <= priv->hw_params->rx_queues; ++i) {
 		ring = &priv->rx_rings[i];
 		napi_disable(&ring->napi);
-		cancel_work_sync(&ring->dim.dim.work);
+		/* Cancelling would leave DIM stuck in DIM_APPLY_NEW_PROFILE */
+		flush_work(&ring->dim.dim.work);
 	}
 }
 

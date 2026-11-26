@@ -997,7 +997,7 @@ int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif)
 
 	features = IONIC_Q_F_2X_CQ_DESC | IONIC_TXQ_F_HWSTAMP;
 
-	num_desc = IONIC_MIN_TXRX_DESC;
+	num_desc = IONIC_MIN_TX_DESC;
 	desc_sz = sizeof(struct ionic_txq_desc);
 	comp_sz = 2 * sizeof(struct ionic_txq_comp);
 
@@ -1062,7 +1062,7 @@ int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
 
 	features = IONIC_Q_F_2X_CQ_DESC | IONIC_RXQ_F_HWSTAMP;
 
-	num_desc = IONIC_MIN_TXRX_DESC;
+	num_desc = IONIC_MIN_RX_DESC;
 	desc_sz = sizeof(struct ionic_rxq_desc);
 	comp_sz = 2 * sizeof(struct ionic_rxq_comp);
 	sg_desc_sz = sizeof(struct ionic_rxq_sg_desc);
@@ -1641,6 +1641,8 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 	netdev->hw_features |= netdev->hw_enc_features;
 	netdev->features |= netdev->hw_features;
 	netdev->vlan_features |= netdev->features & ~NETIF_F_VLAN_FEATURES;
+
+	netif_set_tso_max_segs(netdev, IONIC_MIN_TX_DESC - 1);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT |
 			      IFF_LIVE_ADDR_CHANGE;
@@ -3284,8 +3286,8 @@ int ionic_lif_alloc(struct ionic *ionic)
 	lif->index = 0;
 
 	if (is_kdump_kernel()) {
-		lif->ntxq_descs = IONIC_MIN_TXRX_DESC;
-		lif->nrxq_descs = IONIC_MIN_TXRX_DESC;
+		lif->ntxq_descs = IONIC_MIN_TX_DESC;
+		lif->nrxq_descs = IONIC_MIN_RX_DESC;
 	} else {
 		lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
 		lif->nrxq_descs = IONIC_DEF_TXRX_DESC;

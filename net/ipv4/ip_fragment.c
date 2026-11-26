@@ -250,6 +250,8 @@ static int ip_frag_reinit(struct ipq *qp)
 	qp->q.flags = 0;
 	qp->q.len = 0;
 	qp->q.meat = 0;
+	qp->q.max_size = 0;
+	qp->max_df_size = 0;
 	qp->iif = 0;
 	qp->ecn = 0;
 

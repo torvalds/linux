@@ -8618,6 +8618,43 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	return rc;
 }
 
+/* Program Rx coalescing of a single ring, e.g. after its completion ring
+ * was re-allocated in the FW, which resets the coalescing parameters.
+ */
+static int bnxt_hwrm_set_rx_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
+{
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req;
+	int rc;
+
+	if (bp->flags & BNXT_FLAG_DIM)
+		return bnxt_hwrm_set_ring_coal(bp, bnapi);
+
+	rc = hwrm_req_init(bp, req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+	if (rc)
+		return rc;
+
+	bnxt_hwrm_set_coal_params(bp, &bp->rx_coal, req);
+	return bnxt_hwrm_set_rx_coal(bp, bnapi, req);
+}
+
+/* Program Tx coalescing of the completion ring of a single Tx ring, e.g.
+ * after it was re-allocated in the FW.
+ */
+static int bnxt_hwrm_set_tx_ring_coal(struct bnxt *bp,
+				      struct bnxt_tx_ring_info *txr)
+{
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+	if (rc)
+		return rc;
+
+	bnxt_hwrm_set_coal_params(bp, &bp->tx_coal, req);
+	req->ring_id = cpu_to_le16(bnxt_cp_ring_for_tx(bp, txr));
+	return hwrm_req_send(bp, req);
+}
+
 static void bnxt_hwrm_stat_ctx_free(struct bnxt *bp)
 {
 	struct hwrm_stat_ctx_clr_stats_input *req0 = NULL;
@@ -11837,6 +11874,11 @@ static int bnxt_tx_queue_start(struct bnxt *bp, int idx)
 		rc = bnxt_hwrm_cp_ring_alloc_p5(bp, txr->tx_cpr);
 		if (rc)
 			return rc;
+
+		rc = bnxt_hwrm_set_tx_ring_coal(bp, txr);
+		if (rc)
+			netdev_warn(bp->dev, "HWRM set coalescing failure rc: %d\n",
+				    rc);
 
 		rc = bnxt_hwrm_tx_ring_alloc(bp, txr, false);
 		if (rc)
@@ -16643,6 +16685,11 @@ static int bnxt_queue_start(struct net_device *dev,
 		rc = bnxt_hwrm_cp_ring_alloc_p5(bp, rxr->rx_cpr);
 		if (rc)
 			goto err_reset;
+
+		rc = bnxt_hwrm_set_rx_ring_coal(bp, bnapi);
+		if (rc)
+			netdev_warn(bp->dev, "HWRM set coalescing failure rc: %d\n",
+				    rc);
 	}
 
 	rc = bnxt_hwrm_rx_agg_ring_alloc(bp, rxr);

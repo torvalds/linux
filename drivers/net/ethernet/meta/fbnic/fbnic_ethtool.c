@@ -1740,6 +1740,9 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	ts_stats->lost = fbn->tx_stats.twq.ts_lost;
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		ring = fbn->tx[i];
+		if (!ring)
+			continue;
+
 		do {
 			start = u64_stats_fetch_begin(&ring->stats.syncp);
 			ts_packets = ring->stats.twq.ts_packets;
@@ -1867,12 +1870,14 @@ fbnic_get_pause_stats(struct net_device *netdev,
 
 	mac_stats = &fbd->hw_stats.mac;
 
+	spin_lock(&fbd->hw_stats.lock);
 	fbd->mac->get_pause_stats(fbd, false, &mac_stats->pause);
 
 	pause_stats->tx_pause_frames = mac_stats->pause.tx_pause_frames.value;
 	pause_stats->rx_pause_frames = mac_stats->pause.rx_pause_frames.value;
 	tx_ps_events = mac_stats->pause.tx_pause_storm_events.value;
 	pause_stats->tx_pause_storm_events = tx_ps_events;
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static void
@@ -1928,6 +1933,7 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 	mac_stats = &fbd->hw_stats.mac;
 	mac = fbd->mac;
 
+	spin_lock(&fbd->hw_stats.lock);
 	mac->get_eth_mac_stats(fbd, false, &mac_stats->eth_mac);
 
 	fbnic_set_counter(&eth_mac_stats->FramesTransmittedOK,
@@ -1956,6 +1962,7 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 			  &mac_stats->eth_mac.BroadcastFramesReceivedOK);
 	fbnic_set_counter(&eth_mac_stats->FrameTooLongErrors,
 			  &mac_stats->eth_mac.FrameTooLongErrors);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static void
@@ -1968,12 +1975,14 @@ fbnic_get_eth_ctrl_stats(struct net_device *netdev,
 
 	mac_stats = &fbd->hw_stats.mac;
 
+	spin_lock(&fbd->hw_stats.lock);
 	fbd->mac->get_eth_ctrl_stats(fbd, false, &mac_stats->eth_ctrl);
 
 	eth_ctrl_stats->MACControlFramesReceived =
 		mac_stats->eth_ctrl.MACControlFramesReceived.value;
 	eth_ctrl_stats->MACControlFramesTransmitted =
 		mac_stats->eth_ctrl.MACControlFramesTransmitted.value;
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static const struct ethtool_rmon_hist_range fbnic_rmon_ranges[] = {
@@ -2003,6 +2012,7 @@ fbnic_get_rmon_stats(struct net_device *netdev,
 
 	mac_stats = &fbd->hw_stats.mac;
 
+	spin_lock(&fbd->hw_stats.lock);
 	fbd->mac->get_rmon_stats(fbd, false, &mac_stats->rmon);
 
 	rmon_stats->undersize_pkts =
@@ -2018,6 +2028,7 @@ fbnic_get_rmon_stats(struct net_device *netdev,
 		rmon_stats->hist[i] = mac_stats->rmon.hist[i].value;
 		rmon_stats->hist_tx[i] = mac_stats->rmon.hist_tx[i].value;
 	}
+	spin_unlock(&fbd->hw_stats.lock);
 
 	*ranges = fbnic_rmon_ranges;
 }

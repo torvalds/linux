@@ -205,6 +205,14 @@ static int nsim_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static void nsim_get_ts_stats(struct net_device *dev,
+			      struct ethtool_ts_stats *ts_stats)
+{
+	ts_stats->pkts = 3;
+	ts_stats->lost = 1;
+	ts_stats->err = 0;
+}
+
 static u32 nsim_get_rxfh_key_size(struct net_device *dev)
 {
 	return NETDEV_RSS_KEY_LEN;
@@ -275,6 +283,7 @@ static const struct ethtool_ops nsim_ethtool_ops = {
 	.set_fecparam			= nsim_set_fecparam,
 	.get_fec_stats			= nsim_get_fec_stats,
 	.get_ts_info			= nsim_get_ts_info,
+	.get_ts_stats			= nsim_get_ts_stats,
 };
 
 static void nsim_ethtool_ring_init(struct netdevsim *ns)

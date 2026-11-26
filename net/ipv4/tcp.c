@@ -358,7 +358,7 @@ static u8 secs_to_retrans(int seconds, int timeout, int rto_max)
 		int period = timeout;
 
 		res = 1;
-		while (seconds > period && res < 255) {
+		while (seconds > period && res < MAX_TCP_SYNCNT) {
 			res++;
 			timeout <<= 1;
 			if (timeout > rto_max)
@@ -1352,6 +1352,8 @@ new_segment:
 
 			err = skb_zerocopy_iter_stream(sk, skb, msg, copy, uarg,
 						       binding);
+			if (!skb_zcopy_pure(skb))
+				sk_forced_mem_schedule(sk, 0);
 			if (err == -EMSGSIZE || err == -EEXIST) {
 				tcp_mark_push(tp, skb);
 				goto new_segment;

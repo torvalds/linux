@@ -948,6 +948,8 @@ static int xsk_skb_init_misc(struct sk_buff *skb, struct xdp_sock *xs,
 {
 	int err;
 
+	skb_reset_network_header(skb);
+
 	err = xsk_skb_destructor_set_addr(skb, addr);
 	if (unlikely(err))
 		return err;
@@ -1006,7 +1008,8 @@ static int xsk_skb_metadata(struct sk_buff *skb, void *buffer,
 		csum_offset = READ_ONCE(meta->request.csum_offset);
 
 		if (unlikely(csum_start + csum_offset +
-			     sizeof(__sum16) > desc->len))
+			     sizeof(__sum16) > desc->len ||
+			     hr + csum_start >= U16_MAX))
 			return -EINVAL;
 
 		skb->csum_start = hr + csum_start;

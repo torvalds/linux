@@ -106,8 +106,6 @@ static const u16 iwl_unii9_nvm_channels[] = {
 #define IWL_NVM_NUM_CHANNELS_EXT	51
 #define IWL_NVM_NUM_CHANNELS_UHB	110
 #define IWL_NVM_NUM_CHANNELS_UNII9	ARRAY_SIZE(iwl_unii9_nvm_channels)
-#define NUM_2GHZ_CHANNELS		14
-#define NUM_5GHZ_CHANNELS		37
 #define FIRST_2GHZ_HT_MINUS		5
 #define LAST_2GHZ_HT_PLUS		9
 #define N_HW_ADDR_MASK			0xF
@@ -280,7 +278,7 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 		      CHECK_AND_PRINT_I(40MHZ),
 		      CHECK_AND_PRINT_I(80MHZ),
 		      CHECK_AND_PRINT_I(160MHZ),
-		      CHECK_AND_PRINT_I(DC_HIGH),
+		      CHECK_AND_PRINT_I(320MHZ),
 		      CHECK_AND_PRINT_I(VLP),
 		      CHECK_AND_PRINT_I(AFC));
 #undef CHECK_AND_PRINT_I
@@ -1632,6 +1630,8 @@ u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 		flags |= NL80211_RRF_NO_80MHZ;
 	if (!(nvm_flags & NVM_CHANNEL_160MHZ))
 		flags |= NL80211_RRF_NO_160MHZ;
+	if (!(nvm_flags & NVM_CHANNEL_320MHZ))
+		flags |= NL80211_RRF_NO_320MHZ;
 
 	if (!(nvm_flags & NVM_CHANNEL_ACTIVE))
 		flags |= NL80211_RRF_NO_IR;

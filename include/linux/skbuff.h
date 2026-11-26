@@ -3187,6 +3187,7 @@ static inline u32 skb_mac_header_len(const struct sk_buff *skb)
 static inline void skb_unset_mac_header(struct sk_buff *skb)
 {
 	skb->mac_header = (typeof(skb->mac_header))~0U;
+	skb->mac_len = 0;
 }
 
 static inline void skb_reset_mac_header(struct sk_buff *skb)
