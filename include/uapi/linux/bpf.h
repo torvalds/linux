@@ -934,6 +934,7 @@ union bpf_iter_link_info {
  *		by *prog_fd*, and the stream is identified by the *stream_id*.
  *		The data is copied to a buffer pointed to by *stream_buf*, and
  *		filled less than or equal to *stream_buf_len* bytes.
+ *		The caller needs **CAP_PERFMON**.
  *
  *	Return
  *		Number of bytes read from the stream on success, or -1 if an
@@ -953,7 +954,7 @@ union bpf_iter_link_info {
  *	Description
  *		Open a file descriptor for one of the BPF streams associated
  *		with the program identified by *prog_fd*. The stream is selected
- *		by *stream_id*.
+ *		by *stream_id*. The caller needs **CAP_PERFMON**.
  *
  *		The returned file descriptor supports **read**\ (2) and
  *		**poll**\ (2). Reads block while the stream is empty unless

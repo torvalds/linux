@@ -159,6 +159,7 @@ struct btf_struct_metas {
 extern const struct file_operations btf_fops;
 
 const char *btf_get_name(const struct btf *btf);
+u64 btf_raw_tp_null_mask(const struct bpf_prog *prog);
 void btf_get(struct btf *btf);
 void btf_put(struct btf *btf);
 const struct btf_header *btf_header(const struct btf *btf);

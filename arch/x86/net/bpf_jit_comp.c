@@ -683,6 +683,12 @@ static void __emit_indirect_jump(u8 **pprog, int reg, bool ereg)
 	*pprog = prog;
 }
 
+/* its_static_thunk() can give the one that completes the check of a hash */
+static u8 *its_thunk(int reg)
+{
+	return IS_ENABLED(CONFIG_MITIGATION_ITS) ? __x86_indirect_its_thunk_array[reg] : NULL;
+}
+
 static void emit_indirect_jump(u8 **pprog, int bpf_reg, u8 *ip)
 {
 	u8 *prog = *pprog;
@@ -691,7 +697,7 @@ static void emit_indirect_jump(u8 **pprog, int bpf_reg, u8 *ip)
 
 	if (cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS)) {
 		OPTIMIZER_HIDE_VAR(reg);
-		emit_jump(&prog, its_static_thunk(reg + 8*ereg), ip);
+		emit_jump(&prog, its_thunk(reg + 8*ereg), ip);
 	} else if (cpu_feature_enabled(X86_FEATURE_RETPOLINE_LFENCE)) {
 		EMIT_LFENCE();
 		__emit_indirect_jump(&prog, reg, ereg);
@@ -732,7 +738,7 @@ static int emit_indirect_call(u8 **pprog, int bpf_reg, u8 *ip)
 
 	if (cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS)) {
 		OPTIMIZER_HIDE_VAR(reg);
-		err = emit_call(&prog, its_static_thunk(reg + 8*ereg), ip);
+		err = emit_call(&prog, its_thunk(reg + 8*ereg), ip);
 	} else if (cpu_feature_enabled(X86_FEATURE_RETPOLINE_LFENCE)) {
 		EMIT_LFENCE();
 		__emit_indirect_call(&prog, reg, ereg);
@@ -1681,6 +1687,23 @@ static int emit_atomic_rmw_index(u8 **pprog, u32 atomic_op, u32 size,
 	return 0;
 }
 
+/*
+ * AUX_REG = dst_reg, with the low bits of dst_reg + off in the top bits. r12 + AUX_REG + off
+ * is not canonical when it's not aligned: the access faults, no split lock is taken.
+ */
+static void emit_arena_align_check(u8 **pprog, const struct bpf_insn *insn, u32 dst_reg)
+{
+	int size = BPF_LDST_BYTES(insn);
+	u8 *prog = *pprog;
+
+	/* lea r11, [dst_reg + off % size] */
+	EMIT2(add_2mod(0x48, dst_reg, AUX_REG), 0x8D);
+	emit_insn_suffix(&prog, dst_reg, AUX_REG, insn->off & (size - 1));
+	emit_shift_imm(&prog, BPF_LSH, AUX_REG, 64 - ilog2(size), true);
+	emit_alu_reg(&prog, BPF_OR, AUX_REG, dst_reg, true);
+	*pprog = prog;
+}
+
 static int emit_atomic_ld_st(struct bpf_verifier_env *env, u8 **pprog,
 			     struct bpf_insn *insn, u8 *ip, u32 dst_reg,
 			     u32 src_reg, bool accesses_stack_only)
@@ -1765,12 +1788,14 @@ static int emit_atomic_fetch_rmw(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
 	branch_target = prog;
 
 	/* Load old value */
+	if (index_reg >= 0)
+		emit_arena_align_check(&prog, insn, dst_reg);
 	if (fault)
 		fault[0] = prog;
 	if (index_reg < 0)
 		emit_ldx(&prog, BPF_SIZE(insn->code), BPF_REG_0, dst_reg, insn->off);
 	else
-		emit_ldx_index(&prog, BPF_SIZE(insn->code), BPF_REG_0, dst_reg,
+		emit_ldx_index(&prog, BPF_SIZE(insn->code), BPF_REG_0, AUX_REG,
 			       index_reg, insn->off);
 
 	/*
@@ -2575,7 +2600,8 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 		      bpf_prog_was_classic(bpf_prog), tail_call_reachable,
 		      bpf_is_subprog(bpf_prog), bpf_prog->aux->exception_cb);
 
-	bpf_prog->aux->ksym.fp_start = prog - temp;
+	bpf_prog->aux->ksym.fp_start = prog - temp - cfi_get_offset();
+	bpf_prog->aux->ksym.fp_end = U32_MAX;
 
 	/* Exception callback will clobber callee regs for its own use, and
 	 * restore the original callee regs from main prog's stack frame.
@@ -3403,6 +3429,8 @@ populate_extable:
 				}
 				break;
 			}
+			if (!bpf_atomic_is_load_store(insn))
+				emit_arena_align_check(&prog, insn, dst_reg);
 			start_of_ldx = prog;
 
 			if (bpf_atomic_is_load_store(insn))
@@ -3411,7 +3439,7 @@ populate_extable:
 							      src_reg, X86_REG_R12, insn->off);
 			else
 				err = emit_atomic_rmw_index(&prog, insn->imm, BPF_SIZE(insn->code),
-							    dst_reg, src_reg, X86_REG_R12,
+							    AUX_REG, src_reg, X86_REG_R12,
 							    insn->off);
 			if (err)
 				return err;
@@ -3801,7 +3829,7 @@ emit_jmp:
 					pop_r12(&prog);
 			}
 			EMIT1(0xC9);         /* leave */
-			bpf_prog->aux->ksym.fp_end = prog - temp;
+			bpf_prog->aux->ksym.fp_ret = proglen + (prog - temp) - cfi_get_offset();
 
 			emit_return(&prog, image + addrs[i - 1] + (prog - temp));
 			break;
@@ -4453,8 +4481,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	}
 	EMIT1(0x55);		 /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp, rsp */
-	if (im)
-		im->ksym.fp_start = prog - (u8 *)rw_image;
+	im->ksym.fp_start = prog - (u8 *)rw_image;
 
 	/* sub rsp, stack_size */
 	emit_sub_rsp(&prog, stack_size);
@@ -4595,8 +4622,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	emit_ldx(&prog, BPF_DW, BPF_REG_6, BPF_REG_FP, -rbx_off);
 
 	EMIT1(0xC9); /* leave */
-	if (im)
-		im->ksym.fp_end = prog - (u8 *)rw_image;
+	im->ksym.fp_end = prog - (u8 *)rw_image;
 
 	if (flags & BPF_TRAMP_F_SKIP_FRAME) {
 		/* skip our return address and return to parent */
@@ -4675,6 +4701,7 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 
 static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, u8 *buf)
 {
+	void *nop_func = bpf_dispatcher_nop_func;
 	u8 *jg_reloc, *prog = *pprog;
 	int pivot, err, jg_bytes = 1;
 	s64 jg_offset;
@@ -4694,7 +4721,11 @@ static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, 
 		if (err)
 			return err;
 
-		emit_indirect_jump(&prog, BPF_REG_3 /* R3 -> rdx */, image + (prog - buf));
+		/* With FineIBT there is no ENDBR at bpf_func, go through the preamble */
+		OPTIMIZER_HIDE_VAR(nop_func);
+		err = emit_jump(&prog, nop_func, image + (prog - buf));
+		if (err)
+			return err;
 
 		*pprog = prog;
 		return 0;

@@ -83,6 +83,8 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 	u8 *ptr = NULL;
 
 	if (k >= SKF_NET_OFF) {
+		if (unlikely(!bpf_skb_has_network_header(skb)))
+			return NULL;
 		ptr = skb_network_header(skb) + k - SKF_NET_OFF;
 	} else if (k >= SKF_LL_OFF) {
 		if (unlikely(!skb_mac_header_was_set(skb)))
@@ -233,7 +235,8 @@ void bpf_prog_fill_jited_linfo(struct bpf_prog *prog,
 	const struct bpf_line_info *linfo;
 	void **jited_linfo;
 
-	if (!prog->aux->jited_linfo || prog->aux->func_idx > prog->aux->func_cnt)
+	if (!prog->aux->jited_linfo ||
+	    (prog->aux->func_idx && prog->aux->func_idx >= prog->aux->func_cnt))
 		/* Userspace did not provide linfo */
 		return;
 
@@ -647,11 +650,10 @@ static struct latch_tree_root bpf_tree __cacheline_aligned;
 
 void bpf_ksym_add(struct bpf_ksym *ksym)
 {
-	spin_lock_bh(&bpf_lock);
+	guard(spinlock_irqsave)(&bpf_lock);
 	WARN_ON_ONCE(!list_empty(&ksym->lnode));
 	list_add_tail_rcu(&ksym->lnode, &bpf_kallsyms);
 	latch_tree_insert(&ksym->tnode, &bpf_tree, &bpf_tree_ops);
-	spin_unlock_bh(&bpf_lock);
 }
 
 static void __bpf_ksym_del(struct bpf_ksym *ksym)
@@ -665,9 +667,8 @@ static void __bpf_ksym_del(struct bpf_ksym *ksym)
 
 void bpf_ksym_del(struct bpf_ksym *ksym)
 {
-	spin_lock_bh(&bpf_lock);
+	guard(spinlock_irqsave)(&bpf_lock);
 	__bpf_ksym_del(ksym);
-	spin_unlock_bh(&bpf_lock);
 }
 
 static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
@@ -786,7 +787,7 @@ bool bpf_has_frame_pointer(unsigned long ip)
 
 	offset = ip - ksym->start;
 
-	return offset >= ksym->fp_start && offset < ksym->fp_end;
+	return offset >= ksym->fp_start && offset < ksym->fp_end && offset != ksym->fp_ret;
 }
 
 const struct exception_table_entry *search_bpf_extables(unsigned long addr)
@@ -2515,17 +2516,33 @@ static unsigned int __bpf_prog_ret0_warn(const void *ctx,
 	return 0;
 }
 
+/* What the verifier took from the hook, next to its prototype */
+static u64 bpf_prog_hook_key(const struct bpf_prog *fp)
+{
+	if (IS_ENABLED(CONFIG_BPF_SYSCALL) && fp->aux->attach_btf_trace)
+		return btf_raw_tp_null_mask(fp);
+	if (fp->type == BPF_PROG_TYPE_TRACING && fp->expected_attach_type != BPF_TRACE_ITER)
+		return fp->aux->saved_dst_ctx_type;
+	if (fp->type == BPF_PROG_TYPE_TRACING || fp->type == BPF_PROG_TYPE_LSM)
+		return fp->aux->attach_btf_id;
+	return 0;
+}
+
 static bool __bpf_prog_map_compatible(struct bpf_map *map,
 				      const struct bpf_prog *fp)
 {
+	enum bpf_attach_type attach_type = fp->expected_attach_type;
 	enum bpf_prog_type prog_type = resolve_prog_type(fp);
 	struct bpf_prog_aux *aux = fp->aux;
 	enum bpf_cgroup_storage_type i;
+	u64 cookie, hook_key = bpf_prog_hook_key(fp);
 	bool ret = false;
-	u64 cookie;
 
 	if (fp->kprobe_override)
 		return ret;
+
+	if (fp->type == BPF_PROG_TYPE_EXT)
+		attach_type = aux->saved_dst_attach_type;
 
 	spin_lock(&map->owner_lock);
 	/* There's no owner yet where we could check for compatibility. */
@@ -2537,8 +2554,10 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		map->owner->jited = fp->jited;
 		map->owner->xdp_has_frags = aux->xdp_has_frags;
 		map->owner->sleepable = fp->sleepable;
-		map->owner->expected_attach_type = fp->expected_attach_type;
+		map->owner->expected_attach_type = attach_type;
 		map->owner->attach_func_proto = aux->attach_func_proto;
+		map->owner->st_ops = aux->st_ops;
+		map->owner->hook_key = hook_key;
 		for_each_cgroup_storage_type(i) {
 			map->owner->storage_cookie[i] =
 				aux->cgroup_storage[i] ?
@@ -2549,10 +2568,12 @@ static bool __bpf_prog_map_compatible(struct bpf_map *map,
 		ret = map->owner->type  == prog_type &&
 		      map->owner->jited == fp->jited &&
 		      map->owner->xdp_has_frags == aux->xdp_has_frags &&
-		      map->owner->sleepable == fp->sleepable;
+		      map->owner->sleepable == fp->sleepable &&
+		      map->owner->st_ops == aux->st_ops &&
+		      map->owner->hook_key == hook_key;
 		if (ret &&
 		    map->map_type == BPF_MAP_TYPE_PROG_ARRAY &&
-		    map->owner->expected_attach_type != fp->expected_attach_type)
+		    map->owner->expected_attach_type != attach_type)
 			ret = false;
 		for_each_cgroup_storage_type(i) {
 			if (!ret)
@@ -3692,6 +3713,15 @@ void bpf_timed_may_goto_restore(const struct bpf_prog *prog, struct bpf_timed_ma
 	cur = this_cpu_ptr(prog->aux->timed_may_goto);
 	if (cur->owner == saved)
 		*cur = *saved;
+}
+
+/* A walk of the stack is too long for BPF_MAX_TIMED_LOOPS trips. The next one looks at the time. */
+void bpf_timed_may_goto_check_time(const struct bpf_prog *prog)
+{
+	struct bpf_timed_may_goto __percpu *tmg = prog->aux->main_prog_aux->timed_may_goto;
+
+	if (tmg && this_cpu_read(tmg->count))
+		this_cpu_write(tmg->count, 1);
 }
 
 /* for configs without MMU or 32-bit */

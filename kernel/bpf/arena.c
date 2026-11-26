@@ -149,6 +149,8 @@ struct apply_range_data {
 	struct bpf_arena *arena;
 	struct llist_head *pages;
 	int i;
+	bool can_flush;	/* the caller can flush TLB of all cpus after it drops the lock */
+	bool flush;
 };
 
 struct clear_range_data {
@@ -189,6 +191,12 @@ static int apply_range_set_cb(pte_t *pte, unsigned long addr, void *data)
 			continue;
 		if (WARN_ON_ONCE(pte_page(old) != d->arena->scratch_page))
 			return -EBUSY;
+#ifndef flush_tlb_before_set
+		/* The scratch page is in TLB, and it takes an IPI to flush it */
+		if (!d->can_flush)
+			return -EBUSY;
+		d->flush = true;
+#endif
 		ptep_get_and_clear(&init_mm, addr, pte);
 		flush_tlb_before_set(addr);
 	}
@@ -571,6 +579,7 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	}
 	llist_add(&new_page->pcp_llist, &pages);
 	data.arena = arena;
+	data.can_flush = false;
 	data.pages = &pages;
 	data.i = 0;
 
@@ -637,16 +646,13 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 		return -EINVAL;
 	if (len > (u64)map->max_entries * PAGE_SIZE)
 		return -E2BIG;
+	/* each page in the range tree needs an address */
+	if (len < (u64)map->max_entries * PAGE_SIZE)
+		return -EINVAL;
 
 	/* if user_vm_start was specified at arena creation time */
-	if (arena->user_vm_start) {
-		if (len > arena->user_vm_end - arena->user_vm_start)
-			return -E2BIG;
-		if (len != arena->user_vm_end - arena->user_vm_start)
-			return -EINVAL;
-		if (addr != arena->user_vm_start)
-			return -EINVAL;
-	}
+	if (arena->user_vm_start && addr != arena->user_vm_start)
+		return -EINVAL;
 
 	/*
 	 * Without MAP_FIXED the mm finds a free range. Ask for twice the
@@ -806,6 +812,8 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 		goto out_memcg;
 
 	data.arena = arena;
+	data.can_flush = sleepable;
+	data.flush = false;
 	data.pages = &pages;
 	data.i = 0;
 
@@ -836,17 +844,18 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 
 	flush_vmap_cache(kern_vm_start + uaddr32, mapped << PAGE_SHIFT);
 	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
+	if (data.flush)
+		flush_tlb_kernel_range(kern_vm_start + uaddr32,
+				       kern_vm_start + uaddr32 + (mapped << PAGE_SHIFT));
 
 	addr = clear_lo32(arena->user_vm_start) + uaddr32;
 	goto out_memcg;
 
 out_unmap:
-	/* Error handling: Undo partial mappings. */
+	/* Error handling: Undo partial mappings, unmap the scratch page. */
 	flush_vmap_cache(kern_vm_start + uaddr32, mapped << PAGE_SHIFT);
-	range_tree_set(&arena->rt, pgoff + mapped, page_cnt - mapped);
 	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
-	if (mapped)
-		arena_free_pages(arena, uaddr32, mapped, sleepable);
+	arena_free_pages(arena, uaddr32, page_cnt, sleepable);
 
 out_free_pages:
 	/* Error handling: Free back any unmapped pages. */
@@ -1178,9 +1187,10 @@ __bpf_kfunc int bpf_arena_reserve_pages(void *p__map, void *ptr__ign, u32 page_c
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(arena_kfuncs)
-BTF_ID_FLAGS(func, bpf_arena_alloc_pages, KF_ARENA_RET | KF_ARENA_ARG2 | KF_SPINLOCK_SAFE)
-BTF_ID_FLAGS(func, bpf_arena_free_pages, KF_ARENA_ARG2 | KF_SPINLOCK_SAFE)
-BTF_ID_FLAGS(func, bpf_arena_reserve_pages, KF_ARENA_ARG2 | KF_SPINLOCK_SAFE)
+BTF_ID_FLAGS(func, bpf_arena_alloc_pages,
+	     KF_ARENA_RET | KF_ARENA_ARG2 | KF_SPINLOCK_SAFE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_arena_free_pages, KF_ARENA_ARG2 | KF_SPINLOCK_SAFE | KF_PERFMON)
+BTF_ID_FLAGS(func, bpf_arena_reserve_pages, KF_ARENA_ARG2 | KF_SPINLOCK_SAFE | KF_PERFMON)
 BTF_KFUNCS_END(arena_kfuncs)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {

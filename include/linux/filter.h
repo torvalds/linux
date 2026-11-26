@@ -1055,6 +1055,15 @@ static inline void bpf_restore_data_end(
 	cb->data_end = saved_data_end;
 }
 
+/*
+ * If nothing has set the header, it points to headroom that was not written.
+ * The packet starts at skb->head when skb->data or the MAC header is there.
+ */
+static inline bool bpf_skb_has_network_header(const struct sk_buff *skb)
+{
+	return skb->network_header || !skb->mac_header || !skb_headroom(skb);
+}
+
 static inline u8 *bpf_skb_cb(const struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta
@@ -1334,6 +1343,7 @@ u64 bpf_arch_uaddress_limit(void);
 void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie);
 u64 arch_bpf_timed_may_goto(void);
 u64 bpf_check_timed_may_goto(struct bpf_timed_may_goto *);
+void bpf_timed_may_goto_check_time(const struct bpf_prog *prog);
 void bpf_timed_may_goto_save(const struct bpf_prog *prog, struct bpf_timed_may_goto *saved);
 void bpf_timed_may_goto_restore(const struct bpf_prog *prog, struct bpf_timed_may_goto *saved);
 bool bpf_helper_changes_pkt_data(enum bpf_func_id func_id);
@@ -1948,13 +1958,14 @@ static __always_inline long __bpf_xdp_redirect_map(struct bpf_map *map, u64 inde
 						   u64 flags, const u64 flag_mask,
 						   void *lookup_elem(struct bpf_map *map, u32 key))
 {
-	struct bpf_redirect_info *ri = bpf_net_ctx_get_ri();
 	const u64 action_mask = XDP_ABORTED | XDP_DROP | XDP_PASS | XDP_TX;
+	struct bpf_redirect_info *ri;
 
 	/* Lower bits of the flags are used as return code on lookup failure */
-	if (unlikely(flags & ~(action_mask | flag_mask)))
+	if (unlikely(!bpf_net_ctx_get() || flags & ~(action_mask | flag_mask)))
 		return XDP_ABORTED;
 
+	ri = bpf_net_ctx_get_ri();
 	ri->tgt_value = lookup_elem(map, index);
 	if (unlikely(!ri->tgt_value) && !(flags & BPF_F_BROADCAST)) {
 		/* If the lookup fails we want to clear out the state in the

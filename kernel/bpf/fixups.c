@@ -1572,6 +1572,9 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	prog->jited_len = func[0]->jited_len;
 	prog->aux->extable = func[0]->aux->extable;
 	prog->aux->num_exentries = func[0]->aux->num_exentries;
+	prog->aux->ksym.fp_start = func[0]->aux->ksym.fp_start;
+	prog->aux->ksym.fp_end = func[0]->aux->ksym.fp_end;
+	prog->aux->ksym.fp_ret = func[0]->aux->ksym.fp_ret;
 	prog->aux->func = func;
 	prog->aux->func_cnt = env->subprog_cnt - env->hidden_subprog_cnt;
 	prog->aux->real_func_cnt = env->subprog_cnt;
@@ -2254,6 +2257,10 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 			 * the program array.
 			 */
 			prog->cb_access = 1;
+			prog->call_get_func_ip = 1;
+			if (prog_type == BPF_PROG_TYPE_TRACING &&
+			    (eatype == BPF_TRACE_FSESSION || eatype == BPF_TRACE_FSESSION_MULTI))
+				prog->call_session_cookie = 1;
 			if (!bpf_allow_tail_call_in_subprogs(env))
 				prog->aux->stack_depth = MAX_BPF_STACK;
 			prog->aux->max_pkt_offset = MAX_PACKET_OFF;

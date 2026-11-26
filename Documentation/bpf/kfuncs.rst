@@ -537,7 +537,8 @@ addresses to the BPF program, for example by reading through a pointer that the
 verifier does not check. Calling such a kfunc requires CAP_PERFMON, or
 CAP_SYS_ADMIN, in the same way that the equivalent BPF helpers are gated in
 bpf_base_func_proto(). A program loaded with CAP_BPF alone is rejected at load
-time.
+time. The flag is implied when the program gets a returned ``void *`` as a
+number.
 
 2.6 Registering the kfuncs
 --------------------------

@@ -15,6 +15,7 @@
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <linux/printk.h>
+#include <linux/scs.h>
 #include <linux/slab.h>
 
 #include <asm/asm-extable.h>
@@ -600,6 +601,12 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 		 * 12 registers are on the stack
 		 */
 		emit(A64_SUB_I(1, A64_SP, A64_FP, 96), ctx);
+		/*
+		 * Pop the return address of bpf_throw() from the shadow call
+		 * stack. The frames of the JIT put nothing there.
+		 */
+		if (scs_is_enabled())
+			emit(A64_SUB_I(1, A64_R(18), A64_R(18), 8), ctx);
 		/* The callback may use its own BPF stack, set up fp for it. */
 		ctx->fp_used = true;
 	}

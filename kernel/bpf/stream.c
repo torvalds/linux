@@ -74,7 +74,9 @@ static int bpf_stream_consume_capacity(struct bpf_stream *stream, int len)
 
 static void bpf_stream_release_capacity(struct bpf_stream *stream, int len)
 {
-	atomic_sub(len, &stream->capacity);
+	if (atomic_sub_return(len, &stream->capacity) + READ_ONCE(stream->refused) <
+	    BPF_STREAM_MAX_CAPACITY)
+		WRITE_ONCE(stream->refused, 0);
 }
 
 static void bpf_stream_notify(struct irq_work *work)
@@ -266,6 +268,8 @@ int bpf_prog_stream_read(struct bpf_prog *prog, enum bpf_stream_id stream_id, vo
 {
 	struct bpf_stream *stream;
 
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return -EPERM;
 	stream = bpf_stream_get(stream_id, prog->aux);
 	if (!stream)
 		return -ENOENT;
@@ -366,6 +370,8 @@ int bpf_prog_stream_new_fd(struct bpf_prog *prog, enum bpf_stream_id stream_id, 
 	int fd_flags = O_RDONLY | O_CLOEXEC;
 	int fd;
 
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return -EPERM;
 	stream = bpf_stream_get(stream_id, prog->aux);
 	if (!stream)
 		return -ENOENT;
@@ -490,6 +496,15 @@ void bpf_prog_stream_free(struct bpf_prog *prog)
 	}
 }
 
+/* A dump of the stack is expensive, and a loop can ask for one on each trip */
+bool bpf_stream_has_room(struct bpf_prog *prog, enum bpf_stream_id stream_id)
+{
+	struct bpf_stream *stream = bpf_stream_get(stream_id, prog->aux);
+
+	return stream && atomic_read(&stream->capacity) + READ_ONCE(stream->refused) <
+			 BPF_STREAM_MAX_CAPACITY;
+}
+
 void bpf_stream_stage_init(struct bpf_stream_stage *ss)
 {
 	init_llist_head(&ss->log);
@@ -531,13 +546,19 @@ int bpf_stream_stage_commit(struct bpf_stream_stage *ss, struct bpf_prog *prog,
 	struct bpf_stream *stream;
 	int ret;
 
+	bpf_timed_may_goto_check_time(prog);
+
 	stream = bpf_stream_get(stream_id, prog->aux);
 	if (!stream)
 		return -EINVAL;
+	if (!ss->len)
+		return 0;
 
 	ret = bpf_stream_consume_capacity(stream, ss->len);
-	if (ret)
+	if (ret) {
+		WRITE_ONCE(stream->refused, min(ss->len, BPF_STREAM_MAX_CAPACITY / 2));
 		return ret;
+	}
 
 	list = llist_del_all(&ss->log);
 	head = tail = list;
