@@ -32,6 +32,7 @@
 #include <linux/cpumask.h>
 #include <linux/cnum.h>
 #include <linux/gcd.h>
+#include <linux/unaligned.h>
 #include <linux/bpf_mem_alloc.h>
 #include <net/xdp.h>
 #include <linux/trace_events.h>
@@ -6386,13 +6387,13 @@ int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
 		*val = is_ldsx ? (s64)*(s8 *)ptr : (u64)*(u8 *)ptr;
 		break;
 	case sizeof(u16):
-		*val = is_ldsx ? (s64)*(s16 *)ptr : (u64)*(u16 *)ptr;
+		*val = is_ldsx ? (s64)get_unaligned((s16 *)ptr) : (u64)get_unaligned((u16 *)ptr);
 		break;
 	case sizeof(u32):
-		*val = is_ldsx ? (s64)*(s32 *)ptr : (u64)*(u32 *)ptr;
+		*val = is_ldsx ? (s64)get_unaligned((s32 *)ptr) : (u64)get_unaligned((u32 *)ptr);
 		break;
 	case sizeof(u64):
-		*val = *(u64 *)ptr;
+		*val = get_unaligned((u64 *)ptr);
 		break;
 	default:
 		return -EINVAL;
