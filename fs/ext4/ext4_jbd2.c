@@ -432,7 +432,19 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 					 err);
 		}
 	} else {
-		if (inode) {
+		/*
+		 * Fast commit replay runs without a handle, before the
+		 * writeback paths are set up.  Don't track the buffer in the
+		 * inode's metadata list then: mmb_mark_buffer_dirty() sets
+		 * I_METADATA_WRITEBACK, and since the superblock isn't active
+		 * yet the iput() ending the replay step writes the inode out
+		 * and enters ext4_writepages() before s_writepages_rwsem is
+		 * initialized.  Journal recovery flushes the whole block
+		 * device once replay is done, so the buffer still gets
+		 * written.
+		 */
+		if (inode && !(EXT4_SB(inode->i_sb)->s_mount_state &
+			       EXT4_FC_REPLAY)) {
 			if (!ext4_i_metadata_bhs(inode))
 				ext4_inode_attach_mmb(inode);
 			mmb_mark_buffer_dirty(bh, ext4_i_metadata_bhs(inode));

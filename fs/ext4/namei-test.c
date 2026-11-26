@@ -16,6 +16,7 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/user_namespace.h>
 #include <linux/unicode.h>
 
 #include "ext4.h"
@@ -447,6 +448,7 @@ static int namei_test_init(struct kunit *test)
 	ctx->sb.s_time_gran = 1;
 	ctx->sb.s_op = &namei_test_sops;
 	ctx->sb.s_fs_info = &ctx->sbi;
+	ctx->sb.s_user_ns = &init_user_ns;
 	ctx->sb.s_bdev = &ctx->bdev;
 #ifdef CONFIG_FS_ENCRYPTION
 	ctx->sb.s_cop = &ext4_cryptops;

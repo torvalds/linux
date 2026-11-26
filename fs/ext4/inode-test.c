@@ -1149,6 +1149,8 @@ static struct inode_test_ctx *inode_test_setup(struct kunit *test)
 				   inode_test_sb_getblk_stub);
 	kunit_activate_static_stub(test, ext4_sb_find_get_block,
 				   inode_test_sb_find_get_block_stub);
+	kunit_activate_static_stub(test, ext4_sb_find_get_block_nonatomic,
+				   inode_test_sb_find_get_block_stub);
 	kunit_activate_static_stub(test, ext4_sb_getblk_unmovable,
 				   inode_test_sb_getblk_unmovable_stub);
 	kunit_activate_static_stub(test, ext4_ext_getblk,

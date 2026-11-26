@@ -13,6 +13,7 @@
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/user_namespace.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -275,6 +276,7 @@ static int inline_test_init(struct kunit *test)
 	ctx->sb.s_time_gran = 1;
 	ctx->sb.s_bdi = &noop_backing_dev_info;
 	ctx->sb.s_fs_info = &ctx->sbi;
+	ctx->sb.s_user_ns = &init_user_ns;
 	ctx->sb.s_op = &inline_test_sops;
 #ifdef CONFIG_FS_ENCRYPTION
 	ctx->sb.s_cop = &ext4_cryptops;
