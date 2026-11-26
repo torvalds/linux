@@ -56,6 +56,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/crc32.h>
 #include <linux/dmi.h>
+#include <linux/log2.h>
 
 #include <net/checksum.h>
 #include <net/gso.h>
@@ -3379,6 +3380,9 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 	u32 nvram_cmd;
 	u8 *tmp;
 
+	if (pagesize < 4 || !is_power_of_2(pagesize))
+		return -EINVAL;
+
 	tmp = kmalloc(pagesize, GFP_KERNEL);
 	if (tmp == NULL)
 		return -ENOMEM;
@@ -3399,13 +3403,14 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 			break;
 
 		page_off = offset & pagemask;
-		size = pagesize;
+		size = pagesize - page_off;
 		if (len < size)
 			size = len;
 
 		len -= size;
 
 		memcpy(tmp + page_off, buf, size);
+		buf += size;
 
 		offset = offset + (pagesize - page_off);
 
@@ -8866,6 +8871,13 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 						      GFP_KERNEL);
 		if (!tnapi->hw_status)
 			goto err_out;
+
+		if (tg3_asic_rev(tp) == ASIC_REV_57766 &&
+		    (lower_32_bits(tnapi->status_mapping) & 0xffff0000) ==
+		    0xffff0000)
+			dev_warn(&tp->pdev->dev,
+				 "Status block at DMA address %pad may cause TX timeouts on this device\n",
+				 &tnapi->status_mapping);
 
 		sblk = tnapi->hw_status;
 
@@ -15990,20 +16002,26 @@ static void tg3_read_mgmtfw_ver(struct tg3 *tp)
 	}
 }
 
-static void tg3_probe_ncsi(struct tg3 *tp)
+/* Returns true if valid, ready APE firmware is present, regardless of
+ * whether it advertises NCSI (it may be DASH or SMASH).  Sets APE_HAS_NCSI
+ * if the NCSI feature is advertised.
+ */
+static bool tg3_probe_ncsi(struct tg3 *tp)
 {
 	u32 apedata;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
 	if (apedata != APE_SEG_SIG_MAGIC)
-		return;
+		return false;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
 	if (!(apedata & APE_FW_STATUS_READY))
-		return;
+		return false;
 
 	if (tg3_ape_read32(tp, TG3_APE_FW_FEATURES) & TG3_APE_FW_FEATURE_NCSI)
 		tg3_flag_set(tp, APE_HAS_NCSI);
+
+	return true;
 }
 
 static void tg3_read_dash_ver(struct tg3 *tp)
@@ -16082,8 +16100,7 @@ static void tg3_read_fw_ver(struct tg3 *tp)
 
 	if (tg3_flag(tp, ENABLE_ASF)) {
 		if (tg3_flag(tp, ENABLE_APE)) {
-			tg3_probe_ncsi(tp);
-			if (!vpd_vers)
+			if (tg3_probe_ncsi(tp) && !vpd_vers)
 				tg3_read_dash_ver(tp);
 		} else if (!vpd_vers) {
 			tg3_read_mgmtfw_ver(tp);
@@ -17756,6 +17773,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 	u64 dma_mask, persist_dma_mask;
 	netdev_features_t features = 0;
 	u8 addr[ETH_ALEN] __aligned(2);
+	u64 test_dma_mask = 0;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -17895,15 +17913,22 @@ static int tg3_init_one(struct pci_dev *pdev,
 		persist_dma_mask = dma_mask = DMA_BIT_MASK(64);
 
 	if (tg3_asic_rev(tp) == ASIC_REV_57766)
-		persist_dma_mask = DMA_BIT_MASK(31);
+		test_dma_mask = DMA_BIT_MASK(31);
 
 	/* Configure DMA attributes. */
 	if (dma_mask > DMA_BIT_MASK(32)) {
 		err = dma_set_mask(&pdev->dev, dma_mask);
 		if (!err) {
 			features |= NETIF_F_HIGHDMA;
-			err = dma_set_coherent_mask(&pdev->dev,
-						    persist_dma_mask);
+			if (!test_dma_mask ||
+			    dma_set_coherent_mask(&pdev->dev,
+						  test_dma_mask)) {
+				if (test_dma_mask)
+					dev_warn(&pdev->dev,
+						 "Unable to set 31 bit coherent DMA mask, workaround not applied\n");
+				err = dma_set_coherent_mask(&pdev->dev,
+							    persist_dma_mask);
+			}
 			if (err < 0) {
 				dev_err(&pdev->dev, "Unable to obtain 64 bit "
 					"DMA for consistent allocations\n");
