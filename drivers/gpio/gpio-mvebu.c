@@ -1213,6 +1213,9 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (ngpios == 0 || ngpios > MVEBU_MAX_GPIO_PER_BANK)
+		return dev_err_probe(&pdev->dev, -EINVAL, "ngpios must be between 1 and 32\n");
+
 	id = of_alias_get_id(pdev->dev.of_node, "gpio");
 	if (id < 0) {
 		dev_err(&pdev->dev, "Couldn't get OF id\n");
