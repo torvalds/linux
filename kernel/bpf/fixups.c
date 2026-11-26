@@ -911,6 +911,7 @@ int bpf_convert_ctx_accesses(struct bpf_verifier_env *env)
 	const int insn_cnt = env->prog->len;
 	struct bpf_insn *epilogue_buf = env->epilogue_buf;
 	struct bpf_insn *insn_buf = env->insn_buf;
+	bool nospec, nospec_next = false;
 	struct bpf_insn *insn;
 	u32 target_size, size_default, off;
 	struct bpf_prog *new_prog;
@@ -994,8 +995,13 @@ int bpf_convert_ctx_accesses(struct bpf_verifier_env *env)
 		enum bpf_reg_type ptr_type;
 		u8 mode;
 
-		if (env->insn_aux_data[i + delta].nospec) {
-			WARN_ON_ONCE(env->insn_aux_data[i + delta].alu_state);
+		/* A call or an atomic gets its nospec in front of the next insn */
+		nospec = env->insn_aux_data[i + delta].nospec;
+		WARN_ON_ONCE(nospec && env->insn_aux_data[i + delta].alu_state);
+		nospec |= nospec_next;
+		nospec_next = env->insn_aux_data[i + delta].nospec_result;
+
+		if (nospec) {
 			struct bpf_insn *patch = insn_buf;
 
 			*patch++ = BPF_ST_NOSPEC();
@@ -1102,6 +1108,7 @@ int bpf_convert_ctx_accesses(struct bpf_verifier_env *env)
 			delta    += cnt - 1;
 			env->prog = new_prog;
 			insn      = new_prog->insnsi + i + delta;
+			nospec_next = false;
 			continue;
 		}
 

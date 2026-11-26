@@ -32,6 +32,7 @@
 #include <linux/cpumask.h>
 #include <linux/cnum.h>
 #include <linux/gcd.h>
+#include <linux/unaligned.h>
 #include <linux/bpf_mem_alloc.h>
 #include <net/xdp.h>
 #include <linux/trace_events.h>
@@ -3825,7 +3826,7 @@ static bool __is_pointer_value(bool allow_ptr_leaks,
 	if (allow_ptr_leaks)
 		return false;
 
-	return is_pointer_regtype(reg->type);
+	return reg->type != SCALAR_VALUE;
 }
 
 static void assign_scalar_id_before_mov(struct bpf_verifier_env *env,
@@ -6386,13 +6387,13 @@ int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
 		*val = is_ldsx ? (s64)*(s8 *)ptr : (u64)*(u8 *)ptr;
 		break;
 	case sizeof(u16):
-		*val = is_ldsx ? (s64)*(s16 *)ptr : (u64)*(u16 *)ptr;
+		*val = is_ldsx ? (s64)get_unaligned((s16 *)ptr) : (u64)get_unaligned((u16 *)ptr);
 		break;
 	case sizeof(u32):
-		*val = is_ldsx ? (s64)*(s32 *)ptr : (u64)*(u32 *)ptr;
+		*val = is_ldsx ? (s64)get_unaligned((s32 *)ptr) : (u64)get_unaligned((u32 *)ptr);
 		break;
 	case sizeof(u64):
-		*val = *(u64 *)ptr;
+		*val = get_unaligned((u64 *)ptr);
 		break;
 	default:
 		return -EINVAL;
@@ -20649,7 +20650,8 @@ static int do_check(struct bpf_verifier_env *env)
 	for (;;) {
 		struct bpf_insn *insn;
 		struct bpf_insn_aux_data *insn_aux;
-		int err;
+		int err, ctx_field_size;
+		bool nospec_result;
 
 		if (signal_pending(current))
 			return -EAGAIN;
@@ -20802,6 +20804,8 @@ static int do_check(struct bpf_verifier_env *env)
 		if (state->speculative && insn_aux->nospec)
 			goto process_bpf_exit;
 
+		nospec_result = insn_aux->nospec_result;
+		ctx_field_size = insn_aux->ctx_field_size;
 		err = do_check_insn(env, &do_print_state);
 		if (error_recoverable_with_nospec(err) && state->speculative) {
 			/* Prevent this speculative path from ever reaching the
@@ -20812,6 +20816,8 @@ static int do_check(struct bpf_verifier_env *env)
 			 * markings for alu sanitization.
 			 */
 			insn_aux->alu_state = 0;
+			insn_aux->nospec_result = nospec_result;
+			insn_aux->ctx_field_size = ctx_field_size;
 			goto process_bpf_exit;
 		} else if (err < 0) {
 			return err;
