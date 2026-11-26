@@ -5842,7 +5842,7 @@ static int clone_range(struct send_ctx *sctx, struct btrfs_path *dst_path,
 		u8 type;
 		u64 ext_len;
 		u64 clone_len;
-		u64 clone_data_offset;
+		u64 clone_data_offset = 0;
 		bool crossed_src_i_size = false;
 
 		if (slot >= btrfs_header_nritems(leaf)) {
@@ -5906,23 +5906,26 @@ static int clone_range(struct send_ctx *sctx, struct btrfs_path *dst_path,
 			crossed_src_i_size = true;
 		}
 
-		clone_data_offset = btrfs_file_extent_offset(leaf, ei);
-		if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte) {
-			clone_root->offset = key.offset;
-			if (clone_data_offset < data_offset &&
-				clone_data_offset + ext_len > data_offset) {
-				u64 extent_offset;
+		if (type != BTRFS_FILE_EXTENT_INLINE) {
+			clone_data_offset = btrfs_file_extent_offset(leaf, ei);
+			if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte) {
+				clone_root->offset = key.offset;
+				if (clone_data_offset < data_offset &&
+				    clone_data_offset + ext_len > data_offset) {
+					u64 extent_offset;
 
-				extent_offset = data_offset - clone_data_offset;
-				ext_len -= extent_offset;
-				clone_data_offset += extent_offset;
-				clone_root->offset += extent_offset;
+					extent_offset = data_offset - clone_data_offset;
+					ext_len -= extent_offset;
+					clone_data_offset += extent_offset;
+					clone_root->offset += extent_offset;
+				}
 			}
 		}
 
 		clone_len = min_t(u64, ext_len, len);
 
-		if (btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte &&
+		if (type != BTRFS_FILE_EXTENT_INLINE &&
+		    btrfs_file_extent_disk_bytenr(leaf, ei) == disk_byte &&
 		    clone_data_offset == data_offset) {
 			const u64 src_end = clone_root->offset + clone_len;
 			const u64 sectorsize = SZ_64K;
@@ -6371,6 +6374,9 @@ next:
 static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 			   struct btrfs_key *key)
 {
+	BTRFS_PATH_AUTO_FREE(next_path);
+	const u64 cur_extent_end = btrfs_file_extent_end(path);
+	u64 next_offset;
 	int ret = 0;
 
 	if (sctx->cur_ino != key->objectid || !need_send_hole(sctx))
@@ -6397,14 +6403,72 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 		ret = range_is_hole_in_parent(sctx,
 					      sctx->cur_inode_last_extent,
 					      key->offset);
+		if (ret == 0)
+			ret = send_hole(sctx, key->offset);
+		else if (ret == 1)
+			ret = 0;
+
 		if (ret < 0)
 			return ret;
-		else if (ret == 0)
-			ret = send_hole(sctx, key->offset);
-		else
-			ret = 0;
 	}
-	sctx->cur_inode_last_extent = btrfs_file_extent_end(path);
+	sctx->cur_inode_last_extent = cur_extent_end;
+
+	/*
+	 * If we are the last file extent item in a leaf, we may have had a tail
+	 * section that got a hole punched or the extent replaced with a smaller
+	 * one, and if there is no change in the next leaf, we must find out if
+	 * we have such a hole and punch it.
+	 */
+	if (!btrfs_fs_incompat(sctx->send_root->fs_info, NO_HOLES) ||
+	    (sctx->cur_inode_size <= cur_extent_end) ||
+	    (path->slots[0] != btrfs_header_nritems(path->nodes[0]) - 1))
+		return 0;
+
+	next_path = alloc_path_for_send();
+	if (!next_path)
+		return -ENOMEM;
+
+	ret = btrfs_search_slot(NULL, sctx->send_root, key, next_path, 0, 0);
+	if (ret < 0)
+		return ret;
+	if (WARN_ON(ret != 0))
+		return -EUCLEAN;
+
+	ret = btrfs_next_leaf(sctx->send_root, next_path);
+	if (ret < 0) {
+		return ret;
+	} else if (ret > 0) {
+		/*
+		 * No next leaf, must punch hole to i_size and set the path back
+		 * to where it was before.
+		 */
+		next_offset = sctx->cur_inode_size;
+	} else {
+		struct btrfs_key next_key;
+
+		btrfs_item_key_to_cpu(next_path->nodes[0], &next_key,
+				      next_path->slots[0]);
+		if (next_key.objectid != key->objectid ||
+		    next_key.type != BTRFS_EXTENT_DATA_KEY)
+			next_offset = sctx->cur_inode_size;
+		else
+			next_offset = next_key.offset;
+	}
+
+	if (next_offset == cur_extent_end)
+		return 0;
+
+	btrfs_free_path(next_path);
+	next_path = NULL;
+
+	ret = range_is_hole_in_parent(sctx, sctx->cur_inode_last_extent, next_offset);
+	if (ret == 0)
+		ret = send_hole(sctx, next_offset);
+	else if (ret == 1)
+		ret = 0;
+
+	sctx->cur_inode_last_extent = next_offset;
+
 	return ret;
 }
 

@@ -892,9 +892,13 @@ ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * If the write DIO is within EOF, use a shared lock and also only if
 	 * security bits will likely not be dropped by file_remove_privs() called
 	 * from btrfs_write_check(). Either will need to be rechecked after the
-	 * lock was acquired.
+	 * lock was acquired. Also if this is a sync write we will need to fsync
+	 * and therefore we must lock in exclusive mode, otherwise we would race
+	 * with other concurrent DIO writes and the fsync would not wait for
+	 * their ordered extent to finish IO before logging the new extent maps.
 	 */
-	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) && IS_NOSEC(inode))
+	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) &&
+	    IS_NOSEC(inode) && !iocb_is_dsync(iocb))
 		ilock_flags |= BTRFS_ILOCK_SHARED;
 
 relock:
@@ -911,6 +915,13 @@ relock:
 
 	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
 	    test_bit(BTRFS_INODE_REFLINK_SRC, &BTRFS_I(inode)->runtime_flags)) {
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
+		ilock_flags &= ~BTRFS_ILOCK_SHARED;
+		goto relock;
+	}
+
+	/* Sync writes must use exclusive locking, see the comment above. */
+	if ((ilock_flags & BTRFS_ILOCK_SHARED) && iocb_is_dsync(iocb)) {
 		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		ilock_flags &= ~BTRFS_ILOCK_SHARED;
 		goto relock;

@@ -4661,7 +4661,8 @@ out:
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 
 	io_uring_cmd_done(cmd, ret, IO_URING_CMD_TASK_WORK_ISSUE_FLAGS);
-	add_rchar(current, ret);
+	if (ret > 0)
+		add_rchar(current, ret);
 
 	for (index = 0; index < priv->nr_pages; index++)
 		__free_page(priv->pages[index]);
@@ -5051,6 +5052,7 @@ static int btrfs_ioctl_subvol_sync(struct btrfs_fs_info *fs_info, void __user *a
 	struct btrfs_ioctl_subvol_wait args = { 0 };
 	signed long sched_ret;
 	int refs;
+	int ret;
 	u64 root_flags;
 	bool wait_for_deletion = false;
 	bool found = false;
@@ -5121,8 +5123,9 @@ static int btrfs_ioctl_subvol_sync(struct btrfs_fs_info *fs_info, void __user *a
 	}
 
 	/* 32bit limitation: fs_roots_radix key is not wide enough. */
-	if (sizeof(unsigned long) != sizeof(u64) && args.subvolid > U32_MAX)
-		return -EOVERFLOW;
+	ret = btrfs_check_subvolid(fs_info, args.subvolid);
+	if (ret < 0)
+		return ret;
 
 	while (1) {
 		/* Wait for the specific one. */

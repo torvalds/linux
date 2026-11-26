@@ -1129,6 +1129,15 @@ static struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root;
 
+#if BITS_PER_LONG == 32
+	/*
+	 * Roots with ids above ULONG_MAX are never inserted into the radix
+	 * tree, and a truncated index may hit an unrelated root.
+	 */
+	if (root_id > ULONG_MAX)
+		return NULL;
+#endif
+
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)root_id);
@@ -1180,6 +1189,10 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 			 struct btrfs_root *root)
 {
 	int ret;
+
+	ret = btrfs_check_subvolid(fs_info, btrfs_root_id(root));
+	if (ret)
+		return ret;
 
 	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
@@ -4347,10 +4360,6 @@ static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)
 			   trans->transid, dirty_bytes);
 		btrfs_cleanup_one_transaction(trans);
 
-		if (trans == fs_info->running_transaction)
-			fs_info->running_transaction = NULL;
-		list_del_init(&trans->list);
-
 		btrfs_put_transaction(trans);
 	}
 	ASSERT(!found);
@@ -4972,7 +4981,13 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans)
 				     EXTENT_DIRTY);
 	btrfs_destroy_pinned_extent(fs_info, &cur_trans->pinned_extents);
 
-	cur_trans->state =TRANS_STATE_COMPLETED;
+	spin_lock(&fs_info->trans_lock);
+	if (cur_trans == fs_info->running_transaction)
+		fs_info->running_transaction = NULL;
+	list_del_init(&cur_trans->list);
+	spin_unlock(&fs_info->trans_lock);
+
+	cur_trans->state = TRANS_STATE_COMPLETED;
 	wake_up(&cur_trans->commit_wait);
 }
 
@@ -5007,12 +5022,6 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 			spin_unlock(&fs_info->trans_lock);
 		}
 		btrfs_cleanup_one_transaction(t);
-
-		spin_lock(&fs_info->trans_lock);
-		if (t == fs_info->running_transaction)
-			fs_info->running_transaction = NULL;
-		list_del_init(&t->list);
-		spin_unlock(&fs_info->trans_lock);
 
 		btrfs_put_transaction(t);
 		spin_lock(&fs_info->trans_lock);

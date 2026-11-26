@@ -280,8 +280,7 @@ void btrfs_check_folio_write_protected(struct folio *folio);
 static inline void btrfs_check_folio_write_protected(struct folio *folio) { }
 #endif
 void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
-			       u64 start, u64 end, struct writeback_control *wbc,
-			       bool pages_dirty);
+			       u64 start, u64 end, struct writeback_control *wbc);
 int btrfs_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int btree_writepages(struct address_space *mapping, struct writeback_control *wbc);
 void btrfs_btree_wait_writeback_range(struct btrfs_fs_info *fs_info, u64 start, u64 end);

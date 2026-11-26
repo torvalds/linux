@@ -120,8 +120,21 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 		ret = btrfs_decompress(comp_type, data_start, folio,
 				       offset_in_folio(folio, file_offset),
 				       inline_size, datal);
-		if (ret)
+		if (ret) {
+			/*
+			 * btrfs_reset_extent_delalloc() set the range as
+			 * delalloc, so clear it, otherwise we will free the
+			 * reserved data and metadata space twice, once below by
+			 * btrfs_delalloc_release_space() and once again when
+			 * someone else clears the delalloc range with
+			 * EXTENT_DO_ACCOUNTING (like
+			 * btrfs_reset_extent_delalloc() does).
+			 */
+			btrfs_clear_extent_bit(&inode->io_tree, file_offset,
+					       range_end, EXTENT_DELALLOC |
+					       EXTENT_DELALLOC_NEW, NULL);
 			goto out_unlock;
+		}
 		flush_dcache_folio(folio);
 	}
 

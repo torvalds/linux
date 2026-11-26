@@ -2879,8 +2879,7 @@ retry:
  * locked.
  */
 void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
-			       u64 start, u64 end, struct writeback_control *wbc,
-			       bool pages_dirty)
+			       u64 start, u64 end, struct writeback_control *wbc)
 {
 	bool found_error = false;
 	int ret = 0;
@@ -2923,7 +2922,7 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 		cur_len = cur_end + 1 - cur;
 
 		ASSERT(folio_test_locked(folio));
-		if (pages_dirty && folio != locked_folio)
+		if (folio != locked_folio)
 			ASSERT(folio_test_dirty(folio));
 
 		/*

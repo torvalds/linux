@@ -340,6 +340,7 @@ void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws)
 {
 	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
 	struct workspace *workspace = list_to_workspace(ws);
+	bool wakeup;
 
 	ASSERT(zwsm);
 	spin_lock_bh(&zwsm->lock);
@@ -363,9 +364,14 @@ void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws)
 	list_add(&workspace->list, &zwsm->idle_ws[workspace->level]);
 	workspace->req_level = 0;
 
+	/*
+	 * Check if we should wakeup before releasing the lock because after
+	 * that the reclaim function can run and free the workspace.
+	 */
+	wakeup = (workspace->level == clip_level(ZSTD_BTRFS_MAX_LEVEL));
 	spin_unlock_bh(&zwsm->lock);
 
-	if (workspace->level == clip_level(ZSTD_BTRFS_MAX_LEVEL))
+	if (wakeup)
 		cond_wake_up(&zwsm->wait);
 }
 
