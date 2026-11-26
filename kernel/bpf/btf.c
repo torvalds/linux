@@ -9703,6 +9703,9 @@ BPF_CALL_4(bpf_btf_find_by_name_kind, char *, name, int, name_sz, u32, kind, int
 	if (name_sz <= 1 || name[name_sz - 1])
 		return -EINVAL;
 
+	if (bpf_in_async_cb())
+		return -EPERM;
+
 	ret = bpf_find_btf_id(name, kind, &btf);
 	if (ret > 0 && btf_is_module(btf)) {
 		btf_obj_fd = __btf_new_fd(btf);

@@ -11494,6 +11494,12 @@ static int push_callback_call(struct bpf_verifier_env *env, struct bpf_insn *ins
 		struct bpf_verifier_state *async_cb;
 
 		/* there is no real recursion here. timer and workqueue callbacks are async */
+		/* there is no cgroup to take the storage from */
+		if (env->prog->aux->cgroup_storage[BPF_CGROUP_STORAGE_SHARED] ||
+		    env->prog->aux->cgroup_storage[BPF_CGROUP_STORAGE_PERCPU]) {
+			verbose(env, "async callback in a program with cgroup storage\n");
+			return -EINVAL;
+		}
 		env->subprog_info[subprog].is_async_cb = true;
 		async_cb = push_async_cb(env, env->subprog_info[subprog].start,
 					 insn_idx, subprog,

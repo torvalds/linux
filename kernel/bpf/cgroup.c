@@ -2110,7 +2110,7 @@ BPF_CALL_0(bpf_get_retval)
 	struct bpf_cg_run_ctx *ctx =
 		container_of(current->bpf_ctx, struct bpf_cg_run_ctx, run_ctx);
 
-	return ctx->retval;
+	return bpf_in_async_cb() ? 0 : ctx->retval;
 }
 
 const struct bpf_func_proto bpf_get_retval_proto = {
@@ -2124,6 +2124,8 @@ BPF_CALL_1(bpf_set_retval, int, retval)
 	struct bpf_cg_run_ctx *ctx =
 		container_of(current->bpf_ctx, struct bpf_cg_run_ctx, run_ctx);
 
+	if (bpf_in_async_cb())
+		return -EOPNOTSUPP;
 	ctx->retval = retval;
 	return 0;
 }

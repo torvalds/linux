@@ -3440,6 +3440,14 @@ static inline bool has_current_bpf_ctx(void)
 	return !!current->bpf_ctx;
 }
 
+/* An async callback runs in no hook, and current is not the task that has armed it */
+extern struct bpf_run_ctx bpf_async_run_ctx;
+
+static inline bool bpf_in_async_cb(void)
+{
+	return current->bpf_ctx == &bpf_async_run_ctx;
+}
+
 void notrace bpf_prog_inc_misses_counter(struct bpf_prog *prog);
 
 void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
@@ -3761,6 +3769,11 @@ static inline bool unprivileged_ebpf_enabled(void)
 }
 
 static inline bool has_current_bpf_ctx(void)
+{
+	return false;
+}
+
+static inline bool bpf_in_async_cb(void)
 {
 	return false;
 }

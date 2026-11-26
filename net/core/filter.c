@@ -5866,10 +5866,16 @@ static int sol_ipv6_sockopt(struct sock *sk, int optname,
 				  KERNEL_SOCKPTR(optval), *optlen);
 }
 
+/* No hook has locked the socket for an async callback */
+static bool bpf_sockopt_allowed(const struct sock *sk)
+{
+	return sk && sk_fullsock(sk) && !bpf_in_async_cb();
+}
+
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	if (!sk || !sk_fullsock(sk))
+	if (!bpf_sockopt_allowed(sk))
 		return -EINVAL;
 
 	if (level == SOL_SOCKET)
@@ -5892,7 +5898,7 @@ static bool is_locked_tcp_sock_ops(struct bpf_sock_ops_kern *bpf_sock)
 static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk && sk_fullsock(sk))
+	if (bpf_sockopt_allowed(sk))
 		sock_owned_by_me(sk);
 	return __bpf_setsockopt(sk, level, optname, optval, optlen);
 }
@@ -5902,7 +5908,7 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 {
 	int err, saved_optlen = optlen;
 
-	if (!sk || !sk_fullsock(sk)) {
+	if (!bpf_sockopt_allowed(sk)) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -5929,7 +5935,7 @@ done:
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk && sk_fullsock(sk))
+	if (bpf_sockopt_allowed(sk))
 		sock_owned_by_me(sk);
 	return __bpf_getsockopt(sk, level, optname, optval, optlen);
 }

@@ -6618,6 +6618,9 @@ static bool syscall_prog_is_valid_access(int off, int size,
 
 BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 {
+	if (bpf_in_async_cb())
+		return -EPERM;
+
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 	case BPF_MAP_DELETE_ELEM:
@@ -6707,7 +6710,7 @@ BPF_CALL_1(bpf_sys_close, u32, fd)
 	 * This helper is allowed in the following callchain only:
 	 * sys_bpf->prog_test_run->bpf_prog->bpf_sys_close
 	 */
-	return close_fd(fd);
+	return bpf_in_async_cb() ? -EPERM : close_fd(fd);
 }
 
 static const struct bpf_func_proto bpf_sys_close_proto = {
@@ -6727,7 +6730,7 @@ BPF_CALL_4(bpf_kallsyms_lookup_name, const char *, name, int, name_sz, int, flag
 	if (name_sz <= 1 || name[name_sz - 1])
 		return -EINVAL;
 
-	if (!bpf_dump_raw_ok(current_cred()))
+	if (bpf_in_async_cb() || !bpf_dump_raw_ok(current_cred()))
 		return -EPERM;
 
 	*res = kallsyms_lookup_name(name);
