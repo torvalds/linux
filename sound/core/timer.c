@@ -657,9 +657,12 @@ static int snd_timer_start1(struct snd_timer_instance *timeri,
 	return result;
 }
 
-/* start/continue a slave timer */
-static int snd_timer_start_slave(struct snd_timer_instance *timeri,
-				 bool start)
+/*
+ * start/continue a slave timer;
+ * called with timer->lock held when the slave is linked to a master
+ */
+static int __snd_timer_start_slave(struct snd_timer_instance *timeri,
+				   bool start)
 {
 	if (timeri->flags & SNDRV_TIMER_IFLG_DEAD)
 		return -EINVAL;
@@ -667,13 +670,33 @@ static int snd_timer_start_slave(struct snd_timer_instance *timeri,
 		return -EBUSY;
 	timeri->flags |= SNDRV_TIMER_IFLG_RUNNING;
 	if (timeri->master && timeri->timer) {
-		guard(spinlock)(&timeri->timer->lock);
 		list_add_tail(&timeri->active_list,
 			      &timeri->master->slave_active_head);
 		snd_timer_notify1(timeri, start ? SNDRV_TIMER_EVENT_START :
 				  SNDRV_TIMER_EVENT_CONTINUE);
 	}
 	return 1; /* delayed start */
+}
+
+/*
+ * start/continue a slave timer
+ *
+ * The flags of a slave linked to a master are updated also from the timer
+ * interrupt (SNDRV_TIMER_IFLG_CALLBACK in snd_timer_process_callbacks())
+ * under timer->lock.  Change them only under the same lock, otherwise one
+ * of the two read-modify-write updates may get lost.  The caller holds
+ * timeri_lock, hence timeri->timer can't change here; an unlinked slave is
+ * not reachable from any timer and needs no further protection.
+ */
+static int snd_timer_start_slave(struct snd_timer_instance *timeri,
+				 bool start)
+{
+	struct snd_timer *timer = timeri->timer;
+
+	if (!timer)
+		return __snd_timer_start_slave(timeri, start);
+	guard(spinlock)(&timer->lock);
+	return __snd_timer_start_slave(timeri, start);
 }
 
 /* stop/pause a master timer */
@@ -718,15 +741,17 @@ static int snd_timer_stop1(struct snd_timer_instance *timeri, bool stop)
 	return 0;
 }
 
-/* stop/pause a slave timer */
-static int snd_timer_stop_slave(struct snd_timer_instance *timeri, bool stop)
+/*
+ * stop/pause a slave timer;
+ * called with timer->lock held when the slave is linked to a master
+ */
+static int __snd_timer_stop_slave(struct snd_timer_instance *timeri, bool stop)
 {
 	bool running;
 
 	running = timeri->flags & SNDRV_TIMER_IFLG_RUNNING;
 	timeri->flags &= ~SNDRV_TIMER_IFLG_RUNNING;
 	if (timeri->timer) {
-		guard(spinlock)(&timeri->timer->lock);
 		list_del_init(&timeri->ack_list);
 		list_del_init(&timeri->active_list);
 		if (running)
@@ -734,6 +759,17 @@ static int snd_timer_stop_slave(struct snd_timer_instance *timeri, bool stop)
 					  SNDRV_TIMER_EVENT_PAUSE);
 	}
 	return running ? 0 : -EBUSY;
+}
+
+/* stop/pause a slave timer; see snd_timer_start_slave() for the locking */
+static int snd_timer_stop_slave(struct snd_timer_instance *timeri, bool stop)
+{
+	struct snd_timer *timer = timeri->timer;
+
+	if (!timer)
+		return __snd_timer_stop_slave(timeri, stop);
+	guard(spinlock)(&timer->lock);
+	return __snd_timer_stop_slave(timeri, stop);
 }
 
 /*
