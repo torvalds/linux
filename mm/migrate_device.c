@@ -87,39 +87,20 @@ static int migrate_vma_split_folio(struct folio *folio,
 {
 	int ret;
 	struct folio *fault_folio = fault_page ? page_folio(fault_page) : NULL;
-	struct folio *new_fault_folio = NULL;
-
-	if (folio != fault_folio)
-		folio_lock(folio);
-
-	ret = split_folio(folio);
-	if (ret) {
-		if (folio != fault_folio) {
-			folio_unlock(folio);
-			folio_put(folio);
-		}
-		return ret;
-	}
-
-	new_fault_folio = fault_page ? page_folio(fault_page) : NULL;
 
 	/*
-	 * Ensure the lock is held on the correct
-	 * folio after the split
+	 * The lock and the reference of the fault handler stay with the
+	 * folio which holds the fault page after the split.
 	 */
-	if (!new_fault_folio) {
-		folio_unlock(folio);
-		folio_put(folio);
-	} else if (folio != new_fault_folio) {
-		if (new_fault_folio != fault_folio) {
-			folio_get(new_fault_folio);
-			folio_lock(new_fault_folio);
-		}
-		folio_unlock(folio);
-		folio_put(folio);
-	}
+	if (folio == fault_folio)
+		return split_huge_page(fault_page);
 
-	return 0;
+	folio_lock(folio);
+	ret = split_folio(folio);
+	folio_unlock(folio);
+	folio_put(folio);
+
+	return ret;
 }
 
 /** migrate_vma_collect_huge_pmd - collect THP pages without splitting the
@@ -252,18 +233,25 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start, unmapped = 0;
 	spinlock_t *ptl;
-	struct folio *fault_folio = migrate->fault_page ?
-		page_folio(migrate->fault_page) : NULL;
+	struct folio *fault_folio;
 	pte_t *ptep;
 
 again:
+	/* The fault page is in another folio once its folio has been split */
+	fault_folio = migrate->fault_page ?
+		page_folio(migrate->fault_page) : NULL;
+
+	/* [start, addr) is collected if we get here after splitting a folio */
 	if (pmd_trans_huge(*pmdp) || !pmd_present(*pmdp)) {
-		int ret = migrate_vma_collect_huge_pmd(pmdp, start, end, walk, fault_folio);
+		int ret = migrate_vma_collect_huge_pmd(pmdp, addr, end, walk, fault_folio);
 
 		if (ret == -EAGAIN)
 			goto again;
-		if (ret == 0)
+		if (ret == 0) {
+			if (unmapped)
+				flush_tlb_range(walk->vma, start, end);
 			return 0;
+		}
 	}
 
 	ptep = pte_offset_map_lock(mm, pmdp, start, &ptl);
@@ -565,6 +553,27 @@ static bool migrate_vma_check_page(struct page *page, struct page *fault_page)
 }
 
 /*
+ * Pin the anonymous rmap if present to allow migration entries to be safely
+ * removed. Returns true if the pin succeeded or no pin is required, and false
+ * if the folio is no longer mapped.
+ */
+static bool pin_anon_rmap(struct folio *folio, unsigned long *src_pfn)
+{
+	if (!folio_test_anon(folio) || folio_test_ksm(folio))
+		return true;
+	if (!folio_get_anon_vma(folio)) /* Pin the anon rmap. */
+		return false;
+	*src_pfn |= MIGRATE_PFN_ANON_RMAP;
+	return true;
+}
+
+static void unpin_anon_rmap(struct folio *folio, unsigned long src_pfn)
+{
+	if (src_pfn & MIGRATE_PFN_ANON_RMAP)
+		put_anon_vma(folio_anon_vma(folio)); /* Unpin the anon rmap. */
+}
+
+/*
  * Unmaps pages for migration. Returns number of source pfns marked as
  * migrating.
  */
@@ -645,6 +654,7 @@ next:
 
 		folio = page_folio(page);
 		remove_migration_ptes(folio, folio, 0);
+		unpin_anon_rmap(folio, src_pfns[i]);
 
 		src_pfns[i] = 0;
 		if (fault_folio != folio)
@@ -829,6 +839,13 @@ static int migrate_vma_insert_huge_pmd_page(struct migrate_vma *migrate,
 	if (mem_cgroup_charge(folio, migrate->vma->vm_mm, gfp)) {
 		count_vm_event(THP_FAULT_FALLBACK);
 		count_mthp_stat(HPAGE_PMD_ORDER, MTHP_STAT_ANON_FAULT_FALLBACK_CHARGE);
+		ret = -ENOMEM;
+		goto abort;
+	}
+
+	if (folio_memcg_alloc_deferred(folio)) {
+		count_vm_event(THP_FAULT_FALLBACK);
+		count_mthp_stat(HPAGE_PMD_ORDER, MTHP_STAT_ANON_FAULT_FALLBACK);
 		ret = -ENOMEM;
 		goto abort;
 	}
@@ -1212,6 +1229,11 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 
 		if (folio_is_device_private(newfolio) ||
 		    folio_is_device_coherent(newfolio)) {
+			/* KSM does not scan or track device pages. */
+			if (folio_test_ksm(folio)) {
+				src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
+				goto next;
+			}
 			if (mapping) {
 				/*
 				 * For now only support anonymous memory migrating to
@@ -1331,6 +1353,7 @@ static void __migrate_device_finalize(unsigned long *src_pfns,
 		if (!folio_is_zone_device(dst))
 			folio_add_lru(dst);
 		remove_migration_ptes(src, dst, 0);
+		unpin_anon_rmap(src, src_pfns[i]);
 		if (fault_folio != src)
 			folio_unlock(src);
 		folio_put(src);
@@ -1380,6 +1403,7 @@ EXPORT_SYMBOL(migrate_vma_finalize);
 
 static unsigned long migrate_device_pfn_lock(unsigned long pfn)
 {
+	unsigned long src_pfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
 	struct folio *folio;
 
 	folio = folio_get_nontail_page(pfn_to_page(pfn));
@@ -1391,7 +1415,13 @@ static unsigned long migrate_device_pfn_lock(unsigned long pfn)
 		return 0;
 	}
 
-	return migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
+	if (!pin_anon_rmap(folio, &src_pfn)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return 0;
+	}
+
+	return src_pfn;
 }
 
 /**
@@ -1427,6 +1457,7 @@ int migrate_device_range(unsigned long *src_pfns, unsigned long start,
 		nr = folio_nr_pages(folio);
 		if (nr > npages - i) {
 			if (src_pfns[i] & MIGRATE_PFN_MIGRATE) {
+				unpin_anon_rmap(folio, src_pfns[i]);
 				folio_unlock(folio);
 				folio_put(folio);
 			}
@@ -1470,6 +1501,7 @@ int migrate_device_pfns(unsigned long *src_pfns, unsigned long npages)
 		nr = folio_nr_pages(folio);
 		if (nr > npages - i) {
 			if (src_pfns[i] & MIGRATE_PFN_MIGRATE) {
+				unpin_anon_rmap(folio, src_pfns[i]);
 				folio_unlock(folio);
 				folio_put(folio);
 			}
@@ -1505,6 +1537,11 @@ int migrate_device_coherent_folio(struct folio *folio)
 
 	folio_lock(folio);
 	src_pfn = migrate_pfn(folio_pfn(folio)) | MIGRATE_PFN_MIGRATE;
+	if (!pin_anon_rmap(folio, &src_pfn)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return -EBUSY;
+	}
 
 	/*
 	 * We don't have a VMA and don't need to walk the page tables to find

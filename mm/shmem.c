@@ -758,6 +758,13 @@ shmem_unused_huge_alloc_lru(struct shmem_sb_info *sbinfo, struct folio *folio,
 {
 	int ret;
 
+	/*
+	 * A migration target is in the page cache before it is charged. Once
+	 * charged, its objcg can't change while we hold a folio reference.
+	 */
+	if (!mem_cgroup_disabled() && !folio_memcg_charged(folio))
+		return ERR_PTR(-EAGAIN);
+
 	ret = folio_memcg_list_lru_alloc(folio, &sbinfo->shrinklist, gfp);
 	if (ret)
 		return ERR_PTR(ret);
@@ -887,12 +894,11 @@ static enum lru_status shmem_unused_huge_isolate(struct list_head *item,
 		return LRU_REMOVED;
 	}
 
+	/* keep shrinklist_objcg, requeue may need it */
 	list_lru_isolate(lru, item);
-	objcg = shmem_get_and_clear_objcg(info);
 	set_shmem_unused_huge_isolated(info);
 	list_add_tail(&info->shrinklist, &scan->list);
 	spin_unlock(&info->lock);
-	obj_cgroup_put(objcg);
 
 	return LRU_REMOVED;
 }
@@ -928,10 +934,26 @@ static bool is_shmem_unused_huge_match(struct folio *folio,
 static void shmem_unused_huge_drop(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct obj_cgroup *objcg;
 
 	spin_lock(&info->lock);
 	list_del_init(&info->shrinklist);
+	objcg = shmem_get_and_clear_objcg(info);
 	spin_unlock(&info->lock);
+
+	obj_cgroup_put(objcg);
+}
+
+static void shmem_unused_huge_requeue_locked(struct shmem_inode_info *info,
+					     struct shmem_sb_info *sbinfo,
+					     int nid)
+{
+	lockdep_assert_held(&info->lock);
+
+	list_del_init(&info->shrinklist);
+	shmem_unused_huge_lru_add(sbinfo, &info->shrinklist, nid,
+				  info->shrinklist_objcg);
+	info->shrinklist_nid = nid;
 }
 
 static void shmem_unused_huge_requeue(struct inode *inode, struct folio *folio)
@@ -943,17 +965,18 @@ static void shmem_unused_huge_requeue(struct inode *inode, struct folio *folio)
 
 	objcg = shmem_unused_huge_alloc_lru(sbinfo, folio, GFP_NOWAIT);
 	if (IS_ERR(objcg)) {
-		shmem_unused_huge_drop(inode);
+		spin_lock(&info->lock);
+		shmem_unused_huge_requeue_locked(info, sbinfo, nid);
+		spin_unlock(&info->lock);
 		return;
 	}
 
 	spin_lock(&info->lock);
-	/* Requeue the inode to shrinklist */
-	list_del_init(&info->shrinklist);
-	shmem_unused_huge_lru_add(sbinfo, &info->shrinklist, nid, objcg);
-	info->shrinklist_objcg = objcg;
-	info->shrinklist_nid = nid;
+	swap(info->shrinklist_objcg, objcg);
+	shmem_unused_huge_requeue_locked(info, sbinfo, nid);
 	spin_unlock(&info->lock);
+
+	obj_cgroup_put(objcg);
 }
 
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
@@ -2664,10 +2687,12 @@ failed:
 	 * A large folio that does not fit the mapping, e.g. because its swap
 	 * entries were freed and reused, would be found again on every retry.
 	 * Drop it from the swap cache so the retry can swap in a fitting one.
+	 * A failed swap write sets dirty and then ends writeback without the
+	 * folio lock, so test writeback before dirty.
 	 */
 	if (error == -EEXIST && folio && folio_test_large(folio) &&
-	    !folio_test_anon(folio) && !folio_test_dirty(folio) &&
-	    !folio_test_writeback(folio))
+	    !folio_test_anon(folio) && !folio_test_writeback(folio) &&
+	    !folio_test_dirty(folio))
 		swap_cache_del_folio(folio);
 unlock:
 	if (folio)
