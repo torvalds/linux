@@ -695,6 +695,7 @@ static int f81232_tiocmset(struct tty_struct *tty,
 
 static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
+	struct f81232_private *priv = usb_get_serial_port_data(port);
 	int result;
 
 	result = f81232_port_enable(port);
@@ -715,6 +716,8 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = usb_serial_generic_open(tty, port);
 	if (result) {
 		usb_kill_urb(port->interrupt_in_urb);
+		flush_work(&priv->interrupt_work);
+		flush_work(&priv->lsr_work);
 		return result;
 	}
 
