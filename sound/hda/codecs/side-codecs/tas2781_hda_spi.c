@@ -780,6 +780,7 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 	if (!hda_priv)
 		return -ENOMEM;
 
+	tas_hda->dev = &spi->dev;
 	tas_hda->hda_priv = hda_priv;
 	spi->max_speed_hz = TAS2781_SPI_MAX_FREQ;
 

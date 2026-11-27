@@ -153,24 +153,25 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 		return 0;
 	if (minor < 0)
 		return minor;
-	guard(mutex)(&sound_oss_mutex);
-	mptr = snd_oss_minors[minor];
-	if (mptr == NULL)
-		return -ENOENT;
-	switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
-	case SNDRV_MINOR_OSS_PCM:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
-		break;
-	case SNDRV_MINOR_OSS_MIDI:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI);
-		break;
-	case SNDRV_MINOR_OSS_MIDI1:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
-		break;
+	scoped_guard(mutex, &sound_oss_mutex) {
+		mptr = snd_oss_minors[minor];
+		if (mptr == NULL)
+			return -ENOENT;
+		switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
+		case SNDRV_MINOR_OSS_PCM:
+			track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
+			break;
+		case SNDRV_MINOR_OSS_MIDI:
+			track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI);
+			break;
+		case SNDRV_MINOR_OSS_MIDI1:
+			track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
+			break;
+		}
+		if (track2 >= 0)
+			snd_oss_minors[track2] = NULL;
+		snd_oss_minors[minor] = NULL;
 	}
-	if (track2 >= 0)
-		snd_oss_minors[track2] = NULL;
-	snd_oss_minors[minor] = NULL;
 
 	/* call unregister_sound_special() outside sound_oss_mutex;
 	 * otherwise may deadlock, as it can trigger the release of a card

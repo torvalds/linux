@@ -34,7 +34,6 @@
 #define MEMORY_SPACE_EFW_RESPONSE	0xecc080000000ULL
 
 #define ERROR_RETRIES 3
-#define ERROR_DELAY_MS 5
 #define EFC_TIMEOUT_MS 125
 
 static DEFINE_SPINLOCK(instances_lock);
@@ -99,7 +98,8 @@ int snd_efw_transaction_run(struct fw_unit *unit,
 			ret = t.size;
 			break;
 		} else if (t.state == STATE_BUS_RESET) {
-			msleep(ERROR_DELAY_MS);
+			ret = -EAGAIN;
+			break;
 		} else if (++tries >= ERROR_RETRIES) {
 			dev_err(&t.unit->device, "EFW transaction timed out\n");
 			ret = -EIO;

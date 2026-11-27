@@ -1347,6 +1347,10 @@ static void fsl_easrc_release_context(struct fsl_asrc_pair *ctx)
 
 	guard(spinlock_irqsave)(&easrc->lock);
 
+	/* Nothing to release if the context is not owned by @ctx */
+	if (easrc->pair[ctx->index] != ctx)
+		return;
+
 	fsl_easrc_release_slot(easrc, ctx->index);
 
 	easrc->channel_avail += ctx->channels;
@@ -1499,6 +1503,12 @@ static int fsl_easrc_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	snd_pcm_format_t format = params_format(params);
 	int ret;
+
+	/* hw_params() may be called again without hw_free() in between */
+	if (ctx_priv->ctx_streams & BIT(substream->stream)) {
+		ctx_priv->ctx_streams &= ~BIT(substream->stream);
+		fsl_easrc_release_context(ctx);
+	}
 
 	ret = fsl_easrc_request_context(channels, ctx);
 	if (ret) {

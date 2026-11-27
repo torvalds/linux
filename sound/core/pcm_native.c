@@ -718,12 +718,18 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 /* acquire buffer_mutex; if it's in r/w operation, return -EBUSY, otherwise
  * block the further r/w operations
  */
-static int snd_pcm_buffer_access_lock(struct snd_pcm_runtime *runtime)
+static int __snd_pcm_buffer_access_lock(struct snd_pcm_runtime *runtime,
+					int depth)
 {
 	if (!atomic_dec_unless_positive(&runtime->buffer_accessing))
 		return -EBUSY;
-	mutex_lock(&runtime->buffer_mutex);
+	mutex_lock_nested(&runtime->buffer_mutex, depth);
 	return 0; /* keep buffer_mutex, unlocked by below */
+}
+
+static int snd_pcm_buffer_access_lock(struct snd_pcm_runtime *runtime)
+{
+	return __snd_pcm_buffer_access_lock(runtime, 0);
 }
 
 /* release buffer_mutex and clear r/w access flag */
@@ -1317,26 +1323,38 @@ struct action_ops {
  *  this functions is core for handling of linked stream
  *  Note: the stream state might be changed also on failure
  *  Note2: call with calling stream lock + link lock
+ *
+ * Locking:
+ *  When @stream_lock is false, it takes buffer-access lock for all substreams.
+ *  OTOH, when @stream_lock is true, takes substream lock except for the
+ *  target substream (that should have taken its lock before calling this).
  */
 static int snd_pcm_action_group(const struct action_ops *ops,
 				struct snd_pcm_substream *substream,
 				snd_pcm_state_t state,
 				bool stream_lock)
 {
-	struct snd_pcm_substream *s = NULL;
-	struct snd_pcm_substream *s1;
-	int res = 0, depth = 1;
+	struct snd_pcm_substream *s, *s1, *last;
+	int res = 0, depth;
 
+	/* the caller already holds the target stream lock at depth 0 */
+	depth = stream_lock ? 1 : 0;
+
+	last = NULL;
 	snd_pcm_group_for_each_entry(s, substream) {
-		if (s != substream) {
-			if (!stream_lock)
-				mutex_lock_nested(&s->runtime->buffer_mutex, depth);
-			else if (s->pcm->nonatomic)
+		if (!stream_lock) {
+			res = __snd_pcm_buffer_access_lock(s->runtime, depth);
+			if (res < 0)
+				goto _unlock;
+			depth++;
+		} else if (s != substream) {
+			if (s->pcm->nonatomic)
 				mutex_lock_nested(&s->self_group.mutex, depth);
 			else
 				spin_lock_nested(&s->self_group.lock, depth);
 			depth++;
 		}
+		last = s;
 		res = ops->pre_action(s, state);
 		if (res < 0)
 			goto _unlock;
@@ -1351,7 +1369,6 @@ static int snd_pcm_action_group(const struct action_ops *ops,
 					ops->undo_action(s1, state);
 				}
 			}
-			s = NULL; /* unlock all */
 			goto _unlock;
 		}
 	}
@@ -1359,17 +1376,19 @@ static int snd_pcm_action_group(const struct action_ops *ops,
 		ops->post_action(s, state);
 	}
  _unlock:
+	if (!last)
+		return res;
 	/* unlock streams */
-	snd_pcm_group_for_each_entry(s1, substream) {
-		if (s1 != substream) {
-			if (!stream_lock)
-				mutex_unlock(&s1->runtime->buffer_mutex);
-			else if (s1->pcm->nonatomic)
-				mutex_unlock(&s1->self_group.mutex);
+	snd_pcm_group_for_each_entry(s, substream) {
+		if (!stream_lock) {
+			snd_pcm_buffer_access_unlock(s->runtime);
+		} else if (s != substream) {
+			if (s->pcm->nonatomic)
+				mutex_unlock(&s->self_group.mutex);
 			else
-				spin_unlock(&s1->self_group.lock);
+				spin_unlock(&s->self_group.lock);
 		}
-		if (s1 == s)	/* end */
+		if (s == last)	/* end */
 			break;
 	}
 	return res;
@@ -1496,13 +1515,13 @@ static int snd_pcm_action_nonatomic(const struct action_ops *ops,
 
 	/* Guarantee the group members won't change during non-atomic action */
 	guard(rwsem_read)(&snd_pcm_link_rwsem);
+	if (snd_pcm_stream_linked(substream))
+		return snd_pcm_action_group(ops, substream, state, false);
+
 	res = snd_pcm_buffer_access_lock(substream->runtime);
 	if (res < 0)
 		return res;
-	if (snd_pcm_stream_linked(substream))
-		res = snd_pcm_action_group(ops, substream, state, false);
-	else
-		res = snd_pcm_action_single(ops, substream, state);
+	res = snd_pcm_action_single(ops, substream, state);
 	snd_pcm_buffer_access_unlock(substream->runtime);
 	return res;
 }
@@ -3128,7 +3147,8 @@ static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
 		return 0;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		ret = do_pcm_hwsync(substream);
@@ -3138,7 +3158,6 @@ static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
 	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
-	atomic_dec(&runtime->buffer_accessing);
 	return ret;
 }
 
@@ -3152,7 +3171,8 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 		return 0;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		ret = do_pcm_hwsync(substream);
@@ -3162,7 +3182,6 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
-	atomic_dec(&runtime->buffer_accessing);
 	return ret;
 }
 
@@ -3173,7 +3192,8 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 	int err;
 
 	/* Keep the DMA buffer alive through the sync below. */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
 	scoped_guard(pcm_stream_lock_irq, substream) {
 		err = do_pcm_hwsync(substream);
@@ -3181,7 +3201,6 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 			*delay = snd_pcm_calc_delay(substream);
 	}
 	snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_CPU);
-	atomic_dec(&runtime->buffer_accessing);
 
 	return err;
 }
@@ -3422,6 +3441,9 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 	void *bufs __free(kfree) = NULL;
 	snd_pcm_sframes_t result;
 
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
+		return -EBUSY;
 	if (snd_pcm_get_state(substream) == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 	if (runtime->channels > 128)
@@ -3661,6 +3683,9 @@ static ssize_t snd_pcm_read(struct file *file, char __user *buf, size_t count,
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
+		return -EBUSY;
 	if (snd_pcm_state_open_or_disconnected(substream))
 		return -EBADFD;
 	if (!frame_aligned(runtime, count))
@@ -3685,6 +3710,9 @@ static ssize_t snd_pcm_write(struct file *file, const char __user *buf,
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
+		return -EBUSY;
 	if (snd_pcm_state_open_or_disconnected(substream))
 		return -EBADFD;
 	if (!frame_aligned(runtime, count))
@@ -3711,6 +3739,9 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
+		return -EBUSY;
 	if (snd_pcm_state_open_or_disconnected(substream))
 		return -EBADFD;
 	if (!user_backed_iter(to))
@@ -3750,6 +3781,9 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
+		return -EBUSY;
 	if (snd_pcm_state_open_or_disconnected(substream))
 		return -EBADFD;
 	if (!user_backed_iter(from))
@@ -4085,32 +4119,23 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 	}
 	runtime = substream->runtime;
 	/* don't race with buffer reallocation in hw_params/hw_free */
-	if (!atomic_inc_unless_negative(&runtime->buffer_accessing))
+	SND_PCM_BUFFER_ACQUIRE(runtime, lock);
+	if (SND_PCM_BUFFER_ACQUIRE_ERR(lock))
 		return -EBUSY;
-	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		err = -EBADFD;
-		goto out;
-	}
-	if (!(runtime->info & SNDRV_PCM_INFO_MMAP)) {
-		err = -ENXIO;
-		goto out;
-	}
+	if (runtime->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
+	if (!(runtime->info & SNDRV_PCM_INFO_MMAP))
+		return -ENXIO;
 	if (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
-	    runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED) {
-		err = -EINVAL;
-		goto out;
-	}
+	    runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
+		return -EINVAL;
 	size = area->vm_end - area->vm_start;
 	offset = area->vm_pgoff << PAGE_SHIFT;
 	dma_bytes = PAGE_ALIGN(runtime->dma_bytes);
-	if ((size_t)size > dma_bytes) {
-		err = -EINVAL;
-		goto out;
-	}
-	if (offset > dma_bytes - size) {
-		err = -EINVAL;
-		goto out;
-	}
+	if ((size_t)size > dma_bytes)
+		return -EINVAL;
+	if (offset > dma_bytes - size)
+		return -EINVAL;
 
 	area->vm_ops = &snd_pcm_vm_ops_data;
 	area->vm_private_data = substream;
@@ -4120,8 +4145,6 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 		err = snd_pcm_lib_default_mmap(substream, area);
 	if (!err)
 		atomic_inc(&substream->mmap_count);
-out:
-	atomic_dec(&runtime->buffer_accessing);
 	return err;
 }
 EXPORT_SYMBOL(snd_pcm_mmap_data);
