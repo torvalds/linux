@@ -4305,6 +4305,7 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 						ATA_QUIRK_FIRMWARE_WARN },
 
 	/* ADATA devices with LPM issues. */
+	{ "ADATA SU650",	"XD0R3C0F",	ATA_QUIRK_NOLPM },
 	{ "ADATA SU680",	NULL,		ATA_QUIRK_NOLPM },
 
 	/* Seagate disks with LPM issues */
