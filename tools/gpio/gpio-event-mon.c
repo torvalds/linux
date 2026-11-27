@@ -124,8 +124,10 @@ int monitor_device(const char *device_name,
 		fprintf(stdout, "\n");
 
 		i++;
-		if (i == loops)
+		if (i == loops) {
+			ret = 0;
 			break;
+		}
 	}
 
 exit_line_close:

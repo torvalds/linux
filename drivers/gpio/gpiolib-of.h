@@ -25,9 +25,9 @@ int of_gpiochip_add(struct gpio_chip *gc);
 void of_gpiochip_remove(struct gpio_chip *gc);
 bool of_gpiochip_instance_match(struct gpio_chip *gc, unsigned int index);
 int of_gpio_count(const struct fwnode_handle *fwnode, const char *con_id);
-int of_gpiochip_get_lflags(struct gpio_chip *chip,
-			   struct fwnode_reference_args *gpiospec,
-			   unsigned long *lflags);
+struct gpio_desc *of_gpiochip_get_hog_desc(struct gpio_chip *chip,
+					   struct fwnode_reference_args *gpiospec,
+					   unsigned long *lflags);
 #else
 static inline struct gpio_desc *of_find_gpio(struct device_node *np,
 					     const char *con_id,
@@ -48,11 +48,12 @@ static inline int of_gpio_count(const struct fwnode_handle *fwnode,
 {
 	return -ENOENT;
 }
-static inline int of_gpiochip_get_lflags(struct gpio_chip *chip,
-					 struct fwnode_reference_args *gpiospec,
-					 unsigned long *lflags)
+static inline struct gpio_desc *
+of_gpiochip_get_hog_desc(struct gpio_chip *chip,
+			 struct fwnode_reference_args *gpiospec,
+			 unsigned long *lflags)
 {
-	return -ENOENT;
+	return ERR_PTR(-ENOENT);
 }
 #endif /* CONFIG_OF_GPIO */
 

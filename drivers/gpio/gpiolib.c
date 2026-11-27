@@ -854,11 +854,22 @@ bool gpiochip_line_is_valid(const struct gpio_chip *gc,
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 
-static void gpiod_free_irqs(struct gpio_desc *desc)
+static void gpiod_free_irqs(struct gpio_chip *gc, struct gpio_desc *desc)
 {
-	int irq = gpiod_to_irq(desc);
-	struct irq_desc *irqd = irq_to_desc(irq);
+	struct irq_desc *irqd;
 	void *cookie;
+	int irq;
+
+	/* Called with gdev->chip already NULL, so gpiod_to_irq() can't be used. */
+	if (!gc->to_irq)
+		return;
+	irq = gc->to_irq(gc, gpiod_hwgpio(desc));
+	if (irq <= 0)
+		return;
+
+	irqd = irq_to_desc(irq);
+	if (!irqd)
+		return;
 
 	for (;;) {
 		/*
@@ -890,7 +901,7 @@ static void gpiochip_free_remaining_irqs(struct gpio_chip *gc)
 	struct gpio_desc *desc;
 
 	for_each_gpio_desc_with_flag(gc, desc, GPIOD_FLAG_USED_AS_IRQ)
-		gpiod_free_irqs(desc);
+		gpiod_free_irqs(gc, desc);
 }
 
 static void gpiodev_release(struct device *dev)
@@ -898,7 +909,7 @@ static void gpiodev_release(struct device *dev)
 	struct gpio_device *gdev = to_gpio_device(dev);
 
 	/* Call pending kfree()s for descriptor labels. */
-	synchronize_srcu(&gdev->desc_srcu);
+	srcu_barrier(&gdev->desc_srcu);
 	cleanup_srcu_struct(&gdev->desc_srcu);
 
 	if (gdev->line_state_wq)
@@ -1036,9 +1047,9 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			for (unsigned int j = 0; j < cells; j++)
 				gpiospec.args[j] = gpios[i * cells + j];
 
-			ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
-			if (ret)
-				return ret;
+			desc = of_gpiochip_get_hog_desc(gc, &gpiospec, &lflags);
+			if (IS_ERR(desc))
+				return PTR_ERR(desc);
 
 			/*
 			 * If no line-name property is present, fall back to the OF
@@ -1054,11 +1065,11 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 			 */
 			if (cells > 1 && gpios[i * cells + 1])
 				lflags |= GPIO_ACTIVE_LOW;
-		}
 
-		desc = gpiochip_get_desc(gc, gpios[i * cells]);
-		if (IS_ERR(desc))
-			return PTR_ERR(desc);
+			desc = gpiochip_get_desc(gc, gpios[i * cells]);
+			if (IS_ERR(desc))
+				return PTR_ERR(desc);
+		}
 
 		ret = gpiod_hog(desc, name, lflags, dflags);
 		if (ret)
@@ -1439,7 +1450,6 @@ void gpiochip_remove(struct gpio_chip *gc)
 	/* FIXME: should the legacy sysfs handling be moved to gpio_device? */
 	gpiochip_sysfs_unregister(gc);
 	gpiochip_free_hogs(gc);
-	gpiochip_free_remaining_irqs(gc);
 
 	scoped_guard(mutex, &gpio_devices_lock)
 		list_del_rcu(&gdev->list);
@@ -1448,7 +1458,15 @@ void gpiochip_remove(struct gpio_chip *gc)
 	/* Numb the device, cancelling all outstanding operations */
 	rcu_assign_pointer(gdev->chip, NULL);
 	synchronize_srcu(&gdev->srcu);
+
+	/*
+	 * No new interrupts can be requested through the character device now.
+	 * Have it free the ones it holds, also on the shared proxies, before
+	 * forcibly freeing the rest and removing the irqchip.
+	 */
+	blocking_notifier_call_chain(&gdev->device_notifier, 0, NULL);
 	gpio_device_teardown_shared(gdev);
+	gpiochip_free_remaining_irqs(gc);
 	gpiochip_irqchip_remove(gc);
 	acpi_gpiochip_remove(gc);
 	of_gpiochip_remove(gc);
@@ -2707,7 +2725,12 @@ void gpiod_free_commit(struct gpio_desc *desc)
 
 	flags = READ_ONCE(desc->flags);
 
-	if (guard.gc && test_bit(GPIOD_FLAG_REQUESTED, &flags)) {
+	if (guard.gc && !test_bit(GPIOD_FLAG_REQUESTED, &flags))
+		return;
+
+	desc_set_label(desc, NULL);
+
+	if (guard.gc) {
 		if (guard.gc->free)
 			guard.gc->free(guard.gc, gpiod_hwgpio(desc));
 
@@ -2717,7 +2740,6 @@ void gpiod_free_commit(struct gpio_desc *desc)
 #ifdef CONFIG_OF_DYNAMIC
 		WRITE_ONCE(desc->hog, NULL);
 #endif
-		desc_set_label(desc, NULL);
 		set_mask_bits(&desc->flags,
 			      BIT(GPIOD_FLAG_ACTIVE_LOW) |
 			      BIT(GPIOD_FLAG_REQUESTED) |
@@ -3647,10 +3669,10 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpiod_hwgpio(desc);
 			int value = test_bit(hwgpio, bits);
 
+			trace_gpio_value(desc_to_gpio(desc), 1, value);
 			if (!raw && test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
 			__assign_bit(j, value_bitmap, value);
-			trace_gpio_value(desc_to_gpio(desc), 1, value);
 			j++;
 
 			if (array_info)

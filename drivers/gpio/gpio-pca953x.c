@@ -1337,20 +1337,23 @@ static int pca953x_regcache_sync(struct pca953x_chip *chip)
 	u8 regaddr;
 
 	/*
-	 * The ordering between direction and output is important,
-	 * sync these registers first and only then sync the rest.
+	 * The ordering between output and direction is important: restore
+	 * the output levels while the lines are still inputs, and only then
+	 * turn them into outputs. Restoring direction first would drive
+	 * every output at the power-on output value until the output
+	 * registers are written. Sync these first, then the rest.
 	 */
-	regaddr = chip->recalc_addr(chip, chip->regs->direction, 0);
-	ret = regcache_sync_region(chip->regmap, regaddr, regaddr + NBANK(chip) - 1);
-	if (ret) {
-		dev_err(dev, "Failed to sync GPIO dir registers: %d\n", ret);
-		return ret;
-	}
-
 	regaddr = chip->recalc_addr(chip, chip->regs->output, 0);
 	ret = regcache_sync_region(chip->regmap, regaddr, regaddr + NBANK(chip) - 1);
 	if (ret) {
 		dev_err(dev, "Failed to sync GPIO out registers: %d\n", ret);
+		return ret;
+	}
+
+	regaddr = chip->recalc_addr(chip, chip->regs->direction, 0);
+	ret = regcache_sync_region(chip->regmap, regaddr, regaddr + NBANK(chip) - 1);
+	if (ret) {
+		dev_err(dev, "Failed to sync GPIO dir registers: %d\n", ret);
 		return ret;
 	}
 

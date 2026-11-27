@@ -721,9 +721,9 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
 	return desc;
 }
 
-int of_gpiochip_get_lflags(struct gpio_chip *chip,
-			   struct fwnode_reference_args *gpiospec,
-			   unsigned long *lflags)
+struct gpio_desc *of_gpiochip_get_hog_desc(struct gpio_chip *chip,
+					   struct fwnode_reference_args *gpiospec,
+					   unsigned long *lflags)
 {
 	enum of_gpio_flags xlate_flags = 0;
 	struct of_phandle_args args;
@@ -737,11 +737,11 @@ int of_gpiochip_get_lflags(struct gpio_chip *chip,
 
 	desc = of_xlate_and_get_gpiod_flags(chip, &args, &xlate_flags);
 	if (IS_ERR(desc))
-		return PTR_ERR(desc);
+		return desc;
 
 	*lflags = of_convert_gpio_flags(xlate_flags);
 
-	return 0;
+	return desc;
 }
 
 #ifdef CONFIG_OF_DYNAMIC

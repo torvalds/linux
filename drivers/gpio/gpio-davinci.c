@@ -43,7 +43,6 @@ typedef struct irq_chip *(*gpio_get_irq_chip_cb_t)(unsigned int irq);
 
 #define BINTEN	0x8 /* GPIO Interrupt Per-Bank Enable Register */
 
-static void __iomem *gpio_base;
 static unsigned int offset_array[5] = {0x10, 0x38, 0x60, 0x88, 0xb0};
 
 struct davinci_gpio_irq_data {
@@ -168,6 +167,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	unsigned int ngpio, nbank, nirq, gpio_unbanked;
 	struct davinci_gpio_controller *chips;
 	struct device *dev = &pdev->dev;
+	void __iomem *gpio_base;
 
 	/*
 	 * The gpio banks conceptually expose a segmented bitmap,
@@ -550,6 +550,13 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	 * Or, AINTC can handle IRQs for banks of 16 GPIO IRQs, which we
 	 * then chain through our own handler.
 	 */
+	irqdata = devm_kzalloc_objs(dev, *irqdata,
+				    DIV_ROUND_UP(ngpio, 16));
+	if (!irqdata) {
+		irq_domain_remove(chips->irq_domain);
+		return -ENOMEM;
+	}
+
 	for (gpio = 0, bank = 0; gpio < ngpio; bank++, gpio += 16) {
 		/* disabled by default, enabled only as needed
 		 * There are register sets for 32 GPIOs. 2 banks of 16
@@ -564,19 +571,12 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		 * gpio irqs. Pass the irq bank's corresponding controller to
 		 * the chained irq handler.
 		 */
-		irqdata = devm_kzalloc_obj(&pdev->dev,
-					   struct davinci_gpio_irq_data);
-		if (!irqdata) {
-			irq_domain_remove(chips->irq_domain);
-			return -ENOMEM;
-		}
-
-		irqdata->regs = g;
-		irqdata->bank_num = bank;
-		irqdata->chip = chips;
+		irqdata[bank].regs = g;
+		irqdata[bank].bank_num = bank;
+		irqdata[bank].chip = chips;
 
 		irq_set_chained_handler_and_data(chips->irqs[bank],
-						 gpio_irq_handler, irqdata);
+						 gpio_irq_handler, &irqdata[bank]);
 
 		binten |= BIT(bank);
 	}
@@ -586,7 +586,7 @@ done:
 	 * BINTEN -- per-bank interrupt enable. genirq would also let these
 	 * bits be set/cleared dynamically.
 	 */
-	writel_relaxed(binten, gpio_base + BINTEN);
+	writel_relaxed(binten, chips->regs[0] - offset_array[0] + BINTEN);
 
 	return 0;
 }

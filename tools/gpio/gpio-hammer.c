@@ -159,10 +159,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (i >= GPIOHANDLES_MAX) {
+	if (i > GPIOHANDLES_MAX) {
 		fprintf(stderr,
 			"Only %d occurrences of '-o' are allowed, %d were found\n",
-			GPIOHANDLES_MAX, i + 1);
+			GPIOHANDLES_MAX, i);
 		return -1;
 	}
 

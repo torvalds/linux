@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 			goto error_out;
 		}
 
-		ret = -ENOENT;
+		ret = 0;
 		while (ent = readdir(dp), ent) {
 			if (check_prefix(ent->d_name, "gpiochip")) {
 				ret = list_device(ent->d_name);
@@ -214,7 +214,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		ret = 0;
 		if (closedir(dp) == -1) {
 			perror("scanning devices: Failed to close directory");
 			ret = -errno;
