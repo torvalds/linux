@@ -113,7 +113,8 @@ static int keyctl_pkey_params_get(key_serial_t id,
 static int keyctl_pkey_params_get_2(const struct keyctl_pkey_params __user *_params,
 				    const char __user *_info,
 				    int op,
-				    struct kernel_pkey_params *params)
+				    struct kernel_pkey_params *params,
+				    u32 *user_out_len)
 {
 	struct keyctl_pkey_params uparams;
 	struct kernel_pkey_query info;
@@ -175,7 +176,7 @@ static int keyctl_pkey_params_get_2(const struct keyctl_pkey_params __user *_par
 			goto out_up_key_sem;
 		}
 
-		params->out_len = info.max_sig_size;
+		params->in2_len = uparams.in2_len;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -183,6 +184,8 @@ static int keyctl_pkey_params_get_2(const struct keyctl_pkey_params __user *_par
 	}
 
 	params->in_len  = uparams.in_len;
+	if (user_out_len)
+		*user_out_len = uparams.out_len;
 
 	switch (op) {
 	case KEYCTL_PKEY_VERIFY:
@@ -264,10 +267,12 @@ long keyctl_pkey_e_d_s(int op,
 		       void __user *_out)
 {
 	struct kernel_pkey_params params;
+	u32 user_out_len;
 	void *in, *out;
 	long ret;
 
-	ret = keyctl_pkey_params_get_2(_params, _info, op, &params);
+	ret = keyctl_pkey_params_get_2(_params, _info, op, &params,
+				       &user_out_len);
 	if (ret < 0)
 		goto error_params;
 
@@ -310,13 +315,17 @@ out_up_key_sem:
 	if (ret < 0)
 		goto error_out;
 
+	if (ret > user_out_len) {
+		ret = -EOVERFLOW;
+		goto error_out;
+	}
 	if (copy_to_user(_out, out, ret) != 0)
 		ret = -EFAULT;
 
 error_out:
-	kfree(out);
+	kfree_sensitive(out);
 error_in:
-	kfree(in);
+	kfree_sensitive(in);
 error_params:
 	keyctl_pkey_params_free(&params);
 	return ret;
@@ -349,7 +358,7 @@ long keyctl_pkey_verify(const struct keyctl_pkey_params __user *_params,
 	long ret;
 
 	ret = keyctl_pkey_params_get_2(_params, _info, KEYCTL_PKEY_VERIFY,
-				       &params);
+				       &params, NULL);
 	if (ret < 0)
 		goto out_free_params;
 
