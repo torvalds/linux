@@ -96,33 +96,41 @@ v3d_sched_job_free(struct drm_sched_job *sched_job)
 }
 
 void
-v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
-			      unsigned int count)
+v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info)
 {
-	if (query_info->queries) {
-		unsigned int i;
+	unsigned int i;
 
-		for (i = 0; i < count; i++)
-			drm_syncobj_put(query_info->queries[i].syncobj);
+	if (!query_info->queries)
+		return;
 
-		kvfree(query_info->queries);
+	for (i = 0; i < query_info->count; i++) {
+		if (!query_info->queries[i].syncobj)
+			break;
+
+		drm_syncobj_put(query_info->queries[i].syncobj);
 	}
+
+	kvfree(query_info->queries);
 }
 
 void
-v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
-				unsigned int count)
+v3d_performance_query_info_free(struct v3d_performance_query_info *query_info)
 {
-	if (query_info->queries) {
-		unsigned int i;
+	unsigned int i;
 
-		for (i = 0; i < count; i++) {
-			drm_syncobj_put(query_info->queries[i].syncobj);
-			kvfree(query_info->queries[i].kperfmon_ids);
-		}
+	if (!query_info->queries)
+		return;
 
-		kvfree(query_info->queries);
+	for (i = 0; i < query_info->count; i++) {
+		kvfree(query_info->queries[i].kperfmon_ids);
+
+		if (!query_info->queries[i].syncobj)
+			break;
+
+		drm_syncobj_put(query_info->queries[i].syncobj);
 	}
+
+	kvfree(query_info->queries);
 }
 
 static void

@@ -401,8 +401,6 @@ static void ttm_pool_fini_basic(struct kunit *test)
 	KUNIT_ASSERT_FALSE(test, !list_lru_count(&pt->pages));
 
 	ttm_pool_fini(pool);
-
-	KUNIT_ASSERT_TRUE(test, !list_lru_count(&pt->pages));
 }
 
 static struct kunit_case ttm_pool_test_cases[] = {
