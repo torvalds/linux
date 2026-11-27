@@ -258,6 +258,8 @@ sustainable_power_show(struct device *dev, struct device_attribute *devattr,
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
+	guard(thermal_zone)(tz);
+
 	if (tz->tzp)
 		return sysfs_emit(buf, "%u\n", tz->tzp->sustainable_power);
 	else
@@ -270,6 +272,8 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	u32 sustainable_power;
+
+	guard(thermal_zone)(tz);
 
 	if (!tz->tzp)
 		return -EIO;
@@ -289,6 +293,8 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 	{								\
 		struct thermal_zone_device *tz = to_thermal_zone(dev);	\
 									\
+		guard(thermal_zone)(tz);				\
+									\
 		if (!tz->tzp)						\
 			return -EIO;					\
 									\
@@ -301,6 +307,8 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 	{								\
 		struct thermal_zone_device *tz = to_thermal_zone(dev);	\
 		s32 value;						\
+									\
+		guard(thermal_zone)(tz);				\
 									\
 		if (!tz->tzp)						\
 			return -EIO;					\
