@@ -2410,6 +2410,13 @@ void amdgpu_ttm_enable_buffer_funcs(struct amdgpu_device *adev)
 	sdma_ip_version = amdgpu_ip_version(adev, SDMA0_HWIP, 0);
 	if (sdma_ip_version == IP_VERSION(7, 0, 0) || sdma_ip_version == IP_VERSION(7, 0, 1))
 		num_move_entities = 1;
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 1) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+		num_clear_entities = 1;
 
 	adev->mman.clear_entities = kzalloc_objs(struct amdgpu_ttm_buffer_entity,
 						 num_clear_entities);
@@ -2711,6 +2718,8 @@ int amdgpu_ttm_clear_buffer(struct amdgpu_ttm_buffer_entity *entity,
 
 		amdgpu_res_next(&dst, cur_size);
 	}
+	r = 0;
+
 error:
 	mutex_unlock(&entity->lock);
 	*out_fence = fence;

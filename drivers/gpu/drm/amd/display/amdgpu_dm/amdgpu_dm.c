@@ -3018,6 +3018,9 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 	case DRM_FORMAT_ARGB8888:
 		plane_info->format = SURFACE_PIXEL_FORMAT_GRPH_ARGB8888;
 		break;
+	case DRM_FORMAT_RGBA8888:
+		plane_info->format = SURFACE_PIXEL_FORMAT_GRPH_RGBA8888;
+		break;
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_ARGB2101010:
 		plane_info->format = SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010;

@@ -513,6 +513,7 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 	res.flags = IORESOURCE_BUS;
 	res.start = FIELD_GET(PCI_SECONDARY_BUS_MASK, buses);
 	res.end = FIELD_GET(PCI_SUBORDINATE_BUS_MASK, buses);
+	bridge->fw_sec_busnr = res.start;
 	pci_info(bridge, "PCI bridge to %pR%s\n", &res,
 		 bridge->transparent ? " (subtractive decode)" : "");
 

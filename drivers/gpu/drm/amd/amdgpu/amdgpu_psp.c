@@ -3954,6 +3954,16 @@ static int psp_load_smu_fw(struct psp_context *psp)
 static bool fw_load_skip_check(struct psp_context *psp,
 			       struct amdgpu_firmware_info *ucode)
 {
+	struct amdgpu_device *adev = psp->adev;
+	/* Keep IMU firmware loading enabled for APUs with GC IP 11.0.0-11.7.1. */
+	if ((adev->flags & AMD_IS_APU) &&
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0)
+	    && amdgpu_ip_version(adev, GC_HWIP, 0) <= IP_VERSION(11, 7, 1))) {
+		if (!ucode->fw && (ucode->ucode_id == AMDGPU_UCODE_ID_IMU_I ||
+		    ucode->ucode_id == AMDGPU_UCODE_ID_IMU_D))
+			return false;
+	}
+
 	if (!ucode->fw || !ucode->ucode_size)
 		return true;
 

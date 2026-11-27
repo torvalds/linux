@@ -504,6 +504,14 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			return r;
 
+		/* ttm_bo_init_reserved() + clear fence */
+		r = dma_resv_reserve_fences(vm->root.bo->tbo.base.resv,
+					    TTM_NUM_MOVE_FENCES + 1);
+		if (r) {
+			amdgpu_bo_unreserve(vm->root.bo);
+			return r;
+		}
+
 		resv = vm->root.bo->tbo.base.resv;
 	}
 

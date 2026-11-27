@@ -228,6 +228,7 @@ bool dce_use_lut(enum surface_pixel_format format)
 	switch (format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
 		return true;
 	default:
 		return false;

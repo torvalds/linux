@@ -31,6 +31,8 @@
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
 
+#define IMU_DATA_SIZE_BYTES	66304
+
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_imu_kicker.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_1_imu.bin");
@@ -73,8 +75,18 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 	else
 		err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, required,
 					   "amdgpu/%s_imu.bin", ucode_prefix);
-	if (err == -ENODEV && imu_in_ifwi)
+	if (err == -ENODEV && imu_in_ifwi) {
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_IMU_I];
+		info->ucode_id = AMDGPU_UCODE_ID_IMU_I;
+		info->fw = adev->gfx.imu_fw;
+		info->ucode_size = IMU_DATA_SIZE_BYTES;
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_IMU_D];
+		info->ucode_id = AMDGPU_UCODE_ID_IMU_D;
+		info->fw = adev->gfx.imu_fw;
+		info->ucode_size = IMU_DATA_SIZE_BYTES;
 		return 0;
+	}
 	if (err)
 		goto out;
 

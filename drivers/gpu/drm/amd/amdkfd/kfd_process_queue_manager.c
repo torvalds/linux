@@ -1041,7 +1041,8 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 		goto exit;
 	}
 
-	if (q_data->mqd_size != mqd_size_from_queue_type(pdd->dev->dqm, q_data->type)) {
+	if (q_data->mqd_size != mqd_size_from_queue_type(pdd->dev->dqm, q_data->type) *
+			NUM_XCC(pdd->dev->xcc_mask)) {
 		ret = -EINVAL;
 		goto exit;
 	}

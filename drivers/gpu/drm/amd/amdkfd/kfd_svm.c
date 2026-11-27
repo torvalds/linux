@@ -1871,8 +1871,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 				svm_range_lock(prange);
 				if (vma->vm_flags & VM_WRITE)
 					pr_debug("VM_WRITE without VM_READ is not supported");
-				s = max(start, prange->start);
-				e = min(end, prange->last);
+				s = max(addr >> PAGE_SHIFT, prange->start);
+				e = min((next >> PAGE_SHIFT) - 1, prange->last);
 				if (e >= s)
 					r = svm_range_unmap_from_gpus(prange, s, e,
 						       prange->bitmap_mapped,
@@ -3125,8 +3125,9 @@ svm_fault_allowed(struct vm_area_struct *vma, bool write_fault)
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			uint32_t vmid, uint32_t node_id,
-			uint64_t addr, uint64_t ts, bool write_fault)
+			uint64_t fault_addr, uint64_t ts, bool write_fault)
 {
+	uint64_t addr = fault_addr >> PAGE_SHIFT;
 	unsigned long start, last, size;
 	struct mm_struct *mm = NULL;
 	struct svm_range_list *svms;
@@ -3244,7 +3245,7 @@ retry_write_locked:
 	mutex_lock(&prange->migrate_mutex);
 
 	if (svm_range_skip_recover(prange)) {
-		amdgpu_gmc_filter_faults_remove(node->adev, addr, pasid);
+		amdgpu_gmc_filter_faults_remove(node->adev, fault_addr, pasid);
 		r = 0;
 		goto out_unlock_range;
 	}
@@ -3348,7 +3349,7 @@ out:
 
 	if (r == -EAGAIN) {
 		pr_debug("recover vm fault later\n");
-		amdgpu_gmc_filter_faults_remove(node->adev, addr, pasid);
+		amdgpu_gmc_filter_faults_remove(node->adev, fault_addr, pasid);
 		r = 0;
 	}
 	return r;
@@ -4283,9 +4284,8 @@ int kfd_criu_restore_svm(struct kfd_process *p,
 		return -ENOMEM;
 	}
 
-	ret = copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,
-			     svm_priv_data_size);
-	if (ret) {
+	if (copy_from_user(&criu_svm_md->data, user_priv_ptr + *priv_data_offset,
+			   svm_priv_data_size)) {
 		ret = -EFAULT;
 		goto exit;
 	}
