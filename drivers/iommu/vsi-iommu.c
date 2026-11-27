@@ -196,7 +196,7 @@ static irqreturn_t vsi_iommu_irq(int irq, void *dev_id)
 	dma_addr_t iova;
 	u32 status;
 
-	if (pm_runtime_resume_and_get(iommu->dev) < 0)
+	if (pm_runtime_get_if_active(iommu->dev) <= 0)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&iommu->lock, flags);
@@ -369,7 +369,8 @@ static void vsi_iommu_flush_tlb(struct iommu_domain *domain)
 	struct vsi_iommu *iommu;
 
 	list_for_each_entry(iommu, &vsi_domain->iommus, node) {
-		if (pm_runtime_get(iommu->dev) < 0)
+		/* A suspended IOMMU is flushed when it resumes */
+		if (pm_runtime_get_if_active(iommu->dev) <= 0)
 			continue;
 
 		spin_lock(&iommu->lock);
@@ -496,31 +497,42 @@ static void vsi_iommu_disable(struct vsi_iommu *iommu)
 	iommu->enable = false;
 }
 
+/* Take the IOMMU off the list of its paging domain, if it has one. */
+static void vsi_iommu_list_del(struct vsi_iommu *iommu)
+{
+	struct vsi_iommu_domain *vsi_domain;
+	unsigned long flags;
+
+	if (!iommu->domain || iommu->domain == &vsi_identity_domain)
+		return;
+
+	vsi_domain = to_vsi_domain(iommu->domain);
+	spin_lock_irqsave(&vsi_domain->lock, flags);
+	list_del_init(&iommu->node);
+	spin_unlock_irqrestore(&vsi_domain->lock, flags);
+}
+
 static int vsi_iommu_identity_attach(struct iommu_domain *domain,
 				     struct device *dev, struct iommu_domain *old)
 {
 	struct vsi_iommu *iommu = dev_iommu_priv_get(dev);
-	struct vsi_iommu_domain *vsi_domain = to_vsi_domain(domain);
 	unsigned long flags;
 	int ret;
+
+	if (iommu->domain == domain)
+		return 0;
 
 	ret = pm_runtime_resume_and_get(iommu->dev);
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irqsave(&vsi_domain->lock, flags);
-	spin_lock(&iommu->lock);
-	if (iommu->domain == domain)
-		goto unlock;
+	vsi_iommu_list_del(iommu);
 
+	spin_lock_irqsave(&iommu->lock, flags);
 	vsi_iommu_disable(iommu);
-	list_del_init(&iommu->node);
-
 	iommu->domain = domain;
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
-unlock:
-	spin_unlock(&iommu->lock);
-	spin_unlock_irqrestore(&vsi_domain->lock, flags);
 	pm_runtime_put_autosuspend(iommu->dev);
 	return 0;
 }
@@ -536,15 +548,18 @@ static struct iommu_domain vsi_identity_domain = {
 
 static void vsi_iommu_enable(struct vsi_iommu *iommu, struct iommu_domain *domain)
 {
-	struct vsi_iommu_domain *vsi_domain = to_vsi_domain(domain);
+	struct vsi_iommu_domain *vsi_domain;
 
 	if (domain == &vsi_identity_domain)
 		return;
 
+	vsi_domain = to_vsi_domain(domain);
 	writel(vsi_domain->pta_dma, iommu->regs + VSI_MMU_AHB_TLB_ARRAY_BASE_L_BASE);
 	writel(VSI_MMU_OUT_OF_BOUND, iommu->regs + VSI_MMU_CONFIG1_BASE);
 	writel(VSI_MMU_BIT_ENABLE, iommu->regs + VSI_MMU_AHB_EXCEPTION_BASE);
 	writel(VSI_MMU_BIT_ENABLE, iommu->regs + VSI_MMU_AHB_CONTROL_BASE);
+	writel(VSI_MMU_BIT_FLUSH, iommu->regs + VSI_MMU_FLUSH_BASE);
+	writel(0, iommu->regs + VSI_MMU_FLUSH_BASE);
 	iommu->enable = true;
 }
 
@@ -560,14 +575,13 @@ static int vsi_iommu_attach_device(struct iommu_domain *domain,
 	if (ret < 0)
 		return ret;
 
+	vsi_iommu_list_del(iommu);
+
 	spin_lock_irqsave(&vsi_domain->lock, flags);
 	spin_lock(&iommu->lock);
 
 	vsi_iommu_enable(iommu, domain);
-	writel(VSI_MMU_BIT_FLUSH, iommu->regs + VSI_MMU_FLUSH_BASE);
-	writel(0, iommu->regs + VSI_MMU_FLUSH_BASE);
 
-	list_del_init(&iommu->node);
 	list_add_tail(&iommu->node, &vsi_domain->iommus);
 
 	iommu->domain = domain;
@@ -693,8 +707,10 @@ static int vsi_iommu_probe(struct platform_device *pdev)
 		return err;
 
 	iommu->irq = platform_get_irq(pdev, 0);
-	if (iommu->irq < 0)
-		return iommu->irq;
+	if (iommu->irq < 0) {
+		err = iommu->irq;
+		goto err_unprepare_clocks;
+	}
 
 	err = devm_request_irq(iommu->dev, iommu->irq, vsi_iommu_irq,
 			       IRQF_SHARED, dev_name(dev), iommu);
@@ -740,7 +756,7 @@ static int __maybe_unused vsi_iommu_suspend(struct device *dev)
 {
 	struct vsi_iommu *iommu = dev_get_drvdata(dev);
 
-	vsi_iommu_disable(iommu);
+	iommu->enable = false;
 
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 
@@ -757,15 +773,10 @@ static int __maybe_unused vsi_iommu_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (iommu->domain) {
-		struct vsi_iommu_domain *vsi_domain = to_vsi_domain(iommu->domain);
-
-		spin_lock_irqsave(&vsi_domain->lock, flags);
-		spin_lock(&iommu->lock);
+	spin_lock_irqsave(&iommu->lock, flags);
+	if (iommu->domain)
 		vsi_iommu_enable(iommu, iommu->domain);
-		spin_unlock(&iommu->lock);
-		spin_unlock_irqrestore(&vsi_domain->lock, flags);
-	}
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
 }
@@ -780,7 +791,7 @@ static struct platform_driver rockchip_vsi_iommu_driver = {
 	.driver = {
 		   .name = "vsi_iommu",
 		   .of_match_table = vsi_iommu_dt_ids,
-		   .pm = pm_sleep_ptr(&vsi_iommu_pm_ops),
+		   .pm = pm_ptr(&vsi_iommu_pm_ops),
 		   .suppress_bind_attrs = true,
 	},
 };

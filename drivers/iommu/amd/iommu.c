@@ -2792,6 +2792,15 @@ static const struct iommu_domain_ops amdv2_ops = {
 	.enforce_cache_coherency = amd_iommu_enforce_cache_coherency,
 };
 
+/*
+ * Force a clflush on Cezanne (family 19h, model 50h) when the v2
+ * page-table is enabled.
+ */
+static bool amd_iommu_force_incoherent(void)
+{
+	return boot_cpu_data.x86 == 0x19 && boot_cpu_data.x86_model == 0x50;
+}
+
 static struct iommu_domain *amd_iommu_domain_alloc_paging_v2(struct device *dev,
 							     u32 flags)
 {
@@ -2810,6 +2819,13 @@ static struct iommu_domain *amd_iommu_domain_alloc_paging_v2(struct device *dev,
 	domain->iommu.nid = dev_to_node(dev);
 
 	cfg.common.features = BIT(PT_FEAT_X86_64_AMD_ENCRYPT_TABLES);
+
+	if (amd_iommu_force_incoherent()) {
+		cfg.common.features |= BIT(PT_FEAT_DMA_INCOHERENT);
+		/* pt_iommu_init() rejects DMA_INCOHERENT without a device */
+		domain->iommu.iommu_device = dev;
+	}
+
 	if (amd_iommu_np_cache)
 		cfg.common.features |= BIT(PT_FEAT_FLUSH_RANGE_NO_GAPS);
 	else
