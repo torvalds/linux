@@ -29917,13 +29917,6 @@ F:	mm/vmalloc.c
 F:	mm/vmalloc.h
 F:	scripts/gdb/linux/vmalloc.py
 
-VME SUBSYSTEM
-L:	linux-kernel@vger.kernel.org
-S:	Orphan
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
-F:	Documentation/driver-api/vme.rst
-F:	drivers/staging/vme_user/
-
 VMWARE BALLOON DRIVER
 M:	Jerrin Shaji George <jerrin.shaji-george@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>

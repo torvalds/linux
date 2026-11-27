@@ -67,7 +67,6 @@ Bus-level documentation
    slimbus
    usb/index
    virtio/index
-   vme
    w1
    xillybus
 

@@ -3,7 +3,6 @@
 
 obj-y				+= media/
 obj-$(CONFIG_OCTEON_ETHERNET)	+= octeon/
-obj-$(CONFIG_VME_BUS)		+= vme_user/
 obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_FB_SM750)		+= sm750fb/
 obj-$(CONFIG_MFD_NVEC)		+= nvec/

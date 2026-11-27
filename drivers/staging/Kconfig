@@ -44,6 +44,4 @@ source "drivers/staging/vc04_services/Kconfig"
 
 source "drivers/staging/axis-fifo/Kconfig"
 
-source "drivers/staging/vme_user/Kconfig"
-
 endif # STAGING
