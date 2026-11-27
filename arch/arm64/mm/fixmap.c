@@ -126,11 +126,20 @@ void __set_fixmap(enum fixed_addresses idx,
 
 	ptep = fixmap_pte(addr);
 
-	if (pgprot_val(flags)) {
-		__set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, flags));
-	} else {
+	/*
+	 * Break-before-make if the slot holds a valid mapping. Always
+	 * flush on clear since another CPU may have cleared the pte
+	 * without completing its TLBI yet.
+	 */
+	if (pte_valid(__ptep_get(ptep)) || !pgprot_val(flags)) {
 		__pte_clear(&init_mm, addr, ptep);
-		flush_tlb_kernel_range(addr, addr+PAGE_SIZE);
+		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+	}
+
+	if (pgprot_val(flags)) {
+		/* The slot must be usable on return, even in lazy MMU mode. */
+		__set_pte_nosync(ptep, pfn_pte(phys >> PAGE_SHIFT, flags));
+		emit_pte_barriers();
 	}
 }
 

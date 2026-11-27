@@ -76,11 +76,20 @@ u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
 	int i = pltsec->plt_num_entries;
 	int j = i - 1;
 	u64 val = sym->st_value + rela->r_addend;
+	struct plt_entry entry;
 
 	if (is_forbidden_offset_for_adrp(&plt[i].adrp))
 		i++;
 
-	plt[i] = get_plt_entry(val, &plt[i]);
+	/*
+	 * The section has plt_max_entries + 1 slots; the last one is where a
+	 * duplicate of the final entry is built before being discarded.
+	 */
+	if (WARN_ON_ONCE(i > pltsec->plt_max_entries))
+		return 0;
+
+	entry = get_plt_entry(val, &plt[i]);
+	module_write_place(&plt[i], &entry, sizeof(entry), mod);
 
 	/*
 	 * Check if the entry we just created is a duplicate. Given that the
@@ -107,12 +116,13 @@ u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 	int i = pltsec->plt_num_entries++;
 	u32 br;
 	int rd;
-
-	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
-		return 0;
+	struct plt_entry entry;
 
 	if (is_forbidden_offset_for_adrp(&plt[i].adrp))
 		i = pltsec->plt_num_entries++;
+
+	if (WARN_ON_ONCE(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
 
 	/* get the destination register of the ADRP instruction */
 	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD,
@@ -121,8 +131,9 @@ u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 	br = aarch64_insn_gen_branch_imm((u64)&plt[i].br, (u64)loc + 4,
 					 AARCH64_INSN_BRANCH_NOLINK);
 
-	plt[i] = __get_adrp_add_pair(val, (u64)&plt[i], rd);
-	plt[i].br = cpu_to_le32(br);
+	entry = __get_adrp_add_pair(val, (u64)&plt[i], rd);
+	entry.br = cpu_to_le32(br);
+	module_write_place(&plt[i], &entry, sizeof(entry), mod);
 
 	return (u64)&plt[i];
 }

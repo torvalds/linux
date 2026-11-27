@@ -18,6 +18,7 @@
 #include <linux/moduleloader.h>
 #include <linux/random.h>
 #include <linux/scs.h>
+#include <linux/string.h>
 
 #include <asm/alternative.h>
 #include <asm/insn.h>
@@ -49,14 +50,20 @@ static u64 do_reloc(enum aarch64_reloc_op reloc_op, __le32 *place, u64 val)
 	return 0;
 }
 
-#define WRITE_PLACE(place, val, mod) do {				\
-	__typeof__(val) __val = (val);					\
-									\
-	if (mod->state == MODULE_STATE_UNFORMED)			\
-		*(place) = __val;					\
-	else								\
-		aarch64_insn_copy(place, &(__val), sizeof(*place));	\
-} while (0)
+/*
+ * Write @len bytes from @val to @place within a module.  While the module is
+ * MODULE_STATE_UNFORMED the destination is writable and a plain copy is used;
+ * once the module is fully formed the region is read-only and executable, so
+ * the write is routed through the text-poke API.
+ */
+void module_write_place(void *place, void *val, size_t len,
+			struct module *mod)
+{
+	if (mod->state == MODULE_STATE_UNFORMED)
+		memcpy(place, val, len);
+	else
+		aarch64_insn_copy(place, val, len);
+}
 
 static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len,
 		      struct module *me)
@@ -76,8 +83,10 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len,
 	 */
 
 	switch (len) {
-	case 16:
-		WRITE_PLACE((s16 *)place, sval, me);
+	case 16: {
+		s16 v = sval;
+
+		module_write_place(place, &v, sizeof(v), me);
 		switch (op) {
 		case RELOC_OP_ABS:
 			if (sval < 0 || sval > U16_MAX)
@@ -92,8 +101,11 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len,
 			return 0;
 		}
 		break;
-	case 32:
-		WRITE_PLACE((s32 *)place, sval, me);
+	}
+	case 32: {
+		s32 v = sval;
+
+		module_write_place(place, &v, sizeof(v), me);
 		switch (op) {
 		case RELOC_OP_ABS:
 			if (sval < 0 || sval > U32_MAX)
@@ -108,9 +120,13 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len,
 			return 0;
 		}
 		break;
-	case 64:
-		WRITE_PLACE((s64 *)place, sval, me);
+	}
+	case 64: {
+		s64 v = sval;
+
+		module_write_place(place, &v, sizeof(v), me);
 		break;
+	}
 	default:
 		pr_err("Invalid length (%d) for data relocation\n", len);
 		return 0;
@@ -130,6 +146,7 @@ static int reloc_insn_movw(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	u64 imm;
 	s64 sval;
 	u32 insn = le32_to_cpu(*place);
+	__le32 v;
 
 	sval = do_reloc(op, place, val);
 	imm = sval >> lsb;
@@ -157,7 +174,9 @@ static int reloc_insn_movw(enum aarch64_reloc_op op, __le32 *place, u64 val,
 
 	/* Update the instruction with the new encoding. */
 	insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_16, insn, imm);
-	WRITE_PLACE(place, cpu_to_le32(insn), me);
+	v = cpu_to_le32(insn);
+
+	module_write_place(place, &v, sizeof(v), me);
 
 	if (imm > U16_MAX)
 		return -ERANGE;
@@ -172,6 +191,7 @@ static int reloc_insn_imm(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	u64 imm, imm_mask;
 	s64 sval;
 	u32 insn = le32_to_cpu(*place);
+	__le32 v;
 
 	/* Calculate the relocation value. */
 	sval = do_reloc(op, place, val);
@@ -183,7 +203,9 @@ static int reloc_insn_imm(enum aarch64_reloc_op op, __le32 *place, u64 val,
 
 	/* Update the instruction's immediate field. */
 	insn = aarch64_insn_encode_immediate(imm_type, insn, imm);
-	WRITE_PLACE(place, cpu_to_le32(insn), me);
+	v = cpu_to_le32(insn);
+
+	module_write_place(place, &v, sizeof(v), me);
 
 	/*
 	 * Extract the upper value bits (including the sign bit) and
@@ -205,6 +227,7 @@ static int reloc_insn_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 			   __le32 *place, u64 val, struct module *me)
 {
 	u32 insn;
+	__le32 v;
 
 	if (!is_forbidden_offset_for_adrp(place))
 		return reloc_insn_imm(RELOC_OP_PAGE, place, val, 12, 21,
@@ -224,7 +247,9 @@ static int reloc_insn_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 						   AARCH64_INSN_BRANCH_NOLINK);
 	}
 
-	WRITE_PLACE(place, cpu_to_le32(insn), me);
+	v = cpu_to_le32(insn);
+
+	module_write_place(place, &v, sizeof(v), me);
 	return 0;
 }
 
