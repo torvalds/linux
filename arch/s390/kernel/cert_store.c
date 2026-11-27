@@ -18,6 +18,7 @@
 #include <linux/keyctl.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/rwsem.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
@@ -44,6 +45,9 @@
 
 static debug_info_t *cert_store_dbf;
 static debug_info_t *cert_store_hexdump;
+
+/* Task currently running refresh_store(). Written under cs_refresh_lock. */
+static struct task_struct *cs_refresh_task;
 
 #define pr_dbf_msg(fmt, ...) \
 	debug_sprintf_event(cert_store_dbf, 3, fmt "\n", ## __VA_ARGS__)
@@ -148,11 +152,23 @@ static void cert_store_key_describe(const struct key *key, struct seq_file *m)
 }
 
 /*
+ * Only the kernel may create keys of this type. Accept the task which runs
+ * refresh_store(), as it cannot execute userspace during the refresh.
+ */
+static int cert_store_key_vet_description(const char *description)
+{
+	if (READ_ONCE(cs_refresh_task) != current)
+		return -EPERM;
+	return 0;
+}
+
+/*
  * Certificate store key type takes over properties of
  * user key but cannot be updated.
  */
 static struct key_type key_type_cert_store_key = {
 	.name		= CERT_STORE_KEY_TYPE_NAME,
+	.vet_description = cert_store_key_vet_description,
 	.preparse	= user_preparse,
 	.free_preparse	= user_free_preparse,
 	.instantiate	= generic_key_instantiate,
@@ -180,6 +196,7 @@ static void pr_dbf_vce(const struct vce *e)
 {
 	unsigned char vc_name[VC_NAME_LEN_BYTES + 1];
 	char log_string[VC_NAME_LEN_BYTES + 40];
+	u32 data_len = 0;
 
 	pr_dbf_msg("VCE Header:");
 	pr_dbf_msg("vce_hdr.vce_length: %d", e->vce_hdr.vce_length);
@@ -205,11 +222,13 @@ static void pr_dbf_vce(const struct vce *e)
 	debug_text_event(cert_store_hexdump, 3, log_string);
 
 	/* Certificate data. */
+	if (e->vce_hdr.vce_length > sizeof(e->vce_hdr))
+		data_len = e->vce_hdr.vce_length - sizeof(e->vce_hdr);
 	debug_text_event(cert_store_hexdump, 3, "VCE: Certificate data start");
-	debug_event(cert_store_hexdump, 3, (u8 *)e->cert_data_buf, 128);
+	debug_event(cert_store_hexdump, 3, (u8 *)e->cert_data_buf, min(data_len, 128U));
 	debug_text_event(cert_store_hexdump, 3, "VCE: Certificate data end");
-	debug_event(cert_store_hexdump, 3,
-		    (u8 *)e->cert_data_buf + e->vce_hdr.vce_length - 128, 128);
+	if (data_len > 128)
+		debug_event(cert_store_hexdump, 3, (u8 *)e + e->vce_hdr.vce_length - 128, 128);
 }
 
 static void pr_dbf_vcssb(const struct vcssb *s)
@@ -224,7 +243,7 @@ static void pr_dbf_vcssb(const struct vcssb *s)
 	pr_dbf_msg("total_vc_index_count: %u", s->total_vc_index_count);
 	pr_dbf_msg("max_vc_index_count: %u", s->max_vc_index_count);
 	pr_dbf_msg("max_vce_length: %u", s->max_vce_length);
-	pr_dbf_msg("max_vcxe_length: %u", s->max_vce_length);
+	pr_dbf_msg("max_vcxe_length: %u", s->max_vcxe_length);
 	pr_dbf_msg("max_single_vcb_length: %u", s->max_single_vcb_length);
 	pr_dbf_msg("total_vcb_length: %u", s->total_vcb_length);
 	pr_dbf_msg("max_single_vcxb_length: %u", s->max_single_vcxb_length);
@@ -260,13 +279,11 @@ static int diag320(unsigned long subcode, void *addr)
 static int check_certificate_hash(const struct vce *vce)
 {
 	u8 hash[SHA256_DIGEST_SIZE];
-	u16 vc_hash_length;
 	u8 *vce_hash;
 
 	vce_hash = (u8 *)vce + vce->vce_hdr.vc_hash_offset;
-	vc_hash_length = vce->vce_hdr.vc_hash_length;
 	sha256((u8 *)vce + vce->vce_hdr.vc_offset, vce->vce_hdr.vc_length, hash);
-	if (memcmp(vce_hash, hash, vc_hash_length) == 0)
+	if (memcmp(vce_hash, hash, sizeof(hash)) == 0)
 		return 0;
 
 	pr_dbf_msg("SHA256 hash of received certificate does not match");
@@ -292,6 +309,10 @@ static int check_certificate_valid(const struct vce *vce)
 		pr_dbf_msg("Hash type is not supported");
 		return -EINVAL;
 	}
+	if (vce->vce_hdr.vc_hash_length != SHA256_DIGEST_SIZE) {
+		pr_dbf_msg("Hash length is not supported");
+		return -EINVAL;
+	}
 
 	return check_certificate_hash(vce);
 }
@@ -307,7 +328,6 @@ static struct key *get_user_session_keyring(void)
 			   PTR_ERR(us_keyring_ref));
 		return ERR_PTR(-ENOKEY);
 	}
-	key_ref_put(us_keyring_ref);
 	return key_ref_to_ptr(us_keyring_ref);
 }
 
@@ -315,34 +335,43 @@ static struct key *get_user_session_keyring(void)
 static int invalidate_keyring_keys(struct key *keyring)
 {
 	unsigned long num_keys, key_index;
-	size_t keyring_payload_len;
+	long keyring_payload_len, rc;
 	key_serial_t *key_array;
 	struct key *current_key;
-	int rc;
 
-	keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
-	num_keys = keyring_payload_len / sizeof(key_serial_t);
-	key_array = kzalloc_objs(key_serial_t, num_keys);
-	if (!key_array)
-		return -ENOMEM;
+	scoped_guard(rwsem_read, &keyring->sem) {
+		keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
+		if (keyring_payload_len <= 0)
+			return keyring_payload_len;
 
-	rc = key_type_keyring.read(keyring, (char *)key_array, keyring_payload_len);
+		num_keys = keyring_payload_len / sizeof(key_serial_t);
+		key_array = kzalloc_objs(key_serial_t, num_keys);
+		if (!key_array)
+			return -ENOMEM;
+
+		rc = key_type_keyring.read(keyring, (char *)key_array, keyring_payload_len);
+	}
+
 	if (rc != keyring_payload_len) {
 		pr_dbf_msg("Couldn't read keyring payload");
+		rc = rc < 0 ? rc : -EINVAL;
 		goto out;
 	}
 
+	rc = 0;
 	for (key_index = 0; key_index < num_keys; key_index++) {
 		current_key = key_lookup(key_array[key_index]);
+		if (IS_ERR(current_key))
+			continue;
 		pr_dbf_msg("Invalidating key %08x", current_key->serial);
 
+		rc = key_unlink(keyring, current_key);
+		if (rc)
+			pr_dbf_msg("Couldn't unlink key %08x: %ld", current_key->serial, rc);
 		key_invalidate(current_key);
 		key_put(current_key);
-		rc = key_unlink(keyring, current_key);
-		if (rc) {
-			pr_dbf_msg("Couldn't unlink key %08x: %d", current_key->serial, rc);
+		if (rc)
 			break;
-		}
 	}
 out:
 	kfree(key_array);
@@ -351,29 +380,25 @@ out:
 
 static struct key *find_cs_keyring(void)
 {
+	struct key *us_keyring;
 	key_ref_t cs_keyring_ref;
-	struct key *cs_keyring;
 
-	cs_keyring_ref = keyring_search(make_key_ref(get_user_session_keyring(), true),
-					&key_type_keyring, CERT_STORE_KEYRING_NAME,
-					false);
-	if (!IS_ERR(cs_keyring_ref)) {
-		cs_keyring = key_ref_to_ptr(cs_keyring_ref);
-		key_ref_put(cs_keyring_ref);
-		goto found;
+	us_keyring = get_user_session_keyring();
+	if (!IS_ERR(us_keyring)) {
+		cs_keyring_ref = keyring_search(make_key_ref(us_keyring, true),
+						&key_type_keyring,
+						CERT_STORE_KEYRING_NAME,
+						false);
+		key_put(us_keyring);
+		if (!IS_ERR(cs_keyring_ref))
+			return key_ref_to_ptr(cs_keyring_ref);
 	}
-	/* Search default locations: thread, process, session keyrings */
-	cs_keyring = request_key(&key_type_keyring, CERT_STORE_KEYRING_NAME, NULL);
-	if (IS_ERR(cs_keyring))
-		return NULL;
-	key_put(cs_keyring);
-found:
-	return cs_keyring;
+	return NULL;
 }
 
 static void cleanup_cs_keys(void)
 {
-	struct key *cs_keyring;
+	struct key *cs_keyring, *us_keyring;
 
 	cs_keyring = find_cs_keyring();
 	if (!cs_keyring)
@@ -389,22 +414,39 @@ static void cleanup_cs_keys(void)
 
 	keyring_clear(cs_keyring);
 	key_invalidate(cs_keyring);
+	us_keyring = get_user_session_keyring();
+	if (!IS_ERR(us_keyring)) {
+		key_unlink(us_keyring, cs_keyring);
+		key_put(us_keyring);
+	}
 	key_put(cs_keyring);
-	key_unlink(get_user_session_keyring(), cs_keyring);
 }
 
 static struct key *create_cs_keyring(void)
 {
-	static struct key *cs_keyring;
+	struct key_restriction *restriction;
+	struct key *cs_keyring, *us_keyring;
 
 	/* Cleanup previous cs_keyring and all associated keys if any. */
 	cleanup_cs_keys();
+	us_keyring = get_user_session_keyring();
+	if (IS_ERR(us_keyring))
+		return NULL;
+	restriction = kzalloc_obj(*restriction);
+	if (!restriction) {
+		key_put(us_keyring);
+		return NULL;
+	}
+	/* Reject all links, the kernel bypasses the restriction. */
+	restriction->check = restrict_link_reject;
 	cs_keyring = keyring_alloc(CERT_STORE_KEYRING_NAME, GLOBAL_ROOT_UID,
 				   GLOBAL_ROOT_GID, current_cred(),
 				   (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ,
 				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
-				   NULL, get_user_session_keyring());
+				   restriction, us_keyring);
+	key_put(us_keyring);
 	if (IS_ERR(cs_keyring)) {
+		kfree(restriction);
 		pr_dbf_msg("Can't allocate cert_store keyring");
 		return NULL;
 	}
@@ -467,7 +509,7 @@ static int create_key_from_vce(struct vcssb *vcssb, struct vce *vce,
 		desc, (u8 *)vce + vce->vce_hdr.vc_offset,
 		vce->vce_hdr.vc_length,
 		(KEY_POS_ALL & ~KEY_POS_SETATTR)  | KEY_USR_VIEW | KEY_USR_READ,
-		KEY_ALLOC_NOT_IN_QUOTA);
+		KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BYPASS_RESTRICTION);
 
 	rc = PTR_ERR_OR_ZERO(newkey);
 	if (rc) {
@@ -635,14 +677,6 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 
 	pr_info("Added %d of %d keys to cert_store keyring", added, count);
 
-	/*
-	 * Do not allow to link more keys to certificate store keyring after all
-	 * the VCEs were processed.
-	 */
-	rc = keyring_restrict(make_key_ref(keyring, true), NULL, NULL);
-	if (rc)
-		pr_dbf_msg("Failed to set restriction to cert_store keyring (%d)", rc);
-
 	return 0;
 }
 
@@ -652,7 +686,7 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
  */
 static int query_diag320_subcodes(void)
 {
-	unsigned long ism[ISM_LEN_DWORDS];
+	unsigned long ism[ISM_LEN_DWORDS] = {};
 	int rc;
 
 	rc = diag320(0, ism);
@@ -710,13 +744,12 @@ static int fill_cs_keyring(void)
 		goto cleanup_keys;
 
 	rc = add_certificates_to_keyring(vcssb, cs_keyring);
+	key_put(cs_keyring);
 	if (rc)
-		goto cleanup_cs_keyring;
+		goto cleanup_keys;
 
 	goto out;
 
-cleanup_cs_keyring:
-	key_put(cs_keyring);
 cleanup_keys:
 	cleanup_cs_keys();
 out:
@@ -750,6 +783,7 @@ static ssize_t refresh_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (rc)
 		return rc;
 
+	WRITE_ONCE(cs_refresh_task, current);
 	for (retries = 0; retries < DIAG_MAX_RETRIES; retries++) {
 		/* Request certificates from certificate store. */
 		rc = fill_cs_keyring();
@@ -758,6 +792,7 @@ static ssize_t refresh_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (rc != -EAGAIN)
 			break;
 	}
+	WRITE_ONCE(cs_refresh_task, NULL);
 	cs_status_val = rc;
 	mutex_unlock(&cs_refresh_lock);
 
