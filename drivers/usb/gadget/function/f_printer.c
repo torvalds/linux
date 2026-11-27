@@ -736,7 +736,7 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 		return -ENODEV;
 	}
 
-	tx_list_empty = (likely(list_empty(&dev->tx_reqs)));
+	tx_list_empty = (likely(list_empty(&dev->tx_reqs_active)));
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (!tx_list_empty) {
@@ -940,8 +940,8 @@ static void printer_soft_reset(struct printer_dev *dev)
 	}
 
 	while (likely(!(list_empty(&dev->rx_reqs_active)))) {
-		req = container_of(dev->rx_buffers.next, struct usb_request,
-				list);
+		req = list_first_entry(&dev->rx_reqs_active,
+				       struct usb_request, list);
 		list_del_init(&req->list);
 		list_add(&req->list, &dev->rx_reqs);
 	}
@@ -1034,7 +1034,8 @@ static int printer_func_setup(struct usb_function *f,
 				value = 0;
 				break;
 			}
-			value = strlen(*dev->pnp_string);
+			value = min_t(int, strlen(*dev->pnp_string),
+				      USB_COMP_EP0_BUFSIZ - 2);
 			buf[0] = (value >> 8) & 0xFF;
 			buf[1] = value & 0xFF;
 			memcpy(buf + 2, *dev->pnp_string, value);
@@ -1268,6 +1269,11 @@ static ssize_t f_printer_opts_pnp_string_store(struct config_item *item,
 	int result;
 
 	mutex_lock(&opts->lock);
+
+	if (opts->refcnt) {
+		result = -EBUSY;
+		goto unlock;
+	}
 
 	new_pnp = kstrndup(page, len, GFP_KERNEL);
 	if (!new_pnp) {

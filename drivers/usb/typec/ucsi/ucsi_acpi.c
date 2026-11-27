@@ -216,6 +216,39 @@ static const struct ucsi_operations ucsi_gram_ops = {
 	.async_control = ucsi_acpi_async_control
 };
 
+static int ucsi_dell_sync_control(struct ucsi *ucsi, u64 command, u32 *cci,
+				  void *val, size_t len, void *msg_out,
+				  size_t msg_out_size)
+{
+	int ret;
+
+	ret = ucsi_sync_control_common(ucsi, command, cci, val, len,
+				       msg_out, msg_out_size);
+	if (ret < 0)
+		return ret;
+
+	if (UCSI_COMMAND(command) == UCSI_GET_CAPABILITY && val) {
+		struct ucsi_capability *cap = val;
+
+		if (cap->features & UCSI_CAP_ALT_MODE_DETAILS) {
+			dev_warn(ucsi->dev,
+				 "Firmware bug: broken altmode details reporting, disabling\n");
+			cap->features &= ~UCSI_CAP_ALT_MODE_DETAILS;
+		}
+	}
+
+	return ret;
+}
+
+static const struct ucsi_operations ucsi_dell_ops = {
+	.read_version = ucsi_acpi_read_version,
+	.read_cci = ucsi_acpi_read_cci,
+	.poll_cci = ucsi_acpi_poll_cci,
+	.read_message_in = ucsi_acpi_read_message_in,
+	.sync_control = ucsi_dell_sync_control,
+	.async_control = ucsi_acpi_async_control
+};
+
 static const struct dmi_system_id ucsi_acpi_quirks[] = {
 	{
 		.matches = {
@@ -238,6 +271,14 @@ static const struct dmi_system_id ucsi_acpi_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "90Q"),
 		},
 		.driver_data = (void *)&ucsi_gram_ops,
+	},
+	{
+		.ident = "Dell XPS",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS"),
+		},
+		.driver_data = (void *)&ucsi_dell_ops,
 	},
 	{ }
 };

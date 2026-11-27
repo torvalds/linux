@@ -320,11 +320,12 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 		return ERR_PTR(ret);
 	}
 
+	/* The port works fine without the component, so don't fail here */
 	ret = component_add(&usb4->dev, &connector_ops);
-	if (ret) {
-		dev_err(&usb4->dev, "failed to add component\n");
-		device_unregister(&usb4->dev);
-	}
+	if (ret)
+		dev_err(&usb4->dev, "failed to add component: %d\n", ret);
+	else
+		usb4->component_added = true;
 
 	if (!tb_is_upstream_port(port))
 		device_set_wakeup_capable(&usb4->dev, true);
@@ -348,7 +349,8 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
  */
 void usb4_port_device_remove(struct usb4_port *usb4)
 {
-	component_del(&usb4->dev, &connector_ops);
+	if (usb4->component_added)
+		component_del(&usb4->dev, &connector_ops);
 	device_unregister(&usb4->dev);
 }
 

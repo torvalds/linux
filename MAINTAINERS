@@ -13843,9 +13843,9 @@ F:	Documentation/admin-guide/pm/intel_uncore_frequency_scaling.rst
 F:	drivers/platform/x86/intel/uncore-frequency/
 
 INTEL USBIO USB I/O EXPANDER DRIVERS
-M:	Israel Cepeda <israel.a.cepeda.lopez@intel.com>
 M:	Hans de Goede <hansg@kernel.org>
-R:	Sakari Ailus <sakari.ailus@linux.intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+R:	Antti Laakso <antti.laakso@linux.intel.com>
 S:	Maintained
 F:	drivers/gpio/gpio-usbio.c
 F:	drivers/i2c/busses/i2c-usbio.c

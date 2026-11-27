@@ -542,6 +542,7 @@ struct tcpm_port {
 	struct kthread_work enable_frs;
 	struct hrtimer vdm_discovery_timer;
 	struct kthread_work vdm_discovery_work;
+	bool vdm_discovery_armed;
 	bool state_machine_running;
 	/* Set to true when VDM State Machine has following actions. */
 	bool vdm_sm_running;
@@ -1768,15 +1769,20 @@ static void mod_enable_frs_delayed_work(struct tcpm_port *port, unsigned int del
 	}
 }
 
+/*
+ * Called with port->lock held, which the work takes, and not only from the
+ * worker: the work cannot be waited for.  It does nothing unless it is armed.
+ */
 static void mod_vdm_discovery_cancel_delayed_work(struct tcpm_port *port)
 {
 	hrtimer_cancel(&port->vdm_discovery_timer);
-	if (port->wq)
-		kthread_cancel_work_sync(&port->vdm_discovery_work);
+	port->vdm_discovery_armed = false;
 }
 
 static void mod_vdm_discovery_delayed_work(struct tcpm_port *port, unsigned int delay_ms)
 {
+	port->vdm_discovery_armed = true;
+
 	if (delay_ms) {
 		hrtimer_start(&port->vdm_discovery_timer, ms_to_ktime(delay_ms), HRTIMER_MODE_REL);
 	} else {
@@ -7294,6 +7300,10 @@ static void tcpm_vdm_discovery_work(struct kthread_work *work)
 	int svdm_version;
 
 	mutex_lock(&port->lock);
+
+	if (!port->vdm_discovery_armed)
+		goto unlock;
+	port->vdm_discovery_armed = false;
 
 	tcpm_log_force(port, "%s state [%s]", __func__,
 		       vdm_discovery_state_strings[port->vdm_discovery_state]);

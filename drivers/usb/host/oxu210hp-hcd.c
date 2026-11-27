@@ -1034,6 +1034,14 @@ static struct ehci_qh *oxu_qh_alloc(struct oxu_hcd *oxu)
 {
 	int i;
 	struct ehci_qh *qh = NULL;
+	struct ehci_qtd *dummy;
+
+	/* dummy td enables safe urb queuing; this takes mem_lock */
+	dummy = ehci_qtd_alloc(oxu);
+	if (!dummy) {
+		oxu_dbg(oxu, "no dummy td\n");
+		return NULL;
+	}
 
 	spin_lock(&oxu->mem_lock);
 
@@ -1049,20 +1057,15 @@ static struct ehci_qh *oxu_qh_alloc(struct oxu_hcd *oxu)
 		qh->oxu = oxu;
 		qh->qh_dma = virt_to_phys(qh);
 		INIT_LIST_HEAD(&qh->qtd_list);
-
-		/* dummy td enables safe urb queuing */
-		qh->dummy = ehci_qtd_alloc(oxu);
-		if (qh->dummy == NULL) {
-			oxu_dbg(oxu, "no dummy td\n");
-			oxu->qh_used[i] = 0;
-			qh = NULL;
-			goto unlock;
-		}
+		qh->dummy = dummy;
 
 		oxu->qh_used[i] = 1;
 	}
-unlock:
+
 	spin_unlock(&oxu->mem_lock);
+
+	if (!qh)
+		oxu_qtd_free(oxu, dummy);
 
 	return qh;
 }

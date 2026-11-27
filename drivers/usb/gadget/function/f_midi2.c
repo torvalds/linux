@@ -171,6 +171,31 @@ static const char *ump_fb_name(const struct f_midi2_block_info *info)
 	return info->name ? info->name : "MIDI 2.0 Gadget I/O";
 }
 
+static int f_midi2_copy_string(const char **dst, const char *src)
+{
+	*dst = NULL;
+	if (!src)
+		return 0;
+
+	*dst = kstrdup(src, GFP_KERNEL);
+	return *dst ? 0 : -ENOMEM;
+}
+
+static void f_midi2_free_strings(struct f_midi2 *midi2)
+{
+	int i, blk;
+
+	kfree(midi2->info.iface_name);
+	for (i = 0; i < midi2->num_eps; i++) {
+		struct f_midi2_ep *ep = &midi2->midi2_eps[i];
+
+		kfree(ep->info.ep_name);
+		kfree(ep->info.product_id);
+		for (blk = 0; blk < ep->num_blks; blk++)
+			kfree(ep->blks[blk].info.name);
+	}
+}
+
 /*
  * USB Descriptor Definitions
  */
@@ -2701,6 +2726,7 @@ static void do_f_midi2_free(struct f_midi2 *midi2, struct f_midi2_opts *opts)
 	--opts->refcnt;
 	mutex_unlock(&opts->lock);
 	kfree(midi2->string_defs);
+	f_midi2_free_strings(midi2);
 	kfree(midi2);
 }
 
@@ -2811,7 +2837,7 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 	struct f_midi2_opts *opts;
 	struct f_midi2_ep *ep;
 	struct f_midi2_block *bp;
-	int i, num_eps, blk;
+	int i, num_eps, blk, ret;
 
 	midi2 = kzalloc_obj(*midi2);
 	if (!midi2)
@@ -2826,7 +2852,6 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(num_eps);
 	}
 	++opts->refcnt;
-	mutex_unlock(&opts->lock);
 
 	spin_lock_init(&midi2->queue_lock);
 
@@ -2841,19 +2866,38 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 
 	midi2->info = opts->info;
 	midi2->num_eps = num_eps;
+	ret = f_midi2_copy_string(&midi2->info.iface_name,
+				  opts->info.iface_name);
+	if (ret)
+		goto err_unlock;
 
 	for (i = 0; i < num_eps; i++) {
 		ep = &midi2->midi2_eps[i];
 		ep->info = opts->eps[i]->info;
+		ep->info.ep_name = NULL;
+		ep->info.product_id = NULL;
+		ret = f_midi2_copy_string(&ep->info.ep_name,
+					  opts->eps[i]->info.ep_name);
+		if (ret)
+			goto err_unlock;
+		ret = f_midi2_copy_string(&ep->info.product_id,
+					  opts->eps[i]->info.product_id);
+		if (ret)
+			goto err_unlock;
 		ep->card = midi2;
 		for (blk = 0; blk < SNDRV_UMP_MAX_BLOCKS &&
 			     opts->eps[i]->blks[blk]; blk++) {
 			bp = &ep->blks[blk];
 			ep->num_blks++;
 			bp->info = opts->eps[i]->blks[blk]->info;
+			ret = f_midi2_copy_string(&bp->info.name,
+						  opts->eps[i]->blks[blk]->info.name);
+			if (ret)
+				goto err_unlock;
 			bp->gtb_id = ++midi2->total_blocks;
 		}
 	}
+	mutex_unlock(&opts->lock);
 
 	midi2->string_defs = kzalloc_objs(*midi2->string_defs,
 					  midi2->total_blocks + 1);
@@ -2862,8 +2906,8 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (opts->info.iface_name && *opts->info.iface_name)
-		midi2->string_defs[STR_IFACE].s = opts->info.iface_name;
+	if (midi2->info.iface_name && *midi2->info.iface_name)
+		midi2->string_defs[STR_IFACE].s = midi2->info.iface_name;
 	else
 		midi2->string_defs[STR_IFACE].s = ump_ep_name(&midi2->midi2_eps[0]);
 
@@ -2885,6 +2929,11 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 	}
 
 	return &midi2->func;
+
+err_unlock:
+	mutex_unlock(&opts->lock);
+	do_f_midi2_free(midi2, opts);
+	return ERR_PTR(ret);
 }
 
 DECLARE_USB_FUNCTION_INIT(midi2, f_midi2_alloc_inst, f_midi2_alloc);

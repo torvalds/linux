@@ -423,7 +423,8 @@ static const struct usb_device_id usb_quirk_list[] = {
 			USB_QUIRK_CONFIG_INTF_STRINGS },
 
 	/* Kingston DataTraveler 3.0 */
-	{ USB_DEVICE(0x0951, 0x1666), .driver_info = USB_QUIRK_NO_LPM },
+	{ USB_DEVICE(0x0951, 0x1666), .driver_info = USB_QUIRK_NO_LPM |
+			USB_QUIRK_DELAY_INIT },
 
 	/* TOSHIBA TransMemory-Mx */
 	{ USB_DEVICE(0x0930, 0x1408), .driver_info = USB_QUIRK_NO_LPM },

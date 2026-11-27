@@ -2684,7 +2684,7 @@ void typec_port_register_altmodes(struct typec_port *port,
 	struct typec_altmode **altmodes, size_t n)
 {
 	struct fwnode_handle *child;
-	struct typec_altmode_desc desc;
+	struct typec_altmode_desc desc = {};
 	struct typec_altmode *alt;
 	size_t index = 0;
 	u16 svid;

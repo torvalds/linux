@@ -218,7 +218,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	int irq, err;
 	enum orion_ehci_phy_ver phy_version;
 	struct orion_ehci_hcd *priv;
-	u64 *dma_mask_ptr;
+	const u64 *dma_mask_ptr;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -236,7 +236,9 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	 * set. Since shared usb code relies on it, set it here for
 	 * now. Once we have dma capability bindings this can go away.
 	 */
-	dma_mask_ptr = (u64 *)of_device_get_match_data(&pdev->dev);
+	dma_mask_ptr = of_device_get_match_data(&pdev->dev);
+	if (!dma_mask_ptr)
+		dma_mask_ptr = &dma_mask_orion;
 	err = dma_coerce_mask_and_coherent(&pdev->dev, *dma_mask_ptr);
 	if (err)
 		goto err;

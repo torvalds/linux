@@ -94,8 +94,11 @@ struct f_hidg {
 
 	/* get report */
 	struct usb_request		*get_req;
-	struct usb_hidg_report		get_report;
+	void				*get_req_buf;
 	bool				get_report_returned;
+	/* Cancel pending work and distinguish requests across reconfiguration. */
+	bool				get_report_cancelled;
+	unsigned int			get_report_req_tag;
 	int				get_report_req_report_id;
 	int				get_report_req_report_length;
 	spinlock_t			get_report_spinlock;
@@ -121,7 +124,14 @@ static inline struct f_hidg *func_to_hidg(struct usb_function *f)
 static void hidg_release(struct device *dev)
 {
 	struct f_hidg *hidg = container_of(dev, struct f_hidg, dev);
+	struct report_entry *entry, *tmp;
 
+	list_for_each_entry_safe(entry, tmp, &hidg->report_list, node) {
+		list_del(&entry->node);
+		kfree(entry);
+	}
+
+	kfree(hidg->get_req_buf);
 	kfree(hidg->report_desc);
 	kfree(hidg->set_report_buf);
 	kfree(hidg);
@@ -562,10 +572,16 @@ static void get_report_workqueue_handler(struct work_struct *work)
 	struct usb_request		*req;
 	struct report_entry *ptr;
 	unsigned long	flags;
+	unsigned int	req_tag;
 
 	int status = 0;
 
 	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+	if (hidg->get_report_cancelled) {
+		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+		return;
+	}
+	req_tag = hidg->get_report_req_tag;
 	req = hidg->get_req;
 	if (!req) {
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -581,7 +597,7 @@ static void get_report_workqueue_handler(struct work_struct *work)
 	ptr = f_hidg_search_for_report(hidg, hidg->get_report_req_report_id);
 	if (ptr && !ptr->report_data.userspace_req) {
 		/* Report exists in list and it is to be used for immediate response */
-		req->buf = ptr->report_data.data;
+		memcpy(req->buf, ptr->report_data.data, req->length);
 		status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
 		hidg->get_report_returned = true;
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -598,6 +614,11 @@ static void get_report_workqueue_handler(struct work_struct *work)
 		status = wait_event_interruptible_timeout(hidg->get_queue, !GET_REPORT_COND,
 					msecs_to_jiffies(GET_REPORT_TIMEOUT_MS));
 		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		if (hidg->get_report_cancelled ||
+		    req_tag != hidg->get_report_req_tag) {
+			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+			return;
+		}
 		req = hidg->get_req;
 		if (!req) {
 			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -616,10 +637,9 @@ static void get_report_workqueue_handler(struct work_struct *work)
 			 * Either get an updated response just serviced by userspace
 			 * or send the latest response in the list
 			 */
-			req->buf = ptr->report_data.data;
+			memcpy(req->buf, ptr->report_data.data, req->length);
 		} else {
 			/* If there are no prevoiusly sent reports send empty report */
-			req->buf = hidg->get_report.data;
 			memset(req->buf, 0x0, req->length);
 		}
 
@@ -668,13 +688,7 @@ static int f_hidg_get_report(struct file *file, struct usb_hidg_report __user *b
 
 	if (ptr) {
 		/* Report already exists in list - update it */
-		if (copy_from_user(&ptr->report_data, buffer,
-				sizeof(struct usb_hidg_report))) {
-			spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
-			ERROR(cdev, "copy_from_user error\n");
-			kfree(entry);
-			return -EINVAL;
-		}
+		ptr->report_data = entry->report_data;
 		kfree(entry);
 	} else {
 		/* Report does not exist in list - add it */
@@ -864,6 +878,8 @@ static int hidg_setup(struct usb_function *f,
 		 * GET_REPORT the request was actually for.
 		 */
 		spin_lock_irqsave(&hidg->get_report_spinlock, flags);
+		hidg->get_report_cancelled = false;
+		hidg->get_report_req_tag++;
 		hidg->get_report_req_report_id = value & 0xff;
 		hidg->get_report_req_report_length = length;
 		spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
@@ -997,12 +1013,11 @@ static void hidg_disable(struct usb_function *f)
 	}
 
 	spin_lock_irqsave(&hidg->get_report_spinlock, flags);
-	if (!hidg->get_report_returned) {
-		usb_ep_free_request(f->config->cdev->gadget->ep0, hidg->get_req);
-		hidg->get_req = NULL;
-		hidg->get_report_returned = true;
-	}
+	hidg->get_report_cancelled = true;
+	hidg->get_report_req_tag++;
+	hidg->get_report_returned = true;
 	spin_unlock_irqrestore(&hidg->get_report_spinlock, flags);
+	wake_up(&hidg->get_queue);
 
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 	hidg->disabled = true;
@@ -1155,6 +1170,15 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!hidg->get_req)
 		return -ENOMEM;
 
+	/*
+	 * The GET_REPORT response is served from a dedicated buffer
+	 * (allocated in hidg_alloc()), not from the report_list
+	 * entries: userspace may update an entry while the controller
+	 * is still reading the previous response, which would corrupt
+	 * the data on the wire.
+	 */
+	hidg->get_req->buf = hidg->get_req_buf;
+
 	hidg->get_req->zero = 0;
 	hidg->get_req->complete = hidg_get_report_complete;
 	hidg->get_req->context = hidg;
@@ -1163,8 +1187,10 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	/* maybe allocate device-global string IDs, and patch descriptors */
 	us = usb_gstrings_attach(c->cdev, ct_func_strings,
 				 ARRAY_SIZE(ct_func_string_defs));
-	if (IS_ERR(us))
-		return PTR_ERR(us);
+	if (IS_ERR(us)) {
+		status = PTR_ERR(us);
+		goto fail;
+	}
 	hidg_interface_desc.iInterface = us[CT_FUNC_HID_IDX].id;
 
 	/* allocate instance-specific interface IDs, and patch descriptors */
@@ -1588,6 +1614,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	cdev_device_del(hidg->cdev, &hidg->dev);
 	destroy_workqueue(hidg->workqueue);
+	usb_ep_free_request(c->cdev->gadget->ep0, hidg->get_req);
 	usb_free_all_descriptors(f);
 }
 
@@ -1640,6 +1667,18 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 		}
 	}
 	hidg->use_out_ep = !opts->no_out_endpoint;
+
+	/*
+	 * Dedicated buffer for GET_REPORT responses, allocated once for
+	 * the whole lifetime of this function instance: hidg_release()
+	 * is the only safe free point, as it runs after all USB
+	 * activity has ceased and all file references are gone.
+	 */
+	hidg->get_req_buf = kmalloc(MAX_REPORT_LENGTH, GFP_KERNEL);
+	if (!hidg->get_req_buf) {
+		ret = -ENOMEM;
+		goto err_put_device;
+	}
 
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);

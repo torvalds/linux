@@ -593,6 +593,10 @@ static ssize_t max_sectors_store(struct device *dev, struct device_attribute *at
 		return -EINVAL;
 
 	lim = queue_limits_start_update(sdev->request_queue);
+	if (ms < PAGE_SECTORS || ms < lim.logical_block_size >> SECTOR_SHIFT) {
+		queue_limits_cancel_update(sdev->request_queue);
+		return -EINVAL;
+	}
 	lim.max_hw_sectors = ms;
 	ret = queue_limits_commit_update_frozen(sdev->request_queue, &lim);
 	if (ret)

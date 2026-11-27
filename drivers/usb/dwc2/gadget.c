@@ -1582,7 +1582,7 @@ static struct dwc2_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 	if (windex >= 0x100)
 		return NULL;
 
-	if (idx > hsotg->num_of_eps)
+	if (idx >= hsotg->num_of_eps)
 		return NULL;
 
 	return index_to_ep(hsotg, idx, dir);
@@ -3486,8 +3486,6 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	dwc2_phy_init(hsotg, true);
 
-	dwc2_hsotg_init_fifo(hsotg);
-
 	if (!is_usb_reset) {
 		dwc2_set_bit(hsotg, DCTL, DCTL_SFTDISCON);
 		if (hsotg->params.eusb2_disc)
@@ -3513,7 +3511,24 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	if (hsotg->params.ipg_isoc_en)
 		dcfg |= DCFG_IPG_ISOC_SUPPORDED;
 
+	/*
+	 * WA for Device Flushes Ongoing ISOC IN Packet at End-of-Periodic-Frame Boundary.
+	 * Once passed the end of periodic frame, and the controller is transmitting an
+	 * ISOC IN packet, the device flushes the transmit FIFO. Tune periodic frame
+	 * interval to 95% instead of 80% to avoid it.
+	 */
+	if (using_desc_dma(hsotg) &&
+	    ((hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_70a &&
+	      hsotg->hw_params.snpsid <= DWC2_CORE_REV_4_00a) ||
+	     hsotg->hw_params.snpsid == DWC2_FS_IOT_REV_1_00a ||
+	     hsotg->hw_params.snpsid == DWC2_HS_IOT_REV_1_00a)) {
+		dcfg &= ~DCFG_PERFRINT_MASK;
+		dcfg |= DCFG_PERFRINT(DCFG_PERFRINT_LIMIT);
+	}
+
 	dwc2_writel(hsotg, dcfg,  DCFG);
+
+	dwc2_hsotg_init_fifo(hsotg);
 
 	/* Clear any pending OTG interrupts */
 	dwc2_writel(hsotg, 0xffffffff, GOTGINT);

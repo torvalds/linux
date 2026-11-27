@@ -156,6 +156,7 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct uac_rtd_params *prm = req->context;
 	struct snd_uac_chip *uac = prm->uac;
 	unsigned int frames, p_pktsize;
+	unsigned int period_bytes;
 	unsigned long long pitched_rate_mil, p_pktsize_residue_mil,
 			residue_frames_mil, div_result;
 
@@ -230,9 +231,13 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		do_div(div_result, uac->p_interval);
 		do_div(div_result, 1000000);
 		if ((unsigned int) div_result >= uac->p_framesize) {
-			req->length += uac->p_framesize;
+			/* req->length is bounded by ep->maxpacket above. */
+			if (uac->p_framesize <= ep->maxpacket - req->length) {
+				req->length += uac->p_framesize;
+				pr_debug("increased req length to %d\n", req->length);
+			}
+
 			uac->p_residue_mil -= uac->p_framesize * p_interval_mil;
-			pr_debug("increased req length to %d\n", req->length);
 		}
 		pr_debug("remains uac->p_residue_mil %llu\n", uac->p_residue_mil);
 
@@ -267,10 +272,12 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	/* update hw_ptr after data is copied to memory */
 	prm->hw_ptr = (hw_ptr + req->actual) % runtime->dma_bytes;
 	hw_ptr = prm->hw_ptr;
-	snd_pcm_stream_unlock(substream);
+	period_bytes = snd_pcm_lib_period_bytes(substream);
 
-	if ((hw_ptr % snd_pcm_lib_period_bytes(substream)) < req->actual)
-		snd_pcm_period_elapsed(substream);
+	if ((hw_ptr % period_bytes) < req->actual)
+		snd_pcm_period_elapsed_under_stream_lock(substream);
+
+	snd_pcm_stream_unlock(substream);
 
 exit:
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))

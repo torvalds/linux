@@ -325,6 +325,14 @@ static void gpio_vbus_remove(struct platform_device *pdev)
 	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
 
 	device_init_wakeup(&pdev->dev, 0);
+
+	/*
+	 * The VBUS sensing GPIO interrupt is devm-managed and freed only
+	 * at detach, and its handler schedules the work with a 100ms
+	 * delay; free the interrupt before cancelling the work so a
+	 * late plug event cannot re-arm it past the cancel.
+	 */
+	devm_free_irq(&pdev->dev, gpio_vbus->irq, pdev);
 	cancel_delayed_work_sync(&gpio_vbus->work);
 
 	usb_remove_phy(&gpio_vbus->phy);

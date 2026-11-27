@@ -246,6 +246,7 @@ struct ffs_buffer {
 struct ffs_io_data {
 	bool aio;
 	bool read;
+	bool aio_active;
 
 	struct kiocb *kiocb;
 	struct iov_iter data;
@@ -884,9 +885,11 @@ static void ffs_user_copy_worker(struct work_struct *work)
 		} else {
 			ret = -EFAULT;
 		}
-		mmdrop(io_data->mm);
 	}
+	mmdrop(io_data->mm);
 
+	/* Make sure kiocb_set_cancel_fn() was already called. */
+	smp_cond_load_acquire(&io_data->aio_active, VAL == true);
 	io_data->kiocb->ki_complete(io_data->kiocb, ret);
 
 	if (io_data->ffs->ffs_eventfd && !kiocb_has_eventfd)
@@ -1014,8 +1017,12 @@ static struct ffs_ep *ffs_epfile_wait_ep(struct ffs_epfile *epfile, struct file 
 	return ep;
 }
 
-static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
+static int ffs_aio_cancel(struct kiocb *kiocb);
+
+static ssize_t ffs_epfile_io(struct ffs_io_data *io_data)
 {
+	struct kiocb *kiocb = io_data->kiocb;
+	struct file *file = kiocb->ki_filp;
 	struct ffs_epfile *epfile = file->private_data;
 	struct usb_request *req;
 	struct ffs_ep *ep;
@@ -1104,11 +1111,17 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	if (epfile->ep != ep) {
 		/* In the meantime, endpoint got disabled or changed. */
 		ret = -ESHUTDOWN;
-	} else if (halt) {
+		goto error_lock;
+	}
+
+	if (halt) {
 		ret = usb_ep_set_halt(ep->ep);
 		if (!ret)
 			ret = -EBADMSG;
-	} else if (data_len == -EINVAL) {
+		goto error_lock;
+	}
+
+	if (data_len == -EINVAL) {
 		/*
 		 * Sanity Check: even though data_len can't be used
 		 * uninitialized at the time I write this comment, some
@@ -1122,7 +1135,10 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		 */
 		WARN(1, "%s: data_len == -EINVAL\n", __func__);
 		ret = -EINVAL;
-	} else if (!io_data->aio) {
+		goto error_lock;
+	}
+
+	if (!io_data->aio) {
 		bool interrupted = false;
 
 		req = ep->req;
@@ -1176,43 +1192,51 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		else
 			ret = io_data->status;
 		goto error_mutex;
-	} else if (!(req = usb_ep_alloc_request(ep->ep, GFP_ATOMIC))) {
-		ret = -ENOMEM;
-	} else {
-		if (io_data->use_sg) {
-			req->buf = NULL;
-			req->sg	= io_data->sgt.sgl;
-			req->num_sgs = io_data->sgt.nents;
-		} else {
-			req->buf = data;
-			req->num_sgs = 0;
-		}
-
-		req->zero = !io_data->read ? epfile->zlp_enabled : 0;
-		req->length = data_len;
-
-		io_data->buf = data;
-		io_data->ep = ep->ep;
-		io_data->req = req;
-		io_data->ffs = epfile->ffs;
-
-		req->context  = io_data;
-		req->complete = ffs_epfile_async_io_complete;
-
-		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
-		if (ret) {
-			io_data->req = NULL;
-			usb_ep_free_request(ep->ep, req);
-			goto error_lock;
-		}
-
-		ret = -EIOCBQUEUED;
-		/*
-		 * Do not kfree the buffer in this function.  It will be freed
-		 * by ffs_user_copy_worker.
-		 */
-		data = NULL;
 	}
+
+	/* It's an AIO request */
+	req = usb_ep_alloc_request(ep->ep, GFP_ATOMIC);
+	if (!req) {
+		ret = -ENOMEM;
+		goto error_lock;
+	}
+
+	if (io_data->use_sg) {
+		req->buf = NULL;
+		req->sg	= io_data->sgt.sgl;
+		req->num_sgs = io_data->sgt.nents;
+	} else {
+		req->buf = data;
+		req->num_sgs = 0;
+	}
+
+	req->zero = !io_data->read ? epfile->zlp_enabled : 0;
+	req->length = data_len;
+
+	io_data->buf = data;
+	io_data->ep = ep->ep;
+	io_data->req = req;
+	io_data->ffs = epfile->ffs;
+
+	req->context = io_data;
+	req->complete = ffs_epfile_async_io_complete;
+
+	ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
+	if (ret) {
+		io_data->req = NULL;
+		usb_ep_free_request(ep->ep, req);
+		goto error_lock;
+	}
+	kiocb->private = io_data;
+	kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
+	/*
+	 * prevent ffs_user_copy_worker() from calling
+	 *    io_data->kiocb->ki_complete()
+	 * before kiocb_set_cancel_fn() was called.
+	 */
+	smp_store_release(&io_data->aio_active, true);
+
+	ret = -EIOCBQUEUED;
 
 error_lock:
 	spin_unlock_irq(&epfile->ffs->eps_lock);
@@ -1285,21 +1309,15 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	p->data = *from;
 	p->mm = current->mm;
 
-	kiocb->private = p;
-
-	if (p->aio) {
+	if (p->aio)
 		mmgrab(p->mm);
-		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-	}
 
-	res = ffs_epfile_io(kiocb->ki_filp, p);
+	res = ffs_epfile_io(p);
 	if (res == -EIOCBQUEUED)
 		return res;
 	if (p->aio) {
-		kiocb->ki_complete(kiocb, res);
 		mmdrop(p->mm);
 		kfree(p);
-		return -EIOCBQUEUED;
 	} else {
 		*from = p->data;
 	}
@@ -1335,23 +1353,17 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	}
 	p->mm = current->mm;
 
-	kiocb->private = p;
-
-	if (p->aio) {
+	if (p->aio)
 		mmgrab(p->mm);
-		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-	}
 
-	res = ffs_epfile_io(kiocb->ki_filp, p);
+	res = ffs_epfile_io(p);
 	if (res == -EIOCBQUEUED)
 		return res;
 
 	if (p->aio) {
-		kiocb->ki_complete(kiocb, res);
 		mmdrop(p->mm);
 		kfree(p->to_free);
 		kfree(p);
-		return -EIOCBQUEUED;
 	} else {
 		*to = p->data;
 	}
@@ -1447,13 +1459,12 @@ static void ffs_dmabuf_signal_done(struct ffs_dma_fence *dma_fence, int ret)
 	struct dma_fence *fence = &dma_fence->base;
 	bool cookie = dma_fence_begin_signalling();
 
-	dma_fence_get(fence);
 	fence->error = ret;
 	dma_fence_signal(fence);
 	dma_fence_end_signalling(cookie);
 
 	/*
-	 * The fence will be unref'd in ffs_dmabuf_cleanup.
+	 * The reference of the request will be dropped in ffs_dmabuf_cleanup.
 	 * It can't be done here, as the unref functions might try to lock
 	 * the resv object, which would deadlock.
 	 */
@@ -1737,8 +1748,13 @@ static int ffs_dmabuf_transfer(struct file *file,
 
 	resv_dir = epfile->in ? DMA_RESV_USAGE_READ : DMA_RESV_USAGE_WRITE;
 
+	/*
+	 * The reservation object takes a reference of its own, and drops it as
+	 * soon as a later fence of this attachment takes the place of this
+	 * one. The initial reference stays with the request, which points to
+	 * the fence until ffs_dmabuf_cleanup() has run.
+	 */
 	dma_resv_add_fence(dmabuf->resv, &fence->base, resv_dir);
-	dma_fence_put(&fence->base);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* Now that the dma_fence is in place, queue the transfer. */
@@ -2462,7 +2478,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 			mutex_init(&comp->mutex);
 			mutex_init(&comp->dmabufs_mutex);
 			INIT_LIST_HEAD(&comp->dmabufs);
-			snprintf(comp->name, sizeof(comp->name), "%s_rw",
+			snprintf(comp->name, sizeof(comp->name), "%.4s_rw",
 				 epfiles[i].name);
 			err = ffs_sb_create_file(ffs->sb, comp->name,
 						 comp, &ffs_epfile_operations);

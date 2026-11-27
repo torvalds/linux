@@ -81,7 +81,7 @@ static void *typec_switch_match(const struct fwnode_handle *fwnode,
  */
 struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 {
-	struct typec_switch_dev *sw_devs[TYPEC_MUX_MAX_DEVS];
+	struct typec_switch_dev *sw_devs[TYPEC_MUX_MAX_DEVS] = { };
 	struct typec_switch *sw;
 	int count;
 	int err;

@@ -139,7 +139,7 @@ static void bot_send_bad_status(struct usbg_cmd *cmd)
 		req->complete = bot_err_compl;
 		req->context = cmd;
 		req->buf = fu->cmd[0].buf;
-		usb_ep_queue(ep, req, GFP_KERNEL);
+		usb_ep_queue(ep, req, GFP_ATOMIC);
 	} else {
 		bot_enqueue_sense_code(fu, cmd);
 	}
@@ -167,7 +167,7 @@ static int bot_send_status(struct usbg_cmd *cmd, bool moved_data)
 		csw->Status = US_BULK_STAT_OK;
 		fu->bot_status.req->context = cmd;
 
-		ret = usb_ep_queue(fu->ep_in, fu->bot_status.req, GFP_KERNEL);
+		ret = usb_ep_queue(fu->ep_in, fu->bot_status.req, GFP_ATOMIC);
 		if (ret)
 			pr_err("%s(%d) ERR: %d\n", __func__, __LINE__, ret);
 	} else {
@@ -1275,6 +1275,7 @@ skip:
 		struct uas_stream *stream = NULL;
 		struct hlist_node *tmp;
 		struct usbg_cmd *active_cmd = NULL;
+		struct usb_request *req;
 
 		se_sess = cmd->fu->tpg->tpg_nexus->tvn_se_sess;
 
@@ -1319,6 +1320,12 @@ skip:
 		}
 
 		/*
+		 * Take the request before the slot goes back to the pool; it
+		 * is queued on ep_cmd below.
+		 */
+		req = cmd->req;
+
+		/*
 		 * The command isn't submitted to the target core, so we're safe
 		 * to remove the bitmap index from the session tag pool.
 		 */
@@ -1332,6 +1339,8 @@ skip:
 		 */
 		active_cmd->tmr_rsp = RC_OVERLAPPED_TAG;
 		usbg_aborted_task(&active_cmd->se_cmd);
+
+		usb_ep_queue(fu->ep_cmd, req, GFP_ATOMIC);
 
 		/* Send the response after the transfer is aborted. */
 		return;

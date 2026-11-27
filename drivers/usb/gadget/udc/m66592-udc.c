@@ -1515,12 +1515,16 @@ static const struct usb_gadget_ops m66592_gadget_ops = {
 static void m66592_remove(struct platform_device *pdev)
 {
 	struct m66592		*m66592 = platform_get_drvdata(pdev);
-
-	usb_del_gadget_udc(&m66592->gadget);
+	unsigned long flags;
 
 	timer_shutdown_sync(&m66592->timer);
-	iounmap(m66592->reg);
+	spin_lock_irqsave(&m66592->lock, flags);
+	m66592_write(m66592, 0, M66592_INTENB0);
+	spin_unlock_irqrestore(&m66592->lock, flags);
+
+	usb_del_gadget_udc(&m66592->gadget);
 	free_irq(platform_get_irq(pdev, 0), m66592);
+	iounmap(m66592->reg);
 	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
 	if (m66592->pdata->on_chip) {
 		clk_disable(m66592->clk);

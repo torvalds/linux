@@ -2049,6 +2049,18 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x1bc7, 0x0023), /* Telit 3G ACM + ECM composition */
 	.driver_info = SEND_ZERO_PACKET,
 	},
+	{ USB_DEVICE_INTERFACE_NUMBER(0x1bc7, 0x7020, 4), /* Telit LE910Q1 (RNDIS) diag port */
+	.driver_info = QUIRK_CONTROL_LINE_STATE,
+	},
+	{ USB_DEVICE_INTERFACE_NUMBER(0x1bc7, 0x7021, 4), /* Telit LE910Q1 (ECM) diag port */
+	.driver_info = QUIRK_CONTROL_LINE_STATE,
+	},
+	{ USB_DEVICE_INTERFACE_NUMBER(0x1bc7, 0x7028, 4), /* Telit LE310Q1 (RNDIS) diag port */
+	.driver_info = QUIRK_CONTROL_LINE_STATE,
+	},
+	{ USB_DEVICE_INTERFACE_NUMBER(0x1bc7, 0x7029, 4), /* Telit LE310Q1 (ECM) diag port */
+	.driver_info = QUIRK_CONTROL_LINE_STATE,
+	},
 
 	/* Exclude Goodix Fingerprint Reader */
 	{ USB_DEVICE(0x27c6, 0x5395),

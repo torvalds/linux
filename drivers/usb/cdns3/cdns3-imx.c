@@ -218,12 +218,20 @@ err:
 	return ret;
 }
 
+static int cdns_imx_reset_pdata(struct device *dev, void *data)
+{
+	if (device_is_compatible(dev, "cdns,usb3"))
+		dev->platform_data = NULL;
+	return 0;
+}
+
 static void cdns_imx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cdns_imx *data = dev_get_drvdata(dev);
 
 	pm_runtime_get_sync(dev);
+	device_for_each_child(dev, NULL, cdns_imx_reset_pdata);
 	of_platform_depopulate(dev);
 	clk_bulk_disable_unprepare(data->num_clks, data->clks);
 	pm_runtime_disable(dev);

@@ -314,6 +314,7 @@ struct tb_port {
  * @can_offline: Does the port have necessary platform support to move
  *		 it into offline mode and back
  * @offline: The port is currently in offline mode
+ * @component_added: The port was added to the component framework
  * @margining: Pointer to margining structure if enabled
  */
 struct usb4_port {
@@ -321,6 +322,7 @@ struct usb4_port {
 	struct tb_port *port;
 	bool can_offline;
 	bool offline;
+	bool component_added;
 #ifdef CONFIG_USB4_DEBUGFS_MARGINING
 	struct tb_margining *margining;
 #endif

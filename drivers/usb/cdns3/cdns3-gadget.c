@@ -2530,9 +2530,9 @@ static int cdns3_gadget_ep_disable(struct usb_ep *ep)
 				  !(val & EP_STS_DBUSY), 1, 10);
 	writel(EP_CMD_EPRST, &priv_dev->regs->ep_cmd);
 
-	readl_poll_timeout_atomic(&priv_dev->regs->ep_cmd, val,
-				  !(val & (EP_CMD_CSTALL | EP_CMD_EPRST)),
-				  1, 1000);
+	ret = readl_poll_timeout_atomic(&priv_dev->regs->ep_cmd, val,
+					!(val & (EP_CMD_CSTALL | EP_CMD_EPRST)),
+					1, 1000);
 	if (unlikely(ret))
 		dev_err(priv_dev->dev, "Timeout: %s resetting failed.\n",
 			priv_ep->name);

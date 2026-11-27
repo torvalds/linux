@@ -728,11 +728,11 @@ static int set_ep_max_packet_size_bint(struct device *dev, const struct f_uac2_o
 			bint = opts_bint;
 			max_size_bw = get_max_bw_for_bint(uac2_opts, bint, 8000, is_playback);
 		} else {
-			/* checking bInterval from 4 to 1 whether the required bandwidth fits */
-			for (bint = 4; bint > 0; --bint) {
+			/* select the largest bInterval that fits, or 1 if none fit */
+			for (bint = 4; ; --bint) {
 				max_size_bw = get_max_bw_for_bint(
 					uac2_opts, bint, 8000, is_playback);
-				if (max_size_bw <= max_size_ep)
+				if (max_size_bw <= max_size_ep || bint == 1)
 					break;
 			}
 		}

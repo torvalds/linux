@@ -1993,6 +1993,21 @@ static int dwc2_hcd_endpoint_disable(struct dwc2_hsotg *hsotg,
 		}
 	}
 
+	/*
+	 * The hub driver still has a pointer to the endpoint. Wait until it
+	 * has called _dwc2_hcd_clear_tt_buffer_complete().
+	 */
+	while (qh->tt_buffer_dirty) {
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		msleep(20);
+		spin_lock_irqsave(&hsotg->lock, flags);
+		qh = ep->hcpriv;
+		if (!qh) {
+			rc = -EINVAL;
+			goto err;
+		}
+	}
+
 	dwc2_hcd_qh_unlink(hsotg, qh);
 
 	/* Free each QTD in the QH's QTD list */
