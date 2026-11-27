@@ -1351,13 +1351,14 @@ static void intel_pstate_hwp_offline(struct cpudata *cpu)
 /* Enable bit for Dynamic Efficiency Control (DEC) */
 #define POWER_CTL_DEC_ENABLE	27
 
+static DEFINE_MUTEX(power_ctl_update_lock);
 static int power_ctl_ee_state;
 
-static void set_power_ctl_ee_state(bool input)
+static void __set_power_ctl_ee_state(bool input)
 {
 	u64 power_ctl;
 
-	guard(mutex)(&intel_pstate_driver_lock);
+	lockdep_assert_held(&power_ctl_update_lock);
 
 	rdmsrq(MSR_IA32_POWER_CTL, power_ctl);
 	if (input) {
@@ -1368,6 +1369,13 @@ static void set_power_ctl_ee_state(bool input)
 		power_ctl_ee_state = POWER_CTL_EE_DISABLE;
 	}
 	wrmsrq(MSR_IA32_POWER_CTL, power_ctl);
+}
+
+static void set_power_ctl_ee_state(bool input)
+{
+	guard(mutex)(&power_ctl_update_lock);
+
+	__set_power_ctl_ee_state(input);
 }
 
 static void intel_pstate_hwp_enable(struct cpudata *cpudata);
@@ -1398,11 +1406,13 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 
 	pr_debug("CPU %d resuming\n", cpu->cpu);
 
-	/* Only restore if the system default is changed */
-	if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
-		set_power_ctl_ee_state(true);
-	else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
-		set_power_ctl_ee_state(false);
+	scoped_guard(mutex, &power_ctl_update_lock) {
+		/* Only restore if the system default has changed */
+		if (power_ctl_ee_state == POWER_CTL_EE_ENABLE)
+			__set_power_ctl_ee_state(true);
+		else if (power_ctl_ee_state == POWER_CTL_EE_DISABLE)
+			__set_power_ctl_ee_state(false);
+	}
 
 	if (cpu->suspended && hwp_active) {
 		mutex_lock(&intel_pstate_limits_lock);
@@ -1426,16 +1436,24 @@ static void intel_pstate_update_policies(void)
 		cpufreq_update_policy(cpu);
 }
 
-static void __intel_pstate_update_max_freq(struct cpufreq_policy *policy,
-					   struct cpudata *cpudata)
+static void __intel_pstate_update_cpuinfo_max_freq(struct cpufreq_policy *policy,
+						   struct cpudata *cpudata)
 {
-	guard(cpufreq_policy_write)(policy);
+	lockdep_assert_held_write(&policy->rwsem);
 
 	if (hwp_active)
 		intel_pstate_get_hwp_cap(cpudata);
 
 	policy->cpuinfo.max_freq = READ_ONCE(global.no_turbo) ?
 			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
+}
+
+static void __intel_pstate_update_max_freq(struct cpufreq_policy *policy,
+					   struct cpudata *cpudata)
+{
+	guard(cpufreq_policy_write)(policy);
+
+	__intel_pstate_update_cpuinfo_max_freq(policy, cpudata);
 
 	refresh_frequency_limits(policy);
 }
@@ -1569,6 +1587,12 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 		return -EINVAL;
 
 	guard(mutex)(&intel_pstate_driver_lock);
+	/*
+	 * intel_pstate_update_max_freq() skips offline CPUs, and a CPU coming
+	 * online reads global.no_turbo in intel_pstate_cpu_online(). Keep CPUs
+	 * from coming online until every online CPU has the new limit
+	 */
+	guard(cpus_read_lock)();
 
 	if (!intel_pstate_driver)
 		return -EAGAIN;
@@ -3018,6 +3042,14 @@ static int intel_pstate_cpu_online(struct cpufreq_policy *policy)
 
 		hybrid_update_capacity(cpu);
 	}
+
+	/*
+	 * intel_pstate_update_max_freq() skips offline CPUs, so the turbo
+	 * setting or the HWP capabilities may have changed since this CPU
+	 * went offline. Read the HWP capabilities only once HWP is enabled
+	 * again
+	 */
+	__intel_pstate_update_cpuinfo_max_freq(policy, cpu);
 
 	return 0;
 }
