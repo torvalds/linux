@@ -46,6 +46,7 @@ bool intel_alpm_is_alpm_aux_less(struct intel_dp *intel_dp,
 void intel_alpm_init(struct intel_dp *intel_dp)
 {
 	mutex_init(&intel_dp->alpm.lock);
+	intel_dp->alpm.transcoder = INVALID_TRANSCODER;
 }
 
 static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
@@ -549,6 +550,7 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 	alpm_ctl |= ALPM_CTL_ALPM_ENTRY_CHECK(crtc_state->alpm_state.check_entry_lines);
 
 	intel_de_write(display, ALPM_CTL(display, cpu_transcoder), alpm_ctl);
+	intel_dp->alpm.transcoder = cpu_transcoder;
 	mutex_unlock(&intel_dp->alpm.lock);
 }
 
@@ -556,7 +558,6 @@ void intel_alpm_configure(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state)
 {
 	lnl_alpm_configure(intel_dp, crtc_state);
-	intel_dp->alpm.transcoder = crtc_state->cpu_transcoder;
 }
 
 void intel_alpm_port_configure(struct intel_dp *intel_dp,
@@ -733,17 +734,23 @@ void intel_alpm_lobf_debugfs_add(struct intel_connector *connector)
 void intel_alpm_disable(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	enum transcoder cpu_transcoder = intel_dp->alpm.transcoder;
+	enum transcoder cpu_transcoder;
 
 	if (DISPLAY_VER(display) < 20 || !intel_dp->alpm_dpcd)
 		return;
 
 	mutex_lock(&intel_dp->alpm.lock);
 
+	cpu_transcoder = intel_dp->alpm.transcoder;
+	if (cpu_transcoder == INVALID_TRANSCODER)
+		goto unlock;
+
 	intel_de_rmw(display, ALPM_CTL(display, cpu_transcoder),
 		     ALPM_CTL_ALPM_ENABLE | ALPM_CTL_LOBF_ENABLE, 0);
+	intel_dp->alpm.transcoder = INVALID_TRANSCODER;
 
 	drm_dbg_kms(display->drm, "Disabling ALPM\n");
+unlock:
 	mutex_unlock(&intel_dp->alpm.lock);
 }
 
