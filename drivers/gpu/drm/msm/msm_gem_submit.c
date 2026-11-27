@@ -272,7 +272,7 @@ static int submit_lock_objects_vmbind(struct msm_gem_submit *submit)
 	struct drm_exec *exec = &submit->exec;
 	int ret = 0;
 
-	drm_exec_init(&submit->exec, flags, submit->nr_bos);
+	drm_exec_init(&submit->exec, flags, 0);
 	submit->has_exec = true;
 
 	drm_exec_until_all_locked (&submit->exec) {
@@ -588,6 +588,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		    !capable(CAP_SYS_RAWIO))
 			return -EINVAL;
 	}
+
+	if (msm_context_is_vmbind(ctx) && args->nr_bos)
+		return UERR(EINVAL, dev, "invalid nr_bos, must be zero for VM_BIND contexts");
 
 	queue = msm_submitqueue_get(ctx, args->queueid);
 	if (!queue)

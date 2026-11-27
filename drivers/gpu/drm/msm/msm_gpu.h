@@ -522,17 +522,18 @@ msm_context_is_vmbind(struct msm_context *ctx)
  * @sched_prio: [out] the gpu scheduler priority level which the userspace
  *              priority maps to
  *
- * With drm/scheduler providing it's own level of prioritization, our total
+ * With drm/scheduler providing its own level of prioritization, our total
  * number of available priority levels is (nr_rings * NR_SCHED_PRIORITIES).
- * Each ring is associated with it's own scheduler instance.  However, our
- * UABI is that lower numerical values are higher priority.  So mapping the
- * single userspace priority level into ring_nr and sched_prio takes some
- * care.  The userspace provided priority (when a submitqueue is created)
- * is mapped to ring nr and scheduler priority as such:
+ * Each ring is associated with its own scheduler instance.  Both the MSM
+ * UABI and drm/scheduler use lower-numeric = higher-priority, so the mapping
+ * from a single userspace priority level into ring_nr and sched_prio is:
  *
  *   ring_nr    = userspace_prio / NR_SCHED_PRIORITIES
- *   sched_prio = NR_SCHED_PRIORITIES -
- *                (userspace_prio % NR_SCHED_PRIORITIES) - 1
+ *   sched_prio = (userspace_prio % NR_SCHED_PRIORITIES) + DRM_SCHED_PRIORITY_HIGH
+ *
+ * The offset by DRM_SCHED_PRIORITY_HIGH keeps the range within [HIGH..LOW],
+ * intentionally excluding DRM_SCHED_PRIORITY_KERNEL which is reserved for
+ * kernel-internal submissions.
  *
  * This allows generations without preemption (nr_rings==1) to have some
  * amount of prioritization, and provides more priority levels for gens
@@ -547,16 +548,11 @@ static inline int msm_gpu_convert_priority(struct msm_gpu *gpu, int prio,
 
 	rn = div_u64_rem(prio, NR_SCHED_PRIORITIES, &sp);
 
-	/* invert sched priority to map to higher-numeric-is-higher-
-	 * priority convention
-	 */
-	sp = NR_SCHED_PRIORITIES - sp - 1;
-
 	if (rn >= gpu->nr_rings)
 		return -EINVAL;
 
 	*ring_nr = rn;
-	*sched_prio = sp;
+	*sched_prio = sp + DRM_SCHED_PRIORITY_HIGH;
 
 	return 0;
 }

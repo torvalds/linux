@@ -136,7 +136,7 @@ get_sched_entity(struct msm_context *ctx, struct msm_ringbuffer *ring,
 		 unsigned ring_nr, enum drm_sched_priority sched_prio)
 {
 	static DEFINE_MUTEX(entity_lock);
-	unsigned idx = (ring_nr * NR_SCHED_PRIORITIES) + sched_prio;
+	unsigned idx = (ring_nr * NR_SCHED_PRIORITIES) + (sched_prio - DRM_SCHED_PRIORITY_HIGH);
 
 	/* We should have already validated that the requested priority is
 	 * valid by the time we get here.

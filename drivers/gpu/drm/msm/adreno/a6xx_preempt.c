@@ -140,12 +140,17 @@ void a6xx_preempt_hw_init(struct msm_gpu *gpu)
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct a6xx_preempt_record *record_ptr = a6xx_gpu->preempt[i];
 
-		record_ptr->wptr = 0;
-		record_ptr->rptr = 0;
-		record_ptr->rptr_addr = shadowptr(a6xx_gpu, gpu->rb[i]);
+		record_ptr->magic = A6XX_PREEMPT_RECORD_MAGIC;
 		record_ptr->info = 0;
+		record_ptr->errno = 0;
 		record_ptr->data = 0;
+		record_ptr->cntl = MSM_GPU_RB_CNTL_DEFAULT;
+		record_ptr->rptr = 0;
+		record_ptr->wptr = 0;
+		record_ptr->rptr_addr = shadowptr(a6xx_gpu, gpu->rb[i]);
 		record_ptr->rbase = gpu->rb[i]->iova;
+		record_ptr->counter = 0;
+		record_ptr->bv_rptr_addr = rbmemptr(gpu->rb[i], bv_rptr);
 	}
 
 	/* Write a 0 to signal that we aren't switching pagetables */
@@ -161,6 +166,19 @@ void a6xx_preempt_hw_init(struct msm_gpu *gpu)
 
 	/* Always come up on rb 0 */
 	a6xx_gpu->cur_ring = gpu->rb[0];
+}
+
+void a6xx_preempt_record_reset(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	int i;
+
+	if (gpu->nr_rings == 1)
+		return;
+
+	for (i = 0; i < gpu->nr_rings; i++)
+		memset(a6xx_gpu->preempt[i], 0, a6xx_gpu->preempt_bo[i]->size);
 }
 
 void a6xx_preempt_trigger(struct msm_gpu *gpu)
@@ -302,8 +320,6 @@ static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
 	a6xx_gpu->preempt_iova[ring->id] = iova;
 	a6xx_gpu->preempt[ring->id] = ptr;
 
-	struct a6xx_preempt_record *record_ptr = ptr;
-
 	ptr = msm_gem_kernel_new(gpu->dev,
 		PREEMPT_SMMU_INFO_SIZE,
 		MSM_BO_WC | MSM_BO_MAP_PRIV | MSM_BO_GPU_READONLY,
@@ -328,17 +344,6 @@ static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
 	smmu_info_ptr->ttbr0 = ttbr;
 	smmu_info_ptr->asid = 0xdecafbad;
 	smmu_info_ptr->context_idr = 0;
-
-	/* Set up the defaults on the preemption record */
-	record_ptr->magic = A6XX_PREEMPT_RECORD_MAGIC;
-	record_ptr->info = 0;
-	record_ptr->data = 0;
-	record_ptr->rptr = 0;
-	record_ptr->wptr = 0;
-	record_ptr->cntl = MSM_GPU_RB_CNTL_DEFAULT;
-	record_ptr->rbase = ring->iova;
-	record_ptr->counter = 0;
-	record_ptr->bv_rptr_addr = rbmemptr(ring, bv_rptr);
 
 	return 0;
 }

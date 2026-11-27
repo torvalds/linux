@@ -810,7 +810,7 @@ static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 	if (!msg)
 		return -ENOMEM;
 
-	if (info->bcms && gmu->nr_gpu_bws > 1)
+	if (a6xx_gmu_scales_bw(gmu))
 		a6xx_generate_bw_table(info, gmu, msg);
 	else if (adreno_is_a618(adreno_gpu))
 		a618_build_bw_table(msg);
