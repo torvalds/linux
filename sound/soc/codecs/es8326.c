@@ -542,7 +542,7 @@ static const struct _coeff_div coeff_div_v3[] = {
 	{256, 8000, 2048000, 0x60, 0x00, 0x31, 0x35, 0x08, 0x19, 0x1F, 0x7F},
 	{256, 16000, 4096000, 0x20, 0x00, 0x01, 0x35, 0x08, 0x19, 0x1F, 0x3F},
 	{256, 44100, 11289600, 0xE0, 0x01, 0x01, 0x2D, 0x48, 0x08, 0x1F, 0x1F},
-	{256, 48000, 12288000, 0xE0, 0x01, 0x01, 0x2D, 0x48, 0x08, 0x1F, 0x1F},
+	{256, 48000, 12288000, 0x01, 0x00, 0x10, 0x2D, 0x2A, 0x2A, 0x1F, 0x1F},
 	{288, 8000, 2304000, 0x20, 0x00, 0x01, 0x35, 0x8A, 0x1B, 0x23, 0x47},
 	{384, 8000, 3072000, 0x60, 0x02, 0x05, 0x75, 0x8A, 0x1B, 0x1F, 0x7F},
 	{384, 16000, 6144000, 0x20, 0x02, 0x03, 0x35, 0x8A, 0x1B, 0x1F, 0x3F},
@@ -785,7 +785,7 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 			}
 
 			queue_delayed_work(system_dfl_wq, &es8326->capture_pop_work,
-				   msecs_to_jiffies(40));
+				   msecs_to_jiffies(100));
 		}
 	}
 	return 0;
@@ -1155,7 +1155,7 @@ static int es8326_calibrate(struct snd_soc_component *component)
 		regmap_write(es8326->regmap, ES8326_HP_OFFSET_CAL, ES8326_HP_OFF);
 		regmap_read(es8326->regmap, ES8326_CSM_MUTE_STA, &reg);
 		if ((reg & 0xf0) != 0x40)
-			msleep(50);
+			msleep(200);
 
 		regmap_write(es8326->regmap, ES8326_HP_CAL, 0xd4);
 		msleep(200);
@@ -1256,6 +1256,8 @@ static void es8326_init(struct snd_soc_component *component)
 		regmap_update_bits(es8326->regmap, ES8326_ANA_MICBIAS, 0x73, 0x10);
 		regmap_update_bits(es8326->regmap, ES8326_VMIDSEL, 0x40, 0x40);
 	}
+	regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS1, 0x0f, 0x04);
+	regmap_update_bits(es8326->regmap, ES8326_ADC_HPFS2, 0x0f, 0x04);
 
 	msleep(200);
 	regmap_write(es8326->regmap, ES8326_INT_SOURCE, ES8326_INT_SRC_PIN9);
