@@ -1886,7 +1886,8 @@ trace_event_buffer_lock_reserve(struct trace_buffer **current_rb,
 	*current_rb = tr->array_buffer.buffer;
 
 	if (!tr->no_filter_buffering_ref &&
-	    (trace_file->flags & (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED))) {
+	    (READ_ONCE(trace_file->flags) &
+	     (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED))) {
 		preempt_disable_notrace();
 		/*
 		 * Filtering is on, so try to use the per cpu buffer first.
@@ -1947,7 +1948,7 @@ trace_event_buffer_lock_reserve(struct trace_buffer **current_rb,
 	 * to store the trace event for the trigger to use. It's recursive
 	 * safe and will not be recorded anywhere.
 	 */
-	if (!entry && trace_file->flags & EVENT_FILE_FL_TRIGGER_COND) {
+	if (!entry && (READ_ONCE(trace_file->flags) & EVENT_FILE_FL_TRIGGER_COND)) {
 		*current_rb = temp_buffer;
 		entry = __trace_buffer_lock_reserve(*current_rb, type, len,
 						    trace_ctx);
@@ -1978,7 +1979,7 @@ static void output_printk(struct trace_event_buffer *fbuffer)
 
 	file = fbuffer->trace_file;
 	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags) ||
-	    (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
+	    (unlikely(test_bit(EVENT_FILE_FL_FILTERED_BIT, &file->flags)) &&
 	     !filter_match_preds(file->filter, fbuffer->entry)))
 		return;
 

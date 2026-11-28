@@ -5847,6 +5847,13 @@ static int ftrace_process_regex(struct ftrace_iterator *iter,
 
 	/* command found */
 
+	/*
+	 * A double "!!" confuses the parser. This isn't a boolean operation,
+	 * simply reject it.
+	 */
+	if (func[0] == '!' && func[1] == '!')
+		return -EINVAL;
+
 	command = strsep(&next, ":");
 
 	guard(mutex)(&ftrace_cmd_mutex);

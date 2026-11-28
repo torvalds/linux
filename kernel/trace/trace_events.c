@@ -707,7 +707,7 @@ void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 {
 	struct trace_event_call *event_call = trace_file->event_call;
 
-	if ((trace_file->flags & EVENT_FILE_FL_PID_FILTER) &&
+	if (test_bit(EVENT_FILE_FL_PID_FILTER_BIT, &trace_file->flags) &&
 	    trace_event_ignore_this_pid(trace_file))
 		return NULL;
 

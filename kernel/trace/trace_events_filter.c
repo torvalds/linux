@@ -1349,11 +1349,7 @@ static void free_prog(struct event_filter *filter)
 
 static void filter_disable(struct trace_event_file *file)
 {
-	unsigned long old_flags = file->flags;
-
-	file->flags &= ~EVENT_FILE_FL_FILTERED;
-
-	if (old_flags != file->flags)
+	if (test_and_clear_bit(EVENT_FILE_FL_FILTERED_BIT, &file->flags))
 		trace_buffered_event_disable();
 }
 
@@ -2331,11 +2327,7 @@ static int process_preds(struct trace_event_call *call,
 
 static inline void event_set_filtered_flag(struct trace_event_file *file)
 {
-	unsigned long old_flags = file->flags;
-
-	file->flags |= EVENT_FILE_FL_FILTERED;
-
-	if (old_flags != file->flags)
+	if (!test_and_set_bit(EVENT_FILE_FL_FILTERED_BIT, &file->flags))
 		trace_buffered_event_enable();
 }
 

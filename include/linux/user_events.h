@@ -27,28 +27,26 @@ struct user_event_mm {
 	struct rcu_work		put_rwork;
 };
 
-extern void user_event_mm_dup(struct task_struct *t,
-			      struct user_event_mm *old_mm);
+int user_event_mm_dup(struct task_struct *t, struct user_event_mm *old_mm);
 
 extern void user_event_mm_remove(struct task_struct *t);
 
-static inline void user_events_fork(struct task_struct *t,
-				    u64 clone_flags)
+static inline int user_events_fork(struct task_struct *t, u64 clone_flags)
 {
 	struct user_event_mm *old_mm;
 
 	if (!t || !current->user_event_mm)
-		return;
+		return 0;
 
 	old_mm = current->user_event_mm;
 
 	if (clone_flags & CLONE_VM) {
 		t->user_event_mm = old_mm;
 		refcount_inc(&old_mm->tasks);
-		return;
+		return 0;
 	}
 
-	user_event_mm_dup(t, old_mm);
+	return user_event_mm_dup(t, old_mm);
 }
 
 static inline void user_events_execve(struct task_struct *t)
@@ -67,9 +65,9 @@ static inline void user_events_exit(struct task_struct *t)
 	user_event_mm_remove(t);
 }
 #else
-static inline void user_events_fork(struct task_struct *t,
-				    u64 clone_flags)
+static inline int user_events_fork(struct task_struct *t, u64 clone_flags)
 {
+	return 0;
 }
 
 static inline void user_events_execve(struct task_struct *t)

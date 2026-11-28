@@ -214,7 +214,7 @@ EXPORT_SYMBOL_GPL(event_triggers_call);
 
 bool __trace_trigger_soft_disabled(struct trace_event_file *file)
 {
-	unsigned long eflags = file->flags;
+	unsigned long eflags = READ_ONCE(file->flags);
 
 	if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
 		event_triggers_call(file, NULL, NULL, NULL);
@@ -1692,7 +1692,8 @@ event_enable_count_func(struct event_trigger_data *data,
 		return false;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (enable_data->enable == !(enable_data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
+	if (enable_data->enable == !test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT,
+					     &enable_data->file->flags))
 		return false;
 
 	if (data->count != -1)
