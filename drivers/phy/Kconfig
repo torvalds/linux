@@ -93,6 +93,7 @@ config PHY_ECONET_PCIE
 
 config PHY_GOOGLE_USB
 	tristate "Google Tensor SoC USB PHY driver"
+	depends on ARCH_GOOGLE || COMPILE_TEST
 	select GENERIC_PHY
 	depends on TYPEC
 	help

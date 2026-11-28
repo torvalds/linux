@@ -44,8 +44,6 @@
 #define MHZ	(1000UL * 1000UL)
 #endif
 
-#define PHY_DEFAULT_RATE	74250000
-
 #define PHY_PLL_DIV_REGS_NUM 7
 
 struct phy_config {
@@ -491,6 +489,17 @@ static int fsl_samsung_hdmi_phy_configure(struct fsl_samsung_hdmi_phy *phy,
 	return ret;
 }
 
+static unsigned long phy_clk_recalc_rate(struct clk_hw *hw,
+					 unsigned long parent_rate)
+{
+	struct fsl_samsung_hdmi_phy *phy = to_fsl_samsung_hdmi_phy(hw);
+
+	if (!phy->cur_cfg)
+		return 74250000;
+
+	return phy->cur_cfg->pixclk;
+}
+
 /* Helper function to lookup the available fractional-divider rate */
 static const struct phy_config *fsl_samsung_hdmi_phy_lookup_rate(unsigned long rate)
 {
@@ -509,14 +518,6 @@ static const struct phy_config *fsl_samsung_hdmi_phy_lookup_rate(unsigned long r
 	return (abs((long) rate - (long) phy_pll_cfg[i].pixclk) <
 		abs((long) rate - (long) phy_pll_cfg[i+1].pixclk) ?
 		&phy_pll_cfg[i] : &phy_pll_cfg[i+1]);
-}
-
-static unsigned long phy_clk_recalc_rate(struct clk_hw *hw,
-					 unsigned long parent_rate)
-{
-	struct fsl_samsung_hdmi_phy *phy = to_fsl_samsung_hdmi_phy(hw);
-
-	return phy->cur_cfg->pixclk;
 }
 
 static void fsl_samsung_hdmi_calculate_phy(struct phy_config *cal_phy, unsigned long rate,
@@ -639,7 +640,6 @@ static int phy_clk_register(struct fsl_samsung_hdmi_phy *phy)
 
 static int fsl_samsung_hdmi_phy_probe(struct platform_device *pdev)
 {
-	const struct phy_config *default_cfg;
 	struct fsl_samsung_hdmi_phy *phy;
 	int ret;
 
@@ -663,23 +663,6 @@ static int fsl_samsung_hdmi_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->refclk))
 		return dev_err_probe(phy->dev, PTR_ERR(phy->refclk),
 				     "failed to get ref clk\n");
-
-	/*
-	 * Establish the rate reported by recalc_rate() before registering the
-	 * clock. Otherwise CCF may skip the first set_rate() when it requests
-	 * the assumed default rate, leaving the PHY unconfigured.
-	 */
-	ret = clk_prepare_enable(phy->refclk);
-	if (ret)
-		return dev_err_probe(phy->dev, ret,
-				     "failed to enable ref clk\n");
-
-	default_cfg = fsl_samsung_hdmi_phy_lookup_rate(PHY_DEFAULT_RATE);
-	ret = fsl_samsung_hdmi_phy_configure(phy, default_cfg);
-	clk_disable_unprepare(phy->refclk);
-	if (ret)
-		return dev_err_probe(phy->dev, ret,
-				     "failed to configure default rate\n");
 
 	pm_runtime_get_noresume(phy->dev);
 	pm_runtime_set_active(phy->dev);
@@ -719,7 +702,7 @@ static int __maybe_unused fsl_samsung_hdmi_phy_suspend(struct device *dev)
 static int __maybe_unused fsl_samsung_hdmi_phy_resume(struct device *dev)
 {
 	struct fsl_samsung_hdmi_phy *phy = dev_get_drvdata(dev);
-	int ret;
+	int ret = 0;
 
 	ret = clk_prepare_enable(phy->apbclk);
 	if (ret) {
@@ -727,23 +710,11 @@ static int __maybe_unused fsl_samsung_hdmi_phy_resume(struct device *dev)
 		return ret;
 	}
 
-	if (!phy->cur_cfg)
-		return 0;
+	if (phy->cur_cfg)
+		ret = fsl_samsung_hdmi_phy_configure(phy, phy->cur_cfg);
 
-	ret = clk_prepare_enable(phy->refclk);
-	if (ret) {
-		dev_err(phy->dev, "failed to enable ref clk\n");
-		goto disable_apbclk;
-	}
-
-	ret = fsl_samsung_hdmi_phy_configure(phy, phy->cur_cfg);
-	clk_disable_unprepare(phy->refclk);
-	if (!ret)
-		return 0;
-
-disable_apbclk:
-	clk_disable_unprepare(phy->apbclk);
 	return ret;
+
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(fsl_samsung_hdmi_phy_pm_ops,

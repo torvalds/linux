@@ -526,7 +526,8 @@ static void rk_combphy_common_cfg_ssc(struct rockchip_combphy_priv *priv, unsign
 
 		val = FIELD_PREP(RK3568_PHYREG33_PLL_KVCO_MASK,
 				 RK3576_PHYREG33_PLL_KVCO_VALUE);
-		writel(val, priv->mmio + RK3568_PHYREG33);
+		rockchip_combphy_updatel(priv, RK3568_PHYREG33_PLL_KVCO_MASK,
+					 val, RK3568_PHYREG33);
 	}
 }
 

@@ -1232,8 +1232,8 @@ static struct phy *mvebu_a3700_comphy_xlate(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	lane->invert_tx = args->args[1] & BIT(0);
-	lane->invert_rx = args->args[1] & BIT(1);
+	lane->invert_tx = args->args_count > 1 && (args->args[1] & BIT(0));
+	lane->invert_rx = args->args_count > 1 && (args->args[1] & BIT(1));
 
 	return phy;
 }

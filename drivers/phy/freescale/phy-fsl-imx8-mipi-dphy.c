@@ -191,8 +191,7 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 	unsigned long ref_clk = clk_get_rate(priv->phy_ref_clk);
 	u32 lp_t, numerator, denominator;
 	unsigned long long tmp;
-	u32 n;
-	int i;
+	int n, i;
 
 	if (dphy_opts->hs_clk_rate > DATA_RATE_MAX_SPEED ||
 	    dphy_opts->hs_clk_rate < DATA_RATE_MIN_SPEED)
@@ -276,7 +275,7 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 	cfg->mc_prg_hs_prepare = dphy_opts->clk_prepare > lp_t ? 1 : 0;
 
 	/* hs_zero: formula from NXP BSP */
-	n = (144 * (dphy_opts->hs_clk_rate / 1000000) - 47500) / 10000;
+	n = (144 * (int)(dphy_opts->hs_clk_rate / 1000000) - 47500) / 10000;
 	cfg->m_prg_hs_zero = n < 1 ? 1 : n;
 
 	/* clk_zero: formula from NXP BSP */

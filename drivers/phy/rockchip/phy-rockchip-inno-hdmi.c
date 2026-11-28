@@ -1068,7 +1068,7 @@ static int inno_hdmi_phy_clk_register(struct inno_hdmi_phy *inno)
 		return ret;
 	}
 
-	ret = of_clk_add_provider(np, of_clk_src_simple_get, inno->phyclk);
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, &inno->hw);
 	if (ret) {
 		dev_err(dev, "failed to register clock provider: %d\n", ret);
 		return ret;
@@ -1454,11 +1454,6 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static void inno_hdmi_phy_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-}
-
 static const struct of_device_id inno_hdmi_phy_of_match[] = {
 	{
 		.compatible = "rockchip,rk3228-hdmi-phy",
@@ -1472,7 +1467,6 @@ MODULE_DEVICE_TABLE(of, inno_hdmi_phy_of_match);
 
 static struct platform_driver inno_hdmi_phy_driver = {
 	.probe = inno_hdmi_phy_probe,
-	.remove = inno_hdmi_phy_remove,
 	.driver = {
 		.name = "inno-hdmi-phy",
 		.of_match_table = inno_hdmi_phy_of_match,
