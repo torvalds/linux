@@ -997,6 +997,10 @@ int amdgpu_mes_rs64mem_setup_bitmaps(struct amdgpu_mes *mes)
 	if (!mes->use_rs64mem || !mes->ctx_array_size_cpu_ptr)
 		return 0;
 
+	/* Keep the slots live processes and queues hold across MES re-init. */
+	if (mes->proc_ctx_bitmap && mes->gang_ctx_bitmap)
+		return 0;
+
 	/*
 	 * MES FW wrote the sizes to the GPU buffer:
 	 *   ctx_array_size_cpu_ptr[0] = proc_ctx_array_size (N)

@@ -3009,7 +3009,8 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 			struct drm_gem_object *gobj;
 
 			gobj = &mem->bo->tbo.base;
-			ret = drm_exec_prepare_obj(&exec, gobj, 1);
+			ret = drm_exec_prepare_obj(&exec, gobj,
+						   TTM_NUM_MOVE_FENCES + 1);
 			drm_exec_retry_on_contention(&exec);
 			if (unlikely(ret)) {
 				pr_err("drm_exec_prepare_obj failed, ret: %d\n", ret);

@@ -129,6 +129,9 @@ void dpp50_dpp_setup(
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		pixel_format = 8;
 		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
+		pixel_format = 9;
+		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 		pixel_format = 10;

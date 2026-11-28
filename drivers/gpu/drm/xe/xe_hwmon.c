@@ -1688,9 +1688,9 @@ int xe_hwmon_register(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Register xe hwmon interface\n");
 
 	/*  hwmon_dev points to device hwmon<i> */
-	hwmon->hwmon_dev = devm_hwmon_device_register_with_info(dev, "xe", hwmon,
-								&hwmon_chip_info,
-								hwmon_groups);
+	hwmon->hwmon_dev = hwmon_device_register_with_info(dev, "xe", hwmon,
+							   &hwmon_chip_info,
+							   hwmon_groups);
 	if (IS_ERR(hwmon->hwmon_dev)) {
 		err = PTR_ERR(hwmon->hwmon_dev);
 		xe_log_err(xe, HWMON, err,
@@ -1700,5 +1700,21 @@ int xe_hwmon_register(struct xe_device *xe)
 	}
 
 	return 0;
+}
+
+/**
+ * xe_hwmon_unregister - Remove the hwmon interface
+ * @xe: xe device
+ *
+ * Called before the device is unplugged, so that no hwmon attribute can
+ * be accessed afterwards.
+ */
+void xe_hwmon_unregister(struct xe_device *xe)
+{
+	if (!xe->hwmon)
+		return;
+
+	hwmon_device_unregister(xe->hwmon->hwmon_dev);
+	xe->hwmon = NULL;
 }
 MODULE_IMPORT_NS("INTEL_PMT_TELEMETRY");

@@ -808,6 +808,9 @@ static enum dc_pixel_format convert_pixel_format_to_dalsurface(
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		dal_pixel_format = PIXEL_FORMAT_ARGB8888;
 		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
+		dal_pixel_format = PIXEL_FORMAT_ARGB8888;
+		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 		dal_pixel_format = PIXEL_FORMAT_ARGB2101010;
 		break;
@@ -5831,6 +5834,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return 16;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBA8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:

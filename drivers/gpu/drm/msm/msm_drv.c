@@ -571,13 +571,14 @@ static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
 		krealloc(msm_obj->metadata, metadata_size, GFP_KERNEL);
 	if (!new_metadata) {
 		ret = -ENOMEM;
-		goto out;
+		goto unlock;
 	}
 
 	msm_obj->metadata = new_metadata;
 	msm_obj->metadata_size = metadata_size;
 	memcpy(msm_obj->metadata, buf, metadata_size);
 
+unlock:
 	msm_gem_unlock(obj);
 
 out:

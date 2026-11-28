@@ -504,13 +504,12 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 	migrate_vma_pages(&migrate);
 
 	svm_migrate_copy_done(adev, mfence);
+	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 	migrate_vma_finalize(&migrate);
 
 	mpages = svm_migrate_successful_pages(&migrate);
 	pr_debug("migrated/collected/requested 0x%lx/0x%lx/0x%lx\n",
 		 mpages, cpages, migrate.npages);
-
-	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
@@ -726,6 +725,17 @@ out_oom:
 			put_page(dpage);
 		}
 
+		/*
+		 * Copies queued before the failure may still be writing into
+		 * the destination pages. Wait for the last SDMA fence (copies
+		 * on the entity complete in order), then remove the device DMA
+		 * mappings, before the pages go back to the allocator.
+		 */
+		if (*mfence) {
+			dma_fence_wait(*mfence, false);
+			dma_fence_put(*mfence);
+		}
+
 		/* release previous allocated sys pages and unmap dma address */
 		while (i--) {
 
@@ -835,10 +845,11 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 	pr_debug("migrated/collected/requested 0x%lx/0x%lx/0x%lx\n",
 		 mpages, cpages, migrate.npages);
 
-	svm_migrate_copy_done(adev, mfence);
+	if (!r) {
+		svm_migrate_copy_done(adev, mfence);
+		svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
+	}
 	migrate_vma_finalize(&migrate);
-
-	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);

@@ -357,7 +357,6 @@ static void msm_devfreq_idle_work(struct kthread_work *work)
 	if (priv->gpu_clamp_to_idle)
 		msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
 
-	df->idle_time = ktime_get();
 	df->idle_freq = idle_freq;
 
 	mutex_unlock(&df->devfreq->lock);
@@ -369,6 +368,8 @@ void msm_devfreq_idle(struct msm_gpu *gpu)
 
 	if (!has_devfreq(gpu))
 		return;
+
+	df->idle_time = ktime_get();
 
 	msm_hrtimer_queue_work(&df->idle_work, ms_to_ktime(1),
 			       HRTIMER_MODE_REL);

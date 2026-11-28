@@ -1514,9 +1514,8 @@ static u32 gfx_v12_1_get_sh_mem_config(struct amdgpu_device *adev)
 {
 	u32 sh_mem_config = DEFAULT_SH_MEM_CONFIG;
 
-	/* GC 12.1.0 A0 requires RETRY_DISABLE in SH_MEM_CONFIG. */
-	if (SOC_V1_0_DIE_REV_XCD(adev->rev_id) == 0)
-		sh_mem_config |= 1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+	/* XNACK cannot be enabled for GFX12.1 */
+	sh_mem_config |= 1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
 
 	return sh_mem_config;
 }
@@ -1563,14 +1562,12 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 
 static void gfx_v12_1_xcc_xnack_set_chicken_bits(struct amdgpu_device *adev, int xcc_id)
 {
-	/* NOTE: COMPRESSION_ENABLE is used a chicken bit to enable/disable xcc xnack */
+	/* NOTE: COMPRESSION_ENABLE is used as a chicken bit to enable/disable xcc xnack
+	 * Since xnack retry is disabled for GFX12.1, set it to 0 unconditionally
+	 */
 	mutex_lock(&adev->srbm_mutex);
-	if (!adev->gmc.noretry) {
-		WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id),
-				      TCP_PERFCOUNTER_FILTER, COMPRESSION_ENABLE, 0x1);
-	} else
-		WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id),
-				      TCP_PERFCOUNTER_FILTER, COMPRESSION_ENABLE, 0x0);
+	WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id),
+			      TCP_PERFCOUNTER_FILTER, COMPRESSION_ENABLE, 0x0);
 	mutex_unlock(&adev->srbm_mutex);
 }
 

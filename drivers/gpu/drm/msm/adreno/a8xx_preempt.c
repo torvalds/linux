@@ -121,12 +121,17 @@ void a8xx_preempt_hw_init(struct msm_gpu *gpu)
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct a6xx_preempt_record *record_ptr = a6xx_gpu->preempt[i];
 
-		record_ptr->wptr = 0;
-		record_ptr->rptr = 0;
-		record_ptr->rptr_addr = shadowptr(a6xx_gpu, gpu->rb[i]);
+		record_ptr->magic = A6XX_PREEMPT_RECORD_MAGIC;
 		record_ptr->info = 0;
+		record_ptr->errno = 0;
 		record_ptr->data = 0;
+		record_ptr->cntl = MSM_GPU_RB_CNTL_DEFAULT;
+		record_ptr->rptr = 0;
+		record_ptr->wptr = 0;
+		record_ptr->rptr_addr = shadowptr(a6xx_gpu, gpu->rb[i]);
 		record_ptr->rbase = gpu->rb[i]->iova;
+		record_ptr->counter = 0;
+		record_ptr->bv_rptr_addr = rbmemptr(gpu->rb[i], bv_rptr);
 	}
 
 	/* Write a 0 to signal that we aren't switching pagetables */

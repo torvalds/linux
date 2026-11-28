@@ -187,6 +187,18 @@
  * The PM reference is then dropped. If the queue was not idle, the worker
  * simply re-arms itself.
  *
+ * The worker waits for the "last" job to retire before dropping
+ * @xe_migrate.job_mutex, so a subsequent enter is serialized behind it. A
+ * "first" job is not chained, so it publishes its own ring tail with
+ * xe_lrc_set_ring_tail(), which updates the saved tail in the context image
+ * only. That is enough for a context which is off the hardware, since a
+ * context restore loads RING_TAIL from there, but the context is only off the
+ * hardware once the "last" job has retired. Submitted before then, the write
+ * races the postamble of the job preceding the "last" one, which puts that
+ * same saved tail - and RING_TAIL - at the end of the "last" job. The
+ * postamble landing second rewinds the tail behind the "first" job, which the
+ * command streamer then never executes.
+ *
  * Job state
  * ---------
  *
@@ -761,6 +773,9 @@ static void xe_migrate_ulls_exit(struct work_struct *work)
 	scoped_guard(mutex, &m->job_mutex) {
 		if (xe_exec_queue_is_idle(m->q, 1)) {
 			fence = __xe_migrate_job_push(m, job, ULLS_EXIT);
+
+			/* Keep enter out until the context is off the HW */
+			dma_fence_wait(fence, false);
 			dma_fence_put(fence);
 
 			xe_pm_runtime_put(xe);	/* Pairs with PM get in enter */

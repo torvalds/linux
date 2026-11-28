@@ -108,6 +108,16 @@ static void quirk_enable_dpcd_backlight(struct intel_dp *intel_dp)
 	drm_info(display->drm, "Applying Enable DPCD Backlight quirk\n");
 }
 
+/*
+ * VBT on some machines defaults the eDP pipe joiner to disabled even though
+ * the panel requires it to achieve its native mode, so allow it regardless.
+ */
+static void quirk_allow_edp_joiner(struct intel_display *display)
+{
+	intel_set_quirk(display, QUIRK_ALLOW_EDP_JOINER);
+	drm_info(display->drm, "Applying allow eDP joiner quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -270,6 +280,10 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Xiaomi Book Pro 14 2026 */
 	{ 0xb081, 0x1d72, 0x2424, quirk_disable_psr2 },
+	{ 0xb080, 0x1d72, 0x2424, quirk_disable_psr2 },
+
+	/* ASUS ROG Strix SCAR 18 G835LXG */
+	{ 0x7d67, 0x1043, 0x3b29, quirk_allow_edp_joiner },
 };
 
 static const struct intel_dpcd_quirk intel_dpcd_quirks[] = {

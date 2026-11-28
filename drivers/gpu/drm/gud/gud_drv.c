@@ -329,7 +329,7 @@ static int gud_stats_debugfs(struct seq_file *m, void *data)
 	seq_puts(m, "\n");
 
 	if (gdrm->compression) {
-		u64 actual_length = gdrm->stats_actual_length;
+		u64 actual_length = READ_ONCE(gdrm->stats_actual_length);
 		u64 remainder;
 		u64 ratio, ratio_frac;
 

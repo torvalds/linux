@@ -950,7 +950,8 @@ static void kfd_process_free_id(struct kfd_process *process)
 {
 	struct kfd_process *primary_process;
 
-	if (process->context_id == KFD_CONTEXT_ID_PRIMARY)
+	if (process->context_id == KFD_CONTEXT_ID_PRIMARY ||
+	    process->context_id < KFD_CONTEXT_ID_MIN)
 		return;
 
 	primary_process = kfd_lookup_process_by_mm(process->lead_thread->mm);
@@ -1235,6 +1236,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		atomic_dec(&pdd->dev->kfd->kfd_processes_count);
 		mutex_destroy(&pdd->doorbell_mutex);
 
+		kfree(pdd->vm_fault_exc_data);
 		kfree(pdd);
 		p->pdds[i] = NULL;
 	}
@@ -1536,7 +1538,12 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	if (!dev->kfd->cwsr_enabled || !iosys_map_is_null(&qpd->cwsr_map) || !qpd->cwsr_base)
 		return 0;
 
-	if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 4, 2) && !dev->adev->apu_prefer_gtt)
+	if ((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
+	     KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+	     KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
+	     KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0) ||
+	     KFD_GC_VERSION(dev) == IP_VERSION(12, 1, 0)) &&
+	    !dev->adev->apu_prefer_gtt)
 		flags |= KFD_IOC_ALLOC_MEM_FLAGS_VRAM;
 	else
 		flags |= KFD_IOC_ALLOC_MEM_FLAGS_GTT;
@@ -1687,6 +1694,11 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	mutex_init(&process->mutex);
 	process->mm = thread->mm;
 	process->lead_thread = thread->group_leader;
+	/*
+	 * Take the reference on the lead thread before the process can be
+	 * released through kfd_process_wq_release(), which drops it again.
+	 */
+	get_task_struct(process->lead_thread);
 	process->n_pdds = 0;
 	process->queues_paused = false;
 
@@ -1736,13 +1748,17 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	 */
 	if (primary) {
 		process->context_id = KFD_CONTEXT_ID_PRIMARY;
+		/*
+		 * Must be initialized before the process can be given to
+		 * kfd_process_wq_release(), which destroys it.
+		 */
+		ida_init(&process->id_table);
 		mn = mmu_notifier_get(&kfd_process_mmu_notifier_ops, process->mm);
 		if (IS_ERR(mn)) {
 			err = PTR_ERR(mn);
 			goto err_register_notifier;
 		}
 		BUG_ON(mn != &process->mmu_notifier);
-		ida_init(&process->id_table);
 	}
 
 	err = kfd_process_alloc_id(process);
@@ -1752,17 +1768,46 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	}
 
 	kfd_unref_process(process);
-	get_task_struct(process->lead_thread);
 
 	INIT_WORK(&process->debug_event_workarea, debug_event_write_work_handler);
 
 	return process;
 
 err_alloc_id:
-	kfd_process_free_id(process);
 err_register_notifier:
+	/*
+	 * The process is already in kfd_processes_table, so find_process()
+	 * may have handed it out with a reference taken on it.  Unlink it
+	 * and wait for the readers that are still walking the table before
+	 * dropping the references held here: afterwards no new reference
+	 * can be taken and the ones already taken keep the process alive.
+	 * The memory is then freed by kfd_process_wq_release() when the
+	 * last reference is dropped.
+	 */
 	hash_del_rcu(&process->kfd_processes);
-	svm_range_list_fini(process);
+	synchronize_srcu(&kfd_processes_srcu);
+
+	/*
+	 * kfd_process_wq_release() frees the memory, but it does not
+	 * destroy the queue manager: on the normal path that is done by
+	 * kfd_process_notifier_release_internal(), which neither of these
+	 * two error paths can reach, because no mmu notifier was
+	 * registered for the process.  The process is unlinked and no
+	 * reader can reach the pqm any more, so destroy it here, before
+	 * the references are dropped.
+	 */
+	pqm_uninit(&process->pqm);
+
+	/*
+	 * Drop the reference that keeps a failing free_notifier() from
+	 * starting kfd_process_wq_release() and the one taken by
+	 * kref_init().
+	 */
+	kfd_unref_process(process);
+	kfd_unref_process(process);
+
+	return ERR_PTR(err);
+
 err_init_svm_range_list:
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
@@ -1772,6 +1817,7 @@ err_process_pqm_init:
 	kfd_event_free_process(process);
 err_event_init:
 	mutex_destroy(&process->mutex);
+	put_task_struct(process->lead_thread);
 	kfree(process);
 err_alloc_process:
 	return ERR_PTR(err);

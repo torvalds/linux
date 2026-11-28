@@ -61,6 +61,8 @@ MODULE_FIRMWARE("amdgpu/vpe_6_1_3.bin");
 #define regVPEC_PUB_DUMMY2_6_1_1                                                0x004c
 #define regVPEC_PUB_DUMMY2_6_1_1_BASE_IDX                                       0
 
+#define regVPEC_F32_CNTL_DEFAULT                                                0x08084001
+
 static uint32_t vpe_v6_1_get_reg_offset(struct amdgpu_vpe *vpe, uint32_t inst, uint32_t offset)
 {
 	uint32_t base;
@@ -159,7 +161,7 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 		uint32_t f32_offset, f32_cntl;
 
 		f32_offset = vpe_get_reg_offset(vpe, 0, regVPEC_F32_CNTL);
-		f32_cntl = RREG32(f32_offset);
+		f32_cntl = regVPEC_F32_CNTL_DEFAULT;
 		f32_cntl = REG_SET_FIELD(f32_cntl, VPEC_F32_CNTL, HALT, 0);
 		f32_cntl = REG_SET_FIELD(f32_cntl, VPEC_F32_CNTL, TH1_RESET, 0);
 

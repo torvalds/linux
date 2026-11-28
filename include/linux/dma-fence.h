@@ -487,16 +487,23 @@ const char __rcu *dma_fence_timeline_name(struct dma_fence *fence);
  * with the fence in any way. The user must, therefore, ensure through other
  * means that fences get signaled eventually.
  *
- * This function uses test_bit(), which is thread-safe. Naturally, this function
- * should be used opportunistically; a fence could get signaled at any moment
- * after the check is done.
+ * Naturally, this function should be used opportunistically; a fence could get
+ * signaled at any moment after the check is done.
+ *
+ * This function provides acquire ordering. This means that all stores
+ * preceding the signaling of a fence are visible in correct order to users of
+ * this function.
  *
  * Return: true if signaled, false otherwise.
  */
 static inline bool
 dma_fence_test_signaled_flag(struct dma_fence *fence)
 {
-	return test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags);
+	/*
+	 * The release counterpart is the test_and_set_bit() in
+	 * dma_fence_signal_timestamp_locked().
+	 */
+	return test_bit_acquire(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags);
 }
 
 /**

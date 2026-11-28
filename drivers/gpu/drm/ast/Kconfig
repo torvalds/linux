@@ -14,3 +14,12 @@ config DRM_AST
 	 is bound to the driver. These GPUs are commonly found
 	 in server chipsets.
 
+config DRM_AST_DISABLE_WRITECOMBINE
+	bool "Disable Write Combine mapping of VRAM"
+	depends on DRM_AST && (PREEMPT_RT || COMPILE_TEST)
+	help
+	  The VRAM of AST GPUs is mapped with Write-Combine to improve
+	  performances. This can interfere with real-time tasks; even if they
+	  are running on other CPU cores than the graphics output.
+	  Enable this option only if you run real-time tasks on a server with
+	  Aspeed graphics.

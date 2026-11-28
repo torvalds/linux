@@ -143,6 +143,10 @@ static bool optc31_disable_crtc(struct timing_generator *optc)
 			1, 100000);
 	optc1_clear_optc_underflow(optc);
 
+	/* a stale frame-lock force-vsync would cut every DRR-triggered frame short on reuse */
+	REG_UPDATE(OTG_VERT_SYNC_CONTROL,
+			OTG_AUTO_FORCE_VSYNC_MODE, 0);
+
 	return true;
 }
 /*

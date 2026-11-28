@@ -382,7 +382,9 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_context *ctx,
 		*value = adreno_gpu->gmem;
 		return 0;
 	case MSM_PARAM_GMEM_BASE:
-		if (adreno_gpu->info->family >= ADRENO_6XX_GEN3)
+		if (adreno_gpu->info->family >= ADRENO_8XX_GEN1)
+			*value = SZ_64M;
+		else if (adreno_gpu->info->family >= ADRENO_6XX_GEN3)
 			*value = 0;
 		else
 			*value = 0x100000;
@@ -558,7 +560,7 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 			adreno_gpu->fwloc = FW_LOCATION_NEW;
 			goto out;
 		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
-			DRM_DEV_ERROR(drm->dev, "failed to load %s: %d\n",
+			DRM_DEV_INFO(drm->dev, "failed to load %s: %d (will try again later)\n",
 				newname, ret);
 			fw = ERR_PTR(ret);
 			goto out;
@@ -578,7 +580,7 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 			adreno_gpu->fwloc = FW_LOCATION_LEGACY;
 			goto out;
 		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
-			DRM_DEV_ERROR(drm->dev, "failed to load %s: %d\n",
+			DRM_DEV_INFO(drm->dev, "failed to load %s: %d (will try again later)\n",
 				fwname, ret);
 			fw = ERR_PTR(ret);
 			goto out;
@@ -599,14 +601,14 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 			adreno_gpu->fwloc = FW_LOCATION_HELPER;
 			goto out;
 		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
-			DRM_DEV_ERROR(drm->dev, "failed to load %s: %d\n",
+			DRM_DEV_INFO(drm->dev, "failed to load %s: %d (will try again later)\n",
 				newname, ret);
 			fw = ERR_PTR(ret);
 			goto out;
 		}
 	}
 
-	DRM_DEV_ERROR(drm->dev, "failed to load %s\n", fwname);
+	DRM_DEV_INFO(drm->dev, "failed to load %s (will try again later)\n", fwname);
 	fw = ERR_PTR(-ENOENT);
 out:
 	kfree(newname);

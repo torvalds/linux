@@ -464,6 +464,7 @@ void amdgpu_ring_ib_on_emit_de(struct amdgpu_ring *ring);
 
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
+void amdgpu_ring_pad_to_align(struct amdgpu_ring *ring);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,

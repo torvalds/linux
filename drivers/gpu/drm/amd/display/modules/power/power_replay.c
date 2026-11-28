@@ -232,6 +232,7 @@ static bool mod_power_update_replay_active_status(unsigned int active_replay_eve
 			replay_event_sleep_resume |
 			replay_event_disable_in_AC |
 			replay_event_disable_replay_while_detect_display |
+			replay_event_waiting_stream_regen |
 			replay_event_infopacket |
 			replay_event_crc_window_active))
 		return false;

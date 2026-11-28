@@ -74,6 +74,18 @@ int ast_mm_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+#if defined(CONFIG_DRM_AST_DISABLE_WRITECOMBINE)
+	resource_size_t base;
+	u32 vram_size;
+
+	base = pci_resource_start(pdev, 0);
+
+	vram_size = ast_get_vram_size(ast);
+
+	ast->vram = devm_ioremap(dev->dev, base, vram_size);
+	if (!ast->vram)
+		return -ENOMEM;
+#else
 	resource_size_t base, size;
 	u32 vram_size;
 
@@ -89,6 +101,7 @@ int ast_mm_init(struct ast_device *ast)
 	ast->vram = devm_ioremap_wc(dev->dev, base, vram_size);
 	if (!ast->vram)
 		return -ENOMEM;
+#endif
 
 	ast->vram_base = base;
 	ast->vram_size = vram_size;
