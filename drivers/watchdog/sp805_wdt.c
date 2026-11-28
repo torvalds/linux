@@ -138,6 +138,13 @@ wdt_restart(struct watchdog_device *wdd, unsigned long mode, void *cmd)
 {
 	struct sp805_wdt *wdt = watchdog_get_drvdata(wdd);
 
+	/*
+	 * For reset, we start the WDT clock and leave it running.
+	 * The clock was prepared at probe time; only clk_enable() is
+	 * safe in this atomic (restart notifier) context.
+	 */
+	clk_enable(wdt->clk);
+
 	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
 	writel_relaxed(0, wdt->base + WDTCONTROL);
 	writel_relaxed(0, wdt->base + WDTLOAD);
@@ -156,7 +163,7 @@ static int wdt_config(struct watchdog_device *wdd, bool ping)
 
 	if (!ping) {
 
-		ret = clk_prepare_enable(wdt->clk);
+		ret = clk_enable(wdt->clk);
 		if (ret) {
 			dev_err(&wdt->adev->dev, "clock enable fail");
 			return ret;
@@ -208,7 +215,7 @@ static int wdt_disable(struct watchdog_device *wdd)
 	readl_relaxed(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 
-	clk_disable_unprepare(wdt->clk);
+	clk_disable(wdt->clk);
 
 	return 0;
 }
@@ -253,7 +260,11 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	 */
 	device_property_read_u64(&adev->dev, "clock-frequency", &rate);
 
-	wdt->clk = devm_clk_get_optional(&adev->dev, NULL);
+	/*
+	 * Keep the clock prepared for the lifetime of the driver:
+	 * wdt_restart() runs in atomic context and may only call clk_enable().
+	 */
+	wdt->clk = devm_clk_get_optional_prepared(&adev->dev, NULL);
 	if (IS_ERR(wdt->clk))
 		return dev_err_probe(&adev->dev, PTR_ERR(wdt->clk), "Clock not found\n");
 
