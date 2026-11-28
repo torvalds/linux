@@ -438,6 +438,7 @@ static bool io_match_linked(struct io_kiocb *head)
 bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 			bool cancel_all)
 {
+	struct io_ring_ctx *ctx = head->ctx;
 	bool matched;
 
 	if (tctx && head->tctx != tctx)
@@ -445,16 +446,13 @@ bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 	if (cancel_all)
 		return true;
 
-	if (head->flags & REQ_F_LINK_TIMEOUT) {
-		struct io_ring_ctx *ctx = head->ctx;
-
-		/* protect against races with linked timeouts */
-		raw_spin_lock_irq(&ctx->timeout_lock);
-		matched = io_match_linked(head);
-		raw_spin_unlock_irq(&ctx->timeout_lock);
-	} else {
-		matched = io_match_linked(head);
-	}
+	/*
+	 * Protect against races with linked timeouts. REQ_F_LINK_TIMEOUT can't
+	 * tell if there is one: an io-wq worker may set it during the walk.
+	 */
+	raw_spin_lock_irq(&ctx->timeout_lock);
+	matched = io_match_linked(head);
+	raw_spin_unlock_irq(&ctx->timeout_lock);
 	return matched;
 }
 

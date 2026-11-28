@@ -515,12 +515,10 @@ static inline bool io_send_finish(struct io_kiocb *req,
 	bool bundle_finished = sel->val <= 0;
 	unsigned int cflags;
 
-	if (!(sr->flags & IORING_RECVSEND_BUNDLE)) {
-		cflags = io_put_kbuf(req, sel->val, sel->buf_list);
+	/* Committed at selection time, so a bundle needs no buffer count */
+	cflags = io_put_kbuf(req, sel->val, sel->buf_list);
+	if (!(sr->flags & IORING_RECVSEND_BUNDLE))
 		goto finish;
-	}
-
-	cflags = io_put_kbufs(req, sel->val, sel->buf_list, io_bundle_nbufs(kmsg, sel->val));
 
 	/*
 	 * Don't start new bundles if the buffer list is empty, or if the
@@ -1049,6 +1047,8 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	bool mshot_finished = true;
+	void __user *control;
+	size_t controllen;
 	int consumed = 0;
 	size_t len;
 
@@ -1086,6 +1086,8 @@ retry_multishot:
 
 	kmsg->msg.msg_get_inq = 1;
 	kmsg->msg.msg_inq = -1;
+	control = kmsg->msg.msg_control_user;
+	controllen = kmsg->msg.msg_controllen;
 	if (req->flags & REQ_F_APOLL_MULTISHOT) {
 		ret = io_recvmsg_multishot(sock, sr, kmsg, flags,
 					   &mshot_finished);
@@ -1110,12 +1112,20 @@ retry_multishot:
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
+			/*
+			 * Don't depend on the control buffer being untouched, a
+			 * protocol may post a cmsg before it finds no data.
+			 */
+			kmsg->msg.msg_control_user = control;
+			kmsg->msg.msg_controllen = controllen;
 			io_kbuf_recycle(req, sel.buf_list, issue_flags);
 			return IOU_RETRY;
 		}
 		if (ret > 0 && io_net_retry(sock, flags) &&
 		    io_net_kbuf_can_retry(req, sel.buf_list, kmsg)) {
 			sr->done_io += ret;
+			/* msg_name and msg_namelen are filled in, leave them */
+			kmsg->uaddr = NULL;
 			return io_net_kbuf_recyle(req, sel.buf_list, kmsg, ret);
 		}
 		if (ret == -ERESTARTSYS)
@@ -1501,7 +1511,12 @@ static int io_sg_from_iter(struct sk_buff *skb,
 		struct bio_vec v = mp_bvec_iter_bvec(from->bvec, bi);
 
 		copied += v.bv_len;
-		truesize += PAGE_ALIGN(v.bv_len + v.bv_offset);
+		/*
+		 * bv_offset is relative to the folio for coalesced huge page
+		 * registrations, so only the in-page part of it matters for
+		 * how much memory this fragment ties up.
+		 */
+		truesize += PAGE_ALIGN(v.bv_len + offset_in_page(v.bv_offset));
 		__skb_fill_page_desc_noacc(shinfo, frag++, v.bv_page,
 					   v.bv_offset, v.bv_len);
 		bvec_iter_advance_single(from->bvec, &bi, v.bv_len);

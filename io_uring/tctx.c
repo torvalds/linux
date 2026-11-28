@@ -231,7 +231,10 @@ __cold void io_uring_del_tctx_node(unsigned long index)
 
 	mutex_lock(&node->ctx->tctx_lock);
 	list_del(&node->ctx_node);
+	/* keeps the ctx until the unlock is done, see io_ring_exit_work() */
+	rcu_read_lock();
 	mutex_unlock(&node->ctx->tctx_lock);
+	rcu_read_unlock();
 
 	if (tctx->last == node->ctx)
 		tctx->last = NULL;

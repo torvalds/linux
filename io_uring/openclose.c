@@ -54,6 +54,7 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 {
 	struct io_open *open = io_kiocb_to_cmd(req, struct io_open);
 	const char __user *fname;
+	int uflags = 0;
 	int ret;
 
 	if (unlikely(sqe->buf_index))
@@ -67,7 +68,9 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 
 	open->dfd = READ_ONCE(sqe->fd);
 	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	ret = delayed_getname(&open->filename, fname);
+	if (open->how.flags & O_EMPTYPATH)
+		uflags = AT_EMPTY_PATH;
+	ret = delayed_getname_uflags(&open->filename, fname, uflags);
 	if (unlikely(ret))
 		return ret;
 	req->flags |= REQ_F_NEED_CLEANUP;

@@ -2371,6 +2371,14 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	kfree(ctx);
 }
 
+static __cold void io_ring_ctx_free_work(struct work_struct *work)
+{
+	struct io_ring_ctx *ctx = container_of(to_rcu_work(work),
+					       struct io_ring_ctx, free_rwork);
+
+	io_ring_ctx_free(ctx);
+}
+
 static __cold void io_activate_pollwq_cb(struct callback_head *cb)
 {
 	struct io_ring_ctx *ctx = container_of(cb, struct io_ring_ctx,
@@ -2660,11 +2668,14 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 	spin_lock(&ctx->completion_lock);
 	spin_unlock(&ctx->completion_lock);
 
-	/* pairs with the RCU read sections in the task_work add paths */
-	if (ctx->flags & (IORING_SETUP_DEFER_TASKRUN | IORING_SETUP_SQPOLL))
-		synchronize_rcu();
-
-	io_ring_ctx_free(ctx);
+	/*
+	 * Free the ring after a grace period. This pairs with the RCU read
+	 * sections in the task_work add paths, which look at the rings and
+	 * the submitter task, and with the one in io_uring_del_tctx_node(),
+	 * which may still be unlocking ->tctx_lock.
+	 */
+	INIT_RCU_WORK(&ctx->free_rwork, io_ring_ctx_free_work);
+	queue_rcu_work(iou_wq, &ctx->free_rwork);
 }
 
 static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
@@ -2691,6 +2702,9 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	if (!(current->flags & PF_IO_WORKER)) {
 		io_ring_ctx_cancel(ctx);
 		io_ring_ctx_wait_inflight(ctx);
+		/* exit is past the drop in io_uring_cancel_generic() */
+		if (current->io_uring)
+			io_uring_drop_tctx_refs(current);
 	}
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
