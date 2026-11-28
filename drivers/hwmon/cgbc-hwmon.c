@@ -336,3 +336,4 @@ module_platform_driver(cgbc_hwmon_driver);
 MODULE_AUTHOR("Thomas Richard <thomas.richard@bootlin.com>");
 MODULE_DESCRIPTION("Congatec Board Controller Hardware Monitoring Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:cgbc-hwmon");
