@@ -138,7 +138,7 @@ Description:	The last executed device administrative command's status/error.
 
 What:		/sys/bus/dsa/devices/dsa<m>/dsacaps
 Date:		April 5, 2026
-KernelVersion:	6.20.0
+KernelVersion:	7.0
 Contact:	dmaengine@vger.kernel.org
 Description:	The DSA3 specification introduces three new capability
 		registers: dsacap[0-2]. User components (e.g., configuration

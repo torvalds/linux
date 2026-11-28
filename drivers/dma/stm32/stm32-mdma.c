@@ -1777,6 +1777,7 @@ static int stm32_mdma_pm_suspend(struct device *dev)
 		ccr = stm32_mdma_read(dmadev, STM32_MDMA_CCR(id));
 		if (ccr & STM32_MDMA_CCR_EN) {
 			dev_warn(dev, "Suspend is prevented by Chan %i\n", id);
+			pm_runtime_put_sync(dev);
 			return -EBUSY;
 		}
 	}

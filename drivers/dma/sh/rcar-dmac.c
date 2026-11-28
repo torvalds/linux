@@ -844,6 +844,7 @@ static void rcar_dmac_chan_reinit(struct rcar_dmac_chan *chan)
 
 	list_for_each_entry_safe(desc, _desc, &descs, node) {
 		list_del(&desc->node);
+		dma_descriptor_unmap(&desc->async_tx);
 		rcar_dmac_desc_put(chan, desc);
 	}
 }
@@ -1070,7 +1071,7 @@ static int rcar_dmac_alloc_chan_resources(struct dma_chan *chan)
 	if (ret < 0)
 		return -ENOMEM;
 
-	return pm_runtime_get_sync(chan->device->dev);
+	return pm_runtime_resume_and_get(chan->device->dev);
 }
 
 static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
@@ -1653,6 +1654,7 @@ static irqreturn_t rcar_dmac_isr_channel_thread(int irq, void *dev)
 	while (!list_empty(&chan->desc.done)) {
 		desc = list_first_entry(&chan->desc.done, struct rcar_dmac_desc,
 					node);
+		dma_descriptor_unmap(&desc->async_tx);
 		dma_cookie_complete(&desc->async_tx);
 		list_del(&desc->node);
 
@@ -1795,11 +1797,8 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 					rcar_dmac_isr_channel,
 					rcar_dmac_isr_channel_thread, 0,
 					irqname, rchan);
-	if (ret) {
-		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n",
-			rchan->irq, ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
