@@ -5,6 +5,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/filter.h>
+#include <linux/irq_work.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 
@@ -184,6 +185,19 @@ static int bpf_qdisc_gen_epilogue(struct bpf_insn *insn_buf, const struct bpf_pr
 	return insn - insn_buf;
 }
 
+static LLIST_HEAD(bpf_skb_free_list);
+
+static void bpf_skb_free_irq_work(struct irq_work *work)
+{
+	struct llist_node *list = llist_del_all(&bpf_skb_free_list);
+	struct sk_buff *skb, *next;
+
+	llist_for_each_entry_safe(skb, next, list, ll_node)
+		dev_kfree_skb_any(skb);
+}
+
+static DEFINE_IRQ_WORK(bpf_skb_free_work, bpf_skb_free_irq_work);
+
 __bpf_kfunc_start_defs();
 
 /* bpf_skb_get_hash - Get the flow hash of an skb.
@@ -196,9 +210,22 @@ __bpf_kfunc u32 bpf_skb_get_hash(struct sk_buff *skb)
 
 /* bpf_kfree_skb - Release an skb's reference and drop it immediately.
  * @skb: The skb whose reference to be released and dropped.
+ *
+ * Also the destructor of an skb kptr, which runs wherever an object or a map
+ * value with such a field is freed: under a bpf_spin_lock too, with irqs off.
+ * rq lock can be held as well, so don't wake up ksoftirqd from here.
  */
 __bpf_kfunc void bpf_kfree_skb(struct sk_buff *skb)
 {
+	if (irqs_disabled() ||
+	    (IS_ENABLED(CONFIG_PREEMPT_RT) && !preemptible())) {
+		/* Only the last reference may link the skb. */
+		if (refcount_dec_not_one(&skb->users))
+			return;
+		llist_add(&skb->ll_node, &bpf_skb_free_list);
+		irq_work_queue(&bpf_skb_free_work);
+		return;
+	}
 	kfree_skb(skb);
 }
 

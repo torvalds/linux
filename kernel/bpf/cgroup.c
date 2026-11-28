@@ -399,7 +399,7 @@ static void bpf_cgroup_link_auto_detach(struct bpf_cgroup_link *link)
 		return;
 	}
 
-	if (link->link.prog->expected_attach_type == BPF_LSM_CGROUP)
+	if (link->link.prog->type == BPF_PROG_TYPE_LSM)
 		bpf_trampoline_unlink_cgroup_shim(link->link.prog);
 	cgroup_put(link->cgroup);
 	link->cgroup = NULL;
@@ -509,7 +509,7 @@ static void cgroup_bpf_release(struct work_struct *work)
 		hlist_for_each_entry_safe(pl, pltmp, progs, node) {
 			hlist_del(&pl->node);
 			if (pl->prog) {
-				if (pl->prog->expected_attach_type == BPF_LSM_CGROUP)
+				if (pl->prog->type == BPF_PROG_TYPE_LSM)
 					bpf_trampoline_unlink_cgroup_shim(pl->prog);
 				bpf_prog_put(pl->prog);
 			}
@@ -1248,6 +1248,24 @@ static bool cgroup_bpf_storages_compatible(struct bpf_prog *old_prog,
 	return true;
 }
 
+/* See bpf_prog_attach_check_attach_type() */
+static bool prog_is_for_attach_type(const struct bpf_prog *prog, enum bpf_attach_type type)
+{
+	switch (prog->type) {
+	case BPF_PROG_TYPE_CGROUP_SKB:
+		if (!prog->enforce_expected_attach_type)
+			return true;
+		fallthrough;
+	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+	case BPF_PROG_TYPE_LSM:
+		return prog->expected_attach_type == type;
+	default:
+		return true;
+	}
+}
+
 /**
  * __cgroup_bpf_replace() - Replace link's program and propagate the change
  *                          to descendants
@@ -1274,7 +1292,8 @@ static int __cgroup_bpf_replace(struct cgroup *cgrp,
 
 	progs = &cgrp->bpf.progs[atype];
 
-	if (link->link.prog->type != new_prog->type)
+	if (link->link.prog->type != new_prog->type ||
+	    !prog_is_for_attach_type(new_prog, link->link.attach_type))
 		return -EINVAL;
 
 	hlist_for_each_entry(pl, progs, node) {
@@ -1991,6 +2010,10 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 		ctx.uaddrlen = 0;
 	} else {
 		ctx.uaddrlen = *uaddrlen;
+		/* Programs read the family and the port also of a short address. */
+		if (ctx.uaddrlen < offsetofend(struct sockaddr_in, sin_port))
+			memset((void *)uaddr + ctx.uaddrlen, 0,
+			       offsetofend(struct sockaddr_in, sin_port) - ctx.uaddrlen);
 	}
 
 	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
@@ -2087,7 +2110,7 @@ BPF_CALL_0(bpf_get_retval)
 	struct bpf_cg_run_ctx *ctx =
 		container_of(current->bpf_ctx, struct bpf_cg_run_ctx, run_ctx);
 
-	return ctx->retval;
+	return bpf_in_async_cb() ? 0 : ctx->retval;
 }
 
 const struct bpf_func_proto bpf_get_retval_proto = {
@@ -2101,6 +2124,8 @@ BPF_CALL_1(bpf_set_retval, int, retval)
 	struct bpf_cg_run_ctx *ctx =
 		container_of(current->bpf_ctx, struct bpf_cg_run_ctx, run_ctx);
 
+	if (bpf_in_async_cb())
+		return -EOPNOTSUPP;
 	ctx->retval = retval;
 	return 0;
 }

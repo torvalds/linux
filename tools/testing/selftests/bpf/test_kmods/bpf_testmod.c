@@ -2500,13 +2500,15 @@ int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id)
 	return ret;
 }
 
+static struct bpf_struct_ops testmod_multi_st_ops;
+
 /* Call test_1() of the associated struct_ops map */
 int bpf_kfunc_multi_st_ops_test_1_assoc(struct st_ops_args *args, struct bpf_prog_aux *aux)
 {
 	struct bpf_testmod_multi_st_ops *st_ops;
 	int ret = -1;
 
-	st_ops = (struct bpf_testmod_multi_st_ops *)bpf_prog_get_assoc_struct_ops(aux);
+	st_ops = bpf_prog_get_assoc_struct_ops(aux, &testmod_multi_st_ops);
 	if (st_ops)
 		ret = st_ops->test_1(args);
 
@@ -2584,7 +2586,7 @@ static struct bpf_testmod_multi_st_ops multi_st_ops_cfi_stubs = {
 	.test_1 = bpf_testmod_multi_st_ops__test_1,
 };
 
-struct bpf_struct_ops testmod_multi_st_ops = {
+static struct bpf_struct_ops testmod_multi_st_ops = {
 	.verifier_ops = &bpf_testmod_verifier_ops,
 	.init = multi_st_ops_init,
 	.init_member = multi_st_ops_init_member,

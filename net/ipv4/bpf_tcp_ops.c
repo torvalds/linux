@@ -207,7 +207,7 @@ BPF_CALL_0(bpf_tcp_ops_get_retval)
 	 * return value chained across the bpf_tcp_ops attached to the cgroup
 	 * and is this program's saved_run_ctx.
 	 */
-	if (WARN_ON_ONCE(!ctx->saved_run_ctx))
+	if (bpf_in_async_cb() || WARN_ON_ONCE(!ctx->saved_run_ctx))
 		return 0;
 
 	return container_of(ctx->saved_run_ctx, struct bpf_tramp_run_ctx,

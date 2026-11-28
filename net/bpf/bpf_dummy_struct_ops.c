@@ -179,7 +179,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 						&st_ops->func_models[op_idx],
 						&dummy_ops_test_ret_function,
 						&image, &image_off,
-						true);
+						true, NULL);
 	if (err < 0)
 		goto out;
 

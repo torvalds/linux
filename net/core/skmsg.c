@@ -694,7 +694,7 @@ static void sk_psock_backlog(struct work_struct *work)
 	 * before sk_socket freed. If refcnt increment fails, it indicates
 	 * sock_map_close() completed with sk_socket potentially already freed.
 	 */
-	if (!sk_psock_get(psock->sk))
+	if (!refcount_inc_not_zero(&psock->refcnt))
 		return;
 	mutex_lock(&psock->work_mutex);
 	while ((skb = skb_peek(&psock->ingress_skb))) {
@@ -1131,7 +1131,9 @@ static int sk_psock_strp_parse(struct strparser *strp, struct sk_buff *skb)
 	prog = READ_ONCE(psock->progs.stream_parser);
 	if (likely(prog)) {
 		skb->sk = psock->sk;
+		skb_dst_drop(skb);
 		ret = bpf_prog_run_pin_on_cpu(prog, skb);
+		skb_bpf_redirect_clear(skb);
 		skb->sk = NULL;
 	}
 	rcu_read_unlock();
@@ -1149,7 +1151,9 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 	psock = sk_psock(sk);
 	if (likely(psock)) {
 		read_lock_bh(&sk->sk_callback_lock);
-		strp_data_ready(&psock->strp);
+		/* This psock may be not the one that has set the callback */
+		if (likely(sk_psock_test_state(psock, SK_PSOCK_RX_STRP_ENABLED)))
+			strp_data_ready(&psock->strp);
 		read_unlock_bh(&sk->sk_callback_lock);
 	}
 	rcu_read_unlock();
@@ -1157,7 +1161,7 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 
 int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 {
-	int ret;
+	int ret = 0;
 
 	static const struct strp_callbacks cb = {
 		.rcv_msg	= sk_psock_strp_read,
@@ -1165,7 +1169,11 @@ int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 		.parse_msg	= sk_psock_strp_parse,
 	};
 
-	ret = strp_init(&psock->strp, sk, &cb);
+	/* A stopped parser keeps its works and its skb until strp_done() */
+	if (sk_psock_test_state(psock, SK_PSOCK_RX_STRP_ENABLED))
+		psock->strp.stopped = 0;
+	else
+		ret = strp_init(&psock->strp, sk, &cb);
 	if (!ret)
 		sk_psock_set_state(psock, SK_PSOCK_RX_STRP_ENABLED);
 

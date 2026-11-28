@@ -141,7 +141,8 @@ reuses the existing ``fd_array``:
    ``excl_prog_sha``) and a plain array map (``BPF_MAP_TYPE_ARRAY``); only an
    array map exposes its value buffer through ``map_direct_value_addr()`` as a
    kernel address spanning ``value_size`` bytes. A map that is not exclusive, not
-   frozen, or not a plain array is rejected, with a verifier log message naming
+   frozen, not a plain array, or that user space could map for writing
+   (``BPF_F_MMAPABLE``) is rejected, with a verifier log message naming
    the offending map. The kernel appends each map's frozen
    contents to the instruction buffer and verifies the PKCS#7 signature over the
    concatenation ``insns || metadata_0 || metadata_1 || ...`` in ``used_maps``

@@ -3025,7 +3025,8 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, struct bpf_log_at
 	if (is_perfmon_prog_type(type) && !bpf_token_capable(token, CAP_PERFMON))
 		goto put_token;
 
-	multi_func = is_tracing_multi(attr->expected_attach_type);
+	multi_func = type != BPF_PROG_TYPE_STRUCT_OPS &&
+		     is_tracing_multi(attr->expected_attach_type);
 
 	/* attach_prog_fd/attach_btf_obj_fd can specify fd of either bpf_prog
 	 * or btf, we need to check which one it is
@@ -3090,6 +3091,7 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, struct bpf_log_at
 	prog->aux->attach_btf_id = multi_func ? bpf_multi_func_btf_id[0] : attr->attach_btf_id;
 	prog->aux->dst_prog = dst_prog;
 	if (dst_prog) {
+		prog->aux->saved_dst_ctx_type = resolve_prog_type(dst_prog);
 		prog->aux->saved_dst_prog_type = dst_prog->type;
 		prog->aux->saved_dst_attach_type = dst_prog->expected_attach_type;
 	}
@@ -3177,6 +3179,9 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, struct bpf_log_at
 	if (err < 0)
 		goto free_used_maps;
 
+	/* bpf_throw() and faults look for the symbol. The prog can run once it has the id. */
+	bpf_prog_kallsyms_add(prog);
+
 	err = bpf_prog_alloc_id(prog);
 	if (err)
 		goto free_used_maps;
@@ -3195,7 +3200,6 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, struct bpf_log_at
 	 * Also, any failure handling from this point onwards must
 	 * be using bpf_prog_put() given the program is exposed.
 	 */
-	bpf_prog_kallsyms_add(prog);
 	perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_LOAD, 0);
 	bpf_audit_prog(prog, BPF_AUDIT_LOAD);
 
@@ -3843,6 +3847,24 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 	 */
 	if (prog->type == BPF_PROG_TYPE_EXT &&
 	    prog->aux->kprobe_write_ctx != tgt_prog->aux->kprobe_write_ctx) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+	/* Where the return can be overridden is checked for the target only */
+	if (prog->type == BPF_PROG_TYPE_EXT &&
+	    prog->kprobe_override && !tgt_prog->kprobe_override) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+	/* bpf_prog_run_save_cb() and bpf_prog_run_clear_cb() look at the target only */
+	if (prog->type == BPF_PROG_TYPE_EXT &&
+	    (tgt_prog->type == BPF_PROG_TYPE_SOCKET_FILTER ||
+	     tgt_prog->type == BPF_PROG_TYPE_CGROUP_SKB ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_IN ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_OUT ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_XMIT ||
+	     tgt_prog->type == BPF_PROG_TYPE_LWT_SEG6LOCAL) &&
+	    prog->cb_access && !tgt_prog->cb_access) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -5239,7 +5261,8 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 		struct bpf_insn *insns_sanitized;
 		bool fault;
 
-		if (!prog->blinded || bpf_dump_raw_ok(file->f_cred)) {
+		/* The verifier puts addresses to ld_imm64 and mov insns */
+		if (bpf_dump_raw_ok(file->f_cred) || (!prog->blinded && perfmon_capable())) {
 			insns_sanitized = bpf_insn_prepare_dump(prog, file->f_cred);
 			if (!insns_sanitized)
 				return -ENOMEM;
@@ -6595,6 +6618,9 @@ static bool syscall_prog_is_valid_access(int off, int size,
 
 BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 {
+	if (bpf_in_async_cb())
+		return -EPERM;
+
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 	case BPF_MAP_DELETE_ELEM:
@@ -6684,7 +6710,7 @@ BPF_CALL_1(bpf_sys_close, u32, fd)
 	 * This helper is allowed in the following callchain only:
 	 * sys_bpf->prog_test_run->bpf_prog->bpf_sys_close
 	 */
-	return close_fd(fd);
+	return bpf_in_async_cb() ? -EPERM : close_fd(fd);
 }
 
 static const struct bpf_func_proto bpf_sys_close_proto = {
@@ -6704,7 +6730,7 @@ BPF_CALL_4(bpf_kallsyms_lookup_name, const char *, name, int, name_sz, int, flag
 	if (name_sz <= 1 || name[name_sz - 1])
 		return -EINVAL;
 
-	if (!bpf_dump_raw_ok(current_cred()))
+	if (bpf_in_async_cb() || !bpf_dump_raw_ok(current_cred()))
 		return -EPERM;
 
 	*res = kallsyms_lookup_name(name);
@@ -6725,10 +6751,12 @@ static const struct bpf_func_proto bpf_kallsyms_lookup_name_proto = {
 static const struct bpf_func_proto *
 syscall_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+		return bpf_base_func_proto(func_id, prog);
+
 	switch (func_id) {
 	case BPF_FUNC_sys_bpf:
-		return !bpf_token_capable(prog->aux->token, CAP_PERFMON)
-		       ? NULL : &bpf_sys_bpf_proto;
+		return &bpf_sys_bpf_proto;
 	case BPF_FUNC_btf_find_by_name_kind:
 		return &bpf_btf_find_by_name_kind_proto;
 	case BPF_FUNC_sys_close:

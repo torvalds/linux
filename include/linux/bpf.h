@@ -300,7 +300,9 @@ struct bpf_map_owner {
 	bool sleepable;
 	u64 storage_cookie[MAX_BPF_CGROUP_STORAGE_TYPE];
 	const struct btf_type *attach_func_proto;
+	const struct bpf_struct_ops *st_ops;
 	enum bpf_attach_type expected_attach_type;
+	u64 hook_key;
 };
 
 struct bpf_map {
@@ -564,7 +566,14 @@ static inline void bpf_obj_init(const struct btf_record *rec, void *obj)
  */
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
-	bpf_obj_init(map->record, dst);
+	const struct btf_record *rec = map->record;
+	int i;
+
+	if (IS_ERR_OR_NULL(rec))
+		return;
+	/* Not bpf_obj_init(): an empty list_head has the address of 'dst' */
+	for (i = 0; i < rec->cnt; i++)
+		memset(dst + rec->fields[i].offset, 0, rec->fields[i].size);
 }
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
@@ -1417,6 +1426,7 @@ struct bpf_ksym {
 	bool			 prog;
 	u32			 fp_start;
 	u32			 fp_end;
+	u32			 fp_ret; /* a return in between, it has no frame */
 };
 
 enum bpf_tramp_prog_type {
@@ -1461,7 +1471,7 @@ static inline void bpf_tramp_image_add_skip(struct bpf_tramp_image *im, struct b
 {
 	struct bpf_tramp_skip *skip;
 
-	/* struct_ops trampolines and arch_bpf_trampoline_size() have no image */
+	/* struct_ops trampolines and arch_bpf_trampoline_size() have none */
 	if (!im || !im->skips)
 		return;
 	skip = &im->skips[im->nr_skips++];
@@ -1839,6 +1849,7 @@ struct bpf_stream {
 	struct llist_node *backlog_tail; /* tail of the list above */
 	wait_queue_head_t waitq;
 	struct irq_work notify_work;
+	int refused;		/* length of the last stage that did not fit */
 	bool notify_used;	/* notify_work was queued at least once */
 	bool dead;
 };
@@ -1889,6 +1900,7 @@ struct bpf_prog_aux {
 	struct mutex dst_mutex; /* protects dst_* pointers below, *after* prog becomes visible */
 	struct bpf_prog *dst_prog;
 	struct bpf_trampoline *dst_trampoline;
+	enum bpf_prog_type saved_dst_ctx_type;
 	enum bpf_prog_type saved_dst_prog_type;
 	enum bpf_attach_type saved_dst_attach_type;
 	bool verifier_zext; /* Zero extensions has been inserted by verifier. */
@@ -2389,7 +2401,7 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_nodes *tnodes,
 				      const struct btf_func_model *model,
 				      void *stub_func,
 				      void **image, u32 *image_off,
-				      bool allow_alloc);
+				      bool allow_alloc, struct bpf_ksym *ksym);
 void bpf_struct_ops_image_free(void *image);
 static inline bool bpf_try_module_get(const void *data, struct module *owner)
 {
@@ -2408,7 +2420,8 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 int bpf_struct_ops_link_create(union bpf_attr *attr);
 int bpf_prog_assoc_struct_ops(struct bpf_prog *prog, struct bpf_map *map);
 void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog);
-void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux);
+void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux,
+				    const struct bpf_struct_ops *st_ops);
 u32 bpf_struct_ops_id(const void *kdata);
 int bpf_struct_ops_for_each_prog(const void *kdata,
 				 int (*cb)(struct bpf_prog *prog, void *data),
@@ -2472,7 +2485,8 @@ static inline int bpf_prog_assoc_struct_ops(struct bpf_prog *prog, struct bpf_ma
 static inline void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog)
 {
 }
-static inline void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux)
+static inline void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux,
+						  const struct bpf_struct_ops *st_ops)
 {
 	return NULL;
 }
@@ -2516,6 +2530,9 @@ static inline int bpf_fsession_cnt(struct bpf_tramp_nodes *nodes)
 {
 	struct bpf_tramp_nodes fentries = nodes[BPF_TRAMP_FENTRY];
 	int cnt = 0;
+
+	if (is_struct_ops_tramp(&fentries))
+		return 0;
 
 	for (int i = 0; i < nodes[BPF_TRAMP_FENTRY].nr_nodes; i++) {
 		if (fentries.nodes[i]->link->prog->expected_attach_type == BPF_TRACE_FSESSION)
@@ -3423,6 +3440,14 @@ static inline bool has_current_bpf_ctx(void)
 	return !!current->bpf_ctx;
 }
 
+/* An async callback runs in no hook, and current is not the task that has armed it */
+extern struct bpf_run_ctx bpf_async_run_ctx;
+
+static inline bool bpf_in_async_cb(void)
+{
+	return current->bpf_ctx == &bpf_async_run_ctx;
+}
+
 void notrace bpf_prog_inc_misses_counter(struct bpf_prog *prog);
 
 void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
@@ -3744,6 +3769,11 @@ static inline bool unprivileged_ebpf_enabled(void)
 }
 
 static inline bool has_current_bpf_ctx(void)
+{
+	return false;
+}
+
+static inline bool bpf_in_async_cb(void)
 {
 	return false;
 }
@@ -4331,6 +4361,7 @@ int bpf_prog_stream_init(struct bpf_prog *prog, gfp_t gfp_extra_flags);
 void bpf_prog_stream_free(struct bpf_prog *prog);
 int bpf_prog_stream_read(struct bpf_prog *prog, enum bpf_stream_id stream_id, void __user *buf, u32 len);
 int bpf_prog_stream_new_fd(struct bpf_prog *prog, enum bpf_stream_id stream_id, u32 flags);
+bool bpf_stream_has_room(struct bpf_prog *prog, enum bpf_stream_id stream_id);
 void bpf_stream_stage_init(struct bpf_stream_stage *ss);
 void bpf_stream_stage_free(struct bpf_stream_stage *ss);
 __printf(2, 3)
@@ -4345,7 +4376,8 @@ int bpf_stream_stage_dump_stack(struct bpf_stream_stage *ss);
 #define bpf_stream_stage(ss, prog, stream_id, expr)            \
 	({                                                     \
 		bpf_stream_stage_init(&ss);                    \
-		(expr);                                        \
+		if (bpf_stream_has_room(prog, stream_id))      \
+			(expr);                                \
 		bpf_stream_stage_commit(&ss, prog, stream_id); \
 		bpf_stream_stage_free(&ss);                    \
 	})

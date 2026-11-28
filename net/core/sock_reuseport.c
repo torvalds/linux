@@ -461,6 +461,18 @@ out:
 }
 EXPORT_SYMBOL(reuseport_detach_sock);
 
+/*
+ * Only a BPF_PROG_TYPE_SK_REUSEPORT program is verified against
+ * struct sk_reuseport_kern, which is the context bpf_run_sk_reuseport()
+ * passes to it.  expected_attach_type is set by user space and does not
+ * identify the program type.
+ */
+static bool reuseport_is_migration_prog(const struct bpf_prog *prog)
+{
+	return prog && prog->type == BPF_PROG_TYPE_SK_REUSEPORT &&
+	       prog->expected_attach_type == BPF_SK_REUSEPORT_SELECT_OR_MIGRATE;
+}
+
 void reuseport_stop_listen_sock(struct sock *sk)
 {
 	if (sk->sk_protocol == IPPROTO_TCP) {
@@ -475,7 +487,7 @@ void reuseport_stop_listen_sock(struct sock *sk)
 						 lockdep_is_held(&reuseport_lock));
 
 		if (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_migrate_req) ||
-		    (prog && prog->expected_attach_type == BPF_SK_REUSEPORT_SELECT_OR_MIGRATE)) {
+		    reuseport_is_migration_prog(prog)) {
 			/* Migration capable, move sk from the listening section
 			 * to the closed section.
 			 */
@@ -645,7 +657,7 @@ struct sock *reuseport_migrate_sock(struct sock *sk,
 
 	hash = migrating_sk->sk_hash;
 	prog = rcu_dereference(reuse->prog);
-	if (!prog || prog->expected_attach_type != BPF_SK_REUSEPORT_SELECT_OR_MIGRATE) {
+	if (!reuseport_is_migration_prog(prog)) {
 		if (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_migrate_req))
 			goto select_by_hash;
 		goto failure;

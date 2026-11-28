@@ -232,7 +232,8 @@ static int bpf_skb_load_helper_convert_offset(const struct sk_buff *skb, int off
 		return offset;
 
 	if (offset >= SKF_NET_OFF)
-		return offset - SKF_NET_OFF + skb_network_offset(skb);
+		return bpf_skb_has_network_header(skb) ?
+		       offset - SKF_NET_OFF + skb_network_offset(skb) : INT_MIN;
 
 	if (offset >= SKF_LL_OFF && skb_mac_header_was_set(skb))
 		return offset - SKF_LL_OFF + skb_mac_offset(skb);
@@ -1862,6 +1863,8 @@ BPF_CALL_5(bpf_skb_load_bytes_relative, const struct sk_buff *, skb,
 		start = skb_mac_header(skb);
 		break;
 	case BPF_HDR_START_NET:
+		if (unlikely(!bpf_skb_has_network_header(skb)))
+			goto err_clear;
 		start = skb_network_header(skb);
 		break;
 	default:
@@ -2364,7 +2367,11 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 	}
 
 	rcu_read_lock();
-	if (!nh) {
+	if (!nh && netif_is_l3_master(dev)) {
+		/* The route leads to another device, this one looks it up again */
+		skb_dst_drop(skb);
+		neigh = ip_neigh_gw4(dev, htonl(INADDR_ANY));
+	} else if (!nh) {
 		struct rtable *rt = skb_rtable(skb);
 
 		neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
@@ -2902,7 +2909,7 @@ BPF_CALL_4(bpf_msg_push_data, struct sk_msg *, msg, u32, start,
 	if (unlikely(copy + len < copy))
 		return -EINVAL;
 
-	page = alloc_pages(__GFP_NOWARN | GFP_ATOMIC | __GFP_COMP,
+	page = alloc_pages(__GFP_NOWARN | GFP_ATOMIC | __GFP_COMP | __GFP_ZERO,
 			   get_order(copy + len));
 	if (unlikely(!page))
 		return -ENOMEM;
@@ -4037,7 +4044,7 @@ static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 	if (skb_transport_header_was_set(skb)) {
 		offset = skb_transport_offset(skb);
 		if (offset > 0)
-			min_len = offset;
+			min_len = max_t(u32, min_len, offset);
 	}
 	return min_len;
 }
@@ -4215,10 +4222,15 @@ static const struct bpf_func_proto bpf_xdp_get_buff_len_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_xdp_get_buff_len_trace, struct xdp_buff *, xdp)
+{
+	return xdp ? xdp_get_buff_len(xdp) : 0;
+}
+
 BTF_ID_LIST_SINGLE(bpf_xdp_get_buff_len_bpf_ids, struct, xdp_buff)
 
 const struct bpf_func_proto bpf_xdp_get_buff_len_trace_proto = {
-	.func		= bpf_xdp_get_buff_len,
+	.func		= bpf_xdp_get_buff_len_trace,
 	.gpl_only	= false,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_xdp_get_buff_len_bpf_ids[0],
@@ -4318,7 +4330,7 @@ void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 	if (unlikely(offset + len > xdp_get_buff_len(xdp)))
 		return ERR_PTR(-EINVAL);
 
-	if (likely(offset < size)) /* linear area */
+	if (likely(offset < size || !xdp_buff_has_frags(xdp))) /* linear area */
 		goto out;
 
 	sinfo = xdp_get_shared_info_from_buff(xdp);
@@ -4884,11 +4896,12 @@ err:
 
 BPF_CALL_2(bpf_xdp_redirect, u32, ifindex, u64, flags)
 {
-	struct bpf_redirect_info *ri = bpf_net_ctx_get_ri();
+	struct bpf_redirect_info *ri;
 
-	if (unlikely(flags))
+	if (unlikely(!bpf_net_ctx_get() || flags))
 		return XDP_ABORTED;
 
+	ri = bpf_net_ctx_get_ri();
 	/* NB! Map type UNSPEC and map_id == INT_MAX (never generated
 	 * by map_idr) is used for ifindex based XDP redirect.
 	 */
@@ -5853,10 +5866,16 @@ static int sol_ipv6_sockopt(struct sock *sk, int optname,
 				  KERNEL_SOCKPTR(optval), *optlen);
 }
 
+/* No hook has locked the socket for an async callback */
+static bool bpf_sockopt_allowed(const struct sock *sk)
+{
+	return sk && sk_fullsock(sk) && !bpf_in_async_cb();
+}
+
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	if (!sk_fullsock(sk))
+	if (!bpf_sockopt_allowed(sk))
 		return -EINVAL;
 
 	if (level == SOL_SOCKET)
@@ -5879,7 +5898,7 @@ static bool is_locked_tcp_sock_ops(struct bpf_sock_ops_kern *bpf_sock)
 static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk_fullsock(sk))
+	if (bpf_sockopt_allowed(sk))
 		sock_owned_by_me(sk);
 	return __bpf_setsockopt(sk, level, optname, optval, optlen);
 }
@@ -5889,7 +5908,7 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 {
 	int err, saved_optlen = optlen;
 
-	if (!sk_fullsock(sk)) {
+	if (!bpf_sockopt_allowed(sk)) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -5916,7 +5935,7 @@ done:
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen)
 {
-	if (sk_fullsock(sk))
+	if (bpf_sockopt_allowed(sk))
 		sock_owned_by_me(sk);
 	return __bpf_getsockopt(sk, level, optname, optval, optlen);
 }
@@ -12469,7 +12488,7 @@ const struct bpf_func_proto bpf_skc_to_mptcp_sock_proto = {
 
 BPF_CALL_1(bpf_sock_from_file, struct file *, file)
 {
-	return (unsigned long)sock_from_file(file);
+	return file ? (unsigned long)sock_from_file(file) : 0;
 }
 
 BTF_ID_LIST(bpf_sock_from_file_btf_ids)
@@ -12624,6 +12643,7 @@ __bpf_kfunc int bpf_sock_addr_set_sun_path(struct bpf_sock_addr_kern *sa_kern,
 		return -EINVAL;
 
 	un = (struct sockaddr_un *)sa_kern->uaddr;
+	un->sun_family = AF_UNIX;
 	memcpy(un->sun_path, sun_path, sun_path__sz);
 	sa_kern->uaddrlen = offsetof(struct sockaddr_un, sun_path) + sun_path__sz;
 

@@ -4579,7 +4579,7 @@ static int btf_enum_check_kflag_member(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		nr_bits = int_bitsize;
+		nr_bits = member_type->size * BITS_PER_BYTE;
 	} else if (nr_bits > int_bitsize) {
 		btf_verifier_log_member(env, struct_type, member,
 					"Invalid member bitfield_size");
@@ -4662,12 +4662,30 @@ static void btf_enum_log(struct btf_verifier_env *env,
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
 }
 
+static s64 btf_enum_read(const struct btf_type *t, const void *data)
+{
+	bool sign = btf_type_kflag(t);
+
+	switch (t->size) {
+	case 1:
+		return sign ? *(s8 *)data : *(u8 *)data;
+	case 2:
+		return sign ? *(s16 *)data : *(u16 *)data;
+	case 4:
+		return sign ? (s64)*(s32 *)data : *(u32 *)data;
+	default:
+		return *(s64 *)data;
+	}
+}
+
 static void btf_enum_show(const struct btf *btf, const struct btf_type *t,
 			  u32 type_id, void *data, u8 bits_offset,
 			  struct btf_show *show)
 {
 	const struct btf_enum *enums = btf_type_enum(t);
 	u32 i, nr_enums = btf_type_vlen(t);
+	/* Old compilers don't set the flag for negative values */
+	u32 mask = t->size < 4 ? BIT(t->size * BITS_PER_BYTE) - 1 : U32_MAX;
 	void *safe_data;
 	int v;
 
@@ -4675,10 +4693,10 @@ static void btf_enum_show(const struct btf *btf, const struct btf_type *t,
 	if (!safe_data)
 		return;
 
-	v = *(int *)safe_data;
+	v = btf_enum_read(t, safe_data);
 
 	for (i = 0; i < nr_enums; i++) {
-		if (v != enums[i].val)
+		if ((v ^ enums[i].val) & mask)
 			continue;
 
 		btf_show_type_value(show, "%s",
@@ -4778,7 +4796,7 @@ static void btf_enum64_show(const struct btf *btf, const struct btf_type *t,
 	if (!safe_data)
 		return;
 
-	v = *(u64 *)safe_data;
+	v = btf_enum_read(t, safe_data);
 
 	for (i = 0; i < nr_enums; i++) {
 		if (v != btf_enum64_value(enums + i))
@@ -7444,10 +7462,21 @@ static const struct bpf_raw_tp_null_args raw_tp_null_args[] = {
 	/* iptfs */
 	{ "iptfs_ingress_postq_event", 0x1000 },
 	/* neigh */
+	{ "neigh_create", 0x4000 },
 	{ "neigh_update", 0x10 },
 	/* snd_firewire_lib */
 	{ "amdtp_packet", 0x100 },
 };
+
+u64 btf_raw_tp_null_mask(const struct bpf_prog *prog)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(raw_tp_null_args); i++)
+		if (!strcmp(prog->aux->attach_func_name, raw_tp_null_args[i].func))
+			return raw_tp_null_args[i].mask;
+	return btf_is_module(prog->aux->attach_btf) ? U64_MAX : 0;
+}
 
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
@@ -7485,7 +7514,8 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		nr_args--;
 	}
 
-	if (arg > nr_args) {
+	/* expected_attach_type of struct_ops is the index of the member */
+	if (arg > nr_args || (arg == nr_args && prog->type == BPF_PROG_TYPE_STRUCT_OPS)) {
 		bpf_log(log, "func '%s' doesn't have %d-th argument\n",
 			tname, arg + 1);
 		return false;
@@ -7622,7 +7652,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	if (btf_param_match_suffix(btf, &args[arg], "__nullable"))
 		info->reg_type |= PTR_MAYBE_NULL;
 
-	if (prog->expected_attach_type == BPF_TRACE_RAW_TP) {
+	if (prog->aux->attach_btf_trace) {
 		struct btf *btf = prog->aux->attach_btf;
 		const struct btf_type *t;
 		const char *tname;
@@ -7645,6 +7675,9 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			/* Is the current arg IS_ERR? */
 			if (raw_tp_null_args[i].mask & (0x2ULL << (arg * 4)))
 				ptr_err_raw_tp = true;
+			/* It can be NULL, and programs that do not check it have to load */
+			if (raw_tp_null_args[i].mask & (0x4ULL << (arg * 4)))
+				info->reg_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
 			break;
 		}
 		/* If we don't know NULL-ness specification and the tracepoint
@@ -8127,6 +8160,10 @@ int btf_struct_access(struct bpf_verifier_log *log,
 			 */
 			*next_btf_id = id;
 			*flag = tmp_flag;
+			/* nothing tells where a flexible array ends */
+			t = btf_type_skip_modifiers(btf, reg->btf_id, NULL);
+			if (min_off + size > t->size)
+				*flag = (tmp_flag & ~MEM_RCU) | PTR_UNTRUSTED;
 			ret = PTR_TO_BTF_ID;
 			goto check_variable_offset;
 		case WALK_PTR_UNTRUSTED:
@@ -9665,6 +9702,9 @@ BPF_CALL_4(bpf_btf_find_by_name_kind, char *, name, int, name_sz, u32, kind, int
 
 	if (name_sz <= 1 || name[name_sz - 1])
 		return -EINVAL;
+
+	if (bpf_in_async_cb())
+		return -EPERM;
 
 	ret = bpf_find_btf_id(name, kind, &btf);
 	if (ret > 0 && btf_is_module(btf)) {
