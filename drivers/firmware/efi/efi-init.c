@@ -54,7 +54,7 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 	return addr;
 }
 
-extern __weak const efi_config_table_type_t efi_arch_tables[];
+extern const efi_config_table_type_t efi_arch_tables[];
 
 /*
  * x86 defines its own instance of sysfb_primary_display and uses
@@ -123,7 +123,8 @@ static int __init uefi_init(u64 efi_system_table)
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, systab->nr_tables,
-					 efi_arch_tables);
+					 IS_ENABLED(CONFIG_ARM) ? efi_arch_tables
+								: NULL);
 
 	early_memunmap(config_tables, table_size);
 out:

@@ -45,7 +45,7 @@ SECTIONS
 
 	.bss : {
 		*(.bss* .init.bss*)
-		_end = ALIGN(512);
+		_end = ALIGN(4096);
 		. = _end;
 	}
 
