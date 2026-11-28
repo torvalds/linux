@@ -278,7 +278,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		if (smb2_command != SMB2_TREE_DISCONNECT) {
 			spin_unlock(&tcon->tc_lock);
 			cifs_tcon_dbg(FYI, "can not send cmd %d while umounting\n",
-				      smb2_command);
+				      le16_to_cpu(smb2_command));
 			return -ENODEV;
 		}
 	}
@@ -1294,7 +1294,8 @@ SMB2_negotiate(const unsigned int xid,
 		goto neg_exit;
 	}
 
-	cifs_dbg(FYI, "mode 0x%x\n", rsp->SecurityMode);
+	cifs_dbg(FYI, "%s: security mode 0x%x\n", __func__,
+		 le16_to_cpu(rsp->SecurityMode));
 
 	switch (dialect) {
 	case SMB20_PROT_ID:
@@ -4390,8 +4391,8 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	/* if the server is marked for termination, drop the ref count here */
 	if (server->terminate) {
-		cifs_put_tcp_session(server, true);
 		mutex_unlock(&pserver->reconnect_mutex);
+		cifs_put_tcp_session(server, true);
 		return;
 	}
 

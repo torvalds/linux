@@ -1375,7 +1375,8 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 	gsidoffset = le32_to_cpu(pntsd->gsidoffset);
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
 	cifs_dbg(NOISY, "revision %d type 0x%x ooffset 0x%x goffset 0x%x sacloffset 0x%x dacloffset 0x%x\n",
-		 pntsd->revision, pntsd->type, osidoffset, gsidoffset,
+		 le16_to_cpu(pntsd->revision), le16_to_cpu(pntsd->type),
+		 osidoffset, gsidoffset,
 		 le32_to_cpu(pntsd->sacloffset), dacloffset);
 	fattr->cf_uid = cifs_sb->ctx->linux_uid;
 	fattr->cf_gid = cifs_sb->ctx->linux_gid;

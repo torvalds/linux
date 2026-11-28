@@ -672,7 +672,7 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	}
 	if (pblob->MessageType != NtLmChallenge) {
 		cifs_dbg(VFS, "Incorrect message type %d\n",
-			 pblob->MessageType);
+			 le32_to_cpu(pblob->MessageType));
 		return -EINVAL;
 	}
 
